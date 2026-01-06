@@ -24,12 +24,12 @@ type bufferItem struct {
 
 // eventBuffer stores and uploads a gzip compressed JSON array of EventV1 entries
 type eventBuffer struct {
-	buffer  chan *bufferItem // buffer stores JSON encoded EventV1 data
-	upload  sync.Mutex       // upload controls that uploads are done sequentially
-	enc     *chunkEncoder    // encoder appends events into the gzip compressed JSON array
-	limiter *rate.Limiter
 	metrics metrics.Metrics
 	logger  logging.Logger
+	buffer  chan *bufferItem
+	enc     *chunkEncoder
+	limiter *rate.Limiter
+	upload  sync.Mutex
 }
 
 func newEventBuffer(bufferSizeLimitEvents int64, uploadSizeLimitBytes int64) *eventBuffer {

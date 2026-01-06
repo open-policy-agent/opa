@@ -15,9 +15,9 @@ import (
 )
 
 type updateAST struct {
-	path   storage.Path // data path modified by update
-	remove bool         // indicates whether update removes the value at path
-	value  ast.Value    // value to add/replace at path (ignored if remove is true)
+	value  ast.Value
+	path   storage.Path
+	remove bool
 }
 
 func (u *updateAST) Path() storage.Path {

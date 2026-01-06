@@ -56,18 +56,10 @@ type NonEmptyer interface {
 
 // TransactionParams describes a new transaction.
 type TransactionParams struct {
-
-	// BasePaths indicates the top-level paths where write operations will be performed in this transaction.
-	BasePaths []string
-
-	// RootOverwrite is deprecated. Use BasePaths instead.
+	Context       *Context
+	BasePaths     []string
 	RootOverwrite bool
-
-	// Write indicates if this transaction will perform any write operations.
-	Write bool
-
-	// Context contains key/value pairs passed to triggers.
-	Context *Context
+	Write         bool
 }
 
 // Context is a simple container for key/value pairs.
@@ -180,16 +172,16 @@ type PolicyEvent struct {
 
 // DataEvent describes a change to a base data document.
 type DataEvent struct {
-	Path    Path
 	Data    any
+	Path    Path
 	Removed bool
 }
 
 // TriggerEvent describes the changes that caused the trigger to be invoked.
 type TriggerEvent struct {
+	Context *Context
 	Policy  []PolicyEvent
 	Data    []DataEvent
-	Context *Context
 }
 
 // IsZero returns true if the TriggerEvent indicates no changes occurred. This
@@ -210,15 +202,8 @@ func (e TriggerEvent) DataChanged() bool {
 
 // TriggerConfig contains the trigger registration configuration.
 type TriggerConfig struct {
-	// SkipDataConversion when set to true, avoids converting data passed to
-	// trigger functions from the store to Go types, and instead passes the
-	// original representation (e.g., ast.Value).
+	OnCommit           func(context.Context, Transaction, TriggerEvent)
 	SkipDataConversion bool
-
-	// OnCommit is invoked when a transaction is successfully committed. The
-	// callback is invoked with a handle to the write transaction that
-	// successfully committed before other clients see the changes.
-	OnCommit func(context.Context, Transaction, TriggerEvent)
 }
 
 // Trigger defines the interface that stores implement to register for change

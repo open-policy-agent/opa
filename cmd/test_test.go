@@ -227,10 +227,10 @@ func failTrace(t *testing.T) []*topdown.Event {
 
 func TestPrettyTraceWithLocalVars(t *testing.T) {
 	tests := []struct {
-		note        string
-		includeVars bool
 		files       map[string]string
+		note        string
 		expected    string
+		includeVars bool
 	}{
 		{
 			note:        "without vars",
@@ -2383,12 +2383,12 @@ func TestExitCode(t *testing.T) {
 
 func TestCoverageThreshold(t *testing.T) {
 	testCases := []struct {
-		note              string
 		modules           map[string]string
-		threshold         float64
-		verbose           bool
+		note              string
 		expectedErrOutput string
+		threshold         float64
 		expectedExitCode  int
+		verbose           bool
 	}{
 		{
 			note: "coverage threshold met",
@@ -2638,11 +2638,11 @@ test_l if {
 
 func TestRunWithRegoV1Capability(t *testing.T) {
 	tests := []struct {
-		note         string
-		v0Compatible bool
 		capabilities *ast.Capabilities
 		files        map[string]string
+		note         string
 		expErrs      []string
+		v0Compatible bool
 	}{
 		{
 			note:         "v0 module, v0-compatible, no capabilities",
@@ -2987,11 +2987,11 @@ test_l if {
 
 func TestRun_CompatibleFlags(t *testing.T) {
 	tests := []struct {
+		files        map[string]string
 		note         string
+		expErr       string
 		v0Compatible bool
 		v1Compatible bool
-		files        map[string]string
-		expErr       string
 	}{
 		{
 			note:         "v0 module, no imports",

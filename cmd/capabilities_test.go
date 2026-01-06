@@ -82,9 +82,9 @@ func TestCapabilitiesFile(t *testing.T) {
 func TestCapabilitiesCurrent(t *testing.T) {
 	tests := []struct {
 		note              string
-		v0Compatible      bool
 		expFeatures       []string
 		expFutureKeywords []string
+		v0Compatible      bool
 	}{
 		{
 			note: "current",

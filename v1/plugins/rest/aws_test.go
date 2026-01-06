@@ -28,11 +28,11 @@ import (
 
 // this is usually private; but we need it here
 type metadataPayload struct {
+	Expiration      time.Time
 	Code            string
 	AccessKeyID     string `json:"AccessKeyId"`
 	SecretAccessKey string
 	Token           string
-	Expiration      time.Time
 }
 
 // quick and dirty assertions
@@ -687,9 +687,9 @@ func TestV4SigningUnsignedPayload(t *testing.T) {
 	defer func() { aws.SetRandomSource(rand.Reader) }()
 
 	tests := []struct {
-		disablePayloadSigning bool
-		expectedAuthorization []string
 		expectedShaHeaderVal  string
+		expectedAuthorization []string
+		disablePayloadSigning bool
 	}{
 		{
 			disablePayloadSigning: true,
@@ -1812,15 +1812,15 @@ sso_region = us-east-1
 	}
 
 	tests := []struct {
+		modifySession func(*ssoSessionDetails)
+		modifyCreds   func(*aws.Credentials)
+		setupTest     func()
 		name          string
 		configPath    string
 		profile       string
 		cacheFile     string
-		modifySession func(*ssoSessionDetails)
-		modifyCreds   func(*aws.Credentials)
-		expectError   bool
 		errorContains string
-		setupTest     func()
+		expectError   bool
 	}{
 		{
 			name:          "missing config path",

@@ -17,11 +17,11 @@ func mockPayload(request KMSSignRequest) string {
 
 func TestKMS_SignDigest(t *testing.T) {
 	type testCase struct {
-		name            string
 		request         KMSSignRequest
+		name            string
 		responsePayload string
-		responseStatus  int
 		wantSignature   string
+		responseStatus  int
 		wantErr         bool
 	}
 

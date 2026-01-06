@@ -69,14 +69,14 @@ func NewAPIServerTestParams() runtime.Params {
 // TestRuntime holds metadata and provides helper methods
 // to interact with the runtime being tested.
 type TestRuntime struct {
-	Params         runtime.Params
-	Runtime        *runtime.Runtime
 	Ctx            context.Context
+	Runtime        *runtime.Runtime
 	Cancel         context.CancelFunc
 	Client         *http.Client
 	ConsoleLogger  *test.Logger
-	url            string
 	urlMtx         *sync.Mutex
+	Params         runtime.Params
+	url            string
 	waitForBundles bool
 }
 
@@ -255,8 +255,8 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 
 // TestRuntimeOpts contains parameters for the test runtime.
 type TestRuntimeOpts struct {
-	WaitForBundles   bool // indicates if readiness check should depend on bundle activation
 	PostServeActions func(rt *TestRuntime) error
+	WaitForBundles   bool
 }
 
 // WithRuntime invokes f with a new TestRuntime after waiting for server

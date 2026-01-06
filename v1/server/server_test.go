@@ -69,8 +69,8 @@ type tr struct {
 	method string
 	path   string
 	body   string
-	code   int
 	resp   string
+	code   int
 }
 
 func TestUnversionedGetHealth(t *testing.T) {
@@ -169,8 +169,8 @@ func TestBundlesReady(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note   string
 		status map[string]*plugins.Status
+		note   string
 		ready  bool
 	}{
 		{
@@ -264,10 +264,10 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 	f := newFixture(t)
 
 	cases := []struct {
-		note          string
 		statusUpdates map[string]*plugins.Status
-		exp           int
+		note          string
 		expBody       string
+		exp           int
 	}{
 		{
 			note:          "no plugins configured",
@@ -405,10 +405,10 @@ func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
 	f := newFixture(t)
 
 	cases := []struct {
-		note          string
 		statusUpdates map[string]*plugins.Status
-		exp           int
+		note          string
 		expBody       string
+		exp           int
 	}{
 		{
 			note:          "no plugins configured",
@@ -515,10 +515,10 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note     string
 		statuses map[string]*plugins.Status
-		exp      int
+		note     string
 		expBody  string
+		exp      int
 	}{
 		{
 			note:     "no plugins configured",
@@ -1952,10 +1952,10 @@ func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
 
 	tests := []struct {
 		note                  string
-		payload               []byte
-		forcePayloadSizeField uint32 // Size to manually set the payload field for the gzip blob.
-		expRespHTTPStatus     int
 		expErrorMsg           string
+		payload               []byte
+		expRespHTTPStatus     int
+		forcePayloadSizeField uint32
 	}{
 		{
 			note:              "empty message",
@@ -2063,16 +2063,16 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 
 	tests := []struct {
 		note                  string
-		wantGzip              bool
-		wantChunkedEncoding   bool
-		payload               []byte
-		forceContentLen       int64  // Size to manually set the Content-Length header to.
-		forcePayloadSizeField uint32 // Size to manually set the payload field for the gzip blob.
-		expRespHTTPStatus     int
 		expWarningMsg         string
 		expErrorMsg           string
+		payload               []byte
+		forceContentLen       int64
+		expRespHTTPStatus     int
 		maxLen                int64
 		gzipMaxLen            int64
+		forcePayloadSizeField uint32
+		wantGzip              bool
+		wantChunkedEncoding   bool
 	}{
 		{
 			note:              "empty message",
@@ -3542,9 +3542,9 @@ r contains x if { z[x] = 4 }`
 
 	tests := []struct {
 		note        string
-		regoVersion ast.RegoVersion
 		module      string
 		expErrs     []string
+		regoVersion ast.RegoVersion
 	}{
 		{
 			note:        "v0 server, v0 module",
@@ -4179,12 +4179,8 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 
 	var resp struct {
 		Result struct {
-			Plugins struct {
-				Status struct {
-					State string
-				}
-			}
 			Metrics map[string]any
+			Plugins struct{ Status struct{ State string } }
 		}
 	}
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp); err != nil {
@@ -4383,12 +4379,12 @@ func TestDecisionLogging(t *testing.T) {
 
 	reqs := []struct {
 		raw      *http.Request
-		v0       bool
 		method   string
 		path     string
 		body     string
-		code     int
 		response string
+		code     int
+		v0       bool
 	}{
 		{
 			method:   "PUT",
@@ -4574,8 +4570,8 @@ func TestQueryV1(t *testing.T) {
 
 	tests := []struct {
 		note        string
-		regoVersion ast.RegoVersion
 		query       string
+		regoVersion ast.RegoVersion
 		expErr      bool
 	}{
 		{
@@ -6937,8 +6933,8 @@ func TestParseRefQuery(t *testing.T) {
 	cases := []struct {
 		note    string
 		raw     string
-		expBody ast.Body
 		expErr  string
+		expBody ast.Body
 	}{
 		{
 			note:   "unparseable",

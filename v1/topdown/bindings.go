@@ -30,9 +30,9 @@ func (u *undo) Undo() {
 }
 
 type bindings struct {
-	id     uint64
 	values bindingsArrayHashmap
 	instr  *Instrumentation
+	id     uint64
 }
 
 func newBindings(id uint64, instr *Instrumentation) *bindings {
@@ -304,9 +304,9 @@ const maxLinearScan = 16
 // of a hash map for smaller # of entries. Hash maps start to
 // show off their performance advantage only after 16 keys.
 type bindingsArrayHashmap struct {
-	n int // Entries in the array.
 	a *[maxLinearScan]bindingArrayKeyValue
 	m map[ast.Var]bindingArrayKeyValue
+	n int
 }
 
 type bindingArrayKeyValue struct {

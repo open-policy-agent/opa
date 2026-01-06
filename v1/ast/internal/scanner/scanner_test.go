@@ -96,10 +96,10 @@ func TestLiterals(t *testing.T) {
 	tests := []struct {
 		note       string
 		input      string
+		wantLit    string
 		wantRow    int
 		wantOffset int
 		wantTok    tokens.Token
-		wantLit    string
 	}{
 		{
 			note:       "ascii chars",
@@ -182,13 +182,13 @@ func TestTemplateStrings(t *testing.T) {
 	tests := []struct {
 		note       string
 		input      string
+		wantLit    string
+		wantErr    string
 		opts       []ScanOption
 		offset     int
 		wantRow    int
 		wantOffset int
 		wantTok    tokens.Token
-		wantLit    string
-		wantErr    string
 	}{
 		// Single-line
 		{

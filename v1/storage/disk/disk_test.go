@@ -33,15 +33,15 @@ type testRead struct {
 }
 
 type testWrite struct {
-	op    storage.PatchOp
 	path  string
 	value string
+	op    storage.PatchOp
 }
 
 type testWriteError struct {
-	op    storage.PatchOp
 	path  string
 	value string
+	op    storage.PatchOp
 }
 
 // testCount lets you assert the number of keys under a prefix.

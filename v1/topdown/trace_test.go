@@ -703,9 +703,9 @@ func TestTraceRewrittenVars(t *testing.T) {
 	}
 
 	tests := []struct {
-		note string
 		evt  *Event
 		exp  func(*testing.T, *Event, *Event)
+		note string
 	}{
 		{
 			note: "issue 2022",
@@ -892,9 +892,9 @@ func TestShortTraceFileNames(t *testing.T) {
 	longFilePath3 := "RqS50uWAOxqqHmzdKVM3OCVsZDb12FJikUYHhz9pNqMWx3wjeQBKY3UYXsJXzYGOzuYZbidag5SfKVdk.rego"
 
 	cases := []struct {
+		expectedNames   map[string]string
 		note            string
 		trace           []*Event
-		expectedNames   map[string]string
 		expectedLongest int
 	}{
 		{

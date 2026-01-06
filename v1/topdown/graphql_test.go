@@ -184,10 +184,10 @@ func TestGraphQLParseObject(t *testing.T) {
 	)
 
 	cases := []struct {
+		result  *ast.Term
 		note    string
 		schema  string
 		query   string
-		result  *ast.Term
 		wantErr bool
 	}{
 		{
@@ -290,9 +290,9 @@ func TestGraphQLSchemaIsValid(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note    string
-		schema  *ast.Term
 		result  ast.Value
+		schema  *ast.Term
+		note    string
 		wantErr bool
 	}{
 		{
@@ -405,10 +405,10 @@ func TestGraphQLParseAndVerify(t *testing.T) {
 	)
 
 	cases := []struct {
+		result  *ast.Term
 		note    string
 		schema  string
 		query   string
-		result  *ast.Term
 		wantErr bool
 	}{
 		{
@@ -550,10 +550,10 @@ func TestGraphQLIsValid(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note    string
+		result  ast.Value
 		query   *ast.Term
 		schema  *ast.Term
-		result  ast.Value
+		note    string
 		wantErr bool
 	}{
 		{
@@ -661,9 +661,9 @@ func TestGraphQLParseQuery(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note    string
 		query   *ast.Term
 		result  *ast.Term
+		note    string
 		wantErr bool
 	}{
 		{
@@ -761,9 +761,9 @@ func TestGraphQLParseSchema(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note    string
 		schema  *ast.Term
 		result  *ast.Term
+		note    string
 		wantErr bool
 	}{
 		{
@@ -859,8 +859,8 @@ func TestGraphQLParseSchema(t *testing.T) {
 
 func TestGraphQLParseSchemaAlloc(t *testing.T) {
 	cases := []struct {
-		note     string
 		schema   *ast.Term
+		note     string
 		maxAlloc uint64
 	}{
 		{
@@ -918,9 +918,9 @@ func TestGraphQLParseSchemaAlloc(t *testing.T) {
 
 func TestFormatGqlParserError(t *testing.T) {
 	testCases := []struct {
-		desc   string
 		inErr  error
 		outErr error
+		desc   string
 	}{
 		// Expected errors based on https://github.com/vektah/gqlparser/blob/master/gqlerror/error.go#L40-L67
 		{

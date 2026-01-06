@@ -16,10 +16,10 @@ func TestReadMaybeCompressedBody(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		payload       []byte
-		forgedSize    uint32 // If > 0, overwrite trailer with this size
-		limit         int64
 		expectedError string
+		payload       []byte
+		limit         int64
+		forgedSize    uint32
 	}{
 		{
 			name:          "valid payload",

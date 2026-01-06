@@ -39,41 +39,41 @@ import (
 var errIllegalUnknownsArg = errors.New("illegal argument with --unknowns, specify string with one or more --unknowns")
 
 type evalCommandParams struct {
-	capabilities              *capabilitiesFlag
-	coverage                  bool
-	partial                   bool
-	unknowns                  []string
-	disableInlining           []string
-	nondeterministicBuiltions bool
-	shallowInlining           bool
-	disableIndexing           bool
-	disableEarlyExit          bool
-	strictBuiltinErrors       bool
-	showBuiltinErrors         bool
-	dataPaths                 repeatedStringFlag
-	inputPath                 string
-	imports                   repeatedStringFlag
-	pkg                       string
-	stdin                     bool
-	stdinInput                bool
-	explain                   *util.EnumFlag
-	metrics                   bool
-	instrument                bool
-	ignore                    []string
+	target                    *util.EnumFlag
+	schema                    *schemaFlags
 	outputFormat              *util.EnumFlag
-	profile                   bool
+	capabilities              *capabilitiesFlag
+	explain                   *util.EnumFlag
+	inputPath                 string
+	pkg                       string
+	ignore                    []string
+	disableInlining           []string
+	unknowns                  []string
+	entrypoints               repeatedStringFlag
+	bundlePaths               repeatedStringFlag
+	dataPaths                 repeatedStringFlag
+	imports                   repeatedStringFlag
 	profileCriteria           repeatedStringFlag
-	profileLimit              intFlag
-	count                     int
 	prettyLimit               intFlag
+	profileLimit              intFlag
+	timeout                   time.Duration
+	count                     int
+	optimizationLevel         int
+	stdin                     bool
+	showBuiltinErrors         bool
+	profile                   bool
+	metrics                   bool
+	shallowInlining           bool
+	nondeterministicBuiltions bool
+	disableIndexing           bool
 	fail                      bool
 	failDefined               bool
-	bundlePaths               repeatedStringFlag
-	schema                    *schemaFlags
-	target                    *util.EnumFlag
-	timeout                   time.Duration
-	optimizationLevel         int
-	entrypoints               repeatedStringFlag
+	stdinInput                bool
+	partial                   bool
+	coverage                  bool
+	disableEarlyExit          bool
+	instrument                bool
+	strictBuiltinErrors       bool
 	strict                    bool
 	v0Compatible              bool
 	v1Compatible              bool
@@ -542,14 +542,14 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 }
 
 type evalContext struct {
-	params           evalCommandParams
 	metrics          metrics.Metrics
 	profiler         *resettableProfiler
 	cover            *cover.Cover
 	tracer           *topdown.BufferTracer
+	builtInErrorList *[]topdown.Error
 	regoArgs         []func(*rego.Rego)
 	evalArgs         []rego.EvalOption
-	builtInErrorList *[]topdown.Error
+	params           evalCommandParams
 }
 
 func setupEval(args []string, params evalCommandParams) (*evalContext, error) {

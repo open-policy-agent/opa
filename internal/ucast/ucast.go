@@ -14,10 +14,10 @@ import (
 
 // The "union" structure for incoming UCAST trees.
 type UCASTNode struct {
+	Value any    `json:"value,omitempty"`
 	Type  string `json:"type"`
 	Op    string `json:"operator"`
 	Field string `json:"field,omitempty"`
-	Value any    `json:"value,omitempty"`
 }
 
 // FieldRef can be used in UCASTNode.Value to reference another field, i.e. database column.

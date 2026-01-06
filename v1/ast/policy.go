@@ -202,56 +202,48 @@ type (
 
 	// Comment contains the raw text from the comment in the definition.
 	Comment struct {
-		// TODO: these fields have inconsistent JSON keys with other structs in this package.
-		Text     []byte
 		Location *Location
+		Text     []byte
 	}
 
 	// Package represents the namespace of the documents produced
 	// by rules inside the module.
 	Package struct {
-		Path     Ref       `json:"path"`
 		Location *Location `json:"location,omitempty"`
+		Path     Ref       `json:"path"`
 	}
 
 	// Import represents a dependency on a document outside of the policy
 	// namespace. Imports are optional.
 	Import struct {
 		Path     *Term     `json:"path"`
-		Alias    Var       `json:"alias,omitempty"`
 		Location *Location `json:"location,omitempty"`
+		Alias    Var       `json:"alias,omitempty"`
 	}
 
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
-		Default     bool           `json:"default,omitempty"`
-		Head        *Head          `json:"head"`
-		Body        Body           `json:"body"`
-		Else        *Rule          `json:"else,omitempty"`
-		Location    *Location      `json:"location,omitempty"`
-		Annotations []*Annotations `json:"annotations,omitempty"`
-
-		// Module is a pointer to the module containing this rule. If the rule
-		// was NOT created while parsing/constructing a module, this should be
-		// left unset. The pointer is not included in any standard operations
-		// on the rule (e.g., printing, comparison, visiting, etc.)
-		Module *Module `json:"-"`
-
+		Head          *Head          `json:"head"`
+		Else          *Rule          `json:"else,omitempty"`
+		Location      *Location      `json:"location,omitempty"`
+		Module        *Module        `json:"-"`
+		Body          Body           `json:"body"`
+		Annotations   []*Annotations `json:"annotations,omitempty"`
+		Default       bool           `json:"default,omitempty"`
 		generatedBody bool
 	}
 
 	// Head represents the head of a rule.
 	Head struct {
-		Name      Var       `json:"name,omitempty"`
-		Reference Ref       `json:"ref,omitempty"`
-		Args      Args      `json:"args,omitempty"`
-		Key       *Term     `json:"key,omitempty"`
-		Value     *Term     `json:"value,omitempty"`
-		Assign    bool      `json:"assign,omitempty"`
-		Location  *Location `json:"location,omitempty"`
-
+		Key            *Term     `json:"key,omitempty"`
+		Value          *Term     `json:"value,omitempty"`
+		Location       *Location `json:"location,omitempty"`
+		Name           Var       `json:"name,omitempty"`
+		Reference      Ref       `json:"ref,omitempty"`
+		Args           Args      `json:"args,omitempty"`
 		keywords       []tokens.Token
+		Assign         bool `json:"assign,omitempty"`
 		generatedValue bool
 	}
 
@@ -264,29 +256,28 @@ type (
 
 	// Expr represents a single expression contained inside the body of a rule.
 	Expr struct {
-		With      []*With   `json:"with,omitempty"`
-		Terms     any       `json:"terms"`
-		Index     int       `json:"index"`
-		Generated bool      `json:"generated,omitempty"`
-		Negated   bool      `json:"negated,omitempty"`
-		Location  *Location `json:"location,omitempty"`
-
+		Terms         any       `json:"terms"`
+		Location      *Location `json:"location,omitempty"`
 		generatedFrom *Expr
+		With          []*With `json:"with,omitempty"`
 		generates     []*Expr
+		Index         int  `json:"index"`
+		Generated     bool `json:"generated,omitempty"`
+		Negated       bool `json:"negated,omitempty"`
 	}
 
 	// SomeDecl represents a variable declaration statement. The symbols are variables.
 	SomeDecl struct {
-		Symbols  []*Term   `json:"symbols"`
 		Location *Location `json:"location,omitempty"`
+		Symbols  []*Term   `json:"symbols"`
 	}
 
 	Every struct {
 		Key      *Term     `json:"key"`
 		Value    *Term     `json:"value"`
 		Domain   *Term     `json:"domain"`
-		Body     Body      `json:"body"`
 		Location *Location `json:"location,omitempty"`
+		Body     Body      `json:"body"`
 	}
 
 	// With represents a modifier on an expression.
@@ -1046,9 +1037,9 @@ func (head *Head) MarshalJSON() ([]byte, error) {
 	// for unmarshaling a json object into a Head struct!
 	type h Head
 	return json.Marshal(struct {
-		h
-		Ref      Ref       `json:"ref"`
 		Location *Location `json:"location,omitempty"`
+		Ref      Ref       `json:"ref"`
+		h
 	}{
 		h:        h(*head),
 		Ref:      head.Ref(),

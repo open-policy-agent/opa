@@ -484,11 +484,11 @@ func TestPlannerLocations(t *testing.T) {
 	}
 
 	tests := []struct {
+		exps    map[ir.Stmt]string
+		where   func(*ir.Policy) any
 		note    string
 		queries []string
 		modules []string
-		exps    map[ir.Stmt]string   // stmt -> expected location "file:row:col: text"
-		where   func(*ir.Policy) any // where to start walking search for `exps`
 	}{
 		{
 			note:    "complete rule reference",

@@ -11,21 +11,21 @@ import (
 )
 
 type result struct {
-	DecisionID string `json:"decision_id,omitempty"`
-	Path       string `json:"path"`
 	Error      error  `json:"error,omitempty"`
 	Result     *any   `json:"result,omitempty"`
+	DecisionID string `json:"decision_id,omitempty"`
+	Path       string `json:"path"`
 }
 
 type jsonReporter struct {
 	w            io.Writer
-	buf          []result
 	ctx          *context.Context
 	opa          *sdk.OPA
 	params       *Params
+	decisionFunc func(ctx context.Context, options sdk.DecisionOptions) (*sdk.DecisionResult, error)
+	buf          []result
 	errorCount   int
 	failCount    int
-	decisionFunc func(ctx context.Context, options sdk.DecisionOptions) (*sdk.DecisionResult, error)
 }
 
 func (jr *jsonReporter) Report(r result) {

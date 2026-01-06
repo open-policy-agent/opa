@@ -42,18 +42,18 @@ type Thread interface {
 }
 
 type thread struct {
-	id              ThreadID
-	name            string
 	stack           stack
-	eventHandler    eventHandler
-	breakpointLatch latch
-	stopped         bool
 	state           threadState
-	varManager      *variableManager
 	virtualCache    topdown.VirtualCache
 	store           storage.Store
 	logger          logging.Logger
+	eventHandler    eventHandler
+	varManager      *variableManager
+	name            string
+	breakpointLatch latch
+	id              ThreadID
 	mtx             sync.Mutex
+	stopped         bool
 }
 
 func (t *thread) ID() ThreadID {
@@ -305,10 +305,10 @@ type Scope interface {
 }
 
 type scope struct {
+	location           *location.Location
 	name               string
 	namedVariables     int
 	variablesReference VarRef
-	location           *location.Location
 }
 
 func (s scope) Name() string {

@@ -119,14 +119,14 @@ func NewFileLoader() FileLoader {
 
 type fileLoader struct {
 	metrics           metrics.Metrics
-	filter            Filter
-	bvc               *bundle.VerificationConfig
-	skipVerify        bool
-	bundleLazyLoading bool
-	files             map[string]bundle.FileInfo
-	opts              ast.ParserOptions
 	fsys              fs.FS
 	reader            io.Reader
+	filter            Filter
+	bvc               *bundle.VerificationConfig
+	files             map[string]bundle.FileInfo
+	opts              ast.ParserOptions
+	skipVerify        bool
+	bundleLazyLoading bool
 	followSymlinks    bool
 }
 

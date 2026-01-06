@@ -43,9 +43,9 @@ func TestStatusUpdateBuffer(t *testing.T) {
 
 	tests := []struct {
 		name                  string
+		expectedNameDropped   string
 		numberOfStatusUpdates int
 		expectedStatusUpdates int
-		expectedNameDropped   string
 	}{
 		{
 			name:                  "add multiple events dropping the oldest",
@@ -90,8 +90,8 @@ func TestConfigValueParse(t *testing.T) {
 	tests := []struct {
 		note             string
 		input            string
-		expectedNoConfig bool
 		expectedValue    []float64
+		expectedNoConfig bool
 	}{
 		{
 			note:             "empty config",
@@ -1058,11 +1058,11 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 
 func TestParseConfigTriggerMode(t *testing.T) {
 	cases := []struct {
-		note     string
-		config   []byte
-		expected plugins.TriggerMode
-		wantErr  bool
 		err      error
+		note     string
+		expected plugins.TriggerMode
+		config   []byte
+		wantErr  bool
 	}{
 		{
 			note:     "default trigger mode",
@@ -1191,9 +1191,9 @@ func newConfig(manager *plugins.Manager, options ...testPluginCustomizer) *Confi
 
 type testServer struct {
 	t       *testing.T
-	expCode int
 	server  *httptest.Server
 	ch      chan UpdateRequestV1
+	expCode int
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {

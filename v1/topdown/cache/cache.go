@@ -296,9 +296,9 @@ type cacheItem struct {
 
 type cache struct {
 	items  map[string]cacheItem
-	usage  int64
 	config *Config
 	l      *list.List
+	usage  int64
 	mtx    sync.Mutex
 }
 
@@ -449,8 +449,8 @@ type InterQueryValueCacheBucket interface {
 }
 
 type interQueryValueCacheBucket struct {
-	items  util.HasherMap[ast.Value, any]
 	config *NamedValueCacheConfig
+	items  util.HasherMap[ast.Value, any]
 	mtx    sync.RWMutex
 }
 
@@ -540,10 +540,10 @@ func NewInterQueryValueCache(_ context.Context, config *Config) InterQueryValueC
 }
 
 type interQueryBuiltinValueCache struct {
-	globalCache     interQueryValueCacheBucket
-	namedCachesLock sync.RWMutex
 	namedCaches     map[string]*interQueryValueCacheBucket
 	config          *InterQueryBuiltinValueCacheConfig
+	globalCache     interQueryValueCacheBucket
+	namedCachesLock sync.RWMutex
 }
 
 func (c *interQueryBuiltinValueCache) Get(k ast.Value) (any, bool) {

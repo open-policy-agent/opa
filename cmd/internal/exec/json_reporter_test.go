@@ -36,10 +36,10 @@ func TestJsonReporter_StoreDecision(t *testing.T) {
 	testString := "test"
 	ctx := t.Context()
 	tcs := []struct {
+		Params               Params
+		DecisionFunc         func(ctx context.Context, options sdk.DecisionOptions) (*sdk.DecisionResult, error)
 		Name                 string
 		Path                 string
-		DecisionFunc         func(ctx context.Context, options sdk.DecisionOptions) (*sdk.DecisionResult, error)
-		Params               Params
 		ExpectedErrorCount   int
 		ExpectedFailureCount int
 	}{
@@ -98,8 +98,8 @@ func TestJsonReporter_StoreDecision(t *testing.T) {
 
 func TestJsonReporter_ReportFailure(t *testing.T) {
 	tcs := []struct {
-		Name   string
 		Params Params
+		Name   string
 		Errs   int
 		Fails  int
 		IsErr  bool

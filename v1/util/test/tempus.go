@@ -32,8 +32,8 @@ func EventuallyOrFatal(t *testing.T, timeout time.Duration, f func() bool) {
 }
 
 type BlockingWriter struct {
-	m   sync.Mutex
 	buf bytes.Buffer
+	m   sync.Mutex
 }
 
 func (w *BlockingWriter) Write(p []byte) (n int, err error) {

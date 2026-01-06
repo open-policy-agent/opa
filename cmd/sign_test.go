@@ -131,10 +131,10 @@ func TestBundleSignVerification(t *testing.T) {
 func TestValidateSignParams(t *testing.T) {
 
 	tests := map[string]struct {
-		args    []string
-		params  signCmdParams
-		wantErr bool
 		err     error
+		params  signCmdParams
+		args    []string
+		wantErr bool
 	}{
 		"no_args": {
 			[]string{},

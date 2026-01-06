@@ -32,28 +32,12 @@ var (
 
 // Opts lets you control the code formatting via `AstWithOpts()`.
 type Opts struct {
-	// IgnoreLocations instructs the formatter not to use the AST nodes' locations
-	// into account when laying out the code: notably, when the input is the result
-	// of partial evaluation, arguments maybe have been shuffled around, but still
-	// carry along their original source locations.
-	IgnoreLocations bool
-
-	// RegoVersion is the version of Rego to format code for.
-	RegoVersion ast.RegoVersion
-
-	// ParserOptions is the parser options used when parsing the module to be formatted.
-	ParserOptions *ast.ParserOptions
-
-	// DropV0Imports instructs the formatter to drop all v0 imports from the module; i.e. 'rego.v1' and 'future.keywords' imports.
-	// Imports are only removed if [Opts.RegoVersion] makes them redundant.
-	DropV0Imports bool
-
-	// SkipDefensiveCopying, if true, will avoid deep-copying the AST before formatting it.
-	// This is true by default for all Source* functions, but false by default for Ast* functions,
-	// as some formatting operations may otherwise mutate the AST.
+	ParserOptions        *ast.ParserOptions
+	Capabilities         *ast.Capabilities
+	RegoVersion          ast.RegoVersion
+	IgnoreLocations      bool
+	DropV0Imports        bool
 	SkipDefensiveCopying bool
-
-	Capabilities *ast.Capabilities
 }
 
 func (o Opts) effectiveRegoVersion() ast.RegoVersion {
@@ -142,28 +126,12 @@ func Ast(x any) ([]byte, error) {
 }
 
 type fmtOpts struct {
-	// When the future keyword "contains" is imported, all the pretty-printed
-	// modules will use that format for partial sets.
-	// NOTE(sr): For ref-head rules, this will be the default behaviour, since
-	// we need "contains" to disambiguate complete rules from partial sets.
-	contains bool
-
-	// Same logic applies as for "contains": if `future.keywords.if` (or all
-	// future keywords) is imported, we'll render rules that can use `if` with
-	// `if`.
-	ifs bool
-
-	// We check all rule ref heads to see if any of them _requires_ support
-	// for ref heads -- if they do, we'll print all of them in a different way
-	// than if they don't.
-	refHeads bool
-
-	regoV1         bool
-	regoV1Imported bool
-	futureKeywords []string
-
-	// If true, the formatter will retain keywords in refs, e.g. `p.not ` instead of `p["not"]`.
-	// The format of the original ref is preserved, so `p["not"]` will still be formatted as `p["not"]`.
+	futureKeywords      []string
+	contains            bool
+	ifs                 bool
+	refHeads            bool
+	regoV1              bool
+	regoV1Imported      bool
 	allowKeywordsInRefs bool
 }
 
@@ -399,15 +367,14 @@ func defaultLocation(x ast.Node) *ast.Location {
 }
 
 type writer struct {
-	buf bytes.Buffer
-
-	indent                  string
-	level                   int
-	inline                  bool
 	beforeEnd               *ast.Comment
-	delay                   bool
+	indent                  string
 	errs                    ast.Errors
 	fmtOpts                 fmtOpts
+	buf                     bytes.Buffer
+	level                   int
+	inline                  bool
+	delay                   bool
 	writeCommentOnFinalLine bool
 }
 
@@ -2194,8 +2161,8 @@ func (w *writer) endLine() {
 
 type unexpectedCommentError struct {
 	newComment         string
-	newCommentRow      int
 	existingComment    string
+	newCommentRow      int
 	existingCommentRow int
 }
 

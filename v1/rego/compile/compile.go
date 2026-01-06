@@ -137,13 +137,12 @@ func New(opts ...CompileOption) *Compile {
 // Prepared represents a ready-for-eval intermediate state where everything not depending
 // on input has already been done.
 type Prepared struct {
-	compile *Compile // carry along
-
+	compile              *Compile
 	constraintSet        *compile.ConstraintSet
 	shorts               compile.Set[string]
-	regoPrepareOptions   []rego.PrepareOption
 	preparedMaskQuery    *rego.PreparedEvalQuery
 	preparedPartialQuery *rego.PreparedPartialQuery
+	regoPrepareOptions   []rego.PrepareOption
 }
 
 type PrepareOption func(*Prepared)

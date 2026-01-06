@@ -9,8 +9,8 @@ import (
 )
 
 type ExitError struct {
-	Exit    int
 	wrapped error
+	Exit    int
 }
 
 func newExitError(exit int) error {

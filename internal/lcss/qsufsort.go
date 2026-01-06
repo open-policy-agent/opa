@@ -135,8 +135,8 @@ func initGroups(sa []int, data []byte) []int {
 type suffixSortable struct {
 	sa  []int
 	inv []int
+	buf []int
 	h   int
-	buf []int // common scratch space
 }
 
 func (x *suffixSortable) Len() int           { return len(x.sa) }

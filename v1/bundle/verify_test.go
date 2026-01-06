@@ -19,10 +19,10 @@ func TestVerifyBundleSignature(t *testing.T) {
 	badTokenPayload := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaWxlcyI6eyJuYW1lIjoiZGIvdWFtMi9wb2xpY3kvb3BhLXBvbGljeS5yZWdvIiwiaGFzaCI6IjQyY2ZlNjc2OGI1N2JiNWY3NTAzYzE2NWMyOGRkMDdhYzViODEzNTU0ZWJjODUwZjJjYzM1ODQzZTcxMzdiMWQifSwiaWF0IjoxNTkyMjQ4MDI3LCJpc3MiOiJKV1RTZXJ2aWNlIiwia2V5aWQiOiJmb28iLCJzY29wZSI6IndyaXRlIn0.J3KJFOycHPy4Wkw_LzzIKvTMqCsV8L8DdQW5Q-vieKg`
 
 	tests := map[string]struct {
-		input              SignaturesConfig
-		readerVerifyConfig *VerificationConfig
-		wantErr            bool
 		err                error
+		readerVerifyConfig *VerificationConfig
+		input              SignaturesConfig
+		wantErr            bool
 	}{
 		"no_signatures": {
 			SignaturesConfig{},
@@ -163,12 +163,12 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 	-----END RSA PRIVATE KEY-----`*/
 
 	tests := map[string]struct {
-		token   string
+		err     error
 		keys    map[string]*KeyConfig
+		token   string
 		keyID   string
 		scope   string
 		wantErr bool
-		err     error
 	}{
 		"no_public_key_id": {
 			signedNoKeyIDTokenHS256,
@@ -252,10 +252,10 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 func TestVerifyBundleFile(t *testing.T) {
 
 	tests := map[string]struct {
-		files       [][2]string
-		readerFiles map[string]FileInfo
-		wantErr     bool
 		err         error
+		readerFiles map[string]FileInfo
+		files       [][2]string
+		wantErr     bool
 	}{
 		"file_not_found": {
 			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},

@@ -34,9 +34,9 @@ type RuleIndex interface {
 
 // IndexResult contains the result of an index lookup.
 type IndexResult struct {
-	Rules          []*Rule
 	Else           map[*Rule][]*Rule
 	Default        *Rule
+	Rules          []*Rule
 	Kind           RuleKind
 	EarlyExit      bool
 	OnlyGroundRefs bool
@@ -260,14 +260,14 @@ func (r *ruleWalker) Do(x any) trieWalker {
 }
 
 type valueMapper struct {
-	Key      string
 	MapValue func(Value) Value
+	Key      string
 }
 
 type refindex struct {
-	Ref    Ref
 	Value  Value
 	Mapper *valueMapper
+	Ref    Ref
 }
 
 type refindices struct {
@@ -471,8 +471,8 @@ type trieWalker interface {
 
 type trieTraversalResult struct {
 	unordered map[int][]*ruleNode
-	ordering  []int
 	exist     *Term
+	ordering  []int
 	multiple  bool
 }
 
@@ -511,15 +511,15 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 }
 
 type trieNode struct {
-	ref       Ref
-	mappers   []*valueMapper
 	next      *trieNode
 	any       *trieNode
 	undefined *trieNode
 	scalars   *util.HasherMap[Value, *trieNode]
 	array     *trieNode
-	rules     []*ruleNode
 	value     *Term
+	ref       Ref
+	mappers   []*valueMapper
+	rules     []*ruleNode
 	multiple  bool
 }
 
@@ -575,8 +575,8 @@ func (node *trieNode) append(prio [2]int, rule *Rule) {
 }
 
 type ruleNode struct {
-	prio [2]int
 	rule *Rule
+	prio [2]int
 }
 
 func newTrieNodeImpl() *trieNode {

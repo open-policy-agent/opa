@@ -62,10 +62,10 @@ func RunWithFilter(ctx context.Context, _ loader.Filter, paths ...string) ([]*Re
 }
 
 type SubResult struct {
-	Name       string           `json:"name,omitempty"`
-	Fail       bool             `json:"fail,omitempty"`
-	Trace      []*topdown.Event `json:"-"`
 	SubResults SubResultMap     `json:"sub_results,omitempty"`
+	Name       string           `json:"name,omitempty"`
+	Trace      []*topdown.Event `json:"-"`
+	Fail       bool             `json:"fail,omitempty"`
 }
 
 type SubResultMap map[string]*SubResult
@@ -134,18 +134,18 @@ func termToString(t *ast.Term) string {
 
 // Result represents a single test case result.
 type Result struct {
-	Location        *ast.Location            `json:"location"`
-	Package         string                   `json:"package"`
-	Name            string                   `json:"name"`
-	Fail            bool                     `json:"fail,omitempty"`
 	Error           error                    `json:"error,omitempty"`
-	Skip            bool                     `json:"skip,omitempty"`
-	Duration        time.Duration            `json:"duration"`
-	Trace           []*topdown.Event         `json:"trace,omitempty"`
-	Output          []byte                   `json:"output,omitempty"`
+	Location        *ast.Location            `json:"location"`
 	FailedAt        *ast.Expr                `json:"failed_at,omitempty"`
 	BenchmarkResult *testing.BenchmarkResult `json:"benchmark_result,omitempty"`
 	SubResults      SubResultMap             `json:"sub_results,omitempty"`
+	Package         string                   `json:"package"`
+	Name            string                   `json:"name"`
+	Trace           []*topdown.Event         `json:"trace,omitempty"`
+	Output          []byte                   `json:"output,omitempty"`
+	Duration        time.Duration            `json:"duration"`
+	Fail            bool                     `json:"fail,omitempty"`
+	Skip            bool                     `json:"skip,omitempty"`
 }
 
 func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event, output []byte) *Result {
@@ -251,21 +251,21 @@ type BenchmarkOptions struct {
 
 // Runner implements simple test discovery and execution.
 type Runner struct {
-	compiler              *ast.Compiler
-	store                 storage.Store
 	cover                 topdown.QueryTracer
+	store                 storage.Store
+	bundles               map[string]*bundle.Bundle
+	runtime               *ast.Term
+	modules               map[string]*ast.Module
+	compiler              *ast.Compiler
+	filter                string
+	target                string
+	customBuiltins        []*Builtin
+	timeout               time.Duration
+	defaultRegoVersion    ast.RegoVersion
+	parallel              int
 	trace                 bool
 	enablePrintStatements bool
 	raiseBuiltinErrors    bool
-	runtime               *ast.Term
-	timeout               time.Duration
-	modules               map[string]*ast.Module
-	bundles               map[string]*bundle.Bundle
-	filter                string
-	target                string // target type (wasm, rego, etc.)
-	customBuiltins        []*Builtin
-	defaultRegoVersion    ast.RegoVersion
-	parallel              int
 }
 
 // NewRunner returns a new runner.

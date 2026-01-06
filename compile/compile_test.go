@@ -24,8 +24,8 @@ func TestCompilerDefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note           string
 		module         string
-		expRegoVersion ast.RegoVersion
 		expErrs        []string
+		expRegoVersion ast.RegoVersion
 	}{
 		{
 			note: "v0", // Default rego-version
@@ -398,11 +398,11 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 	regoDef := ast.RegoV0.Int()
 
 	tests := []struct {
+		expGlobalRegoVersion *int
+		expFileRegoVersions  map[string]int
 		note                 string
 		bundles              []*bundle.Bundle
 		regoVersion          ast.RegoVersion
-		expGlobalRegoVersion *int
-		expFileRegoVersions  map[string]int
 	}{
 		{
 			note: "single bundle, no bundle rego version (default version)",

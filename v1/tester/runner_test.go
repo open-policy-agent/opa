@@ -52,17 +52,16 @@ func TestRunWithCoverage(t *testing.T) {
 }
 
 type expectedTestResult struct {
+	cases    map[string]expectedTestResult
 	wantErr  bool
 	wantFail bool
-	// nolint: structcheck // The test doesn't check this value, but should.
 	wantSkip bool
-	cases    map[string]expectedTestResult
 }
 
 type testRunConfig struct {
-	bench       bool
-	filter      string
 	coverTracer topdown.QueryTracer
+	filter      string
+	bench       bool
 }
 
 type expectedTestResults map[[2]string]expectedTestResult
@@ -300,9 +299,9 @@ func TestRunWithFilterRegex(t *testing.T) {
 	}
 
 	cases := []struct {
+		tests expectedTestResults
 		note  string
 		regex string
-		tests expectedTestResults
 	}{
 		{
 			note:  "all tests match",
@@ -906,8 +905,8 @@ test_p if {
 func TestRun_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note    string
-		module  ast.Module
 		expErrs []string
+		module  ast.Module
 	}{
 		{
 			note: "no v1 violations",
@@ -991,10 +990,10 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 
 func TestReporterFormatsWithExplicitParallel(t *testing.T) {
 	tests := []struct {
-		note     string
-		parallel int
 		r        func(writer io.Writer) tester.Reporter
 		exp      func(string)
+		note     string
+		parallel int
 	}{
 		{
 			note:     "Pretty Format",

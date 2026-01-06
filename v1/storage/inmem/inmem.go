@@ -99,20 +99,13 @@ func NewFromReaderWithOpts(r io.Reader, opts ...Opt) storage.Store {
 }
 
 type store struct {
-	rmu      sync.RWMutex                      // reader-writer lock
-	wmu      sync.Mutex                        // writer lock
-	xid      uint64                            // last generated transaction id
-	data     any                               // raw or AST data
-	policies map[string][]byte                 // raw policies
-	triggers map[*handle]storage.TriggerConfig // registered triggers
-
-	// roundTripOnWrite, if true, means that every call to Write round trips the
-	// data through JSON before adding the data to the store. Defaults to true.
-	roundTripOnWrite bool
-
-	// returnASTValuesOnRead, if true, means that the store will eagerly convert data to AST values,
-	// and return them on Read.
-	// FIXME: naming(?)
+	data                  any
+	policies              map[string][]byte
+	triggers              map[*handle]storage.TriggerConfig
+	xid                   uint64
+	rmu                   sync.RWMutex
+	wmu                   sync.Mutex
+	roundTripOnWrite      bool
 	returnASTValuesOnRead bool
 }
 

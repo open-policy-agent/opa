@@ -14,11 +14,11 @@ func TestFindTarget(t *testing.T) {
 
 	cases := []struct {
 		name      string
+		wantValue string
 		stack     []ast.Node
 		wantNil   bool
 		wantIsRef bool
 		wantIsVar bool
-		wantValue string
 	}{
 		{
 			name:    "empty stack returns nil",

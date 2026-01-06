@@ -31,8 +31,8 @@ func TestMain(m *testing.M) {
 
 func TestHttpSendInterQueryForceCache(t *testing.T) {
 	tests := []struct {
-		note        string
 		respHeaders map[string][]string
+		note        string
 		noForce     bool
 	}{
 		{

@@ -11,25 +11,25 @@ import (
 )
 
 type Params struct {
-	Paths               []string       // file paths to execute against
-	Output              io.Writer      // output stream to write normal output to
-	ConfigFile          string         // OPA configuration file path
-	ConfigOverrides     []string       // OPA configuration overrides (--set arguments)
-	ConfigOverrideFiles []string       // OPA configuration overrides (--set-file arguments)
-	OutputFormat        *util.EnumFlag // output format (default: pretty)
-	LogLevel            *util.EnumFlag // log level for plugins
-	LogFormat           *util.EnumFlag // log format for plugins
-	LogTimestampFormat  string         // log timestamp format for plugins
-	BundlePaths         []string       // explicit paths of bundles to inject into the configuration
-	Decision            string         // decision to evaluate (overrides default decision set by configuration)
-	Fail                bool           // exits with non-zero exit code on undefined policy decision or empty policy decision result or other errors
-	FailDefined         bool           // exits with non-zero exit code on 'not undefined policy decisiondefined' or 'not empty policy decision result' or other errors
-	FailNonEmpty        bool           // exits with non-zero exit code on non-empty set (array) results
-	StdIn               bool           // pull input from std-in, rather than input files
-	Timeout             time.Duration  // timeout to prevent infinite hangs. If set to 0, the command will never time out
-	V0Compatible        bool           // use OPA 0.x compatibility mode
-	V1Compatible        bool           // use OPA 1.0 compatibility mode
-	Logger              logging.Logger // Logger override. If set to nil, the default logger is used.
+	Output              io.Writer
+	Logger              logging.Logger
+	OutputFormat        *util.EnumFlag
+	LogLevel            *util.EnumFlag
+	LogFormat           *util.EnumFlag
+	LogTimestampFormat  string
+	ConfigFile          string
+	Decision            string
+	ConfigOverrideFiles []string
+	BundlePaths         []string
+	Paths               []string
+	ConfigOverrides     []string
+	Timeout             time.Duration
+	Fail                bool
+	FailDefined         bool
+	FailNonEmpty        bool
+	StdIn               bool
+	V0Compatible        bool
+	V1Compatible        bool
 }
 
 func NewParams(w io.Writer) *Params {

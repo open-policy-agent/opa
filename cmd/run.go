@@ -32,29 +32,29 @@ const (
 )
 
 type runCmdParams struct {
-	rt                   runtime.Params
-	tlsCertFile          string
-	tlsPrivateKeyFile    string
-	tlsCACertFile        string
-	tlsCertRefresh       time.Duration
-	ignore               []string
-	serverMode           bool
-	skipVersionCheck     bool // skipVersionCheck is deprecated. Use disableTelemetry instead
-	disableTelemetry     bool
 	authentication       *util.EnumFlag
-	authorization        *util.EnumFlag
-	minTLSVersion        *util.EnumFlag
-	logLevel             *util.EnumFlag
 	logFormat            *util.EnumFlag
-	logTimestampFormat   string
+	logLevel             *util.EnumFlag
+	minTLSVersion        *util.EnumFlag
+	authorization        *util.EnumFlag
+	rt                   runtime.Params
 	algorithm            string
-	scope                string
 	pubKey               string
 	pubKeyID             string
+	tlsCACertFile        string
+	tlsPrivateKeyFile    string
+	logTimestampFormat   string
+	tlsCertFile          string
+	scope                string
+	cipherSuites         []string
+	excludeVerifyFiles   []string
+	ignore               []string
+	tlsCertRefresh       time.Duration
+	skipVersionCheck     bool
 	skipBundleVerify     bool
 	skipKnownSchemaCheck bool
-	excludeVerifyFiles   []string
-	cipherSuites         []string
+	serverMode           bool
+	disableTelemetry     bool
 }
 
 func newRunParams() runCmdParams {

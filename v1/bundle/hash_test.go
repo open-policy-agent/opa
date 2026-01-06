@@ -92,8 +92,8 @@ func TestHashFileBytes(t *testing.T) {
 	mapBytes, _ := json.Marshal(mapInput)
 
 	tests := map[string]struct {
-		input     []byte
 		algorithm HashingAlgorithm
+		input     []byte
 	}{
 		"map_byte_array":   {mapBytes, SHA256},
 		"array_byte_array": {arrayBytes, MD5},

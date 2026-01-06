@@ -27,8 +27,8 @@ func TestInMemoryRead(t *testing.T) {
 	data := loadSmallTestData()
 
 	var tests = []struct {
-		path     string
 		expected any
+		path     string
 	}{
 		{"/a/0", json.Number("1")},
 		{"/a/3", json.Number("4")},
@@ -77,8 +77,8 @@ func TestInMemoryReadAst(t *testing.T) {
 	data := loadSmallTestData()
 
 	var tests = []struct {
-		path     string
 		expected any
+		path     string
 	}{
 		{"/a/0", ast.Number("1")},
 		{"/a/3", ast.Number("4")},
@@ -133,13 +133,13 @@ func TestInMemoryWrite(t *testing.T) {
 	for _, rvt := range readValueType {
 		t.Run(rvt.note, func(t *testing.T) {
 			tests := []struct {
+				expected    error
+				getExpected any
 				note        string
 				op          string
 				path        string
 				value       string
-				expected    error
 				getPath     string
-				getExpected any
 			}{
 				{"add root", "add", "/", `{"a": [1]}`, nil, "/", `{"a": [1]}`},
 				{"add", "add", "/newroot", `{"a": [[1]]}`, nil, "/newroot", `{"a": [[1]]}`},
@@ -369,9 +369,9 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 	// same for the writer during the transaction and the reader after the
 	// commit.
 	writes := []struct {
-		op    storage.PatchOp
 		path  string
 		value string
+		op    storage.PatchOp
 	}{
 		{storage.AddOp, "/a/-", "[]"},
 		{storage.AddOp, "/a/4/-", "1"},
@@ -451,9 +451,9 @@ func TestInMemoryTxnMultipleWritesAst(t *testing.T) {
 	// same for the writer during the transaction and the reader after the
 	// commit.
 	writes := []struct {
-		op    storage.PatchOp
 		path  string
 		value string
+		op    storage.PatchOp
 	}{
 		{storage.AddOp, "/a/-", "[]"},
 		{storage.AddOp, "/a/4/-", "1"},
@@ -905,10 +905,10 @@ func TestInMemoryTxnWriteFailures(t *testing.T) {
 			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 			writes := []struct {
-				op      storage.PatchOp
 				path    string
 				value   string
 				errCode string
+				op      storage.PatchOp
 			}{
 				{storage.RemoveOp, "/c/0/y", "", ""},
 				{storage.RemoveOp, "/c/0/y", "", storage.NotFoundErr},
@@ -1339,9 +1339,9 @@ func TestOptRoundTripOnWrite(t *testing.T) {
 	invalidObject["foo"] = invalidObject
 
 	tests := []struct {
+		obj     any
 		name    string
 		opts    []Opt
-		obj     any
 		wantErr bool
 	}{{
 		name:    "success on valid object no Opts",

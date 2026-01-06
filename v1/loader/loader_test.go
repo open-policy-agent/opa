@@ -1018,9 +1018,9 @@ func TestBundleLazyLoadingMode(t *testing.T) {
 
 func TestCheckForUNCPath(t *testing.T) {
 	cases := []struct {
+		err     error
 		input   string
 		wantErr bool
-		err     error
 	}{
 		{
 			input:   "c:/foo",
@@ -1289,8 +1289,8 @@ func TestSplitPrefix(t *testing.T) {
 
 	tests := []struct {
 		input     string
-		wantParts []string
 		wantPath  string
+		wantParts []string
 	}{
 		{
 			input:    "foo/bar",

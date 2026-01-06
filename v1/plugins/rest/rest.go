@@ -47,13 +47,7 @@ type HTTPAuthPlugin interface {
 
 // Config represents configuration for a REST client.
 type Config struct {
-	Name                         string            `json:"name"`
-	URL                          string            `json:"url"`
-	Headers                      map[string]string `json:"headers"`
-	AllowInsecureTLS             bool              `json:"allow_insecure_tls,omitempty"`
-	ResponseHeaderTimeoutSeconds *int64            `json:"response_header_timeout_seconds,omitempty"`
-	TLS                          *serverTLSConfig  `json:"tls,omitempty"`
-	Credentials                  struct {
+	Credentials struct {
 		Bearer               *bearerAuthPlugin                  `json:"bearer,omitempty"`
 		OAuth2               *oauth2ClientCredentialsAuthPlugin `json:"oauth2,omitempty"`
 		ClientTLS            *clientTLSAuthPlugin               `json:"client_tls,omitempty"`
@@ -62,9 +56,15 @@ type Config struct {
 		AzureManagedIdentity *azureManagedIdentitiesAuthPlugin  `json:"azure_managed_identity,omitempty"`
 		Plugin               *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
-	Type   string `json:"type,omitempty"`
-	keys   map[string]*keys.Config
-	logger logging.Logger
+	logger                       logging.Logger
+	Headers                      map[string]string `json:"headers"`
+	ResponseHeaderTimeoutSeconds *int64            `json:"response_header_timeout_seconds,omitempty"`
+	TLS                          *serverTLSConfig  `json:"tls,omitempty"`
+	keys                         map[string]*keys.Config
+	Name                         string `json:"name"`
+	URL                          string `json:"url"`
+	Type                         string `json:"type,omitempty"`
+	AllowInsecureTLS             bool   `json:"allow_insecure_tls,omitempty"`
 }
 
 // Equal returns true if this client config is equal to the other.

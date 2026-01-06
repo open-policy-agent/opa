@@ -116,15 +116,15 @@ func (o DepAnalysisOutput) sort() {
 
 // Output contains the result of evaluation to be presented.
 type Output struct {
+	Metrics           metrics.Metrics                `json:"metrics,omitempty"`
+	Partial           *rego.PartialQueries           `json:"partial,omitempty"`
+	AggregatedMetrics map[string]any                 `json:"aggregated_metrics,omitempty"`
+	Coverage          *cover.Report                  `json:"coverage,omitempty"`
 	Errors            OutputErrors                   `json:"errors,omitempty"`
 	Result            rego.ResultSet                 `json:"result,omitempty"`
-	Partial           *rego.PartialQueries           `json:"partial,omitempty"`
-	Metrics           metrics.Metrics                `json:"metrics,omitempty"`
-	AggregatedMetrics map[string]any                 `json:"aggregated_metrics,omitempty"`
 	Explanation       []*topdown.Event               `json:"explanation,omitempty"`
 	Profile           []profiler.ExprStats           `json:"profile,omitempty"`
 	AggregatedProfile []profiler.ExprStatsAggregated `json:"aggregated_profile,omitempty"`
-	Coverage          *cover.Report                  `json:"coverage,omitempty"`
 	limit             int
 }
 
@@ -239,11 +239,11 @@ func (e OutputErrors) Error() string {
 // library errors so that the JSON output given by the
 // presentation package is consistent and parsable.
 type OutputError struct {
+	Details  any `json:"details,omitempty"`
+	err      error
+	Location *ast.Location `json:"location,omitempty"`
 	Message  string        `json:"message"`
 	Code     string        `json:"code,omitempty"`
-	Location *ast.Location `json:"location,omitempty"`
-	Details  any           `json:"details,omitempty"`
-	err      error
 }
 
 func (j OutputError) Error() string {
@@ -743,8 +743,8 @@ func sortMetricRows(data [][]string) {
 
 type resultKey struct {
 	varName   string
-	exprIndex int
 	exprText  string
+	exprIndex int
 }
 
 func resultKeyLess(a, b resultKey) bool {

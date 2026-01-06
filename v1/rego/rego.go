@@ -67,11 +67,11 @@ type PartialQueries struct {
 // PartialResult represents the result of partial evaluation. The result can be
 // used to generate a new query that can be run when inputs are known.
 type PartialResult struct {
-	compiler     *ast.Compiler
 	store        storage.Store
-	body         ast.Body
+	compiler     *ast.Compiler
 	builtinDecls map[string]*ast.Builtin
 	builtinFuncs map[string]*topdown.Builtin
+	body         ast.Body
 }
 
 // Rego returns an object that can be evaluated to produce a query result.
@@ -97,38 +97,38 @@ type preparedQuery struct {
 // EvalContext defines the set of options allowed to be set at evaluation
 // time. Any other options will need to be set on a new Rego object.
 type EvalContext struct {
-	hasInput                    bool
+	compiledQuery               compiledQuery
 	time                        time.Time
+	interQueryBuiltinCache      cache.InterQueryCache
 	seed                        io.Reader
-	rawInput                    *any
 	parsedInput                 ast.Value
 	metrics                     metrics.Metrics
 	txn                         storage.Transaction
-	instrument                  bool
-	instrumentation             *topdown.Instrumentation
-	partialNamespace            string
-	queryTracers                []topdown.QueryTracer
-	compiledQuery               compiledQuery
-	unknowns                    []string
-	disableInlining             []ast.Ref
-	nondeterministicBuiltins    bool
-	parsedUnknowns              []*ast.Term
-	indexing                    bool
-	earlyExit                   bool
-	interQueryBuiltinCache      cache.InterQueryCache
+	externalCancel              topdown.Cancel
 	interQueryBuiltinValueCache cache.InterQueryValueCache
-	ndBuiltinCache              builtins.NDBCache
-	resolvers                   []refResolver
-	httpRoundTripper            topdown.CustomizeRoundTripper
-	sortSets                    bool
-	copyMaps                    bool
 	printHook                   print.Hook
-	capabilities                *ast.Capabilities
-	strictBuiltinErrors         bool
 	virtualCache                topdown.VirtualCache
 	baseCache                   topdown.BaseCache
+	instrumentation             *topdown.Instrumentation
+	rawInput                    *any
+	ndBuiltinCache              builtins.NDBCache
+	httpRoundTripper            topdown.CustomizeRoundTripper
+	capabilities                *ast.Capabilities
+	partialNamespace            string
+	disableInlining             []ast.Ref
+	parsedUnknowns              []*ast.Term
 	tracing                     tracing.Options
-	externalCancel              topdown.Cancel // Note(philip): If non-nil, the cancellation is handled outside of this package.
+	queryTracers                []topdown.QueryTracer
+	unknowns                    []string
+	resolvers                   []refResolver
+	indexing                    bool
+	copyMaps                    bool
+	sortSets                    bool
+	strictBuiltinErrors         bool
+	earlyExit                   bool
+	hasInput                    bool
+	nondeterministicBuiltins    bool
+	instrument                  bool
 }
 
 func (e *EvalContext) RawInput() *any {
@@ -585,8 +585,8 @@ func IsPartialEvaluationNotEffectiveErr(err error) bool {
 }
 
 type compiledQuery struct {
-	query    ast.Body
 	compiler ast.QueryCompiler
+	query    ast.Body
 }
 
 type queryType int
@@ -601,78 +601,78 @@ const (
 )
 
 type loadPaths struct {
-	paths  []string
 	filter loader.Filter
+	paths  []string
 }
 
 // Rego constructs a query and can be evaluated to obtain results.
 type Rego struct {
-	query                       string
-	parsedQuery                 ast.Body
-	compiledQueries             map[queryType]compiledQuery
-	pkg                         string
-	parsedPackage               *ast.Package
-	imports                     []string
-	parsedImports               []*ast.Import
-	rawInput                    *any
+	loadPaths                   loadPaths
+	time                        time.Time
+	printHook                   print.Hook
+	opa                         opa.EvalEngine
+	interQueryBuiltinValueCache cache.InterQueryValueCache
+	interQueryBuiltinCache      cache.InterQueryCache
+	targetPrepState             TargetPluginEval
+	seed                        io.Reader
 	parsedInput                 ast.Value
-	unknowns                    []string
-	parsedUnknowns              []*ast.Term
-	disableInlining             []string
-	shallowInlining             bool
-	nondeterministicBuiltins    bool
-	skipPartialNamespace        bool
-	partialNamespace            string
-	modules                     []rawModule
+	store                       storage.Store
+	dump                        io.Writer
+	metrics                     metrics.Metrics
+	txn                         storage.Transaction
+	builtinErrorList            *[]topdown.Error
+	runtime                     *ast.Term
+	unsafeBuiltins              map[string]struct{}
+	filter                      filter.LoaderFilter
 	parsedModules               map[string]*ast.Module
 	compiler                    *ast.Compiler
-	store                       storage.Store
-	ownStore                    bool
-	ownStoreReadAst             bool
-	txn                         storage.Transaction
-	metrics                     metrics.Metrics
-	queryTracers                []topdown.QueryTracer
-	tracebuf                    *topdown.BufferTracer
-	trace                       bool
-	instrumentation             *topdown.Instrumentation
-	instrument                  bool
-	capture                     map[*ast.Expr]ast.Var // map exprs to generated capture vars
-	termVarID                   int
-	dump                        io.Writer
-	runtime                     *ast.Term
-	time                        time.Time
-	seed                        io.Reader
-	capabilities                *ast.Capabilities
-	builtinDecls                map[string]*ast.Builtin
-	builtinFuncs                map[string]*topdown.Builtin
-	unsafeBuiltins              map[string]struct{}
-	loadPaths                   loadPaths
-	bundlePaths                 []string
-	bundles                     map[string]*bundle.Bundle
-	skipBundleVerification      bool
-	bundleActivationPlugin      string
-	enableBundleLazyLoadingMode bool
-	interQueryBuiltinCache      cache.InterQueryCache
-	interQueryBuiltinValueCache cache.InterQueryValueCache
-	ndBuiltinCache              builtins.NDBCache
-	strictBuiltinErrors         bool
-	builtinErrorList            *[]topdown.Error
-	resolvers                   []refResolver
-	schemaSet                   *ast.SchemaSet
-	target                      string // target type (wasm, rego, etc.)
-	opa                         opa.EvalEngine
-	generateJSON                func(*ast.Term, *EvalContext) (any, error)
-	printHook                   print.Hook
-	enablePrintStatements       bool
-	distributedTracingOpts      tracing.Options
-	strict                      bool
-	pluginMgr                   *plugins.Manager
-	plugins                     []TargetPlugin
-	targetPrepState             TargetPluginEval
-	regoVersion                 ast.RegoVersion
-	compilerHook                func(*ast.Compiler)
 	evalMode                    *ast.CompilerEvalMode
-	filter                      filter.LoaderFilter
+	compilerHook                func(*ast.Compiler)
+	pluginMgr                   *plugins.Manager
+	compiledQueries             map[queryType]compiledQuery
+	generateJSON                func(*ast.Term, *EvalContext) (any, error)
+	builtinFuncs                map[string]*topdown.Builtin
+	tracebuf                    *topdown.BufferTracer
+	builtinDecls                map[string]*ast.Builtin
+	instrumentation             *topdown.Instrumentation
+	schemaSet                   *ast.SchemaSet
+	capture                     map[*ast.Expr]ast.Var
+	capabilities                *ast.Capabilities
+	ndBuiltinCache              builtins.NDBCache
+	bundles                     map[string]*bundle.Bundle
+	parsedPackage               *ast.Package
+	rawInput                    *any
+	query                       string
+	target                      string
+	pkg                         string
+	partialNamespace            string
+	bundleActivationPlugin      string
+	parsedImports               []*ast.Import
+	queryTracers                []topdown.QueryTracer
+	modules                     []rawModule
+	parsedQuery                 ast.Body
+	plugins                     []TargetPlugin
+	imports                     []string
+	unknowns                    []string
+	parsedUnknowns              []*ast.Term
+	distributedTracingOpts      tracing.Options
+	disableInlining             []string
+	resolvers                   []refResolver
+	bundlePaths                 []string
+	termVarID                   int
+	regoVersion                 ast.RegoVersion
+	strict                      bool
+	shallowInlining             bool
+	enablePrintStatements       bool
+	strictBuiltinErrors         bool
+	trace                       bool
+	ownStoreReadAst             bool
+	enableBundleLazyLoadingMode bool
+	skipPartialNamespace        bool
+	instrument                  bool
+	ownStore                    bool
+	nondeterministicBuiltins    bool
+	skipBundleVerification      bool
 }
 
 func (r *Rego) RegoVersion() ast.RegoVersion {
@@ -681,9 +681,9 @@ func (r *Rego) RegoVersion() ast.RegoVersion {
 
 // Function represents a built-in function that is callable in Rego.
 type Function struct {
+	Decl             *types.Function
 	Name             string
 	Description      string
-	Decl             *types.Function
 	Memoize          bool
 	Nondeterministic bool
 }
@@ -1688,9 +1688,9 @@ type PrepareOption func(*PrepareConfig)
 // PrepareConfig holds settings to control the behavior of the
 // Prepare call.
 type PrepareConfig struct {
-	doPartialEval   bool
 	disableInlining *[]string
 	builtinFuncs    map[string]*topdown.Builtin
+	doPartialEval   bool
 }
 
 // WithPartialEval configures an option for PrepareForEval
@@ -2879,13 +2879,13 @@ func (m rawModule) ParseWithOpts(opts ast.ParserOptions) (*ast.Module, error) {
 }
 
 type extraStage struct {
-	after string
 	stage ast.QueryCompilerStageDefinition
+	after string
 }
 
 type refResolver struct {
-	ref ast.Ref
 	r   resolver.Resolver
+	ref ast.Ref
 }
 
 func iteration(x any) bool {

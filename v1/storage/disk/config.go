@@ -17,9 +17,9 @@ import (
 
 type cfg struct {
 	Dir        string   `json:"directory"`
-	AutoCreate bool     `json:"auto_create"`
-	Partitions []string `json:"partitions"`
 	Badger     string   `json:"badger"`
+	Partitions []string `json:"partitions"`
+	AutoCreate bool     `json:"auto_create"`
 }
 
 var ErrInvalidPartitionPath = errors.New("invalid storage path")

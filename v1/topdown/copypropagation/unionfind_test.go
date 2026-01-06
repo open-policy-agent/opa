@@ -15,9 +15,9 @@ func TestUnionFindRootValue(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name     string
 		root     unionFindRoot
 		expected ast.Value
+		name     string
 	}{
 		{
 			name:     "var only",
@@ -54,11 +54,11 @@ func TestUnionFindMakeSet(t *testing.T) {
 	uf := newUnionFind(nil)
 
 	tests := []struct {
-		name    string
 		v       ast.Value
 		result  *unionFindRoot
 		parents map[ast.Value]ast.Value
 		roots   map[ast.Value]*unionFindRoot
+		name    string
 	}{
 		{
 			name:   "from empty",
@@ -149,12 +149,12 @@ func TestUnionFindMerge(t *testing.T) {
 	uf := newUnionFind(noopUnionFindRank)
 
 	tests := []struct {
-		name    string
 		a       ast.Value
 		b       ast.Value
 		result  *unionFindRoot
 		parents map[ast.Value]ast.Value
 		roots   map[ast.Value]*unionFindRoot
+		name    string
 	}{
 		{
 			name:   "empty uf",

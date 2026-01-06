@@ -64,10 +64,10 @@ type TimerMetrics interface {
 }
 
 type metrics struct {
-	mtx        sync.Mutex
 	timers     map[string]Timer
 	histograms map[string]Histogram
 	counters   map[string]Counter
+	mtx        sync.Mutex
 }
 
 // New returns a new Metrics object.
@@ -86,8 +86,8 @@ func NoOp() Metrics {
 }
 
 type metric struct {
-	Key   string
 	Value any
+	Key   string
 }
 
 func (*metrics) Info() Info {
@@ -217,9 +217,9 @@ type Timer interface {
 }
 
 type timer struct {
-	mtx   sync.Mutex
 	start time.Time
 	value int64
+	mtx   sync.Mutex
 }
 
 func (t *timer) Start() {

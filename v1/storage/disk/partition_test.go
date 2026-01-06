@@ -37,9 +37,9 @@ func TestPartitionTrie(t *testing.T) {
 	}
 
 	tests := []struct {
+		wantPtr *partitionTrie
 		path    string
 		wantIdx int
-		wantPtr *partitionTrie
 	}{
 		{
 			path:    "/",

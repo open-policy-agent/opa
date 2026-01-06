@@ -1034,11 +1034,11 @@ func createJwt(payload string, privateKey string) (string, error) {
 
 func TestBuiltinJWTVerify_TokenCache(t *testing.T) {
 	tests := []struct {
+		builtin func(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error
 		note    string
 		jwt     string
 		key     string
 		badKey  string
-		builtin func(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error
 	}{
 		{
 			note:    "HS256",

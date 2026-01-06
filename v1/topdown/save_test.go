@@ -14,8 +14,8 @@ func TestSaveSet(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		terms    []string
 		input    string
+		terms    []string
 		expected bool
 	}{
 		{

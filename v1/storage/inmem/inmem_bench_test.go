@@ -14,11 +14,11 @@ import (
 
 type (
 	target struct {
-		name            string
 		store           storage.Store
+		txn             storage.Transaction
+		name            string
 		isAST           bool
 		isRoundTripping bool
-		txn             storage.Transaction
 	}
 	targets []*target
 	benchFn func(ctx context.Context, target *target) error

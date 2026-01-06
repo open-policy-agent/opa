@@ -21,6 +21,7 @@ import (
 )
 
 type fmtCommandParams struct {
+	capabilitiesFlag *capabilitiesFlag
 	overwrite        bool
 	list             bool
 	diff             bool
@@ -30,7 +31,6 @@ type fmtCommandParams struct {
 	v1Compatible     bool
 	checkResult      bool
 	dropV0Imports    bool
-	capabilitiesFlag *capabilitiesFlag
 }
 
 func newFmtCommandParams() *fmtCommandParams {

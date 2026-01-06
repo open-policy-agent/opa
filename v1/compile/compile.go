@@ -61,33 +61,33 @@ const resultVar = ast.Var("result")
 
 // Compiler implements bundle compilation and linking.
 type Compiler struct {
-	capabilities                 *ast.Capabilities          // the capabilities that compiled policies may require
-	bundle                       *bundle.Bundle             // the bundle that the compiler operates on
-	revision                     *string                    // the revision to set on the output bundle
-	asBundle                     bool                       // whether to assume bundle layout on file loading or not
-	pruneUnused                  bool                       // whether to extend the entrypoint set for semantic equivalence of built bundles
-	filter                       loader.Filter              // filter to apply to file loader
-	paths                        []string                   // file paths to load. TODO(tsandall): add support for supplying readers for embedded users.
-	entrypoints                  orderedStringSet           // policy entrypoints required for optimization and certain targets
-	roots                        []string                   // optionally, bundle roots can be provided
-	useRegoAnnotationEntrypoints bool                       // allow compiler to late-bind entrypoints from annotated rules in policies.
-	optimizationLevel            int                        // how aggressive should optimization be
-	target                       string                     // target type (wasm, rego, etc.)
-	output                       *io.Writer                 // output stream to write bundle to
-	entrypointrefs               []*ast.Term                // validated entrypoints computed from default decision or manually supplied entrypoints
-	compiler                     *ast.Compiler              // rego ast compiler used for semantic checks and rewriting
-	policy                       *ir.Policy                 // planner output when wasm or plan targets are enabled
-	debug                        debug.Debug                // optionally outputs debug information produced during build
-	enablePrintStatements        bool                       // optionally enable rego print statements
-	bvc                          *bundle.VerificationConfig // represents the key configuration used to verify a signed bundle
-	bsc                          *bundle.SigningConfig      // represents the key configuration used to generate a signed bundle
-	keyID                        string                     // represents the name of the default key used to verify a signed bundle
-	enableBundleLazyLoadingMode  bool                       // bundle lazy loading mode
-	metadata                     *map[string]any            // represents additional data included in .manifest file
-	fsys                         fs.FS                      // file system to use when loading paths
+	debug                        debug.Debug
+	fsys                         fs.FS
+	bvc                          *bundle.VerificationConfig
+	output                       *io.Writer
+	bsc                          *bundle.SigningConfig
+	filter                       loader.Filter
+	capabilities                 *ast.Capabilities
+	policy                       *ir.Policy
+	compiler                     *ast.Compiler
+	revision                     *string
+	bundle                       *bundle.Bundle
+	metadata                     *map[string]any
+	target                       string
 	ns                           string
+	keyID                        string
+	entrypointrefs               []*ast.Term
+	roots                        []string
+	entrypoints                  orderedStringSet
+	paths                        []string
+	optimizationLevel            int
 	regoVersion                  ast.RegoVersion
-	followSymlinks               bool // optionally follow symlinks in the bundle directory when building the bundle
+	useRegoAnnotationEntrypoints bool
+	enableBundleLazyLoadingMode  bool
+	enablePrintStatements        bool
+	asBundle                     bool
+	pruneUnused                  bool
+	followSymlinks               bool
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -896,17 +896,17 @@ func (err undefinedEntrypointErr) Error() string {
 }
 
 type optimizer struct {
+	debug                 debug.Debug
 	capabilities          *ast.Capabilities
 	bundle                *bundle.Bundle
 	compiler              *ast.Compiler
-	entrypoints           []*ast.Term
 	nsprefix              string
 	resultsymprefix       string
 	outputprefix          string
-	shallow               bool
-	debug                 debug.Debug
-	enablePrintStatements bool
+	entrypoints           []*ast.Term
 	regoVersion           ast.RegoVersion
+	shallow               bool
+	enablePrintStatements bool
 }
 
 func newOptimizer(c *ast.Capabilities, b *bundle.Bundle) *optimizer {

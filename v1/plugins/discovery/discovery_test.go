@@ -1014,8 +1014,8 @@ func TestLoadAndActivateBundleFromDiskMaxAttempts(t *testing.T) {
 func TestLoadAndActivateBundleFromDiskV1Compatible(t *testing.T) {
 	tests := []struct {
 		note         string
-		v1Compatible bool
 		bundle       string
+		v1Compatible bool
 	}{
 		{
 			note: "v0.x",
@@ -1139,9 +1139,9 @@ bundles.authz.service := v if {
 
 func TestLoadAndActivateBundleFromDiskWithBundleRegoVersion(t *testing.T) {
 	tests := []struct {
+		modules           map[string]versionedModule
 		note              string
 		bundleRegoVersion int
-		modules           map[string]versionedModule
 	}{
 		{
 			note:              "v0 bundle",
@@ -3377,8 +3377,8 @@ func makeModuleBundleWithRegoVersion(revision int, bundle string, regoVersion in
 }
 
 type versionedModule struct {
-	version int
 	module  string
+	version int
 }
 
 func makeBundleWithRegoVersion(revision int, bundleRegoVersion int, modules map[string]versionedModule) *bundleApi.Bundle {
@@ -3519,9 +3519,9 @@ bundles:
 `
 
 	tests := map[string]struct {
+		err     error
 		conf    string
 		wantErr bool
-		err     error
 	}{
 		"no_trigger_mode_mismatch": {
 			confGood, false, nil,
@@ -3582,9 +3582,9 @@ decision_logs:
 `
 
 	tests := map[string]struct {
+		err     error
 		conf    string
 		wantErr bool
-		err     error
 	}{
 		"no_trigger_mode_mismatch": {
 			confGood, false, nil,
@@ -3652,9 +3652,9 @@ status:
 `
 
 	tests := map[string]struct {
+		err     error
 		conf    string
 		wantErr bool
-		err     error
 	}{
 		"no_trigger_mode_mismatch": {
 			confGood, false, nil,
@@ -4378,12 +4378,12 @@ func (t *testFixture) stop() {
 type testFixtureServer struct {
 	t              *testing.T
 	server         *httptest.Server
-	discoConfig    string
-	dicsoBundleRev int
 	bundleData     map[string]any
+	discoConfig    string
 	bundleRevision string
 	statusEvent    []any
 	logEvent       []logs.EventV1
+	dicsoBundleRev int
 }
 
 func (t *testFixtureServer) handle(w http.ResponseWriter, r *http.Request) {

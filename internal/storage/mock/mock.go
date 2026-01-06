@@ -54,18 +54,18 @@ type Store struct {
 
 // ReadCall captures the parameters for a Read call
 type ReadCall struct {
+	Error       error
 	Transaction *Transaction
 	Path        storage.Path
-	Error       error
 	Safe        bool
 }
 
 // WriteCall captures the parameters for a write call
 type WriteCall struct {
-	Transaction *Transaction
-	Op          storage.PatchOp
-	Path        storage.Path
 	Error       error
+	Transaction *Transaction
+	Path        storage.Path
+	Op          storage.PatchOp
 	Safe        bool
 }
 

@@ -1441,11 +1441,11 @@ func TestOneShot_RegoVersion(t *testing.T) {
 func TestStoredModule_RegoVersion(t *testing.T) {
 	tests := []struct {
 		note        string
-		regoVersion ast.RegoVersion
 		module      string
 		line        string
 		expOutput   string
 		expErrs     []string
+		regoVersion ast.RegoVersion
 	}{
 		{
 			note:        "v0 keywords not used",

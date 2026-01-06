@@ -425,12 +425,12 @@ func TestParseConfigTriggerMode(t *testing.T) {
 	tm := plugins.TriggerManual
 
 	tests := []struct {
-		conf        string
-		services    []string
-		triggerMode *plugins.TriggerMode
-		expected    plugins.TriggerMode
-		wantError   bool
 		err         error
+		triggerMode *plugins.TriggerMode
+		conf        string
+		expected    plugins.TriggerMode
+		services    []string
+		wantError   bool
 	}{
 		{
 			conf:        `{"b1":{"service": "s1"}}`,

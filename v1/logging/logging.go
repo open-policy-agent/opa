@@ -160,8 +160,8 @@ func (l *StandardLogger) Warn(fmt string, a ...any) {
 
 // NoOpLogger logging implementation that does nothing
 type NoOpLogger struct {
-	level  Level
 	fields map[string]any
+	level  Level
 }
 
 // NewNoOpLogger instantiates new NoOpLogger
@@ -208,11 +208,11 @@ const reqCtxKey = requestContextKey("request-context-key")
 // RequestContext represents the request context used to store data
 // related to the request that could be used on logs.
 type RequestContext struct {
+	HTTPRequestContext HTTPRequestContext
 	ClientAddr         string
-	ReqID              uint64
 	ReqMethod          string
 	ReqPath            string
-	HTTPRequestContext HTTPRequestContext
+	ReqID              uint64
 }
 
 type HTTPRequestContext struct {

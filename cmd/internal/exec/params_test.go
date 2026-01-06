@@ -19,8 +19,8 @@ func TestNewParams(t *testing.T) {
 
 func TestParams_validateParams(t *testing.T) {
 	tcs := []struct {
-		Name        string
 		Params      Params
+		Name        string
 		ShouldError bool
 	}{
 		{

@@ -117,12 +117,12 @@ func TestEditTreeString(t *testing.T) {
 
 func TestEditTreeFilter(t *testing.T) {
 	cases := []struct {
+		expError  error
 		note      string
 		object    string
-		paths     []string
 		source    string
 		expResult string
-		expError  error
+		paths     []string
 	}{
 		// Simple scalar.
 		{
@@ -221,12 +221,12 @@ func TestEditTreeFilter(t *testing.T) {
 // purpose: ensuring as many code paths are excercised as possible.
 func TestEditTreeApplyPatches(t *testing.T) {
 	cases := []struct {
+		expError  error
 		note      string
 		object    string
-		patches   []string
 		source    string
 		expResult string
-		expError  error
+		patches   []string
 	}{
 		// Ops on top-level keys only.
 		{
@@ -893,10 +893,10 @@ func parsePath(path *ast.Term) (ast.Ref, error) {
 }
 
 type jsonPatch struct {
-	op    string
 	path  *ast.Term
 	from  *ast.Term
 	value *ast.Term
+	op    string
 }
 
 func getPatch(o ast.Object) (jsonPatch, error) {

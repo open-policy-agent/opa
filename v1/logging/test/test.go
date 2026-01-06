@@ -10,17 +10,17 @@ import (
 
 // LogEntry represents a log message.
 type LogEntry struct {
-	Level   logging.Level
 	Fields  map[string]any
 	Message string
+	Level   logging.Level
 }
 
 // Logger implementation that buffers messages for test purposes.
 type Logger struct {
-	level   logging.Level
 	fields  map[string]any
 	entries *[]LogEntry
 	mtx     *sync.Mutex
+	level   logging.Level
 }
 
 // New instantiates new Logger.

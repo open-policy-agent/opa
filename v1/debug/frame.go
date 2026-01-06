@@ -34,12 +34,11 @@ type StackFrame interface {
 }
 
 type stackFrame struct {
-	id       FrameID
-	name     string
-	location *location.Location
-	thread   ThreadID
-
+	location   *location.Location
 	e          *topdown.Event
+	name       string
+	id         FrameID
+	thread     ThreadID
 	stackIndex int
 }
 

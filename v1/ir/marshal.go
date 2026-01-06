@@ -68,8 +68,8 @@ type typedBlock struct {
 }
 
 type typedStmt struct {
-	Type string `json:"type"`
 	Stmt Stmt   `json:"stmt"`
+	Type string `json:"type"`
 }
 
 type rawTypedBlock struct {
@@ -99,8 +99,8 @@ type rawTypedOperand struct {
 }
 
 type typedOperand struct {
-	Type  string `json:"type"`
 	Value Val    `json:"value"`
+	Type  string `json:"type"`
 }
 
 var stmtFactories = map[string]func() Stmt{

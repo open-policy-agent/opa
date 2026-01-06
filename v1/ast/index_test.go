@@ -237,16 +237,16 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	`)
 
 	tests := []struct {
-		note        string
-		module      *Module
-		ruleset     string
-		ruleRef     Ref
-		input       string
-		unknowns    []string
-		args        []Value
 		expectedRS  any
+		module      *Module
 		expectedDR  *Rule
 		checkResult func(*testing.T, *IndexResult)
+		note        string
+		ruleset     string
+		input       string
+		ruleRef     Ref
+		unknowns    []string
+		args        []Value
 	}{
 		{
 			note:    "exact match",
@@ -1068,12 +1068,12 @@ func TestSkipIndexing(t *testing.T) {
 func TestBaseDocIndexResultEarlyExit(t *testing.T) {
 
 	tests := []struct {
-		note            string
+		expectedRS      any
 		module          *Module
+		expectedDR      *Rule
+		note            string
 		input           string
 		disableIndexing bool
-		expectedRS      any
-		expectedDR      *Rule
 		expectedEE      bool
 	}{
 		{

@@ -22,8 +22,8 @@ func Pretty(w io.Writer, x any) {
 }
 
 type prettyPrinter struct {
-	depth int
 	w     io.Writer
+	depth int
 }
 
 func (pp *prettyPrinter) Before(x any) bool {

@@ -22,8 +22,8 @@ import (
 
 type customBundleActivator struct {
 	activator   *bundle.DefaultActivator
-	BundleNames []string
 	Files       map[string]map[string][]byte
+	BundleNames []string
 }
 
 func (cba *customBundleActivator) Activate(opts *bundle.ActivateOpts) error {
@@ -71,9 +71,9 @@ func TestRegisterBundleActivatorWithStore(t *testing.T) {
 	}
 
 	tests := []struct {
-		note      string
 		activator bundle.Activator
 		storeFunc func() storage.Store
+		note      string
 		disk      bool
 	}{
 		{

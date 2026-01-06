@@ -13,8 +13,8 @@ import (
 
 // Error defines the structure of errors returned by refactor.
 type Error struct {
-	Message  string        `json:"message"`
 	Location *ast.Location `json:"location,omitempty"`
+	Message  string        `json:"message"`
 }
 
 func (e Error) Error() string {

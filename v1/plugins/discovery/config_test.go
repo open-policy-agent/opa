@@ -118,8 +118,8 @@ func TestConfigDecision(t *testing.T) {
 func TestConfigService(t *testing.T) {
 	tests := []struct {
 		input    string
-		services []string
 		service  string
+		services []string
 	}{
 		{
 			input:    `{"name": "a/b/c"}`,

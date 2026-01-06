@@ -33,15 +33,15 @@ const (
 )
 
 type transaction struct {
-	underlying *badger.Txn          // handle for the underlying badger transaction
-	partitions *partitionTrie       // index for partitioning structure in underlying store
-	pm         *pathMapper          // used for mapping between logical storage paths and actual storage keys
-	db         *Store               // handle for the database this transaction was created on
-	xid        uint64               // unique id for this transaction
-	stale      bool                 // bit to indicate if the transaction was already aborted/committed
-	write      bool                 // bit to indicate if the transaction may perform writes
-	event      storage.TriggerEvent // constructed as we go, supplied by the caller to be included in triggers
-	metrics    metrics.Metrics      // per-transaction metrics
+	event      storage.TriggerEvent
+	metrics    metrics.Metrics
+	underlying *badger.Txn
+	partitions *partitionTrie
+	pm         *pathMapper
+	db         *Store
+	xid        uint64
+	stale      bool
+	write      bool
 }
 
 func newTransaction(xid uint64, write bool, underlying *badger.Txn, context *storage.Context, pm *pathMapper, trie *partitionTrie, db *Store) *transaction {
@@ -218,9 +218,9 @@ func (txn *transaction) readOne(key []byte) (any, error) {
 }
 
 type update struct {
+	data   any
 	key    []byte
 	value  []byte
-	data   any
 	delete bool
 }
 

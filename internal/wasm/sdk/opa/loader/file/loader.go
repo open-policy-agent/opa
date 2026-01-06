@@ -27,15 +27,15 @@ var errNotReady = errors.New(errors.NotReadyErr, "")
 // Loader loads a bundle from a file. If started, it loads the bundle
 // periodically until closed.
 type Loader struct {
-	configErr   error // Delayed configuration error, if any.
-	initialized bool
+	configErr   error
 	pd          policyData
+	closing     chan struct{}
+	closed      chan struct{}
+	logError    func(error)
 	filename    string
 	interval    time.Duration
-	closing     chan struct{} // Signal the request to stop the poller.
-	closed      chan struct{} // Signals the successful stopping of the poller.
-	logError    func(error)
 	mutex       sync.Mutex
+	initialized bool
 }
 
 // policyData captures the functions used in setting the policy and data.

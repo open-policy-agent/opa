@@ -16,8 +16,8 @@ func TestAstValueToJSONSchemaLoader(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note   string
 		schema ast.Value
+		note   string
 		valid  bool
 	}{
 		{
@@ -92,9 +92,9 @@ func TestBuiltinJSONSchemaVerify(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note   string
 		schema ast.Value
 		result ast.Value
+		note   string
 		err    bool
 	}{
 		{
@@ -175,10 +175,10 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note     string
 		document ast.Value
 		schema   ast.Value
 		result   ast.Value
+		note     string
 		err      bool
 	}{
 		{

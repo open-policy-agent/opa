@@ -68,8 +68,8 @@ func execOnStdIn() error {
 }
 
 type fileListItem struct {
-	Path  string
 	Error error
+	Path  string
 }
 
 func execOnInputFiles(params *Params) error {

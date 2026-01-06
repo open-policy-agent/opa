@@ -20,10 +20,10 @@ func TestNewFromConfig(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	for _, tc := range []struct {
+		err     error
 		note    string
 		config  string
-		err     error // gets unwrapped
-		nothing bool  // returns no disk options?
+		nothing bool
 	}{
 		{
 			note:    "no storage section",

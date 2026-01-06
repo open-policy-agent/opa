@@ -186,8 +186,8 @@ func buildAzureManagedIdentitiesRequestPath(
 }
 
 type azureKeyVaultSignPlugin struct {
-	config  azureKeyVaultConfig
 	tokener func() (string, error)
+	config  azureKeyVaultConfig
 }
 
 func newKeyVaultSignPlugin(ap *azureManagedIdentitiesAuthPlugin, cfg *azureKeyVaultConfig) *azureKeyVaultSignPlugin {

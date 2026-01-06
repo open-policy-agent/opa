@@ -15,8 +15,8 @@ func TestFiltersToObject(t *testing.T) {
 
 	cases := []struct {
 		note     string
-		filters  []string
 		expected string
+		filters  []string
 	}{
 		{
 			note:     "empty path",

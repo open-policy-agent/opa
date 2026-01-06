@@ -56,9 +56,9 @@ func TestECR(t *testing.T) {
 
 func TestParseAWSTimestamp(t *testing.T) {
 	type testCase struct {
+		wantParsed time.Time
 		name       string
 		raw        json.Number
-		wantParsed time.Time
 		wantErr    bool
 	}
 

@@ -26,27 +26,26 @@ const (
 type (
 	// Annotations represents metadata attached to other AST nodes such as rules.
 	Annotations struct {
+		node             Node
+		Compile          *CompileAnnotation           `json:"compile,omitempty"`
+		Location         *Location                    `json:"location,omitempty"`
+		Custom           map[string]any               `json:"custom,omitempty"`
+		Description      string                       `json:"description,omitempty"`
 		Scope            string                       `json:"scope"`
 		Title            string                       `json:"title,omitempty"`
-		Entrypoint       bool                         `json:"entrypoint,omitempty"`
-		Description      string                       `json:"description,omitempty"`
-		Organizations    []string                     `json:"organizations,omitempty"`
 		RelatedResources []*RelatedResourceAnnotation `json:"related_resources,omitempty"`
 		Authors          []*AuthorAnnotation          `json:"authors,omitempty"`
 		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
-		Compile          *CompileAnnotation           `json:"compile,omitempty"`
-		Custom           map[string]any               `json:"custom,omitempty"`
-		Location         *Location                    `json:"location,omitempty"`
-
-		comments []*Comment
-		node     Node
+		Organizations    []string                     `json:"organizations,omitempty"`
+		comments         []*Comment
+		Entrypoint       bool `json:"entrypoint,omitempty"`
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
 	SchemaAnnotation struct {
+		Definition *any `json:"definition,omitempty"`
 		Path       Ref  `json:"path"`
 		Schema     Ref  `json:"schema,omitempty"`
-		Definition *any `json:"definition,omitempty"`
 	}
 
 	CompileAnnotation struct {
@@ -77,11 +76,10 @@ type (
 	}
 
 	AnnotationsRef struct {
-		Path        Ref          `json:"path"` // The path of the node the annotations are applied to
+		node        Node
 		Annotations *Annotations `json:"annotations,omitempty"`
-		Location    *Location    `json:"location,omitempty"` // The location of the node the annotations are applied to
-
-		node Node // The node the annotations are applied to
+		Location    *Location    `json:"location,omitempty"`
+		Path        Ref          `json:"path"`
 	}
 
 	AnnotationsRefSet []*AnnotationsRef

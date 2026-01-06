@@ -25,12 +25,12 @@ import (
 type InsertAndCompileOptions struct {
 	Store                 storage.Store
 	Txn                   storage.Transaction
-	Files                 loader.Result
 	Bundles               map[string]*bundle.Bundle
+	BundleActivatorPlugin string
+	Files                 loader.Result
+	ParserOptions         ast.ParserOptions
 	MaxErrors             int
 	EnablePrintStatements bool
-	ParserOptions         ast.ParserOptions
-	BundleActivatorPlugin string
 }
 
 // InsertAndCompileResult contains the output of the operation.

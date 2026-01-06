@@ -305,9 +305,9 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 	}
 	type activation struct {
 		bundles            bundles
+		expData            string
 		lazy               bool
 		readWithBundleName bool
-		expData            string
 	}
 
 	tests := []struct {
@@ -2136,8 +2136,8 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 func TestBundleLazyModeLifecycleRawInvalidData(t *testing.T) {
 
 	tests := map[string]struct {
-		files [][2]string
 		err   error
+		files [][2]string
 	}{
 		"non-object root": {[][2]string{{"/data.json", `[1,2,3]`}}, errors.New("root value must be object")},
 		"invalid yaml":    {[][2]string{{"/a/b/data.yaml", `"foo`}}, errors.New("yaml: found unexpected end of stream")},
@@ -5890,11 +5890,11 @@ func TestEraseData(t *testing.T) {
 
 	ctx := t.Context()
 	cases := []struct {
-		note        string
 		initialData map[string]any
+		note        string
+		expected    string
 		roots       []string
 		expectErr   bool
-		expected    string
 	}{
 		{
 			note: "erase all",
@@ -5988,11 +5988,11 @@ func TestEraseData(t *testing.T) {
 func TestErasePolicies(t *testing.T) {
 	ctx := t.Context()
 	cases := []struct {
-		note              string
 		initialPolicies   map[string][]byte
+		note              string
 		roots             []string
-		expectErr         bool
 		expectedRemaining []string
+		expectErr         bool
 	}{
 		{
 			note: "erase all",
@@ -6121,11 +6121,11 @@ func TestWriteData(t *testing.T) {
 
 	ctx := t.Context()
 	cases := []struct {
-		note         string
 		existingData map[string]any
-		roots        []string
 		data         map[string]any
+		note         string
 		expected     string
+		roots        []string
 		expectErr    bool
 	}{
 		{
@@ -6257,11 +6257,11 @@ func loadExpectedSortedResult(input string) any {
 }
 
 type testWriteModuleCase struct {
-	note         string
-	bundles      map[string]*Bundle // Only need to give raw text and path for modules
+	bundles      map[string]*Bundle
 	extraMods    map[string]*ast.Module
 	compilerMods map[string]*ast.Module
 	storeData    map[string]any
+	note         string
 	expectErr    bool
 }
 
@@ -6500,12 +6500,12 @@ func testWriteData(t *testing.T, tc testWriteModuleCase, legacy bool) {
 func TestDoDFS(t *testing.T) {
 
 	cases := []struct {
-		note    string
+		err     error
 		input   map[string]json.RawMessage
+		note    string
 		path    string
 		roots   []string
 		wantErr bool
-		err     error
 	}{
 		{
 			note:    "bundle owns all",
@@ -6922,8 +6922,8 @@ func TestActivate_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note              string
 		module            string
-		customRegoVersion ast.RegoVersion
 		expErrs           []string
+		customRegoVersion ast.RegoVersion
 	}{
 		// NOT default rego-version
 		{
@@ -7061,8 +7061,8 @@ func TestDeactivate_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note              string
 		module            string
-		customRegoVersion ast.RegoVersion
 		expErrs           []string
+		customRegoVersion ast.RegoVersion
 	}{
 		// NOT default rego-version
 		{

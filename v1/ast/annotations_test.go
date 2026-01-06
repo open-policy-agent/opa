@@ -14,8 +14,8 @@ func TestEntrypointAnnotationScopeRequirements(t *testing.T) {
 	tests := []struct {
 		note        string
 		module      string
-		expectError bool
 		expectScope string
+		expectError bool
 	}{
 		{
 			note: "package scope explicit",
@@ -554,11 +554,11 @@ a.b.c.p[v] if {v = 2}`,
 
 func TestAnnotationSet_Chain(t *testing.T) {
 	tests := []struct {
-		note                string
 		modules             map[string]string
+		note                string
 		moduleToAnalyze     string
-		ruleOnLineToAnalyze int
 		expected            []AnnotationsRef
+		ruleOnLineToAnalyze int
 	}{
 		{
 			note: "simple module (all annotation types)",

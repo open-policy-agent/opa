@@ -15,8 +15,8 @@ func resetJSONOptions() {
 func TestGeneric_MarshalWithLocationJSONOptions(t *testing.T) {
 	testCases := map[string]struct {
 		Term         *Term
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case, no location options set": {
 			Term: func() *Term {
@@ -106,8 +106,8 @@ func TestGeneric_MarshalWithLocationJSONOptions(t *testing.T) {
 func TestTerm_MarshalJSON(t *testing.T) {
 	testCases := map[string]struct {
 		Term         *Term
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			Term: func() *Term {
@@ -173,8 +173,8 @@ func TestTerm_MarshalJSON(t *testing.T) {
 
 func TestTerm_UnmarshalJSON(t *testing.T) {
 	testCases := map[string]struct {
-		JSON         string
 		ExpectedTerm *Term
+		JSON         string
 	}{
 		"base case": {
 			JSON: `{"type":"string","value":"example"}`,
@@ -220,8 +220,8 @@ func TestTerm_UnmarshalJSON(t *testing.T) {
 func TestPackage_MarshalJSON(t *testing.T) {
 	testCases := map[string]struct {
 		Package      *Package
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			Package: &Package{
@@ -280,8 +280,8 @@ func TestPackage_MarshalJSON(t *testing.T) {
 func TestComment_MarshalJSON(t *testing.T) {
 	testCases := map[string]struct {
 		Comment      *Comment
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			Comment: &Comment{
@@ -338,8 +338,8 @@ func TestComment_MarshalJSON(t *testing.T) {
 func TestImport_MarshalJSON(t *testing.T) {
 	testCases := map[string]struct {
 		Import       *Import
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			Import: func() *Import {
@@ -430,8 +430,8 @@ func TestRule_MarshalJSON(t *testing.T) {
 
 	testCases := map[string]struct {
 		Rule         *Rule
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			Rule:         rule,
@@ -511,8 +511,8 @@ func TestHead_MarshalJSON(t *testing.T) {
 
 	testCases := map[string]struct {
 		Head         *Head
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			Head:         head.Copy(),
@@ -613,8 +613,8 @@ func TestExpr_MarshalJSON(t *testing.T) {
 
 	testCases := map[string]struct {
 		Expr         *Expr
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			Expr:         expr,
@@ -679,8 +679,8 @@ func TestExpr_UnmarshalJSON(t *testing.T) {
 	expr.Location.Text = nil
 
 	testCases := map[string]struct {
-		JSON         string
 		ExpectedExpr *Expr
+		JSON         string
 	}{
 		"base case": {
 			JSON: `{"index":0,"terms":{"type":"boolean","value":true}}`,
@@ -725,8 +725,8 @@ func TestSomeDecl_MarshalJSON(t *testing.T) {
 
 	testCases := map[string]struct {
 		SomeDecl     *SomeDecl
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			SomeDecl: &SomeDecl{
@@ -797,8 +797,8 @@ allow if {
 
 	testCases := map[string]struct {
 		Every        *Every
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			Every:        every,
@@ -854,8 +854,8 @@ b if {
 	with := module.Rules[1].Body[0].With[0]
 
 	testCases := map[string]struct {
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			ExpectedJSON: `{"target":{"type":"ref","value":[{"type":"var","value":"input"}]},"value":{"type":"number","value":1}}`,
@@ -890,8 +890,8 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 
 	testCases := map[string]struct {
 		Annotations  *Annotations
-		Options      astJSON.Options
 		ExpectedJSON string
+		Options      astJSON.Options
 	}{
 		"base case": {
 			Annotations: &Annotations{
@@ -967,8 +967,8 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 
 	testCases := map[string]struct {
 		AnnotationsRef *AnnotationsRef
-		Options        astJSON.Options
 		ExpectedJSON   string
+		Options        astJSON.Options
 	}{
 		"base case": {
 			AnnotationsRef: &AnnotationsRef{

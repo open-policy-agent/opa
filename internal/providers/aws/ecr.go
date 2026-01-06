@@ -105,8 +105,8 @@ func (e *ECR) GetAuthorizationToken(ctx context.Context, creds Credentials, sign
 // It corresponds to data returned by the AWS GetAuthorizationToken API.
 // See https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_AuthorizationData.html
 type ECRAuthorizationToken struct {
-	AuthorizationToken string
 	ExpiresAt          time.Time
+	AuthorizationToken string
 }
 
 // IsValid returns true if the token is set and not expired.

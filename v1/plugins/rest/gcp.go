@@ -23,8 +23,8 @@ var (
 // AccessToken holds a GCP access token.
 type AccessToken struct {
 	AccessToken string `json:"access_token"`
-	ExpiresIn   int64  `json:"expires_in"`
 	TokenType   string `json:"token_type"`
+	ExpiresIn   int64  `json:"expires_in"`
 }
 
 type gcpMetadataError struct {

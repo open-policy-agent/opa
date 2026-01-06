@@ -22,11 +22,11 @@ const (
 )
 
 type Event struct {
-	Type       EventType
-	Thread     ThreadID
-	Message    string
-	stackIndex int
 	stackEvent *topdown.Event
+	Type       EventType
+	Message    string
+	Thread     ThreadID
+	stackIndex int
 }
 
 func (d Event) String() string {

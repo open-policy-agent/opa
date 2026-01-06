@@ -75,10 +75,10 @@ p    contains    x    if      {
 func TestSourceWithOpts_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note          string
-		toRegoVersion ast.RegoVersion
 		module        string
 		expFormatted  string
 		expErrs       []string
+		toRegoVersion ast.RegoVersion
 	}{
 		{
 			note:          "v0 -> v0", // from default rego-version

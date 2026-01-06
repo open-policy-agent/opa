@@ -23,17 +23,17 @@ const maxSizeLimitBytesErrMsg = "bundle file %s size (%d bytes) exceeds configur
 // Descriptor contains information about a file and
 // can be used to read the file contents.
 type Descriptor struct {
-	url       string
-	path      string
 	reader    io.Reader
 	closer    io.Closer
 	closeOnce *sync.Once
+	url       string
+	path      string
 }
 
 // lazyFile defers reading the file until the first call of Read
 type lazyFile struct {
-	path string
 	file *os.File
+	path string
 }
 
 // newLazyFile creates a new instance of lazyFile
@@ -131,10 +131,10 @@ type DirectoryLoader interface {
 }
 
 type dirLoader struct {
+	filter            filter.LoaderFilter
 	root              string
 	files             []string
 	idx               int
-	filter            filter.LoaderFilter
 	pathFormat        PathFormat
 	maxSizeLimitBytes int64
 	followSymlinks    bool
@@ -269,13 +269,13 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 }
 
 type tarballLoader struct {
-	baseURL           string
 	r                 io.Reader
 	tr                *tar.Reader
-	files             []file
-	idx               int
 	filter            filter.LoaderFilter
 	skipDir           map[string]struct{}
+	baseURL           string
+	files             []file
+	idx               int
 	pathFormat        PathFormat
 	maxSizeLimitBytes int64
 }

@@ -74,11 +74,11 @@ func TestListAllPaths(t *testing.T) {
 
 func TestExec(t *testing.T) {
 	tests := []struct {
-		description string
 		files       map[string]string
-		stdIn       bool
-		input       string
 		assertion   func(t *testing.T, buf string, err error)
+		description string
+		input       string
+		stdIn       bool
 	}{
 		{
 			description: "should read from valid JSON file and not raise an error",

@@ -239,10 +239,10 @@ func pathsToObject(paths []ast.Ref) ast.Object {
 }
 
 type jsonPatch struct {
-	op    string
 	path  *ast.Term
 	from  *ast.Term
 	value *ast.Term
+	op    string
 }
 
 func getPatch(o ast.Object) (jsonPatch, error) {

@@ -27,42 +27,42 @@ type QueryResult map[ast.Var]*ast.Term
 
 // Query provides a configurable interface for performing query evaluation.
 type Query struct {
-	seed                        io.Reader
 	time                        time.Time
+	metrics                     metrics.Metrics
 	cancel                      Cancel
-	query                       ast.Body
+	baseCache                   BaseCache
 	queryCompiler               ast.QueryCompiler
-	compiler                    *ast.Compiler
+	virtualCache                VirtualCache
 	store                       storage.Store
 	txn                         storage.Transaction
-	input                       *ast.Term
-	external                    *resolverTrie
-	tracers                     []QueryTracer
-	plugTraceVars               bool
-	unknowns                    []*ast.Term
-	partialNamespace            string
-	skipSaveNamespace           bool
-	metrics                     metrics.Metrics
-	instr                       *Instrumentation
-	disableInlining             []ast.Ref
-	shallowInlining             bool
-	nondeterministicBuiltins    bool
-	genvarprefix                string
-	runtime                     *ast.Term
-	builtins                    map[string]*Builtin
-	indexing                    bool
-	earlyExit                   bool
-	interQueryBuiltinCache      cache.InterQueryCache
-	interQueryBuiltinValueCache cache.InterQueryValueCache
-	ndBuiltinCache              builtins.NDBCache
-	strictBuiltinErrors         bool
-	builtinErrorList            *[]Error
-	strictObjects               bool
-	roundTripper                CustomizeRoundTripper
 	printHook                   print.Hook
+	seed                        io.Reader
+	interQueryBuiltinValueCache cache.InterQueryValueCache
+	interQueryBuiltinCache      cache.InterQueryCache
+	ndBuiltinCache              builtins.NDBCache
+	builtins                    map[string]*Builtin
+	external                    *resolverTrie
+	roundTripper                CustomizeRoundTripper
+	instr                       *Instrumentation
+	input                       *ast.Term
+	compiler                    *ast.Compiler
+	builtinErrorList            *[]Error
+	runtime                     *ast.Term
+	genvarprefix                string
+	partialNamespace            string
 	tracingOpts                 tracing.Options
-	virtualCache                VirtualCache
-	baseCache                   BaseCache
+	disableInlining             []ast.Ref
+	unknowns                    []*ast.Term
+	tracers                     []QueryTracer
+	query                       ast.Body
+	indexing                    bool
+	strictBuiltinErrors         bool
+	strictObjects               bool
+	plugTraceVars               bool
+	earlyExit                   bool
+	nondeterministicBuiltins    bool
+	shallowInlining             bool
+	skipSaveNamespace           bool
 }
 
 // Builtin represents a built-in function that queries can call.

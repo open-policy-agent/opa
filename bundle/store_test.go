@@ -19,9 +19,9 @@ func TestHasRootsOverlap(t *testing.T) {
 	ctx := t.Context()
 
 	cases := []struct {
-		note        string
 		storeRoots  map[string]*[]string
 		bundleRoots map[string]*[]string
+		note        string
 		overlaps    bool
 	}{
 		{
@@ -98,8 +98,8 @@ func TestActivate_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note              string
 		module            string
-		customRegoVersion ast.RegoVersion
 		expErrs           []string
+		customRegoVersion ast.RegoVersion
 	}{
 		// default rego-version
 		{
@@ -246,8 +246,8 @@ func TestDeactivate_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note              string
 		module            string
-		customRegoVersion ast.RegoVersion
 		expErrs           []string
+		customRegoVersion ast.RegoVersion
 	}{
 		// default rego-version
 		{

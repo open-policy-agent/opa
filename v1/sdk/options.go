@@ -34,64 +34,20 @@ func SetDefaultOptions(o Options) {
 
 // Options contains parameters to setup and configure OPA.
 type Options struct {
-
-	// Config provides the OPA configuration for this instance. The config can
-	// be supplied as a YAML or JSON byte stream. See
-	// https://www.openpolicyagent.org/docs/latest/configuration/ for detailed
-	// description of the supported configuration.
-	Config io.Reader
-
-	// Logger sets the logging implementation to use for standard logs emitted
-	// by OPA. By default, standard logging is disabled.
-	Logger logging.Logger
-
-	// ConsoleLogger sets the logging implementation to use for emitting Status
-	// and Decision Logs to the console. By default, console logging is enabled.
+	Store         storage.Store
+	Logger        logging.Logger
 	ConsoleLogger logging.Logger
-
-	// Ready sets a channel to notify when the OPA instance is ready. If this
-	// field is not set, the New() function will block until ready. The channel
-	// is closed to signal readiness.
-	Ready chan struct{}
-
-	// Plugins provides a set of plugins.Factory instances that will be
-	// registered with the OPA SDK instance.
-	Plugins map[string]plugins.Factory
-
-	// ID provides an option to set a static ID for the OPA system, avoiding
-	// the need to generate a random one at initialization. Setting a static ID
-	// is recommended, as it makes it easier to track the system over time.
-	ID string
-
-	// Store sets the store to be used by the SDK instance. If nil, it'll use OPA's
-	// inmem store.
-	Store storage.Store
-
-	// Hooks allows hooking into the internals of SDK operations (TODO(sr): find better words)
-	Hooks hooks.Hooks
-
-	// V0Compatible enables v0 compatibility mode when set to true.
-	// This is an opt-in to OPA features and behaviors that were enabled by default in OPA v0.x.
-	// Takes precedence over V1Compatible.
-	V0Compatible bool
-
-	// V1Compatible enables v1 compatibility mode when set to true.
-	// This is an opt-in to OPA features and behaviors that will be enabled by default in OPA v1.0 and later.
-	// See https://www.openpolicyagent.org/docs/latest/opa-1/ for more information.
-	// If V0Compatible is set to true, this field is ignored.
-	V1Compatible bool
-
-	// RegoVersion sets the version of the Rego language to use.
-	// If V0Compatible or V1Compatible is set to true, this field is ignored.
-	RegoVersion ast.RegoVersion
-
-	// ManagerOpts allows customization of the plugin manager.
-	// The given options get appended to the list of options already provided by the SDK and eventually
-	// overriding them.
-	ManagerOpts []func(manager *plugins.Manager)
-
-	config []byte
-	block  bool
+	Config        io.Reader
+	Ready         chan struct{}
+	Plugins       map[string]plugins.Factory
+	Hooks         hooks.Hooks
+	ID            string
+	ManagerOpts   []func(manager *plugins.Manager)
+	config        []byte
+	RegoVersion   ast.RegoVersion
+	V0Compatible  bool
+	V1Compatible  bool
+	block         bool
 }
 
 func (o *Options) regoVersion() ast.RegoVersion {

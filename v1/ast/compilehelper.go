@@ -12,8 +12,8 @@ func CompileModules(modules map[string]string) (*Compiler, error) {
 
 // CompileOpts defines a set of options for the compiler.
 type CompileOpts struct {
-	EnablePrintStatements bool
 	ParserOptions         ParserOptions
+	EnablePrintStatements bool
 }
 
 // CompileModulesWithOpt takes a set of Rego modules represented as strings and

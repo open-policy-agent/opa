@@ -21,10 +21,10 @@ const (
 
 // Status represents the status of processing a decision log.
 type Status struct {
+	Metrics  metrics.Metrics `json:"metrics,omitempty"`
 	Code     string          `json:"code,omitempty"`
 	Message  string          `json:"message,omitempty"`
 	HTTPCode json.Number     `json:"http_code,omitempty"`
-	Metrics  metrics.Metrics `json:"metrics,omitempty"`
 }
 
 // SetError updates the status object to reflect a failure to upload or

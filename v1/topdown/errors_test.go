@@ -29,9 +29,9 @@ func TestErrorWrapping(t *testing.T) {
 	}).Wrap(builtinErr)
 
 	tests := []struct {
-		note  string
 		err   error
 		check func(error) bool
+		note  string
 	}{
 		{
 			note:  "plain",

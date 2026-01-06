@@ -19,9 +19,9 @@ import (
 
 // QuerySet represents the input to the planner.
 type QuerySet struct {
+	RewrittenVars map[ast.Var]ast.Var
 	Name          string
 	Queries       []ast.Body
-	RewrittenVars map[ast.Var]ast.Var
 }
 
 type planiter func() error
@@ -30,23 +30,23 @@ type stmtFactory func(ir.Local) ir.Stmt
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
-	policy  *ir.Policy              // result of planning
-	queries []QuerySet              // input queries to plan
-	modules []*ast.Module           // input modules to support queries
-	strings map[string]int          // global string constant indices
-	files   map[string]int          // global file constant indices
-	externs map[string]*ast.Builtin // built-in functions that are required in execution environment
-	decls   map[string]*ast.Builtin // built-in functions that may be provided in execution environment
-	rules   *ruletrie               // rules that may be planned
-	mocks   *functionMocksStack     // replacements for built-in functions
-	funcs   *funcstack              // functions that have been planned
-	plan    *ir.Plan                // in-progress query plan
-	curr    *ir.Block               // in-progress query block
-	vars    *varstack               // in-scope variables
-	ltarget ir.Operand              // target variable or constant of last planned statement
-	lnext   ir.Local                // next variable to use
-	loc     *location.Location      // location currently "being planned"
-	debug   debug.Debug             // debug information produced during planning
+	ltarget ir.Operand
+	debug   debug.Debug
+	mocks   *functionMocksStack
+	funcs   *funcstack
+	files   map[string]int
+	externs map[string]*ast.Builtin
+	decls   map[string]*ast.Builtin
+	rules   *ruletrie
+	policy  *ir.Policy
+	strings map[string]int
+	plan    *ir.Plan
+	curr    *ir.Block
+	vars    *varstack
+	loc     *location.Location
+	modules []*ast.Module
+	queries []QuerySet
+	lnext   ir.Local
 }
 
 // debugf prepends the planner location. We're passing callstack depth 2 because
@@ -1806,8 +1806,8 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 }
 
 type baseptr struct {
-	local ir.Local
 	path  ast.Ref
+	local ir.Local
 }
 
 // planRefData implements the virtual document model by generating the value of

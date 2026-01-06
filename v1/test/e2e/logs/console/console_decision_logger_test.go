@@ -86,8 +86,8 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 
 	// Check for some important fields
 	expectedFields := map[string]*struct {
-		found bool
 		match func(*testing.T, string)
+		found bool
 	}{
 		"labels":      {},
 		"decision_id": {},

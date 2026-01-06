@@ -25,15 +25,15 @@ var errNotReady = sdk_errors.New(sdk_errors.NotReadyErr, "")
 
 // OPA executes WebAssembly compiled Rego policies.
 type OPA struct {
-	configErr      error // Delayed configuration error, if any.
-	memoryMinPages uint32
-	memoryMaxPages uint32 // 0 means no limit.
-	poolSize       uint32
+	configErr      error
 	pool           *wasm.Pool
-	mutex          sync.Mutex // To serialize access to SetPolicy, SetData and Close.
-	policy         []byte     // Current policy.
-	data           []byte     // Current data.
 	logError       func(error)
+	policy         []byte
+	data           []byte
+	mutex          sync.Mutex
+	memoryMinPages uint32
+	memoryMaxPages uint32
+	poolSize       uint32
 }
 
 // Result holds the evaluation result.
@@ -159,15 +159,15 @@ func (o *OPA) setPolicyData(ctx context.Context, policy []byte, data []byte) err
 
 // EvalOpts define options for performing an evaluation
 type EvalOpts struct {
-	Entrypoint             int32
-	Input                  *any
-	Metrics                metrics.Metrics
 	Time                   time.Time
+	Metrics                metrics.Metrics
 	Seed                   io.Reader
 	InterQueryBuiltinCache cache.InterQueryCache
-	NDBuiltinCache         builtins.NDBCache
 	PrintHook              print.Hook
+	Input                  *any
+	NDBuiltinCache         builtins.NDBCache
 	Capabilities           *ast.Capabilities
+	Entrypoint             int32
 }
 
 // Eval evaluates the policy with the given input, returning the

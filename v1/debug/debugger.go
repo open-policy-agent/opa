@@ -196,25 +196,25 @@ func SetEventHandler(handler EventHandler) DebuggerOption {
 }
 
 type LaunchEvalProperties struct {
-	LaunchProperties
-	Query     string
 	Input     any
+	Query     string
 	InputPath string
+	LaunchProperties
 }
 
 type LaunchTestProperties struct {
-	LaunchProperties
 	Run string
+	LaunchProperties
 }
 
 type LaunchProperties struct {
 	BundlePaths         []string
 	DataPaths           []string
+	SkipOps             []topdown.Op
 	StopOnResult        bool
 	StopOnEntry         bool
 	StopOnFail          bool
 	EnablePrint         bool
-	SkipOps             []topdown.Op
 	StrictBuiltinErrors bool
 	RuleIndexing        bool
 }
@@ -373,15 +373,15 @@ func readInput(path string) (any, error) {
 }
 
 type session struct {
+	ctx            context.Context
 	d              *debugger
-	properties     LaunchProperties
-	threads        []*thread
-	frames         []*stackFrame
 	framesByThread map[ThreadID][]*stackFrame
 	breakpoints    *breakpointCollection
-	ctx            context.Context
 	cancel         context.CancelFunc
 	varManager     *variableManager
+	threads        []*thread
+	frames         []*stackFrame
+	properties     LaunchProperties
 	mtx            sync.Mutex
 }
 

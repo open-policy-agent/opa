@@ -38,10 +38,10 @@ const headerJwt = "JWT"
 //
 //	a JWT in Base64.
 type JSONWebToken struct {
+	decodedHeader ast.Object
 	header        string
 	payload       string
 	signature     string
-	decodedHeader ast.Object
 }
 
 // decodeHeader populates the decodedHeader field.
@@ -298,9 +298,9 @@ func verifyEd25519(publicKey any, digest []byte, signature []byte) (err error) {
 }
 
 type verificationKey struct {
+	key any
 	alg string
 	kid string
-	key any
 }
 
 // getKeysFromCertOrJWK returns the public key found in a X.509 certificate or JWK key(s).
@@ -523,27 +523,12 @@ func builtinJWTVerifyHS(bctx BuiltinContext, operands []*ast.Term, hashF func() 
 
 // tokenConstraints holds decoded JWT verification constraints.
 type tokenConstraints struct {
-	// The set of asymmetric keys we can verify with.
-	keys []verificationKey
-
-	// The single symmetric key we will verify with.
 	secret string
-
-	// The algorithm that must be used to verify.
-	// If "", any algorithm is acceptable.
-	alg string
-
-	// The required issuer.
-	// If "", any issuer is acceptable.
-	iss string
-
-	// The required audience.
-	// If "", no audience is acceptable.
-	aud string
-
-	// The time to validate against, or -1 if no constraint set.
-	// (If unset, the current time will be used.)
-	time float64
+	alg    string
+	iss    string
+	aud    string
+	keys   []verificationKey
+	time   float64
 }
 
 // tokenConstraintHandler is the handler type for JWT verification constraints.

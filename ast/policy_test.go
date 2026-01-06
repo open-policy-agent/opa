@@ -12,8 +12,8 @@ func TestRuleString_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note        string
 		module      string
-		regoVersion RegoVersion
 		exp         string
+		regoVersion RegoVersion
 	}{
 		{
 			note:        "v0",

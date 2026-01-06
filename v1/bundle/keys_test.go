@@ -18,10 +18,10 @@ import (
 func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
 
 	tests := map[string]struct {
+		err        error
 		publicKeys map[string]*KeyConfig
 		vc         *VerificationConfig
 		wantErr    bool
-		err        error
 	}{
 		"valid_config_no_key": {
 			map[string]*KeyConfig{},
@@ -65,11 +65,11 @@ func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
 
 func TestGetPublicKey(t *testing.T) {
 	tests := map[string]struct {
-		input   string
+		err     error
 		vc      *VerificationConfig
 		kc      *KeyConfig
+		input   string
 		wantErr bool
-		err     error
 	}{
 		"key_found": {
 			"foo",

@@ -16,10 +16,10 @@ import (
 func TestOracleFindDefinition(t *testing.T) {
 	cases := []struct {
 		note         string
-		v0Compatible bool
 		onDiskModule string
 		stdin        string
 		paths        []string
+		v0Compatible bool
 	}{
 		{
 			note:         "v0",
@@ -166,8 +166,8 @@ func TestOracleParseFilenameOffset(t *testing.T) {
 func TestOracleParseFilenameOffsetError(t *testing.T) {
 
 	tests := []struct {
-		input   string
 		wantErr error
+		input   string
 	}{
 		{
 			input:   "x.rego",

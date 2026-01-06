@@ -1343,11 +1343,11 @@ func TestPrettyReporterFmtBenchmark(t *testing.T) {
 		},
 	}
 	cases := []struct {
-		note            string
 		tr              *Result
+		note            string
+		expectedName    string
 		goBenchFmt      bool
 		showAllocations bool
-		expectedName    string
 	}{
 		{
 			note: "base",

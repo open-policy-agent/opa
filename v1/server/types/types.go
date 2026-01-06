@@ -87,9 +87,9 @@ const (
 
 // PatchV1 models a single patch operation against a document.
 type PatchV1 struct {
+	Value any    `json:"value"`
 	Op    string `json:"op"`
 	Path  string `json:"path"`
-	Value any    `json:"value"`
 }
 
 // PolicyListResponseV1 models the response message for the Policy API list operation.
@@ -114,9 +114,9 @@ type PolicyDeleteResponseV1 struct {
 
 // PolicyV1 models a policy module in OPA.
 type PolicyV1 struct {
+	AST *ast.Module `json:"ast"`
 	ID  string      `json:"id"`
 	Raw string      `json:"raw"`
-	AST *ast.Module `json:"ast"`
 }
 
 // Equal returns true if p is equal to other.
@@ -126,12 +126,12 @@ func (p PolicyV1) Equal(other PolicyV1) bool {
 
 // ProvenanceV1 models a collection of build/version information.
 type ProvenanceV1 struct {
+	Bundles   map[string]ProvenanceBundleV1 `json:"bundles,omitempty"`
 	Version   string                        `json:"version"`
 	Vcs       string                        `json:"build_commit"`
 	Timestamp string                        `json:"build_timestamp"`
 	Hostname  string                        `json:"build_hostname"`
-	Revision  string                        `json:"revision,omitempty"` // Deprecated: Prefer `Bundles`
-	Bundles   map[string]ProvenanceBundleV1 `json:"bundles,omitempty"`
+	Revision  string                        `json:"revision,omitempty"`
 }
 
 // ProvenanceBundleV1 models a bundle at some point in time
@@ -146,12 +146,12 @@ type DataRequestV1 struct {
 
 // DataResponseV1 models the response message for Data API read operations.
 type DataResponseV1 struct {
-	DecisionID  string        `json:"decision_id,omitempty"`
 	Provenance  *ProvenanceV1 `json:"provenance,omitempty"`
-	Explanation TraceV1       `json:"explanation,omitempty"`
 	Metrics     MetricsV1     `json:"metrics,omitempty"`
 	Result      *any          `json:"result,omitempty"`
 	Warning     *Warning      `json:"warning,omitempty"`
+	DecisionID  string        `json:"decision_id,omitempty"`
+	Explanation TraceV1       `json:"explanation,omitempty"`
 }
 
 // Warning models DataResponse warnings
@@ -286,13 +286,13 @@ func newPrettyTraceV1(trace []*topdown.Event) (TraceV1, error) {
 
 // TraceEventV1 represents a step in the query evaluation process.
 type TraceEventV1 struct {
+	Node     any        `json:"node"`
 	Op       string     `json:"op"`
+	Type     string     `json:"type"`
+	Message  string     `json:"message,omitempty"`
+	Locals   BindingsV1 `json:"locals"`
 	QueryID  uint64     `json:"query_id"`
 	ParentID uint64     `json:"parent_id"`
-	Type     string     `json:"type"`
-	Node     any        `json:"node"`
-	Locals   BindingsV1 `json:"locals"`
-	Message  string     `json:"message,omitempty"`
 }
 
 // UnmarshalJSON deserializes a TraceEventV1 object. The Node field is
@@ -382,8 +382,8 @@ type CompileRequestV1 struct {
 // CompileResponseV1 models the response message for Compile API operations.
 type CompileResponseV1 struct {
 	Result      *any      `json:"result,omitempty"`
-	Explanation TraceV1   `json:"explanation,omitempty"`
 	Metrics     MetricsV1 `json:"metrics,omitempty"`
+	Explanation TraceV1   `json:"explanation,omitempty"`
 }
 
 // PartialEvaluationResultV1 represents the output of partial evaluation and is
@@ -395,8 +395,8 @@ type PartialEvaluationResultV1 struct {
 
 // QueryRequestV1 models the request message for Query API operations.
 type QueryRequestV1 struct {
-	Query string `json:"query"`
 	Input *any   `json:"input"`
+	Query string `json:"query"`
 }
 
 // ConfigResponseV1 models the response message for Config API operations.

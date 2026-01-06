@@ -23,11 +23,11 @@ import (
 // Info represents information about a bundle.
 type Info struct {
 	Manifest    *bundle.Manifest        `json:"manifest,omitempty"`
+	Namespaces  map[string][]string     `json:"namespaces,omitempty"`
+	Required    *ast.Capabilities       `json:"capabilities,omitempty"`
 	Signatures  bundle.SignaturesConfig `json:"signatures_config"`
 	WasmModules []map[string]any        `json:"wasm_modules,omitempty"`
-	Namespaces  map[string][]string     `json:"namespaces,omitempty"`
 	Annotations []*ast.AnnotationsRef   `json:"annotations,omitempty"`
-	Required    *ast.Capabilities       `json:"capabilities,omitempty"`
 }
 
 func File(path string, includeAnnotations bool) (*Info, error) {

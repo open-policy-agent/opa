@@ -18,15 +18,15 @@ const (
 )
 
 type dirLoaderFS struct {
-	sync.Mutex
 	filesystem        fs.FS
-	files             []string
-	idx               int
 	filter            filter.LoaderFilter
 	root              string
+	files             []string
+	idx               int
 	pathFormat        PathFormat
 	maxSizeLimitBytes int64
-	followSymlinks    bool
+	sync.Mutex
+	followSymlinks bool
 }
 
 // NewFSLoader returns a basic DirectoryLoader implementation

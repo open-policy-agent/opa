@@ -80,10 +80,10 @@ type ErrorDetails interface {
 
 // Error represents a single error caught during parsing, compiling, etc.
 type Error struct {
+	Details  ErrorDetails `json:"details,omitempty"`
+	Location *Location    `json:"location,omitempty"`
 	Code     string       `json:"code"`
 	Message  string       `json:"message"`
-	Location *Location    `json:"location,omitempty"`
-	Details  ErrorDetails `json:"details,omitempty"`
 }
 
 func (e *Error) Error() string {

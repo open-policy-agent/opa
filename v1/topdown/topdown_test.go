@@ -132,11 +132,11 @@ func TestTopDownWithKeyword(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
+		exp     any
 		note    string
+		input   string
 		rules   []string
 		modules []string
-		input   string
-		exp     any
 	}{
 		{
 			// NOTE(tsandall): This case assumes that partial sets are not memoized.
@@ -251,8 +251,8 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 	}
 
 	tests := []struct {
-		note   string
 		module *ast.Module
+		note   string
 	}{
 		{
 			note: "large domain, simple body",
@@ -1798,8 +1798,8 @@ type astStore struct {
 	storage.WritesNotSupported
 	storage.TriggersNotSupported
 	storage.PolicyNotSupported
-	path  string
 	value ast.Value
+	path  string
 }
 
 func (*astStore) NewTransaction(context.Context, ...storage.TransactionParams) (storage.Transaction, error) {

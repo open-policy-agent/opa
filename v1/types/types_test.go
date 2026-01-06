@@ -225,10 +225,10 @@ func TestOr(t *testing.T) {
 func TestSelect(t *testing.T) {
 
 	tests := []struct {
-		note     string
 		a        Type
 		k        any
 		expected Type
+		note     string
 	}{
 		{"static", NewArray([]Type{S}, nil), json.Number("0"), S},
 		{"dynamic", NewArray(nil, S), json.Number("100"), S},
@@ -266,9 +266,9 @@ func TestSelect(t *testing.T) {
 
 func TestKeys(t *testing.T) {
 	tests := []struct {
-		note     string
 		tpe      Type
 		expected Type
+		note     string
 	}{
 		{"array", NewArray(nil, nil), N},
 		{"object", NewObject(nil, NewDynamicProperty(S, S)), S},
@@ -294,9 +294,9 @@ func TestKeys(t *testing.T) {
 
 func TestValues(t *testing.T) {
 	tests := []struct {
-		note     string
 		tpe      Type
 		expected Type
+		note     string
 	}{
 		{"array", NewArray([]Type{N}, nil), N},
 		{"array dynamic", NewArray([]Type{N, S}, B), NewAny(S, N, B)},

@@ -104,12 +104,12 @@ func RegoVersionFromInt(i int) RegoVersion {
 // can do efficient shallow copies of these values when doing a
 // save() and restore().
 type state struct {
+	s         *scanner.Scanner
+	lit       string
+	loc       Location
 	errors    Errors
 	comments  []*Comment
 	hints     []string
-	s         *scanner.Scanner
-	loc       Location
-	lit       string
 	lastEnd   int
 	tokEnd    int
 	wildcard  int
@@ -140,17 +140,17 @@ func (s *state) Text(offset, end int) []byte {
 type Parser struct {
 	r                 io.Reader
 	s                 *state
-	po                ParserOptions
 	cache             parsedTermCache
+	po                ParserOptions
 	recursionDepth    int
 	maxRecursionDepth int
 }
 
 type parsedTermCacheItem struct {
 	t      *Term
-	post   *state // post is the post-state that's restored on a cache-hit
-	offset int
+	post   *state
 	next   *parsedTermCacheItem
+	offset int
 }
 
 type parsedTermCache struct {
@@ -174,14 +174,13 @@ func (e *parsedTermCacheItem) String() string {
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
-	Capabilities      *Capabilities
-	ProcessAnnotation bool
-	AllFutureKeywords bool
-	FutureKeywords    []string
-	SkipRules         bool
-	// RegoVersion is the version of Rego to parse for.
+	Capabilities       *Capabilities
+	FutureKeywords     []string
 	RegoVersion        RegoVersion
-	unreleasedKeywords bool // TODO(sr): cleanup
+	ProcessAnnotation  bool
+	AllFutureKeywords  bool
+	SkipRules          bool
+	unreleasedKeywords bool
 }
 
 // EffectiveRegoVersion returns the effective RegoVersion to use for parsing.
@@ -2732,22 +2731,22 @@ func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
 // We explicitly use yaml unmarshalling, to accommodate for the '_' in 'related_resources',
 // which isn't handled properly by json for some reason.
 type rawAnnotation struct {
+	Compile          map[string]any   `yaml:"compile"`
+	Custom           map[string]any   `yaml:"custom"`
 	Scope            string           `yaml:"scope"`
 	Title            string           `yaml:"title"`
-	Entrypoint       bool             `yaml:"entrypoint"`
 	Description      string           `yaml:"description"`
 	Organizations    []string         `yaml:"organizations"`
 	RelatedResources []any            `yaml:"related_resources"`
 	Authors          []any            `yaml:"authors"`
 	Schemas          []map[string]any `yaml:"schemas"`
-	Compile          map[string]any   `yaml:"compile"`
-	Custom           map[string]any   `yaml:"custom"`
+	Entrypoint       bool             `yaml:"entrypoint"`
 }
 
 type metadataParser struct {
 	buf      *bytes.Buffer
-	comments []*Comment
 	loc      *location.Location
+	comments []*Comment
 }
 
 func newMetadataParser(loc *Location) *metadataParser {

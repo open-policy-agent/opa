@@ -356,16 +356,15 @@ type ActivateOpts struct {
 	Ctx                      context.Context
 	Store                    storage.Store
 	Txn                      storage.Transaction
+	Metrics                  metrics.Metrics
 	TxnCtx                   *storage.Context
 	Compiler                 *ast.Compiler
-	Metrics                  metrics.Metrics
-	Bundles                  map[string]*Bundle     // Optional
-	ExtraModules             map[string]*ast.Module // Optional
+	Bundles                  map[string]*Bundle
+	ExtraModules             map[string]*ast.Module
+	Plugin                   string
 	AuthorizationDecisionRef ast.Ref
 	ParserOptions            ast.ParserOptions
-	Plugin                   string
-
-	legacy bool
+	legacy                   bool
 }
 
 type DefaultActivator struct{}

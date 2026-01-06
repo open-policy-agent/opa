@@ -631,8 +631,8 @@ func TestRuleString_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note        string
 		module      string
-		regoVersion RegoVersion
 		exp         string
+		regoVersion RegoVersion
 	}{
 		{
 			note:        "v0",
@@ -923,9 +923,9 @@ p := 7 if { true }`
 func TestModuleStringWithRegoVersion(t *testing.T) {
 	tests := []struct {
 		note        string
-		regoVersion RegoVersion
 		module      string
 		exp         string
+		regoVersion RegoVersion
 	}{
 		{
 			note:        "v0, basic",

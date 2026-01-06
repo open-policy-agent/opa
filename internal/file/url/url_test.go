@@ -5,10 +5,10 @@ import "testing"
 func TestClean(t *testing.T) {
 
 	cases := []struct {
+		err   error
 		input string
 		goos  string
 		exp   string
-		err   error
 	}{
 		{
 			input: "c:/foo",

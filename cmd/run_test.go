@@ -156,8 +156,8 @@ func TestInitRuntimeCipherSuites(t *testing.T) {
 	testCases := []struct {
 		name            string
 		cipherSuites    []string
-		expErr          bool
 		expCipherSuites []uint16
+		expErr          bool
 	}{
 		{"no cipher suites", []string{}, false, []uint16{}},
 		{"secure and insecure cipher suites", []string{"TLS_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA", "TLS_RSA_WITH_RC4_128_SHA"}, false, []uint16{tls.TLS_RSA_WITH_AES_128_CBC_SHA, tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, tls.TLS_RSA_WITH_RC4_128_SHA}},
@@ -252,8 +252,8 @@ func TestRunServerUploadPolicy(t *testing.T) {
 
 	tests := []struct {
 		note         string
-		v0Compatible bool
 		module       string
+		v0Compatible bool
 		expErr       bool
 	}{
 		{

@@ -85,8 +85,8 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 	tests := []struct {
 		note    string
 		modules []string
-		wantErr bool
 		errs    []string
+		wantErr bool
 	}{
 		{note: "no rules", modules: []string{}},
 		{note: "no error", modules: []string{module1}},

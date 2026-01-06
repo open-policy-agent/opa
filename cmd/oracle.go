@@ -23,8 +23,8 @@ import (
 )
 
 type findDefinitionParams struct {
-	stdinBuffer  bool
 	bundlePaths  repeatedStringFlag
+	stdinBuffer  bool
 	v0Compatible bool
 	v1Compatible bool
 }

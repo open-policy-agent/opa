@@ -89,23 +89,23 @@ const valueLogGCDiscardRatio = 0.5
 
 // Options contains parameters that configure the disk-based store.
 type Options struct {
-	Dir        string         // specifies directory to store data inside of
-	Partitions []storage.Path // data prefixes that enable efficient layout
-	Badger     string         // badger-internal configurables
+	Dir        string
+	Badger     string
+	Partitions []storage.Path
 }
 
 // Store provides a disk-based implementation of the storage.Store interface.
 type Store struct {
-	db         *badger.DB           // underlying key-value store
-	xid        uint64               // next transaction id
-	rmu        sync.RWMutex         // reader-writer lock
-	wmu        sync.Mutex           // writer lock
-	pm         *pathMapper          // maps logical storage paths to underlying store keys
-	partitions *partitionTrie       // data structure to support path mapping
-	triggers   map[*handle]struct{} // registered triggers
-	gcTicker   *time.Ticker         // gc ticker
-	close      chan struct{}        // close-only channel for stopping the GC goroutine
-	backupDB   *badger.DB           // backup of the underlying key-value store
+	db         *badger.DB
+	pm         *pathMapper
+	partitions *partitionTrie
+	triggers   map[*handle]struct{}
+	gcTicker   *time.Ticker
+	close      chan struct{}
+	backupDB   *badger.DB
+	xid        uint64
+	rmu        sync.RWMutex
+	wmu        sync.Mutex
 }
 
 const (

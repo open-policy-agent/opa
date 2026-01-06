@@ -73,8 +73,8 @@ type Server struct {
 	server        *httptest.Server
 	ready         chan struct{}
 	bundles       map[string]map[string]string
-	rawBundles    bool
 	parserOptions ast.ParserOptions
+	rawBundles    bool
 }
 
 // MustNewServer returns a new Server for test purposes or panics if an error occurs.

@@ -26,8 +26,8 @@ import (
 type params struct {
 	Output           string
 	InputDir         string
-	TestFilePatterns []string
 	TestRunner       string
+	TestFilePatterns []string
 }
 
 type compiledTestCaseSet struct {

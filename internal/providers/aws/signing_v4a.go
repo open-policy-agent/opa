@@ -162,16 +162,12 @@ func retrievePrivateKey(symmetric Credentials) (v4aCredentials, error) {
 }
 
 type httpSigner struct {
-	Request     *http.Request
-	ServiceName string
-	RegionSet   []string
 	Time        time.Time
+	Request     *http.Request
 	Credentials v4aCredentials
-
-	// PayloadHash is the hex encoded SHA-256 hash of the request payload
-	// If len(PayloadHash) == 0 the signer will attempt to send the request
-	// as an unsigned payload. Note: Unsigned payloads only work for a subset of services.
+	ServiceName string
 	PayloadHash string
+	RegionSet   []string
 }
 
 func (s *httpSigner) setRequiredSigningFields(headers http.Header, _ url.Values) {

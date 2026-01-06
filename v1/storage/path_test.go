@@ -39,9 +39,9 @@ func TestNewPathForString(t *testing.T) {
 
 func TestNewPathForRef(t *testing.T) {
 	tests := []struct {
+		err    error
 		input  ast.Ref
 		result Path
-		err    error
 	}{
 		{ast.Ref{}, nil, errors.New("empty reference (indicates error in caller)")},
 		{ast.MustParseRef("data.foo[x]"), nil, errors.New("unresolved reference (indicates error in caller): data.foo[x]")},

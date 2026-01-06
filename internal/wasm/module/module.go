@@ -15,20 +15,20 @@ import (
 type (
 	// Module represents a WASM module.
 	Module struct {
-		Version  uint32
 		Start    StartSection
-		Type     TypeSection
+		Names    NameSection
+		Memory   MemorySection
 		Import   ImportSection
 		Function FunctionSection
 		Table    TableSection
-		Memory   MemorySection
 		Element  ElementSection
 		Global   GlobalSection
 		Export   ExportSection
 		Code     RawCodeSection
 		Data     DataSection
 		Customs  []CustomSection
-		Names    NameSection
+		Type     TypeSection
+		Version  uint32
 	}
 
 	// StartSection represents a WASM start section.
@@ -102,15 +102,15 @@ type (
 
 	// NameMap maps function or local arg indices to their names.
 	NameMap struct {
-		Index uint32
 		Name  string
+		Index uint32
 	}
 
 	// LocalNameMap maps function indices, and argument indices for the args
 	// of the indexed function to their names.
 	LocalNameMap struct {
-		FuncIndex uint32
 		NameMap
+		FuncIndex uint32
 	}
 
 	// FunctionType represents a WASM function type definition.
@@ -121,9 +121,9 @@ type (
 
 	// Import represents a WASM import statement.
 	Import struct {
+		Descriptor ImportDescriptor
 		Module     string
 		Name       string
-		Descriptor ImportDescriptor
 	}
 
 	// ImportDescriptor represents a WASM import descriptor.
@@ -152,15 +152,15 @@ type (
 
 	// TableImport represents a WASM table import statement.
 	TableImport struct {
-		Type types.ElementType
 		Lim  Limit
+		Type types.ElementType
 	}
 
 	// ElementSegment represents a WASM element segment.
 	ElementSegment struct {
-		Index   uint32
 		Offset  Expr
 		Indices []uint32
+		Index   uint32
 	}
 
 	// GlobalImport represents a WASM global variable import statement.
@@ -171,14 +171,14 @@ type (
 
 	// Limit represents a WASM limit.
 	Limit struct {
-		Min uint32
 		Max *uint32
+		Min uint32
 	}
 
 	// Table represents a WASM table statement.
 	Table struct {
-		Type types.ElementType
 		Lim  Limit
+		Type types.ElementType
 	}
 
 	// Memory represents a Wasm memory statement.
@@ -188,9 +188,9 @@ type (
 
 	// Global represents a WASM global statement.
 	Global struct {
+		Init    Expr
 		Type    types.ValueType
 		Mutable bool
-		Init    Expr
 	}
 
 	// Export represents a WASM export statement.
@@ -215,9 +215,9 @@ type (
 
 	// DataSegment represents a WASM data segment.
 	DataSegment struct {
-		Index  uint32
 		Offset Expr
 		Init   []byte
+		Index  uint32
 	}
 
 	// Expr represents a WASM expression.

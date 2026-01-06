@@ -24,9 +24,9 @@ type Profiler struct {
 
 // exprInfo stores information about an expression.
 type exprInfo struct {
-	index    int
 	location *ast.Location
 	op       topdown.Op
+	index    int
 }
 
 // New returns a new Profiler object.
@@ -272,21 +272,21 @@ func getProfilerStats(expr exprInfo, timer time.Time) ExprStats {
 
 // ExprStats represents the result of profiling an expression.
 type ExprStats struct {
+	Location   *ast.Location `json:"location"`
 	ExprTimeNs int64         `json:"total_time_ns"`
 	NumEval    int           `json:"num_eval"`
 	NumRedo    int           `json:"num_redo"`
 	NumGenExpr int           `json:"num_gen_expr"`
-	Location   *ast.Location `json:"location"`
 }
 
 // ExprStatsAggregated represents the result of profiling an expression
 // by aggregating `n` profiles.
 type ExprStatsAggregated struct {
 	ExprTimeNsStats any           `json:"total_time_ns_stats"`
+	Location        *ast.Location `json:"location"`
 	NumEval         int           `json:"num_eval"`
 	NumRedo         int           `json:"num_redo"`
 	NumGenExpr      int           `json:"num_gen_expr"`
-	Location        *ast.Location `json:"location"`
 }
 
 func aggregate(stats ...ExprStats) ExprStatsAggregated {

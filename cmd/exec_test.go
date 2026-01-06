@@ -30,10 +30,10 @@ type execOutput struct {
 }
 
 type execResultItem struct {
+	Result     *any                `json:"result,omitempty"`
+	Error      execResultItemError `json:"error"`
 	DecisionID string              `json:"decision_id,omitempty"`
 	Path       string              `json:"path"`
-	Error      execResultItemError `json:"error"`
-	Result     *any                `json:"result,omitempty"`
 }
 
 type execResultItemError struct {
@@ -344,10 +344,10 @@ main contains "hello" if {
 func TestExecCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string
-		v0Compatible bool
-		v1Compatible bool
 		module       string
 		expErrs      []string
+		v0Compatible bool
+		v1Compatible bool
 	}{
 		{
 			note:         "v0, no keywords used",
@@ -960,11 +960,11 @@ func TestInvalidConfigNonEmptyAndFailDefined(t *testing.T) {
 
 func TestFailFlagCases(t *testing.T) {
 	tests := []struct {
-		description  string
 		files        map[string]string
+		description  string
 		decision     string
-		expectError  bool
 		expected     []byte
+		expectError  bool
 		fail         bool
 		failDefined  bool
 		failNonEmpty bool
@@ -1312,12 +1312,12 @@ func TestFailFlagCases(t *testing.T) {
 
 func TestExecWithInvalidInputOptions(t *testing.T) {
 	tests := []struct {
-		description string
 		files       map[string]string
-		stdIn       bool
+		description string
 		input       string
-		expectError bool
 		expected    string
+		stdIn       bool
+		expectError bool
 	}{
 		{
 			description: "path passed in as arg should not raise error",
@@ -1526,8 +1526,8 @@ plugins:
 }
 
 type factory struct {
-	stopped bool
 	m       *plugins.Manager
+	stopped bool
 }
 
 func (f *factory) New(m *plugins.Manager, _ any) plugins.Plugin {

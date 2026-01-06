@@ -91,8 +91,8 @@ func TestLocationCompare(t *testing.T) {
 func TestLocationMarshal(t *testing.T) {
 	testCases := map[string]struct {
 		loc     *Location
-		options astJSON.Options
 		exp     string
+		options astJSON.Options
 	}{
 		"default json options": {
 			loc: &Location{

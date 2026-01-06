@@ -73,25 +73,24 @@ const (
 // VarMetadata provides some user facing information about
 // a variable in some policy.
 type VarMetadata struct {
-	Name     ast.Var       `json:"name"`
 	Location *ast.Location `json:"location"`
+	Name     ast.Var       `json:"name"`
 }
 
 // Event contains state associated with a tracing event.
 type Event struct {
-	Op            Op                      // Identifies type of event.
-	Node          ast.Node                // Contains AST node relevant to the event.
-	Location      *ast.Location           // The location of the Node this event relates to.
-	QueryID       uint64                  // Identifies the query this event belongs to.
-	ParentID      uint64                  // Identifies the parent query this event belongs to.
-	Locals        *ast.ValueMap           // Contains local variable bindings from the query context. Nil if variables were not included in the trace event.
-	LocalMetadata map[ast.Var]VarMetadata // Contains metadata for the local variable bindings. Nil if variables were not included in the trace event.
-	Message       string                  // Contains message for Note events.
-	Ref           *ast.Ref                // Identifies the subject ref for the event. Only applies to Index and Wasm operations.
-
+	Node                      ast.Node
+	Location                  *ast.Location
+	Locals                    *ast.ValueMap
+	LocalMetadata             map[ast.Var]VarMetadata
+	Ref                       *ast.Ref
 	input                     *ast.Term
 	bindings                  *bindings
 	localVirtualCacheSnapshot *ast.ValueMap
+	Op                        Op
+	Message                   string
+	QueryID                   uint64
+	ParentID                  uint64
 }
 
 func (evt *Event) WithInput(input *ast.Term) *Event {

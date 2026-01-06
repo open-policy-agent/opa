@@ -1025,10 +1025,10 @@ a contains x if {
 func TestParseCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string
-		v0Compatible bool
-		v1Compatible bool
 		policy       string
 		expErrs      []string
+		v0Compatible bool
+		v1Compatible bool
 	}{
 		{
 			note:         "v0, keywords not used",

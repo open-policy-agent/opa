@@ -180,10 +180,10 @@ func TestBasic(t *testing.T) {
 		identity       string
 		method         string
 		path           string
-		expectedStatus int
 		expectedCode   string
 		expectedMsg    string
 		expectedPrint  []string
+		expectedStatus int
 	}{
 		{"root (ok)", "token0", http.MethodGet, "", http.StatusOK, "", "", []string{"ok"}},
 		{"index.html (ok)", "token0", http.MethodGet, "/index.html", http.StatusOK, "", "", []string{"ok"}},

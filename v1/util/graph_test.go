@@ -13,8 +13,8 @@ import (
 type testTraversal struct {
 	g       map[int][]int
 	visited map[int]struct{}
-	ordered []int
 	stop    *int
+	ordered []int
 }
 
 func newTestTraversal(g map[int][]int) *testTraversal {

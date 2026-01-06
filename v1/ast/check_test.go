@@ -58,9 +58,9 @@ func TestCheckInference(t *testing.T) {
 	}
 
 	tests := []struct {
+		expected map[Var]types.Type
 		note     string
 		query    string
-		expected map[Var]types.Type
 	}{
 		{"trivial", `x = 1`, map[Var]types.Type{
 			Var("x"): types.N,
@@ -374,10 +374,10 @@ func TestCheckInferenceRules(t *testing.T) {
 	}
 
 	tests := []struct {
-		note     string
-		rules    [][2]string
-		ref      string
 		expected types.Type
+		note     string
+		ref      string
+		rules    [][2]string
 	}{
 		{"trivial", ruleset1, `data.a.trivial`, types.B},
 
@@ -714,12 +714,12 @@ func TestCheckInferenceOverlapWithRules(t *testing.T) {
 		{`prefix.i.j.k`, `p = "foo" { true }`},
 	}
 	tests := []struct {
-		note     string
-		rules    [][2]string
-		ref      string
-		expected types.Type // ref's type
-		query    string
+		expected types.Type
 		extra    map[Var]types.Type
+		note     string
+		ref      string
+		query    string
+		rules    [][2]string
 	}{
 		{
 			note:     "non-leaf, extra vars",
@@ -1066,13 +1066,13 @@ func TestCheckRefErrInvalid(t *testing.T) {
 	}, BuiltinMap)
 
 	tests := []struct {
+		have  types.Type
+		want  types.Type
 		note  string
 		query string
 		ref   string
-		pos   int
-		have  types.Type
-		want  types.Type
 		oneOf []Value
+		pos   int
 	}{
 		{
 			note:  "bad non-leaf var",
@@ -1407,8 +1407,8 @@ func TestCheckValidErrors(t *testing.T) {
 
 	tests := map[string]struct {
 		module *Module
-		numErr int
 		query  []string
+		numErr int
 	}{
 		"single_type_error":         {module: module, numErr: 1, query: []string{`data.test.p`}},
 		"multiple_type_error":       {module: module2, numErr: 2, query: []string{`data.test.a`, `data.test.m`}},
@@ -2141,8 +2141,8 @@ whocan[user] {
 
 	tests := []struct {
 		note    string
-		modules []string
 		err     string
+		modules []string
 	}{
 		{note: "data and input annotations", modules: []string{module1}},
 		{note: "correct data override", modules: []string{module2}},
@@ -2364,10 +2364,10 @@ p { input = "foo" }`}},
 func TestCheckAnnotationInference(t *testing.T) {
 
 	tests := []struct {
-		note    string
 		modules map[string]string
 		schemas map[string]string
 		exp     map[string]types.Type
+		note    string
 	}{
 		{
 			note: "rule scope",

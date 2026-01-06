@@ -12,8 +12,8 @@ import (
 
 func mockRootCmd(writer io.Writer) *cobra.Command {
 	var rootArgs struct {
-		IntFlag  int
 		StrFlag  string
+		IntFlag  int
 		BoolFlag bool
 	}
 	cmd := cobra.Command{
@@ -35,8 +35,8 @@ func mockRootCmd(writer io.Writer) *cobra.Command {
 
 func mockChildCmd(writer io.Writer) *cobra.Command {
 	var rootArgs struct {
-		IntFlag  int
 		StrFlag  string
+		IntFlag  int
 		BoolFlag bool
 	}
 	cmd := cobra.Command{

@@ -28,11 +28,11 @@ import (
 // propagation cannot replace x[0] == 1 with sort(input, x)[0] == 1 as this is
 // not legal.
 type CopyPropagator struct {
-	livevars           ast.VarSet // vars that must be preserved in the resulting query
-	sorted             []ast.Var  // sorted copy of vars to ensure deterministic result
-	ensureNonEmptyBody bool
+	livevars           ast.VarSet
 	compiler           *ast.Compiler
 	localvargen        *localVarGenerator
+	sorted             []ast.Var
+	ensureNonEmptyBody bool
 }
 
 type localVarGenerator struct {

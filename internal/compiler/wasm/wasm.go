@@ -193,8 +193,8 @@ func IsWasmEnabled(bi string) bool {
 }
 
 type externalFunc struct {
-	ID   int32
 	Decl *opatypes.Function
+	ID   int32
 }
 
 var builtinDispatchers = [...]string{
@@ -207,38 +207,33 @@ var builtinDispatchers = [...]string{
 
 // Compiler implements an IR->WASM compiler backend.
 type Compiler struct {
-	stages []func() error // compiler stages to execute
-	errors []error        // compilation errors encountered
-
-	policy *ir.Policy        // input policy to compile
-	module *module.Module    // output WASM module
-	code   *module.CodeEntry // output WASM code
-
-	funcsCode []funcCode // compile functions' code
-
-	builtinStringAddrs    map[int]uint32          // addresses of built-in string constants
-	externalFuncNameAddrs map[string]int32        // addresses of required built-in function names for listing
-	externalFuncs         map[string]externalFunc // required built-in function ids and types
-	entrypointNameAddrs   map[string]int32        // addresses of available entrypoint names for listing
-	entrypoints           map[string]int32        // available entrypoint ids
-	stringOffset          int32                   // null-terminated string data base offset
-	stringAddrs           []uint32                // null-terminated string constant addresses
-	opaStringAddrs        []uint32                // addresses of interned opa_string_t
-	opaBoolAddrs          map[ir.Bool]uint32      // addresses of interned opa_boolean_t
-	fileAddrs             []uint32                // null-terminated string constant addresses, used for file names
-	funcs                 map[string]uint32       // maps imported and exported function names to function indices
-
-	nextLocal uint32
-	locals    map[ir.Local]uint32
-	lctx      uint32 // local pointing to eval context
-	lrs       uint32 // local pointing to result set
-
-	debug debug.Debug
+	debug                 debug.Debug
+	opaBoolAddrs          map[ir.Bool]uint32
+	policy                *ir.Policy
+	module                *module.Module
+	code                  *module.CodeEntry
+	locals                map[ir.Local]uint32
+	builtinStringAddrs    map[int]uint32
+	externalFuncNameAddrs map[string]int32
+	externalFuncs         map[string]externalFunc
+	entrypointNameAddrs   map[string]int32
+	entrypoints           map[string]int32
+	funcs                 map[string]uint32
+	funcsCode             []funcCode
+	opaStringAddrs        []uint32
+	stringAddrs           []uint32
+	fileAddrs             []uint32
+	stages                []func() error
+	errors                []error
+	stringOffset          int32
+	nextLocal             uint32
+	lctx                  uint32
+	lrs                   uint32
 }
 
 type funcCode struct {
-	name string
 	code *module.CodeEntry
+	name string
 }
 
 const (
@@ -248,8 +243,8 @@ const (
 )
 
 var errorMessages = [...]struct {
-	id      int
 	message string
+	id      int
 }{
 	{errVarAssignConflict, "var assignment conflict"},
 	{errObjectInsertConflict, "object insert conflict"},

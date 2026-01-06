@@ -50,10 +50,10 @@ func TestIdentityTokenFromMetadataService(t *testing.T) {
 	defer ts.Close()
 
 	tests := []struct {
+		err               error
 		audience          string
 		identityToken     string
 		identityTokenPath string
-		err               error
 	}{
 		{"https://example.org", token, defaultIdentityTokenPath, nil},
 		{"", "", defaultIdentityTokenPath, errGCPMetadataInvalidRequest},

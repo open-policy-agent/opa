@@ -524,11 +524,11 @@ a contains x if {
 
 func TestCheckWithRegoV1Capability(t *testing.T) {
 	cases := []struct {
-		note         string
-		v0Compatible bool
 		capabilities *ast.Capabilities
+		note         string
 		policy       string
 		expErrs      []string
+		v0Compatible bool
 	}{
 		{
 			note:         "v0 module, v0-compatible, no capabilities",
@@ -709,10 +709,10 @@ a contains x if {
 func TestCheckCompatibleFlags(t *testing.T) {
 	cases := []struct {
 		note         string
-		v0Compatible bool
-		v1Compatible bool
 		policy       string
 		expErrs      []string
+		v0Compatible bool
+		v1Compatible bool
 	}{
 		{
 			note:         "v0, no illegal keywords",

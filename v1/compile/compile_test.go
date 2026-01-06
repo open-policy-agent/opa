@@ -80,9 +80,9 @@ func TestCompilerInitErrors(t *testing.T) {
 	ctx := t.Context()
 
 	tests := []struct {
-		note string
-		c    *Compiler
 		want error
+		c    *Compiler
+		note string
 	}{
 		{
 			note: "bad target",
@@ -493,11 +493,11 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 	regoDef := ast.RegoV1.Int()
 
 	tests := []struct {
+		expGlobalRegoVersion *int
+		expFileRegoVersions  map[string]int
 		note                 string
 		bundles              []*bundle.Bundle
 		regoVersion          ast.RegoVersion
-		expGlobalRegoVersion *int
-		expFileRegoVersions  map[string]int
 	}{
 		{
 			note: "single bundle, no bundle rego version (default version)",
@@ -1701,13 +1701,13 @@ update {
 
 func TestCompilerOptimizationSupportRegoVersion(t *testing.T) {
 	tests := []struct {
+		files                      map[string]string
 		note                       string
+		entrypoint                 string
+		expected                   []string
 		modulesRegoVersion         ast.RegoVersion
 		noKeywordsInRefsCapability bool
 		regoV1ImportCapable        bool
-		entrypoint                 string
-		files                      map[string]string
-		expected                   []string
 	}{
 		{
 			note:                "v0 module, rego.v1 capable",
@@ -2456,12 +2456,12 @@ func TestCompilerPlanTargetUnmatchedEntrypoints(t *testing.T) {
 
 func TestCompilerRegoEntrypointAnnotations(t *testing.T) {
 	tests := []struct {
-		note            string
-		entrypoints     []string
 		modules         map[string]string
-		data            string
-		roots           []string
 		wantEntrypoints map[string]struct{}
+		note            string
+		data            string
+		entrypoints     []string
+		roots           []string
 	}{
 		{
 			note:        "implied document scope annotation",
@@ -2929,9 +2929,9 @@ func TestCompilerOutput(t *testing.T) {
 
 func TestOptimizerNoops(t *testing.T) {
 	tests := []struct {
+		modules     map[string]string
 		note        string
 		entrypoints []string
-		modules     map[string]string
 	}{
 		{
 			note:        "recursive result",
@@ -2963,10 +2963,10 @@ func TestOptimizerNoops(t *testing.T) {
 
 func TestOptimizerErrors(t *testing.T) {
 	tests := []struct {
+		wantErr     error
+		modules     map[string]string
 		note        string
 		entrypoints []string
-		modules     map[string]string
-		wantErr     error
 	}{
 		{
 			note:        "undefined entrypoint",
@@ -3014,13 +3014,13 @@ func TestOptimizerErrors(t *testing.T) {
 
 func TestOptimizerOutput(t *testing.T) {
 	tests := []struct {
-		note        string
-		entrypoints []string
 		modules     map[string]string
-		data        string
-		roots       []string
-		namespace   string
 		wantModules map[string]string
+		note        string
+		data        string
+		namespace   string
+		entrypoints []string
+		roots       []string
 	}{
 		{
 			note:        "rule pruning",
@@ -3535,11 +3535,11 @@ func TestOptimizerOutput(t *testing.T) {
 
 func TestOptimizerError(t *testing.T) {
 	tests := []struct {
+		modules     map[string]string
 		note        string
+		expErr      string
 		roots       []string
 		entrypoints []string
-		modules     map[string]string
-		expErr      string
 	}{
 		{
 			// Regression test for https://github.com/open-policy-agent/opa/issues/7321

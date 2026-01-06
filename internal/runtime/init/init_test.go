@@ -278,9 +278,9 @@ func TestLoadTarGzsInBundleAndNonBundleMode(t *testing.T) {
 	}
 
 	tests := []struct {
+		folderContent   map[string]string
 		note            string
 		bundleInfoTC    []bundleInfo
-		folderContent   map[string]string
 		expectedBundles int
 		expectedModules int
 		asBundle        bool

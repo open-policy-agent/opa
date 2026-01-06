@@ -22,10 +22,10 @@ const extraTypes = 999
 
 func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 	benches := []struct {
-		desc   string
-		schema *ast.Term
 		cache  cache.InterQueryValueCache
+		schema *ast.Term
 		result *ast.Term
+		desc   string
 	}{
 		{
 			desc:   "Trivial Schema - string",
@@ -92,10 +92,10 @@ func BenchmarkGraphQLSchemaIsValid(b *testing.B) {
 
 func BenchmarkGraphQLParseSchema(b *testing.B) {
 	benches := []struct {
-		desc   string
-		schema *ast.Term
 		cache  cache.InterQueryValueCache
+		schema *ast.Term
 		result *ast.Term
+		desc   string
 	}{
 		{
 			desc:   "Trivial Schema - string",
@@ -138,10 +138,10 @@ func BenchmarkGraphQLParseSchema(b *testing.B) {
 
 func BenchmarkGraphQLParseQuery(b *testing.B) {
 	benches := []struct {
-		desc   string
-		query  *ast.Term
 		cache  cache.InterQueryValueCache
+		query  *ast.Term
 		result *ast.Term
+		desc   string
 	}{
 		{
 			desc:   "Trivial Query - string",
@@ -184,11 +184,11 @@ func BenchmarkGraphQLParseQuery(b *testing.B) {
 
 func BenchmarkGraphQLIsValid(b *testing.B) {
 	benches := []struct {
-		desc   string
-		schema *ast.Term
 		cache  cache.InterQueryValueCache
+		schema *ast.Term
 		query  *ast.Term
 		result *ast.Term
+		desc   string
 	}{
 		{
 			desc:   "Trivial Schema - string",
@@ -250,11 +250,11 @@ func BenchmarkGraphQLParse(b *testing.B) {
 	resultItemDescription := []string{"query_ast", "schema_ast"}
 
 	benches := []struct {
-		desc   string
-		schema *ast.Term
 		cache  cache.InterQueryValueCache
+		schema *ast.Term
 		query  *ast.Term
 		result *ast.Term
+		desc   string
 	}{
 		{
 			desc:   "Trivial Schema - string",
@@ -317,11 +317,11 @@ func BenchmarkGraphQLParseAndVerify(b *testing.B) {
 	resultItemDescription := []string{"is_valid", "query_ast", "schema_ast"}
 
 	benches := []struct {
-		desc   string
-		schema *ast.Term
 		cache  cache.InterQueryValueCache
+		schema *ast.Term
 		query  *ast.Term
 		result *ast.Term
+		desc   string
 	}{
 		{
 			desc:   "Trivial Schema - string",

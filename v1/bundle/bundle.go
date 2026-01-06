@@ -74,9 +74,9 @@ type Bundle struct {
 
 // Raw contains raw bytes representing the bundle's content
 type Raw struct {
+	module *ModuleFile
 	Path   string
 	Value  []byte
-	module *ModuleFile
 }
 
 // Patch contains an array of objects wherein each object represents the patch operation to be
@@ -87,15 +87,15 @@ type Patch struct {
 
 // PatchOperation models a single patch operation against a document.
 type PatchOperation struct {
+	Value any    `json:"value"`
 	Op    string `json:"op"`
 	Path  string `json:"path"`
-	Value any    `json:"value"`
 }
 
 // SignaturesConfig represents an array of JWTs that encapsulate the signatures for the bundle.
 type SignaturesConfig struct {
-	Signatures []string `json:"signatures,omitempty"`
 	Plugin     string   `json:"plugin,omitempty"`
+	Signatures []string `json:"signatures,omitempty"`
 }
 
 // isEmpty returns if the SignaturesConfig is empty.
@@ -105,11 +105,11 @@ func (s SignaturesConfig) isEmpty() bool {
 
 // DecodedSignature represents the decoded JWT payload.
 type DecodedSignature struct {
-	Files    []FileInfo `json:"files"`
-	KeyID    string     `json:"keyid"` // Deprecated, use kid in the JWT header instead.
+	KeyID    string     `json:"keyid"`
 	Scope    string     `json:"scope"`
-	IssuedAt int64      `json:"iat"`
 	Issuer   string     `json:"iss"`
+	Files    []FileInfo `json:"files"`
+	IssuedAt int64      `json:"iat"`
 }
 
 // FileInfo contains the hashing algorithm used, resulting digest etc.
@@ -413,11 +413,11 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 
 // ModuleFile represents a single module contained in a bundle.
 type ModuleFile struct {
+	Parsed       *ast.Module
 	URL          string
 	Path         string
 	RelativePath string
 	Raw          []byte
-	Parsed       *ast.Module
 }
 
 // WasmModuleFile represents a single wasm module contained in a bundle.
@@ -480,21 +480,21 @@ func HasExtension() bool {
 
 // Reader contains the reader to load the bundle from.
 type Reader struct {
-	loader                DirectoryLoader
-	includeManifestInData bool
 	metrics               metrics.Metrics
-	baseDir               string
+	loader                DirectoryLoader
+	files                 map[string]FileInfo
 	verificationConfig    *VerificationConfig
-	skipVerify            bool
-	processAnnotations    bool
 	capabilities          *ast.Capabilities
-	files                 map[string]FileInfo // files in the bundle signature payload
-	sizeLimitBytes        int64
-	etag                  string
-	lazyLoadingMode       bool
+	baseDir               string
 	name                  string
-	persist               bool
+	etag                  string
+	sizeLimitBytes        int64
 	regoVersion           ast.RegoVersion
+	includeManifestInData bool
+	processAnnotations    bool
+	lazyLoadingMode       bool
+	skipVerify            bool
+	persist               bool
 	followSymlinks        bool
 }
 
@@ -904,9 +904,9 @@ func Write(w io.Writer, bundle Bundle) error {
 
 // Writer implements bundle serialization.
 type Writer struct {
+	w             io.Writer
 	usePath       bool
 	disableFormat bool
-	w             io.Writer
 }
 
 // NewWriter returns a bundle writer that writes to w.
@@ -1099,8 +1099,8 @@ func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, preserveMo
 }
 
 type BundleFormatOptions struct {
-	RegoVersion               ast.RegoVersion
 	Capabilities              *ast.Capabilities
+	RegoVersion               ast.RegoVersion
 	PreserveModuleRegoVersion bool
 	UseModulePath             bool
 }

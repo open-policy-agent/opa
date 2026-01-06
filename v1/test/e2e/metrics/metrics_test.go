@@ -78,8 +78,8 @@ func TestMetricsEndpoint(t *testing.T) {
 }
 
 type response struct {
-	Result  bool           `json:"result"`
 	Metrics map[string]any `json:"metrics"`
+	Result  bool           `json:"result"`
 }
 
 func TestRequestWithInstrumentationV1DataAPI(t *testing.T) {

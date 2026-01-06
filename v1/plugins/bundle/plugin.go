@@ -58,17 +58,17 @@ type Loader interface {
 // Plugin implements bundle activation.
 type Plugin struct {
 	config            Config
-	manager           *plugins.Manager                 // plugin manager for storage and service clients
-	status            map[string]*Status               // current status for each bundle
-	etags             map[string]string                // etag on last successful activation
-	listeners         map[any]func(Status)             // listeners to send status updates to
-	bulkListeners     map[any]func(map[string]*Status) // listeners to send aggregated status updates to
-	downloaders       map[string]Loader
 	logger            logging.Logger
-	mtx               sync.Mutex
-	cfgMtx            sync.RWMutex
-	ready             bool
+	downloaders       map[string]Loader
+	etags             map[string]string
+	listeners         map[any]func(Status)
+	bulkListeners     map[any]func(map[string]*Status)
+	status            map[string]*Status
+	manager           *plugins.Manager
 	bundlePersistPath string
+	cfgMtx            sync.RWMutex
+	mtx               sync.Mutex
+	ready             bool
 	stopped           bool
 }
 
@@ -809,12 +809,12 @@ func isReservedCharacter(r rune) bool {
 }
 
 type fileLoader struct {
+	bvc              *bundle.VerificationConfig
+	f                func(context.Context, string, download.Update) error
 	name             string
 	path             string
-	bvc              *bundle.VerificationConfig
-	sizeLimitBytes   int64
-	f                func(context.Context, string, download.Update) error
 	bundleParserOpts ast.ParserOptions
+	sizeLimitBytes   int64
 }
 
 func (fl *fileLoader) Start(ctx context.Context) {

@@ -10,9 +10,9 @@ import (
 func TestParserCatchesIllegalCapabilities(t *testing.T) {
 	tests := []struct {
 		note         string
-		regoVersion  RegoVersion
-		capabilities Capabilities
 		expErr       string
+		capabilities Capabilities
+		regoVersion  RegoVersion
 	}{
 		{
 			note:        "v0, bad future keyword",

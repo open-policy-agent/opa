@@ -119,14 +119,11 @@ type serverTLSConfig struct {
 
 // bearerAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
 type bearerAuthPlugin struct {
+	logger    logging.Logger
 	Token     string `json:"token"`
 	TokenPath string `json:"token_path"`
 	Scheme    string `json:"scheme,omitempty"`
-
-	// encode is set to true for the OCIDownloader because
-	// it expects tokens in plain text but needs them in base64.
-	encode bool
-	logger logging.Logger
+	encode    bool
 }
 
 func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -293,35 +290,34 @@ func messageDigest(message []byte, alg string) ([]byte, error) {
 // oauth2ClientCredentialsAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
 // obtained through the OAuth2 client credentials flow
 type oauth2ClientCredentialsAuthPlugin struct {
-	GrantType            string                  `json:"grant_type"`
-	TokenURL             string                  `json:"token_url"`
-	ClientID             string                  `json:"client_id"`
-	ClientSecret         string                  `json:"client_secret"`
-	SigningKeyID         string                  `json:"signing_key"`
-	Thumbprint           string                  `json:"thumbprint"`
+	logger               logging.Logger
+	signingKeyParsed     any
+	AWSKmsKey            *awsKmsKeyConfig `json:"aws_kms,omitempty"`
+	tokenCache           *oauth2Token
+	signingKey           *keys.Config
+	AzureSigningPlugin   *azureSigningAuthPlugin `json:"azure_signing,omitempty"`
 	Claims               map[string]any          `json:"additional_claims"`
-	IncludeJti           bool                    `json:"include_jti_claim"`
-	Scopes               []string                `json:"scopes,omitempty"`
+	AzureKeyVault        *azureKeyVaultConfig    `json:"azure_keyvault,omitempty"`
+	AWSSigningPlugin     *awsSigningAuthPlugin   `json:"aws_signing,omitempty"`
 	AdditionalHeaders    map[string]string       `json:"additional_headers,omitempty"`
 	AdditionalParameters map[string]string       `json:"additional_parameters,omitempty"`
-	AWSKmsKey            *awsKmsKeyConfig        `json:"aws_kms,omitempty"`
-	AWSSigningPlugin     *awsSigningAuthPlugin   `json:"aws_signing,omitempty"`
-	AzureKeyVault        *azureKeyVaultConfig    `json:"azure_keyvault,omitempty"`
-	AzureSigningPlugin   *azureSigningAuthPlugin `json:"azure_signing,omitempty"`
+	Thumbprint           string                  `json:"thumbprint"`
+	GrantType            string                  `json:"grant_type"`
 	ClientAssertionType  string                  `json:"client_assertion_type"`
 	ClientAssertion      string                  `json:"client_assertion"`
 	ClientAssertionPath  string                  `json:"client_assertion_path"`
-
-	signingKey       *keys.Config
-	signingKeyParsed any
-	tokenCache       *oauth2Token
-	tlsSkipVerify    bool
-	logger           logging.Logger
+	SigningKeyID         string                  `json:"signing_key"`
+	ClientSecret         string                  `json:"client_secret"`
+	ClientID             string                  `json:"client_id"`
+	TokenURL             string                  `json:"token_url"`
+	Scopes               []string                `json:"scopes,omitempty"`
+	IncludeJti           bool                    `json:"include_jti_claim"`
+	tlsSkipVerify        bool
 }
 
 type oauth2Token struct {
-	Token     string
 	ExpiresAt time.Time
+	Token     string
 }
 
 func (ap *oauth2ClientCredentialsAuthPlugin) createJWSParts(extClaims map[string]any) ([]byte, []byte, string, error) {
@@ -877,26 +873,23 @@ func (*clientTLSAuthPlugin) Prepare(_ *http.Request) error {
 
 // awsSigningAuthPlugin represents authentication using AWS V4 HMAC signing in the Authorization header
 type awsSigningAuthPlugin struct {
+	logger                    logging.Logger
 	AWSEnvironmentCredentials *awsEnvironmentCredentialService `json:"environment_credentials,omitempty"`
 	AWSMetadataCredentials    *awsMetadataCredentialService    `json:"metadata_credentials,omitempty"`
 	AWSAssumeRoleCredentials  *awsAssumeRoleCredentialService  `json:"assume_role_credentials,omitempty"`
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
 	AWSProfileCredentials     *awsProfileCredentialService     `json:"profile_credentials,omitempty"`
 	AWSSSOCredentials         *awsSSOCredentialsService        `json:"sso_credentials,omitempty"`
-
-	AWSService          string `json:"service,omitempty"`
-	AWSSignatureVersion string `json:"signature_version,omitempty"`
-
-	host          string
-	ecrAuthPlugin *ecrAuthPlugin
-	kmsSignPlugin *awsKMSSignPlugin
-
-	logger logging.Logger
+	ecrAuthPlugin             *ecrAuthPlugin
+	kmsSignPlugin             *awsKMSSignPlugin
+	AWSService                string `json:"service,omitempty"`
+	AWSSignatureVersion       string `json:"signature_version,omitempty"`
+	host                      string
 }
 
 type awsCredentialServiceChain struct {
-	awsCredentialServices []awsCredentialService
 	logger                logging.Logger
+	awsCredentialServices []awsCredentialService
 }
 
 func (acs *awsCredentialServiceChain) addService(service awsCredentialService) {
@@ -1129,12 +1122,12 @@ func (ap *awsSigningAuthPlugin) SignDigest(ctx context.Context, digest []byte, k
 }
 
 type azureSigningAuthPlugin struct {
+	logger             logging.Logger
 	MIAuthPlugin       *azureManagedIdentitiesAuthPlugin `json:"azure_managed_identity,omitempty"`
 	keyVaultSignPlugin *azureKeyVaultSignPlugin
 	keyVaultConfig     *azureKeyVaultConfig
 	host               string
 	Service            string `json:"service"`
-	logger             logging.Logger
 }
 
 func (ap *azureSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {

@@ -252,8 +252,9 @@ func TestHookOnConfigDiscovery(t *testing.T) {
 }
 
 type testhook struct {
-	k, v string
-	c    *config.Config
+	c *config.Config
+	k string
+	v string
 }
 
 func (h *testhook) OnConfig(_ context.Context, c *config.Config) (*config.Config, error) {
@@ -1889,11 +1890,11 @@ main = 7
 
 func TestDiscoveryBundleRegoV1(t *testing.T) {
 	tests := []struct {
-		note            string
-		v1Compatible    bool
 		discoveryBundle map[string]string
 		policyBundle    map[string]string
+		note            string
 		expErr          string
+		v1Compatible    bool
 	}{
 		{
 			note: "0.x compatible, keywords not imported ind disco bundle",
@@ -2162,9 +2163,9 @@ main := v { v := 7 }`,
 func TestRegoV1WithConfiguredLocalBundle(t *testing.T) {
 	tests := []struct {
 		note         string
-		v1Compatible bool
 		policy       string
 		expErr       string
+		v1Compatible bool
 	}{
 		{
 			note: "0.x compatible, keywords not imported",

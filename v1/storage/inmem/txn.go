@@ -360,9 +360,9 @@ type dataUpdate interface {
 // update contains state associated with an update to be applied to the
 // in-memory data store.
 type updateRaw struct {
-	path   storage.Path // data path modified by update
-	remove bool         // indicates whether update removes the value at path
-	value  any          // value to add/replace at path (ignored if remove is true)
+	value  any
+	path   storage.Path
+	remove bool
 }
 
 func equalsValue(a any, v ast.Value) bool {

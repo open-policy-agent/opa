@@ -12,11 +12,11 @@ import (
 func TestOracleFindDefinitionErrors(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
+		exp     error
+		modules map[string]string
 		note    string
 		buffer  string
-		modules map[string]string
 		pos     int
-		exp     error
 	}{
 		{
 			note:   "buffer parse error",
@@ -265,10 +265,10 @@ q[x.y] = 10 if {
 }`
 
 	cases := []struct {
-		note    string
 		modules map[string]string
-		pos     int
 		exp     *ast.Location
+		note    string
+		pos     int
 	}{
 		{
 			note: "q - a var in the body",

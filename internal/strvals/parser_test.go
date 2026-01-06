@@ -99,8 +99,8 @@ func TestSetIndex(t *testing.T) {
 
 func TestParseSet(t *testing.T) {
 	testsString := []struct {
-		str    string
 		expect map[string]any
+		str    string
 		err    bool
 	}{
 		{
@@ -125,8 +125,8 @@ func TestParseSet(t *testing.T) {
 		},
 	}
 	tests := []struct {
-		str    string
 		expect map[string]any
+		str    string
 		err    bool
 	}{
 		{

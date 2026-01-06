@@ -304,9 +304,9 @@ func TestModuleTree(t *testing.T) {
 
 func TestCompilerGetExports(t *testing.T) {
 	tests := []struct {
+		exports map[string][]string
 		note    string
 		modules []*Module
-		exports map[string][]string
 	}{
 		{
 			note: "simple",
@@ -464,10 +464,10 @@ func toRef(s string) Ref {
 
 func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 	tests := []struct {
-		note     string
-		modules  []*Module
 		expected *Rule
+		note     string
 		err      string
+		modules  []*Module
 	}{
 		{
 			note: "ref contains var",
@@ -766,9 +766,9 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 
 func TestRuleIndices(t *testing.T) {
 	tests := []struct {
+		exp     map[string][]Ref
 		note    string
 		modules []*Module
-		exp     map[string][]Ref
 	}{
 		{
 			note: "regression test for #6930 (no if)",
@@ -2023,8 +2023,8 @@ p if { true }`,
 func TestCompilerCheckRuleConflictsDefaultFunction(t *testing.T) {
 	tests := []struct {
 		note    string
-		modules []*Module
 		err     string
+		modules []*Module
 	}{
 		{
 			note: "conflicting rules",
@@ -2058,8 +2058,8 @@ func TestCompilerCheckRuleConflictsDefaultFunction(t *testing.T) {
 func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 	tests := []struct {
 		note    string
-		modules []*Module
 		err     string
+		modules []*Module
 	}{
 		{
 			note: "arity mismatch, ref and non-ref rule",
@@ -2644,9 +2644,9 @@ func TestCompilerExprExpansion(t *testing.T) {
 
 func TestCompilerRewriteExprTerms(t *testing.T) {
 	cases := []struct {
+		expected any
 		note     string
 		module   string
-		expected any
 	}{
 		{
 			note: "base",
@@ -4444,9 +4444,9 @@ func TestCompilerRewriteTermsInHead(t *testing.T) {
 	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 
 	tests := []struct {
-		note string
 		mod  *Module
 		exp  *Rule
+		note string
 	}{
 		{
 			note: "imports",
@@ -5017,9 +5017,9 @@ q := self.metadata.rule`),
 func TestCompilerRewriteLocalAssignments(t *testing.T) {
 
 	tests := []struct {
-		module          string
 		exp             any
 		expRewrittenMap map[Var]Var
+		module          string
 		regoVersion     RegoVersion
 	}{
 		{
@@ -5709,10 +5709,10 @@ func TestRewriteDeclaredVarsStage(t *testing.T) {
 
 func TestRewriteDeclaredVars(t *testing.T) {
 	tests := []struct {
+		wantErr error
 		note    string
 		module  string
 		exp     string
-		wantErr error
 	}{
 		{
 			note: "rewrite unify",
@@ -7023,12 +7023,12 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 	`
 
 	tests := []struct {
+		wantErr      error
+		opts         func(*Compiler) *Compiler
+		expectedRule *Rule
 		note         string
 		input        string
-		opts         func(*Compiler) *Compiler
 		expected     string
-		expectedRule *Rule
-		wantErr      error
 	}{
 		{
 			note:     "nop",
@@ -9780,8 +9780,9 @@ func TestCompilerCheckDynamicRecursion(t *testing.T) {
 	// <https://github.com/open-policy-agent/opa/issues/1565>.
 
 	for _, tc := range []struct {
-		note, err string
-		mod       *Module
+		mod  *Module
+		note string
+		err  string
 	}{
 		{
 			note: "recursion",
@@ -10387,9 +10388,9 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 	}
 	type exp map[int]expectedComprehension
 	tests := []struct {
+		expected  exp
 		note      string
 		module    string
-		expected  exp
 		wantDebug int
 	}{
 		{
@@ -10653,10 +10654,10 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 	tests := []struct {
 		note     string
 		module   string
-		opts     CompileOpts
 		builtins []string
 		features []string
 		keywords []string
+		opts     CompileOpts
 	}{
 		{
 			note: "trivial v0",
@@ -10938,13 +10939,13 @@ func TestCompilerAllowMultipleAssignments(t *testing.T) {
 
 func TestQueryCompiler(t *testing.T) {
 	tests := []struct {
+		expected    any
 		note        string
 		q           string
 		pkg         string
-		imports     []string
 		input       string
+		imports     []string
 		regoVersion RegoVersion
-		expected    any
 	}{
 		{
 			note:     "empty query",
@@ -11096,9 +11097,9 @@ func TestQueryCompiler(t *testing.T) {
 
 func TestQueryCompilerRewrittenVars(t *testing.T) {
 	tests := []struct {
+		vars map[string]string
 		note string
 		q    string
-		vars map[string]string
 	}{
 		{"assign", "a := 1", map[string]string{"__localq0__": "a"}},
 		{"suppress only seen", "b = 1; a := b", map[string]string{"__localq0__": "a"}},
@@ -11333,9 +11334,9 @@ func TestQueryCompilerCheckKeywordOverrides(t *testing.T) {
 }
 
 type strictnessQueryTestCase struct {
+	expectedErrors error
 	note           string
 	query          string
-	expectedErrors error
 }
 
 func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
@@ -11688,9 +11689,9 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 	cases := []struct {
 		note        string
 		module      string
+		expectedErr string
 		features    []string
 		builtins    []*Builtin
-		expectedErr string
 	}{
 		{
 			note: "no features, no ref-head rules",
@@ -12684,9 +12685,9 @@ deny if {
 func TestCompilerRewriteTestRulesForTracing(t *testing.T) {
 	tests := []struct {
 		note    string
-		rewrite bool
 		module  string
 		exp     string
+		rewrite bool
 	}{
 		{
 			note: "ref comparison, no rewrite",

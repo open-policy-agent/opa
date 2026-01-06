@@ -12,11 +12,11 @@ import (
 
 func TestInsertIntoObject(t *testing.T) {
 	tests := []struct {
-		note     string
-		obj      *types.Object
-		path     Ref
 		tpe      types.Type
 		expected types.Type
+		obj      *types.Object
+		note     string
+		path     Ref
 	}{
 		{
 			note: "adding to empty object",
@@ -216,8 +216,8 @@ func TestInsertIntoObject(t *testing.T) {
 }
 
 type pathAndType struct {
-	path Ref
 	tpe  types.Type
+	path Ref
 }
 
 func TestTypeTreeNode_Insert(t *testing.T) {

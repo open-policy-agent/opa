@@ -19,11 +19,11 @@ type stack interface {
 }
 
 type debugTracer struct {
-	history   []*topdown.Event
 	eventChan chan *topdown.Event
 	waitChan  chan bool
-	enabled   bool
+	history   []*topdown.Event
 	resultSet rego.ResultSet
+	enabled   bool
 }
 
 func newDebugTracer() *debugTracer {

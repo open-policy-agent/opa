@@ -18,9 +18,9 @@ type Resolver interface {
 
 // Input as provided to a Resolver instance when evaluating.
 type Input struct {
-	Ref     ast.Ref
-	Input   *ast.Term
 	Metrics metrics.Metrics
+	Input   *ast.Term
+	Ref     ast.Ref
 }
 
 // Result of resolving a ref.

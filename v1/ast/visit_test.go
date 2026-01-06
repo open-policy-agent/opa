@@ -155,8 +155,8 @@ func TestVarVisitor(t *testing.T) {
 
 	tests := []struct {
 		stmt     string
-		params   VarVisitorParams
 		expected string
+		params   VarVisitorParams
 	}{
 		{"{x: y}", VarVisitorParams{SkipObjectKeys: true}, "[y]"},
 		{"foo with input.bar.baz as qux[corge]", VarVisitorParams{SkipWithTarget: true}, "[foo, qux, corge]"},

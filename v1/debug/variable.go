@@ -29,8 +29,8 @@ type Variable interface {
 }
 
 type namedVar struct {
-	name  string
 	value ast.Value
+	name  string
 }
 
 func (nv namedVar) Name() string {

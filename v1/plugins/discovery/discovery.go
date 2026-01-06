@@ -52,21 +52,21 @@ const (
 // started it will periodically download a configuration bundle and try to
 // reconfigure the OPA.
 type Discovery struct {
-	manager              *plugins.Manager
-	config               *Config
-	factories            map[string]plugins.Factory
-	downloader           bundle.Loader               // discovery bundle downloader
-	status               *bundle.Status              // discovery status
-	listenersMtx         sync.Mutex                  // lock for listener map
-	listeners            map[any]func(bundle.Status) // listeners for discovery update events
-	etag                 string                      // discovery bundle etag for caching purposes
-	metrics              metrics.Metrics
-	readyOnce            sync.Once
+	downloader           bundle.Loader
 	logger               logging.Logger
-	bundlePersistPath    string
+	metrics              metrics.Metrics
+	listeners            map[any]func(bundle.Status)
+	status               *bundle.Status
+	manager              *plugins.Manager
+	factories            map[string]plugins.Factory
+	config               *Config
 	hooks                hooks.Hooks
 	bootConfig           map[string]any
+	etag                 string
+	bundlePersistPath    string
 	overriddenConfigKeys []string
+	readyOnce            sync.Once
+	listenersMtx         sync.Mutex
 }
 
 // Factories provides a set of factory functions to use for
@@ -598,9 +598,9 @@ type pluginreconfig struct {
 }
 
 type pluginfactory struct {
-	name    string
 	factory plugins.Factory
 	config  any
+	name    string
 }
 
 func getPluginSet(

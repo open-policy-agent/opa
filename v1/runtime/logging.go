@@ -209,12 +209,11 @@ func isCompileEndpoint(req *http.Request) bool {
 }
 
 type recorder struct {
-	logger logging.Logger
-	inner  http.ResponseWriter
-	req    *http.Request
-	id     uint64
-
+	logger       logging.Logger
+	inner        http.ResponseWriter
+	req          *http.Request
 	buf          *bytes.Buffer
+	id           uint64
 	bytesWritten int
 	statusCode   int
 }

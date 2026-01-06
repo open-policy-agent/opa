@@ -83,8 +83,10 @@ func TestMergeWhenHittingNonObject(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note            string
-		real, mock, exp *ast.Term
+		real *ast.Term
+		mock *ast.Term
+		exp  *ast.Term
+		note string
 	}{
 		{
 			note: "real object, mock string",
@@ -273,11 +275,12 @@ func TestTopdownVirtualCache(t *testing.T) {
 	store := inmem.New()
 
 	tests := []struct {
-		note      string
-		module    string
-		query     string
-		hit, miss uint64
-		exp       any // if non-nil, check var `x`
+		exp    any
+		note   string
+		module string
+		query  string
+		hit    uint64
+		miss   uint64
 	}{
 		{
 			note: "different args",
@@ -1597,11 +1600,11 @@ func TestContextErrorHandling(t *testing.T) {
 	store := inmem.New()
 
 	tests := []struct {
-		note       string
+		expErrType error
 		before     func() context.Context
+		note       string
 		module     string
 		expErr     string
-		expErrType error
 	}{
 		{
 			note: "context deadline exceeded is handled",

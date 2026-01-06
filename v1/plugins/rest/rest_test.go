@@ -78,10 +78,10 @@ func TestAuthPluginWithNoAuthPluginLookup(t *testing.T) {
 // from one of its helper methods.
 func TestNew(t *testing.T) {
 	tests := []struct {
+		env     map[string]string
 		name    string
 		input   string
 		wantErr bool
-		env     map[string]string
 	}{
 		{
 			name: "BadScheme",
@@ -956,10 +956,10 @@ func TestDoWithResponseHeaderTimeout(t *testing.T) {
 	ctx := t.Context()
 
 	tests := map[string]struct {
-		d                     time.Duration
 		responseHeaderTimeout string
-		wantErr               bool
 		errMsg                string
+		d                     time.Duration
+		wantErr               bool
 	}{
 		"response_headers_timeout_not_met": {1, "2", false, ""},
 		"response_headers_timeout_met":     {2, "1", true, "net/http: timeout awaiting response headers"},
@@ -1978,11 +1978,11 @@ func TestS3SigningMultiCredentialProvider(t *testing.T) {
 
 func TestAWSCredentialServiceChain(t *testing.T) {
 	tests := []struct {
+		env     map[string]string
 		name    string
 		input   string
-		wantErr bool
-		env     map[string]string
 		errMsg  string
+		wantErr bool
 	}{
 		{
 			name: "Fallback to Environment Credential",
@@ -2152,42 +2152,42 @@ func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string
 type testPluginCustomizer func(c *Config)
 
 type testServer struct {
-	t                  *testing.T
 	server             *httptest.Server
+	serverCertPool     *x509.CertPool
+	t                  *testing.T
+	clientCertPassword string
 	expPath            string
 	expMethod          string
 	expBearerToken     string
 	expBearerScheme    string
-	expBearerTokenPath bool
-	tls                bool
+	caCert             string
 	clientCertPem      []byte
 	clientCertKey      []byte
-	clientCertPassword string
-	expectClientCert   bool
 	rootCertPEM        []byte
-	caCert             string
-	expectSystemCA     bool
-	serverCertPool     *x509.CertPool
 	certificates       []tls.Certificate
+	expectClientCert   bool
+	tls                bool
+	expectSystemCA     bool
+	expBearerTokenPath bool
 }
 
 type oauth2TestServer struct {
-	t                *testing.T
-	server           *httptest.Server
-	expGrantType     string
-	expClientID      string
-	expClientSecret  string
-	expHeaders       map[string]string
+	verificationKey  any
 	expBody          map[string]string
-	expJwtCredential bool
+	server           *httptest.Server
 	expScope         *[]string
-	expAlgorithm     jwa.SignatureAlgorithm
+	t                *testing.T
+	expHeaders       map[string]string
+	expClientSecret  string
+	expClientID      string
 	expX5t           string
 	expSignature     string
 	tokenType        string
+	expGrantType     string
+	expAlgorithm     jwa.SignatureAlgorithm
 	tokenTTL         int64
 	invocations      int32
-	verificationKey  any
+	expJwtCredential bool
 }
 
 func newOauth2TestClient(t *testing.T, ts *testServer, ots *oauth2TestServer, options ...testPluginCustomizer) *Client {

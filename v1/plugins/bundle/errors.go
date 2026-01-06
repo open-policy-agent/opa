@@ -23,11 +23,11 @@ func (e Errors) Error() string {
 }
 
 type Error struct {
+	Err        error
 	BundleName string
 	Code       string
-	HTTPCode   int
 	Message    string
-	Err        error
+	HTTPCode   int
 }
 
 func NewBundleError(bundleName string, cause error) Error {

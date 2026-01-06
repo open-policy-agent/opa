@@ -37,11 +37,11 @@ const (
 // field will be non-nil. If a new bundle is available, the Bundle field will
 // be non-nil.
 type Update struct {
-	ETag    string
-	Bundle  *bundle.Bundle
 	Error   error
 	Metrics metrics.Metrics
 	Raw     io.Reader
+	Bundle  *bundle.Bundle
+	ETag    string
 	Size    int
 }
 
@@ -50,25 +50,25 @@ type Update struct {
 // updates from the remote HTTP endpoint that the client is configured to
 // connect to.
 type Downloader struct {
-	config             Config                              // downloader configuration for tuning polling and other downloader behaviour
-	client             rest.Client                         // HTTP client to use for bundle downloading
-	path               string                              // path to use in bundle download request
-	trigger            chan chan struct{}                  // channel to signal downloads when manual triggering is enabled
-	stop               chan chan struct{}                  // used to signal plugin to stop running
-	f                  func(context.Context, Update) error // callback function invoked when download updates occur
-	etag               string                              // HTTP Etag for caching purposes
-	sizeLimitBytes     *int64                              // max bundle file size in bytes (passed to reader)
-	bvc                *bundle.VerificationConfig
-	respHdrTimeoutSec  int64
-	wg                 sync.WaitGroup
+	config             Config
 	logger             logging.Logger
-	stopped            bool
+	bvc                *bundle.VerificationConfig
+	trigger            chan chan struct{}
+	stop               chan chan struct{}
+	f                  func(context.Context, Update) error
+	sizeLimitBytes     *int64
+	etag               string
+	path               string
+	bundleName         string
+	client             rest.Client
+	bundleParserOpts   ast.ParserOptions
+	wg                 sync.WaitGroup
+	respHdrTimeoutSec  int64
 	stopOnce           sync.Once
+	stopped            bool
 	persist            bool
 	longPollingEnabled bool
 	lazyLoadingMode    bool
-	bundleName         string
-	bundleParserOpts   ast.ParserOptions
 }
 
 type downloaderResponse struct {

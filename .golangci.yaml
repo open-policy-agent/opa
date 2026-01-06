@@ -52,6 +52,7 @@ linters:
         # enable later and fix
         - buildtag
       enable:
+        - fieldalignment
         - deepequalerrors
         - nilness
     lll:

@@ -8,10 +8,9 @@ import (
 )
 
 type mockHandler struct {
-	identity        string
-	identityDefined bool
-
+	identity                  string
 	clientCertificates        []*x509.Certificate
+	identityDefined           bool
 	clientCertificatesDefined bool
 }
 

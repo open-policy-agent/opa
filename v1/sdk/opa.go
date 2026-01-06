@@ -41,17 +41,17 @@ import (
 // OPA represents an instance of the policy engine. OPA can be started with
 // several options that control configuration, logging, and lifecycle.
 type OPA struct {
-	id          string
-	state       *state
-	mtx         sync.Mutex
 	logger      logging.Logger
 	console     logging.Logger
-	plugins     map[string]plugins.Factory
 	store       storage.Store
+	state       *state
+	plugins     map[string]plugins.Factory
 	hooks       hooks.Hooks
+	id          string
 	config      []byte
-	regoVersion ast.RegoVersion
 	managerOpts []func(*plugins.Manager)
+	regoVersion ast.RegoVersion
+	mtx         sync.Mutex
 }
 
 type state struct {
@@ -346,23 +346,23 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 
 // DecisionOptions contains parameters for query evaluation.
 type DecisionOptions struct {
-	Now                 time.Time           // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Path                string              // specifies name of policy decision to evaluate (e.g., example/allow)
-	Input               any                 // specifies value of the input document to evaluate policy with
-	NDBCache            any                 // specifies the non-deterministic builtins cache to use for evaluation.
-	StrictBuiltinErrors bool                // treat built-in function errors as fatal
-	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
-	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
-	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
-	Instrument          bool                // if true, instrumentation will be enabled
-	DecisionID          string              // the identifier for this decision; if not set, a globally unique identifier will be generated
+	Now                 time.Time
+	Input               any
+	NDBCache            any
+	Tracer              topdown.QueryTracer
+	Metrics             metrics.Metrics
+	Profiler            topdown.QueryTracer
+	Path                string
+	DecisionID          string
+	StrictBuiltinErrors bool
+	Instrument          bool
 }
 
 // DecisionResult contains the output of query evaluation.
 type DecisionResult struct {
-	ID         string             // provides the identifier for this decision (which is included in the decision log.)
-	Result     any                // provides the output of query evaluation.
-	Provenance types.ProvenanceV1 // wraps the bundle build/version information
+	Provenance types.ProvenanceV1
+	Result     any
+	ID         string
 }
 
 func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, work func(state, *DecisionResult)) (*DecisionResult, error) {
@@ -494,24 +494,24 @@ type PartialQueryMapper interface {
 
 // PartialOptions contains parameters for partial query evaluation.
 type PartialOptions struct {
-	Now                 time.Time           // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Input               any                 // specifies value of the input document to evaluate policy with
-	Query               string              // specifies the query to be partially evaluated
-	Unknowns            []string            // specifies the unknown elements of the policy
-	Mapper              PartialQueryMapper  // specifies the mapper to use when processing results
-	StrictBuiltinErrors bool                // treat built-in function errors as fatal
-	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
-	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
-	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
-	Instrument          bool                // if true, instrumentation will be enabled
-	DecisionID          string              // the identifier for this decision; if not set, a globally unique identifier will be generated
+	Now                 time.Time
+	Input               any
+	Mapper              PartialQueryMapper
+	Tracer              topdown.QueryTracer
+	Metrics             metrics.Metrics
+	Profiler            topdown.QueryTracer
+	Query               string
+	DecisionID          string
+	Unknowns            []string
+	StrictBuiltinErrors bool
+	Instrument          bool
 }
 
 type PartialResult struct {
-	ID         string               // decision ID
-	Result     any                  // mapped result
-	AST        *rego.PartialQueries // raw result
-	Provenance types.ProvenanceV1   // wraps the bundle build/version information
+	Provenance types.ProvenanceV1
+	Result     any
+	AST        *rego.PartialQueries
+	ID         string
 }
 
 // Error represents an internal error in the SDK.
@@ -543,22 +543,22 @@ func IsUndefinedErr(err error) bool {
 }
 
 type evalArgs struct {
-	runtime                     *ast.Term
-	printHook                   print.Hook
-	compiler                    *ast.Compiler
-	store                       storage.Store
-	txn                         storage.Transaction
-	queryCache                  *queryCache
-	interQueryCache             cache.InterQueryCache
-	interQueryBuiltinValueCache cache.InterQueryValueCache
 	now                         time.Time
-	path                        string
-	input                       any
-	ndbcache                    builtins.NDBCache
-	m                           metrics.Metrics
-	strictBuiltinErrors         bool
-	tracer                      topdown.QueryTracer
+	txn                         storage.Transaction
+	printHook                   print.Hook
+	store                       storage.Store
 	profiler                    topdown.QueryTracer
+	interQueryBuiltinValueCache cache.InterQueryValueCache
+	interQueryCache             cache.InterQueryCache
+	tracer                      topdown.QueryTracer
+	input                       any
+	m                           metrics.Metrics
+	queryCache                  *queryCache
+	ndbcache                    builtins.NDBCache
+	compiler                    *ast.Compiler
+	runtime                     *ast.Term
+	path                        string
+	strictBuiltinErrors         bool
 	instrument                  bool
 }
 
@@ -634,19 +634,19 @@ func evaluate(ctx context.Context, args evalArgs) (any, types.ProvenanceV1, ast.
 }
 
 type partialEvalArgs struct {
-	runtime             *ast.Term
-	compiler            *ast.Compiler
+	now                 time.Time
+	m                   metrics.Metrics
 	printHook           print.Hook
 	store               storage.Store
 	txn                 storage.Transaction
-	unknowns            []string
-	query               string
-	now                 time.Time
 	input               any
-	m                   metrics.Metrics
-	strictBuiltinErrors bool
 	tracer              topdown.QueryTracer
 	profiler            topdown.QueryTracer
+	compiler            *ast.Compiler
+	runtime             *ast.Term
+	query               string
+	unknowns            []string
+	strictBuiltinErrors bool
 	instrument          bool
 }
 
@@ -695,8 +695,8 @@ func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, t
 }
 
 type queryCache struct {
-	sync.Mutex
 	cache map[string]*rego.PreparedEvalQuery
+	sync.Mutex
 }
 
 func newQueryCache() *queryCache {

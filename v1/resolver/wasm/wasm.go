@@ -63,9 +63,9 @@ func New(entrypoints []ast.Ref, policy []byte, data any) (*Resolver, error) {
 // Resolver implements the resolver.Resolver interface
 // using Wasm modules to perform an evaluation.
 type Resolver struct {
-	entrypoints   []ast.Ref
-	entrypointIDs *ast.ValueMap
 	o             opa.EvalEngine
+	entrypointIDs *ast.ValueMap
+	entrypoints   []ast.Ref
 }
 
 // Entrypoints returns a list of entrypoints this resolver is configured to

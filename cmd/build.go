@@ -27,30 +27,30 @@ import (
 const defaultPublicKeyID = "default"
 
 type buildParams struct {
+	stderr             io.Writer
 	capabilities       *capabilitiesFlag
 	target             *util.EnumFlag
-	bundleMode         bool
-	pruneUnused        bool
-	optimizationLevel  int
-	entrypoints        repeatedStringFlag
+	scope              string
+	algorithm          string
+	claimsFile         string
 	outputFile         string
 	revision           stringptrFlag
-	ignore             []string
-	debug              bool
-	algorithm          string
-	key                string
-	scope              string
-	pubKey             string
 	pubKeyID           string
-	claimsFile         string
-	excludeVerifyFiles []string
+	pubKey             string
 	plugin             string
+	key                string
 	ns                 string
+	ignore             []string
+	excludeVerifyFiles []string
+	entrypoints        repeatedStringFlag
+	optimizationLevel  int
+	debug              bool
+	pruneUnused        bool
 	v0Compatible       bool
 	v1Compatible       bool
 	followSymlinks     bool
 	wasmIncludePrint   bool
-	stderr             io.Writer
+	bundleMode         bool
 }
 
 func newBuildParams() buildParams {

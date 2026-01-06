@@ -39,40 +39,36 @@ import (
 
 // REPL represents an instance of the interactive shell.
 type REPL struct {
-	output  io.Writer
-	stderr  io.Writer
-	store   storage.Store
-	runtime *ast.Term
-
-	modules             map[string]*ast.Module
-	currentModuleID     string
-	buffer              []string
+	stderr              io.Writer
+	store               storage.Store
+	output              io.Writer
 	txn                 storage.Transaction
 	metrics             metrics.Metrics
-	profiler            bool
-	strictBuiltinErrors bool
 	capabilities        *ast.Capabilities
-	regoVersion         ast.RegoVersion
+	runtime             *ast.Term
+	modules             map[string]*ast.Module
 	initBundles         map[string]*bundle.Bundle
-
-	// TODO(tsandall): replace this state with rule definitions
-	// inside the default module.
-	outputFormat      string
-	explain           explainMode
-	instrument        bool
-	historyPath       string
-	initPrompt        string
-	bufferPrompt      string
-	banner            string
-	types             bool
-	unknowns          []*ast.Term
-	bufferDisabled    bool
-	undefinedDisabled bool
-	errLimit          int
-	prettyLimit       int
-	report            [][2]string
-	target            string // target type (wasm, rego, etc.)
-	mtx               sync.Mutex
+	outputFormat        string
+	banner              string
+	target              string
+	bufferPrompt        string
+	initPrompt          string
+	currentModuleID     string
+	explain             explainMode
+	historyPath         string
+	buffer              []string
+	report              [][2]string
+	unknowns            []*ast.Term
+	errLimit            int
+	regoVersion         ast.RegoVersion
+	prettyLimit         int
+	mtx                 sync.Mutex
+	strictBuiltinErrors bool
+	undefinedDisabled   bool
+	bufferDisabled      bool
+	types               bool
+	profiler            bool
+	instrument          bool
 }
 
 type explainMode string
@@ -1325,8 +1321,8 @@ func (r *REPL) stderrWriter() io.Writer {
 
 type commandDesc struct {
 	name string
-	args []string
 	help string
+	args []string
 }
 
 func (c commandDesc) syntax() string {

@@ -200,12 +200,12 @@ func TestRequestLogging(t *testing.T) {
 	var compileEndpointCompressedBody = zipString(`{"unknowns": ["input"], "query": "data.checkForMe = true"}`)
 
 	tests := []struct {
+		requestBody      *[]byte
 		path             string
 		acceptEncoding   string
 		expected         string
 		expectedEncoding string
 		contentEncoding  string
-		requestBody      *[]byte
 	}{
 		{
 			path:             "/metrics",

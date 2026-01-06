@@ -518,9 +518,9 @@ func TestBuildPlanWithPrintStatements(t *testing.T) {
 func TestBuildPlanWithRegoEntrypointAnnotations(t *testing.T) {
 
 	tests := []struct {
-		note         string
-		files        map[string]string
 		err          error
+		files        map[string]string
+		note         string
 		v0Compatible bool
 	}{
 		{
@@ -676,10 +676,10 @@ f(x) if { p[x] }
 
 func TestBuildWasmWithAnnotations(t *testing.T) {
 	tests := []struct {
-		note        string
 		files       map[string]string
-		entrypoints []string
+		note        string
 		manifest    string
+		entrypoints []string
 	}{
 		{
 			note: "last rule is annotated entrypoint",
@@ -1043,14 +1043,14 @@ func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 
 func TestBuildBundleModeWithManifestRegoVersion(t *testing.T) {
 	tests := []struct {
-		note         string
-		roots        []string
 		files        map[string]string
+		capabilities *ast.Capabilities
+		note         string
 		expManifest  string
+		roots        []string
 		expErrs      []string
 		v0Compatible bool
 		v1Compatible bool
-		capabilities *ast.Capabilities
 	}{
 		{
 			note: "v0 bundle rego-version",
@@ -1420,13 +1420,13 @@ func TestBuildBundleFromOtherBundles(t *testing.T) {
 	type bundleInfo map[string]string
 
 	tests := []struct {
-		note         string
-		v0Compatible bool
-		v1Compatible bool
 		capabilities *ast.Capabilities
 		bundles      map[string]bundleInfo
 		expBundle    bundleInfo
+		note         string
 		expErrs      []string
+		v0Compatible bool
+		v1Compatible bool
 	}{
 		{
 			note: "single bundle",
@@ -2060,12 +2060,12 @@ p contains x if {
 
 func TestBuildWithRegoV1Capability(t *testing.T) {
 	tests := []struct {
-		note         string
-		v0Compatible bool
 		capabilities *ast.Capabilities
 		files        map[string]string
 		expFiles     map[string]string
+		note         string
 		expErrs      []string
+		v0Compatible bool
 	}{
 		{
 			note:         "v0 module, v0-compatible, no capabilities",
@@ -2377,12 +2377,12 @@ p contains x if {
 
 func TestBuildWithCompatibleFlags(t *testing.T) {
 	tests := []struct {
-		note          string
-		v0Compatible  bool
-		v1Compatible  bool
 		files         map[string]string
 		expectedFiles map[string]string
+		note          string
 		expectedErr   string
+		v0Compatible  bool
+		v1Compatible  bool
 	}{
 		{
 			note:         "v0 compatibility: policy with no rego.v1 or future.keywords imports",
@@ -2693,11 +2693,11 @@ allow if {
 
 func TestBuildOptimizedWithRegoVersion(t *testing.T) {
 	tests := []struct {
+		files               map[string]string
+		expectedFiles       map[string]string
 		note                string
 		v1Compatible        bool
 		regoV1ImportCapable bool
-		files               map[string]string
-		expectedFiles       map[string]string
 	}{
 		{
 			note:                "v0, no future keywords",
@@ -3123,9 +3123,9 @@ func TestBuildWithFollowSymlinksEntireDir(t *testing.T) {
 func TestBuildManifestWarning(t *testing.T) {
 	testCases := map[string]struct {
 		files          map[string]string
-		bundleMode     bool
-		buildArgs      []string
 		expectedStderr func(root string) string
+		buildArgs      []string
+		bundleMode     bool
 	}{
 		"warns when manifest ignored": {
 			files: map[string]string{

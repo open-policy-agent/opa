@@ -178,9 +178,9 @@ func TestPluginOneShotV1Compatible(t *testing.T) {
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
 		note         string
-		v1Compatible bool
 		module       string
 		expErrs      []string
+		v1Compatible bool
 	}{
 		{
 			note: "v0.x",
@@ -319,11 +319,11 @@ func TestPluginOneShotWithBundleRegoVersion(t *testing.T) {
 
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
-		note               string
-		managerRegoVersion ast.RegoVersion
 		bundleRegoVersion  *ast.RegoVersion
+		note               string
 		module             string
 		expErrs            []string
+		managerRegoVersion ast.RegoVersion
 	}{
 		{
 			note:               "v0.x manager, no bundle version",
@@ -1555,9 +1555,9 @@ func TestPluginOneShotBundlePersistenceV1Compatible(t *testing.T) {
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
 		note         string
-		v1Compatible bool
 		module       string
 		expErrs      []string
+		v1Compatible bool
 	}{
 		{
 			note: "v0.x",
@@ -1747,11 +1747,11 @@ func TestPluginOneShotBundlePersistenceWithBundleRegoVersion(t *testing.T) {
 
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
-		note               string
-		managerRegoVersion ast.RegoVersion
 		bundleRegoVersion  *ast.RegoVersion
+		note               string
 		module             string
 		expErrs            []string
+		managerRegoVersion ast.RegoVersion
 	}{
 		{
 			note:               "v0.x manager, no bundle rego version",
@@ -2338,8 +2338,8 @@ func TestLoadAndActivateBundlesFromDiskV1Compatible(t *testing.T) {
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
 		note         string
-		v1Compatible bool
 		updates      []update
+		v1Compatible bool
 	}{
 		{
 			note: "v0.x",
@@ -2589,11 +2589,11 @@ func TestLoadAndActivateBundlesFromDiskWithBundleRegoVersion(t *testing.T) {
 
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
-		note               string
-		managerRegoVersion ast.RegoVersion
 		bundleRegoVersion  *ast.RegoVersion
+		note               string
 		module             string
 		expErrs            []string
+		managerRegoVersion ast.RegoVersion
 	}{
 		{
 			note:               "v0.x manager, no bundle rego version",
@@ -4138,8 +4138,8 @@ func TestPluginReconfigure(t *testing.T) {
 	// Note: test stages are accumulating state with reconfigures between them, the order does matter!
 	// Each stage defines the new config, side effects are validated.
 	stages := []struct {
-		name string
 		cfg  *Config
+		name string
 	}{
 		{
 			name: "start with single legacy bundle",
@@ -4345,10 +4345,10 @@ func TestReconfigurePlugin_OneShot_BundleDeactivation(t *testing.T) {
 
 	tests := []struct {
 		note               string
+		module             string
 		runtimeRegoVersion ast.RegoVersion
 		bundleRegoVersion  ast.RegoVersion
 		moduleRegoVersion  ast.RegoVersion
-		module             string
 	}{
 		{
 			note:               "v0 runtime, v0 bundle",
@@ -4504,10 +4504,10 @@ func TestReconfigurePlugin_ManagerInit_BundleDeactivation(t *testing.T) {
 
 	tests := []struct {
 		note               string
+		module             string
 		runtimeRegoVersion ast.RegoVersion
 		bundleRegoVersion  ast.RegoVersion
 		moduleRegoVersion  ast.RegoVersion
-		module             string
 	}{
 		{
 			note:               "v0 runtime, v0 bundle",
@@ -5417,9 +5417,9 @@ func TestPluginUsingFileLoaderV1Compatible(t *testing.T) {
 
 	tests := []struct {
 		note         string
-		v1Compatible bool
 		module       string
 		expErrs      []string
+		v1Compatible bool
 	}{
 		{
 			note: "v0.x, keywords not used",
@@ -5603,10 +5603,10 @@ func TestPluginUsingFileLoaderWithBundleRegoVersion(t *testing.T) {
 
 	tests := []struct {
 		note               string
-		managerRegoVersion ast.RegoVersion
-		bundleRegoVersion  ast.RegoVersion
 		module             string
 		expErrs            []string
+		managerRegoVersion ast.RegoVersion
+		bundleRegoVersion  ast.RegoVersion
 	}{
 		{
 			note:               "v0.x manager, v0.x bundle, keywords not used",
@@ -5953,9 +5953,9 @@ func TestPluginUsingDirectoryLoaderV1Compatible(t *testing.T) {
 
 	tests := []struct {
 		note         string
-		v1Compatible bool
 		module       string
 		expErrs      []string
+		v1Compatible bool
 	}{
 		{
 			note: "v0.x, keywords not used",
@@ -6118,10 +6118,10 @@ func TestPluginUsingDirectoryLoaderWithBundleRegoVersion(t *testing.T) {
 
 	tests := []struct {
 		note               string
-		managerRegoVersion ast.RegoVersion
-		bundleRegoVersion  ast.RegoVersion
 		module             string
 		expErrs            []string
+		managerRegoVersion ast.RegoVersion
+		bundleRegoVersion  ast.RegoVersion
 	}{
 		{
 			note:               "v0.x manager, v0.x bundle, keywords not used",
@@ -6678,8 +6678,8 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 
 	// change the plugin state with multiple stages
 	stages := []struct {
-		name             string
 		cfg              *Config
+		name             string
 		noChangeDetected bool
 	}{
 		{

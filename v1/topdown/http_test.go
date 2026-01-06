@@ -86,9 +86,9 @@ func TestHTTPGetRequest(t *testing.T) {
 
 	// run the test
 	tests := []struct {
+		expected any
 		note     string
 		rules    []string
-		expected any
 	}{
 		{"http.send", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := clean_headers(resp) }`, ts.URL)}, resultObj.String()},
@@ -135,9 +135,9 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	type httpsStruct struct {
+		expected any
 		note     string
 		rules    []string
-		expected any
 	}
 
 	// run the test
@@ -235,9 +235,9 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 	)
 
 	tests := []struct {
+		expected ast.Value
 		note     string
 		rule     string
-		expected ast.Value
 	}{
 		{
 			note:     "text response, force json",
@@ -358,9 +358,9 @@ func TestHTTPSendCustomRequestHeaders(t *testing.T) {
 
 	// run the test
 	tests := []struct {
+		expected any
 		note     string
 		rules    []string
-		expected any
 	}{
 		{"http.send custom headers", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "headers": {"X-Foo": "ISO-8859-1,utf-8;q=0.7,*;q=0.7", "X-Opa": "server"}}, resp); x := remove_headers(resp) }`, ts.URL)}, s},
@@ -437,10 +437,10 @@ func TestHTTPPostRequest(t *testing.T) {
 	defer ts.Close()
 
 	tests := []struct {
+		expected    any
 		note        string
 		params      string
 		respHeaders string
-		expected    any
 	}{
 		{
 			note: "basic",
@@ -577,9 +577,9 @@ func TestHTTPDeleteRequest(t *testing.T) {
 
 	// run the test
 	tests := []struct {
+		expected any
 		note     string
 		rules    []string
-		expected any
 	}{
 		{"http.send", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "delete", "url": "%s", "body": %s}, resp); x := clean_headers(resp) }`, ts.URL, b)}, resultObj.String()},
@@ -599,9 +599,9 @@ func TestInvalidKeyError(t *testing.T) {
 
 	// run the test
 	tests := []struct {
+		expected any
 		note     string
 		rules    []string
-		expected any
 	}{
 		{"invalid keys", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "bad_key": "bad_value"}, x) }`}, &Error{Code: TypeErr, Message: `invalid request parameters(s): {"bad_key"}`}},
 		{"missing keys", []string{`p = x { http.send({"method": "get"}, x) }`}, &Error{Code: TypeErr, Message: `missing required request parameters(s): {"url"}`}},
@@ -619,9 +619,9 @@ func TestInvalidRetryParam(t *testing.T) {
 
 	// run the test
 	tests := []struct {
+		expected any
 		note     string
 		rules    []string
-		expected any
 	}{
 		{"invalid retry param", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "max_retry_attempts": "bad_value"}, x) }`}, &Error{Code: BuiltinErr, Message: `http.send: invalid value "bad_value" for field "max_retry_attempts"`}},
 		{"invalid number", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "max_retry_attempts": 1.2}, x) }`}, &Error{Code: BuiltinErr, Message: `http.send: invalid value 1.2 for field "max_retry_attempts"`}},
@@ -639,9 +639,9 @@ func TestParseTimeout(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		note     string
 		raw      ast.Value
 		expected any
+		note     string
 	}{
 		{
 			note:     "zero string",
@@ -824,10 +824,10 @@ func TestHTTPRedirectAllowNet(t *testing.T) {
 
 	// run the test
 	tests := []struct {
+		expected any
+		options  func(*Query) *Query
 		note     string
 		rules    []string
-		options  func(*Query) *Query
-		expected any
 	}{
 		{
 			"http.send allow_net nil",
@@ -898,10 +898,10 @@ func TestHTTPSendRaiseError(t *testing.T) {
 	responseObjInputValidation := ast.MustInterfaceToValue(responseObjInputValidationErr)
 
 	tests := []struct {
+		response     any
 		note         string
 		ruleTemplate string
 		body         string
-		response     any
 	}{
 		{
 			note: "http.send invalid url (don't raise error, check response body)",
@@ -1620,12 +1620,12 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 
 	cacheTime := 300
 	tests := []struct {
+		headers          map[string][]string
 		note             string
 		request          string
-		headers          map[string][]string
-		skipDate         bool
 		response         string
 		expectedReqCount int
+		skipDate         bool
 	}{
 		{
 			note:             "http.send GET cache expired, reloads normally",
@@ -2018,11 +2018,11 @@ func TestGetCachingMode(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		note      string
 		input     ast.Object
+		err       error
+		note      string
 		expected  cachingMode
 		wantError bool
-		err       error
 	}{
 		{
 			note:      "default caching mode",
@@ -2100,11 +2100,11 @@ func TestParseMaxAgeCacheDirective(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		note      string
+		err       error
 		input     map[string]string
+		note      string
 		expected  deltaSeconds
 		wantError bool
-		err       error
 	}{
 		{
 			note:      "max age not set",
@@ -2171,11 +2171,11 @@ func TestNewForceCacheParams(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		note      string
 		input     ast.Object
-		expected  *forceCacheParams
-		wantError bool
 		err       error
+		expected  *forceCacheParams
+		note      string
+		wantError bool
 	}{
 		{
 			note:      "non existent key",
@@ -2243,12 +2243,12 @@ func TestGetBoolValFromReqObj(t *testing.T) {
 	invalidInputObj := invalidInput.Value.(ast.Object)
 
 	tests := []struct {
-		note      string
 		input     ast.Object
+		err       error
 		key       *ast.Term
+		note      string
 		expected  bool
 		wantError bool
-		err       error
 	}{
 		{
 			note:      "valid input",
@@ -3030,10 +3030,10 @@ func TestCertSelectionLogic(t *testing.T) {
 	}
 
 	tests := []struct {
-		note     string
 		input    map[*ast.Term]*ast.Term
-		expected [][]byte
+		note     string
 		msg      string
+		expected [][]byte
 	}{
 		{
 			note:     "tls_use_system_certs set to true",
@@ -3363,9 +3363,9 @@ func TestRaisingHTTPClientQueryError(t *testing.T) {
 
 	tests := []struct {
 		note          string
-		rules         []string
 		expected      string
 		expectedError string
+		rules         []string
 	}{
 		{
 			note: "raised errors with inter query cache",
@@ -3614,9 +3614,9 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 
 	// run the test
 	tests := []struct {
+		expected any
 		note     string
 		rules    []string
-		expected any
 	}{
 		{"http.send", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": %q, "force_json_decode": true}, resp); x := clean_headers(resp) }`, rawURL)}, resultObj.String()},
@@ -3648,9 +3648,9 @@ func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler
 // means it cannot be run in parallel with other tests.
 func TestDistributedTracing(t *testing.T) {
 	tests := []struct {
+		obj             ast.Object
 		name            string
 		opts            tracing.Options
-		obj             ast.Object
 		expectedCalls   int
 		expectTransport bool
 	}{
@@ -3731,10 +3731,10 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 
 	// run the test
 	tests := []struct {
+		expected any
+		options  func(*Query) *Query
 		note     string
 		rules    []string
-		options  func(*Query) *Query
-		expected any
 	}{
 		{
 			"http.send allow_net nil",
@@ -3845,10 +3845,10 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 
 	// run the test
 	tests := []struct {
+		expected any
+		options  func(*Query) *Query
 		note     string
 		rules    []string
-		options  func(*Query) *Query
-		expected any
 		calls    int
 	}{
 		{
@@ -3899,8 +3899,8 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 
 func TestIsJSONType(t *testing.T) {
 	tests := []struct {
-		name string
 		h    http.Header
+		name string
 		exp  bool
 	}{
 		{

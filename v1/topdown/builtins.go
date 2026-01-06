@@ -35,27 +35,27 @@ type (
 	// BuiltinContext contains context from the evaluator that may be used by
 	// built-in functions.
 	BuiltinContext struct {
-		Context                     context.Context            // request context that was passed when query started
-		Metrics                     metrics.Metrics            // metrics registry for recording built-in specific metrics
-		Seed                        io.Reader                  // randomization source
-		Time                        *ast.Term                  // wall clock time
-		Cancel                      Cancel                     // atomic value that signals evaluation to halt
-		Runtime                     *ast.Term                  // runtime information on the OPA instance
-		Cache                       builtins.Cache             // built-in function state cache
-		InterQueryBuiltinCache      cache.InterQueryCache      // cross-query built-in function state cache
-		InterQueryBuiltinValueCache cache.InterQueryValueCache // cross-query built-in function state value cache. this cache is useful for scenarios where the entry size cannot be calculated
-		NDBuiltinCache              builtins.NDBCache          // cache for non-deterministic built-in state
-		Location                    *ast.Location              // location of built-in call
-		Tracers                     []Tracer                   // Deprecated: Use QueryTracers instead
-		QueryTracers                []QueryTracer              // tracer objects for trace() built-in function
-		TraceEnabled                bool                       // indicates whether tracing is enabled for the evaluation
-		QueryID                     uint64                     // identifies query being evaluated
-		ParentID                    uint64                     // identifies parent of query being evaluated
-		PrintHook                   print.Hook                 // provides callback function to use for printing
-		RoundTripper                CustomizeRoundTripper      // customize transport to use for HTTP requests
-		DistributedTracingOpts      tracing.Options            // options to be used by distributed tracing.
-		rand                        *rand.Rand                 // randomization source for non-security-sensitive operations
+		InterQueryBuiltinCache      cache.InterQueryCache
+		Metrics                     metrics.Metrics
+		Seed                        io.Reader
+		PrintHook                   print.Hook
+		Cancel                      Cancel
+		Context                     context.Context
+		InterQueryBuiltinValueCache cache.InterQueryValueCache
+		Location                    *ast.Location
+		Time                        *ast.Term
+		NDBuiltinCache              builtins.NDBCache
+		Runtime                     *ast.Term
+		Cache                       builtins.Cache
 		Capabilities                *ast.Capabilities
+		rand                        *rand.Rand
+		RoundTripper                CustomizeRoundTripper
+		Tracers                     []Tracer
+		DistributedTracingOpts      tracing.Options
+		QueryTracers                []QueryTracer
+		ParentID                    uint64
+		QueryID                     uint64
+		TraceEnabled                bool
 	}
 
 	// BuiltinFunc defines an interface for implementing built-in functions.

@@ -52,10 +52,10 @@ func (s Set[T]) Intersection(other Set[T]) Set[T] {
 // There are hardcoded sets of supported Set. The constraints become
 // effective during the post-PE analysis (compile.Checks()).
 type Constraint struct {
-	Target   string
-	Variant  string
 	Builtins Set[string]
 	Features Set[string]
+	Target   string
+	Variant  string
 }
 
 type Constraints interface {

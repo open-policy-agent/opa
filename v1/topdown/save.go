@@ -114,9 +114,9 @@ func (ss *saveSet) String() string {
 }
 
 type saveSetElem struct {
+	b    *bindings
 	refs []ast.Ref
 	vars []*ast.Term
-	b    *bindings
 }
 
 func newSaveSetElem(ts []*ast.Term, b *bindings) *saveSetElem {
@@ -424,15 +424,15 @@ func ignoreDuringPartial(bi *ast.Builtin) bool {
 }
 
 type inliningControl struct {
-	shallow                  bool
 	disable                  []disableInliningFrame
-	nondeterministicBuiltins bool // evaluate non-det builtins during PE (if args are known)
+	shallow                  bool
+	nondeterministicBuiltins bool
 }
 
 type disableInliningFrame struct {
-	internal bool
-	refs     []ast.Ref
 	v        ast.Var
+	refs     []ast.Ref
+	internal bool
 }
 
 func (i *inliningControl) PushDisable(x any, internal bool) {

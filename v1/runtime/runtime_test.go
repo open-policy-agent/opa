@@ -345,11 +345,11 @@ func TestRuntimeReplWithBundleBuiltWithV1Compatibility(t *testing.T) {
 func TestRuntimeReplProcessWatchV1Compatible(t *testing.T) {
 	tests := []struct {
 		note         string
+		policy       string
+		expOutput    string
+		expErrs      []string
 		v0Compatible bool
 		v1Compatible bool
-		policy       string
-		expErrs      []string
-		expOutput    string
 	}{
 		{
 			note:         "v0, keywords not used",
@@ -499,11 +499,11 @@ p contains 1 if {
 func TestRuntimeServerProcessWatchV1Compatible(t *testing.T) {
 	tests := []struct {
 		note         string
+		policy       string
+		expOutput    string
+		expErrs      []string
 		v0Compatible bool
 		v1Compatible bool
-		policy       string
-		expErrs      []string
-		expOutput    string
 	}{
 		{
 			note:         "v0, keywords not used",
@@ -951,11 +951,11 @@ func TestServerInitialized(t *testing.T) {
 
 func TestServerInitializedWithRegoV1(t *testing.T) {
 	tests := []struct {
+		files        map[string]string
 		note         string
+		expErr       string
 		v0Compatible bool
 		v1Compatible bool
-		files        map[string]string
-		expErr       string
 	}{
 		{
 			note:         "Rego v0, keywords not imported",

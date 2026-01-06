@@ -673,8 +673,8 @@ func topOfStack(t *testing.T, s Session) *stackFrame {
 func TestDebuggerAutomaticStop(t *testing.T) {
 	tests := []struct {
 		note          string
-		props         LaunchProperties
 		expEventType  EventType
+		props         LaunchProperties
 		expEventIndex int
 	}{
 		{
@@ -1617,13 +1617,13 @@ func TestDebuggerStackTrace(t *testing.T) {
 
 func TestDebuggerScopeVariables(t *testing.T) {
 	tests := []struct {
-		note         string
 		input        *ast.Term
 		locals       map[ast.Var]ast.Value
 		virtualCache map[string]ast.Value
 		data         map[string]any
 		result       *rego.ResultSet
 		expScopes    map[string]scopeInfo
+		note         string
 	}{
 		{
 			note: "no variables",
@@ -2059,15 +2059,15 @@ func TestDebuggerScopeVariables(t *testing.T) {
 }
 
 type varInfo struct {
+	children map[string]varInfo
 	typ      string
 	val      string
-	children map[string]varInfo
 }
 
 type scopeInfo struct {
+	variables      map[string]varInfo
 	name           string
 	namedVariables int
-	variables      map[string]varInfo
 }
 
 func assertVariables(t *testing.T, s Session, variables []Variable, exp map[string]varInfo) {
@@ -2184,8 +2184,8 @@ func (eh *testEventHandler) Do(task func() error) error {
 
 type testStack struct {
 	events []*topdown.Event
-	index  int
 	result rego.ResultSet
+	index  int
 	closed bool
 }
 

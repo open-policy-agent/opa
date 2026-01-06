@@ -24,11 +24,11 @@ import (
 
 type checkParams struct {
 	format       *util.EnumFlag
-	errLimit     int
-	ignore       []string
-	bundleMode   bool
 	capabilities *capabilitiesFlag
 	schema       *schemaFlags
+	ignore       []string
+	errLimit     int
+	bundleMode   bool
 	strict       bool
 	regoV1       bool
 	v0Compatible bool

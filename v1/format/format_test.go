@@ -20,9 +20,9 @@ import (
 func TestFormatNilLocation(t *testing.T) {
 	tests := []struct {
 		note        string
-		regoVersion ast.RegoVersion
 		rule        string
 		exp         string
+		regoVersion ast.RegoVersion
 	}{
 		{
 			note:        "v0",
@@ -291,10 +291,10 @@ func TestFormatV0SourceToRegoV1(t *testing.T) {
 
 func TestFormatAST(t *testing.T) {
 	cases := []struct {
-		note        string
-		regoVersion ast.RegoVersion
 		toFmt       any
+		note        string
 		expected    string
+		regoVersion ast.RegoVersion
 	}{
 		{
 			note:     "var",
@@ -776,10 +776,10 @@ a[_x[y][[z, w]]]`,
 
 func TestFormatAST_Error(t *testing.T) {
 	cases := []struct {
-		note        string
-		regoVersion ast.RegoVersion
 		toFmt       any
+		note        string
 		expErr      string
+		regoVersion ast.RegoVersion
 	}{
 		{
 			note:   "package with only data term",
@@ -932,10 +932,10 @@ p contains x if {
 func TestSourceWithOpts_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note          string
-		toRegoVersion ast.RegoVersion
 		module        string
 		expFormatted  string
 		expErrs       []string
+		toRegoVersion ast.RegoVersion
 	}{
 		{
 			note:          "v0 -> v0", // from default rego-version

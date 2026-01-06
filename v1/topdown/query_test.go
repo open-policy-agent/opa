@@ -285,10 +285,10 @@ func initTracerTestQuery() *Query {
 }
 
 type testQueryTracer struct {
+	t       *testing.T
 	events  []*Event
 	conf    TraceConfig
 	enabled bool
-	t       *testing.T
 }
 
 func (n *testQueryTracer) Enabled() bool {

@@ -28,23 +28,23 @@ import (
 
 // VM is a wrapper around a Wasm VM instance
 type VM struct {
-	dispatcher           *builtinDispatcher
-	engine               *wasmtime.Engine
+	jsonParse            func(context.Context, int32, int32) (int32, error)
+	valueDump            func(context.Context, int32) (int32, error)
 	store                *wasmtime.Store
-	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
-	policy               []byte
-	abiMajorVersion      int32
-	abiMinorVersion      int32
+	instance             *wasmtime.Instance
+	heapStashClear       func(context.Context) error
+	heapBlocksRestore    func(context.Context) error
+	heapBlocksStash      func(context.Context) error
 	memory               *wasmtime.Memory
-	memoryMin            uint32
-	memoryMax            uint32
+	valueFree            func(context.Context, int32) error
+	valueRemovePath      func(context.Context, int32, int32) (int32, error)
 	entrypointIDs        map[string]int32
-	baseHeapPtr          int32
-	dataAddr             int32
-	evalHeapPtr          int32
+	valueAddPath         func(context.Context, int32, int32, int32) (int32, error)
+	free                 func(context.Context, int32) error
+	malloc               func(context.Context, int32) (int32, error)
 	evalOneOff           func(context.Context, int32, int32, int32, int32, int32) (int32, error)
 	eval                 func(context.Context, int32) error
-	evalCtxGetResult     func(context.Context, int32) (int32, error)
+	engine               *wasmtime.Engine
 	evalCtxNew           func(context.Context) (int32, error)
 	evalCtxSetData       func(context.Context, int32, int32) error
 	evalCtxSetInput      func(context.Context, int32, int32) error
@@ -52,17 +52,17 @@ type VM struct {
 	heapPtrGet           func(context.Context) (int32, error)
 	heapPtrSet           func(context.Context, int32) error
 	jsonDump             func(context.Context, int32) (int32, error)
-	jsonParse            func(context.Context, int32, int32) (int32, error)
-	valueDump            func(context.Context, int32) (int32, error)
+	dispatcher           *builtinDispatcher
+	evalCtxGetResult     func(context.Context, int32) (int32, error)
 	valueParse           func(context.Context, int32, int32) (int32, error)
-	malloc               func(context.Context, int32) (int32, error)
-	free                 func(context.Context, int32) error
-	valueAddPath         func(context.Context, int32, int32, int32) (int32, error)
-	valueRemovePath      func(context.Context, int32, int32) (int32, error)
-	valueFree            func(context.Context, int32) error
-	heapBlocksStash      func(context.Context) error
-	heapBlocksRestore    func(context.Context) error
-	heapStashClear       func(context.Context) error
+	policy               []byte
+	evalHeapPtr          int32
+	dataAddr             int32
+	baseHeapPtr          int32
+	memoryMax            uint32
+	memoryMin            uint32
+	abiMinorVersion      int32
+	abiMajorVersion      int32
 }
 
 type vmOpts struct {

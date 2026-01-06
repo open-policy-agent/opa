@@ -122,10 +122,10 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 
 // ConfigBuilder assists in the construction of the plugin configuration.
 type ConfigBuilder struct {
-	raw      []byte
-	services []string
 	keys     map[string]*keys.Config
 	trigger  *plugins.TriggerMode
+	raw      []byte
+	services []string
 }
 
 // Config represents the configuration of the plugin.
@@ -134,24 +134,21 @@ type ConfigBuilder struct {
 // older single bundle configuration is deprecated and will be
 // removed in the future in favor of the `Bundles` map.
 type Config struct {
-	download.Config // Deprecated: Use `Bundles` map instead
-
+	download.Config
 	Bundles map[string]*Source
-
-	Name    string  `json:"name"`    // Deprecated: Use `Bundles` map instead
-	Service string  `json:"service"` // Deprecated: Use `Bundles` map instead
-	Prefix  *string `json:"prefix"`  // Deprecated: Use `Bundles` map instead
+	Prefix  *string `json:"prefix"`
+	Name    string  `json:"name"`
+	Service string  `json:"service"`
 }
 
 // Source is a configured bundle source to download bundles from
 type Source struct {
 	download.Config
-
+	Signing        *bundle.VerificationConfig `json:"signing"`
 	Service        string                     `json:"service"`
 	Resource       string                     `json:"resource"`
-	Signing        *bundle.VerificationConfig `json:"signing"`
-	Persist        bool                       `json:"persist"`
 	SizeLimitBytes int64                      `json:"size_limit_bytes"`
+	Persist        bool                       `json:"persist"`
 }
 
 // IsMultiBundle returns whether or not the config is the newer multi-bundle

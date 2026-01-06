@@ -22,8 +22,8 @@ import (
 )
 
 type moveCommandParams struct {
-	mapping      repeatedStringFlag
 	ignore       []string
+	mapping      repeatedStringFlag
 	overwrite    bool
 	v0Compatible bool
 	v1Compatible bool

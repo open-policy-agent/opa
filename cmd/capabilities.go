@@ -15,9 +15,9 @@ import (
 )
 
 type capabilitiesParams struct {
-	showCurrent  bool
 	version      string
 	file         string
+	showCurrent  bool
 	v0Compatible bool
 }
 

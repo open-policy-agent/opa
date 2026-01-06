@@ -74,12 +74,12 @@ type Plugin struct {
 // Config contains configuration for the plugin.
 type Config struct {
 	Plugin           *string              `json:"plugin"`
+	PrometheusConfig *PrometheusConfig    `json:"prometheus_config,omitempty"`
+	Trigger          *plugins.TriggerMode `json:"trigger,omitempty"`
 	Service          string               `json:"service"`
 	PartitionName    string               `json:"partition_name,omitempty"`
 	ConsoleLogs      bool                 `json:"console"`
 	Prometheus       bool                 `json:"prometheus"`
-	PrometheusConfig *PrometheusConfig    `json:"prometheus_config,omitempty"`
-	Trigger          *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
 }
 
 // BundleLoadDurationNanoseconds represents the configuration for the status.prometheus_config.bundle_loading_duration_ns settings
@@ -129,10 +129,10 @@ func ParseConfig(config []byte, services []string, pluginsList []string) (*Confi
 
 // ConfigBuilder assists in the construction of the plugin configuration.
 type ConfigBuilder struct {
+	trigger  *plugins.TriggerMode
 	raw      []byte
 	services []string
 	plugins  []string
-	trigger  *plugins.TriggerMode
 }
 
 // NewConfigBuilder returns a new ConfigBuilder to build and parse the plugin config.

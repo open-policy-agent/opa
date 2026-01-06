@@ -83,11 +83,11 @@ a contains x if {
 func TestDepsCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string
-		v0Compatible bool
-		v1Compatible bool
 		module       string
 		query        string
 		expErrs      []string
+		v0Compatible bool
+		v1Compatible bool
 	}{
 		{
 			note:         "v0, no keywords",

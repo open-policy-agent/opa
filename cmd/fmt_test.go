@@ -747,10 +747,10 @@ func TestFmtMultipleWrongArityError(t *testing.T) {
 func TestFmtRegoV1(t *testing.T) {
 	tests := []struct {
 		note         string
-		v1Compatible bool
 		input        string
 		expected     string
 		expectedErr  string
+		v1Compatible bool
 	}{
 		{
 			note: "no future imports",
@@ -905,10 +905,10 @@ p contains x if {
 func TestFmt_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note          string
-		dropV0Imports bool
 		input         string
 		expected      string
 		expectedErrs  []string
+		dropV0Imports bool
 	}{
 		{
 			note: "no keywords used",

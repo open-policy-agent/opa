@@ -177,53 +177,51 @@ type StatusListener func(status map[string]*Status)
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
 type Manager struct {
-	Store storage.Store
-	// Config values should be accessed from the thread-safe GetConfig method.
-	Config *config.Config
-	Info   *ast.Term
-	ID     string
-
-	compiler                     *ast.Compiler
-	compilerMux                  sync.RWMutex
-	wasmResolvers                []*wasm.Resolver
-	wasmResolversMtx             sync.RWMutex
+	logger                       logging.Logger
+	reporter                     report.Reporter
+	Store                        storage.Store
+	prometheusRegister           prometheus.Registerer
+	printHook                    print.Hook
+	consoleLogger                logging.Logger
+	registeredTelemetryGatherers map[string]report.Gatherer
+	initBundles                  map[string]*bundle.Bundle
 	services                     map[string]rest.Client
 	keys                         map[string]*keys.Config
-	plugins                      []namedplugin
-	registeredTriggers           []func(storage.Transaction)
-	mtx                          sync.Mutex
+	router                       *http.ServeMux
+	extraRoutes                  map[string]ExtraRoute
+	stop                         chan chan struct{}
 	pluginStatus                 map[string]*Status
 	pluginStatusListeners        map[string]StatusListener
-	initBundles                  map[string]*bundle.Bundle
-	initFiles                    loader.Result
-	maxErrors                    int
-	initialized                  bool
-	interQueryBuiltinCacheConfig *cache.Config
-	gracefulShutdownPeriod       int
-	registeredCacheTriggers      []func(*cache.Config)
-	logger                       logging.Logger
-	consoleLogger                logging.Logger
-	serverInitialized            chan struct{}
-	serverInitializedOnce        sync.Once
-	printHook                    print.Hook
-	enablePrintStatements        bool
-	router                       *http.ServeMux
-	prometheusRegister           prometheus.Registerer
-	tracerProvider               *trace.TracerProvider
-	distributedTacingOpts        tracing.Options
-	registeredNDCacheTriggers    []func(bool)
-	registeredTelemetryGatherers map[string]report.Gatherer
-	bootstrapConfigLabels        map[string]string
-	hooks                        hooks.Hooks
-	enableTelemetry              bool
-	reporter                     report.Reporter
+	compiler                     *ast.Compiler
 	opaReportNotifyCh            chan struct{}
-	stop                         chan chan struct{}
-	parserOptions                ast.ParserOptions
-	extraRoutes                  map[string]ExtraRoute
+	Config                       *config.Config
+	hooks                        hooks.Hooks
+	interQueryBuiltinCacheConfig *cache.Config
+	bootstrapConfigLabels        map[string]string
+	Info                         *ast.Term
+	tracerProvider               *trace.TracerProvider
+	serverInitialized            chan struct{}
+	ID                           string
+	bundleActivatorPlugin        string
+	initFiles                    loader.Result
+	registeredCacheTriggers      []func(*cache.Config)
 	extraMiddlewares             []func(http.Handler) http.Handler
 	extraAuthorizerRoutes        []func(string, []any) bool
-	bundleActivatorPlugin        string
+	wasmResolvers                []*wasm.Resolver
+	distributedTacingOpts        tracing.Options
+	registeredNDCacheTriggers    []func(bool)
+	plugins                      []namedplugin
+	registeredTriggers           []func(storage.Transaction)
+	parserOptions                ast.ParserOptions
+	maxErrors                    int
+	gracefulShutdownPeriod       int
+	compilerMux                  sync.RWMutex
+	wasmResolversMtx             sync.RWMutex
+	serverInitializedOnce        sync.Once
+	mtx                          sync.Mutex
+	enablePrintStatements        bool
+	enableTelemetry              bool
+	initialized                  bool
 }
 
 type (
@@ -309,8 +307,8 @@ func ValidateAndInjectDefaultsForTriggerMode(a, b *TriggerMode) (*TriggerMode, e
 }
 
 type namedplugin struct {
-	name   string
 	plugin Plugin
+	name   string
 }
 
 // Info sets the runtime information on the manager. The runtime information is
@@ -676,8 +674,8 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 }
 
 type ExtraRoute struct {
-	PromName    string // name is for prometheus metrics
 	HandlerFunc http.HandlerFunc
+	PromName    string
 }
 
 func (m *Manager) ExtraRoutes() map[string]ExtraRoute {

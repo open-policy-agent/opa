@@ -34,11 +34,11 @@ var reMetaIdentifier = regexp.MustCompile(`^[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$`)
 
 // Version represents a parsed SemVer
 type Version struct {
+	PreRelease string `json:"PreRelease,omitempty"`
+	Metadata   string `json:"Metadata,omitempty"`
 	Major      int64
 	Minor      int64
 	Patch      int64
-	PreRelease string `json:"PreRelease,omitempty"`
-	Metadata   string `json:"Metadata,omitempty"`
 }
 
 // Parse constructs new semver Version from version string.

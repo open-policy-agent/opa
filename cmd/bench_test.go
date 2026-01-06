@@ -936,11 +936,11 @@ func TestBenchMainCompatibleFlags(t *testing.T) {
 
 	tests := []struct {
 		note         string
-		v0Compatible bool
-		v1Compatible bool
 		module       string
 		query        string
 		expErrs      []string
+		v0Compatible bool
+		v1Compatible bool
 	}{
 		// These tests are slow, so we're not being completely exhaustive here.
 		{
@@ -1073,12 +1073,12 @@ func TestBenchMainWithBundleRegoVersion(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		note                   string
-		bundleRegoVersion      int
 		bundleFileRegoVersions map[string]int
 		modules                map[string]string
+		note                   string
 		query                  string
 		expErrs                []string
+		bundleRegoVersion      int
 	}{
 		// These tests are slow, so we're not being completely exhaustive here.
 		{

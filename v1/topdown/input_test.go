@@ -14,10 +14,10 @@ func TestMergeTermWithValues(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
+		expected any
 		note     string
 		exist    string
 		input    [][2]string
-		expected any
 	}{
 		{
 			note:     "var",

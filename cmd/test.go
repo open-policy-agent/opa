@@ -39,31 +39,31 @@ import (
 )
 
 type testCommandParams struct {
-	verbose      bool
-	explain      *util.EnumFlag
-	errLimit     int
-	outputFormat *util.EnumFlag
-	coverage     bool
-	threshold    float64
-	timeout      time.Duration
-	ignore       []string
-	bundleMode   bool
-	benchmark    bool
-	benchMem     bool
-	runRegex     string
-	count        int
-	target       *util.EnumFlag
-	skipExitZero bool
-	capabilities *capabilitiesFlag
-	schema       *schemaFlags
-	watch        bool
-	stopChan     chan os.Signal
-	output       io.Writer
 	errOutput    io.Writer
+	output       io.Writer
+	explain      *util.EnumFlag
+	outputFormat *util.EnumFlag
+	stopChan     chan os.Signal
+	schema       *schemaFlags
+	capabilities *capabilitiesFlag
+	target       *util.EnumFlag
+	runRegex     string
+	ignore       []string
+	timeout      time.Duration
+	threshold    float64
+	count        int
+	parallel     int
+	errLimit     int
+	skipExitZero bool
+	verbose      bool
+	watch        bool
+	bundleMode   bool
+	coverage     bool
+	benchMem     bool
 	v0Compatible bool
 	v1Compatible bool
 	varValues    bool
-	parallel     int
+	benchmark    bool
 	failOnEmpty  bool
 }
 

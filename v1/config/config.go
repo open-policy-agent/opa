@@ -77,24 +77,24 @@ func (s *StorageConfig) Clone() *StorageConfig {
 
 // Config represents the configuration file that OPA can be started with.
 type Config struct {
-	Services                     json.RawMessage            `json:"services,omitempty"`
+	DefaultDecision              *string                    `json:"default_decision,omitempty"`
 	Labels                       map[string]string          `json:"labels,omitempty"`
-	Discovery                    json.RawMessage            `json:"discovery,omitempty"`
-	Bundle                       json.RawMessage            `json:"bundle,omitempty"` // Deprecated: Use `bundles` instead
-	Bundles                      json.RawMessage            `json:"bundles,omitempty"`
-	DecisionLogs                 json.RawMessage            `json:"decision_logs,omitempty"`
-	Status                       json.RawMessage            `json:"status,omitempty"`
+	Extra                        map[string]json.RawMessage `json:"-"`
+	Storage                      *StorageConfig             `json:"storage,omitempty"`
+	Server                       *ServerConfig              `json:"server,omitempty"`
+	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
+	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision,omitempty"`
 	Plugins                      map[string]json.RawMessage `json:"plugins,omitempty"`
 	Keys                         json.RawMessage            `json:"keys,omitempty"`
-	DefaultDecision              *string                    `json:"default_decision,omitempty"`
-	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision,omitempty"`
+	Services                     json.RawMessage            `json:"services,omitempty"`
+	Status                       json.RawMessage            `json:"status,omitempty"`
 	Caching                      json.RawMessage            `json:"caching,omitempty"`
-	NDBuiltinCache               bool                       `json:"nd_builtin_cache,omitempty"`
-	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
+	DecisionLogs                 json.RawMessage            `json:"decision_logs,omitempty"`
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
-	Server                       *ServerConfig              `json:"server,omitempty"`
-	Storage                      *StorageConfig             `json:"storage,omitempty"`
-	Extra                        map[string]json.RawMessage `json:"-"`
+	Bundles                      json.RawMessage            `json:"bundles,omitempty"`
+	Bundle                       json.RawMessage            `json:"bundle,omitempty"`
+	Discovery                    json.RawMessage            `json:"discovery,omitempty"`
+	NDBuiltinCache               bool                       `json:"nd_builtin_cache,omitempty"`
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id

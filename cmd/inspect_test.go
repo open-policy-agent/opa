@@ -1081,9 +1081,9 @@ Custom:
 func TestDoInspect_V0Compatible(t *testing.T) {
 	tests := []struct {
 		note         string
-		v0Compatible bool
 		module       string
 		expErrs      []string
+		v0Compatible bool
 	}{
 		{
 			note:         "v0, keywords not used",
@@ -1203,10 +1203,10 @@ p contains v if {
 
 func TestDoInspectWithBundleRegoVersion(t *testing.T) {
 	tests := []struct {
-		note              string
-		bundleRegoVersion int
 		files             map[string]string
+		note              string
 		expErrs           []string
+		bundleRegoVersion int
 	}{
 		{
 			note:              "v0.x bundle, keywords not used",
@@ -1537,8 +1537,8 @@ p contains 2 if {
 func TestUnknownRefs(t *testing.T) {
 	tests := []struct {
 		note     string
-		files    [][2]string
 		expected string
+		files    [][2]string
 	}{
 		{
 			note: "unknown built-in func call",

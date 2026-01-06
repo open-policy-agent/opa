@@ -10,10 +10,10 @@ func TestRegexCompiler(t *testing.T) {
 
 	for _, tc := range []struct {
 		template       string
+		matchAgainst   string
 		delimiterStart byte
 		delimiterEnd   byte
 		failCompile    bool
-		matchAgainst   string
 		failMatch      bool
 	}{
 		{"urn:foo:{.*}", '{', '}', false, "urn:foo:bar:baz", false},

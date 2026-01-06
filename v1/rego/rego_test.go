@@ -141,12 +141,12 @@ p contains x if {
 
 func TestRegoEval_Capabilities(t *testing.T) {
 	tests := []struct {
-		note         string
-		regoVersion  ast.RegoVersion
-		capabilities *ast.Capabilities
-		module       string
 		expResult    any
+		capabilities *ast.Capabilities
+		note         string
+		module       string
 		expErrs      []string
+		regoVersion  ast.RegoVersion
 	}{
 		{
 			note:        "v0 module, rego-v0, no capabilities",
@@ -2286,12 +2286,12 @@ func TestRegoEvalModulesOnCompiler(t *testing.T) {
 
 func TestRegoEvalWithRegoV1(t *testing.T) {
 	tests := []struct {
-		note           string
-		regoVersion    ast.RegoVersion
 		policies       map[string]string
+		note           string
 		query          string
 		expectedResult string
 		expectedErr    string
+		regoVersion    ast.RegoVersion
 	}{
 		{
 			note:        "Rego v0",
@@ -2367,8 +2367,8 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 	}
 
 	setup := []struct {
-		name    string
 		options func(path string, policies map[string]string, t *testing.T, ctx context.Context) []func(*Rego)
+		name    string
 	}{
 		{
 			name: "File",

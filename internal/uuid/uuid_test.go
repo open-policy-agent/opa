@@ -23,9 +23,9 @@ func TestUUID4(t *testing.T) {
 
 func TestParseTrue(t *testing.T) {
 	var tests = []struct {
+		ans   map[string]any
 		name  string
 		input string
-		ans   map[string]any
 	}{
 		{
 			"Test uuid 1",

@@ -69,8 +69,9 @@ func NewNull() Null {
 // NamedType represents a type alias with an arbitrary name and description.
 // This is useful for generating documentation for built-in functions.
 type NamedType struct {
-	Name, Descr string
-	Type        Type
+	Type  Type
+	Name  string
+	Descr string
 }
 
 func (n *NamedType) typeMarker() string { return n.Type.typeMarker() }
@@ -187,8 +188,8 @@ func (Number) String() string {
 
 // Array represents the array type.
 type Array struct {
-	static  []Type // static items
-	dynamic Type   // dynamic items
+	dynamic Type
+	static  []Type
 }
 
 // NewArray returns a new Array type.
@@ -342,8 +343,8 @@ func (p *DynamicProperty) String() string {
 
 // Object represents the object type.
 type Object struct {
-	static  []*StaticProperty // constant properties
-	dynamic *DynamicProperty  // dynamic properties
+	dynamic *DynamicProperty
+	static  []*StaticProperty
 }
 
 // NewObject returns a new Object type.
@@ -650,9 +651,9 @@ func (t Any) String() string {
 
 // Function represents a function type.
 type Function struct {
-	args     []Type
 	result   Type
 	variadic Type
+	args     []Type
 }
 
 // Args returns an argument list.
@@ -820,8 +821,8 @@ func (t *Function) Union(other *Function) *Function {
 
 // FuncArgs represents the arguments that can be passed to a function.
 type FuncArgs struct {
-	Args     []Type `json:"args,omitempty"`
 	Variadic Type   `json:"variadic,omitempty"`
+	Args     []Type `json:"args,omitempty"`
 }
 
 func (a FuncArgs) String() string {

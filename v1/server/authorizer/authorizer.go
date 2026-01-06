@@ -25,15 +25,15 @@ import (
 // Basic provides policy-based authorization over incoming requests.
 type Basic struct {
 	inner                  http.Handler
-	compiler               func() *ast.Compiler
 	store                  storage.Store
-	runtime                *ast.Term
-	decision               func() ast.Ref
 	printHook              print.Hook
-	enablePrintStatements  bool
 	interQueryCache        cache.InterQueryCache
 	interQueryValueCache   cache.InterQueryValueCache
+	compiler               func() *ast.Compiler
+	runtime                *ast.Term
+	decision               func() ast.Ref
 	urlPathExpectsBodyFunc []func(string, []any) bool
+	enablePrintStatements  bool
 }
 
 // Runtime returns an argument that sets the runtime on the authorizer.

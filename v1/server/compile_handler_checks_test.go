@@ -24,10 +24,10 @@ const (
 // Error is needed here because the ast.Error type cannot be
 // unmarshalled from JSON: it contains an interface value.
 type Error struct {
-	Code     string           `json:"code"`
-	Message  string           `json:"message"`
 	Location *ast.Location    `json:"location,omitempty"`
 	Details  *compile.Details `json:"details,omitempty"`
+	Code     string           `json:"code"`
+	Message  string           `json:"message"`
 }
 
 // NOTE(sr): The important thing about these tests is that we don't mock
@@ -47,17 +47,17 @@ func TestPostPartialChecks(t *testing.T) {
 	defaultUnknowns := []string{"input.fruits", "input.baskets"}
 
 	for _, tc := range []struct {
+		input        any
+		result       any
+		mappings     map[string]any
 		note         string
 		target       string
 		rego         string
+		query        string
+		skip         string
+		errors       []Error
 		regoVerbatim bool
 		omitUnknowns bool
-		input        any
-		query        string
-		errors       []Error
-		mappings     map[string]any
-		skip         string
-		result       any
 	}{
 		{
 			note:   "happy path",

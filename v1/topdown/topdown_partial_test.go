@@ -25,21 +25,21 @@ func TestTopDownPartialEval(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		note                     string
-		unknowns                 []string
-		disableInlining          []string
-		nondeterministicBuiltins bool
-		shallow                  bool
-		skipPartialNamespace     bool
 		query                    string
+		note                     string
+		input                    string
+		data                     string
+		wantQueryASTs            []ast.Body
 		modules                  []string
 		moduleASTs               []*ast.Module
-		data                     string
-		input                    string
+		disableInlining          []string
 		wantQueries              []string
-		wantQueryASTs            []ast.Body
+		unknowns                 []string
 		wantSupport              []string
 		wantSupportASTs          []*ast.Module
+		skipPartialNamespace     bool
+		shallow                  bool
+		nondeterministicBuiltins bool
 		ignoreOrder              bool
 	}{
 		{
@@ -5044,18 +5044,18 @@ q if { input.x = 7 }`},
 type fixtureParams struct {
 	note       string
 	data       string
-	modules    []string
-	moduleASTs []*ast.Module
 	query      string
 	input      string
+	modules    []string
+	moduleASTs []*ast.Module
 }
 
 type fixture struct {
-	query    ast.Body
-	compiler *ast.Compiler
 	store    storage.Store
 	txn      storage.Transaction
+	compiler *ast.Compiler
 	input    *ast.Term
+	query    ast.Body
 }
 
 func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func(context.Context, *testing.T, fixture)) {

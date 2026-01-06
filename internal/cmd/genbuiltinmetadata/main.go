@@ -127,8 +127,8 @@ func getWasm(bi string) bool {
 }
 
 type versionedCaps struct {
-	version string
 	caps    *ast.Capabilities
+	version string
 }
 
 func sortedCaps() []versionedCaps {

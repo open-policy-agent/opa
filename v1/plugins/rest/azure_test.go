@@ -137,13 +137,13 @@ func TestAzureManagedIdentitiesAuthPluginForAppService_NewClient(t *testing.T) {
 
 func TestAzureManagedIdentitiesAuthPlugin(t *testing.T) {
 	tests := []struct {
+		expectedParams url.Values
 		label          string
 		apiVersion     string
 		resource       string
 		objectID       string
 		clientID       string
 		miResID        string
-		expectedParams url.Values
 	}{
 		{
 			"test all defaults",
@@ -206,8 +206,8 @@ func TestAzureManagedIdentitiesAuthPlugin(t *testing.T) {
 type azureManagedIdentitiesTestServer struct {
 	t              *testing.T
 	server         *httptest.Server
-	label          string
 	expectedParams url.Values
+	label          string
 }
 
 func (t *azureManagedIdentitiesTestServer) handle(_ http.ResponseWriter, r *http.Request) {

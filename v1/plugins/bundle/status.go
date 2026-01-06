@@ -23,19 +23,19 @@ const (
 
 // Status represents the status of processing a bundle.
 type Status struct {
-	Name                     string          `json:"name"`
-	ActiveRevision           string          `json:"active_revision,omitempty"`
-	LastSuccessfulActivation time.Time       `json:"last_successful_activation"`
-	Type                     string          `json:"type,omitempty"`
-	Size                     int             `json:"size,omitempty"`
 	LastSuccessfulDownload   time.Time       `json:"last_successful_download"`
-	LastSuccessfulRequest    time.Time       `json:"last_successful_request"`
+	LastSuccessfulActivation time.Time       `json:"last_successful_activation"`
 	LastRequest              time.Time       `json:"last_request"`
+	LastSuccessfulRequest    time.Time       `json:"last_successful_request"`
+	Metrics                  metrics.Metrics `json:"metrics,omitempty"`
+	Type                     string          `json:"type,omitempty"`
+	Name                     string          `json:"name"`
 	Code                     string          `json:"code,omitempty"`
 	Message                  string          `json:"message,omitempty"`
-	Errors                   []error         `json:"errors,omitempty"`
-	Metrics                  metrics.Metrics `json:"metrics,omitempty"`
+	ActiveRevision           string          `json:"active_revision,omitempty"`
 	HTTPCode                 json.Number     `json:"http_code,omitempty"`
+	Errors                   []error         `json:"errors,omitempty"`
+	Size                     int             `json:"size,omitempty"`
 }
 
 // SetActivateSuccess updates the status object to reflect a successful

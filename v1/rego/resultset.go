@@ -28,8 +28,8 @@ func (v Vars) WithoutWildcards() Vars {
 
 // Result defines the output of Rego evaluation.
 type Result struct {
-	Expressions []*ExpressionValue `json:"expressions"`
 	Bindings    Vars               `json:"bindings,omitempty"`
+	Expressions []*ExpressionValue `json:"expressions"`
 }
 
 func newResult() Result {
@@ -47,8 +47,8 @@ type Location struct {
 // ExpressionValue defines the value of an expression in a Rego query.
 type ExpressionValue struct {
 	Value    any       `json:"value"`
-	Text     string    `json:"text"`
 	Location *Location `json:"location"`
+	Text     string    `json:"text"`
 }
 
 func newExpressionValue(expr *ast.Expr, value any) *ExpressionValue {

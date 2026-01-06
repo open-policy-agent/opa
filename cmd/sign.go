@@ -28,8 +28,8 @@ type signCmdParams struct {
 	key            string
 	claimsFile     string
 	outputFilePath string
-	bundleMode     bool
 	plugin         string
+	bundleMode     bool
 }
 
 const (

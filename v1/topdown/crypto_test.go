@@ -507,9 +507,9 @@ func Test_getPrivateKeyFromPEMData(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
+		keyCheck func(t *testing.T, keys []crypto.PrivateKey)
 		input    string
 		wantErr  string
-		keyCheck func(t *testing.T, keys []crypto.PrivateKey)
 	}{
 		"invalid data": {
 			input: invalidData,

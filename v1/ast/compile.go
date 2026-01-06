@@ -35,131 +35,47 @@ var (
 
 // Compiler contains the state of a compilation process.
 type Compiler struct {
-
-	// Errors contains errors that occurred during the compilation process.
-	// If there are one or more errors, the compilation process is considered
-	// "failed".
-	Errors Errors
-
-	// Modules contains the compiled modules. The compiled modules are the
-	// output of the compilation process. If the compilation process failed,
-	// there is no guarantee about the state of the modules.
-	Modules map[string]*Module
-
-	// ModuleTree organizes the modules into a tree where each node is keyed by
-	// an element in the module's package path. E.g., given modules containing
-	// the following package directives: "a", "a.b", "a.c", and "a.b", the
-	// resulting module tree would be:
-	//
-	//  root
-	//    |
-	//    +--- data (no modules)
-	//           |
-	//           +--- a (1 module)
-	//                |
-	//                +--- b (2 modules)
-	//                |
-	//                +--- c (1 module)
-	//
-	ModuleTree *ModuleTreeNode
-
-	// RuleTree organizes rules into a tree where each node is keyed by an
-	// element in the rule's path. The rule path is the concatenation of the
-	// containing package and the stringified rule name. E.g., given the
-	// following module:
-	//
-	//  package ex
-	//  p[1] { true }
-	//  p[2] { true }
-	//  q = true
-	//  a.b.c = 3
-	//
-	//  root
-	//    |
-	//    +--- data (no rules)
-	//           |
-	//           +--- ex (no rules)
-	//                |
-	//                +--- p (2 rules)
-	//                |
-	//                +--- q (1 rule)
-	//                |
-	//                +--- a
-	//                     |
-	//                     +--- b
-	//                          |
-	//                          +--- c (1 rule)
-	//
-	// Another example with general refs containing vars at arbitrary locations:
-	//
-	//  package ex
-	//  a.b[x].d { x := "c" }            # R1
-	//  a.b.c[x] { x := "d" }            # R2
-	//  a.b[x][y] { x := "c"; y := "d" } # R3
-	//  p := true                        # R4
-	//
-	//  root
-	//    |
-	//    +--- data (no rules)
-	//           |
-	//           +--- ex (no rules)
-	//                |
-	//                +--- a
-	//                |    |
-	//                |    +--- b (R1, R3)
-	//                |         |
-	//                |         +--- c (R2)
-	//                |
-	//                +--- p (R4)
-	RuleTree *TreeNode
-
-	// Graph contains dependencies between rules. An edge (u,v) is added to the
-	// graph if rule 'u' refers to the virtual document defined by 'v'.
-	Graph *Graph
-
-	// TypeEnv holds type information for values inferred by the compiler.
-	TypeEnv *TypeEnv
-
-	// RewrittenVars is a mapping of variables that have been rewritten
-	// with the key being the generated name and value being the original.
-	RewrittenVars map[Var]Var
-
-	// Capabilities required by the modules that were compiled.
-	Required *Capabilities
-
+	metrics                    metrics.Metrics
+	inputType                  types.Type
+	debug                      debug.Debug
+	capabilities               *Capabilities
+	Modules                    map[string]*Module
+	TypeEnv                    *TypeEnv
+	RewrittenVars              map[Var]Var
+	Required                   *Capabilities
 	localvargen                *localVarGenerator
 	moduleLoader               ModuleLoader
 	ruleIndices                *util.HasherMap[Ref, RuleIndex]
+	parsedModules              map[string]*Module
+	customBuiltins             map[string]*Builtin
+	annotationSet              *AnnotationSet
+	mu                         *sync.Mutex
+	imports                    map[string][]*Import
+	pathExists                 func([]string) (bool, error)
+	schemaSet                  *SchemaSet
+	after                      map[string][]CompilerStageDefinition
+	RuleTree                   *TreeNode
+	ModuleTree                 *ModuleTreeNode
+	Graph                      *Graph
+	builtins                   map[string]*Builtin
+	comprehensionIndices       map[*Term]*ComprehensionIndex
+	unsafeBuiltinsMap          map[string]struct{}
+	deprecatedBuiltinsMap      map[string]struct{}
 	stages                     []stage
+	sorted                     []string
+	Errors                     Errors
+	pathConflictCheckRoots     []string
+	defaultRegoVersion         RegoVersion
+	evalMode                   CompilerEvalMode
 	maxErrs                    int
 	errCount                   uint32
-	mu                         *sync.Mutex // Mutex to protect both 'errCount' and 'Errors'
-	sorted                     []string    // list of sorted module names
-	pathExists                 func([]string) (bool, error)
-	pathConflictCheckRoots     []string
-	after                      map[string][]CompilerStageDefinition
-	metrics                    metrics.Metrics
-	capabilities               *Capabilities                 // user-supplied capabilities
-	imports                    map[string][]*Import          // saved imports from stripping
-	builtins                   map[string]*Builtin           // universe of built-in functions
-	customBuiltins             map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
-	unsafeBuiltinsMap          map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
-	deprecatedBuiltinsMap      map[string]struct{}           // set of deprecated, but not removed, built-in functions
-	enablePrintStatements      bool                          // indicates if print statements should be elided (default)
-	comprehensionIndices       map[*Term]*ComprehensionIndex // comprehension key index
-	initialized                bool                          // indicates if init() has been called
-	debug                      debug.Debug                   // emits debug information produced during compilation
-	schemaSet                  *SchemaSet                    // user-supplied schemas for input and data documents
-	inputType                  types.Type                    // global input type retrieved from schema set
-	annotationSet              *AnnotationSet                // hierarchical set of annotations
-	strict                     bool                          // enforce strict compilation checks
-	keepModules                bool                          // whether to keep the unprocessed, parse modules (below)
-	parsedModules              map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
-	useTypeCheckAnnotations    bool                          // whether to provide annotated information (schemas) to the type checker
-	allowUndefinedFuncCalls    bool                          // don't error on calls to unknown functions.
-	evalMode                   CompilerEvalMode              //
-	rewriteTestRulesForTracing bool                          // rewrite test rules to capture dynamic values for tracing.
-	defaultRegoVersion         RegoVersion
+	useTypeCheckAnnotations    bool
+	keepModules                bool
+	strict                     bool
+	allowUndefinedFuncCalls    bool
+	enablePrintStatements      bool
+	rewriteTestRulesForTracing bool
+	initialized                bool
 }
 
 func (c *Compiler) DefaultRegoVersion() RegoVersion {
@@ -186,9 +102,9 @@ const (
 
 // CompilerStageDefinition defines a compiler stage
 type CompilerStageDefinition struct {
+	Stage      CompilerStage
 	Name       string
 	MetricName string
-	Stage      CompilerStage
 }
 
 // RulesOptions defines the options for retrieving rules by Ref from the
@@ -295,15 +211,15 @@ type QueryCompilerStage func(QueryCompiler, Body) (Body, error)
 
 // QueryCompilerStageDefinition defines a QueryCompiler stage
 type QueryCompilerStageDefinition struct {
+	Stage      QueryCompilerStage
 	Name       string
 	MetricName string
-	Stage      QueryCompilerStage
 }
 
 type stage struct {
+	f          func()
 	name       string
 	metricName string
-	f          func()
 }
 
 // NewCompiler returns a new empty compiler.
@@ -3000,8 +2916,8 @@ func headMayHaveVars(head *Head) bool {
 
 type rewriteNestedHeadVarLocalTransform struct {
 	gen           *localVarGenerator
-	errs          Errors
 	RewrittenVars map[Var]Var
+	errs          Errors
 	strict        bool
 }
 
@@ -3239,9 +3155,9 @@ func (qc *queryCompiler) runStageAfter(metricName string, query Body, s QueryCom
 }
 
 type queryStage = struct {
+	f          func(*QueryContext, Body) (Body, error)
 	name       string
 	metricName string
-	f          func(*QueryContext, Body) (Body, error)
 }
 
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
@@ -3721,8 +3637,8 @@ func (vis *comprehensionIndexNestedCandidateVisitor) visit(x any) bool {
 // tree is keyed by the package path.
 type ModuleTreeNode struct {
 	Key      Value
-	Modules  []*Module
 	Children map[Value]*ModuleTreeNode
+	Modules  []*Module
 	Hide     bool
 }
 
@@ -4100,10 +4016,10 @@ func (g *Graph) addNode(n util.T) {
 }
 
 type graphSort struct {
-	sorted []util.T
 	deps   func(util.T) map[util.T]struct{}
 	marked map[util.T]struct{}
 	temp   map[util.T]struct{}
+	sorted []util.T
 }
 
 func (sort *graphSort) Marked(node util.T) bool {
@@ -4166,8 +4082,8 @@ type unsafePair struct {
 }
 
 type unsafeVarLoc struct {
-	Var Var
 	Loc *Location
+	Var Var
 }
 
 type unsafeVars map[*Expr]VarSet
@@ -5437,15 +5353,8 @@ func expandExprTermSlice(gen *localVarGenerator, v []*Term) (support []*Expr) {
 }
 
 type localDeclaredVars struct {
-	vars []*declaredVarSet
-
-	// rewritten contains a mapping of *all* user-defined variables
-	// that have been rewritten whereas vars contains the state
-	// from the current query (not any nested queries, and all vars
-	// seen).
-	rewritten map[Var]Var
-
-	// indicates if an assignment (:= operator) has been seen *ever*
+	rewritten  map[Var]Var
+	vars       []*declaredVarSet
 	assignment bool
 }
 

@@ -35,8 +35,8 @@ type (
 	// variables. The collected variables can be controlled by specifying
 	// VarVisitorParams when creating the visitor.
 	VarVisitor struct {
-		params VarVisitorParams
 		vars   VarSet
+		params VarVisitorParams
 	}
 
 	// VarVisitorParams contains settings for a VarVisitor.

@@ -111,50 +111,48 @@ type IntermediateResultsContextKey struct{}
 
 // Server represents an instance of OPA running in server mode.
 type Server struct {
-	Handler           http.Handler
-	DiagnosticHandler http.Handler
-
-	router                      *http.ServeMux
-	addrs                       []string
-	diagAddrs                   []string
-	h2cEnabled                  bool
-	authentication              AuthenticationScheme
-	authorization               AuthorizationScheme
-	cert                        *tls.Certificate
-	tlsConfigMtx                sync.RWMutex
-	certFile                    string
-	certFileHash                []byte
-	certKeyFile                 string
-	certKeyFileHash             []byte
-	certRefresh                 time.Duration
-	certPool                    *x509.CertPool
-	certPoolFile                string
-	certPoolFileHash            []byte
-	minTLSVersion               uint16
-	mtx                         sync.RWMutex
-	partials                    map[string]rego.PartialResult
-	preparedEvalQueries         *cache
-	store                       storage.Store
-	manager                     *plugins.Manager
-	decisionIDFactory           func() string
-	logger                      func(context.Context, *Info) error
-	errLimit                    int
-	pprofEnabled                bool
-	runtime                     *ast.Term
-	httpListeners               []httpListener
-	metrics                     Metrics
-	defaultDecisionPath         string
-	interQueryBuiltinCache      iCache.InterQueryCache
+	Handler                     http.Handler
+	DiagnosticHandler           http.Handler
 	interQueryBuiltinValueCache iCache.InterQueryValueCache
-	allPluginsOkOnce            bool
-	distributedTracingOpts      tracing.Options
-	ndbCacheEnabled             bool
-	unixSocketPerm              *string
-	cipherSuites                *[]uint16
+	interQueryBuiltinCache      iCache.InterQueryCache
+	metrics                     Metrics
+	store                       storage.Store
+	partials                    map[string]rego.PartialResult
+	manager                     *plugins.Manager
+	cert                        *tls.Certificate
+	compileMaskingRulesCache    *lru.Cache[string, ast.Ref]
+	compileUnknownsCache        *lru.Cache[string, []ast.Ref]
 	hooks                       hooks.Hooks
-
-	compileUnknownsCache     *lru.Cache[string, []ast.Ref]
-	compileMaskingRulesCache *lru.Cache[string, ast.Ref]
+	cipherSuites                *[]uint16
+	unixSocketPerm              *string
+	router                      *http.ServeMux
+	certPool                    *x509.CertPool
+	runtime                     *ast.Term
+	logger                      func(context.Context, *Info) error
+	decisionIDFactory           func() string
+	preparedEvalQueries         *cache
+	certPoolFile                string
+	certFile                    string
+	certKeyFile                 string
+	defaultDecisionPath         string
+	diagAddrs                   []string
+	certKeyFileHash             []byte
+	certFileHash                []byte
+	certPoolFileHash            []byte
+	distributedTracingOpts      tracing.Options
+	httpListeners               []httpListener
+	addrs                       []string
+	authorization               AuthorizationScheme
+	authentication              AuthenticationScheme
+	certRefresh                 time.Duration
+	errLimit                    int
+	mtx                         sync.RWMutex
+	tlsConfigMtx                sync.RWMutex
+	minTLSVersion               uint16
+	allPluginsOkOnce            bool
+	ndbCacheEnabled             bool
+	pprofEnabled                bool
+	h2cEnabled                  bool
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -457,8 +455,8 @@ func (s *Server) Listeners() ([]Loop, error) {
 	loops := []Loop{}
 
 	handlerBindings := map[httpListenerType]struct {
-		addrs   []string
 		handler http.Handler
+		addrs   []string
 	}{
 		defaultListenerType:    {s.addrs, s.Handler},
 		diagnosticListenerType: {s.diagAddrs, s.DiagnosticHandler},
@@ -539,10 +537,10 @@ type httpListener interface {
 
 // baseHTTPListener is just a wrapper around http.Server
 type baseHTTPListener struct {
-	s       *http.Server
 	l       net.Listener
-	t       httpListenerType
+	s       *http.Server
 	addr    string
+	t       httpListenerType
 	addrMtx sync.RWMutex
 }
 
@@ -1019,8 +1017,8 @@ func (*Server) indexGet(w http.ResponseWriter, _ *http.Request) {
 }
 
 type bundleRevisions struct {
-	LegacyRevision string
 	Revisions      map[string]string
+	LegacyRevision string
 }
 
 func getRevisions(ctx context.Context, store storage.Store, txn storage.Transaction) (bundleRevisions, error) {
@@ -3064,8 +3062,8 @@ Query:<br>
 
 type decisionLogger struct {
 	revisions map[string]string
-	revision  string // Deprecated: Use `revisions` instead.
 	logger    func(context.Context, *Info) error
+	revision  string
 }
 
 func (l decisionLogger) Log(
@@ -3152,9 +3150,9 @@ func (l decisionLogger) Log(
 }
 
 type patchImpl struct {
+	value any
 	path  storage.Path
 	op    storage.PatchOp
-	value any
 }
 
 func parseURL(s string, useHTTPSByDefault bool) (*url.URL, error) {

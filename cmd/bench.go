@@ -44,13 +44,13 @@ import (
 // but not all eval options are exposed with flags. Only the
 // ones compatible with running a benchmark.
 type benchmarkCommandParams struct {
+	configFile string
 	evalCommandParams
-	benchMem               bool
 	count                  int
-	e2e                    bool
 	gracefulShutdownPeriod int
 	shutdownWaitPeriod     int
-	configFile             string
+	benchMem               bool
+	e2e                    bool
 }
 
 func newBenchmarkEvalParams() benchmarkCommandParams {

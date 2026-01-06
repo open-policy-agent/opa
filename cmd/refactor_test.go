@@ -14,10 +14,10 @@ import (
 
 func TestDoMoveRenamePackage(t *testing.T) {
 	cases := []struct {
-		note         string
-		v0Compatible bool
-		module       string
 		expected     *ast.Module
+		note         string
+		module       string
+		v0Compatible bool
 	}{
 		{
 			note:         "v0",
@@ -99,10 +99,10 @@ func TestDoMoveRenamePackage(t *testing.T) {
 
 func TestDoMoveOverwriteFile(t *testing.T) {
 	cases := []struct {
-		note         string
-		v0Compatible bool
-		module       string
 		expected     *ast.Module
+		note         string
+		module       string
+		v0Compatible bool
 	}{
 		{
 			note:         "v0",

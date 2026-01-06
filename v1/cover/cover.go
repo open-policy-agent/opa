@@ -18,8 +18,8 @@ import (
 
 // Cover computes and reports on coverage.
 type Cover struct {
-	mu   sync.Mutex
 	hits map[string]map[Position]struct{}
+	mu   sync.Mutex
 }
 
 // New returns a new Cover object.
@@ -248,9 +248,9 @@ func (r Report) IsCovered(file string, row int) bool {
 // CoverageThresholdError represents an error raised when the global
 // code coverage percentage is lower than the specified threshold.
 type CoverageThresholdError struct {
+	Report    *Report
 	Coverage  float64
 	Threshold float64
-	Report    *Report
 }
 
 func (e *CoverageThresholdError) Error() string {

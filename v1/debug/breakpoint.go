@@ -20,8 +20,8 @@ type Breakpoint interface {
 }
 
 type breakpoint struct {
-	id       BreakpointID
 	location location.Location
+	id       BreakpointID
 }
 
 func (b breakpoint) ID() BreakpointID {

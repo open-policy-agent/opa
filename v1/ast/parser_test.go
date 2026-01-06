@@ -2548,9 +2548,9 @@ func TestNestedExpressions(t *testing.T) {
 	g := RefTerm(VarTerm("g"))
 
 	tests := []struct {
+		expected *Expr
 		note     string
 		input    string
-		expected *Expr
 	}{
 		{"associativity", "1 + 2 * 6 / 3",
 			Plus.Expr(
@@ -2787,9 +2787,9 @@ func TestBitwiseOrVsComprehension(t *testing.T) {
 	b := VarTerm("b")
 
 	tests := []struct {
+		exp   *Term
 		note  string
 		input string
-		exp   *Term
 	}{
 		{
 			note:  "array containing bitwise or",
@@ -2936,8 +2936,9 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 	// These tests assert that "import future..." and "import rego.v1" statements in policies cause
 	// the proper keywords to be added to the parser's list of known keywords.
 	tests := []struct {
-		note, imp string
-		exp       map[string]tokens.Token
+		exp  map[string]tokens.Token
+		note string
+		imp  string
 	}{
 		{
 			note: "simple import",
@@ -3586,8 +3587,8 @@ f(x) if {
 
 func TestIsValidImportPath(t *testing.T) {
 	tests := []struct {
-		path     string
 		expected error
+		path     string
 	}{
 		{"[1,2,3]", errors.New("invalid path [1, 2, 3]: path must be ref or var")},
 	}
@@ -4000,9 +4001,9 @@ func TestRuleContains(t *testing.T) {
 	opts := ParserOptions{FutureKeywords: []string{"contains", "if"}}
 
 	tests := []struct {
+		exp  *Rule
 		note string
 		rule string
-		exp  *Rule
 	}{
 		{
 			note: "simple",
@@ -4097,9 +4098,9 @@ func TestRuleIf(t *testing.T) {
 	opts := ParserOptions{FutureKeywords: []string{"contains", "if", "every"}}
 
 	tests := []struct {
+		exp  *Rule
 		note string
 		rule string
-		exp  *Rule
 	}{
 		{
 			note: "complete",
@@ -4381,9 +4382,9 @@ func TestRuleRefHeads(t *testing.T) {
 	trueBody := NewBody(NewExpr(BooleanTerm(true)))
 
 	tests := []struct {
+		exp  *Rule
 		note string
 		rule string
-		exp  *Rule
 	}{
 		{
 			note: "single-value rule",
@@ -5283,9 +5284,9 @@ func TestRuleFromBodyRefs(t *testing.T) {
 	// NOTE: Some of these test cases are invalid v1 Rego, and are locked to v0.
 	tests := []struct {
 		note        string
-		regoVersion RegoVersion
 		rule        string
 		exp         string
+		regoVersion RegoVersion
 	}{
 		{
 			note:        "no dots: single-value rule (complete doc)",
@@ -6042,8 +6043,8 @@ p = true {
 func TestNamespacedBuiltins(t *testing.T) {
 
 	tests := []struct {
-		expr     string
 		expected *Term
+		expr     string
 		wantErr  bool
 	}{
 		{`foo.bar.baz(1, 2)`, MustParseTerm("foo.bar.baz"), false},
@@ -6090,10 +6091,10 @@ f(x) if {
 	module := module(input)
 
 	for _, tc := range []struct {
-		note         string
 		location     *Location
-		expectedRow  int
+		note         string
 		expectedText string
+		expectedRow  int
 	}{
 		{
 			note:        "partial rule",
@@ -6471,9 +6472,9 @@ else = {
 
 func TestNestedCallText(t *testing.T) {
 	cases := []struct {
+		expected *Location
 		note     string
 		input    string
-		expected *Location
 	}{
 		{
 			note:  "Nested call",
@@ -6531,9 +6532,9 @@ func TestAnnotations(t *testing.T) {
 	tests := []struct {
 		note           string
 		module         string
-		expNumComments int
-		expAnnotations []*Annotations
 		expError       string
+		expAnnotations []*Annotations
+		expNumComments int
 		expErrorRow    int
 	}{
 		{
@@ -7207,9 +7208,9 @@ include if input.fruits.name == "banana"
 func TestAnnotationsAttachedToRule(t *testing.T) {
 
 	tests := []struct {
+		expAnnotations map[int][]*Annotations
 		note           string
 		module         string
-		expAnnotations map[int][]*Annotations
 	}{
 		{
 			note: "single metadata block for rule (implied rule scope)",
@@ -7705,8 +7706,8 @@ func TestAnnotationsAugmentedError(t *testing.T) {
 	tests := []struct {
 		note           string
 		module         string
-		expAnnotations []*Annotations
 		expErrorHint   string
+		expAnnotations []*Annotations
 		expErrorRow    int
 	}{
 		{
@@ -7877,9 +7878,9 @@ package foo`
 
 func TestAuthorAnnotation(t *testing.T) {
 	tests := []struct {
-		note     string
 		raw      any
 		expected any
+		note     string
 	}{
 		{
 			note:     "no name",
@@ -8024,9 +8025,9 @@ func TestAuthorAnnotation(t *testing.T) {
 
 func TestRelatedResourceAnnotation(t *testing.T) {
 	tests := []struct {
-		note     string
 		raw      any
 		expected any
+		note     string
 	}{
 		{
 			note:     "empty ref URL",
@@ -8449,9 +8450,9 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule, opts
 
 func TestTemplateString(t *testing.T) {
 	tests := []struct {
+		exp  *Expr
 		note string
 		expr string
-		exp  *Expr
 	}{
 		{
 			note: "simple template string",

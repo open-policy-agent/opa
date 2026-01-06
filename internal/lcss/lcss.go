@@ -107,9 +107,9 @@ func lcss(strs [][]byte, suffixes [][]int) []byte {
 // 3. LongestCommonPrefixLength().
 // 4. LongestCommonPrefix().
 type charNode struct {
-	char     byte
 	children []charNode
 	used     int
+	char     byte
 }
 
 // Add includes a new string into the tree. We start from the root and

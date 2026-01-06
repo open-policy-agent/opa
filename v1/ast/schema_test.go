@@ -225,10 +225,10 @@ func TestAllOfSchemas(t *testing.T) {
 	expectedUnevenArrayType := types.NewArray([]types.Type{types.N, types.N, types.S}, nil)
 
 	tests := []struct {
-		note          string
-		schema        string
 		expectedType  types.Type
 		expectedError error
+		note          string
+		schema        string
 	}{
 		{
 			note:          "allOf with mergeable Object types in schema",
@@ -391,9 +391,9 @@ func TestParseSchemaBooleanField(t *testing.T) {
 
 func TestParseSchemaBasics(t *testing.T) {
 	tests := []struct {
+		exp    types.Type
 		note   string
 		schema string
-		exp    types.Type
 	}{
 		{
 			note:   "number",
@@ -524,9 +524,9 @@ func TestAnyOfSchema(t *testing.T) {
 	anyOfParentVarType := types.Or(anyOfParentVar1, anyOfParentVar2)
 
 	tests := []struct {
+		expected types.Type
 		note     string
 		schema   string
-		expected types.Type
 	}{
 		{
 			note:     "anyOf extend core schema",
@@ -623,9 +623,9 @@ func TestCompilerCheckTypesWithRegexPatternInSchema(t *testing.T) {
 func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
 
 	tests := []struct {
+		expectedError error
 		note          string
 		schema        string
-		expectedError error
 	}{
 		{
 			note:          "allOf with mergeable Object types in schema",

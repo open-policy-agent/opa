@@ -272,9 +272,9 @@ func BenchmarkLower(b *testing.B) {
 func BenchmarkConcat(b *testing.B) {
 	bctx := BuiltinContext{}
 	tests := []struct {
+		expected *ast.Term
 		name     string
 		operands []*ast.Term
-		expected *ast.Term
 	}{
 		{
 			name:     "0 elements '.' sep",

@@ -34,9 +34,9 @@ import (
 func TestEvalWithIllegalUnknownArgs(t *testing.T) {
 
 	tests := []struct {
+		expectedErr error
 		name        string
 		unknowns    string
-		expectedErr error
 	}{
 		{
 			name:        "happy path: passing input ref as unknown",
@@ -1281,13 +1281,13 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 
 	var output struct {
 		Explanation []struct {
-			Op            string           `json:"Op"`
-			Node          any              `json:"Node"`
-			Location      *ast.Location    `json:"Location"`
-			Locals        []map[string]any `json:"Locals"`
+			Node          any           `json:"Node"`
+			Location      *ast.Location `json:"Location"`
 			LocalMetadata map[string]struct {
 				Name string `json:"name"`
 			} `json:"LocalMetadata"`
+			Op     string           `json:"Op"`
+			Locals []map[string]any `json:"Locals"`
 		}
 	}
 
@@ -1348,11 +1348,11 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 
 func TestEvalPrettyTrace(t *testing.T) {
 	tests := []struct {
+		files       map[string]string
 		note        string
 		query       string
-		includeVars bool
-		files       map[string]string
 		expected    string
+		includeVars bool
 	}{
 		{
 			note:        "simple without vars",
@@ -1906,12 +1906,12 @@ time.clock(input.y, time.clock(input.x))
 
 func TestEvalPartialOutput_RegoVersion(t *testing.T) {
 	tests := []struct {
+		expected            map[string]string
 		note                string
-		regoV1ImportCapable bool
-		v0Compatible        bool
 		query               string
 		module              string
-		expected            map[string]string
+		regoV1ImportCapable bool
+		v0Compatible        bool
 	}{
 		{
 			note:                "v0, no future keywords",
@@ -2235,11 +2235,11 @@ func TestEvalDiscardProfilerOutput(t *testing.T) {
 func TestPolicyWithStrictFlag(t *testing.T) {
 	testsShouldError := []struct {
 		note            string
-		v0Compatible    bool
 		policy          string
 		query           string
 		expectedCode    string
 		expectedMessage string
+		v0Compatible    bool
 	}{
 		{
 			note: "strict mode should error on unused imports",
@@ -2374,11 +2374,11 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 func TestBundleWithStrictFlag(t *testing.T) {
 	testsShouldError := []struct {
 		note            string
-		v0Compatible    bool
 		policy          string
 		query           string
 		expectedCode    string
 		expectedMessage string
+		v0Compatible    bool
 	}{
 		{
 			note: "strict mode should error on unused imports in this bundle",
@@ -2777,8 +2777,8 @@ a contains x if {
 	}
 
 	setup := []struct {
-		name          string
 		commandParams func(params *evalCommandParams, path string)
+		name          string
 	}{
 		{
 			name: "Files",
@@ -2834,12 +2834,12 @@ a contains x if {
 
 func TestEvalPolicyWithCompatibleFlags(t *testing.T) {
 	tests := []struct {
-		note         string
-		v0Compatible bool
-		v1Compatible bool
 		modules      map[string]string
+		note         string
 		query        string
 		expectedErr  string
+		v0Compatible bool
+		v1Compatible bool
 	}{
 		{
 			note:         "v0 compatibility: policy with no rego.v1 or future.keywords imports",
@@ -2965,8 +2965,8 @@ func TestEvalPolicyWithCompatibleFlags(t *testing.T) {
 	}
 
 	setup := []struct {
-		name          string
 		commandParams func(params *evalCommandParams, path string)
+		name          string
 	}{
 		{
 			name: "Files",
@@ -3021,11 +3021,11 @@ func TestEvalPolicyWithCompatibleFlags(t *testing.T) {
 
 func TestEvalPolicyWithRegoV1Capability(t *testing.T) {
 	tests := []struct {
-		note         string
-		v0Compatible bool
 		capabilities *ast.Capabilities
 		modules      map[string]string
+		note         string
 		expErrs      []string
+		v0Compatible bool
 	}{
 		{
 			note:         "v0 module, v0-compatible, no capabilities",
@@ -3205,8 +3205,8 @@ func TestEvalPolicyWithRegoV1Capability(t *testing.T) {
 	}
 
 	setup := []struct {
-		name          string
 		commandParams func(params *evalCommandParams, path string)
+		name          string
 	}{
 		{
 			name: "Files",
@@ -3567,11 +3567,11 @@ func TestWithQueryImports(t *testing.T) {
 	tests := []struct {
 		note         string
 		query        string
+		exp          string
 		imports      []string
+		expErrs      []string
 		v0Compatible bool
 		v1Compatible bool
-		exp          string
-		expErrs      []string
 	}{
 		{
 			note:  "no imports, none required",

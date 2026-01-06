@@ -22,10 +22,10 @@ func TestUtilParser_Parse(t *testing.T) {
 		t.Fatalf("unexpected error marshalling valid json: %q", err.Error())
 	}
 	tcs := []struct {
-		Name        string
 		Reader      io.Reader
-		ShouldError bool
 		Expectation func(x any)
+		Name        string
+		ShouldError bool
 	}{
 		{
 			Name:        "should return an error if the provided reader raises an error",

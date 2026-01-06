@@ -90,8 +90,8 @@ func TestConfigPluginNames(t *testing.T) {
 
 func TestConfigPluginsEnabled(t *testing.T) {
 	tests := []struct {
-		name     string
 		conf     Config
+		name     string
 		expected bool
 	}{
 		{
@@ -339,10 +339,10 @@ func TestActiveConfig(t *testing.T) {
 	}`)
 
 	tests := map[string]struct {
+		err      error
 		raw      []byte
 		expected []byte
 		wantErr  bool
-		err      error
 	}{
 		"valid_config_with_svc_object": {
 			fmt.Appendf(nil, `{ %v %v }`, serviceObj, common),

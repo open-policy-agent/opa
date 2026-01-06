@@ -12,8 +12,8 @@ import (
 
 func TestRoundTrip(t *testing.T) {
 	tests := []struct {
-		note    string
 		modules map[string]string
+		note    string
 	}{
 		{
 			note: "simple",

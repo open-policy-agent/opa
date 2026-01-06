@@ -84,17 +84,17 @@ type batchSpanProcessorConfig struct {
 }
 
 type distributedTracingConfig struct {
+	BatchSpanProcessorOptions batchSpanProcessorConfig `json:"batch_span_processor_options"`
+	SampleRatePercentage      *float64                 `json:"sample_percentage,omitempty"`
+	EncryptionSkipVerify      *bool                    `json:"allow_insecure_tls,omitempty"`
+	Resource                  resourceConfig           `json:"resource"`
 	Type                      string                   `json:"type,omitempty"`
 	Address                   string                   `json:"address,omitempty"`
 	ServiceName               string                   `json:"service_name,omitempty"`
-	SampleRatePercentage      *float64                 `json:"sample_percentage,omitempty"`
 	EncryptionScheme          string                   `json:"encryption,omitempty"`
-	EncryptionSkipVerify      *bool                    `json:"allow_insecure_tls,omitempty"`
 	TLSCertFile               string                   `json:"tls_cert_file,omitempty"`
 	TLSCertPrivateKeyFile     string                   `json:"tls_private_key_file,omitempty"`
 	TLSCACertFile             string                   `json:"tls_ca_cert_file,omitempty"`
-	Resource                  resourceConfig           `json:"resource"`
-	BatchSpanProcessorOptions batchSpanProcessorConfig `json:"batch_span_processor_options"`
 }
 
 func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *trace.TracerProvider, *resource.Resource, error) {

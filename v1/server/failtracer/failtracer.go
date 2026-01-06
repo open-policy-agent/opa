@@ -16,8 +16,8 @@ const (
 )
 
 type Hint struct {
-	Message  string        `json:"message"`
 	Location *ast.Location `json:"location,omitempty"`
+	Message  string        `json:"message"`
 }
 
 type failTracer struct {

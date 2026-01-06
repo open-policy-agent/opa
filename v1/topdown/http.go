@@ -1135,11 +1135,11 @@ func (cb *interQueryCacheValue) copyCacheData() (*interQueryCacheData, error) {
 }
 
 type interQueryCacheData struct {
-	RespBody   []byte
-	Status     string
-	StatusCode int
-	Headers    http.Header
 	ExpiresAt  time.Time
+	Headers    http.Header
+	Status     string
+	RespBody   []byte
+	StatusCode int
 }
 
 func forceCaching(cacheParams *forceCacheParams) bool {
@@ -1458,9 +1458,9 @@ type interQueryCache struct {
 	key              ast.Object
 	httpReq          *http.Request
 	httpClient       *http.Client
+	forceCacheParams *forceCacheParams
 	forceJSONDecode  bool
 	forceYAMLDecode  bool
-	forceCacheParams *forceCacheParams
 }
 
 func newInterQueryCache(bctx BuiltinContext, req ast.Object, key ast.Object, forceCacheParams *forceCacheParams) (*interQueryCache, error) {

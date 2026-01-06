@@ -36,19 +36,19 @@ const (
 // Loader downloads a bundle over HTTP. If started, it downloads the
 // bundle periodically until closed.
 type Loader struct {
-	configErr      error // Delayed configuration error, if any.
-	initialized    bool
 	pd             policyData
+	configErr      error
+	closed         chan struct{}
 	client         *http.Client
+	closing        chan struct{}
+	logError       func(error)
+	prepareRequest func(*http.Request) error
 	url            string
 	tag            string
 	minDelay       time.Duration
 	maxDelay       time.Duration
-	closing        chan struct{} // Signal the request to stop the poller.
-	closed         chan struct{} // Signals the successful stopping of the poller.
-	logError       func(error)
-	prepareRequest func(*http.Request) error
 	mutex          sync.Mutex
+	initialized    bool
 }
 
 // policyData captures the functions used in setting the policy and data.

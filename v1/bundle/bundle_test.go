@@ -520,10 +520,10 @@ func TestReadWithSignatures(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		files   [][2]string
-		vc      *VerificationConfig
-		wantErr bool
 		err     error
+		vc      *VerificationConfig
+		files   [][2]string
+		wantErr bool
 	}{
 		"no_signature_verification_config": {
 			[][2]string{{"/.signatures.json", `{"signatures": []}`}},
@@ -673,8 +673,8 @@ func TestReadWithPatch(t *testing.T) {
 func TestReadWithPatchExtraFiles(t *testing.T) {
 	cases := []struct {
 		note  string
-		files [][2]string
 		err   string
+		files [][2]string
 	}{
 		{
 			note: "extra data file",
@@ -728,9 +728,9 @@ func TestReadWithPatchExtraFiles(t *testing.T) {
 func TestReadWithPatchPersistProperty(t *testing.T) {
 	cases := []struct {
 		note    string
+		err     string
 		files   [][2]string
 		persist bool
-		err     string
 	}{
 		{
 			note: "persist true property",
@@ -917,8 +917,8 @@ func TestIsFileExcluded(t *testing.T) {
 func TestReadRootValidation(t *testing.T) {
 	cases := []struct {
 		note  string
-		files [][2]string
 		err   string
+		files [][2]string
 	}{
 		{
 			note: "default full extent",
@@ -1017,8 +1017,8 @@ func TestReadRootValidation(t *testing.T) {
 func TestRootPathsContain(t *testing.T) {
 	tests := []struct {
 		note  string
-		roots []string
 		path  string
+		roots []string
 		want  bool
 	}{
 		{
@@ -1669,9 +1669,9 @@ func TestRootPathsOverlap(t *testing.T) {
 func TestParsedModules(t *testing.T) {
 	cases := []struct {
 		note            string
-		bundle          Bundle
 		name            string
 		expectedModules []string
+		bundle          Bundle
 	}{
 		{
 			note: "base",
@@ -1755,10 +1755,10 @@ func TestMerge(t *testing.T) {
 	expRegoVersion := ast.DefaultRegoVersion.Int()
 
 	cases := []struct {
+		wantErr    error
+		wantBundle *Bundle
 		note       string
 		bundles    []*Bundle
-		wantBundle *Bundle
-		wantErr    error
 	}{
 		{
 			note:    "empty list",

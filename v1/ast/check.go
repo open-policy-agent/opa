@@ -19,15 +19,15 @@ type varRewriter func(Ref) Ref
 // accumulated on the typeChecker so that a single run can report multiple
 // issues.
 type typeChecker struct {
+	input               types.Type
 	builtins            map[string]*Builtin
 	required            *Capabilities
-	errs                Errors
 	varRewriter         varRewriter
 	ss                  *SchemaSet
-	allowNet            []string
-	input               types.Type
-	allowUndefinedFuncs bool
 	schemaTypes         map[string]types.Type
+	errs                Errors
+	allowNet            []string
+	allowUndefinedFuncs bool
 }
 
 // newTypeChecker returns a new typeChecker object that has no errors.
@@ -673,8 +673,8 @@ func (tc *typeChecker) err(errors ...*Error) {
 
 type refChecker struct {
 	env         *TypeEnv
-	errs        Errors
 	varRewriter varRewriter
+	errs        Errors
 }
 
 func rewriteVarsNop(node Ref) Ref {
@@ -983,8 +983,8 @@ func causedByNilType(err *Error) bool {
 
 // ArgErrDetail represents a generic argument error.
 type ArgErrDetail struct {
-	Have []types.Type   `json:"have"`
 	Want types.FuncArgs `json:"want"`
+	Have []types.Type   `json:"have"`
 }
 
 // Lines returns the string representation of the detail.
@@ -1021,9 +1021,9 @@ func (a *UnificationErrDetail) Lines() []string {
 // RefErrUnsupportedDetail describes an undefined reference error where the
 // referenced value does not support dereferencing (e.g., scalars).
 type RefErrUnsupportedDetail struct {
-	Ref  Ref        `json:"ref"`  // invalid ref
-	Pos  int        `json:"pos"`  // invalid element
-	Have types.Type `json:"have"` // referenced type
+	Have types.Type `json:"have"`
+	Ref  Ref        `json:"ref"`
+	Pos  int        `json:"pos"`
 }
 
 // Lines returns the string representation of the detail.
@@ -1040,11 +1040,11 @@ func (r *RefErrUnsupportedDetail) Lines() []string {
 // value does not support the reference operand (e.g., missing object key,
 // invalid key type, etc.)
 type RefErrInvalidDetail struct {
-	Ref   Ref        `json:"ref"`            // invalid ref
-	Pos   int        `json:"pos"`            // invalid element
-	Have  types.Type `json:"have,omitempty"` // type of invalid element (for var/ref elements)
-	Want  types.Type `json:"want"`           // allowed type (for non-object values)
-	OneOf []Value    `json:"oneOf"`          // allowed values (e.g., for object keys)
+	Have  types.Type `json:"have,omitempty"`
+	Want  types.Type `json:"want"`
+	Ref   Ref        `json:"ref"`
+	OneOf []Value    `json:"oneOf"`
+	Pos   int        `json:"pos"`
 }
 
 // Lines returns the string representation of the detail.

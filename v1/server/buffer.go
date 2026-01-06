@@ -16,29 +16,29 @@ import (
 
 // Info contains information describing a policy decision.
 type Info struct {
-	Txn                 storage.Transaction
-	Revision            string // Deprecated: Use `Bundles` instead
-	Bundles             map[string]BundleInfo
-	DecisionID          string
-	BatchDecisionID     string
-	TraceID             string
-	SpanID              string
-	RemoteAddr          string
-	HTTPRequestContext  logging.HTTPRequestContext
-	Query               string
-	Path                string
 	Timestamp           time.Time
-	Input               *any
+	Txn                 storage.Transaction
 	InputAST            ast.Value
-	Results             *any
-	IntermediateResults map[string]any
-	MappedResults       *any
-	NDBuiltinCache      *any
-	Error               error
 	Metrics             metrics.Metrics
+	Error               error
+	NDBuiltinCache      *any
+	Bundles             map[string]BundleInfo
+	MappedResults       *any
+	HTTPRequestContext  logging.HTTPRequestContext
+	IntermediateResults map[string]any
+	Results             *any
+	Custom              map[string]any
+	Input               *any
+	TraceID             string
+	Path                string
+	Query               string
+	RemoteAddr          string
+	SpanID              string
+	BatchDecisionID     string
+	DecisionID          string
+	Revision            string
 	Trace               []*topdown.Event
 	RequestID           uint64
-	Custom              map[string]any
 }
 
 // BundleInfo contains information describing a bundle.

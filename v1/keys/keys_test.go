@@ -20,10 +20,10 @@ func TestParseKeysConfig(t *testing.T) {
 				}`, key)
 
 	tests := map[string]struct {
-		input   string
-		result  map[string]*Config
-		wantErr bool
 		err     error
+		result  map[string]*Config
+		input   string
+		wantErr bool
 	}{
 		"valid_config_one_key": {
 			`{"foo": {"algorithm": "HS256", "key": "FdFYFzERwC2uCBB46pZQi4GG85LujR8obt-KWRBICVQ"}}`,

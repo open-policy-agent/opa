@@ -20,21 +20,21 @@ var errNotReady = errors.New(errors.NotReadyErr, "")
 
 // Pool maintains a pool of WebAssemly VM instances.
 type Pool struct {
-	engine         *wasmtime.Engine
 	available      chan struct{}
-	mutex          sync.Mutex
-	dataMtx        sync.Mutex
-	initialized    bool
-	closed         bool
+	blockedReinit  chan struct{}
+	engine         *wasmtime.Engine
+	pendingReinit  *VM
+	vms            []*VM
+	acquired       []bool
 	policy         []byte
-	parsedData     []byte // Parsed parsedData memory segment, used to seed new VM's
-	parsedDataAddr int32  // Address for parsedData value root, used to seed new VM's
+	parsedData     []byte
+	dataMtx        sync.Mutex
+	mutex          sync.Mutex
 	memoryMinPages uint32
 	memoryMaxPages uint32
-	vms            []*VM // All current VM instances, acquired or not.
-	acquired       []bool
-	pendingReinit  *VM
-	blockedReinit  chan struct{}
+	parsedDataAddr int32
+	closed         bool
+	initialized    bool
 }
 
 // NewPool constructs a new pool with the pool and VM configuration provided.
