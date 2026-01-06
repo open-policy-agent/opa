@@ -7,6 +7,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This bug fix release address issues introduced in the new string interpolation feature
 
+- Add (*TemplateString).Copy() method ([#8159](https://github.com/open-policy-agent/opa/pull/8159))
 - Fix template string not serialized with escaped { ([#8161](https://github.com/open-policy-agent/opa/pull/8161))
   authored by @anderseknert
 - fix(ast): skip template string vars in ref safety ([#8174](https://github.com/open-policy-agent/opa/pull/8174))
