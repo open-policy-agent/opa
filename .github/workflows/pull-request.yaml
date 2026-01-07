@@ -22,7 +22,7 @@ jobs:
       docs: ${{ steps.changes.outputs.docs }}
     steps:
     - name: Check out repository code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Download OPA
       uses: open-policy-agent/setup-opa@v2

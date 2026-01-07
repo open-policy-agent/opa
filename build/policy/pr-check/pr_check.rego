@@ -38,28 +38,27 @@ docs_root_files := [
 ]
 
 changes["docs"] if {
-	some e in input
-	startswith(e.filename, "docs/")
+	some changed_file in input
+	startswith(changed_file.filename, "docs/")
 } else if {
-	some e in input
-	some filename in docs_root_files
-	e.filename == filename
+	some changed_file in input
+	changed_file.filename in docs_root_files
 }
 
 changes["go"] if {
-	some e in input
-	not startswith(e.filename, "docs/")
-	strings.any_prefix_match(e.filename, go_change_prefixes)
+	some changed_file in input
+	not startswith(changed_file.filename, "docs/")
+	strings.any_prefix_match(changed_file.filename, go_change_prefixes)
 } else if {
-	some e in input
-	not startswith(e.filename, "docs/")
-	strings.any_suffix_match(e.filename, go_change_suffixes)
+	some changed_file in input
+	not startswith(changed_file.filename, "docs/")
+	strings.any_suffix_match(changed_file.filename, go_change_suffixes)
 }
 
 changes["wasm"] if {
-	some e in input
-	strings.any_prefix_match(e.filename, wasm_change_prefixes)
+	some changed_file in input
+	strings.any_prefix_match(changed_file.filename, wasm_change_prefixes)
 } else if {
-	some e in input
-	strings.any_suffix_match(e.filename, wasm_change_suffixes)
+	some changed_file in input
+	strings.any_suffix_match(changed_file.filename, wasm_change_suffixes)
 }

@@ -71,7 +71,7 @@ jobs:
   validate-configs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Download OPA
       uses: open-policy-agent/setup-opa
@@ -85,6 +85,8 @@ jobs:
           --stdin-input \
           'input.results[_].coverage < 0.7'
 ```
+
+[Here's an example](https://github.com/open-policy-agent/opa/pull/8183) of how we use these actions in our own CI/CD pipelines for OPA!
 
 ## Other CI/CD Platforms
 
