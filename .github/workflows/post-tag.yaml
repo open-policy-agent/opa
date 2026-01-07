@@ -49,15 +49,12 @@ jobs:
       - name: Build Linux and Windows
         run: make ci-build-windows ci-go-ci-build-linux ci-go-ci-build-linux-static
         timeout-minutes: 30
-        env:
-          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Build Linux arm64
         run: make ci-go-ci-build-linux ci-go-ci-build-linux-static
         timeout-minutes: 30
         env:
           GOARCH: arm64
-          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Upload binaries
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -94,8 +91,6 @@ jobs:
           make ci-build-darwin GOARCH=amd64
           make ci-build-darwin ci-build-darwin-arm64-static GOARCH=arm64
         timeout-minutes: 30
-        env:
-          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Upload binaries (darwin)
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

@@ -39,8 +39,8 @@ type runCmdParams struct {
 	tlsCertRefresh       time.Duration
 	ignore               []string
 	serverMode           bool
-	skipVersionCheck     bool // skipVersionCheck is deprecated. Use disableTelemetry instead
-	disableTelemetry     bool
+	skipVersionCheck     bool
+	disableTelemetry     bool // disableTelemetry is deprecated. Use skipVersionCheck instead
 	authentication       *util.EnumFlag
 	authorization        *util.EnumFlag
 	minTLSVersion        *util.EnumFlag
@@ -252,14 +252,14 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
 	addReadAstValuesFromStoreFlag(runCommand.Flags(), &cmdParams.rt.ReadAstValuesFromStore, false)
 
-	runCommand.Flags().BoolVar(&cmdParams.skipVersionCheck, "skip-version-check", false, "disables anonymous version reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)")
-	err := runCommand.Flags().MarkDeprecated("skip-version-check", "\"skip-version-check\" is deprecated. Use \"disable-telemetry\" instead")
+	runCommand.Flags().BoolVar(&cmdParams.skipVersionCheck, "skip-version-check", false, "disables version check against GitHub releases (see: https://www.openpolicyagent.org/docs/privacy)")
+
+	runCommand.Flags().BoolVar(&cmdParams.disableTelemetry, "disable-telemetry", false, "disables version check against GitHub releases (see: https://www.openpolicyagent.org/docs/privacy)")
+	err := runCommand.Flags().MarkDeprecated("disable-telemetry", `"disable-telemetry" is deprecated. Use "skip-version-check" instead`)
 	if err != nil {
 		fmt.Println("error:", err)
 		os.Exit(1)
 	}
-
-	runCommand.Flags().BoolVar(&cmdParams.disableTelemetry, "disable-telemetry", false, "disables anonymous information reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)")
 	addIgnoreFlag(runCommand.Flags(), &cmdParams.ignore)
 
 	// bundle verification config
@@ -348,10 +348,10 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 	}
 	params.rt.Paths = args
 	params.rt.Filter = ignored(params.ignore).Apply
-	params.rt.EnableVersionCheck = !params.disableTelemetry
+	params.rt.EnableVersionCheck = !params.skipVersionCheck
 
-	// For backwards compatibility, check if `--skip-version-check` flag set.
-	if params.skipVersionCheck {
+	// For backwards compatibility, check if deprecated `--disable-telemetry` flag set.
+	if params.disableTelemetry {
 		params.rt.EnableVersionCheck = false
 	}
 

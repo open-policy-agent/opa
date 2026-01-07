@@ -8,7 +8,6 @@ package plugins
 import (
 	"net/http"
 
-	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/sdk/trace"
 
@@ -239,15 +238,9 @@ func WithParserOptions(opts ast.ParserOptions) func(*Manager) {
 	return v1.WithParserOptions(opts)
 }
 
-// WithEnableTelemetry controls whether OPA will send telemetry reports to an external service.
+// WithEnableTelemetry controls whether OPA will check for version updates.
 func WithEnableTelemetry(enableTelemetry bool) func(*Manager) {
 	return v1.WithEnableTelemetry(enableTelemetry)
-}
-
-// WithTelemetryGatherers allows registration of telemetry gatherers which enable injection of additional data in the
-// telemetry report
-func WithTelemetryGatherers(gs map[string]report.Gatherer) func(*Manager) {
-	return v1.WithTelemetryGatherers(gs)
 }
 
 // New creates a new Manager using config.

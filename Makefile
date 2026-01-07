@@ -58,7 +58,7 @@ BIN := opa_$(GOOS)_$(GOARCH)
 DOCKER_IMAGE ?= openpolicyagent/opa
 S3_RELEASE_BUCKET ?= opa-releases
 FUZZ_TIME ?= 1h
-TELEMETRY_URL ?= #Default empty
+VERSION_CHECK_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
@@ -66,11 +66,11 @@ RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-trixie
 
 RELEASE_DIR ?= _release/$(VERSION)
 
-ifneq (,$(TELEMETRY_URL))
-TELEMETRY_FLAG := -X github.com/open-policy-agent/opa/internal/report.ExternalServiceURL=$(TELEMETRY_URL)
+ifneq (,$(VERSION_CHECK_URL))
+VERSION_CHECK_SERVICE_FLAG := -X github.com/open-policy-agent/opa/internal/versioncheck.ExternalServiceURL=$(VERSION_CHECK_URL)
 endif
 
-LDFLAGS := "$(TELEMETRY_FLAG) \
+LDFLAGS := "$(VERSION_CHECK_SERVICE_FLAG) \
 	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME)"
 
 
@@ -266,7 +266,7 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-e CGO_ENABLED=$(CGO_ENABLED) \
 	-e WASM_ENABLED=$(WASM_ENABLED) \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
-	-e TELEMETRY_URL=$(TELEMETRY_URL) \
+	-e VERSION_CHECK_URL=$(VERSION_CHECK_URL) \
 	$(RELEASE_BUILD_IMAGE)
 
 .PHONY: ci-go-%
@@ -557,7 +557,7 @@ depr-release:
 	$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR):Z \
 		-v $(PWD):/_src:Z \
-		-e TELEMETRY_URL=$(TELEMETRY_URL) \
+		-e VERSION_CHECK_URL=$(VERSION_CHECK_URL) \
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
 
@@ -565,6 +565,6 @@ depr-release-local:
 	$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR):Z \
 		-v $(PWD):/_src:Z \
-		-e TELEMETRY_URL=$(TELEMETRY_URL) \
+		-e VERSION_CHECK_URL=$(VERSION_CHECK_URL) \
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src

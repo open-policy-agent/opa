@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package report
+package versioncheck
 
 import (
 	"encoding/json"
@@ -17,31 +17,31 @@ import (
 
 func TestNewReportDefaultURL(t *testing.T) {
 
-	reporter, err := New(Options{})
+	checker, err := New(Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	actual := reporter.(*GHVersionCollector).client.Config().URL
+	actual := checker.(*GitHubVersionChecker).client.Config().URL
 	if actual != ExternalServiceURL {
 		t.Fatalf("Expected server URL %v but got %v", ExternalServiceURL, actual)
 	}
 }
 
-func TestSendReportBadRespStatus(t *testing.T) {
+func TestLatestVersionBadRespStatus(t *testing.T) {
 
 	// test server
 	baseURL, teardown := getTestServer(nil, http.StatusBadRequest)
 	defer teardown()
 
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", baseURL)
 
-	reporter, err := New(Options{})
+	checker, err := New(Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	_, err = reporter.SendReport(t.Context())
+	_, err = checker.LatestVersion(t.Context())
 
 	if err == nil {
 		t.Fatal("Expected error but got nil")
@@ -53,27 +53,27 @@ func TestSendReportBadRespStatus(t *testing.T) {
 	}
 }
 
-func TestSendReportDecodeError(t *testing.T) {
+func TestLatestVersionDecodeError(t *testing.T) {
 
 	// test server
 	baseURL, teardown := getTestServer("foo", http.StatusOK)
 	defer teardown()
 
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", baseURL)
 
-	reporter, err := New(Options{})
+	checker, err := New(Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	_, err = reporter.SendReport(t.Context())
+	_, err = checker.LatestVersion(t.Context())
 
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}
 }
 
-func TestSendReportWithOPAUpdate(t *testing.T) {
+func TestLatestVersionWithOPAUpdate(t *testing.T) {
 	// to support testing on all supported platforms
 	downloadLink := fmt.Sprintf("https://openpolicyagent.org/downloads/v100.0.0/opa_%v_%v",
 		runtime.GOOS, runtime.GOARCH)
@@ -86,7 +86,7 @@ func TestSendReportWithOPAUpdate(t *testing.T) {
 		downloadLink = fmt.Sprintf("%v.exe", downloadLink)
 	}
 
-	srvResp := &GHResponse{
+	srvResp := &GitHubRelease{
 		TagName:      "v100.0.0",
 		Download:     downloadLink,
 		ReleaseNotes: "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
@@ -96,14 +96,14 @@ func TestSendReportWithOPAUpdate(t *testing.T) {
 	baseURL, teardown := getTestServer(srvResp, http.StatusOK)
 	defer teardown()
 
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", baseURL)
 
-	reporter, err := New(Options{})
+	checker, err := New(Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	resp, err := reporter.SendReport(t.Context())
+	resp, err := checker.LatestVersion(t.Context())
 
 	if err != nil {
 		t.Fatalf("Expected no error but got %v", err)

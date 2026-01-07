@@ -2,11 +2,10 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package report provides functions to report OPA's version information to an external service and process the response.
-package report
+// Package versioncheck provides functions to check for the latest OPA release version from GitHub.
+package versioncheck
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,24 +32,24 @@ import (
 //
 // Override at build time via:
 //
-//	-ldflags "-X github.com/open-policy-agent/opa/internal/report.ExternalServiceURL=<url>"
-//	-ldflags "-X github.com/open-policy-agent/opa/internal/report.GHRepo=<url>"
+//	-ldflags "-X github.com/open-policy-agent/opa/internal/versioncheck.ExternalServiceURL=<url>"
+//	-ldflags "-X github.com/open-policy-agent/opa/internal/versioncheck.GHRepo=<url>"
 //
-// ExternalServiceURL will be overridden if the OPA_TELEMETRY_SERVICE_URL environment variable
+// ExternalServiceURL will be overridden if the OPA_VERSION_CHECK_SERVICE_URL environment variable
 // is provided.
 var ExternalServiceURL = "https://api.github.com"
 var GHRepo = "open-policy-agent/opa"
 
-// Reporter reports information such as the version, heap usage about the running OPA instance to an external service
-type Reporter interface {
-	SendReport(ctx context.Context) (*DataResponse, error)
+// Checker checks for the latest OPA release version
+type Checker interface {
+	LatestVersion(ctx context.Context) (*DataResponse, error)
 	RegisterGatherer(key string, f Gatherer)
 }
 
-// Gatherer represents a mechanism to inject additional data in the telemetry report
+// Gatherer represents a mechanism to inject additional data (currently unused for version checking)
 type Gatherer func(ctx context.Context) (any, error)
 
-// DataResponse represents the data returned by the external service
+// DataResponse represents the data returned by the version check
 type DataResponse struct {
 	Latest ReleaseDetails `json:"latest"`
 }
@@ -64,44 +62,48 @@ type ReleaseDetails struct {
 	OPAUpToDate   bool   `json:"opa_up_to_date,omitempty"` // is running OPA version greater than or equal to the latest released
 }
 
-// Options supplies parameters to the reporter.
+// Options supplies parameters to the version checker.
 type Options struct {
 	Logger logging.Logger
 }
 
-type GHVersionCollector struct {
+type GitHubVersionChecker struct {
 	client rest.Client
 }
 
-type GHResponse struct {
+type GitHubRelease struct {
 	TagName      string `json:"tag_name,omitempty"`   // latest OPA release tag
 	ReleaseNotes string `json:"html_url,omitempty"`   // link to the OPA release notes
 	Download     string `json:"assets_url,omitempty"` // link to download the OPA release
 }
 
-// New returns an instance of the Reporter
-func New(opts Options) (Reporter, error) {
-	url := cmp.Or(os.Getenv("OPA_TELEMETRY_SERVICE_URL"), ExternalServiceURL)
+// New returns an instance of the Checker
+func New(opts Options) (Checker, error) {
+	url := os.Getenv("OPA_VERSION_CHECK_SERVICE_URL")
+	if url == "" {
+		url = ExternalServiceURL
+	}
 
+	// Set a generic User-Agent to avoid sending version/platform information about the user's OPA instance.
+	// This ensures we only retrieve version information without transmitting any identifying data.
 	restConfig := fmt.Appendf(nil, `{
 		"url": %q,
+		"headers": {
+			"User-Agent": "OPA-Version-Checker"
+		}
 	}`, url)
 
 	client, err := rest.New(restConfig, map[string]*keys.Config{}, rest.Logger(opts.Logger))
 	if err != nil {
 		return nil, err
 	}
-	r := GHVersionCollector{client: client}
-
-	// heap_usage_bytes is always present, so register it unconditionally
-	r.RegisterGatherer("heap_usage_bytes", readRuntimeMemStats)
+	r := GitHubVersionChecker{client: client}
 
 	return &r, nil
 }
 
-// SendReport sends the telemetry report which includes information such as the OPA version, current memory usage to
-// the external service
-func (r *GHVersionCollector) SendReport(ctx context.Context) (*DataResponse, error) {
+// LatestVersion queries the GitHub API to check for the latest OPA release version
+func (r *GitHubVersionChecker) LatestVersion(ctx context.Context) (*DataResponse, error) {
 	rCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -115,12 +117,12 @@ func (r *GHVersionCollector) SendReport(ctx context.Context) (*DataResponse, err
 	switch resp.StatusCode {
 	case http.StatusOK:
 		if resp.Body != nil {
-			var result GHResponse
+			var result GitHubRelease
 			err := json.NewDecoder(resp.Body).Decode(&result)
 			if err != nil {
 				return nil, err
 			}
-			return createDataResponse(result)
+			return createReleaseInfo(result)
 		}
 		return nil, nil
 	default:
@@ -128,7 +130,7 @@ func (r *GHVersionCollector) SendReport(ctx context.Context) (*DataResponse, err
 	}
 }
 
-func createDataResponse(ghResp GHResponse) (*DataResponse, error) {
+func createReleaseInfo(ghResp GitHubRelease) (*DataResponse, error) {
 	if ghResp.TagName == "" {
 		return nil, errors.New("server response does not contain tag_name")
 	}
@@ -168,7 +170,7 @@ func createDataResponse(ghResp GHResponse) (*DataResponse, error) {
 	}, nil
 }
 
-func (*GHVersionCollector) RegisterGatherer(_ string, _ Gatherer) {
+func (*GitHubVersionChecker) RegisterGatherer(_ string, _ Gatherer) {
 	// no-op for this implementation
 }
 
@@ -205,10 +207,4 @@ func (dr *DataResponse) Pretty() string {
 	}
 
 	return strings.Join(lines, "\n")
-}
-
-func readRuntimeMemStats(_ context.Context) (any, error) {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return strconv.FormatUint(m.Alloc, 10), nil
 }
