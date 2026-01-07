@@ -2060,6 +2060,11 @@ func NewObject(t ...[2]*Term) Object {
 	return obj
 }
 
+// NewObjectWithCapacity returns a new empty Object with the given capacity pre-allocated.
+func NewObjectWithCapacity(capacity int) Object {
+	return newobject(capacity)
+}
+
 // ObjectTerm creates a new Term with an Object value.
 func ObjectTerm(o ...[2]*Term) *Term {
 	return &Term{Value: NewObject(o...)}
