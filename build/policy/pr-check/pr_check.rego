@@ -1,8 +1,14 @@
 package policy["pr-check"]
 
-go_change_prefixes := ["cmd/", "internal/", "v1/"]
+go_change_prefixes := [
+	"build/",
+	"capabilities/",
+	"e2e/",
+	"internal/",
+	"v1/",
+]
+
 go_change_suffixes := [
-	".go",
 	".mod",
 	".sum",
 	".json",
@@ -28,13 +34,27 @@ wasm_change_prefixes := [
 	"v1/ir",
 ]
 
-wasm_change_suffixes := ["Makefile"]
+wasm_change_root_files := ["Makefile"]
 
 docs_root_files := [
 	"builtin_metadata.json",
 	"capabilities.json",
 	"netlify.toml",
 	"Makefile",
+]
+
+go_root_files := [
+	".go-version",
+	".golangci.yaml",
+	".yamllint.yaml",
+	"builtin_metadata.json",
+	"capabilities.json",
+	"Makefile",
+	"Dockerfile",
+	"go.mod",
+	"go.sum",
+	"main_windows.go",
+	"main.go",
 ]
 
 changes["docs"] if {
@@ -45,14 +65,16 @@ changes["docs"] if {
 	changed_file.filename in docs_root_files
 }
 
-changes["go"] if {
-	some changed_file in input
-	not startswith(changed_file.filename, "docs/")
-	strings.any_prefix_match(changed_file.filename, go_change_prefixes)
+changes["go"] if{
+    some changed_file in input
+    endswith(changed_file.filename, ".go")
 } else if {
 	some changed_file in input
-	not startswith(changed_file.filename, "docs/")
+	strings.any_prefix_match(changed_file.filename, go_change_prefixes)
 	strings.any_suffix_match(changed_file.filename, go_change_suffixes)
+} else if {
+	some changed_file in input
+	changed_file.filename in go_root_files
 }
 
 changes["wasm"] if {
@@ -60,5 +82,5 @@ changes["wasm"] if {
 	strings.any_prefix_match(changed_file.filename, wasm_change_prefixes)
 } else if {
 	some changed_file in input
-	strings.any_suffix_match(changed_file.filename, wasm_change_suffixes)
+	changed_file.filename in wasm_change_root_files
 }
