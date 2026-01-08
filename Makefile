@@ -119,7 +119,7 @@ e2e: e2e-prep
 	cd e2e/ && $(GO) test $(GO_TAGS) -v ./...
 
 e2e-prep:
-	cd e2e/api/compile/prisma && npm ci
+	cd e2e/api/compile/prisma && npm ci && DATABASE_URL='postgres://127.0.0.1/dummy' npx prisma generate
 	cd e2e/ && go mod tidy
 
 .PHONY: test-short
