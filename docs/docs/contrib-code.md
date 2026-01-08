@@ -161,7 +161,7 @@ is up to standard. Part of this process is also to run vulnerability scanning
 on the code and on the generated container image.
 
 [Trivy](http://trivy.dev/) is used to run the aforementioned
-vulnerability scanning. To install, follow the [installation instructions](http://trivy.dev/v0.29.2/getting-started/installation/).
+vulnerability scanning. To install, follow the [installation instructions](https://trivy.dev/docs/latest/getting-started/).
 
 To run the vulnerability scanning, on the code-base, run the following command:
 
