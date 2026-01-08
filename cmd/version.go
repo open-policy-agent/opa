@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	version2 "github.com/open-policy-agent/opa/v1/version"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd/internal/env"
-	"github.com/open-policy-agent/opa/internal/report"
+	"github.com/open-policy-agent/opa/internal/versioncheck"
 )
 
 func initVersion(root *cobra.Command, brand string) {
@@ -60,7 +61,10 @@ func generateCmdOutput(out io.Writer, check bool) error {
 	fmt.Fprintln(out, "WebAssembly: "+wasmAvailable)
 
 	if check {
-		err := checkOPAUpdate(out)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		err := checkOPAUpdate(ctx, out)
 		if err != nil {
 			fmt.Fprintf(out, "Error: %v\n", err)
 			return err
@@ -69,13 +73,13 @@ func generateCmdOutput(out io.Writer, check bool) error {
 	return nil
 }
 
-func checkOPAUpdate(out io.Writer) error {
-	reporter, err := report.New(report.Options{})
+func checkOPAUpdate(ctx context.Context, out io.Writer) error {
+	checker, err := versioncheck.New(versioncheck.Options{})
 	if err != nil {
 		return err
 	}
 
-	resp, err := reporter.SendReport(context.Background())
+	resp, err := checker.LatestVersion(ctx)
 	if err != nil {
 		return err
 	}

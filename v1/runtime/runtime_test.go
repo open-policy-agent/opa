@@ -39,7 +39,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/tracing"
 
-	"github.com/open-policy-agent/opa/internal/report"
+	"github.com/open-policy-agent/opa/internal/versioncheck"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/logging"
 	testLog "github.com/open-policy-agent/opa/v1/logging/test"
@@ -673,7 +673,7 @@ func TestCheckOPAUpdateWithNewUpdate(t *testing.T) {
 	tag := "v100.0.0"
 	downloadLink := createDownloadLink(tag)
 
-	resp := &report.GHResponse{
+	resp := &versioncheck.GitHubRelease{
 		TagName:      tag,
 		Download:     downloadLink,
 		ReleaseNotes: "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
@@ -683,7 +683,7 @@ func TestCheckOPAUpdateWithNewUpdate(t *testing.T) {
 	baseURL, teardown := getTestServer(resp, http.StatusOK)
 	defer teardown()
 
-	exp := &report.DataResponse{Latest: report.ReleaseDetails{
+	exp := &versioncheck.DataResponse{Latest: versioncheck.ReleaseDetails{
 		Download:      downloadLink,
 		ReleaseNotes:  "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
 		LatestRelease: tag,
@@ -709,11 +709,11 @@ func createDownloadLink(tag string) string {
 }
 
 func TestCheckOPAUpdateLoopBadURL(t *testing.T) {
-	testCheckOPAUpdateLoop(t, "http://foo:8112", "Unable to send OPA version report")
+	testCheckOPAUpdateLoop(t, "http://foo:8112", "Unable to check OPA version.")
 }
 
 func TestCheckOPAUpdateLoopNoUpdate(t *testing.T) {
-	srvResp := &report.GHResponse{
+	srvResp := &versioncheck.GitHubRelease{
 		TagName: "v1.0.0",
 	}
 
@@ -725,7 +725,7 @@ func TestCheckOPAUpdateLoopNoUpdate(t *testing.T) {
 }
 
 func TestCheckOPAUpdateLoopLaterRequests(t *testing.T) {
-	resp := &report.GHResponse{
+	resp := &versioncheck.GitHubRelease{
 		TagName: "v1.0.0",
 	}
 
@@ -733,7 +733,7 @@ func TestCheckOPAUpdateLoopLaterRequests(t *testing.T) {
 	baseURL, teardown := getTestServer(resp, http.StatusOK)
 	defer teardown()
 
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", baseURL)
 
 	ctx := t.Context()
 
@@ -770,7 +770,7 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 	tag := "v100.0.0"
 	downloadLink := createDownloadLink(tag)
 
-	resp := &report.GHResponse{
+	resp := &versioncheck.GitHubRelease{
 		TagName:      tag,
 		Download:     downloadLink,
 		ReleaseNotes: "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
@@ -1536,9 +1536,9 @@ func getTestServer(update any, statusCode int) (string, func()) {
 	return ts.URL, ts.Close
 }
 
-func testCheckOPAUpdate(t *testing.T, url string, expected *report.DataResponse) {
+func testCheckOPAUpdate(t *testing.T, url string, expected *versioncheck.DataResponse) {
 	t.Helper()
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
+	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", url)
 
 	ctx := t.Context()
 	rt := getTestRuntime(ctx, t, logging.NewNoOpLogger())
@@ -1551,7 +1551,7 @@ func testCheckOPAUpdate(t *testing.T, url string, expected *report.DataResponse)
 
 func testCheckOPAUpdateLoop(t *testing.T, url, expected string) {
 	t.Helper()
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
+	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", url)
 
 	ctx := t.Context()
 
