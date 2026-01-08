@@ -1,6 +1,7 @@
 {
   "name": "prisma-ucast-e2e",
   "version": "0.0.1",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,10 +10,12 @@
   "license": "",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^6.19.0",
-    "@open-policy-agent/ucast-prisma": "^0.1.6"
+    "@open-policy-agent/ucast-prisma": "^0.1.6",
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
-    "prisma": "^6.19.0"
+    "prisma": "^7.2.0"
   }
 }
