@@ -12,7 +12,7 @@ blogs:
 code:
 - https://github.com/strimzi/strimzi-kafka-operator
 - https://github.com/scholzj/demo-opa-kafka-authorization
-- https://github.com/StyraInc/opa-kafka-plugin
+- https://github.com/StyraOSS/opa-kafka-plugin
 inventors:
 - redhat
 docs_features:

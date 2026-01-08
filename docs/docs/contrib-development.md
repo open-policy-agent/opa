@@ -6,9 +6,9 @@ This page details the process for getting up and running locally for OPA
 development. If you're a first time contributor, we recommend you read through
 the [Contributing to OPA](./contrib-code) page first.
 
-OPA is written in the [Go](https://golang.org) programming language.
+OPA is written in the [Go](https://go.dev/) programming language.
 If you are new to Go, consider reading
-[Effective Go](https://go.dev/doc/effective_go.html),
+[Effective Go](https://go.dev/doc/effective_go),
 [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments) or
 [How to Write Go Code](https://go.dev/doc/code)
 for guidance on writing idiomatic Go code.
