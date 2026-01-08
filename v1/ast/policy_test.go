@@ -561,9 +561,9 @@ func TestRuleString(t *testing.T) {
 		{
 			rule: &Rule{
 				Head: &Head{
-					Name:  Var("f"),
-					Args:  Args{VarTerm("x"), VarTerm("y")},
-					Value: VarTerm("z"),
+					Reference: Ref{VarTerm("f")},
+					Args:      Args{VarTerm("x"), VarTerm("y")},
+					Value:     VarTerm("z"),
 				},
 				Body: NewBody(Plus.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z"))),
 			},
@@ -573,9 +573,9 @@ func TestRuleString(t *testing.T) {
 		{
 			rule: &Rule{
 				Head: &Head{
-					Name:   Var("p"),
-					Value:  BooleanTerm(true),
-					Assign: true,
+					Reference: Ref{VarTerm("p")},
+					Value:     BooleanTerm(true),
+					Assign:    true,
 				},
 				Body: NewBody(
 					Equality.Expr(StringTerm("foo"), StringTerm("bar")),
@@ -1019,8 +1019,27 @@ g := 5 if { false } else = 6 if { false } else = 7 if { true }`,
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			act := module.String()
+			if len(act) != len(tc.exp) {
+				t.Errorf("expected length %d but got %d", len(tc.exp), len(act))
+				if len(act) > len(tc.exp) {
+					t.Errorf("extra content: %q", act[len(tc.exp):])
+				} else {
+					t.Errorf("missing content: %q", tc.exp[len(act):])
+				}
+				t.FailNow()
+			}
+
 			if act := module.String(); act != tc.exp {
 				t.Errorf("expected:\n\n%s\n\ngot:\n\n%s", tc.exp, act)
+
+				for i := range act {
+					if i >= len(tc.exp) || act[i] != tc.exp[i] {
+						t.Errorf("difference at index %d: expected %q but got %q", i, tc.exp[i], act[i])
+						break
+					}
+				}
 			}
 		})
 	}
@@ -1132,8 +1151,20 @@ func assertHeadsNotEqual(t *testing.T, a, b *Head) {
 
 func assertRuleString(t *testing.T, rule *Rule, expected string, opts toStringOpts) {
 	t.Helper()
-	result := rule.stringWithOpts(opts)
+
+	l := rule.stringLengthWithOpts(opts)
+
+	buf, err := rule.appendWithOpts(opts, make([]byte, 0, l))
+	if err != nil {
+		t.Fatalf("unexpected error appending rule with opts: %v", err)
+	}
+
+	result := string(buf)
 	if result != expected {
 		t.Errorf("Expected %v but got %v for rego-version %v", expected, result, opts.regoVersion)
+	}
+
+	if len(buf) != l {
+		t.Errorf("Expected %v of length %v but got %v", expected, l, len(buf))
 	}
 }

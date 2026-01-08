@@ -922,30 +922,8 @@ func (*TemplateString) IsGround() bool {
 }
 
 func (ts *TemplateString) String() string {
-	str := strings.Builder{}
-	str.WriteString("$\"")
-
-	for _, p := range ts.Parts {
-		switch x := p.(type) {
-		case *Expr:
-			str.WriteByte('{')
-			str.WriteString(p.String())
-			str.WriteByte('}')
-		case *Term:
-			s := p.String()
-			if _, ok := x.Value.(String); ok {
-				s = strings.TrimPrefix(s, "\"")
-				s = strings.TrimSuffix(s, "\"")
-				s = EscapeTemplateStringStringPart(s)
-			}
-			str.WriteString(s)
-		default:
-			str.WriteString("<invalid>")
-		}
-	}
-
-	str.WriteByte('"')
-	return str.String()
+	buf, _ := ts.AppendText(make([]byte, 0, ts.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 func TemplateStringTerm(multiLine bool, parts ...Node) *Term {
@@ -970,23 +948,25 @@ func EscapeTemplateStringStringPart(s string) string {
 		return s
 	}
 
-	l := len(s)
-	escaped := make([]byte, 0, l+numUnescaped)
+	return util.ByteSliceToString(AppendEscapedTemplateStringStringPart(make([]byte, 0, len(s)+numUnescaped), s))
+}
+
+func AppendEscapedTemplateStringStringPart(buf []byte, s string) []byte {
 	if s[0] == '{' {
-		escaped = append(escaped, '\\', s[0])
+		buf = append(buf, '\\', s[0])
 	} else {
-		escaped = append(escaped, s[0])
+		buf = append(buf, s[0])
 	}
 
-	for i := 1; i < l; i++ {
+	for i := 1; i < len(s); i++ {
 		if s[i] == '{' && s[i-1] != '\\' {
-			escaped = append(escaped, '\\', s[i])
+			buf = append(buf, '\\', s[i])
 		} else {
-			escaped = append(escaped, s[i])
+			buf = append(buf, s[i])
 		}
 	}
 
-	return util.ByteSliceToString(escaped)
+	return buf
 }
 
 func countUnescapedLeftCurly(s string) (n int) {
@@ -1371,61 +1351,12 @@ func IsVarCompatibleString(s string) bool {
 }
 
 func (ref Ref) String() string {
-	// Note(anderseknert):
-	// Options tried in the order of cheapness, where after some effort,
-	// only the last option now requires a (single) allocation:
-	// 1. empty ref
-	// 2. single var ref
-	// 3. built-in function ref
-	// 4. concatenated parts
-	reflen := len(ref)
-	if reflen == 0 {
+	if len(ref) == 0 {
 		return ""
 	}
-	if reflen == 1 {
-		return ref[0].Value.String()
-	}
-	if name, ok := BuiltinNameFromRef(ref); ok {
-		return name
-	}
 
-	_var := ref[0].Value.String()
-
-	bb := bbPool.Get()
-	bb.Reset()
-
-	defer bbPool.Put(bb)
-
-	bb.Grow(len(_var) + len(ref[1:])*7) // rough estimate
-	bb.WriteString(_var)
-
-	for _, p := range ref[1:] {
-		switch p := p.Value.(type) {
-		case String:
-			str := string(p)
-			if IsVarCompatibleString(str) && !IsKeyword(str) {
-				bb.WriteByte('.')
-				bb.WriteString(str)
-			} else {
-				bb.WriteByte('[')
-				// Determine whether we need the full JSON-escaped form
-				if strings.ContainsFunc(str, isControlOrBackslash) {
-					bb.Write(strconv.AppendQuote(bb.AvailableBuffer(), str))
-				} else {
-					bb.WriteByte('"')
-					bb.WriteString(str)
-					bb.WriteByte('"')
-				}
-				bb.WriteByte(']')
-			}
-		default:
-			bb.WriteByte('[')
-			bb.WriteString(p.String())
-			bb.WriteByte(']')
-		}
-	}
-
-	return bb.String()
+	buf, _ := ref.AppendText(make([]byte, 0, ref.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // OutputVars returns a VarSet containing variables that would be bound by evaluating
@@ -1596,21 +1527,8 @@ func (arr *Array) MarshalJSON() ([]byte, error) {
 }
 
 func (arr *Array) String() string {
-	sb := sbPool.Get()
-	sb.Grow(len(arr.elems) * 16)
-
-	defer sbPool.Put(sb)
-
-	sb.WriteByte('[')
-	for i, e := range arr.elems {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(e.String())
-	}
-	sb.WriteByte(']')
-
-	return sb.String()
+	buf, _ := arr.AppendText(make([]byte, 0, arr.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // Len returns the number of elements in the array.
@@ -1791,25 +1709,8 @@ func (s *set) Hash() int {
 }
 
 func (s *set) String() string {
-	if s.Len() == 0 {
-		return "set()"
-	}
-
-	sb := sbPool.Get()
-	sb.Grow(s.Len() * 16)
-
-	defer sbPool.Put(sb)
-
-	sb.WriteByte('{')
-	for i := range s.sortedKeys() {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(s.keys[i].Value.String())
-	}
-	sb.WriteByte('}')
-
-	return sb.String()
+	buf, _ := s.AppendText(make([]byte, 0, s.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 func (s *set) sortedKeys() []*Term {
@@ -2592,24 +2493,8 @@ func (obj *object) Len() int {
 }
 
 func (obj *object) String() string {
-	sb := sbPool.Get()
-	sb.Grow(obj.Len() * 32)
-
-	defer sbPool.Put(sb)
-
-	sb.WriteByte('{')
-
-	for i, elem := range obj.sortedKeys() {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(elem.key.String())
-		sb.WriteString(": ")
-		sb.WriteString(elem.value.String())
-	}
-	sb.WriteByte('}')
-
-	return sb.String()
+	buf, _ := obj.AppendText(make([]byte, 0, obj.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 func (*object) get(*Term) *objectElem {
@@ -2814,7 +2699,8 @@ func (ac *ArrayComprehension) IsGround() bool {
 }
 
 func (ac *ArrayComprehension) String() string {
-	return "[" + ac.Term.String() + " | " + ac.Body.String() + "]"
+	buf, _ := ac.AppendText(make([]byte, 0, ac.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // ObjectComprehension represents an object comprehension as defined in the language.
@@ -2874,7 +2760,8 @@ func (oc *ObjectComprehension) IsGround() bool {
 }
 
 func (oc *ObjectComprehension) String() string {
-	return "{" + oc.Key.String() + ": " + oc.Value.String() + " | " + oc.Body.String() + "}"
+	buf, _ := oc.AppendText(make([]byte, 0, oc.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // SetComprehension represents a set comprehension as defined in the language.
@@ -2931,7 +2818,8 @@ func (sc *SetComprehension) IsGround() bool {
 }
 
 func (sc *SetComprehension) String() string {
-	return "{" + sc.Term.String() + " | " + sc.Body.String() + "}"
+	buf, _ := sc.AppendText(make([]byte, 0, sc.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // Call represents as function call in the language.
@@ -2992,11 +2880,8 @@ func (c Call) Operands() []*Term {
 }
 
 func (c Call) String() string {
-	args := make([]string, len(c)-1)
-	for i := 1; i < len(c); i++ {
-		args[i-1] = c[i].String()
-	}
-	return fmt.Sprintf("%v(%v)", c[0], strings.Join(args, ", "))
+	buf, _ := c.AppendText(make([]byte, 0, c.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 func termSliceCopy(a []*Term) []*Term {

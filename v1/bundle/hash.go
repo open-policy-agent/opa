@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"strings"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -132,5 +131,5 @@ func encodePrimitive(v any) []byte {
 	encoder := json.NewEncoder(&buf)
 	encoder.SetEscapeHTML(false)
 	_ = encoder.Encode(v)
-	return []byte(strings.Trim(buf.String(), "\n"))
+	return bytes.Trim(buf.Bytes(), "\n")
 }
