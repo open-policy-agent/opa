@@ -96,7 +96,7 @@ func canGenerateCheapRange(operands []*ast.Term) bool {
 
 func canGenerateCheapRangeStep(operands []*ast.Term) bool {
 	if canGenerateCheapRange(operands) {
-		step, err := builtins.IntOperand(operands[1].Value, 3)
+		step, err := builtins.IntOperand(operands[2].Value, 3)
 		if err == nil && ast.HasInternedIntNumberTerm(step) {
 			return true
 		}
