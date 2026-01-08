@@ -1399,6 +1399,15 @@ func NewArray(a ...*Term) *Array {
 	return arr
 }
 
+// NewArrayWithCapacity returns a new empty Array with the given capacity pre-allocated.
+func NewArrayWithCapacity(capacity int) *Array {
+	return &Array{
+		elems:  make([]*Term, 0, capacity),
+		hashs:  make([]int, 0, capacity),
+		ground: true,
+	}
+}
+
 // Array represents an array as defined by the language. Arrays are similar to the
 // same types as defined by JSON with the exception that they can contain Vars
 // and References.

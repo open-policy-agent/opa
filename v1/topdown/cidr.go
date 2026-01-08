@@ -300,7 +300,7 @@ func builtinNetCIDRMerge(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 
 	merged := evalNetCIDRMerge(networks)
 
-	result := ast.NewSet()
+	result := ast.NewSetWithCapacity(len(merged))
 	for _, network := range merged {
 		result.Add(ast.StringTerm(network.String()))
 	}

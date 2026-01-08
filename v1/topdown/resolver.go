@@ -99,7 +99,7 @@ func (t *resolverTrie) mktree(e *eval, in resolver.Input) (ast.Value, error) {
 		}
 		return result.Value, nil
 	}
-	obj := ast.NewObject()
+	obj := ast.NewObjectWithCapacity(len(t.children))
 	for k, child := range t.children {
 		v, err := child.mktree(e, resolver.Input{Ref: append(in.Ref, ast.NewTerm(k)), Input: in.Input, Metrics: in.Metrics})
 		if err != nil {

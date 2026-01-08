@@ -49,7 +49,7 @@ func builtinLookupIPAddr(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 		return err
 	}
 
-	ret := ast.NewSet()
+	ret := ast.NewSetWithCapacity(len(addrs))
 	for _, a := range addrs {
 		ret.Add(ast.StringTerm(a.String()))
 
