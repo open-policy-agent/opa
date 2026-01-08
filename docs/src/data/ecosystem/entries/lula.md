@@ -15,4 +15,4 @@ docs_features:
       to evaluate configuration for compliance against security controls.
 ---
 
-Automated Governance with Machine-Readable data and OPA - [Lula](https://lula.dev) is a tool designed to bridge the gap between expected configuration required for compliance and actual configuration.
+Automated Governance with Machine-Readable data and OPA - [Lula](https://defenseunicorns.com/) is a tool designed to bridge the gap between expected configuration required for compliance and actual configuration.

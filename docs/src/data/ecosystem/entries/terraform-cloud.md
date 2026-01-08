@@ -10,7 +10,7 @@ labels:
   category: publiccloud
   layer: orchestration
 tutorials:
-- https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa
+- https://developer.hashicorp.com/terraform/cloud-docs/workspaces/policy-enforcement/define-policies/opa
 - https://developer.hashicorp.com/terraform/tutorials/cloud/drift-and-policy
 - https://developer.hashicorp.com/terraform/cloud-docs/workspaces/policy-enforcement/manage-policy-sets/opa-vcs
 videos:
@@ -28,7 +28,7 @@ docs_features:
   terraform:
     note: |
       Terraform cloud has native support for enforcing Rego policy on plans.
-      The feature is [documented here](https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa).
+      The feature is [documented here](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/policy-enforcement/define-policies/opa).
 ---
 
 Policies are rules that Terraform Cloud enforces on runs. You use the Rego

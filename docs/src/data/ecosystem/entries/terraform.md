@@ -13,7 +13,7 @@ tutorials:
 - https://www.openpolicyagent.org/docs/terraform.html
 - https://github.com/open-policy-agent/conftest/blob/master/README.md
 code:
-- https://github.com/instrumenta/conftest
+- https://github.com/open-policy-agent/conftest
 - https://github.com/fugue/regula
 - https://github.com/tenable/terrascan
 - https://github.com/Checkmarx/kics
