@@ -2570,7 +2570,7 @@ func filterObject(o Value, filter Value) (Value, error) {
 	case String, Number, Boolean, Null:
 		return o, nil
 	case *Array:
-		values := NewArray()
+		values := make([]*Term, 0, v.Len())
 		for i := range v.Len() {
 			subFilter := filteredObj.Get(InternedIntegerString(i))
 			if subFilter != nil {
@@ -2578,10 +2578,10 @@ func filterObject(o Value, filter Value) (Value, error) {
 				if err != nil {
 					return nil, err
 				}
-				values = values.Append(NewTerm(filteredValue))
+				values = append(values, NewTerm(filteredValue))
 			}
 		}
-		return values, nil
+		return NewArray(values...), nil
 	case Set:
 		terms := make([]*Term, 0, v.Len())
 		for _, t := range v.Slice() {
