@@ -287,7 +287,7 @@ func builtinURLQueryDecodeObject(_ BuiltinContext, operands []*ast.Term, iter fu
 		return err
 	}
 
-	queryObject := ast.NewObject()
+	queryObject := ast.NewObjectWithCapacity(len(queryParams))
 	for k, v := range queryParams {
 		paramsArray := make([]*ast.Term, len(v))
 		for i, param := range v {

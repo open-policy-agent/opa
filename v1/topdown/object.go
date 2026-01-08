@@ -175,7 +175,7 @@ func builtinObjectKeys(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 func getObjectKeysParam(arrayOrSet ast.Value) (ast.Set, error) {
 	switch v := arrayOrSet.(type) {
 	case *ast.Array:
-		keys := ast.NewSet()
+		keys := ast.NewSetWithCapacity(v.Len())
 		v.Foreach(keys.Add)
 		return keys, nil
 	case ast.Set:
