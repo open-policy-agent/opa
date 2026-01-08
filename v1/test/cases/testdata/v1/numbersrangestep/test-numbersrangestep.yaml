@@ -101,3 +101,15 @@ cases:
       - x:
           - 2
           - 4
+  - note: numbersrangestep/big int step
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := num if {
+          num := numbers.range_step(0, 10, 99999999999999999999)
+        }
+    want_result:
+      - x:
+          - 0
