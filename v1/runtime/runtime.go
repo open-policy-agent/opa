@@ -37,10 +37,10 @@ import (
 	"github.com/open-policy-agent/opa/internal/pathwatcher"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/ref"
-	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/internal/uuid"
+	"github.com/open-policy-agent/opa/internal/versioncheck"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	opa_config "github.com/open-policy-agent/opa/v1/config"
@@ -324,7 +324,7 @@ type Runtime struct {
 	logger            logging.Logger
 	server            *server.Server
 	metrics           *prometheus.Provider
-	reporter          report.Reporter
+	versionChecker    versioncheck.Checker
 	traceExporter     *otlptrace.Exporter
 	loadedPathsResult *initload.LoadPathsResult
 
@@ -396,10 +396,10 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	var reporter report.Reporter
+	var versionChecker versioncheck.Checker
 	if params.EnableVersionCheck {
 		var err error
-		reporter, err = report.New(report.Options{Logger: logger})
+		versionChecker, err = versioncheck.New(versioncheck.Options{Logger: logger})
 		if err != nil {
 			return nil, fmt.Errorf("config error: %w", err)
 		}
@@ -532,7 +532,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		Manager:           manager,
 		logger:            logger,
 		metrics:           metrics,
-		reporter:          reporter,
+		versionChecker:    versionChecker,
 		serverStatus:      ServerNotStarted,
 		traceExporter:     traceExporter,
 		loadedPathsResult: loaded,
@@ -833,8 +833,8 @@ func (rt *Runtime) SetDistributedTracingLogging() {
 	internal_tracing.SetupLogging(rt.logger)
 }
 
-func (rt *Runtime) checkOPAUpdate(ctx context.Context) *report.DataResponse {
-	resp, _ := rt.reporter.SendReport(ctx)
+func (rt *Runtime) checkOPAUpdate(ctx context.Context) *versioncheck.DataResponse {
+	resp, _ := rt.versionChecker.LatestVersion(ctx)
 	return resp
 }
 
@@ -848,9 +848,9 @@ func (rt *Runtime) checkOPAUpdateLoopDurations(ctx context.Context, done chan st
 	mr.New(mr.NewSource(time.Now().UnixNano())) // Seed the PRNG.
 
 	for {
-		resp, err := rt.reporter.SendReport(ctx)
+		resp, err := rt.versionChecker.LatestVersion(ctx)
 		if err != nil {
-			rt.logger.WithFields(map[string]any{"err": err}).Debug("Unable to send %s version report.", rt.Params.Brand)
+			rt.logger.WithFields(map[string]any{"err": err}).Debug("Unable to check %s version.", rt.Params.Brand)
 		} else {
 			if resp.Latest.OPAUpToDate {
 				rt.logger.WithFields(map[string]any{

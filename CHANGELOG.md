@@ -5,6 +5,15 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.12.2
+
+This bug fix release address issues found in the new string interpolation feature
+
+- Add (*TemplateString).Copy() method (#8159) authored by @anderseknert
+- Fix template string not serialized with escaped { (#8161) authored by @anderseknert
+- fix(ast): skip template string vars in ref safety (#8174) authored by @thevilledev
+- fix(ast): use original var names in template error (#8180) authored by @thevilledev
+
 ## 1.12.1
 
 This bug fix release reverts a change to `regex.replace` that unintentionally changed its behaviour for anchored regular expressions.

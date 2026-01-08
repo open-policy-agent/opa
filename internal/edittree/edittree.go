@@ -602,7 +602,7 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 			}
 			return child.Unfold(path[1:])
 		}
-		return nil, fmt.Errorf("path %v does not exist in object term %v", ast.Ref{path[0]}, e.value.Value)
+		return nil, fmt.Errorf("path %v does not exist in object term %v", path[0], e.value.Value)
 	case ast.Set:
 		// Sets' keys *are* their values, so in order to allow accurate
 		// traversal, we have to collapse the tree beneath this node,
@@ -662,10 +662,10 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 			}
 			return child.Unfold(path[1:])
 		}
-		return nil, fmt.Errorf("path %v does not exist in array term %v", ast.Ref{ast.IntNumberTerm(idx)}, e.value.Value)
+		return nil, fmt.Errorf("path %v does not exist in array term %v", ast.IntNumberTerm(idx), e.value.Value)
 	default:
 		// Catch all primitive types.
-		return nil, fmt.Errorf("expected composite type for path %v, found value: %v (type: %T)", ast.Ref{path[0]}, x, x)
+		return nil, fmt.Errorf("expected composite type for path %v, found value: %v (type: %T)", path[0], x, x)
 	}
 }
 

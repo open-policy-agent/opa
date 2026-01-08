@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 // Turns out using multiple databases is actually not simple:
@@ -7,7 +8,6 @@ generator client {
 // So let's test only PG for now, as it keeps the code generation simpler.
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model fruit {

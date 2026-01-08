@@ -4,6 +4,7 @@
 package ast
 
 import (
+	"encoding"
 	"strings"
 	"sync"
 )
@@ -82,4 +83,17 @@ func BuiltinNameFromRef(ref Ref) (string, bool) {
 	}
 
 	return "", false
+}
+
+func AppendDelimeted[T encoding.TextAppender](buf []byte, appenders []T, delim string) ([]byte, error) {
+	for i, item := range appenders {
+		if i > 0 {
+			buf = append(buf, delim...)
+		}
+		var err error
+		if buf, err = item.AppendText(buf); err != nil {
+			return nil, err
+		}
+	}
+	return buf, nil
 }

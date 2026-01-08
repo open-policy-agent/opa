@@ -806,7 +806,7 @@ func (vis *VarVisitor) visit(v any) bool {
 	}
 	if vis.params.SkipClosures {
 		switch v := v.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *TemplateString:
 			return true
 		case *Expr:
 			if ev, ok := v.Terms.(*Every); ok {

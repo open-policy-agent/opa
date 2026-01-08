@@ -5,8 +5,6 @@ inventors:
 - defenseunicorns
 labels:
   category: compliance
-tutorials: # optional, links to tutorials for the integration
-- https://docs.lula.dev/getting-started/
 code: # optional, links to code for the integration
 - https://github.com/defenseunicorns/lula
 docs_features:

@@ -12,7 +12,7 @@ labels:
 tutorials:
 - https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa
 - https://developer.hashicorp.com/terraform/tutorials/cloud/drift-and-policy
-- https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa/vcs
+- https://developer.hashicorp.com/terraform/cloud-docs/workspaces/policy-enforcement/manage-policy-sets/opa-vcs
 videos:
 - title: 'Terraform Cloud Learn Lab: Validate Infrastructure and Enforce OPA Policies'
   speakers:

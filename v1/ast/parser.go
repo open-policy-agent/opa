@@ -20,7 +20,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/open-policy-agent/opa/v1/ast/internal/scanner"
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"

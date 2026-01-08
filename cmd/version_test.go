@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/internal/report"
+	"github.com/open-policy-agent/opa/internal/versioncheck"
 )
 
 func TestGenerateCmdOutputDisableCheckFlag(t *testing.T) {
@@ -50,7 +51,7 @@ func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
 		downloadLink = fmt.Sprintf("%v.exe", downloadLink)
 	}
 
-	resp := &report.GHResponse{
+	resp := &versioncheck.GitHubRelease{
 		TagName:      "v100.0.0",
 		Download:     downloadLink,
 		ReleaseNotes: "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
@@ -60,7 +61,7 @@ func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
 	baseURL, teardown := getTestServer(resp, http.StatusOK)
 	defer teardown()
 
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", baseURL)
 
 	var stdout bytes.Buffer
 
@@ -85,9 +86,10 @@ func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
 
 func TestCheckOPAUpdateBadURL(t *testing.T) {
 	url := "http://foo:8112"
-	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
+	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", url)
 
-	err := checkOPAUpdate(nil)
+	var stdout bytes.Buffer
+	err := checkOPAUpdate(context.Background(), &stdout)
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}
