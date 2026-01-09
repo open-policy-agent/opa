@@ -209,8 +209,8 @@ A template-expression is enclosed in curly-braces (`{`,`}`), and must contain a 
 
 - Primitive values: `$"{1} {2.3} {"foo"} {false} {null}"`
 - Composite values: `$"{[true, false]} {{1, 2}} {{"a": "b"}}"`
-- Variables: `x := "foo"; a := "$"{x}"`
-- References: `"$"{input.x} {data.y}"`
+- Variables: `x := "foo"; a := $"{x}"`
+- References: `$"{input.x} {data.y}"`
 - Function calls: `$"{abs(-1)} {1 + 2}"`
 - Comprehensions: `$"{[x | ...]} {{x | ...}} {{x: y | ...}}"`
 
