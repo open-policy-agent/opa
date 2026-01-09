@@ -1351,8 +1351,22 @@ func IsVarCompatibleString(s string) bool {
 }
 
 func (ref Ref) String() string {
-	if len(ref) == 0 {
+	l := len(ref)
+	// First check for zero-alloc options, as making the buffer for AppendText
+	// always costs an allocation.
+	if l == 0 {
 		return ""
+	}
+	if l == 1 {
+		if s, ok := ref[0].Value.(String); ok {
+			// Ref head should normally be a Var, but if for some reason
+			// it's a string, don't quote it.
+			return string(s)
+		}
+		return ref[0].Value.String()
+	}
+	if name, ok := BuiltinNameFromRef(ref); ok {
+		return name
 	}
 
 	buf, _ := ref.AppendText(make([]byte, 0, ref.StringLength()))
