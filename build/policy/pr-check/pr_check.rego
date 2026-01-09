@@ -34,7 +34,7 @@ wasm_change_prefixes := [
 	"v1/ir",
 ]
 
-wasm_change_root_files := ["Makefile"]
+rego_and_wasm_change_root_files := ["Makefile"]
 
 docs_root_files := [
 	"builtin_metadata.json",
@@ -82,5 +82,13 @@ changes["wasm"] if {
 	strings.any_prefix_match(changed_file.filename, wasm_change_prefixes)
 } else if {
 	some changed_file in input
-	changed_file.filename in wasm_change_root_files
+	changed_file.filename in rego_and_wasm_change_root_files
+}
+
+changes["rego"] if {
+	some changed_file in input
+	endswith(changed_file.filename, ".rego")
+} else if {
+	some changed_file in input
+	changed_file.filename in rego_and_wasm_change_root_files
 }

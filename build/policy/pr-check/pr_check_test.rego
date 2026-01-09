@@ -30,6 +30,8 @@ mixed_bag_changelist := [
 	{"filename": "v1/rego/testdata/ast.json"},
 ]
 
+example_rego_changelist := [{"filename": "build/policy/pr-check/pr_check.rego"}]
+
 example_all_checks_root_changelist := [{"filename": "Makefile"}]
 
 example_docs_root_changelist := [{"filename": "netlify.toml"}]
@@ -53,6 +55,10 @@ test_run_go_tests_expect if {
 
 test_run_wasm_tests_expect if {
 	pr_check.changes.wasm with input as example_wasm_changelist
+}
+
+test_run_rego_tests_expect if {
+	pr_check.changes.rego with input as example_rego_changelist
 }
 
 test_run_docs_not_go_tests_expect if {
