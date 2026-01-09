@@ -65,9 +65,9 @@ changes["docs"] if {
 	changed_file.filename in docs_root_files
 }
 
-changes["go"] if{
-    some changed_file in input
-    endswith(changed_file.filename, ".go")
+changes["go"] if {
+	some changed_file in input
+	endswith(changed_file.filename, ".go")
 } else if {
 	some changed_file in input
 	strings.any_prefix_match(changed_file.filename, go_change_prefixes)
