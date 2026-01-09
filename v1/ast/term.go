@@ -410,19 +410,24 @@ func (term *Term) IsGround() bool {
 	return term.Value.IsGround()
 }
 
+// termJSON is used to serialize Term to JSON without map allocation.
+type termJSON struct {
+	Location *Location `json:"location,omitempty"`
+	Type     string    `json:"type"`
+	Value    Value     `json:"value"`
+}
+
 // MarshalJSON returns the JSON encoding of the term.
 //
 // Specialized marshalling logic is required to include a type hint for Value.
 func (term *Term) MarshalJSON() ([]byte, error) {
-	d := map[string]any{
-		"type":  ValueName(term.Value),
-		"value": term.Value,
+	d := termJSON{
+		Type:  ValueName(term.Value),
+		Value: term.Value,
 	}
 	jsonOptions := astJSON.GetOptions().MarshalOptions
 	if jsonOptions.IncludeLocation.Term {
-		if term.Location != nil {
-			d["location"] = term.Location
-		}
+		d.Location = term.Location
 	}
 	return json.Marshal(d)
 }
