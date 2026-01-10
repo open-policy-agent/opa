@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode"
 
 	"github.com/cespare/xxhash/v2"
@@ -1410,9 +1411,9 @@ func ArrayTerm(a ...*Term) *Term {
 // use the provided term slice.
 func NewArray(a ...*Term) *Array {
 	arr := &Array{
-		elems:     a,
-		ground:    termSliceIsGround(a),
-		hashValid: false, // hash will be computed on first access
+		elems:  a,
+		ground: termSliceIsGround(a),
+		// hashState is initialized to 0 (invalid hash)
 	}
 	return arr
 }
@@ -1431,22 +1432,26 @@ func NewArrayWithCapacity(capacity int) *Array {
 // and References.
 //
 // Optimization: removed hashs []int slice to save memory (8*N bytes per array).
-// Hash is now computed lazily on first access and cached in hashValid flag.
+// Hash is now computed lazily on first access and cached atomically.
 type Array struct {
 	elems     []*Term
-	hash      int
 	ground    bool
-	hashValid bool // true if hash is up-to-date
+	hash      int    // cached hash value
+	hashValid uint32 // atomic: 0 = invalid, 1 = valid
 }
 
 // Copy returns a deep copy of arr.
 func (arr *Array) Copy() *Array {
-	return &Array{
-		elems:     termSliceCopy(arr.elems),
-		hash:      arr.hash,
-		ground:    arr.ground,
-		hashValid: arr.hashValid,
+	cpy := &Array{
+		elems:  termSliceCopy(arr.elems),
+		ground: arr.ground,
 	}
+	// Copy hash if valid
+	if atomic.LoadUint32(&arr.hashValid) == 1 {
+		cpy.hash = arr.hash
+		atomic.StoreUint32(&cpy.hashValid, 1)
+	}
+	return cpy
 }
 
 // Equal returns true if arr is equal to other.
@@ -1535,23 +1540,36 @@ func (arr *Array) Sorted() *Array {
 
 	a := NewArray(cpy...)
 	// If parent arr already has valid hash, copy it since sorting doesn't change hash
-	if arr.hashValid {
+	if atomic.LoadUint32(&arr.hashValid) == 1 {
 		a.hash = arr.hash
-		a.hashValid = true
+		atomic.StoreUint32(&a.hashValid, 1)
 	}
 	return a
 }
 
 // Hash returns the hash code for the Value.
-// Computes hash lazily on first access and caches it.
+// Computes hash lazily on first access and caches it atomically.
 func (arr *Array) Hash() int {
-	if !arr.hashValid {
-		arr.hash = 0
-		for _, e := range arr.elems {
-			arr.hash += e.Value.Hash()
-		}
-		arr.hashValid = true
+	// Fast path: check if hash is already valid
+	if atomic.LoadUint32(&arr.hashValid) == 1 {
+		return arr.hash
 	}
+
+	// Slow path: compute hash
+	h := 0
+	for _, e := range arr.elems {
+		h += e.Value.Hash()
+	}
+
+	// Try to atomically set valid flag using CAS
+	if atomic.CompareAndSwapUint32(&arr.hashValid, 0, 1) {
+		// We won the race, store the hash
+		arr.hash = h
+		return h
+	}
+
+	// Another goroutine computed the hash, return theirs
+	// (might be different due to concurrent modifications, but that's OK)
 	return arr.hash
 }
 
@@ -1590,7 +1608,8 @@ func (arr *Array) Set(i int, v *Term) {
 
 // rehash invalidates the cached hash so it will be recomputed on next access.
 func (arr *Array) rehash() {
-	arr.hashValid = false
+	// Atomically invalidate the hash
+	atomic.StoreUint32(&arr.hashValid, 0)
 }
 
 // set sets the element i of arr.
@@ -1616,9 +1635,9 @@ func (arr *Array) Slice(i, j int) *Array {
 	gr := arr.ground || termSliceIsGround(elems)
 
 	return &Array{
-		elems:     elems,
-		ground:    gr,
-		hashValid: false, // hash will be computed lazily
+		elems:  elems,
+		ground: gr,
+		// hashState is initialized to 0 (invalid)
 	}
 }
 
@@ -1650,13 +1669,14 @@ func (arr *Array) Append(v *Term) *Array {
 	cpy := *arr
 	cpy.elems = append(arr.elems, v)
 	cpy.ground = arr.ground && v.IsGround()
+
 	// If hash was already computed, we can update it incrementally
-	if arr.hashValid {
+	if atomic.LoadUint32(&arr.hashValid) == 1 {
 		cpy.hash = arr.hash + v.Value.Hash()
-		cpy.hashValid = true
-	} else {
-		cpy.hashValid = false // will be computed on first access
+		atomic.StoreUint32(&cpy.hashValid, 1)
 	}
+	// else: hash is invalid, will be computed on first access
+
 	return &cpy
 }
 
