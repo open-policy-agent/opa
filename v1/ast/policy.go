@@ -1729,16 +1729,22 @@ func (w *With) SetLoc(loc *Location) {
 	w.Location = loc
 }
 
+// withJSON is used for JSON serialization of With to avoid map allocation overhead.
+// Field order is alphabetical to match previous map-based output.
+type withJSON struct {
+	Location *Location `json:"location,omitempty"`
+	Target   *Term     `json:"target"`
+	Value    *Term     `json:"value"`
+}
+
 func (w *With) MarshalJSON() ([]byte, error) {
-	data := map[string]any{
-		"target": w.Target,
-		"value":  w.Value,
+	data := withJSON{
+		Target: w.Target,
+		Value:  w.Value,
 	}
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.With {
-		if w.Location != nil {
-			data["location"] = w.Location
-		}
+		data.Location = w.Location
 	}
 
 	return json.Marshal(data)

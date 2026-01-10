@@ -157,3 +157,16 @@ func BenchmarkRuleMarshalJSON(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkWithMarshalJSON(b *testing.B) {
+	module := MustParseModule(`
+		package test
+		allow if { input.x with input as {"x": true} }
+	`)
+
+	with := module.Rules[0].Body[0].With[0]
+
+	for b.Loop() {
+		_, _ = json.Marshal(with)
+	}
+}
