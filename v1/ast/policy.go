@@ -1442,28 +1442,37 @@ func (expr *Expr) String() string {
 	return util.ByteSliceToString(buf)
 }
 
+// exprJSON is used for JSON serialization of Expr to avoid map allocation overhead.
+// Field order is alphabetical to match previous map-based output.
+type exprJSON struct {
+	Generated bool      `json:"generated,omitempty"`
+	Index     int       `json:"index"`
+	Location  *Location `json:"location,omitempty"`
+	Negated   bool      `json:"negated,omitempty"`
+	Terms     any       `json:"terms"`
+	With      []*With   `json:"with,omitempty"`
+}
+
 func (expr *Expr) MarshalJSON() ([]byte, error) {
-	data := map[string]any{
-		"terms": expr.Terms,
-		"index": expr.Index,
+	data := exprJSON{
+		Index: expr.Index,
+		Terms: expr.Terms,
 	}
 
 	if len(expr.With) > 0 {
-		data["with"] = expr.With
+		data.With = expr.With
 	}
 
 	if expr.Generated {
-		data["generated"] = true
+		data.Generated = true
 	}
 
 	if expr.Negated {
-		data["negated"] = true
+		data.Negated = true
 	}
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Expr {
-		if expr.Location != nil {
-			data["location"] = expr.Location
-		}
+		data.Location = expr.Location
 	}
 
 	return json.Marshal(data)
