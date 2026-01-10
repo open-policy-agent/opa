@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast/location"
@@ -80,6 +81,34 @@ func BenchmarkExprAppendText(b *testing.B) {
 			for b.Loop() {
 				buf, _ = tc.expr.AppendText(buf)
 				buf = buf[:0]
+			}
+		})
+	}
+}
+
+func BenchmarkExprMarshalJSON(b *testing.B) {
+	tests := []struct {
+		note string
+		expr *Expr
+	}{
+		{
+			note: "simple expr",
+			expr: MustParseExpr(`input.x == 10`),
+		},
+		{
+			note: "negated expr with with modifier",
+			expr: MustParseExpr(`not input.y != "hello" with input.z as 5`),
+		},
+		{
+			note: "complex expr",
+			expr: MustParseExpr(`count({x | x := input.arr[_]; x > 10}) == 3 with input.arr as [5, 15, 25, 8, 30]`),
+		},
+	}
+
+	for _, tc := range tests {
+		b.Run(tc.note, func(b *testing.B) {
+			for b.Loop() {
+				_, _ = json.Marshal(tc.expr)
 			}
 		})
 	}
