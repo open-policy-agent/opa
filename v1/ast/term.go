@@ -1422,7 +1422,6 @@ func NewArray(a ...*Term) *Array {
 func NewArrayWithCapacity(capacity int) *Array {
 	return &Array{
 		elems:  make([]*Term, 0, capacity),
-		hashs:  make([]int, 0, capacity),
 		ground: true,
 	}
 }
