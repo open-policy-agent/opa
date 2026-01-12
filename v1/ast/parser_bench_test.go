@@ -259,3 +259,50 @@ func generateObjectOrSetStatement(depth int) string {
 	}
 	return s.String()
 }
+
+// _7136 ns/op     5744 B/op       40 allocs/op // parsing only "package p"
+// 34255 ns/op    40760 B/op      506 allocs/op // with annotations
+// 33261 ns/op    38841 B/op      499 allocs/op // pre-alloc location text buffer
+// 32817 ns/op    37319 B/op      487 allocs/op // use single metadataParser instance with reset
+func BenchmarkParseAnnotations(b *testing.B) {
+	policy := `
+# METADATA
+# title: Example Policy
+# description: Annotations are fun
+# organizations:
+#   - Open Policy Agent
+#   - Cloud Native Computing Foundation
+# related_resources:
+#   - https://www.openpolicyagent.org
+#   - https://www.cncf.io
+# authors:
+#   - Alice
+#   - Bob
+# custom:
+#   tags:
+#     - example
+#     - demo
+# scope: subpackages
+# schemas:
+#   - input: {"type": "object", "properties": {"user": {"type": "string"}}}
+package p
+`
+	for b.Loop() {
+		MustParseModuleWithOpts(policy, ParserOptions{ProcessAnnotation: true})
+	}
+}
+
+// 296108 ns/op	  882355 B/op	    7230 allocs/op
+// 279484 ns/op	  842892 B/op	    6315 allocs/op // pre-alloc location text buffer and reuse metadataParser
+func BenchmarkParseManyAnnotations(b *testing.B) {
+	sb := &strings.Builder{}
+	sb.WriteString("package p\n\n")
+	for i := range 100 {
+		fmt.Fprintf(sb, "# METADATA\n# title: annotation %d\n\n", i)
+	}
+	policy := strings.TrimSpace(sb.String()) + "\nrule if true\n"
+
+	for b.Loop() {
+		MustParseModuleWithOpts(policy, ParserOptions{ProcessAnnotation: true})
+	}
+}
