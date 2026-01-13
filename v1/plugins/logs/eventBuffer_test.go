@@ -31,7 +31,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	expectedIds := make(map[string]struct{})
 	var expectedDropped uint64
 	limit := int64(2)
-	b := newEventBuffer(limit, 0, plugins.TriggerManual, rest.Client{}, "")
+	b := newEventBuffer(limit, 0, rest.Client{}, "", plugins.TriggerManual)
 	b.WithMetrics(metrics.New())
 
 	id := "id1"
@@ -119,14 +119,14 @@ func TestStopEventBufferLoop(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 	defer ts.Close()
-	e := newEventBuffer(100, 100, plugins.TriggerImmediate, client, uploadPath).WithLogger(logging.NewNoOpLogger())
-	e.Stop()
-	e = newEventBuffer(100, 100, plugins.TriggerImmediate, rest.Client{}, uploadPath).WithLogger(logging.NewNoOpLogger())
+	e := newEventBuffer(100, 100, client, uploadPath, plugins.TriggerImmediate).WithLogger(logging.NewNoOpLogger())
+	e.Stop(t.Context())
+	e = newEventBuffer(100, 100, rest.Client{}, uploadPath, plugins.TriggerImmediate).WithLogger(logging.NewNoOpLogger())
 	e.Push(newTestEvent(t, strconv.Itoa(100), false))
 	if err := e.Upload(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	e.Stop()
+	e.Stop(t.Context())
 }
 
 func TestEventBuffer_Upload(t *testing.T) {
@@ -198,7 +198,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 			client, ts := setupTestServer(t, uploadPath, tc.handleFunc)
 			defer ts.Close()
 
-			e := newEventBuffer(tc.eventLimit, tc.uploadSizeLimitBytes, tc.mode, client, uploadPath).WithLogger(logging.NewNoOpLogger())
+			e := newEventBuffer(tc.eventLimit, tc.uploadSizeLimitBytes, client, uploadPath, tc.mode).WithLogger(logging.NewNoOpLogger())
 			e.WithMetrics(metrics.New())
 			for i := range tc.numberOfEvents {
 				e.Push(newTestEvent(t, strconv.Itoa(i), true))

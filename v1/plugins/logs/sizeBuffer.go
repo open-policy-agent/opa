@@ -54,7 +54,7 @@ func (b *sizeBuffer) WithLogger(l logging.Logger) *sizeBuffer {
 	return b
 }
 
-func (*sizeBuffer) Stop() {}
+func (*sizeBuffer) Stop(_ context.Context) {}
 
 func (*sizeBuffer) Name() string {
 	return sizeBufferType

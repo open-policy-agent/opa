@@ -39,7 +39,7 @@ type eventBuffer struct {
 	cancelUpload bool
 }
 
-func newEventBuffer(bufferSizeLimitEvents int64, uploadSizeLimitBytes int64, mode plugins.TriggerMode, client rest.Client, uploadPath string) *eventBuffer {
+func newEventBuffer(bufferSizeLimitEvents int64, uploadSizeLimitBytes int64, client rest.Client, uploadPath string, mode plugins.TriggerMode) *eventBuffer {
 	b := &eventBuffer{
 		buffer:     make(chan *bufferItem, bufferSizeLimitEvents),
 		enc:        newChunkEncoder(uploadSizeLimitBytes),
@@ -84,13 +84,17 @@ func (b *eventBuffer) incrMetric(name string) {
 	}
 }
 
-func (b *eventBuffer) Stop() {
+func (b *eventBuffer) Stop(ctx context.Context) {
 	if b.mode != plugins.TriggerImmediate {
 		return
 	}
 	done := make(chan struct{})
 	b.stop <- done
-	<-done
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 }
 
 // Reconfigure updates the user configurable values
@@ -104,7 +108,7 @@ func (b *eventBuffer) Reconfigure(
 	uploadPath string,
 	mode plugins.TriggerMode,
 ) {
-	b.Stop()
+	b.Stop(context.Background())
 	defer func() {
 		if b.mode == plugins.TriggerImmediate {
 			go b.read()

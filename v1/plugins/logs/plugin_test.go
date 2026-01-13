@@ -2030,7 +2030,7 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 		},
 		{
 			name:       "immediate mode, size buffer",
-			bufferType: "size",
+			bufferType: sizeBufferType,
 			mode:       plugins.TriggerImmediate,
 		},
 		{
@@ -2040,7 +2040,7 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 		},
 		{
 			name:       "periodic mode, size buffer",
-			bufferType: "size",
+			bufferType: sizeBufferType,
 			mode:       plugins.TriggerPeriodic,
 		},
 	}

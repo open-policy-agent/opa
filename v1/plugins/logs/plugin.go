@@ -458,7 +458,7 @@ type buffer interface {
 	Upload(context.Context) error
 	Reconfigure(int64, int64, *float64, rest.Client, string, plugins.TriggerMode)
 	WithMetrics(metrics.Metrics)
-	Stop()
+	Stop(context.Context)
 }
 
 // Plugin implements decision log buffering and uploading.
@@ -601,9 +601,9 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		plugin.b = newEventBuffer(
 			*parsedConfig.Reporting.BufferSizeLimitEvents,
 			*parsedConfig.Reporting.UploadSizeLimitBytes,
-			*parsedConfig.Reporting.Trigger,
 			plugin.manager.Client(plugin.config.Service),
 			*parsedConfig.Resource,
+			*parsedConfig.Reporting.Trigger,
 		).WithLogger(plugin.logger).WithLimiter(parsedConfig.Reporting.MaxDecisionsPerSecond)
 	case sizeBufferType:
 		plugin.b = newSizeBuffer(
@@ -651,7 +651,7 @@ func (p *Plugin) Start(_ context.Context) error {
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
 	p.logger.Info("Stopping decision logger.")
-	p.b.Stop()
+	p.b.Stop(ctx)
 
 	if *p.config.Reporting.Trigger == plugins.TriggerPeriodic || *p.config.Reporting.Trigger == plugins.TriggerImmediate {
 		if _, ok := ctx.Deadline(); ok && p.config.Service != "" {
@@ -865,20 +865,18 @@ func (p *Plugin) loop() {
 			waitC = make(chan struct{})
 			go func() {
 				timer := time.NewTimer(delay)
-				for {
-					select {
-					case <-timer.C:
-						if err != nil {
-							retry++
-						} else {
-							retry = 0
-						}
-						close(waitC)
-						return
-					case <-ctx.Done():
-						timer.Stop()
-						return
+				select {
+				case <-timer.C:
+					if err != nil {
+						retry++
+					} else {
+						retry = 0
 					}
+					close(waitC)
+					return
+				case <-ctx.Done():
+					timer.Stop()
+					return
 				}
 			}()
 		}
@@ -947,16 +945,16 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 		if err := p.b.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
 			p.setStatus(err)
 		}
-		p.b.Stop()
+		p.b.Stop(ctx)
 
 		switch newConfig.Reporting.BufferType {
 		case eventBufferType:
 			p.b = newEventBuffer(
 				*p.config.Reporting.BufferSizeLimitEvents,
 				*p.config.Reporting.UploadSizeLimitBytes,
-				*p.config.Reporting.Trigger,
 				p.manager.Client(p.config.Service),
 				*p.config.Resource,
+				*p.config.Reporting.Trigger,
 			).WithLogger(p.logger).WithLimiter(p.config.Reporting.MaxDecisionsPerSecond)
 		case sizeBufferType:
 			p.b = newSizeBuffer(
