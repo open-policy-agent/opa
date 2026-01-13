@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-ini/ini"
+	"gopkg.in/ini.v1"
 	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/v1/logging"
 )
