@@ -162,7 +162,7 @@ func (b *eventBuffer) push(event *bufferItem) {
 	util.PushFIFO(b.buffer, event, b.metrics, logBufferEventDropCounterName)
 }
 
-func (b *eventBuffer) processBufferItem(item *bufferItem) ([][]byte, error) {
+func (b *eventBuffer) processBufferItem(item *bufferItem) [][]byte {
 	var result [][]byte
 	if item.chunk != nil {
 		result = [][]byte{item.chunk}
@@ -170,7 +170,11 @@ func (b *eventBuffer) processBufferItem(item *bufferItem) ([][]byte, error) {
 		event := item.EventV1
 		eventBytes, err := json.Marshal(&event)
 		if err != nil {
-			return nil, err
+			b.incrMetric(logEncodingFailureCounterName)
+			if b.logger != nil {
+				b.logger.Error("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
+			}
+			return nil
 		}
 
 		result, err = b.enc.Encode(*event, eventBytes)
@@ -179,10 +183,11 @@ func (b *eventBuffer) processBufferItem(item *bufferItem) ([][]byte, error) {
 			if b.logger != nil {
 				b.logger.Error("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
 			}
+			return nil
 		}
 	}
 
-	return result, nil
+	return result
 }
 
 func (b *eventBuffer) flush(ctx context.Context) {
@@ -196,10 +201,7 @@ func (b *eventBuffer) flush(ctx context.Context) {
 			return
 		}
 
-		result, err := b.processBufferItem(item)
-		if err != nil {
-			return
-		}
+		result := b.processBufferItem(item)
 
 		if result != nil {
 			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
@@ -224,10 +226,7 @@ func (b *eventBuffer) immediateRead(ctx context.Context, item *bufferItem) {
 	b.encoderLock.Lock()
 	defer b.encoderLock.Unlock()
 
-	result, err := b.processBufferItem(item)
-	if err != nil {
-		b.logger.Error("%v.", err)
-	}
+	result := b.processBufferItem(item)
 	if result == nil {
 		return
 	}
@@ -283,10 +282,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 				break
 			}
 
-			result, err := b.processBufferItem(item)
-			if err != nil {
-				b.logger.Error("%v.", err)
-			}
+			result := b.processBufferItem(item)
 			if result != nil {
 				if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
 					b.logger.Error("%v.", err)
