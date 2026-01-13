@@ -1,25 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <link rel="icon" href="/favicon.ico">
-    <title>gobenchdata web</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to OPA</title>
+    <style>
+        /* Theme Variables from your provided CSS */
+        :root {
+            /* Base colors */
+            --theme-foreground: #1c3957;
+            --theme-foreground-focus: #d75c48;
+            --theme-background-a: #f4faff;
 
-    
+            /* Derived colors from abstract-light.css */
+            --theme-background-b: color-mix(in srgb, var(--theme-foreground) 4%, var(--theme-background-a));
+            --theme-background: var(--theme-background-a); /* Main background */
+            --theme-background-alt: var(--theme-background-b);
+            --theme-foreground-alt: color-mix(in srgb, var(--theme-foreground) 90%, var(--theme-background-a));
+            --theme-foreground-muted: color-mix(in srgb, var(--theme-foreground) 60%, var(--theme-background-a));
+            --theme-foreground-faint: color-mix(in srgb, var(--theme-foreground) 50%, var(--theme-background-a));
+            --theme-foreground-fainter: color-mix(in srgb, var(--theme-foreground) 30%, var(--theme-background-a));
+            --theme-foreground-faintest: color-mix(in srgb, var(--theme-foreground) 14%, var(--theme-background-a));
+            --theme-error: #e7040f;
 
-    <link rel="stylesheet" type="text/css" href="./overrides.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index.954c23c5.js"></script>
-    <link rel="stylesheet" href="./assets/index.f1d9c68d.css">
-  </head>
-  <body>
-    <noscript>
-      <strong>We're sorry but gobenchdata web doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
-    </noscript>
-    
-    <div id="app"></div>
-    
-  </body>
+            /* Derived colors from syntax-light.css */
+            --syntax-link: var(--theme-foreground-focus); /* Used for the button */
+
+            color-scheme: light; /* Explicitly light theme */
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--theme-background); /* Using theme background */
+            color: var(--theme-foreground); /* Default text color */
+        }
+
+        .card {
+            background-color: var(--theme-background); /* Card background */
+            border: 1px solid var(--theme-foreground-faintest); /* Subtle border using a faint foreground tint */
+            border-radius: 10px;
+            /* Shadow using a very transparent tint of the foreground color */
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--theme-foreground) 8%, transparent);
+            padding: 30px;
+            max-width: 380px;
+            text-align: center;
+        }
+
+        .card h3 {
+            color: var(--theme-foreground); /* Heading color */
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .card p {
+            color: var(--theme-foreground-muted); /* Description color */
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .card a {
+            display: inline-block;
+            background-color: var(--syntax-link); /* Button background using the focus color */
+            color: var(--theme-background-a); /* Text color for contrast against the button */
+            padding: 12px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .card a:hover {
+            /* Slightly darker version of the focus color for hover effect */
+            background-color: color-mix(in srgb, var(--syntax-link) 90%, var(--theme-foreground));
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h3>OPA Benchmarking</h3>
+        <p>Here you find OPA's continuous benchmarking setup.</p>
+        <a href="benchmarks/">Go to Benchmarks</a>
+    </div>
+
+</body>
 </html>
