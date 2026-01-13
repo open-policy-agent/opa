@@ -14,16 +14,15 @@ import (
 )
 
 type sizeBuffer struct {
-	mtx          sync.Mutex
-	buffer       *logBuffer
-	enc          *chunkEncoder // encoder appends events into the gzip compressed JSON array
-	limiter      *rate.Limiter
-	metrics      metrics.Metrics
-	logger       logging.Logger
-	client       rest.Client
-	uploadPath   string
-	mode         plugins.TriggerMode
-	cancelUpload bool
+	mtx        sync.Mutex
+	buffer     *logBuffer
+	enc        *chunkEncoder // encoder appends events into the gzip compressed JSON array
+	limiter    *rate.Limiter
+	metrics    metrics.Metrics
+	logger     logging.Logger
+	client     rest.Client
+	uploadPath string
+	mode       plugins.TriggerMode
 }
 
 func newSizeBuffer(bufferSizeLimitBytes int64, uploadSizeLimitBytes int64, client rest.Client, uploadPath string, mode plugins.TriggerMode) *sizeBuffer {
@@ -116,33 +115,19 @@ func (b *sizeBuffer) Push(event *EventV1) {
 
 	switch b.mode {
 	case plugins.TriggerImmediate:
-		ctx := context.Background()
+		go func() {
+			ctx := context.Background()
 
-		var uploadErr error
-		for _, chunk := range result {
-			uploadErr = uploadChunk(ctx, b.client, b.uploadPath, chunk)
-			if uploadErr != nil {
-				break
-			}
-		}
-
-		if uploadErr != nil {
+			var uploadErr error
 			for _, chunk := range result {
-				b.bufferChunk(b.buffer, chunk)
-			}
-		} else {
-			for bs := b.buffer.Pop(); bs != nil; bs = b.buffer.Pop() {
-				uploadErr = uploadChunk(ctx, b.client, b.uploadPath, bs)
+				uploadErr = uploadChunk(ctx, b.client, b.uploadPath, chunk)
 				if uploadErr != nil {
-					b.bufferChunk(b.buffer, bs)
-					break
+					b.mtx.Lock()
+					b.bufferChunk(b.buffer, chunk)
+					b.mtx.Unlock()
 				}
 			}
-		}
-
-		if uploadErr != nil {
-			b.cancelUpload = true
-		}
+		}()
 	case plugins.TriggerPeriodic:
 		for _, chunk := range result {
 			b.bufferChunk(b.buffer, chunk)
@@ -156,12 +141,6 @@ func (b *sizeBuffer) Upload(ctx context.Context) error {
 	// the upload duration will block policy evaluation and result in
 	// increased latency for OPA clients
 	b.mtx.Lock()
-	if b.mode == plugins.TriggerImmediate {
-		if b.cancelUpload {
-			b.cancelUpload = false
-			return nil
-		}
-	}
 
 	oldChunkEnc := b.enc
 	oldBuffer := b.buffer
