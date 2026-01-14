@@ -1435,8 +1435,8 @@ func NewArrayWithCapacity(capacity int) *Array {
 type Array struct {
 	elems     []*Term
 	ground    bool
-	hash      int    // cached hash value
-	hashValid uint32 // atomic: 0 = invalid, 1 = valid
+	hash      atomic.Int64 // cached hash value (atomic for race-free access)
+	hashValid atomic.Uint32 // 0 = invalid, 1 = valid
 }
 
 // Copy returns a deep copy of arr.
@@ -1446,9 +1446,9 @@ func (arr *Array) Copy() *Array {
 		ground: arr.ground,
 	}
 	// Copy hash if valid
-	if atomic.LoadUint32(&arr.hashValid) == 1 {
-		cpy.hash = arr.hash
-		atomic.StoreUint32(&cpy.hashValid, 1)
+	if arr.hashValid.Load() == 1 {
+		cpy.hash.Store(arr.hash.Load())
+		cpy.hashValid.Store(1)
 	}
 	return cpy
 }
@@ -1539,9 +1539,9 @@ func (arr *Array) Sorted() *Array {
 
 	a := NewArray(cpy...)
 	// If parent arr already has valid hash, copy it since sorting doesn't change hash
-	if atomic.LoadUint32(&arr.hashValid) == 1 {
-		a.hash = arr.hash
-		atomic.StoreUint32(&a.hashValid, 1)
+	if arr.hashValid.Load() == 1 {
+		a.hash.Store(arr.hash.Load())
+		a.hashValid.Store(1)
 	}
 	return a
 }
@@ -1550,8 +1550,8 @@ func (arr *Array) Sorted() *Array {
 // Computes hash lazily on first access and caches it atomically.
 func (arr *Array) Hash() int {
 	// Fast path: check if hash is already valid
-	if atomic.LoadUint32(&arr.hashValid) == 1 {
-		return arr.hash
+	if arr.hashValid.Load() == 1 {
+		return int(arr.hash.Load())
 	}
 
 	// Slow path: compute hash
@@ -1561,15 +1561,14 @@ func (arr *Array) Hash() int {
 	}
 
 	// Try to atomically set valid flag using CAS
-	if atomic.CompareAndSwapUint32(&arr.hashValid, 0, 1) {
+	if arr.hashValid.CompareAndSwap(0, 1) {
 		// We won the race, store the hash
-		arr.hash = h
+		arr.hash.Store(int64(h))
 		return h
 	}
 
 	// Another goroutine computed the hash, return theirs
-	// (might be different due to concurrent modifications, but that's OK)
-	return arr.hash
+	return int(arr.hash.Load())
 }
 
 // IsGround returns true if all of the Array elements are ground.
@@ -1608,7 +1607,7 @@ func (arr *Array) Set(i int, v *Term) {
 // rehash invalidates the cached hash so it will be recomputed on next access.
 func (arr *Array) rehash() {
 	// Atomically invalidate the hash
-	atomic.StoreUint32(&arr.hashValid, 0)
+	arr.hashValid.Store(0)
 }
 
 // set sets the element i of arr.
@@ -1670,9 +1669,9 @@ func (arr *Array) Append(v *Term) *Array {
 	cpy.ground = arr.ground && v.IsGround()
 
 	// If hash was already computed, we can update it incrementally
-	if atomic.LoadUint32(&arr.hashValid) == 1 {
-		cpy.hash = arr.hash + v.Value.Hash()
-		atomic.StoreUint32(&cpy.hashValid, 1)
+	if arr.hashValid.Load() == 1 {
+		cpy.hash.Store(arr.hash.Load() + int64(v.Value.Hash()))
+		cpy.hashValid.Store(1)
 	}
 	// else: hash is invalid, will be computed on first access
 
