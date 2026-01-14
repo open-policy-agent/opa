@@ -177,11 +177,11 @@ func (d *OCIDownloader) loop(ctx context.Context) {
 		}
 
 		if err != nil {
-			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
+			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.parsedMaxDelaySeconds), retry)
 		} else {
 			// revert the response header timeout value on the http client's transport
-			min := float64(*d.config.Polling.MinDelaySeconds)
-			max := float64(*d.config.Polling.MaxDelaySeconds)
+			min := float64(*d.config.Polling.parsedMinDelaySeconds)
+			max := float64(*d.config.Polling.parsedMaxDelaySeconds)
 			delay = time.Duration(((max - min) * rand.Float64()) + min)
 		}
 
