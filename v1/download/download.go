@@ -231,7 +231,7 @@ func (d *Downloader) loop(ctx context.Context) {
 		// are scaled from int seconds to ns in ValidateAndInjectDefaults.
 		if err != nil {
 			// when there was an error, use a delay that's based on the retry count
-			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
+			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.parsedMaxDelaySeconds), retry)
 		} else if !d.longPollingEnabled || d.config.Polling.LongPollingTimeoutSeconds == nil {
 			// revert the response header timeout value on the http client's transport
 			if *d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
@@ -239,8 +239,8 @@ func (d *Downloader) loop(ctx context.Context) {
 			}
 
 			// when polling, use a jittered delay based on min and max delay config
-			min := float64(*d.config.Polling.MinDelaySeconds)
-			max := float64(*d.config.Polling.MaxDelaySeconds)
+			min := float64(*d.config.Polling.parsedMinDelaySeconds)
+			max := float64(*d.config.Polling.parsedMaxDelaySeconds)
 			delay = time.Duration(((max - min) * rand.Float64()) + min)
 		}
 

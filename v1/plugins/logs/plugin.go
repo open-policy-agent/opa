@@ -951,7 +951,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 	case eventBufferType:
 		limit = *p.config.Reporting.BufferSizeLimitEvents
 	case sizeBufferType:
-		limit = *p.config.Reporting.UploadSizeLimitBytes
+		limit = *p.config.Reporting.BufferSizeLimitBytes
 	}
 	p.b.Reconfigure(
 		limit,
