@@ -70,7 +70,7 @@ type SubResult struct {
 
 type SubResultMap map[string]*SubResult
 
-func (srm SubResultMap) Update(path ast.Array, trace []*topdown.Event) bool {
+func (srm SubResultMap) Update(path *ast.Array, trace []*topdown.Event) bool {
 	strPath := make([]string, path.Len())
 	for i := range path.Len() {
 		strPath[i] = termToString(path.Elem(i))
@@ -1005,7 +1005,7 @@ func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 		if e.Op == topdown.TestCaseOp {
 			if testEvent != nil {
 				if p, ok := testCaseTerms(testEvent); ok {
-					if f := result.Update(*p, trace[:i]); f {
+					if f := result.Update(p, trace[:i]); f {
 						fail = true
 					}
 				}
@@ -1016,7 +1016,7 @@ func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 	}
 	if testEvent != nil {
 		if p, ok := testCaseTerms(testEvent); ok {
-			if f := result.Update(*p, trace); f {
+			if f := result.Update(p, trace); f {
 				fail = true
 			}
 		}

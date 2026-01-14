@@ -1435,7 +1435,7 @@ func NewArrayWithCapacity(capacity int) *Array {
 type Array struct {
 	elems     []*Term
 	ground    bool
-	hash      atomic.Int64 // cached hash value (atomic for race-free access)
+	hash      atomic.Int64  // cached hash value (atomic for race-free access)
 	hashValid atomic.Uint32 // 0 = invalid, 1 = valid
 }
 
@@ -1664,9 +1664,10 @@ func (arr *Array) Foreach(f func(*Term)) {
 
 // Append appends a term to arr, returning the appended array.
 func (arr *Array) Append(v *Term) *Array {
-	cpy := *arr
-	cpy.elems = append(arr.elems, v)
-	cpy.ground = arr.ground && v.IsGround()
+	cpy := &Array{
+		elems:  append(arr.elems, v),
+		ground: arr.ground && v.IsGround(),
+	}
 
 	// If hash was already computed, we can update it incrementally
 	if arr.hashValid.Load() == 1 {
@@ -1675,7 +1676,7 @@ func (arr *Array) Append(v *Term) *Array {
 	}
 	// else: hash is invalid, will be computed on first access
 
-	return &cpy
+	return cpy
 }
 
 // Set represents a set as defined by the language.
