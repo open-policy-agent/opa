@@ -6,6 +6,7 @@ package download
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -125,5 +126,70 @@ func TestConfigValidation(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestConfigValidationUpdate(t *testing.T) {
+	expMin := int64(10)
+	expMax := int64(30)
+	expParsedMin := time.Second * time.Duration(expMin)
+	expParsedMax := time.Second * time.Duration(expMax)
+	var config Config
+
+	if err := json.Unmarshal([]byte(fmt.Sprintf(`{
+				"polling": {
+					"min_delay_seconds": %d,
+					"max_delay_seconds": %d
+				}
+			}`, expMin, expMax)), &config); err != nil {
+		t.Fatal(err)
+	}
+
+	err := config.ValidateAndInjectDefaults()
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	if *config.Polling.MinDelaySeconds != expMin {
+		t.Errorf("expected min %v but got %v", expMin, time.Duration(*config.Polling.MinDelaySeconds))
+	}
+
+	if config.Polling.MaxDelaySeconds != nil && *config.Polling.MaxDelaySeconds != expMax {
+		t.Errorf("expected max %v but got %v", expMax, time.Duration(*config.Polling.MaxDelaySeconds))
+	}
+
+	if time.Duration(*config.Polling.parsedMinDelaySeconds) != expParsedMin {
+		t.Errorf("expected min %v but got %v", expParsedMin, time.Duration(*config.Polling.MinDelaySeconds))
+	}
+	if time.Duration(*config.Polling.parsedMaxDelaySeconds) != expParsedMax {
+		t.Errorf("expected max %v but got %v", expParsedMax, time.Duration(*config.Polling.MaxDelaySeconds))
+	}
+
+	expMin = int64(50)
+	expMax = int64(100)
+	expParsedMin = time.Second * time.Duration(expMin)
+	expParsedMax = time.Second * time.Duration(expMax)
+
+	config.Polling.MinDelaySeconds = &expMin
+	config.Polling.MaxDelaySeconds = &expMax
+
+	err = config.ValidateAndInjectDefaults()
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	if *config.Polling.MinDelaySeconds != expMin {
+		t.Errorf("expected min %v but got %v", expMin, time.Duration(*config.Polling.MinDelaySeconds))
+	}
+
+	if config.Polling.MaxDelaySeconds != nil && *config.Polling.MaxDelaySeconds != expMax {
+		t.Errorf("expected max %v but got %v", expMax, time.Duration(*config.Polling.MaxDelaySeconds))
+	}
+
+	if time.Duration(*config.Polling.parsedMinDelaySeconds) != expParsedMin {
+		t.Errorf("expected min %v but got %v", expParsedMin, time.Duration(*config.Polling.MinDelaySeconds))
+	}
+	if time.Duration(*config.Polling.parsedMaxDelaySeconds) != expParsedMax {
+		t.Errorf("expected max %v but got %v", expParsedMax, time.Duration(*config.Polling.MaxDelaySeconds))
 	}
 }
