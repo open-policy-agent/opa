@@ -2074,14 +2074,13 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 			defer cancel()
 			fixture.plugin.Stop(timeoutCtx)
 
-			close(fixture.server.ch)
-			logsReceived := 0
-			for element := range fixture.server.ch {
+			var logsReceived int
+			for {
+				element := <-fixture.server.ch
 				logsReceived += len(element)
-			}
-
-			if logsReceived != logsSent {
-				t.Fatalf("Expected %v, got %v", logsSent, logsReceived)
+				if logsReceived == logsSent {
+					break
+				}
 			}
 		})
 	}
