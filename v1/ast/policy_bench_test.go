@@ -104,11 +104,55 @@ func BenchmarkExprMarshalJSON(b *testing.B) {
 			expr: MustParseExpr(`count({x | x := input.arr[_]; x > 10}) == 3 with input.arr as [5, 15, 25, 8, 30]`),
 		},
 	}
-
 	for _, tc := range tests {
 		b.Run(tc.note, func(b *testing.B) {
 			for b.Loop() {
 				_, _ = json.Marshal(tc.expr)
+			}
+		})
+	}
+}
+
+func BenchmarkRuleMarshalJSON(b *testing.B) {
+	module := MustParseModule(`
+		package test
+
+		allow if { input.user == "admin" }
+
+		deny if {
+			input.action == "delete"
+			not input.admin
+		}
+
+		complex_rule if {
+			some i
+			input.items[i].value > 100
+			input.items[i].enabled
+		}
+	`)
+
+	tests := []struct {
+		note string
+		rule *Rule
+	}{
+		{
+			note: "simple rule",
+			rule: module.Rules[0],
+		},
+		{
+			note: "rule with multiple exprs",
+			rule: module.Rules[1],
+		},
+		{
+			note: "rule with some decl",
+			rule: module.Rules[2],
+		},
+	}
+
+	for _, tc := range tests {
+		b.Run(tc.note, func(b *testing.B) {
+			for b.Loop() {
+				_, _ = json.Marshal(tc.rule)
 			}
 		})
 	}

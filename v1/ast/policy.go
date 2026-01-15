@@ -731,28 +731,37 @@ func (rule *Rule) isFunction() bool {
 	return len(rule.Head.Args) > 0
 }
 
+// ruleJSON is used for JSON serialization of Rule to avoid map allocation overhead.
+// Field order is alphabetical to match previous map-based output.
+type ruleJSON struct {
+	Annotations []*Annotations `json:"annotations,omitempty"`
+	Body        Body           `json:"body"`
+	Default     bool           `json:"default,omitempty"`
+	Else        *Rule          `json:"else,omitempty"`
+	Head        *Head          `json:"head"`
+	Location    *Location      `json:"location,omitempty"`
+}
+
 func (rule *Rule) MarshalJSON() ([]byte, error) {
-	data := map[string]any{
-		"head": rule.Head,
-		"body": rule.Body,
+	data := ruleJSON{
+		Head: rule.Head,
+		Body: rule.Body,
 	}
 
 	if rule.Default {
-		data["default"] = true
+		data.Default = true
 	}
 
 	if rule.Else != nil {
-		data["else"] = rule.Else
+		data.Else = rule.Else
 	}
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Rule {
-		if rule.Location != nil {
-			data["location"] = rule.Location
-		}
+		data.Location = rule.Location
 	}
 
 	if len(rule.Annotations) != 0 {
-		data["annotations"] = rule.Annotations
+		data.Annotations = rule.Annotations
 	}
 
 	return json.Marshal(data)
