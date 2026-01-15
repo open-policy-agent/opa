@@ -160,8 +160,9 @@ func TestJSONSerialization(t *testing.T) {
 			"go_godebug_non_default_behavior_containermaxprocs_events_total",
 			"go_godebug_non_default_behavior_updatemaxprocs_events_total",
 			"go_godebug_non_default_behavior_x509sha256skid_events_total",
-			"go_godebug_non_default_behavior_tlssha1_events_total",          // here and above, added with 1.25.1
-			"go_godebug_non_default_behavior_httpcookiemaxnum_events_total", // go 1.25.2
+			"go_godebug_non_default_behavior_tlssha1_events_total",           // here and above, added with 1.25.1
+			"go_godebug_non_default_behavior_httpcookiemaxnum_events_total",  // go 1.25.2
+			"go_godebug_non_default_behavior_urlmaxqueryparams_events_total", // go 1.25.6
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",
