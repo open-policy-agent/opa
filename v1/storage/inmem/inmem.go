@@ -40,7 +40,7 @@ func New() storage.Store {
 func NewWithOpts(opts ...Opt) storage.Store {
 	s := &store{
 		triggers:              map[*handle]storage.TriggerConfig{},
-		policies:              map[string][]byte{},
+		policies:              map[string]*lazyPolicy{},
 		roundTripOnWrite:      true,
 		returnASTValuesOnRead: false,
 	}
@@ -103,7 +103,7 @@ type store struct {
 	wmu      sync.Mutex                        // writer lock
 	xid      uint64                            // last generated transaction id
 	data     any                               // raw or AST data
-	policies map[string][]byte                 // raw policies
+	policies map[string]*lazyPolicy            // compressed policies with lazy decompression
 	triggers map[*handle]storage.TriggerConfig // registered triggers
 
 	// roundTripOnWrite, if true, means that every call to Write round trips the

@@ -45,7 +45,7 @@ type transaction struct {
 }
 
 type policyUpdate struct {
-	value  []byte
+	value  *lazyPolicy // compressed policy (nil for removal)
 	remove bool
 }
 
@@ -222,9 +222,19 @@ func (txn *transaction) Commit() (result storage.TriggerEvent) {
 		}
 
 		if len(txn.db.triggers) > 0 {
+			// Decompress policy data for triggers
+			var policyData []byte
+			if !upd.remove && upd.value != nil {
+				var err error
+				policyData, err = upd.value.get()
+				if err != nil {
+					// Should not happen - data was just compressed successfully
+					panic(err)
+				}
+			}
 			result.Policy = append(result.Policy, storage.PolicyEvent{
 				ID:      id,
-				Data:    upd.value,
+				Data:    policyData,
 				Removed: upd.remove,
 			})
 		}
@@ -312,22 +322,28 @@ func (txn *transaction) ListPolicies() (ids []string) {
 }
 
 func (txn *transaction) GetPolicy(id string) ([]byte, error) {
+	// Check transaction-local updates first
 	if txn.policies != nil {
 		if update, ok := txn.policies[id]; ok {
-			if !update.remove {
-				return update.value, nil
+			if update.remove {
+				return nil, errors.NewNotFoundErrorf("policy id %q", id)
 			}
-			return nil, errors.NewNotFoundErrorf("policy id %q", id)
+			// Decompress and return from transaction update
+			return update.value.get()
 		}
 	}
-	if exist, ok := txn.db.policies[id]; ok {
-		return exist, nil
+	// Check committed policies
+	if lazyPol, ok := txn.db.policies[id]; ok {
+		// Lazy decompression happens here - cached for subsequent reads
+		return lazyPol.get()
 	}
 	return nil, errors.NewNotFoundErrorf("policy id %q", id)
 }
 
 func (txn *transaction) UpsertPolicy(id string, bs []byte) error {
-	return txn.updatePolicy(id, policyUpdate{bs, false})
+	// Compress policy data immediately to save memory
+	lazyPol := newLazyPolicy(bs)
+	return txn.updatePolicy(id, policyUpdate{lazyPol, false})
 }
 
 func (txn *transaction) DeletePolicy(id string) error {
