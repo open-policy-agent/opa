@@ -15,7 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/format"
 	"github.com/open-policy-agent/opa/v1/test/cases"
 	"github.com/open-policy-agent/opa/v1/util"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 func main() {

@@ -5,8 +5,6 @@ inventors:
 - defenseunicorns
 labels:
   category: compliance
-tutorials: # optional, links to tutorials for the integration
-- https://docs.lula.dev/getting-started/
 code: # optional, links to code for the integration
 - https://github.com/defenseunicorns/lula
 docs_features:
@@ -17,4 +15,4 @@ docs_features:
       to evaluate configuration for compliance against security controls.
 ---
 
-Automated Governance with Machine-Readable data and OPA - [Lula](https://lula.dev) is a tool designed to bridge the gap between expected configuration required for compliance and actual configuration.
+Automated Governance with Machine-Readable data and OPA - [Lula](https://defenseunicorns.com/) is a tool designed to bridge the gap between expected configuration required for compliance and actual configuration.

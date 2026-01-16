@@ -115,3 +115,22 @@ func TestErrorWrapping(t *testing.T) {
 		})
 	}
 }
+
+// 101.7 ns/op	     144 B/op	       5 allocs/op // using fmt.Sprintf
+// 18.78 ns/op	      48 B/op	       1 allocs/op // using []byte + Location.AppendText
+func BenchmarkErrorError(b *testing.B) {
+	loc := &location.Location{
+		File: "b.rego",
+		Col:  10,
+		Row:  12,
+	}
+	err := &topdown.Error{
+		Code:     topdown.BuiltinErr,
+		Message:  "builtin error",
+		Location: loc,
+	}
+
+	for b.Loop() {
+		_ = err.Error()
+	}
+}

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/open-policy-agent/opa/v1/ast/internal/scanner"
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
@@ -71,6 +71,10 @@ var (
 	// copy them to  the call term only when needed
 	memberWithKeyRef = MemberWithKey.Ref()
 	memberRef        = Member.Ref()
+
+	newlineBytes       = []byte{'\n'}
+	metadataBytes      = []byte("METADATA")
+	metadataParserPool = util.NewSyncPool[metadataParser]()
 )
 
 func (v RegoVersion) Int() int {
@@ -540,42 +544,44 @@ func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 	return stmts
 }
 
-func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
+func parseAnnotations(comments []*Comment) (stmts []*Annotations, errs Errors) {
+	numBlocks := CountFunc(comments, isMetadataComment)
+	if numBlocks == 0 {
+		return nil, nil
+	}
 
-	var hint = []byte("METADATA")
-	var curr *metadataParser
-	var blocks []*metadataParser
+	stmts = make([]*Annotations, 0, numBlocks)
+	mdp := metadataParserPool.Get()
+	if mdp.buf == nil {
+		mdp.buf = &bytes.Buffer{}
+	}
 
 	for i := range comments {
-		if curr != nil {
-			if comments[i].Location.Row == comments[i-1].Location.Row+1 && comments[i].Location.Col == 1 {
-				curr.Append(comments[i])
-				continue
+		if isMetadataComment(comments[i]) { // scan until end of block
+			mdp.Reset(comments[i].Location)
+			for i++; i < len(comments) && !blockBuster(comments[i], comments[i-1]); i++ {
+				mdp.Append(comments[i])
 			}
-			curr = nil
-		}
-		if bytes.HasPrefix(bytes.TrimSpace(comments[i].Text), hint) {
-			curr = newMetadataParser(comments[i].Location)
-			blocks = append(blocks, curr)
+
+			if a, err := mdp.Parse(); err != nil {
+				errs = append(errs, &Error{Code: ParseErr, Message: err.Error(), Location: mdp.loc})
+			} else {
+				stmts = append(stmts, a)
+			}
 		}
 	}
 
-	stmts := make([]*Annotations, 0, len(blocks))
-
-	var errs Errors
-	for _, b := range blocks {
-		if a, err := b.Parse(); err != nil {
-			errs = append(errs, &Error{
-				Code:     ParseErr,
-				Message:  err.Error(),
-				Location: b.loc,
-			})
-		} else {
-			stmts = append(stmts, a)
-		}
-	}
+	metadataParserPool.Put(mdp)
 
 	return stmts, errs
+}
+
+func isMetadataComment(c *Comment) bool {
+	return c.Location.Col == 1 && bytes.HasPrefix(bytes.TrimSpace(c.Text), metadataBytes)
+}
+
+func blockBuster(curr, prev *Comment) bool { // or endOfBlock, but the name was too good to pass up
+	return curr.Location.Col != 1 || curr.Location.Row-1 != prev.Location.Row
 }
 
 func (p *Parser) parsePackage() *Package {
@@ -2745,13 +2751,17 @@ type rawAnnotation struct {
 }
 
 type metadataParser struct {
-	buf      *bytes.Buffer
 	comments []*Comment
+	buf      *bytes.Buffer
 	loc      *location.Location
 }
 
-func newMetadataParser(loc *Location) *metadataParser {
-	return &metadataParser{loc: loc, buf: bytes.NewBuffer(nil)}
+func (b *metadataParser) Reset(loc *location.Location) {
+	b.comments = b.comments[:0]
+	b.loc = loc
+	if b.buf != nil {
+		b.buf.Reset()
+	}
 }
 
 func (b *metadataParser) Append(c *Comment) {
@@ -2762,14 +2772,12 @@ func (b *metadataParser) Append(c *Comment) {
 
 var yamlLineErrRegex = regexp.MustCompile(`^yaml:(?: unmarshal errors:[\n\s]*)? line ([[:digit:]]+):`)
 
-func (b *metadataParser) Parse() (*Annotations, error) {
-
-	var raw rawAnnotation
-
+func (b *metadataParser) Parse() (result *Annotations, err error) {
 	if len(bytes.TrimSpace(b.buf.Bytes())) == 0 {
 		return nil, errors.New("expected METADATA block, found whitespace")
 	}
 
+	var raw rawAnnotation
 	if err := yaml.Unmarshal(b.buf.Bytes(), &raw); err != nil {
 		var comment *Comment
 		match := yamlLineErrRegex.FindStringSubmatch(err.Error())
@@ -2792,13 +2800,14 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		return nil, augmentYamlError(err, b.comments)
 	}
 
-	var result Annotations
-	result.comments = b.comments
-	result.Scope = raw.Scope
-	result.Entrypoint = raw.Entrypoint
-	result.Title = raw.Title
-	result.Description = raw.Description
-	result.Organizations = raw.Organizations
+	result = &Annotations{
+		comments:      b.comments,
+		Scope:         raw.Scope,
+		Entrypoint:    raw.Entrypoint,
+		Title:         raw.Title,
+		Description:   raw.Description,
+		Organizations: raw.Organizations,
+	}
 
 	for _, v := range raw.RelatedResources {
 		rr, err := parseRelatedResource(v)
@@ -2880,32 +2889,30 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		result.Authors = append(result.Authors, author)
 	}
 
-	result.Custom = make(map[string]any)
-	for k, v := range raw.Custom {
-		val, err := convertYAMLMapKeyTypes(v, nil)
-		if err != nil {
-			return nil, err
+	if raw.Custom != nil {
+		result.Custom = make(map[string]any, len(raw.Custom))
+		for k, v := range raw.Custom {
+			if result.Custom[k], err = convertYAMLMapKeyTypes(v, nil); err != nil {
+				return nil, err
+			}
 		}
-		result.Custom[k] = val
 	}
 
 	result.Location = b.loc
 
 	// recreate original text of entire metadata block for location text attribute
-	sb := strings.Builder{}
-	sb.WriteString("# METADATA\n")
+	original := bytes.TrimSuffix(b.buf.Bytes(), newlineBytes)
+	numLines := bytes.Count(original, newlineBytes) + 1
+	preAlloc := len("# METADATA\n") + len(original) + numLines*2 // '# ' prefix added per line
 
-	lines := bytes.Split(b.buf.Bytes(), []byte{'\n'})
+	result.Location.Text = append(make([]byte, 0, preAlloc), "# METADATA\n"...)
 
-	for _, line := range lines[:len(lines)-1] {
-		sb.WriteString("# ")
-		sb.Write(line)
-		sb.WriteByte('\n')
+	for line := range bytes.SplitAfterSeq(original, newlineBytes) {
+		result.Location.Text = append(result.Location.Text, "# "...)
+		result.Location.Text = append(result.Location.Text, line...)
 	}
 
-	result.Location.Text = []byte(strings.TrimSuffix(sb.String(), "\n"))
-
-	return &result, nil
+	return result, err
 }
 
 // augmentYamlError augments a YAML error with hints intended to help the user figure out the cause of an otherwise
@@ -2914,30 +2921,29 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 func augmentYamlError(err error, comments []*Comment) error {
 	// Adding hints for when key/value ':' separator isn't suffixed with a legal YAML space symbol
 	for _, comment := range comments {
-		txt := string(comment.Text)
-		parts := strings.Split(txt, ":")
-		if len(parts) > 1 {
-			parts = parts[1:]
-			var invalidSpaces []string
-			for partIndex, part := range parts {
-				if len(part) == 0 && partIndex == len(parts)-1 {
-					invalidSpaces = []string{}
-					break
-				}
+		if bytes.IndexByte(comment.Text, ':') == -1 {
+			continue
+		}
+		parts := bytes.Split(comment.Text, []byte{':'})[1:]
 
-				r, _ := utf8.DecodeRuneInString(part)
-				if r == ' ' || r == '\t' {
-					invalidSpaces = []string{}
-					break
-				}
+		var invalidSpaces []string
+		for partIndex, part := range parts {
+			if len(part) == 0 && partIndex == len(parts)-1 {
+				break
+			}
 
-				invalidSpaces = append(invalidSpaces, fmt.Sprintf("%+q", r))
+			r, _ := utf8.DecodeRune(part)
+			if r == ' ' || r == '\t' {
+				break
 			}
-			if len(invalidSpaces) > 0 {
-				err = fmt.Errorf(
-					"%s\n  Hint: on line %d, symbol(s) %v immediately following a key/value separator ':' is not a legal yaml space character",
-					err.Error(), comment.Location.Row, invalidSpaces)
-			}
+
+			invalidSpaces = append(invalidSpaces, fmt.Sprintf("%+q", r))
+		}
+		if len(invalidSpaces) > 0 {
+			err = fmt.Errorf(
+				"%s\n  Hint: on line %d, symbol(s) %v immediately following a"+
+					" key/value separator ':' is not a legal yaml space character",
+				err.Error(), comment.Location.Row, invalidSpaces)
 		}
 	}
 	return err
@@ -3055,7 +3061,7 @@ func parseAuthorString(s string) (*AuthorAnnotation, error) {
 	if len(trailing) >= len(emailPrefix)+len(emailSuffix) && strings.HasPrefix(trailing, emailPrefix) &&
 		strings.HasSuffix(trailing, emailSuffix) {
 		email = trailing[len(emailPrefix):]
-		email = email[0 : len(email)-len(emailSuffix)]
+		email = email[:len(email)-len(emailSuffix)]
 		namePartCount -= 1
 	}
 

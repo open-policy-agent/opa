@@ -3449,3 +3449,71 @@ result := test.module("policy.rego")
 		}
 	})
 }
+
+func TestRegoData(t *testing.T) {
+	ctx := t.Context()
+
+	r := New(
+		Query("data.x.y"),
+		Data(map[string]any{
+			"x": map[string]any{
+				"y": "hello",
+			},
+		}),
+	)
+
+	rs, err := r.Eval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(rs) != 1 || len(rs[0].Expressions) != 1 {
+		t.Fatalf("Expected one result with one expression but got: %v", rs)
+	}
+
+	if rs[0].Expressions[0].Value != "hello" {
+		t.Fatalf("Expected 'hello' but got: %v", rs[0].Expressions[0].Value)
+	}
+}
+
+func TestRegoDataWithModule(t *testing.T) {
+	ctx := t.Context()
+
+	mod := `
+	package test
+	import rego.v1
+
+	result := data.users[input.user_id].role
+	`
+
+	r := New(
+		Query("data.test.result"),
+		Module("test.rego", mod),
+		Data(map[string]any{
+			"users": map[string]any{
+				"alice": map[string]any{
+					"role": "admin",
+				},
+				"bob": map[string]any{
+					"role": "viewer",
+				},
+			},
+		}),
+		Input(map[string]any{
+			"user_id": "alice",
+		}),
+	)
+
+	rs, err := r.Eval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(rs) != 1 || len(rs[0].Expressions) != 1 {
+		t.Fatalf("Expected one result with one expression but got: %v", rs)
+	}
+
+	if rs[0].Expressions[0].Value != "admin" {
+		t.Fatalf("Expected 'admin' but got: %v", rs[0].Expressions[0].Value)
+	}
+}

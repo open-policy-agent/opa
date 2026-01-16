@@ -1492,20 +1492,20 @@ func (e *eval) amendComprehension(a *ast.Term, b1 *bindings) (*ast.Term, error) 
 }
 
 func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
-	result := ast.NewArray()
+	var elements []*ast.Term
 	child := evalPool.Get()
 
 	e.closure(x.Body, child)
 	defer evalPool.Put(child)
 
 	err := child.Run(func(child *eval) error {
-		result = result.Append(child.bindings.Plug(x.Term))
+		elements = append(elements, child.bindings.Plug(x.Term))
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
+	return e.biunify(ast.NewTerm(ast.NewArray(elements...)), b, b1, b2, iter)
 }
 
 func (e *eval) biunifyComprehensionSet(x *ast.SetComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {

@@ -116,6 +116,7 @@ func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts 
 		input = ast.NewTerm(ast.MustInterfaceToValue(*tc.Input))
 	}
 
+	cncl := NewCancel()
 	buf := NewBufferTracer()
 	q := NewQuery(query).
 		WithCompiler(compiler).
@@ -123,7 +124,8 @@ func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts 
 		WithTransaction(txn).
 		WithInput(input).
 		WithStrictBuiltinErrors(tc.StrictError).
-		WithTracer(buf)
+		WithTracer(buf).
+		WithCancel(cncl)
 
 	for _, o := range opts {
 		q = o(q)

@@ -2,78 +2,46 @@
 title: Privacy
 ---
 
-This document provides details about OPA's anonymous information reporting feature.
+OPA checks for the latest release version by querying the GitHub API. This
+feature only retrieves version information and does not send any data about your
+OPA instance to external services. This feature is applicable to the `opa run`
+and `opa version` commands.
 
-## Overview
-
-OPA periodically reports its version and specific anonymous runtime statistics to a publicly hosted, external service.
-The reports contain the OPA version number (e.g., v0.12.3), a randomly generated UUID and the following runtime statistics:
-
-- heap usage in bytes
-
-This feature is only applicable to the `opa run` and `opa version` commands.
-
-In case of the `opa run` command, this feature is **ON by-default** and can be easily disabled by specifying
-the `--disable-telemetry` flag. When OPA is started in either the server or repl mode, OPA calls the external service
-on a best-effort basis and shares the version it's running and other statistics such as current memory usage.
-The time taken to execute the remote call and process the subsequent response from the external service does not
+For the `opa run` command, this feature is **ON by default** and can be disabled
+by specifying the `--skip-version-check` flag. When OPA is started in either
+server or REPL mode, OPA queries the GitHub API on a best-effort basis to check
+if a newer version is available. The time taken to execute this check does not
 delay OPA's start-up.
 
-In case of the `opa version` command, this feature can be enabled by specifying the `--check` or `-c` flag.
+For the `opa version` command, this feature can be enabled by specifying the
+`--check` or `-c` flag.
 
-## External Service
+OPA checks the latest release version by querying the GitHub
+API at `https://api.github.com`. The environment variable
+`OPA_VERSION_CHECK_SERVICE_URL` can be used to configure an alternative service
+URL.
 
-OPA uploads its information by default at [telemetry.openpolicyagent.org](https://telemetry.openpolicyagent.org).
-The environment variable `OPA_TELEMETRY_SERVICE_URL` can be used to configure the external service OPA reports to.
-
-Sample HTTP request from OPA to the external service looks like this:
+Sample HTTP request from OPA to the GitHub API:
 
 ```http
-POST /v1/version HTTP/1.1
-Host: telemetry.openpolicyagent.org
-Content-Type: application/json
-User-Agent: "Open Policy Agent/v0.12.3 (darwin, amd64)"
+GET /repos/open-policy-agent/opa/releases/latest HTTP/1.1
+Host: api.github.com
+User-Agent: OPA-Version-Checker
 ```
+
+No data about your OPA instance is sent in the request. OPA simply retrieves
+information about the latest release. The GitHub API responds with release
+information including the tag name and release notes URL. OPA uses this
+information to determine if a newer version is available and constructs a
+download link for your platform. Sample response from the GitHub API:
 
 ```json
 {
-  "id": "08c1d850-6065-478a-b9b5-a8f9f464ad33",
-  "version": "v0.12.3",
-  "heap_usage_bytes": "596000"
+  "tag_name": "v1.12.2",
+  "html_url": "https://github.com/open-policy-agent/opa/releases/tag/v1.12.2",
+  ...
 }
 ```
 
-The _id_ field in the request body above is a version 4 random UUID generated when OPA starts.
-
-The external service checks the OPA version reported by a remote OPA client and responds with information about the
-latest OPA release. This information includes a link to download the latest OPA version, release notes etc.
-
-Sample response from the external service looks like this:
-
-```json
-{
-  "latest": {
-    "download": "https://openpolicyagent.org/downloads/v0.19.2/opa_darwin_amd64",
-    "release_notes": "https://github.com/open-policy-agent/opa/releases/tag/v0.19.2",
-    "latest_release": "v0.19.2"
-  }
-}
-```
-
-The external service response contains a link to download the latest released OPA binary for client's platform, and a link
-to the OPA release notes.
-
-## Benefits
-
-- OPA's anonymous version reporting feature provides users with up-to-date information about new OPA versions while
-  still executing the familiar OPA `run` and `version` commands. It helps users stay abreast of OPA's latest capabilities
-  and hence empowers them to make informed decisions while upgrading their OPA deployments.
-
-- OPA maintainers and the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) executive staff can use the version
-  reports for obtaining more information about OPA usage and engagement. For example, the information can be used in
-  making better decisions about OPA's deprecation cycle.
-
-- Reporting a running OPA's memory usage can help to better understand how much memory an OPA instance is consuming and
-  thereby drive optimization efforts around better resource utilization. Some users have concerns around OPA's memory usage
-  and hence this information can help OPA maintainers quantify the number of impacted OPA deployments and also guide future
-  features and priorities for the project.
+Based on this response, OPA constructs a platform-specific download link and
+displays update information if a newer version is available.

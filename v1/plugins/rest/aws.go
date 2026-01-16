@@ -21,9 +21,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-ini/ini"
 	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/v1/logging"
+	"gopkg.in/ini.v1"
 )
 
 const (

@@ -412,7 +412,7 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 		if _, ok := match.Value.(Var); ok {
 			var ref Ref
 			for _, other := range i.rules[rule] {
-				if _, ok := other.Value.(Var); ok && other.Value.Compare(match.Value) == 0 {
+				if ov, ok := other.Value.(Var); ok && ov.Equal(match.Value) {
 					ref = other.Ref
 				}
 			}

@@ -418,6 +418,48 @@ func BenchmarkSetIntersectionDifferentSize(b *testing.B) {
 	}
 }
 
+func BenchmarkSetUnion(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			setA := NewSet()
+			setB := NewSet()
+			for i := range n {
+				setA.Add(IntNumberTerm(i))
+				setB.Add(IntNumberTerm(i + n)) // disjoint sets
+			}
+			b.ResetTimer()
+			for b.Loop() {
+				setC := setA.Union(setB)
+				if setC.Len() != 2*n {
+					b.Fatal("expected combined size")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSetUnionOverlapping(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			setA := NewSet()
+			setB := NewSet()
+			for i := range n {
+				setA.Add(IntNumberTerm(i))
+				setB.Add(IntNumberTerm(i)) // identical sets
+			}
+			b.ResetTimer()
+			for b.Loop() {
+				setC := setA.Union(setB)
+				if setC.Len() != n {
+					b.Fatal("expected same size")
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkSetMembership(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
@@ -678,7 +720,6 @@ func BenchmarkSetString(b *testing.B) {
 }
 
 func BenchmarkSetMarshalJSON(b *testing.B) {
-	var err error
 	sizes := []int{5, 50, 500, 5000, 50000}
 
 	for _, n := range sizes {
@@ -689,7 +730,7 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 			}
 
 			b.Run("json.Marshal", func(b *testing.B) {
-				b.ResetTimer()
+				var err error
 				for b.Loop() {
 					bs, err = json.Marshal(set)
 					if err != nil {
@@ -701,16 +742,26 @@ func BenchmarkSetMarshalJSON(b *testing.B) {
 	}
 }
 
+// Rationale for using byte-by-byte check vs regex in IsVarCompatibleString
+// ---------------------------------------------------------------------------
+// string                                          byte check            regex
+// ----------------------------------------   ---------------     ------------
+// ""                                              1.60 ns/op       2.14 ns/op
+// "5heel"                                         1.57 ns/op      17.21 ns/op
+// "__really_long_variable_name_1234567890"       13.84 ns/op     342.10 ns/op
+// "_ello_"                                        3.07 ns/op      66.35 ns/op
+// "h_llo"                                         1.61 ns/op      23.86 ns/op
+// "hello"                                         2.35 ns/op      59.42 ns/op
+// "incompatible_last_char!"                       7.85 ns/op     208.60 ns/op
 func BenchmarkIsVarCompatibleString(b *testing.B) {
 	tests := map[string]bool{
-		"hello":    true,
-		"5heel":    false,
-		"h\nllo":   false,
-		"h\tllo":   false,
-		"h\x00llo": false,
-		"h\"llo":   false,
-		"h\\llo":   false,
-		"":         false,
+		"hello":                                  true,
+		"_ello_":                                 true,
+		"5heel":                                  false,
+		"h\nllo":                                 false,
+		"":                                       false,
+		"incompatible_last_char!":                false,
+		"__really_long_variable_name_1234567890": true,
 	}
 
 	for _, name := range util.KeysSorted(tests) {
@@ -930,4 +981,94 @@ func BenchmarkPtr(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkEscapeTemplateStringStringPart(b *testing.B) {
+	inputs := []string{
+		"",
+		"{",
+		"\\{",
+		"}{",
+		"no curly!!!",
+		"{unes{caped",
+		"{{{{{{{{{{",
+	}
+	repeat := 100
+
+	for _, input := range inputs {
+		b.Run(fmt.Sprintf("%s * %d", input, repeat), func(b *testing.B) {
+			s := strings.Repeat(input, repeat)
+			for b.Loop() {
+				// expected output covered in test already
+				_ = EscapeTemplateStringStringPart(s)
+			}
+		})
+	}
+}
+
+func BenchmarkCountUnescapedLeftCurly(b *testing.B) {
+	inputs := []string{
+		"",
+		"{",
+		"\\{",
+		"}{",
+		"no curly!!!",
+		"{unes{caped",
+		"{{{{{{{{{{",
+	}
+	repeat := 100
+
+	for _, input := range inputs {
+		b.Run(fmt.Sprintf("%s * %d", input, repeat), func(b *testing.B) {
+			s := strings.Repeat(input, repeat)
+			for b.Loop() {
+				// expected output covered in test already
+				_ = countUnescapedLeftCurly(s)
+			}
+		})
+	}
+}
+
+// 142.7 ns/op      96 B/op       8 allocs/op // original
+// 92.95 ns/op      32 B/op       1 allocs/op // using TextAppender, prealloc len, and ByteSliceToString
+func BenchmarkTemplateStringToString(b *testing.B) {
+	template := MustParseTerm(`$"Hello {foo}, {bar}!"`).Value.(*TemplateString)
+
+	var s string
+	for b.Loop() {
+		s = template.String()
+	}
+
+	if exp := `$"Hello {foo}, {bar}!"`; s != exp {
+		b.Fatalf("expected %q but got %q", exp, s)
+	}
+}
+
+// Performance same as above
+func BenchmarkTemplateStringToStringEscapeCurlies(b *testing.B) {
+	template := MustParseTerm(`$"Hello \{foo}, \{bar}!"`).Value.(*TemplateString)
+
+	var s string
+	for b.Loop() {
+		s = template.String()
+	}
+
+	if exp := `$"Hello \{foo}, \{bar}!"`; s != exp {
+		b.Fatalf("expected %q but got %q", exp, s)
+	}
+}
+
+// This can be improved..
+// 223.8 ns/op	     152 B/op	       5 allocs/op
+func BenchmarkTemplateStringToStringEscapeControl(b *testing.B) {
+	template := MustParseTerm(`$"Hello \n{foo}, \t\{bar}!"`).Value.(*TemplateString)
+
+	var s string
+	for b.Loop() {
+		s = template.String()
+	}
+
+	if exp := `$"Hello \n{foo}, \t\{bar}!"`; s != exp {
+		b.Fatalf("expected %q but got %q", exp, s)
+	}
 }

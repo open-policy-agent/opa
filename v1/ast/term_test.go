@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -568,6 +569,10 @@ func TestTermString(t *testing.T) {
 	// ensure that objects and sets have deterministic String() results
 	assertToString(t, SetTerm(VarTerm("y"), VarTerm("x")).Value, "{x, y}")
 	assertToString(t, ObjectTerm([2]*Term{VarTerm("y"), VarTerm("b")}, [2]*Term{VarTerm("x"), VarTerm("a")}).Value, "{x: a, y: b}")
+
+	assertToString(t, MustParseTerm(`$"foo {bar}"`).Value, `$"foo {bar}"`)
+	assertToString(t, MustParseTerm(`$"foo \{bar}"`).Value, `$"foo \{bar}"`)
+	assertToString(t, MustParseTerm(`$"foo \t\n\{bar}"`).Value, `$"foo \t\n\{bar}"`)
 }
 
 func TestRefString_Escapes(t *testing.T) {
@@ -1689,6 +1694,79 @@ func TestLazyObjectCompare(t *testing.T) {
 	assertForced(t, x, true)
 }
 
+func TestEscapeTemplateStringStringPart(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		inp string
+		exp string
+	}{
+		{inp: "", exp: ""},
+		{inp: "{", exp: "\\{"},
+		{inp: "\\{", exp: "\\{"},
+		{inp: "{\\{}", exp: "\\{\\{}"},
+		{inp: "\n{", exp: "\n\\{"},
+		{inp: "}{", exp: "}\\{"},
+		{inp: "no curly!!!", exp: "no curly!!!"},
+		{inp: "{unes{caped", exp: "\\{unes\\{caped"},
+		{inp: "{{{{{{{{{{", exp: "\\{\\{\\{\\{\\{\\{\\{\\{\\{\\{"},
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%q", c.inp), func(t *testing.T) {
+			t.Parallel()
+
+			if got := EscapeTemplateStringStringPart(c.inp); got != c.exp {
+				t.Fatalf("\nexp %q\ngot %q", c.exp, got)
+			}
+		})
+	}
+}
+
+func TestCountUnescapedLeftCurly(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		inp string
+		exp int
+	}{
+		{inp: "", exp: 0},
+		{inp: "{", exp: 1},
+		{inp: "\\{", exp: 0},
+		{inp: "{\\{}", exp: 1},
+		{inp: "\n{", exp: 1},
+		{inp: "}{", exp: 1},
+		{inp: "no curly!!!", exp: 0},
+		{inp: "{unes{caped", exp: 2},
+		{inp: "{{{{{{{{{{", exp: 10},
+		{inp: "\\{{\\{{\\{{", exp: 3},
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%q", c.inp), func(t *testing.T) {
+			t.Parallel()
+
+			if got := countUnescapedLeftCurly(c.inp); got != c.exp {
+				t.Fatalf("\nexp %d\ngot %d", c.exp, got)
+			}
+		})
+	}
+}
+
+func TestTemplateStringEqual(t *testing.T) {
+	a := MustParseTerm(`$"hello {world}!"`).Value.(*TemplateString)
+	b := MustParseTerm(`$"hello {world}!"`).Value.(*TemplateString)
+	c := MustParseTerm(`$"goodbye {world}!"`).Value.(*TemplateString)
+
+	if !a.Equal(b) {
+		t.Errorf("Expected %v to equal %v", a, b)
+	}
+
+	if a.Equal(c) {
+		t.Errorf("Expected %v to not equal %v", a, c)
+	}
+}
+
 func assertForced(t *testing.T, x Object, forced bool) {
 	t.Helper()
 	l, ok := x.(*lazyObj)
@@ -1699,5 +1777,45 @@ func assertForced(t *testing.T, x Object, forced bool) {
 		t.Errorf("expected %v to not be forced", l)
 	case forced && l.strict == nil:
 		t.Errorf("expected %v to be forced", l)
+	}
+}
+
+func TestAppendNoQuote(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "simple",
+			input: `foo`,
+			want:  `foo`,
+		},
+		{
+			name:  "with escape",
+			input: "\tfoo\nbar",
+			want:  "\\tfoo\\nbar",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sv := String(tc.input)
+			var buf []byte
+			buf = sv.appendNoQuote(buf)
+			got := string(buf)
+			if got != tc.want {
+				t.Errorf("%s: got  %q\nwant %q", tc.name, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAppendNoQuoteExistingBuffer(t *testing.T) {
+	sv := String("bar")
+	var buf []byte
+	buf = sv.appendNoQuote(append(buf, "foo"...))
+
+	if exp, got := "foobar", string(buf); got != exp {
+		t.Errorf("got  %s\nwant %s", got, exp)
 	}
 }

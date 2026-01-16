@@ -561,7 +561,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 		{
 			note: "nested remove on nested primitive number",
 			patches: []string{
-				`{"op": "test", "path": "/a/2/b", "value": 3}`,
+				`{"op": "remove", "path": "/a/2/b", "value": 3}`,
 			},
 			source:   `{"a": 2}`,
 			expError: errors.New(`expected composite type for path "2", found value: 2 (type: ast.Number)`),
@@ -844,7 +844,7 @@ func TestEditTreeApplyPatches(t *testing.T) {
 			if err != nil {
 				if tc.expError != nil {
 					if tc.expError.Error() != err.Error() {
-						t.Fatalf("wrong error: %s", err)
+						t.Fatalf("wrong error\ngot: %q\nexp: %q\n", err.Error(), tc.expError.Error())
 					}
 				} else {
 					t.Fatalf("unexpected error building EditTree: %s", err)

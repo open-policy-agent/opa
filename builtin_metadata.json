@@ -384,6 +384,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the number without its sign.",
@@ -529,6 +531,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -679,6 +683,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the intersection of two sets.",
@@ -825,6 +831,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -975,6 +983,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Concatenates two arrays.",
@@ -1072,6 +1082,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the reverse of a given array.",
@@ -1229,6 +1241,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a slice of a given array. If `start` is greater or equal than `stop`, `slice` is `[]`.",
@@ -1377,6 +1391,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": ":=",
@@ -1522,6 +1538,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Deserializes the base64 encoded input string.",
@@ -1669,6 +1687,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Serializes the input string into base64 encoding.",
@@ -1795,6 +1815,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies the input string is base64 encoded.",
@@ -1942,6 +1964,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Deserializes the base64url encoded input string.",
@@ -2089,6 +2113,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Serializes the input string into base64url encoding.",
@@ -2213,6 +2239,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Serializes the input string into base64url encoding without padding.",
@@ -2361,6 +2389,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the bitwise \"AND\" of two integers.",
@@ -2509,6 +2539,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a new integer with its bits shifted `s` bits to the left.",
@@ -2652,6 +2684,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the bitwise negation (flip) of an integer.",
@@ -2800,6 +2834,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the bitwise \"OR\" of two integers.",
@@ -2948,6 +2984,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a new integer with its bits shifted `s` bits to the right.",
@@ -3096,6 +3134,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the bitwise \"XOR\" (exclusive-or) of two integers.",
@@ -3241,6 +3281,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -3384,6 +3426,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -3527,6 +3571,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -3670,6 +3716,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -3813,6 +3861,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -3956,6 +4006,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -4072,6 +4124,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Rounds the number _up_ to the nearest integer.",
@@ -4224,6 +4278,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Joins a set or array of strings with a delimiter.",
@@ -4376,6 +4432,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `true` if the search string is included in the base string",
@@ -4523,6 +4581,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Count takes a collection or string and returns the number of elements (or characters) in it.",
@@ -4591,6 +4651,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a boolean representing the result of comparing two MACs for equality without leaking timing information.",
@@ -4693,6 +4755,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a string representing the MD5 HMAC of the input message using the input key.",
@@ -4795,6 +4859,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a string representing the SHA1 HMAC of the input message using the input key.",
@@ -4897,6 +4963,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a string representing the SHA256 HMAC of the input message using the input key.",
@@ -4999,6 +5067,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a string representing the SHA512 HMAC of the input message using the input key.",
@@ -5146,6 +5216,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a string representing the input string hashed with the MD5 function",
@@ -5205,6 +5277,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns zero or more private keys from the given encoded string containing DER certificate data.\n\nIf the input is empty, the function will return null. The input string should be a list of one or more concatenated PEM blocks. The whole input of concatenated PEM blocks can optionally be Base64 encoded.",
@@ -5352,6 +5426,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a string representing the input string hashed with the SHA1 function",
@@ -5499,6 +5575,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a string representing the input string hashed with the SHA256 function",
@@ -5605,6 +5683,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns one or more certificates from the given string containing PEM\nor base64 encoded DER certificates after verifying the supplied certificates form a complete\ncertificate chain back to a trusted root.\n\nThe first certificate is treated as the root and the last is treated as the leaf,\nwith all others being treated as intermediates.",
@@ -5659,6 +5739,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns one or more certificates from the given string containing PEM\nor base64 encoded DER certificates after verifying the supplied certificates form a complete\ncertificate chain back to a trusted root. A config option passed as the second argument can\nbe used to configure the validation options used.\n\nThe first certificate is treated as the root and the last is treated as the leaf,\nwith all others being treated as intermediates.",
@@ -5791,6 +5873,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a PKCS #10 certificate signing request from the given PEM-encoded PKCS#10 certificate signing request.",
@@ -5938,6 +6022,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns zero or more certificates from the given encoded string containing\nDER certificate data.\n\nIf the input is empty, the function will return null. The input string should be a list of one or more\nconcatenated PEM blocks. The whole input of concatenated PEM blocks can optionally be Base64 encoded.",
@@ -6005,6 +6091,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a valid key pair",
@@ -6108,6 +6196,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a JWK for signing a JWT from the given PEM-encoded RSA private key.",
@@ -6260,6 +6350,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Divides the first number by the second number.",
@@ -6413,6 +6505,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns true if the search string ends with the base string.",
@@ -6561,6 +6655,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": "=",
@@ -6709,6 +6805,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": "==",
@@ -6827,6 +6925,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Rounds the number _down_ to the nearest integer.",
@@ -6979,6 +7079,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the string representation of the number in the given base after rounding it down to an integer value.",
@@ -7136,6 +7238,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Parses and matches strings against the glob notation. Not to be confused with `regex.globs_match`.",
@@ -7283,6 +7387,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a string which represents a version of the pattern where all asterisks have been escaped.",
@@ -7426,6 +7532,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Computes the set of reachable nodes in the graph from a set of starting nodes.",
@@ -7526,6 +7634,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Computes the set of reachable paths in the graph from a set of starting nodes.",
@@ -7619,6 +7729,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Checks that a GraphQL query is valid against a given schema. The query and/or schema can be either GraphQL strings or AST objects from the other GraphQL builtin functions.",
@@ -7712,6 +7824,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns AST objects for a given GraphQL query and schema after validating the query against the schema. Returns undefined if errors were encountered during parsing or validation. The query and/or schema can be either GraphQL strings or AST objects from the other GraphQL builtin functions.",
@@ -7805,6 +7919,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a boolean indicating success or failure alongside the parsed ASTs for a given GraphQL query and schema after validating the query against the schema. The query and/or schema can be either GraphQL strings or AST objects from the other GraphQL builtin functions.",
@@ -7893,6 +8009,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns an AST object for a GraphQL query.",
@@ -7981,6 +8099,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns an AST object for a GraphQL schema.",
@@ -8061,6 +8181,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Checks that the input is a valid GraphQL schema. The schema can be either a GraphQL string or an AST object from the other GraphQL builtin functions.",
@@ -8211,6 +8333,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": "\u003e",
@@ -8361,6 +8485,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": "\u003e=",
@@ -8485,6 +8611,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Deserializes the hex-encoded input string.",
@@ -8609,6 +8737,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Serializes the input string using hex-encoding.",
@@ -8756,6 +8886,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a HTTP response to the given HTTP request.",
@@ -8908,6 +9040,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the index of a substring contained inside a string.",
@@ -9008,6 +9142,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a list of all the indexes of a substring contained inside a string.",
@@ -9110,6 +9246,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": "in",
@@ -9213,6 +9351,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": "in",
@@ -9310,6 +9450,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "introduced": "v0.34.0",
@@ -9325,6 +9467,8 @@
     "available": [
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "introduced": "v1.12.0",
@@ -9356,6 +9500,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "introduced": "v1.2.0",
@@ -9498,6 +9644,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the intersection of the given input sets.",
@@ -9645,6 +9793,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Decodes a JSON Web Token and outputs it as an object.",
@@ -9797,6 +9947,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies a JWT signature under parameterized constraints and decodes the claims if it is valid.\nSupports the following algorithms: HS256, HS384, HS512, RS256, RS384, RS512, ES256, ES384, ES512, PS256, PS384, PS512, and EdDSA.",
@@ -9954,6 +10106,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Encodes and optionally signs a JSON Web Token. Inputs are taken as objects, not encoded strings (see `io.jwt.encode_sign_raw`).",
@@ -10111,6 +10265,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Encodes and optionally signs a JSON Web Token.",
@@ -10143,6 +10299,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if an EdDSA JWT signature is valid.",
@@ -10295,6 +10453,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a ES256 JWT signature is valid.",
@@ -10438,6 +10598,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a ES384 JWT signature is valid.",
@@ -10581,6 +10743,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a ES512 JWT signature is valid.",
@@ -10733,6 +10897,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a HS256 (secret) JWT signature is valid.",
@@ -10876,6 +11042,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a HS384 (secret) JWT signature is valid.",
@@ -11019,6 +11187,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a HS512 (secret) JWT signature is valid.",
@@ -11171,6 +11341,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a PS256 JWT signature is valid.",
@@ -11314,6 +11486,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a PS384 JWT signature is valid.",
@@ -11457,6 +11631,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a PS512 JWT signature is valid.",
@@ -11609,6 +11785,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a RS256 JWT signature is valid.",
@@ -11752,6 +11930,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a RS384 JWT signature is valid.",
@@ -11895,6 +12075,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies if a RS512 JWT signature is valid.",
@@ -12042,6 +12224,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `true` if the input value is an array.",
@@ -12189,6 +12373,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `true` if the input value is a boolean.",
@@ -12336,6 +12522,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `true` if the input value is null.",
@@ -12483,6 +12671,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `true` if the input value is a number.",
@@ -12630,6 +12820,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns true if the input value is an object",
@@ -12777,6 +12969,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `true` if the input value is a set.",
@@ -12924,6 +13118,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `true` if the input value is a string.",
@@ -13076,6 +13272,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Filters the object. For example: `json.filter({\"a\": {\"b\": \"x\", \"c\": \"y\"}}, [\"a/b\"])` will result in `{\"a\": {\"b\": \"x\"}}`). Paths are not filtered in-order and are deduplicated before being evaluated.",
@@ -13201,6 +13399,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies the input string is a valid JSON document.",
@@ -13348,6 +13548,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Serializes the input term to JSON.",
@@ -13401,6 +13603,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Serializes the input term JSON, with additional formatting options via the `opts` parameter. `opts` accepts keys `pretty` (enable multi-line/formatted JSON), `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`).",
@@ -13473,6 +13677,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Checks that the document matches the JSON schema.",
@@ -13599,6 +13805,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Patches an object according to RFC6902. For example: `json.patch({\"a\": {\"foo\": 1}}, [{\"op\": \"add\", \"path\": \"/a/bar\", \"value\": 2}])` results in `{\"a\": {\"foo\": 1, \"bar\": 2}`. The patches are applied atomically: if any of them fails, the result will be undefined. Additionally works on sets, where a value contained in the set is considered to be its path.",
@@ -13747,6 +13955,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Removes paths from an object. For example: `json.remove({\"a\": {\"b\": \"x\", \"c\": \"y\"}}, [\"a/b\"])` will result in `{\"a\": {\"c\": \"y\"}}`. Paths are not removed in-order and are deduplicated before being evaluated.",
@@ -13894,6 +14104,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Deserializes the input string.",
@@ -13961,6 +14173,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
@@ -14108,6 +14322,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the input string but with all characters in lower-case.",
@@ -14258,6 +14474,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": "\u003c",
@@ -14408,6 +14626,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": "\u003c=",
@@ -14555,6 +14775,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the maximum value in a collection.",
@@ -14702,6 +14924,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the minimum value in a collection.",
@@ -14852,6 +15076,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Minus subtracts the second number from the first number or computes the difference between two sets.",
@@ -15003,6 +15229,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Multiplies two numbers.",
@@ -15154,6 +15382,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "infix": "!=",
@@ -15306,6 +15536,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Checks if a CIDR or IP is contained within another CIDR. `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and `false` otherwise. Supports both IPv4 and IPv6 notations.",
@@ -15453,6 +15685,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Checks if collections of cidrs or ips are contained within another collection of cidrs and returns matches. This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs).",
@@ -15600,6 +15834,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Expands CIDR to set of hosts  (e.g., `net.cidr_expand(\"192.168.0.0/30\")` generates 4 hosts: `{\"192.168.0.0\", \"192.168.0.1\", \"192.168.0.2\", \"192.168.0.3\"}`).",
@@ -15752,6 +15988,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Checks if a CIDR intersects with another CIDR (e.g. `192.168.0.0/16` overlaps with `192.168.1.0/24`). Supports both IPv4 and IPv6 notations.",
@@ -15832,6 +16070,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Parses an IPv4/IPv6 CIDR and returns a boolean indicating if the provided CIDR is valid.",
@@ -15958,6 +16198,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Merges IP addresses and subnets into the smallest possible list of CIDRs (e.g., `net.cidr_merge([\"192.0.128.0/24\", \"192.0.129.0/24\"])` generates `{\"192.0.128.0/23\"}`.This function merges adjacent subnets where possible, those contained within others and also removes any duplicates.\nSupports both IPv4 and IPv6 notations. IPv6 inputs need a prefix length (e.g. \"/128\").",
@@ -16106,6 +16348,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -16202,6 +16446,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the set of IP addresses (both v4 and v6) that the passed-in `name` resolves to using the standard name resolution mechanisms available.",
@@ -16337,6 +16583,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns an array of numbers in the given (inclusive) range. If `a==b`, then `range == [a]`; if `a \u003e b`, then `range` is in descending order.",
@@ -16405,6 +16653,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns an array of numbers in the given (inclusive) range incremented by a positive step.\n\tIf \"a==b\", then \"range == [a]\"; if \"a \u003e b\", then \"range\" is in descending order.\n\tIf the provided \"step\" is less then 1, an error will be thrown.\n\tIf \"b\" is not in the range of the provided \"step\", \"b\" won't be included in the result.\n\t",
@@ -16555,6 +16805,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Filters the object by keeping only specified keys. For example: `object.filter({\"a\": {\"b\": \"x\", \"c\": \"y\"}, \"d\": \"z\"}, [\"a\"])` will result in `{\"a\": {\"b\": \"x\", \"c\": \"y\"}}`).",
@@ -16712,6 +16964,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns value of an object's key if present, otherwise a default. If the supplied `key` is an `array`, then `object.get` will search through a nested object or array using each key in turn. For example: `object.get({\"a\": [{ \"b\": true }]}, [\"a\", 0, \"b\"], false)` results in `true`.",
@@ -16788,6 +17042,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a set of an object's keys. For example: `object.keys({\"a\": 1, \"b\": true, \"c\": \"d\")` results in `{\"a\", \"b\", \"c\"}`.",
@@ -16938,6 +17194,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Removes specified keys from an object.",
@@ -17030,6 +17288,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Determines if an object `sub` is a subset of another object `super`.Object `sub` is a subset of object `super` if and only if every key in `sub` is also in `super`, **and** for all keys which `sub` and `super` share, they have the same value. This function works with objects, sets, arrays and a set of array and set.If both arguments are objects, then the operation is recursive, e.g. `{\"c\": {\"x\": {10, 15, 20}}` is a subset of `{\"a\": \"b\", \"c\": {\"x\": {10, 15, 20, 25}, \"y\": \"z\"}`. If both arguments are sets, then this function checks if every element of `sub` is a member of `super`, but does not attempt to recurse. If both arguments are arrays, then this function checks if `sub` appears contiguously in order within `super`, and also does not attempt to recurse. If `super` is array and `sub` is set, then this function checks if `super` contains every element of `sub` with no consideration of ordering, and also does not attempt to recurse.",
@@ -17180,6 +17440,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Creates a new object of the asymmetric union of two objects. For example: `object.union({\"a\": 1, \"b\": 2, \"c\": {\"d\": 3}}, {\"a\": 7, \"c\": {\"d\": 4, \"e\": 5}})` will result in `{\"a\": 7, \"b\": 2, \"c\": {\"d\": 4, \"e\": 5}}`.",
@@ -17275,6 +17537,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Creates a new object that is the asymmetric union of all objects merged from left to right. For example: `object.union_n([{\"a\": 1}, {\"b\": 2}, {\"a\": 3}])` will result in `{\"b\": 2, \"a\": 3}`.",
@@ -17416,6 +17680,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns an object that describes the runtime environment where OPA is deployed.",
@@ -17566,6 +17832,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the union of two sets.",
@@ -17717,6 +17985,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Plus adds two numbers together.",
@@ -17813,6 +18083,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "introduced": "v0.34.0",
@@ -17955,6 +18227,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Multiplies elements of an array or set of numbers",
@@ -18041,6 +18315,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Signs an HTTP request object for Amazon Web Services. Currently implements [AWS Signature Version 4 request signing](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html) by the `Authorization` header method.",
@@ -18152,6 +18428,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a random integer between `0` and `n` (`n` exclusive). If `n` is `0`, then `y` is always `0`. For any given argument pair (`str`, `n`), the output will be consistent throughout a query evaluation.",
@@ -18300,6 +18578,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -18455,6 +18735,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns all successive matches of the expression.",
@@ -18612,6 +18894,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the specified number of matches when matching the input against the pattern.",
@@ -18764,6 +19048,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Checks if the intersection of two glob-style regular expressions matches a non-empty set of non-empty strings.\nThe set of regex symbols is limited for this builtin: only `.`, `*`, `+`, `[`, `-`, `]` and `\\` are treated as special symbols.",
@@ -18893,6 +19179,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Checks if a string is a valid regular expression: the detailed syntax for patterns is defined by https://github.com/google/re2/wiki/Syntax.",
@@ -19027,6 +19315,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Matches a string against a regular expression.",
@@ -19118,6 +19408,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Find and replaces the text using the regular expression pattern.",
@@ -19270,6 +19562,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Splits the input string by the occurrences of the given pattern.",
@@ -19432,6 +19726,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Matches a string against a pattern, where there pattern may be glob-like",
@@ -19515,6 +19811,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the chain of metadata for the active rule.\nOrdered starting at the active rule, going outward to the most distant node in its package ancestry.\nA chain entry is a JSON document with two members: \"path\", an array representing the path of the node; and \"annotations\", a JSON document containing the annotations declared for the node.\nThe first entry in the chain always points to the active rule, even if it has no declared annotations (in which case the \"annotations\" member is not present).",
@@ -19598,6 +19896,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns annotations declared for the active rule and using the _rule_ scope.",
@@ -19750,6 +20050,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Parses the input Rego string and returns an object representation of the AST.",
@@ -19900,6 +20202,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the remainder for of `x` divided by `y`, for `y != 0`.",
@@ -20058,6 +20362,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Replace replaces all instances of a sub-string.",
@@ -20205,6 +20511,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Rounds the number to the nearest integer.",
@@ -20340,6 +20648,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Compares valid SemVer formatted version strings.",
@@ -20470,6 +20780,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Validates that the input is a valid SemVer string.",
@@ -20618,6 +20930,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "deprecated": true,
@@ -20763,6 +21077,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a sorted array.",
@@ -20915,6 +21231,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Split returns an array containing elements of the input string split on a delimiter.",
@@ -21067,6 +21385,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the given string, formatted.",
@@ -21219,6 +21539,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns true if the search string begins with the base string.",
@@ -21306,6 +21628,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns true if any of the search strings begins with any of the base strings.",
@@ -21393,6 +21717,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns true if any of the search strings ends with any of the base strings.",
@@ -21442,6 +21768,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the number of non-overlapping instances of a substring in a string.",
@@ -21501,6 +21829,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Renders a templated string with given template variables injected. For a given templated string and key/value mapping, values will be injected into the template where they are referenced by key.\n\tFor examples of templating syntax, see https://pkg.go.dev/text/template",
@@ -21653,6 +21983,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Replaces a string from a list of old, new string pairs.\nReplacements are performed in the order they appear in the target string, without overlapping matches.\nThe old string comparisons are done in argument order.",
@@ -21750,6 +22082,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Reverses a given string.",
@@ -21907,6 +22241,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the  portion of a string for a given `offset` and a `length`.  If `length \u003c 0`, `output` is the remainder of the string.",
@@ -22054,6 +22390,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Sums elements of an array or set of numbers.",
@@ -22210,6 +22548,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the nanoseconds since epoch after adding years, months and days to nanoseconds. Month \u0026 day values outside their usual ranges after the operation and will be normalized - for example, October 32 would become November 1. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
@@ -22357,6 +22697,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the `[hour, minute, second]` of the day for the nanoseconds since epoch.",
@@ -22504,6 +22846,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the `[year, month, day]` for the nanoseconds since epoch.",
@@ -22624,6 +22968,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the difference between two unix timestamps in nanoseconds (with optional timezone strings).",
@@ -22695,6 +23041,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the formatted timestamp for the nanoseconds since epoch.",
@@ -22836,6 +23184,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the current time since epoch in nanoseconds.",
@@ -22983,6 +23333,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the duration in nanoseconds represented by a string.",
@@ -23135,6 +23487,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the time in nanoseconds parsed from the string in the given format. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
@@ -23282,6 +23636,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the time in nanoseconds parsed from the string in RFC3339 format. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
@@ -23429,6 +23785,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the day of the week (Monday, Tuesday, ...) for the nanoseconds since epoch.",
@@ -23576,6 +23934,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Converts a string, bool, or number value to a number: Strings are converted to numbers using `strconv.Atoi`, Boolean `false` is converted to 0 and `true` is converted to 1.",
@@ -23723,6 +24083,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Emits `note` as a `Note` event in the query explanation. Query explanations show the exact expressions evaluated by OPA during policy execution. For example, `trace(\"Hello There!\")` includes `Note \"Hello There!\"` in the query explanation. To include variables in the message, use `sprintf`. For example, `person := \"Bob\"; trace(sprintf(\"Hello There! %v\", [person]))` will emit `Note \"Hello There! Bob\"` inside of the explanation.",
@@ -23875,6 +24237,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `value` with all leading or trailing instances of the `cutset` characters removed.",
@@ -24027,6 +24391,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `value` with all leading instances of the `cutset` characters removed.",
@@ -24179,6 +24545,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `value` without the prefix. If `value` doesn't start with `prefix`, it is returned unchanged.",
@@ -24331,6 +24699,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `value` with all trailing instances of the `cutset` characters removed.",
@@ -24478,6 +24848,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Return the given string with all leading and trailing white space removed.",
@@ -24630,6 +25002,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns `value` without the suffix. If `value` doesn't end with `suffix`, it is returned unchanged.",
@@ -24777,6 +25151,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the type of its input value.",
@@ -24924,6 +25300,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the union of the given input sets.",
@@ -25012,6 +25390,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Converts strings like \"10G\", \"5K\", \"4M\", \"1500m\", and the like into a number.\nThis number can be a non-integer, such as 1.5, 0.22, etc. Scientific notation is supported,\nallowing values such as \"1e-3K\" (1) or \"2.5e6M\" (2.5 million M).\n\nSupports standard metric decimal and binary SI units (e.g., K, Ki, M, Mi, G, Gi, etc.) where\nm, K, M, G, T, P, and E are treated as decimal units and Ki, Mi, Gi, Ti, Pi, and Ei are treated as\nbinary units.\n\nNote that 'm' and 'M' are case-sensitive to allow distinguishing between \"milli\" and \"mega\" units\nrespectively. Other units are case-insensitive.",
@@ -25159,6 +25539,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Converts strings like \"10GB\", \"5K\", \"4mb\", or \"1e6KB\" into an integer number of bytes.\n\nSupports standard byte units (e.g., KB, KiB, etc.) where KB, MB, GB, and TB are treated as decimal\nunits, and KiB, MiB, GiB, and TiB are treated as binary units. Scientific notation is supported,\nenabling values like \"1.5e3MB\" (1500MB) or \"2e6GiB\" (2 million GiB).\n\nThe bytes symbol (b/B) in the unit is optional; omitting it will yield the same result (e.g., \"Mi\"\nand \"MiB\" are equivalent).",
@@ -25306,6 +25688,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns the input string but with all characters in upper-case.",
@@ -25453,6 +25837,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Decodes a URL-encoded input string.",
@@ -25579,6 +25965,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Decodes the given URL query string into an object.",
@@ -25726,6 +26114,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Encodes the input string into a URL-encoded string.",
@@ -25873,6 +26263,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Encodes the given object into a URL encoded query string.",
@@ -25930,6 +26322,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Parses the string value as an UUID and returns an object with the well-defined fields of the UUID if valid.",
@@ -26068,6 +26462,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Returns a new UUIDv4.",
@@ -26215,6 +26611,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Generates `[path, value]` tuples for all nested documents of `x` (recursively).  Queries can use `walk` to traverse documents nested under `x`.",
@@ -26341,6 +26739,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Verifies the input string is a valid YAML document.",
@@ -26488,6 +26888,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Serializes the input term to YAML.",
@@ -26635,6 +27037,8 @@
       "v1.11.1",
       "v1.12.0",
       "v1.12.1",
+      "v1.12.2",
+      "v1.12.3",
       "edge"
     ],
     "description": "Deserializes the input string.",

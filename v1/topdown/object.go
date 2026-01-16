@@ -52,13 +52,21 @@ func builtinObjectUnionN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	// Example:
 	//   Input: [{"a": {"b": 2}}, {"a": 4}, {"a": {"c": 3}}]
 	//   Want Output: {"a": {"c": 3}}
-	result := ast.NewObject()
-	frozenKeys := map[*ast.Term]struct{}{}
-	for i := arr.Len() - 1; i >= 0; i-- {
+
+	// First pass: count total keys for pre-allocation
+	totalSize := 0
+	for i := range arr.Len() {
 		o, ok := arr.Elem(i).Value.(ast.Object)
 		if !ok {
 			return builtins.NewOperandElementErr(1, arr, arr.Elem(i).Value, "object")
 		}
+		totalSize += o.Len()
+	}
+
+	result := ast.NewObjectWithCapacity(totalSize)
+	frozenKeys := make(map[*ast.Term]struct{}, totalSize)
+	for i := arr.Len() - 1; i >= 0; i-- {
+		o := arr.Elem(i).Value.(ast.Object) // Already validated above
 		mergewithOverwriteInPlace(result, o, frozenKeys)
 	}
 
@@ -77,7 +85,9 @@ func builtinObjectRemove(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	if err != nil {
 		return err
 	}
-	r := ast.NewObject()
+
+	// Pre-allocate with obj size (upper bound for result)
+	r := ast.NewObjectWithCapacity(obj.Len())
 	obj.Foreach(func(key *ast.Term, value *ast.Term) {
 		if !keysToRemove.Contains(key) {
 			r.Insert(key, value)
@@ -100,7 +110,8 @@ func builtinObjectFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 		return err
 	}
 
-	filterObj := ast.NewObject()
+	// Pre-allocate with keys size (upper bound for filter object)
+	filterObj := ast.NewObjectWithCapacity(keys.Len())
 	keys.Foreach(func(key *ast.Term) {
 		filterObj.Insert(key, ast.InternedNullTerm)
 	})
@@ -158,15 +169,19 @@ func builtinObjectKeys(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 }
 
 // getObjectKeysParam returns a set of key values
-// from a supplied ast array, object, set value
+// from a supplied ast array, object, set value.
+// The returned set must not be mutated. For Set
+// inputs, it may be the original.
 func getObjectKeysParam(arrayOrSet ast.Value) (ast.Set, error) {
 	switch v := arrayOrSet.(type) {
 	case *ast.Array:
-		keys := ast.NewSet()
+		keys := ast.NewSetWithCapacity(v.Len())
 		v.Foreach(keys.Add)
 		return keys, nil
 	case ast.Set:
-		return ast.NewSet(v.Slice()...), nil
+		// Return directly. Callers only use this for Contains() checks
+		// without mutating the set.
+		return v, nil
 	case ast.Object:
 		return ast.NewSet(v.Keys()...), nil
 	}

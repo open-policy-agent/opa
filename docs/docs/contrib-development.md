@@ -6,9 +6,9 @@ This page details the process for getting up and running locally for OPA
 development. If you're a first time contributor, we recommend you read through
 the [Contributing to OPA](./contrib-code) page first.
 
-OPA is written in the [Go](https://golang.org) programming language.
+OPA is written in the [Go](https://go.dev/) programming language.
 If you are new to Go, consider reading
-[Effective Go](https://go.dev/doc/effective_go.html),
+[Effective Go](https://go.dev/doc/effective_go),
 [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments) or
 [How to Write Go Code](https://go.dev/doc/code)
 for guidance on writing idiomatic Go code.
@@ -177,7 +177,6 @@ The following secrets are used by the Github Action workflows:
 | DOCKER_USER                | Docker username for uploading release images. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped.                   |
 | DOCKER_PASSWORD            | Docker password or API token for the configured `DOCKER_USER`. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped.  |
 | SLACK_NOTIFICATION_WEBHOOK | Slack webhook for sending notifications. Optional -- If not provided the notification steps are skipped.                                                        |
-| TELEMETRY_URL              | URL to inject at build-time for OPA version reporting. Optional -- If not provided the default value in OPA's source is used.                                   |
 | NETLIFY_BUILD_HOOK_URL     | URL to trigger Netlify (openpolicyagent.org) deploys after release. Optional -- If not provided the Netlify steps are skipped.                                  |
 
 ### Periodic Workflows

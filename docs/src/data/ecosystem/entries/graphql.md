@@ -6,7 +6,7 @@ labels:
 software:
 - graphql
 code:
-- https://github.com/StyraInc/graphql-apollo-example
+- https://github.com/StyraOSS/graphql-apollo-example
 tutorials:
 - https://www.openpolicyagent.org/docs/graphql-api-authorization
 ---

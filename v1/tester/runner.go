@@ -799,7 +799,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 					expr := rule.Body[i]
 
 					ast.WalkVars(expr, func(v ast.Var) bool {
-						if term.Value.Compare(v) == 0 {
+						if v.Equal(term.Value) {
 							injectBelowMap.Put(v, ast.Number(strconv.Itoa(i)))
 						}
 						return false

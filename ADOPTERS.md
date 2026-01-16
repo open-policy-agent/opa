@@ -30,8 +30,7 @@ production users that have added themselves (in alphabetical order):
   (e.g., platform, service, etc.) and distributed via S3. Custom log infrastructure
   consumes decision logs. For more information see this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=nvRTO8xjmrg).
 
-* [Bisnode](https://www.dnb.com/en-gb/about-us/we-are-now-dun-bradstreet.html)
-  (Dun & Bradstreet) uses OPA for a wide range of use cases,
+* Bisnode (Dun & Bradstreet) uses OPA for a wide range of use cases,
   including microservice authorization, fine grained kubernetes authorization,
   validating and mutating admission control and CI/CD pipeline testing. Built
   and maintains some OPA related tools and libraries, primarily to help
@@ -63,7 +62,7 @@ production users that have added themselves (in alphabetical order):
   and the code is Open Source, [see
   `github.com/chef/automate`](https://github.com/chef/automate/tree/master/components/authz-service).
 
-* [cluetec.de](https://cluetec.de) primarily uses OPA to enforce fine-grained authorization
+* [cluetec.de](https://cluetec-audit.de/) primarily uses OPA to enforce fine-grained authorization
   and data-filtering policies in its Spring-based microservices and multi-tenant SaaS. Policies
   are mapped to tenant-specific domains and used to enrich the database queries without any code
   modifications. OPA is also used to enforce admission control policies and RBAC in multi-tenant
@@ -97,10 +96,10 @@ production users that have added themselves (in alphabetical order):
   Managed using OPA, this feature enables our customers to set rules that align their software blueprints(detailed architectural designs of their software) - with established standards.
   The Guardrails Policy feature has optimized resource management, minimized redundancy in policy definitions, and ensured comprehensive adherence to organizations’ best practices.
 
-* [Fugue](https://fugue.co) was a cloud security SaaS that uses OPA to
+* [Fugue](https://snyk.io/platform/) was a cloud security SaaS that uses OPA to
   classify compliance violations and security risks in AWS and Azure
   accounts and generate compliance reports and notifications. Now part of
-  [Snyk](https://snyk.com).
+  [Snyk](https://snyk.io/).
 
 * [Goldman Sachs](https://www.goldmansachs.com/) uses OPA to enforce admission control
   policies in their multi-tenant Kubernetes clusters as well as for _provisioning_
@@ -109,7 +108,7 @@ production users that have added themselves (in alphabetical order):
 
 * [Google Cloud](https://cloud.google.com/) uses OPA to validate Google Cloud
   product's configurations in several products and tools, including
-  [Config Controller](https://cloud.google.com/kubernetes-engine/enterprise/policy-controller),
+  [Config Controller](https://docs.cloud.google.com/kubernetes-engine/policy-controller/docs/overview),
   [GKE Policy Automation](https://github.com/google/gke-policy-automation) or
   [Config Validator](https://github.com/GoogleCloudPlatform/policy-library). See
   [Creating policy-compliant Google Cloud resources article](https://docs.cloud.google.com/kubernetes-engine/policy-controller/docs/how-to/creating-policy-controller-constraints)
@@ -126,7 +125,7 @@ production users that have added themselves (in alphabetical order):
   clusters and 1,000 namespaces. For more information on how Intuit
   uses OPA see [this talk from KubeCon Seattle 2018](https://youtu.be/CDDsjMOtJ-c?t=980).
 
-* [Jetstack](https://www.jetstack.io) uses OPA on customer projects to validate
+* [Jetstack](https://www.cyberark.com/services-support/cloud-native-consulting/) uses OPA on customer projects to validate
   resources deployed to Kubernetes environments are conformant with
   organization rules. This has involved both validating and mutating resources
   as well as the following related projects: conftest, konstraint, and
@@ -174,7 +173,7 @@ production users that have added themselves (in alphabetical order):
   controls and a consistent policy enforcement for any microservices. It operates as a
   sidecar to a Django application exposing access roles of users over resources.
 
-* [Plex Systems](https://www.plex.com) uses OPA to enforce policy throughout
+* [Plex Systems](https://plex.rockwellautomation.com/en-us.html) uses OPA to enforce policy throughout
   their entire release process; from local development to continuous production
   audits. The CI/CD pipelines at Plex leverage [conftest](https://github.com/open-policy-agent/conftest),
   a policy enforcement tool that relies on OPA, to automatically reject changes that do not adhere
@@ -212,7 +211,7 @@ production users that have added themselves (in alphabetical order):
   instances. Policies are based on external context sourced from
   OpenUnison. Ability to validate policies offline is a huge win
   because the clusters are air-gapped. For more information on how
-  Tremolo Security uses OPA see [this blog post](https://www.tremolo.io/beyond-rbac-in-openshift-open-policy-agent/).
+  Tremolo Security uses OPA see [this blog post](https://www.tremolo.io/post/beyond-rbac-in-openshift-open-policy-agent).
 
 * [Tripadvisor](https://tripadvisor.com/) uses OPA to enforce
   admission control policies in Kubernetes. In the process of rolling out OPA,
@@ -274,7 +273,7 @@ pre-production (in alphabetical order):
   company. Still in stealth mode but using OPA to manage and enforce
   fine-grained authorization policies.
 
-* [Permit.io](https://permit.io) Uses a combination of OPA and OPAL
+* [Permit.io](https://www.permit.io/) Uses a combination of OPA and OPAL
   to power fine-grained authorization policies at the core of the Permit.io platform.
   Permit.io leverages the power of OPA's Rego language,
   generating new Rego code on the fly from its UI policy editor.
@@ -301,7 +300,7 @@ Other adopters that have gone into production or various stages of
 testing include:
 
 * [Cisco](https://www.cisco.com/)
-* [Nefeli Networks](https://nefeli.io)
+* [Nefeli Networks](https://www.cloudflare.com/press/press-releases/2024/cloudflare-enters-multicloud-networking-market-unlocks-simple-secure/)
 * [SolarWinds](https://www.solarwinds.com/) via [Lee Calcote](https://github.com/leecalcote)
 * [State Street Corporation](https://www.statestreet.com/us/en)
 * [PITS Global Data Recovery Services](https://www.pitsdatarecovery.com/)

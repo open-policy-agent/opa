@@ -24,7 +24,7 @@ For the purpose of the tutorial we will deploy two policies that ensure:
 ## Prerequisites
 
 This tutorial requires Kubernetes 1.20 or later. To run the tutorial locally ensure you start a cluster with Kubernetes
-version 1.20+, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube) or
+version 1.20+, we recommend using [minikube](https://kubernetes.io/docs/setup/) or
 [KIND](https://kind.sigs.k8s.io/).
 
 ## Steps

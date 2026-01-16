@@ -371,42 +371,8 @@ func (mod *Module) Equal(other *Module) bool {
 }
 
 func (mod *Module) String() string {
-	byNode := map[Node][]*Annotations{}
-	for _, a := range mod.Annotations {
-		byNode[a.node] = append(byNode[a.node], a)
-	}
-
-	appendAnnotationStrings := func(buf []string, node Node) []string {
-		if as, ok := byNode[node]; ok {
-			for i := range as {
-				buf = append(buf,
-					"# METADATA",
-					"# "+as[i].String(),
-				)
-			}
-		}
-		return buf
-	}
-
-	buf := []string{}
-	buf = appendAnnotationStrings(buf, mod.Package)
-	buf = append(buf, mod.Package.String())
-
-	if len(mod.Imports) > 0 {
-		buf = append(buf, "")
-		for _, imp := range mod.Imports {
-			buf = appendAnnotationStrings(buf, imp)
-			buf = append(buf, imp.String())
-		}
-	}
-	if len(mod.Rules) > 0 {
-		buf = append(buf, "")
-		for _, rule := range mod.Rules {
-			buf = appendAnnotationStrings(buf, rule)
-			buf = append(buf, rule.stringWithOpts(toStringOpts{regoVersion: mod.regoVersion}))
-		}
-	}
-	return strings.Join(buf, "\n")
+	buf, _ := mod.AppendText(make([]byte, 0, mod.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // RuleSet returns a RuleSet containing named rules in the mod.
@@ -475,7 +441,8 @@ func (c *Comment) SetLoc(loc *Location) {
 }
 
 func (c *Comment) String() string {
-	return "#" + string(c.Text)
+	buf, _ := c.AppendText(make([]byte, 0, c.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // Copy returns a deep copy of c.
@@ -525,16 +492,8 @@ func (pkg *Package) SetLoc(loc *Location) {
 }
 
 func (pkg *Package) String() string {
-	if pkg == nil {
-		return "<illegal nil package>"
-	} else if len(pkg.Path) <= 1 {
-		return fmt.Sprintf("package <illegal path %q>", pkg.Path)
-	}
-	// Omit head as all packages have the DefaultRootDocument prepended at parse time.
-	path := make(Ref, len(pkg.Path)-1)
-	path[0] = VarTerm(string(pkg.Path[1].Value.(String)))
-	copy(path[1:], pkg.Path[2:])
-	return fmt.Sprintf("package %v", path)
+	buf, _ := pkg.AppendText(make([]byte, 0, pkg.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 func (pkg *Package) MarshalJSON() ([]byte, error) {
@@ -637,11 +596,8 @@ func (imp *Import) Name() Var {
 }
 
 func (imp *Import) String() string {
-	buf := []string{"import", imp.Path.String()}
-	if len(imp.Alias) > 0 {
-		buf = append(buf, "as", imp.Alias.String())
-	}
-	return strings.Join(buf, " ")
+	buf, _ := imp.AppendText(make([]byte, 0, imp.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 func (imp *Import) MarshalJSON() ([]byte, error) {
@@ -752,11 +708,12 @@ func (rule *Rule) Ref() Ref {
 }
 
 func (rule *Rule) String() string {
-	regoVersion := DefaultRegoVersion
+	opts := toStringOpts{}
 	if rule.Module != nil {
-		regoVersion = rule.Module.RegoVersion()
+		opts.regoVersion = rule.Module.RegoVersion()
 	}
-	return rule.stringWithOpts(toStringOpts{regoVersion: regoVersion})
+	buf, _ := rule.appendWithOpts(opts, make([]byte, 0, rule.stringLengthWithOpts(opts)))
+	return util.ByteSliceToString(buf)
 }
 
 type toStringOpts struct {
@@ -770,78 +727,44 @@ func (o toStringOpts) RegoVersion() RegoVersion {
 	return o.regoVersion
 }
 
-func (rule *Rule) stringWithOpts(opts toStringOpts) string {
-	buf := []string{}
-	if rule.Default {
-		buf = append(buf, "default")
-	}
-	buf = append(buf, rule.Head.stringWithOpts(opts))
-	if !rule.Default {
-		switch opts.RegoVersion() {
-		case RegoV1, RegoV0CompatV1:
-			buf = append(buf, "if")
-		}
-		buf = append(buf, "{", rule.Body.String(), "}")
-	}
-	if rule.Else != nil {
-		buf = append(buf, rule.Else.elseString(opts))
-	}
-	return strings.Join(buf, " ")
-}
-
 func (rule *Rule) isFunction() bool {
 	return len(rule.Head.Args) > 0
 }
 
+// ruleJSON is used for JSON serialization of Rule to avoid map allocation overhead.
+// Field order is alphabetical to match previous map-based output.
+type ruleJSON struct {
+	Annotations []*Annotations `json:"annotations,omitempty"`
+	Body        Body           `json:"body"`
+	Default     bool           `json:"default,omitempty"`
+	Else        *Rule          `json:"else,omitempty"`
+	Head        *Head          `json:"head"`
+	Location    *Location      `json:"location,omitempty"`
+}
+
 func (rule *Rule) MarshalJSON() ([]byte, error) {
-	data := map[string]any{
-		"head": rule.Head,
-		"body": rule.Body,
+	data := ruleJSON{
+		Head: rule.Head,
+		Body: rule.Body,
 	}
 
 	if rule.Default {
-		data["default"] = true
+		data.Default = true
 	}
 
 	if rule.Else != nil {
-		data["else"] = rule.Else
+		data.Else = rule.Else
 	}
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Rule {
-		if rule.Location != nil {
-			data["location"] = rule.Location
-		}
+		data.Location = rule.Location
 	}
 
 	if len(rule.Annotations) != 0 {
-		data["annotations"] = rule.Annotations
+		data.Annotations = rule.Annotations
 	}
 
 	return json.Marshal(data)
-}
-
-func (rule *Rule) elseString(opts toStringOpts) string {
-	var buf []string
-
-	buf = append(buf, "else")
-
-	value := rule.Head.Value
-	if value != nil {
-		buf = append(buf, "=", value.String())
-	}
-
-	switch opts.RegoVersion() {
-	case RegoV1, RegoV0CompatV1:
-		buf = append(buf, "if")
-	}
-
-	buf = append(buf, "{", rule.Body.String(), "}")
-
-	if rule.Else != nil {
-		buf = append(buf, rule.Else.elseString(opts))
-	}
-
-	return strings.Join(buf, " ")
 }
 
 // NewHead returns a new Head object. If args are provided, the first will be
@@ -1002,37 +925,8 @@ func (head *Head) String() string {
 }
 
 func (head *Head) stringWithOpts(opts toStringOpts) string {
-	buf := strings.Builder{}
-	buf.WriteString(head.Ref().String())
-	containsAdded := false
-
-	switch {
-	case len(head.Args) != 0:
-		buf.WriteString(head.Args.String())
-	case len(head.Reference) == 1 && head.Key != nil:
-		switch opts.RegoVersion() {
-		case RegoV0:
-			buf.WriteRune('[')
-			buf.WriteString(head.Key.String())
-			buf.WriteRune(']')
-		default:
-			containsAdded = true
-			buf.WriteString(" contains ")
-			buf.WriteString(head.Key.String())
-		}
-	}
-	if head.Value != nil {
-		if head.Assign {
-			buf.WriteString(" := ")
-		} else {
-			buf.WriteString(" = ")
-		}
-		buf.WriteString(head.Value.String())
-	} else if !containsAdded && head.Name == "" && head.Key != nil {
-		buf.WriteString(" contains ")
-		buf.WriteString(head.Key.String())
-	}
-	return buf.String()
+	buf, _ := head.appendWithOpts(opts, make([]byte, 0, head.stringLengthWithOpts(opts)))
+	return util.ByteSliceToString(buf)
 }
 
 func (head *Head) MarshalJSON() ([]byte, error) {
@@ -1103,11 +997,8 @@ func (a Args) Copy() Args {
 }
 
 func (a Args) String() string {
-	buf := make([]string, 0, len(a))
-	for _, t := range a {
-		buf = append(buf, t.String())
-	}
-	return "(" + strings.Join(buf, ", ") + ")"
+	buf, _ := a.AppendText(make([]byte, 0, a.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // Loc returns the Location of a.
@@ -1240,11 +1131,12 @@ func (body Body) SetLoc(loc *Location) {
 }
 
 func (body Body) String() string {
-	buf := make([]string, 0, len(body))
-	for _, v := range body {
-		buf = append(buf, v.String())
-	}
-	return strings.Join(buf, "; ")
+	buf, _ := body.AppendText(make([]byte, 0, body.StringLength()))
+	return util.ByteSliceToString(buf)
+}
+
+func (body Body) AppendText(buf []byte) ([]byte, error) {
+	return AppendDelimeted(buf, body, "; ")
 }
 
 // Vars returns a VarSet containing variables in body. The params can be set to
@@ -1555,50 +1447,41 @@ func (expr *Expr) SetLoc(loc *Location) {
 }
 
 func (expr *Expr) String() string {
-	buf := make([]string, 0, 2+len(expr.With))
-	if expr.Negated {
-		buf = append(buf, "not")
-	}
-	switch t := expr.Terms.(type) {
-	case []*Term:
-		if expr.IsEquality() && validEqAssignArgCount(expr) {
-			buf = append(buf, fmt.Sprintf("%v %v %v", t[1], Equality.Infix, t[2]))
-		} else {
-			buf = append(buf, Call(t).String())
-		}
-	case fmt.Stringer:
-		buf = append(buf, t.String())
-	}
+	buf, _ := expr.AppendText(make([]byte, 0, expr.StringLength()))
+	return util.ByteSliceToString(buf)
+}
 
-	for i := range expr.With {
-		buf = append(buf, expr.With[i].String())
-	}
-
-	return strings.Join(buf, " ")
+// exprJSON is used for JSON serialization of Expr to avoid map allocation overhead.
+// Field order is alphabetical to match previous map-based output.
+type exprJSON struct {
+	Generated bool      `json:"generated,omitempty"`
+	Index     int       `json:"index"`
+	Location  *Location `json:"location,omitempty"`
+	Negated   bool      `json:"negated,omitempty"`
+	Terms     any       `json:"terms"`
+	With      []*With   `json:"with,omitempty"`
 }
 
 func (expr *Expr) MarshalJSON() ([]byte, error) {
-	data := map[string]any{
-		"terms": expr.Terms,
-		"index": expr.Index,
+	data := exprJSON{
+		Index: expr.Index,
+		Terms: expr.Terms,
 	}
 
 	if len(expr.With) > 0 {
-		data["with"] = expr.With
+		data.With = expr.With
 	}
 
 	if expr.Generated {
-		data["generated"] = true
+		data.Generated = true
 	}
 
 	if expr.Negated {
-		data["negated"] = true
+		data.Negated = true
 	}
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Expr {
-		if expr.Location != nil {
-			data["location"] = expr.Location
-		}
+		data.Location = expr.Location
 	}
 
 	return json.Marshal(data)
@@ -1668,17 +1551,8 @@ func visitCogeneratedExprs(expr *Expr, f func(*Expr) bool) {
 }
 
 func (d *SomeDecl) String() string {
-	if call, ok := d.Symbols[0].Value.(Call); ok {
-		if len(call) == 4 {
-			return "some " + call[1].String() + ", " + call[2].String() + " in " + call[3].String()
-		}
-		return "some " + call[1].String() + " in " + call[2].String()
-	}
-	buf := make([]string, len(d.Symbols))
-	for i := range buf {
-		buf[i] = d.Symbols[i].String()
-	}
-	return "some " + strings.Join(buf, ", ")
+	buf, _ := d.AppendText(make([]byte, 0, d.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // SetLoc sets the Location on d.
@@ -1797,7 +1671,8 @@ func (q *Every) MarshalJSON() ([]byte, error) {
 }
 
 func (w *With) String() string {
-	return "with " + w.Target.String() + " as " + w.Value.String()
+	buf, _ := w.AppendText(make([]byte, 0, w.StringLength()))
+	return util.ByteSliceToString(buf)
 }
 
 // Equal returns true if this With is equals the other With.
@@ -1854,16 +1729,22 @@ func (w *With) SetLoc(loc *Location) {
 	w.Location = loc
 }
 
+// withJSON is used for JSON serialization of With to avoid map allocation overhead.
+// Field order is alphabetical to match previous map-based output.
+type withJSON struct {
+	Location *Location `json:"location,omitempty"`
+	Target   *Term     `json:"target"`
+	Value    *Term     `json:"value"`
+}
+
 func (w *With) MarshalJSON() ([]byte, error) {
-	data := map[string]any{
-		"target": w.Target,
-		"value":  w.Value,
+	data := withJSON{
+		Target: w.Target,
+		Value:  w.Value,
 	}
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.With {
-		if w.Location != nil {
-			data["location"] = w.Location
-		}
+		data.Location = w.Location
 	}
 
 	return json.Marshal(data)
