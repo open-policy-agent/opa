@@ -167,23 +167,31 @@ func TestTopDownWithKeyword(t *testing.T) {
 // Warning(philipc): This test modifies package variables in the ast package,
 // which means it cannot be run in parallel with other tests.
 func TestTopDownUnsupportedBuiltin(t *testing.T) {
-	ast.RegisterBuiltin(&ast.Builtin{
-		Name: "unsupported_builtin",
+	ast.RegisterBuiltin(&ast.Builtin{Name: "unsupported_builtin"})
+	t.Cleanup(func() {
+		i := slices.IndexFunc(ast.Builtins, func(b *ast.Builtin) bool {
+			return b.Name == "unsupported_builtin"
+		})
+		ast.Builtins = append(ast.Builtins[:i], ast.Builtins[i+1:]...)
+
+		delete(ast.BuiltinMap, "unsupported_builtin")
 	})
 
-	body := ast.MustParseBody(`unsupported_builtin()`)
-	ctx := t.Context()
-	compiler := ast.NewCompiler()
+	query := ast.MustParseBody(`unsupported_builtin()`)
 	store := inmem.New()
-	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Abort(ctx, txn)
-	q := NewQuery(body).WithCompiler(compiler).WithStore(store).WithTransaction(txn)
-	_, err := q.Run(ctx)
 
-	expected := unsupportedBuiltinErr(body[0].Location)
+	err := storage.Txn(t.Context(), store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		_, err := NewQuery(query).
+			WithCompiler(ast.NewCompiler()).
+			WithStore(store).
+			WithTransaction(txn).
+			Run(t.Context())
 
-	if err.Error() != expected.Error() {
-		t.Fatalf("Expected %v but got: %v", expected, err)
+		return err
+	})
+
+	if exp := unsupportedBuiltinErr(query[0].Location, "unsupported_builtin"); err.Error() != exp.Error() {
+		t.Fatalf("Expected %v but got: %v", exp, err)
 	}
 }
 

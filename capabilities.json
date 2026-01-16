@@ -126,6 +126,26 @@
       }
     },
     {
+      "name": "array.flatten",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "type": "any"
+            },
+            "type": "array"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "type": "any"
+          },
+          "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "array.reverse",
       "decl": {
         "args": [

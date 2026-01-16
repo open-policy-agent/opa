@@ -10,6 +10,7 @@
     ],
     "array": [
       "array.concat",
+      "array.flatten",
       "array.reverse",
       "array.slice"
     ],
@@ -992,6 +993,26 @@
     "result": {
       "description": "the concatenation of `x` and `y`",
       "name": "z",
+      "type": "array[any]"
+    },
+    "wasm": true
+  },
+  "array.flatten": {
+    "args": [
+      {
+        "description": "the array to be flattened",
+        "name": "arr",
+        "type": "array[any]"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Non-recursively unpacks array items in arr into the flattened array. Other types are appended as-is.",
+    "introduced": "edge",
+    "result": {
+      "description": "array flattened one level",
+      "name": "flattened",
       "type": "array[any]"
     },
     "wasm": true
