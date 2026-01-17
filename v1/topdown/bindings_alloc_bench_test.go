@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -138,7 +139,7 @@ func BenchmarkFunctionArgumentCounts(b *testing.B) {
 			// Create call with matching arguments
 			callArgs := make([]string, argCount)
 			for i := range argCount {
-				callArgs[i] = fmt.Sprintf("%d", i)
+				callArgs[i] = strconv.Itoa(i)
 			}
 			query := ast.MustParseBody(fmt.Sprintf(`test.f(%s)`, strings.Join(callArgs, ", ")))
 
@@ -231,7 +232,7 @@ func BenchmarkBindingsArrayHashmapTransition(b *testing.B) {
 		for b.Loop() {
 			bh := newBindingsArrayHashmap()
 			// Add 17 bindings to force transition to map
-			for j := 0; j < 17; j++ {
+			for j := range 17 {
 				key := ast.VarTerm(fmt.Sprintf("x%d", j))
 				val := value{v: ast.IntNumberTerm(j)}
 				bh.Put(key, val)
