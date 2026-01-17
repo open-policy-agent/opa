@@ -35,9 +35,9 @@ func BenchmarkBindingsAllocation(b *testing.B) {
 		b.Run(tt.name+"_without_hint", func(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				bi := newBindings(0, nil)
-				for j := 0; j < tt.bindings; j++ {
+				for j := range tt.bindings {
 					key := ast.VarTerm(fmt.Sprintf("x%d", j))
 					val := ast.IntNumberTerm(j)
 					bi.bind(key, val, nil, &undo{})
@@ -48,9 +48,9 @@ func BenchmarkBindingsAllocation(b *testing.B) {
 		b.Run(tt.name+"_with_hint", func(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				bi := newBindingsWithSize(0, nil, tt.bindings)
-				for j := 0; j < tt.bindings; j++ {
+				for j := range tt.bindings {
 					key := ast.VarTerm(fmt.Sprintf("x%d", j))
 					val := ast.IntNumberTerm(j)
 					bi.bind(key, val, nil, &undo{})
@@ -117,7 +117,7 @@ func BenchmarkFunctionArgumentCounts(b *testing.B) {
 			// Create function with N arguments
 			args := make([]string, argCount)
 			checks := make([]string, argCount)
-			for i := 0; i < argCount; i++ {
+			for i := range argCount {
 				args[i] = fmt.Sprintf("x%d", i)
 				checks[i] = fmt.Sprintf("%s == %d", args[i], i)
 			}
@@ -137,7 +137,7 @@ func BenchmarkFunctionArgumentCounts(b *testing.B) {
 
 			// Create call with matching arguments
 			callArgs := make([]string, argCount)
-			for i := 0; i < argCount; i++ {
+			for i := range argCount {
 				callArgs[i] = fmt.Sprintf("%d", i)
 			}
 			query := ast.MustParseBody(fmt.Sprintf(`test.f(%s)`, strings.Join(callArgs, ", ")))
@@ -175,7 +175,7 @@ func BenchmarkWalkWithCustomFunction(b *testing.B) {
 
 			// Create test data with nested objects
 			items := make([]string, size)
-			for i := 0; i < size; i++ {
+			for i := range size {
 				items[i] = fmt.Sprintf(`{"id": %d, "value": "item_%d"}`, i, i)
 			}
 
@@ -228,7 +228,7 @@ func BenchmarkBindingsArrayHashmapTransition(b *testing.B) {
 	b.Run("without_hint_transition_at_17", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			bh := newBindingsArrayHashmap()
 			// Add 17 bindings to force transition to map
 			for j := 0; j < 17; j++ {
@@ -242,10 +242,10 @@ func BenchmarkBindingsArrayHashmapTransition(b *testing.B) {
 	b.Run("with_hint_starts_with_map", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			bh := newBindingsArrayHashmapWithSize(17)
 			// Add 17 bindings directly to map (no transition)
-			for j := 0; j < 17; j++ {
+			for j := range 17 {
 				key := ast.VarTerm(fmt.Sprintf("x%d", j))
 				val := value{v: ast.IntNumberTerm(j)}
 				bh.Put(key, val)
