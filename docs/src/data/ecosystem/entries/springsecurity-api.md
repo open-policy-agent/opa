@@ -12,6 +12,7 @@ code:
 - https://github.com/Bisnode/opa-spring-security
 - https://github.com/massenz/jwt-opa
 - https://github.com/eugenp/tutorials/tree/master/spring-security-modules/spring-security-opa
+- https://github.com/big-acl/authz-spring-boot-starter
 tutorials:
 - https://github.com/open-policy-agent/contrib/blob/main/spring_authz/README.md
 - https://github.com/massenz/jwt-opa#web-server-demo-app
@@ -21,6 +22,7 @@ inventors:
 - build-security
 - bisnode
 - alertavert
+- big-acl
 docs_features:
   rest-api-integration:
     note: |
