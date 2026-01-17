@@ -45,12 +45,13 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 
 		// Non-integer values found, so we need to sum as floats.
 		sum := big.NewFloat(0)
+		tmp := new(big.Float)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
 				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
-			sum = new(big.Float).Add(sum, builtins.NumberToFloat(n))
+			sum = new(big.Float).Add(sum, builtins.NumberToFloatInto(tmp, n))
 			return nil
 		})
 		if err != nil {
@@ -74,12 +75,13 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		}
 
 		sum := big.NewFloat(0)
+		tmp := new(big.Float)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
 				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
-			sum = new(big.Float).Add(sum, builtins.NumberToFloat(n))
+			sum = new(big.Float).Add(sum, builtins.NumberToFloatInto(tmp, n))
 			return nil
 		})
 		if err != nil {
@@ -94,12 +96,13 @@ func builtinProduct(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	switch a := operands[0].Value.(type) {
 	case *ast.Array:
 		product := big.NewFloat(1)
+		tmp := new(big.Float)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
 				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
-			product = new(big.Float).Mul(product, builtins.NumberToFloat(n))
+			product = new(big.Float).Mul(product, builtins.NumberToFloatInto(tmp, n))
 			return nil
 		})
 		if err != nil {
@@ -108,12 +111,13 @@ func builtinProduct(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return iter(ast.NewTerm(builtins.FloatToNumber(product)))
 	case ast.Set:
 		product := big.NewFloat(1)
+		tmp := new(big.Float)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
 				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
-			product = new(big.Float).Mul(product, builtins.NumberToFloat(n))
+			product = new(big.Float).Mul(product, builtins.NumberToFloatInto(tmp, n))
 			return nil
 		})
 		if err != nil {
