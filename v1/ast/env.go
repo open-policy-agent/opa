@@ -162,6 +162,8 @@ func (env *TypeEnv) getRefFallback(ref Ref) types.Type {
 	}
 
 	if RootDocumentNames.Contains(ref[0]) {
+		// types.A is an empty types.Any
+		// this is used to represent a potential non-local reference
 		return types.A
 	}
 

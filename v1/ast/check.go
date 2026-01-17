@@ -387,10 +387,12 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 		return NewError(TypeErr, expr.Location, "undefined function %v", name)
 	}
 
-	// check if the expression refers to a function that contains an error
-	_, ok := tpe.(types.Any)
-	if ok {
-		return nil
+	if t, ok := tpe.(types.Any); ok {
+		// A type.Any with a len(0) is created by using types.A , this represents a potential non-local reference
+		// This is the exception when checking if the type represents a function
+		if len(t) == 0 {
+			return nil
+		}
 	}
 
 	ftpe, ok := tpe.(*types.Function)
