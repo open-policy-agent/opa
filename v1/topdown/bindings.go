@@ -40,6 +40,14 @@ func newBindings(id uint64, instr *Instrumentation) *bindings {
 	return &bindings{id, values, instr}
 }
 
+// newBindingsWithSize creates bindings pre-sized for the expected number of entries.
+// This avoids over-allocation when the binding count is known in advance (e.g., function arguments).
+// For sizeHint <= maxLinearScan, it uses array mode; for larger hints, it pre-allocates a map.
+func newBindingsWithSize(id uint64, instr *Instrumentation, sizeHint int) *bindings {
+	values := newBindingsArrayHashmapWithSize(sizeHint)
+	return &bindings{id, values, instr}
+}
+
 func (u *bindings) Iter(caller *bindings, iter func(*ast.Term, *ast.Term) error) error {
 
 	var err error
@@ -316,6 +324,31 @@ type bindingArrayKeyValue struct {
 
 func newBindingsArrayHashmap() bindingsArrayHashmap {
 	return bindingsArrayHashmap{}
+}
+
+// newBindingsArrayHashmapWithSize creates a bindingsArrayHashmap pre-sized for the expected number of entries.
+// This optimization reduces memory waste when the binding count is known in advance.
+//
+// Size selection strategy:
+// - sizeHint == 0: lazy allocation (no pre-allocation)
+// - sizeHint <= maxLinearScan: use array mode (still lazy allocation, but tracked)
+// - sizeHint > maxLinearScan: pre-allocate map with exact capacity
+//
+// Memory impact example:
+// - Without hint: always allocates 16-slot array (128 bytes on 64-bit)
+// - With hint=2: tracks size, allocates array on first Put (same as lazy)
+// - With hint=20: pre-allocates map with capacity 20 (saves array allocation + reallocation)
+func newBindingsArrayHashmapWithSize(sizeHint int) bindingsArrayHashmap {
+	if sizeHint <= 0 || sizeHint <= maxLinearScan {
+		// For small sizes, use default lazy array allocation.
+		// The array will be allocated on first Put() if needed.
+		return bindingsArrayHashmap{}
+	}
+
+	// For larger sizes, pre-allocate map to avoid array allocation + transition cost.
+	return bindingsArrayHashmap{
+		m: make(map[ast.Var]bindingArrayKeyValue, sizeHint),
+	}
 }
 
 func (b *bindingsArrayHashmap) Put(key *ast.Term, value value) {
