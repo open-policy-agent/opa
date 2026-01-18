@@ -187,10 +187,10 @@ func BenchmarkWalkWithCustomFunction(b *testing.B) {
 				x.id
 			}
 
-			count_refs[count] if {
+			count_refs[ref_count] if {
 				arr := [%s]
 				refs := [x | walk(arr, [_, x]); is_ref(x)]
-				count := count(refs)
+				ref_count := count(refs)
 			}
 			`, strings.Join(items, ", "))
 

@@ -308,12 +308,16 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 
 const maxLinearScan = 16
 
-// bindingsArrayHashMap uses an array with linear scan instead
+// bindingsArrayHashMap uses a dynamically growing slice with linear scan instead
 // of a hash map for smaller # of entries. Hash maps start to
 // show off their performance advantage only after 16 keys.
+//
+// Memory optimization: The slice grows incrementally (2 -> 4 -> 8 -> 16) to avoid
+// wasting memory when only a few bindings are used. This is critical for scenarios
+// like comprehensions and functions with few arguments that are called thousands of times.
 type bindingsArrayHashmap struct {
-	n int // Entries in the array.
-	a *[maxLinearScan]bindingArrayKeyValue
+	n int // Entries in the slice.
+	a []bindingArrayKeyValue
 	m map[ast.Var]bindingArrayKeyValue
 }
 
@@ -331,18 +335,24 @@ func newBindingsArrayHashmap() bindingsArrayHashmap {
 //
 // Size selection strategy:
 // - sizeHint == 0: lazy allocation (no pre-allocation)
-// - sizeHint <= maxLinearScan: use array mode (still lazy allocation, but tracked)
+// - sizeHint <= maxLinearScan: pre-allocate slice with exact capacity to avoid reallocation
 // - sizeHint > maxLinearScan: pre-allocate map with exact capacity
 //
 // Memory impact example:
-// - Without hint: always allocates 16-slot array (128 bytes on 64-bit)
-// - With hint=2: tracks size, allocates array on first Put (same as lazy)
+// - Without hint: dynamic growth 0 -> 2 -> 4 -> 8 -> 16 (saves memory for small counts)
+// - With hint=2: pre-allocates slice with capacity 2 (exact fit, no waste)
 // - With hint=20: pre-allocates map with capacity 20 (saves array allocation + reallocation)
 func newBindingsArrayHashmapWithSize(sizeHint int) bindingsArrayHashmap {
-	if sizeHint <= 0 || sizeHint <= maxLinearScan {
-		// For small sizes, use default lazy array allocation.
-		// The array will be allocated on first Put() if needed.
+	if sizeHint <= 0 {
+		// For unknown sizes, use default lazy allocation with dynamic growth.
 		return bindingsArrayHashmap{}
+	}
+
+	if sizeHint <= maxLinearScan {
+		// For small known sizes, pre-allocate slice with exact capacity to avoid growth overhead.
+		return bindingsArrayHashmap{
+			a: make([]bindingArrayKeyValue, 0, sizeHint),
+		}
 	}
 
 	// For larger sizes, pre-allocate map to avoid array allocation + transition cost.
@@ -353,27 +363,41 @@ func newBindingsArrayHashmapWithSize(sizeHint int) bindingsArrayHashmap {
 
 func (b *bindingsArrayHashmap) Put(key *ast.Term, value value) {
 	if b.m == nil {
-		if b.a == nil {
-			b.a = new([maxLinearScan]bindingArrayKeyValue)
-		} else if i := b.find(key); i >= 0 {
+		// Check if key already exists and update value
+		if i := b.find(key); i >= 0 {
 			b.a[i].value = value
 			return
 		}
 
+		// Still room in slice mode (< maxLinearScan)
 		if b.n < maxLinearScan {
-			b.a[b.n] = bindingArrayKeyValue{key, value}
+			// Grow slice if needed using exponential growth strategy
+			if b.n == cap(b.a) {
+				newCap := cap(b.a) * 2
+				if newCap == 0 {
+					newCap = 2 // Start with 2 elements
+				}
+				if newCap > maxLinearScan {
+					newCap = maxLinearScan
+				}
+				newA := make([]bindingArrayKeyValue, b.n, newCap)
+				copy(newA, b.a)
+				b.a = newA
+			}
+			b.a = append(b.a, bindingArrayKeyValue{key, value})
 			b.n++
 			return
 		}
 
-		// Array is full, revert to using the hash map instead.
-
+		// Slice is full (reached maxLinearScan), transition to map mode.
 		b.m = make(map[ast.Var]bindingArrayKeyValue, maxLinearScan+1)
-		for _, kv := range *b.a {
+		for _, kv := range b.a {
 			b.m[kv.key.Value.(ast.Var)] = bindingArrayKeyValue{kv.key, kv.value}
 		}
 		b.m[key.Value.(ast.Var)] = bindingArrayKeyValue{key, value}
 
+		// Clear slice to allow GC
+		b.a = nil
 		b.n = 0
 		return
 	}
@@ -405,7 +429,8 @@ func (b *bindingsArrayHashmap) Delete(key *ast.Term) {
 			if i < n {
 				b.a[i] = b.a[n]
 			}
-
+			// Shrink slice to reflect deletion
+			b.a = b.a[:n]
 			b.n = n
 		}
 		return
@@ -416,9 +441,11 @@ func (b *bindingsArrayHashmap) Delete(key *ast.Term) {
 
 func (b *bindingsArrayHashmap) Iter(f func(k *ast.Term, v value) bool) {
 	if b.m == nil {
-		for i := range b.n {
-			if f(b.a[i].key, b.a[i].value) {
-				return
+		if b.a != nil {
+			for i := range b.n {
+				if f(b.a[i].key, b.a[i].value) {
+					return
+				}
 			}
 		}
 		return
@@ -432,6 +459,9 @@ func (b *bindingsArrayHashmap) Iter(f func(k *ast.Term, v value) bool) {
 }
 
 func (b *bindingsArrayHashmap) find(key *ast.Term) int {
+	if b.a == nil || b.n == 0 {
+		return -1
+	}
 	v := key.Value.(ast.Var)
 	for i := range b.n {
 		if b.a[i].key.Value.(ast.Var) == v {
