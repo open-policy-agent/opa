@@ -251,11 +251,18 @@ func ArrayOperand(x ast.Value, pos int) (*ast.Array, error) {
 
 // NumberToFloat converts n to a big float.
 func NumberToFloat(n ast.Number) *big.Float {
-	r, ok := new(big.Float).SetString(string(n))
-	if !ok {
+	return NumberToFloatInto(nil, n)
+}
+
+// NumberToFloatInto converts n to a big float, storing it in dst when provided.
+func NumberToFloatInto(dst *big.Float, n ast.Number) *big.Float {
+	if dst == nil {
+		dst = new(big.Float)
+	}
+	if _, ok := dst.SetString(string(n)); !ok {
 		panic("illegal value")
 	}
-	return r
+	return dst
 }
 
 // FloatToNumber converts f to a number.
