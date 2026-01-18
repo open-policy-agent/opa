@@ -377,6 +377,68 @@ func TestFmtFormatFileFailToPrintDiff(t *testing.T) {
 	}
 }
 
+func TestFmtOverwriteChanges(t *testing.T) {
+	cases := []struct {
+		note           string
+		params         fmtCommandParams
+		content        string
+		changeExpected bool
+	}{
+		{
+			note:           "already formatted -> no file write",
+			params:         fmtCommandParams{overwrite: true},
+			content:        formattedV1,
+			changeExpected: false,
+		},
+		{
+			note:           "needs formatting -> file write occurs",
+			params:         fmtCommandParams{overwrite: true},
+			content:        unformattedV1,
+			changeExpected: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{
+				"policy.rego": tc.content,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+
+				// Get original file infos
+				originalInfo, err := os.Stat(policyFile)
+				originalModTime := originalInfo.ModTime()
+				err = formatFile(&tc.params, &stdout, policyFile, originalInfo, err)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				// Nothing should be printed to stdout when overwriting
+				actual := stdout.String()
+				if len(actual) > 0 {
+					t.Fatalf("Expected no output, got:\n%s\n\n", actual)
+				}
+				// Read back the file
+				modifiedInfo, _ := os.Stat(policyFile)
+				fileModified := originalModTime != modifiedInfo.ModTime()
+				if tc.changeExpected {
+					if !fileModified {
+						t.Fatal("File did not change when it should have")
+					}
+				} else {
+					if fileModified {
+						t.Fatal("File changed when it shouldn't be")
+					}
+				}
+			})
+		})
+	}
+}
+
 func TestFmtFormatFileList(t *testing.T) {
 	cases := []struct {
 		note   string
