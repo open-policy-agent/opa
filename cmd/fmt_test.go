@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/format"
@@ -411,7 +412,11 @@ func TestFmtOverwriteChanges(t *testing.T) {
 
 				// Get original file infos
 				originalInfo, err := os.Stat(policyFile)
+				if err != nil {
+					t.Fatalf("Unexpected os.Stat error: %s", err)
+				}
 				originalModTime := originalInfo.ModTime()
+				time.Sleep(2 * time.Second)
 				err = formatFile(&tc.params, &stdout, policyFile, originalInfo, err)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s", err)
@@ -423,7 +428,10 @@ func TestFmtOverwriteChanges(t *testing.T) {
 					t.Fatalf("Expected no output, got:\n%s\n\n", actual)
 				}
 				// Read back the file
-				modifiedInfo, _ := os.Stat(policyFile)
+				modifiedInfo, err := os.Stat(policyFile)
+				if err != nil {
+					t.Fatalf("Unexpected os.Stat error: %s", err)
+				}
 				fileModified := originalModTime != modifiedInfo.ModTime()
 				if tc.changeExpected {
 					if !fileModified {
