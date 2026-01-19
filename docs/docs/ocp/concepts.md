@@ -51,7 +51,7 @@ If you are interested in seeing this restriction relaxed please leave a comment 
 - **labels:**
   Add metadata to bundles to describe environment, team, system-type, etc. Labels are used by Stacks (see below) for bundle selection and policy composition.
 - **requirements:**
-  Specify policies or data (from Sources) that must be included in the bundle.
+  Specify policies or data (from Sources) that must be included in the bundle. Requirements can include optional `path` and `prefix` settings to rewrite package names and data paths.
 - **Excluded\_files**: (optional)
   A list of files to be excluded from the bundle during build for example any hidden files
 
@@ -171,6 +171,60 @@ sources:
           url: https://my-bucket.s3.my-region.amazonaws.com/s3-data.json
           credentials: aws_auth
 ```
+
+### Path and Prefix Rewrites
+
+When including sources in bundles, stacks, or as requirement of other sources, you can use `path` and `prefix` settings to rewrite Rego package names and data paths. This allows you to mount sources into different namespaces to avoid conflicts, import external policies and data under controlled prefixes, and select only specific subtrees of data or policies from a source.
+
+#### Configuration
+
+Each source requirement can specify:
+
+- **path**: Selects a subtree of `data` to include (default: `data`, meaning everything)
+- **prefix**: The new prefix where the selected content will be mounted (default: `data`, meaning no change)
+
+#### Examples
+
+**Basic path and prefix usage:**
+
+```yaml
+bundles:
+  my-app:
+    requirements:
+    - source: library-policies
+      path: library
+      prefix: imported.lib.v1
+```
+
+This configuration selects everything under `data.library` from the `library-policies` source, rewrites package names from `data.library.authz` to `data.imported.lib.v1.authz`, moves data from `data.library` to `data.imported.lib.v1`, and adjusts all references accordingly.
+
+**Mounting everything with a prefix:**
+
+```yaml
+requirements:
+- source: external-policies
+  prefix: external.policies
+```
+
+This mounts all content from `external-policies` under the `data.external.policies` namespace.
+
+**Selecting a specific subtree:**
+
+```yaml
+requirements:
+- source: shared-utils
+  path: utils.validation
+  prefix: app.validation
+```
+
+This takes only the `data.utils.validation` subtree and mounts it at `data.app.validation`.
+
+#### Important Notes
+
+- The `data.` prefix can be omitted for convenience: `path: library` is equivalent to `path: data.library`
+- Only one `path`/`prefix` pair is allowed per source requirement
+- Path selection for data depends on the filesystem structure - you can only select paths that correspond to actual directory boundaries
+- Mounts are applied transitively - if source A depends on source B with mount settings, both mount configurations are applied
 
 ## Stacks
 
