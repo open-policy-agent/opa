@@ -86,7 +86,9 @@ Bundles are collections of policies and data that can be distributed to OPA inst
           "source": "my-app-policies"
         },
         {
-          "source": "shared-policies"
+          "source": "shared-policies",
+          "path": "library",
+          "prefix": "shared.lib"
         }
       ],
       "excluded_files": [
@@ -174,7 +176,9 @@ Bundles are collections of policies and data that can be distributed to OPA inst
       "source": "auth-policies"
     },
     {
-      "source": "common-utils"
+      "source": "common-utils",
+      "path": "utils",
+      "prefix": "shared.utils"
     }
   ],
   "excluded_files": [
@@ -548,7 +552,9 @@ Stacks define how bundles are distributed to different environments or services 
       "source": "dev-policies"
     },
     {
-      "source": "testing-utils"
+      "source": "testing-utils",
+      "path": "utils.testing",
+      "prefix": "test.utils"
     }
   ]
 }
