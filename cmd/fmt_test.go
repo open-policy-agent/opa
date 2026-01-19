@@ -380,22 +380,19 @@ func TestFmtFormatFileFailToPrintDiff(t *testing.T) {
 
 func TestFmtOverwriteChanges(t *testing.T) {
 	cases := []struct {
-		note           string
-		params         fmtCommandParams
-		content        string
-		changeExpected bool
+		note          string
+		content       string
+		writeExpected bool
 	}{
 		{
-			note:           "already formatted -> no file write",
-			params:         fmtCommandParams{overwrite: true},
-			content:        formattedV1,
-			changeExpected: false,
+			note:          "already formatted should not write file",
+			content:       formattedV1,
+			writeExpected: false,
 		},
 		{
-			note:           "needs formatting -> file write occurs",
-			params:         fmtCommandParams{overwrite: true},
-			content:        unformattedV1,
-			changeExpected: true,
+			note:          "not formatted should write file",
+			content:       unformattedV1,
+			writeExpected: true,
 		},
 	}
 
@@ -409,6 +406,7 @@ func TestFmtOverwriteChanges(t *testing.T) {
 
 			test.WithTempFS(files, func(path string) {
 				policyFile := filepath.Join(path, "policy.rego")
+				params := fmtCommandParams{overwrite: true}
 
 				// Get original file infos
 				originalInfo, err := os.Stat(policyFile)
@@ -416,8 +414,9 @@ func TestFmtOverwriteChanges(t *testing.T) {
 					t.Fatalf("Unexpected os.Stat error: %s", err)
 				}
 				originalModTime := originalInfo.ModTime()
-				time.Sleep(2 * time.Second)
-				err = formatFile(&tc.params, &stdout, policyFile, originalInfo, err)
+				originalPerm := originalInfo.Mode().Perm()
+				time.Sleep(10 * time.Millisecond)
+				err = formatFile(&params, &stdout, policyFile, originalInfo, err)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s", err)
 				}
@@ -427,21 +426,28 @@ func TestFmtOverwriteChanges(t *testing.T) {
 				if len(actual) > 0 {
 					t.Fatalf("Expected no output, got:\n%s\n\n", actual)
 				}
-				// Read back the file
-				modifiedInfo, err := os.Stat(policyFile)
+				// Read again file info
+				latestInfo, err := os.Stat(policyFile)
 				if err != nil {
 					t.Fatalf("Unexpected os.Stat error: %s", err)
 				}
-				fileModified := originalModTime != modifiedInfo.ModTime()
-				if tc.changeExpected {
+				latestPerm := latestInfo.Mode().Perm()
+				fileModified := originalModTime != latestInfo.ModTime()
+				if tc.writeExpected {
 					if !fileModified {
-						t.Fatal("File did not change when it should have")
+						t.Fatalf("Expected unformatted file to be modified. Modification time before: %v, After: %v",
+							originalModTime, latestInfo.ModTime())
 					}
 				} else {
 					if fileModified {
-						t.Fatal("File changed when it shouldn't be")
+						t.Fatalf("Expected already formatted file to not be modified. Modification time changed from %v to %v", originalModTime, latestInfo.ModTime())
 					}
 				}
+
+				if originalPerm != latestPerm {
+					t.Fatalf("Expected unchanged permissions. Before: %v, After: %v", originalPerm, latestPerm)
+				}
+
 			})
 		})
 	}
