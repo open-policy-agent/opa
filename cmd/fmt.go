@@ -177,6 +177,11 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	}
 
 	if params.overwrite {
+		if !changed {
+			// no output is expected in this case
+			return nil
+		}
+
 		outfile, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
 		if err != nil {
 			return newError("failed to open file for writing: %v", err)

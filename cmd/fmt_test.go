@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/format"
@@ -222,6 +223,86 @@ func TestFmtFormatFileNoChanges(t *testing.T) {
 				actual := stdout.String()
 				if actual != tc.module {
 					t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", tc.module, actual)
+				}
+			})
+		})
+	}
+}
+
+func TestFmtOverwriteNotNeeded(t *testing.T) {
+	cases := []struct {
+		note        string
+		params      fmtCommandParams
+		content     string
+		shouldWrite bool
+	}{
+		{
+			note: "already formatted",
+			params: fmtCommandParams{
+				overwrite: true,
+			},
+			content:     formattedV1,
+			shouldWrite: false,
+		},
+		{
+			note: "needs formatting",
+			params: fmtCommandParams{
+				overwrite: true,
+			},
+			content:     unformattedV1,
+			shouldWrite: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"policy.rego": tc.content,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+
+				infoBefore, err := os.Stat(policyFile)
+				if err != nil {
+					t.Fatalf("Failed to stat file before: %s", err)
+				}
+				modTimeBefore := infoBefore.ModTime()
+				permBefore := infoBefore.Mode().Perm()
+
+				// sleep to ensure timestamp would change if file written to
+				time.Sleep(10 * time.Millisecond)
+
+				info, err := os.Stat(policyFile)
+				if err != nil {
+					t.Fatalf("Failed to stat file: %s", err)
+				}
+				err = formatFile(&tc.params, io.Discard, policyFile, info, err)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				infoAfter, err := os.Stat(policyFile)
+				if err != nil {
+					t.Fatalf("Failed to stat file after: %s", err)
+				}
+				modTimeAfter := infoAfter.ModTime()
+				permAfter := infoAfter.Mode().Perm()
+
+				if tc.shouldWrite {
+					if !modTimeAfter.After(modTimeBefore) {
+						t.Fatalf("Expected file to be rewritten when formatting needed. Before: %v, After: %v",
+							modTimeBefore, modTimeAfter)
+					}
+				} else {
+					if modTimeAfter != modTimeBefore {
+						t.Fatalf("Expected file not to be rewritten when already formatted. Before: %v, After: %v",
+							modTimeBefore, modTimeAfter)
+					}
+				}
+
+				if permAfter != permBefore {
+					t.Fatalf("Expected permissions preserved. Before: %v, After: %v", permBefore, permAfter)
 				}
 			})
 		})
