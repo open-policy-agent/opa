@@ -238,7 +238,10 @@ func (b *eventBuffer) flush(ctx context.Context) {
 
 		if result != nil {
 			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-				b.logger.Error("Failed to upload decision logs: %v", err)
+				if b.logger != nil {
+					b.logger.Error("Failed to upload decision logs: %v", err)
+				}
+
 				return
 			}
 		}
