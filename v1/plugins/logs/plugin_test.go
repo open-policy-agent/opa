@@ -2151,23 +2151,25 @@ func TestPluginReconfigure(t *testing.T) {
 			name:              "Reconfigure from event to size buffer",
 			currentBufferType: eventBufferType,
 			newBufferType:     sizeBufferType,
+			limitBytes:        200,
 		},
 		{
 			name:              "Reconfigure from size to event buffer",
 			currentBufferType: sizeBufferType,
 			newBufferType:     eventBufferType,
+			limitEvents:       1,
 		},
 		{
 			name:              "Reconfigure from size to size buffer",
 			currentBufferType: "size",
 			newBufferType:     "size",
-			limitBytes:        100,
+			limitBytes:        200,
 		},
 		{
 			name:              "Reconfigure from event to event buffer",
 			currentBufferType: eventBufferType,
 			newBufferType:     eventBufferType,
-			limitEvents:       200,
+			limitEvents:       1,
 		},
 	}
 
@@ -2185,6 +2187,14 @@ func TestPluginReconfigure(t *testing.T) {
 
 			ensurePluginState(t, fixture.plugin, plugins.StateOK)
 
+			// log something small that won't be uploaded but transferred to the new buffer type or kept as-is
+			if err := fixture.plugin.Log(ctx, logServerInfo("abc", tc.limitEvents, tc.limitBytes)); err != nil {
+				t.Fatal(err)
+			}
+			// make sure the event fails to upload so that it stays in the buffer
+			fixture.server.expCode = 500
+			fixture.server.ch = make(chan []EventV1, 4) // uploads are attempted multiple times
+
 			var config Config
 			resource := ""
 			config.Resource = &resource
@@ -2200,14 +2210,13 @@ func TestPluginReconfigure(t *testing.T) {
 			config.Reporting.MinDelaySeconds = &minDelay
 			config.Reporting.MaxDelaySeconds = &maxDelay
 
-			uploadLimit := int64(100)
+			uploadLimit := int64(200)
 			config.Reporting.UploadSizeLimitBytes = &uploadLimit
+
+			config.Service = fixture.plugin.config.Service
 
 			fixture.plugin.Reconfigure(ctx, &config)
 			ensurePluginState(t, fixture.plugin, plugins.StateOK)
-
-			fixture.plugin.Stop(ctx)
-			ensurePluginState(t, fixture.plugin, plugins.StateNotReady)
 
 			if *fixture.plugin.config.Reporting.MinDelaySeconds != minDelay {
 				t.Fatalf("Expected minimum polling interval: %v but got %v", minDelay, *fixture.plugin.config.Reporting.MinDelaySeconds)
@@ -2231,6 +2240,13 @@ func TestPluginReconfigure(t *testing.T) {
 
 			if *fixture.plugin.config.Reporting.Trigger != trigger {
 				t.Fatalf("Expected trigger mode %v, but got %v", trigger, *fixture.plugin.config.Reporting.Trigger)
+			}
+
+			fixture.plugin.Stop(ctx)
+			events := fixture.plugin.b.Flush()
+
+			if len(events) != 1 {
+				t.Fatalf("Expected 1 event but got %v", len(events))
 			}
 		})
 	}

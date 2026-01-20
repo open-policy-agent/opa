@@ -459,6 +459,7 @@ type buffer interface {
 	Reconfigure(int64, int64, *float64, rest.Client, string, plugins.TriggerMode)
 	WithMetrics(metrics.Metrics)
 	Stop(context.Context)
+	Flush() []EventV1
 }
 
 // Plugin implements decision log buffering and uploading.
@@ -946,6 +947,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 			p.setStatus(err)
 		}
 		p.b.Stop(ctx)
+		events := p.b.Flush()
 
 		switch newConfig.Reporting.BufferType {
 		case eventBufferType:
@@ -965,8 +967,11 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 				*p.config.Reporting.Trigger,
 			).WithLogger(p.logger).WithLimiter(p.config.Reporting.MaxDecisionsPerSecond)
 		}
-
 		p.b.WithMetrics(p.metrics)
+
+		for _, event := range events {
+			p.b.Push(&event)
+		}
 
 		return
 	}

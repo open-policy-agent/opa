@@ -84,6 +84,37 @@ func (b *eventBuffer) incrMetric(name string) {
 	}
 }
 
+func (b *eventBuffer) Flush() []EventV1 {
+	// At this point the Encoder will already be flushed to the event buffer
+	// In immediate mode this happens after the loop is stopped
+	// In periodic mode this happens after every upload
+	lenEvents := len(b.buffer)
+	if lenEvents == 0 {
+		return nil
+	}
+
+	var events []EventV1
+	for range lenEvents {
+		event := <-b.buffer
+		if event.EventV1 != nil {
+			events = append(events, *event.EventV1)
+		} else if event.chunk != nil {
+			decodedEvents, err := newChunkDecoder(event.chunk).decode()
+			if err != nil {
+				b.incrMetric(logEncodingFailureCounterName)
+				if b.logger != nil {
+					b.logger.Error("Dropping multiple events due to encoding failure.")
+				}
+				continue
+			}
+
+			events = append(events, decodedEvents...)
+		}
+	}
+
+	return events
+}
+
 func (b *eventBuffer) Stop(ctx context.Context) {
 	if b.mode != plugins.TriggerImmediate {
 		return
@@ -155,7 +186,9 @@ func (b *eventBuffer) Push(event *EventV1) {
 func (b *eventBuffer) push(event *bufferItem) {
 	if b.limiter != nil && !b.limiter.Allow() {
 		b.incrMetric(logRateLimitExDropCounterName)
-		b.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
+		if b.logger != nil {
+			b.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
+		}
 		return
 	}
 
@@ -172,7 +205,7 @@ func (b *eventBuffer) processBufferItem(item *bufferItem) [][]byte {
 		if err != nil {
 			b.incrMetric(logEncodingFailureCounterName)
 			if b.logger != nil {
-				b.logger.Error("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
+				b.logger.Error("Dropping event due to encoding failure with decision ID: %v", event.DecisionID)
 			}
 			return nil
 		}
@@ -181,7 +214,7 @@ func (b *eventBuffer) processBufferItem(item *bufferItem) [][]byte {
 		if err != nil {
 			b.incrMetric(logEncodingFailureCounterName)
 			if b.logger != nil {
-				b.logger.Error("encoding failure: %v, dropping event with decision ID: %v", err, event.DecisionID)
+				b.logger.Error("Dropping event due to encoding failure with decision ID: %v", event.DecisionID)
 			}
 			return nil
 		}
@@ -205,6 +238,7 @@ func (b *eventBuffer) flush(ctx context.Context) {
 
 		if result != nil {
 			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
+				b.logger.Error("Failed to upload decision logs: %v", err)
 				return
 			}
 		}
@@ -212,13 +246,17 @@ func (b *eventBuffer) flush(ctx context.Context) {
 
 	result, err := b.enc.Flush()
 	if err != nil {
+		// Choosing not to log the error to avoid sensitive event data leaking to the logs
+		b.logger.Error("Failed to upload decision logs due to encoding error.")
 		return
 	}
 	if result == nil {
 		return
 	}
 	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-		return
+		if b.logger != nil {
+			b.logger.Error("Failed to upload decision logs: %v", err)
+		}
 	}
 }
 
@@ -236,7 +274,9 @@ func (b *eventBuffer) immediateRead(ctx context.Context, item *bufferItem) {
 	}
 
 	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-		b.logger.Error("%v.", err)
+		if b.logger != nil {
+			b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried. Error: %v", err)
+		}
 	}
 }
 
@@ -285,7 +325,9 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 			result := b.processBufferItem(item)
 			if result != nil {
 				if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-					b.logger.Error("%v.", err)
+					if b.logger != nil {
+						b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried. Error: %v", err)
+					}
 				}
 			}
 		}
@@ -296,7 +338,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 	if err != nil {
 		b.incrMetric(logEncodingFailureCounterName)
 		if b.logger != nil {
-			b.logger.Error("encoding failure: %v", err)
+			b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried.")
 		}
 		return nil
 	}
