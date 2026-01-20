@@ -2012,13 +2012,14 @@ func ObjectTerm(o ...[2]*Term) *Term {
 }
 
 func LazyObject(blob map[string]any) Object {
-	return &lazyObj{native: blob, cache: map[string]Value{}}
+	return &lazyObj{native: blob}
 }
 
 type lazyObj struct {
-	strict Object
-	cache  map[string]Value
-	native map[string]any
+	strict     Object
+	cache      map[string]Value
+	native     map[string]any
+	cachedKeys []*Term // Cache Keys() result to avoid repeated allocations
 }
 
 func (l *lazyObj) force() Object {
@@ -2027,7 +2028,7 @@ func (l *lazyObj) force() Object {
 		// NOTE(jf): a possible performance improvement here would be to check how many
 		// entries have been realized to AST in the cache, and if some threshold compared to the
 		// total number of keys is exceeded, realize the remaining entries and set l.strict to l.cache.
-		l.cache = map[string]Value{} // We don't need the cache anymore; drop it to free up memory.
+		l.cache = nil // We don't need the cache anymore; drop it to free up memory.
 	}
 	return l.strict
 }
@@ -2108,11 +2109,17 @@ func (l *lazyObj) Get(k *Term) *Term {
 		return l.strict.Get(k)
 	}
 	if s, ok := k.Value.(String); ok {
-		if v, ok := l.cache[string(s)]; ok {
-			return NewTerm(v)
+		key := string(s)
+
+		// Check cache if it exists
+		if l.cache != nil {
+			if v, ok := l.cache[key]; ok {
+				return NewTerm(v)
+			}
 		}
 
-		if val, ok := l.native[string(s)]; ok {
+		// Materialize from native value
+		if val, ok := l.native[key]; ok {
 			var converted Value
 			switch val := val.(type) {
 			case map[string]any:
@@ -2120,7 +2127,11 @@ func (l *lazyObj) Get(k *Term) *Term {
 			default:
 				converted = MustInterfaceToValue(val)
 			}
-			l.cache[string(s)] = converted
+			// Lazy cache initialization
+			if l.cache == nil {
+				l.cache = make(map[string]Value)
+			}
+			l.cache[key] = converted
 			return NewTerm(converted)
 		}
 	}
@@ -2136,20 +2147,79 @@ func (*lazyObj) IsGround() bool {
 }
 
 func (l *lazyObj) Hash() int {
-	return l.force().Hash()
+	// If already forced, use strict object's hash
+	if l.strict != nil {
+		return l.strict.Hash()
+	}
+
+	// Otherwise, compute hash from native map without forcing materialization
+	// This is a critical optimization to avoid materializing 10K+ objects just for hashing
+	// We compute the hash in a way compatible with object.Hash()
+	h := 0
+	for k, v := range l.native {
+		// Hash the key
+		kh := String(k).Hash()
+
+		// Hash the value - try to avoid materialization
+		var vh int
+		switch v := v.(type) {
+		case nil:
+			vh = NullValue.Hash()
+		case bool:
+			vh = InternedValue(v).Hash()
+		case int:
+			vh = newIntNumberValue(v).Hash()
+		case int64:
+			vh = newInt64NumberValue(v).Hash()
+		case uint64:
+			vh = newUint64NumberValue(v).Hash()
+		case float64:
+			vh = floatNumber(v).Hash()
+		case string:
+			vh = String(v).Hash()
+		case map[string]any:
+			// Nested map - create lazyObj and hash it (recursive but doesn't force)
+			vh = LazyObject(v).Hash()
+		default:
+			// For other types, we need to materialize (arrays, etc)
+			// This is unavoidable but rare in typical use cases
+			if l.cache != nil {
+				if val, ok := l.cache[k]; ok {
+					vh = val.Hash()
+					break
+				}
+			}
+			val := MustInterfaceToValue(v)
+			// Lazy cache initialization
+			if l.cache == nil {
+				l.cache = make(map[string]Value)
+			}
+			l.cache[k] = val
+			vh = val.Hash()
+		}
+
+		h += kh + vh
+	}
+
+	return h
 }
 
 func (l *lazyObj) Keys() []*Term {
 	if l.strict != nil {
 		return l.strict.Keys()
 	}
-	ret := make([]*Term, 0, len(l.native))
-	for k := range l.native {
-		ret = append(ret, StringTerm(k))
+	// Return cached keys if already materialized
+	if l.cachedKeys != nil {
+		return l.cachedKeys
 	}
-	slices.SortFunc(ret, TermValueCompare)
+	// Materialize and cache keys
+	l.cachedKeys = make([]*Term, 0, len(l.native))
+	for k := range l.native {
+		l.cachedKeys = append(l.cachedKeys, StringTerm(k))
+	}
+	slices.SortFunc(l.cachedKeys, TermValueCompare)
 
-	return ret
+	return l.cachedKeys
 }
 
 func (l *lazyObj) KeysIterator() ObjectKeysIterator {
@@ -2177,11 +2247,17 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 		return l, nil
 	}
 	if p0, ok := path[0].Value.(String); ok {
-		if v, ok := l.cache[string(p0)]; ok {
-			return v.Find(path[1:])
+		key := string(p0)
+
+		// Check cache if it exists
+		if l.cache != nil {
+			if v, ok := l.cache[key]; ok {
+				return v.Find(path[1:])
+			}
 		}
 
-		if v, ok := l.native[string(p0)]; ok {
+		// Materialize from native
+		if v, ok := l.native[key]; ok {
 			var converted Value
 			switch v := v.(type) {
 			case map[string]any:
@@ -2189,7 +2265,11 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 			default:
 				converted = MustInterfaceToValue(v)
 			}
-			l.cache[string(p0)] = converted
+			// Lazy cache initialization
+			if l.cache == nil {
+				l.cache = make(map[string]Value)
+			}
+			l.cache[key] = converted
 			return converted.Find(path[1:])
 		}
 	}
