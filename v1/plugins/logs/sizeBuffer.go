@@ -54,14 +54,14 @@ func (b *sizeBuffer) WithLogger(l logging.Logger) *sizeBuffer {
 	return b
 }
 
-func (b *sizeBuffer) Flush() []EventV1 {
+func (b *sizeBuffer) Flush() []*EventV1 {
 	b.uploadMtx.Lock()
 	defer b.uploadMtx.Unlock()
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
-	var events []EventV1
+	var events []*EventV1
 
 	chunks, err := b.enc.Flush()
 	if err != nil {
@@ -89,7 +89,9 @@ func (b *sizeBuffer) Flush() []EventV1 {
 			continue
 		}
 
-		events = append(events, decodedEvents...)
+		for i := range decodedEvents {
+			events = append(events, &decodedEvents[i])
+		}
 	}
 
 	return events

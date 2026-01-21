@@ -84,7 +84,7 @@ func (b *eventBuffer) incrMetric(name string) {
 	}
 }
 
-func (b *eventBuffer) Flush() []EventV1 {
+func (b *eventBuffer) Flush() []*EventV1 {
 	// At this point the Encoder will already be flushed to the event buffer
 	// In immediate mode this happens after the loop is stopped
 	// In periodic mode this happens after every upload
@@ -93,11 +93,11 @@ func (b *eventBuffer) Flush() []EventV1 {
 		return nil
 	}
 
-	var events []EventV1
+	var events []*EventV1
 	for range lenEvents {
 		event := <-b.buffer
 		if event.EventV1 != nil {
-			events = append(events, *event.EventV1)
+			events = append(events, event.EventV1)
 		} else if event.chunk != nil {
 			decodedEvents, err := newChunkDecoder(event.chunk).decode()
 			if err != nil {
@@ -108,7 +108,9 @@ func (b *eventBuffer) Flush() []EventV1 {
 				continue
 			}
 
-			events = append(events, decodedEvents...)
+			for i := range decodedEvents {
+				events = append(events, &decodedEvents[i])
+			}
 		}
 	}
 
