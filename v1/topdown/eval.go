@@ -2486,6 +2486,20 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 	return cpy.eval(iter)
 }
 
+// enumerateNext is a helper to avoid closure allocation in enumerate loops.
+// Method values don't allocate, unlike explicit closures.
+// Using a pointer to evalTree avoids copying the 96-byte structure.
+// Fields are ordered by size for optimal memory alignment (16 > 8 > 8 bytes).
+type enumerateNext struct {
+	iter unifyIterator // 16 bytes (interface)
+	e    *evalTree     // 8 bytes (pointer)
+	key  *ast.Term     // 8 bytes (pointer)
+}
+
+func (en *enumerateNext) call() error {
+	return en.e.next(en.iter, en.key)
+}
+
 func (e evalTree) enumerate(iter unifyIterator) error {
 
 	if e.e.inliningControl.Disabled(e.plugged[:e.pos], true) {
@@ -2501,14 +2515,17 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 	dc.deferred = nil
 	defer deecPool.Put(dc)
 
+	// Use method value to avoid closure allocation.
+	// Create once and reuse for both doc and virtual doc enumeration.
+	en := enumerateNext{iter: iter, e: &e, key: nil}
+
 	if doc != nil {
 		switch doc := doc.(type) {
 		case *ast.Array:
 			for i := range doc.Len() {
 				k := ast.InternedTerm(i)
-				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
-					return e.next(iter, k)
-				})
+				en.key = k
+				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, en.call)
 
 				if err := dc.handleErr(err); err != nil {
 					return err
@@ -2517,21 +2534,20 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		case ast.Object:
 			ki := doc.KeysIterator()
 			for k, more := ki.Next(); more; k, more = ki.Next() {
-				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
-					return e.next(iter, k)
-				})
+				en.key = k
+				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, en.call)
 				if err := dc.handleErr(err); err != nil {
 					return err
 				}
 			}
 		case ast.Set:
-			if err := doc.Iter(func(elem *ast.Term) error {
-				err := e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, func() error {
-					return e.next(iter, elem)
-				})
-				return dc.handleErr(err)
-			}); err != nil {
-				return err
+			// Use Slice() to avoid closure allocation in Iter()
+			for _, elem := range doc.Slice() {
+				en.key = elem
+				err := e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, en.call)
+				if err := dc.handleErr(err); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -2544,11 +2560,11 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		return nil
 	}
 
+	// Reuse the same enumerateNext for virtual documents
 	for _, k := range e.node.Sorted {
 		key := ast.NewTerm(k)
-		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, func() error {
-			return e.next(iter, key)
-		}); err != nil {
+		en.key = key
+		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, en.call); err != nil {
 			return err
 		}
 	}
