@@ -283,7 +283,7 @@ func (b Body) StringLength() (n int) {
 	for _, expr := range b {
 		n += expr.StringLength() + 2 // "; "
 	}
-	return n - 2 // minus last "; "
+	return max(n-2, 0) // minus last "; " (if `n` isn't 0)
 }
 
 func (e *Expr) StringLength() (n int) {
