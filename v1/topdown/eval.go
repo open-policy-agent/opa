@@ -2488,10 +2488,12 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 
 // enumerateNext is a helper to avoid closure allocation in enumerate loops.
 // Method values don't allocate, unlike explicit closures.
+// Using a pointer to evalTree avoids copying the 96-byte structure.
+// Fields are ordered by size for optimal memory alignment (16 > 8 > 8 bytes).
 type enumerateNext struct {
-	e    evalTree
-	iter unifyIterator
-	key  *ast.Term
+	iter unifyIterator // 16 bytes (interface)
+	e    *evalTree     // 8 bytes (pointer)
+	key  *ast.Term     // 8 bytes (pointer)
 }
 
 func (en *enumerateNext) call() error {
@@ -2513,10 +2515,11 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 	dc.deferred = nil
 	defer deecPool.Put(dc)
 
-	if doc != nil {
-		// Use method value to avoid closure allocation
-		en := enumerateNext{e: e, iter: iter}
+	// Use method value to avoid closure allocation.
+	// Create once and reuse for both doc and virtual doc enumeration.
+	en := enumerateNext{iter: iter, e: &e, key: nil}
 
+	if doc != nil {
 		switch doc := doc.(type) {
 		case *ast.Array:
 			for i := range doc.Len() {
@@ -2557,8 +2560,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		return nil
 	}
 
-	// Use method value to avoid closure allocation
-	en := enumerateNext{e: e, iter: iter}
+	// Reuse the same enumerateNext for virtual documents
 	for _, k := range e.node.Sorted {
 		key := ast.NewTerm(k)
 		en.key = key
