@@ -22,6 +22,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/storage/materialized"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -544,8 +545,18 @@ func activateBundles(opts *ActivateOpts) error {
 		return err
 	}
 
+	// Check for path conflicts before evaluating system.store policies
+	// system.store rules will create materialized views at the same paths,
+	// which is expected and should not be considered a conflict
 	if err := ast.CheckPathConflicts(opts.Compiler, storage.NonEmpty(opts.Ctx, opts.Store, opts.Txn)); len(err) > 0 {
 		return err
+	}
+
+	// Evaluate system.store policies to create materialized views
+	// This is done after CheckPathConflicts because materialized views
+	// intentionally create data at the same paths as the rules
+	if err := evaluateSystemStore(opts); err != nil {
+		return fmt.Errorf("failed to evaluate system.store policies: %w", err)
 	}
 
 	for name, b := range snapshotBundles {
@@ -562,6 +573,20 @@ func activateBundles(opts *ActivateOpts) error {
 		}
 	}
 
+	return nil
+}
+
+// evaluateSystemStore evaluates all system.store policies to create materialized views
+func evaluateSystemStore(opts *ActivateOpts) error {
+	// Only evaluate if we have a compiler with modules
+	if opts.Compiler == nil {
+		return nil
+	}
+
+	mgr := materialized.NewManager(opts.Compiler, opts.Store)
+	if err := mgr.EvaluateSystemStore(opts.Ctx, opts.Txn); err != nil {
+		return fmt.Errorf("system.store evaluation failed: %w", err)
+	}
 	return nil
 }
 
