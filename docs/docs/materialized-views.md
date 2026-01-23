@@ -24,8 +24,8 @@ Avoid materialized views when:
 
 - **Input-dependent transformations**: Your transformations depend on request-specific `input` data
 - **Low query frequency**: Views are queried only 1-5 times between bundle activations
-- **Fast activation required**: Your use case requires bundle activation to complete in <100ms
-- **Small datasets**: The transformation cost is already negligible (<1ms)
+- **Fast activation required**: Your use case requires bundle activation to complete in &lt;100ms
+- **Small datasets**: The transformation cost is already negligible (&lt;1ms)
 
 ## Architecture
 
