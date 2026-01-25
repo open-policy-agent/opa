@@ -1,0 +1,13 @@
+{
+  "container": {
+    "name": "app",
+    "resources": {
+      "requests": {
+        "memory": "512Mi"
+      },
+      "limits": {
+        "memory": "2Gi"
+      }
+    }
+  }
+}

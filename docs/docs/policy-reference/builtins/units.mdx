@@ -2,3 +2,19 @@
 title: Units
 ---
 <BuiltinTable category={"units"}/>
+
+## Examples
+
+### units.parse
+
+The `units.parse` function converts string representations of units into numeric values. It supports SI prefixes (K, M, G) and milli-units (m).
+
+<PlaygroundExample dir={require.context('../_examples/units/parse/basic')} />
+
+<PlaygroundExample dir={require.context('../_examples/units/parse/memory_limits')} />
+
+### units.parse_bytes
+
+The `units.parse_bytes` function converts byte size strings into integer byte values.
+
+<PlaygroundExample dir={require.context('../_examples/units/parse_bytes/storage_quota')} />
