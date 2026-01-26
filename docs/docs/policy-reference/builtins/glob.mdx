@@ -2,6 +2,75 @@
 title: Glob Matching
 ---
 <BuiltinTable category={"glob"}/>
+
+## Overview
+
+The `glob.match` function matches strings against glob patterns with optional delimiters.
+
+## Delimiter Requirements
+
+**Delimiters must be single characters.** Each delimiter in the array must be exactly one character long.
+
+**Valid delimiters:**
+```rego
+glob.match("a:*", [":"], "a:b")          # ✓ Single character
+glob.match("a/b.c", ["/", "."], "a/b.c") # ✓ Multiple single characters
+```
+
+**Invalid delimiters:**
+```rego
+glob.match("a::*", ["::"], "a::b")   # ✗ Multi-character delimiter (error)
+glob.match("a:*", [""], "a:b")       # ✗ Empty string delimiter (error)
+```
+
+**Why single characters?** Delimiters are used to split the input into segments for matching. Each delimiter must be exactly one character to unambiguously identify segment boundaries. Using multi-character strings would create ambiguity in parsing.
+
+**Error handling:** If you provide multi-character or empty delimiters, `glob.match` will return `undefined` (or an error with `--strict-builtin-errors` enabled).
+
+## Multiple Delimiters
+
+You can specify multiple single-character delimiters to match paths with different separators:
+
+```rego
+# Match file paths with either / or . separators
+glob.match("config/*.yaml", ["/", "."], "config/app.yaml")  # => true
+
+# Match with multiple delimiter types
+glob.match("a*c", [":", "/"], "a:b/c")  # => true
+```
+
+## Default and Null Delimiters
+
+**Empty array `[]` defaults to `.` (dot):**
+```rego
+glob.match("*.github.com", [], "api.github.com")  # => true (uses "." delimiter)
+```
+
+**Using `null` means no delimiters:**
+```rego
+glob.match("*hub.com", null, "api.cdn.github.com")  # => true (no segmentation)
+```
+
+## Indexing Considerations
+
+For `glob.match` to benefit from indexing optimizations, **the pattern must contain the delimiter character(s)**.
+
+**Indexed patterns (delimiter appears in pattern):**
+```rego
+glob.match("a:*", [":"], input.x)     # ✓ Pattern contains ":"
+glob.match("foo:*:bar", [":"], input.x)  # ✓ Pattern contains ":"
+```
+
+**Not indexed (delimiter missing from pattern):**
+```rego
+glob.match("a*", [":"], input.x)      # ✗ Pattern does not contain ":"
+glob.match("foo*", null, input.x)     # ✗ null delimiter cannot be indexed
+```
+
+Non-indexed patterns still work correctly but may be slower on large datasets. See the [Policy Performance](../../policy-performance#glob-statements) guide for more details.
+
+## Examples
+
 The following table shows examples of how `glob.match` works:
 
 | `call`                                                           | `output` | Description                                   |
