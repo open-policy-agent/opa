@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -23,6 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"golang.org/x/time/rate"
 )
 
 func TestEventBuffer_Push(t *testing.T) {
@@ -58,7 +60,7 @@ func TestEventBuffer_Push(t *testing.T) {
 
 	// Increase the limit, forcing the buffer to change
 	limit = int64(3)
-	b.Reconfigure(limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
+	reconfigureEventBuffer(b, limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	id = "id4"
@@ -75,7 +77,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	limit = int64(1)
-	b.Reconfigure(limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
+	reconfigureEventBuffer(b, limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
 	// Limit reconfigured from 3->1, dropping 2 more events.
 	expectedDropped = 4
 	delete(expectedIds, "id3")
@@ -83,7 +85,7 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	// Nothing changed
-	b.Reconfigure(limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
+	reconfigureEventBuffer(b, limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 }
 
@@ -293,4 +295,49 @@ func decodeLogEvent(t *testing.T, r io.Reader) []EventV1 {
 	}
 
 	return events
+}
+
+func reconfigureEventBuffer(b *eventBuffer, bufferSizeLimitEvents int64,
+	uploadSizeLimitBytes int64,
+	maxDecisionsPerSecond *float64,
+	client rest.Client,
+	uploadPath string,
+	mode plugins.TriggerMode,
+) {
+	b.Stop(context.Background())
+	defer func() {
+		if b.mode == plugins.TriggerImmediate {
+			go b.read()
+		}
+	}()
+
+	// prevent an upload from pushing events that failed to upload back into a closed buffer
+	b.encoderLock.Lock()
+	defer b.encoderLock.Unlock()
+
+	if maxDecisionsPerSecond != nil {
+		b.limiter = rate.NewLimiter(rate.Limit(*maxDecisionsPerSecond), int(math.Max(1, *maxDecisionsPerSecond)))
+	} else if b.limiter != nil {
+		b.limiter = nil
+	}
+
+	if b.enc.limit != uploadSizeLimitBytes {
+		b.enc.Reconfigure(uploadSizeLimitBytes)
+	}
+
+	b.mode = mode
+	b.client = client
+	b.uploadPath = uploadPath
+
+	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
+		return
+	}
+
+	close(b.buffer)
+	oldBuffer := b.buffer
+	b.buffer = make(chan *bufferItem, bufferSizeLimitEvents)
+
+	for event := range oldBuffer {
+		b.push(event)
+	}
 }

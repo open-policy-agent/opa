@@ -129,55 +129,6 @@ func (b *eventBuffer) Stop(ctx context.Context) {
 	}
 }
 
-// Reconfigure updates the user configurable values
-// This cannot be called concurrently, this could change the underlying channel.
-// Plugin manages a lock to control this so that changes to both buffer types can be managed sequentially.
-func (b *eventBuffer) Reconfigure(
-	bufferSizeLimitEvents int64,
-	uploadSizeLimitBytes int64,
-	maxDecisionsPerSecond *float64,
-	client rest.Client,
-	uploadPath string,
-	mode plugins.TriggerMode,
-) {
-	b.Stop(context.Background())
-	defer func() {
-		if b.mode == plugins.TriggerImmediate {
-			go b.read()
-		}
-	}()
-
-	// prevent an upload from pushing events that failed to upload back into a closed buffer
-	b.encoderLock.Lock()
-	defer b.encoderLock.Unlock()
-
-	if maxDecisionsPerSecond != nil {
-		b.limiter = rate.NewLimiter(rate.Limit(*maxDecisionsPerSecond), int(math.Max(1, *maxDecisionsPerSecond)))
-	} else if b.limiter != nil {
-		b.limiter = nil
-	}
-
-	if b.enc.limit != uploadSizeLimitBytes {
-		b.enc.Reconfigure(uploadSizeLimitBytes)
-	}
-
-	b.mode = mode
-	b.client = client
-	b.uploadPath = uploadPath
-
-	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
-		return
-	}
-
-	close(b.buffer)
-	oldBuffer := b.buffer
-	b.buffer = make(chan *bufferItem, bufferSizeLimitEvents)
-
-	for event := range oldBuffer {
-		b.push(event)
-	}
-}
-
 // Push attempts to add a new event to the buffer, returning true if an event was dropped.
 // This can be called concurrently.
 func (b *eventBuffer) Push(event *EventV1) {

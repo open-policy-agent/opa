@@ -2,10 +2,12 @@ package logs
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
+	"golang.org/x/time/rate"
 )
 
 func TestSizeBuffer_Upload(t *testing.T) {
@@ -41,7 +43,7 @@ func TestSizeBuffer_Upload(t *testing.T) {
 	newUploadSizeLimit := int64(200)
 	newBufferSizeLimit := int64(200)
 
-	b.Reconfigure(newBufferSizeLimit, newUploadSizeLimit, nil, rest.Client{}, "", plugins.TriggerPeriodic)
+	reconfigureSizeBuffer(b, newBufferSizeLimit, newUploadSizeLimit, nil, rest.Client{}, "", plugins.TriggerPeriodic)
 
 	if b.enc.limit != newUploadSizeLimit {
 		t.Fatalf("expected encoder limit to be %d, got %d", newUploadSizeLimit, b.enc.limit)
@@ -49,4 +51,28 @@ func TestSizeBuffer_Upload(t *testing.T) {
 	if b.buffer.limit != newBufferSizeLimit {
 		t.Fatalf("expected buffer limit to be %d, got %d", newBufferSizeLimit, b.buffer.limit)
 	}
+}
+
+func reconfigureSizeBuffer(b *sizeBuffer,
+	bufferSizeLimitBytes int64,
+	uploadSizeLimitBytes int64,
+	maxDecisionsPerSecond *float64,
+	client rest.Client,
+	uploadPath string,
+	mode plugins.TriggerMode) {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+
+	if maxDecisionsPerSecond != nil {
+		b.limiter = rate.NewLimiter(rate.Limit(*maxDecisionsPerSecond), int(math.Max(1, *maxDecisionsPerSecond)))
+	} else if b.limiter != nil {
+		b.limiter = nil
+	}
+
+	b.enc.Reconfigure(uploadSizeLimitBytes)
+	b.buffer.Reconfigure(bufferSizeLimitBytes)
+
+	b.mode = mode
+	b.client = client
+	b.uploadPath = uploadPath
 }

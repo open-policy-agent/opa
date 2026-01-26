@@ -110,30 +110,6 @@ func (b *sizeBuffer) incrMetric(name string) {
 	}
 }
 
-func (b *sizeBuffer) Reconfigure(
-	bufferSizeLimitBytes int64,
-	uploadSizeLimitBytes int64,
-	maxDecisionsPerSecond *float64,
-	client rest.Client,
-	uploadPath string,
-	mode plugins.TriggerMode) {
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
-
-	if maxDecisionsPerSecond != nil {
-		b.limiter = rate.NewLimiter(rate.Limit(*maxDecisionsPerSecond), int(math.Max(1, *maxDecisionsPerSecond)))
-	} else if b.limiter != nil {
-		b.limiter = nil
-	}
-
-	b.enc.Reconfigure(uploadSizeLimitBytes)
-	b.buffer.Reconfigure(bufferSizeLimitBytes)
-
-	b.mode = mode
-	b.client = client
-	b.uploadPath = uploadPath
-}
-
 func (b *sizeBuffer) Push(event *EventV1) {
 	if b.limiter != nil && !b.limiter.Allow() {
 		b.incrMetric(logRateLimitExDropCounterName)
