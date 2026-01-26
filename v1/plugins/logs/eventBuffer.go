@@ -25,17 +25,18 @@ type bufferItem struct {
 
 // eventBuffer stores and uploads a gzip compressed JSON array of EventV1 entries
 type eventBuffer struct {
-	buffer      chan *bufferItem // buffer stores JSON encoded EventV1 data
-	encoderLock sync.Mutex       // encoderLock controls that uploads are done sequentially
-	enc         *chunkEncoder    // enc adds events into a gzip compressed JSON array (chunk)
-	limiter     *rate.Limiter
-	metrics     metrics.Metrics
-	logger      logging.Logger
-	client      rest.Client
-	uploadPath  string
+	buffer     chan *bufferItem // buffer stores JSON encoded EventV1 data
+	uploadLock sync.Mutex
+	enc        *chunkEncoder // enc adds events into a gzip compressed JSON array (chunk)
+	limiter    *rate.Limiter
+	metrics    metrics.Metrics
+	logger     logging.Logger
+	client     rest.Client
+	uploadPath string
 	// Enables the read loop in immediate mode to constantly read from the event buffer
-	mode plugins.TriggerMode
-	stop chan chan struct{}
+	mode         plugins.TriggerMode
+	stop         chan chan struct{}
+	cancelUpload bool
 }
 
 func newEventBuffer(bufferSizeLimitEvents int64, uploadSizeLimitBytes int64, client rest.Client, uploadPath string, mode plugins.TriggerMode) *eventBuffer {
@@ -198,8 +199,8 @@ func (b *eventBuffer) processBufferItem(item *bufferItem) [][]byte {
 }
 
 func (b *eventBuffer) immediateRead(ctx context.Context, item *bufferItem) {
-	b.encoderLock.Lock()
-	defer b.encoderLock.Unlock()
+	b.uploadLock.Lock()
+	defer b.uploadLock.Unlock()
 
 	result := b.processBufferItem(item)
 	if result == nil {
@@ -211,6 +212,8 @@ func (b *eventBuffer) immediateRead(ctx context.Context, item *bufferItem) {
 			b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried. Error: %v", err)
 		}
 	}
+
+	b.cancelUpload = true
 }
 
 // read is a loop that reads from the buffer constantly, so that the chunk can be uploaded as soon as it is ready
@@ -221,7 +224,11 @@ func (b *eventBuffer) read() {
 		case item := <-b.buffer:
 			b.immediateRead(ctx, item)
 		case done := <-b.stop:
+			b.uploadLock.Lock()
+			// reset so that Upload can be used to attempt final upload before shutting down
+			b.cancelUpload = false
 			done <- struct{}{}
+			b.uploadLock.Unlock()
 			return
 		}
 	}
@@ -231,8 +238,13 @@ func (b *eventBuffer) read() {
 // All the events currently in the buffer are read and written to a gzip compressed JSON array to create a chunk of data.
 // Each chunk is limited by the uploadSizeLimitBytes.
 func (b *eventBuffer) Upload(ctx context.Context) error {
-	b.encoderLock.Lock()
-	defer b.encoderLock.Unlock()
+	b.uploadLock.Lock()
+	defer b.uploadLock.Unlock()
+
+	// prevent uploading after already uploading from immediate upload loop
+	if b.cancelUpload {
+		return nil
+	}
 
 	eventLen := len(b.buffer)
 

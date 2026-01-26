@@ -312,8 +312,8 @@ func reconfigureEventBuffer(b *eventBuffer, bufferSizeLimitEvents int64,
 	}()
 
 	// prevent an upload from pushing events that failed to upload back into a closed buffer
-	b.encoderLock.Lock()
-	defer b.encoderLock.Unlock()
+	b.uploadLock.Lock()
+	defer b.uploadLock.Unlock()
 
 	if maxDecisionsPerSecond != nil {
 		b.limiter = rate.NewLimiter(rate.Limit(*maxDecisionsPerSecond), int(math.Max(1, *maxDecisionsPerSecond)))
