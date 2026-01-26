@@ -905,7 +905,7 @@ likely becomes I/O-bound.) Policy evaluation is currently single-threaded. If yo
 are embedding OPA as a library, it is your responsibility to dispatch concurrent queries
 to different Goroutines/threads. If you are running the OPA server, it will parallelize
 concurrent requests and use as many cores as possible. You can limit the number of
-cores that OPA can consume by starting OPA with the [`GOMAXPROCS`](https://golang.org/pkg/runtime)
+cores that OPA can consume by starting OPA with the [`GOMAXPROCS`](https://pkg.go.dev/runtime)
 environment variable.
 
 Memory usage scales with the size of the policy (i.e., Rego) and data (e.g., JSON) that you

@@ -1006,7 +1006,7 @@ If your instance of OPA runs inside GCP, you'll be able to authenticate using GC
 
 ##### JWT Bearer Grant Type
 
-Use this for [authenticating](https://cloud.google.com/storage/docs/authentication) _external_ clients, i.e. OPAs running outside the GCP environment.
+Use this for [authenticating](https://docs.cloud.google.com/storage/docs/authentication) _external_ clients, i.e. OPAs running outside the GCP environment.
 
 1. Search for "credentials" in the top search box and choose "Credentials - APIs and Services".
 2. Click "Create Credentials" followed by "Service Account."

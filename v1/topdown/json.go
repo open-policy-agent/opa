@@ -65,7 +65,7 @@ func jsonRemove(a *ast.Term, b *ast.Term) (*ast.Term, error) {
 	case ast.String, ast.Number, ast.Boolean, ast.Null:
 		return a, nil
 	case ast.Object:
-		newObj := ast.NewObject()
+		newObj := ast.NewObjectWithCapacity(aValue.Len())
 		err := aValue.Iter(func(k *ast.Term, v *ast.Term) error {
 			// recurse and add the diff of sub objects as needed
 			diffValue, err := jsonRemove(v, bObj.Get(k))
@@ -80,7 +80,7 @@ func jsonRemove(a *ast.Term, b *ast.Term) (*ast.Term, error) {
 		}
 		return ast.NewTerm(newObj), nil
 	case ast.Set:
-		newSet := ast.NewSet()
+		newSet := ast.NewSetWithCapacity(aValue.Len())
 		err := aValue.Iter(func(v *ast.Term) error {
 			// recurse and add the diff of sub objects as needed
 			diffValue, err := jsonRemove(v, bObj.Get(v))
@@ -97,7 +97,7 @@ func jsonRemove(a *ast.Term, b *ast.Term) (*ast.Term, error) {
 	case *ast.Array:
 		// When indexes are removed we shift left to close empty spots in the array
 		// as per the JSON patch spec.
-		newArray := ast.NewArray()
+		newArraySlice := make([]*ast.Term, 0, aValue.Len())
 		for i := range aValue.Len() {
 			v := aValue.Elem(i)
 			// recurse and add the diff of sub objects as needed
@@ -107,10 +107,10 @@ func jsonRemove(a *ast.Term, b *ast.Term) (*ast.Term, error) {
 				return nil, err
 			}
 			if diffValue != nil {
-				newArray = newArray.Append(diffValue)
+				newArraySlice = append(newArraySlice, diffValue)
 			}
 		}
-		return ast.NewTerm(newArray), nil
+		return ast.NewTerm(ast.NewArray(newArraySlice...)), nil
 	default:
 		return nil, fmt.Errorf("invalid value type %T", a)
 	}
@@ -196,7 +196,7 @@ func parsePath(path *ast.Term) (ast.Ref, error) {
 }
 
 func pathsToObject(paths []ast.Ref) ast.Object {
-	root := ast.NewObject()
+	root := ast.NewObjectWithCapacity(len(paths))
 
 	for _, path := range paths {
 		node := root

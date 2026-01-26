@@ -8,7 +8,6 @@ package plugins
 import (
 	"net/http"
 
-	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/sdk/trace"
 
@@ -242,15 +241,26 @@ func WithParserOptions(opts ast.ParserOptions) func(*Manager) {
 	return v1.WithParserOptions(opts)
 }
 
-// WithEnableTelemetry controls whether OPA will send telemetry reports to an external service.
+// WithEnableVersionCheck controls whether OPA will check for version updates.
+func WithEnableVersionCheck(enable bool) func(*Manager) {
+	return v1.WithEnableVersionCheck(enable)
+}
+
+// WithEnableTelemetry controls whether OPA will check for version updates.
+//
+// Deprecated: Use WithEnableVersionCheck instead.
 func WithEnableTelemetry(enableTelemetry bool) func(*Manager) {
 	return v1.WithEnableTelemetry(enableTelemetry)
 }
 
 // WithTelemetryGatherers allows registration of telemetry gatherers which enable injection of additional data in the
 // telemetry report
-func WithTelemetryGatherers(gs map[string]report.Gatherer) func(*Manager) {
-	return v1.WithTelemetryGatherers(gs)
+//
+// Deprecated: This function is deprecated as telemetry gathering has been removed.
+func WithTelemetryGatherers(gs map[string]any) func(*Manager) {
+	return func(m *Manager) {
+		// No-op: telemetry gatherers are no longer used
+	}
 }
 
 // New creates a new Manager using config.

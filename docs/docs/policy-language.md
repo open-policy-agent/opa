@@ -30,7 +30,7 @@ to optimize queries to improve performance.
 ## Learning Rego
 
 While reviewing the examples below, you might find it helpful to follow along
-using the online [OPA playground](http://play.openpolicyagent.org). The
+using the online [OPA playground](https://play.openpolicyagent.org/). The
 playground also allows sharing of examples via URL which can be helpful when
 asking questions on the [OPA Slack](https://slack.openpolicyagent.org).
 In addition to these official resources, you may also be interested to check
@@ -209,8 +209,8 @@ A template-expression is enclosed in curly-braces (`{`,`}`), and must contain a 
 
 - Primitive values: `$"{1} {2.3} {"foo"} {false} {null}"`
 - Composite values: `$"{[true, false]} {{1, 2}} {{"a": "b"}}"`
-- Variables: `x := "foo"; a := "$"{x}"`
-- References: `"$"{input.x} {data.y}"`
+- Variables: `x := "foo"; a := $"{x}"`
+- References: `$"{input.x} {data.y}"`
 - Function calls: `$"{abs(-1)} {1 + 2}"`
 - Comprehensions: `$"{[x | ...]} {{x | ...}} {{x: y | ...}}"`
 

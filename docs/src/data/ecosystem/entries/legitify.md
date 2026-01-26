@@ -7,7 +7,7 @@ labels:
 inventors:
 - legitsecurity
 tutorials:
-- https://legitify.dev
+- https://www.legitsecurity.com/legitify
 - https://github.com/Legit-Labs/legitify#github-action-usage
 code:
 - https://github.com/Legit-Labs/legitify

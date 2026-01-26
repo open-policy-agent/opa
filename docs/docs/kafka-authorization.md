@@ -189,7 +189,7 @@ This field can be used inside the policy.
 
 A detailed rundown of generating SSL certificates and JKS files required
 for SSL client authentication is outside the scope of this tutorial, but the plugin
-repository provides an [example script](https://github.com/StyraOSS/opa-kafka-plugin/tree/main/example/opa_tutorial/create_cert.sh)
+repository provides an [example script](https://github.com/StyraOSS/opa-kafka-plugin/blob/main/example/opa_tutorial/create_cert.sh)
 that demonstrates the creation of client certificates for the four different
 users used in this tutorial:
 

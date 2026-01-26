@@ -18,6 +18,6 @@ docs_features:
       via the [Regal Language Server](/integrations/regal/).
 ---
 The [zed-rego extension](https://github.com/StyraInc/zed-rego)
-is an extension for the [Zed editor](http://zed.dev) that provides
+is an extension for the [Zed editor](https://zed.dev/) that provides
 support for the Rego language and OPA functionality. The extension
 also includes support for the [Regal Language Server](/integrations/regal/).

@@ -2591,3 +2591,62 @@ p if {
 		t.Fatal("expected schema server to not be called, was")
 	}
 }
+
+func TestCheckUndefinedFunction(t *testing.T) {
+	tests := []struct {
+		name          string
+		policy        string
+		expectedError string
+	}{
+		{
+			name: "value with multiple assignments",
+			policy: `package p
+
+default f := ""
+
+f := 1
+r := f()`,
+			expectedError: "rego_type_error: undefined function data.p.f",
+		},
+		{
+			name: "value with one assignments",
+			policy: `package p
+
+f := 1
+r := f()`,
+			expectedError: "rego_type_error: undefined function data.p.f",
+		},
+		{
+			name: "value with no assignments",
+			policy: `package p
+
+r := f()`,
+			expectedError: "rego_type_error: undefined function f",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			module, err := ParseModuleWithOpts("policy.rego", tc.policy, ParserOptions{ProcessAnnotation: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			modules := map[string]*Module{"policy.rego": module}
+
+			capabilities := CapabilitiesForThisVersion()
+			compiler := NewCompiler().
+				WithUseTypeCheckAnnotations(true).
+				WithCapabilities(capabilities)
+			compiler.Compile(modules)
+
+			if !compiler.Failed() {
+				t.Fatal("expected error, got none")
+			}
+
+			if !strings.Contains(compiler.Errors.Error(), tc.expectedError) {
+				t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s",
+					tc.expectedError, compiler.Errors.Error())
+			}
+		})
+	}
+}

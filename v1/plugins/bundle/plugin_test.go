@@ -7573,6 +7573,41 @@ result := true`,
 	}
 }
 
+func TestMultipleCallsToReconfigure(t *testing.T) {
+	minDelaySeconds := int64(60)
+	maxDelaySeconds := int64(120)
+
+	store := inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false), inmem.OptReturnASTValuesOnRead(true))
+	manager := getTestManagerWithOpts(nil, store)
+
+	cfg := Config{
+		Bundles: map[string]*Source{
+			"b1": {
+				Config: download.Config{
+					Polling: download.PollingConfig{
+						MinDelaySeconds: &minDelaySeconds,
+						MaxDelaySeconds: &maxDelaySeconds,
+					},
+				},
+				Resource:       "/b1",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+			},
+		},
+	}
+	plugin := New(&cfg, manager)
+
+	plugin.Reconfigure(t.Context(), &plugin.config)
+	plugin.Reconfigure(t.Context(), &plugin.config)
+
+	// after multiple calls to reconfigure with the same plugin config, the values should stay the same
+	if *plugin.config.Bundles["b1"].Polling.MaxDelaySeconds != maxDelaySeconds {
+		t.Fatalf("expected MaxDelaySeconds to be %d but got %d", maxDelaySeconds, *plugin.config.Bundles["b1"].Polling.MaxDelaySeconds)
+	}
+	if *plugin.config.Bundles["b1"].Polling.MinDelaySeconds != minDelaySeconds {
+		t.Fatalf("expected MaxDelaySeconds to be %d but got %d", maxDelaySeconds, *plugin.config.Bundles["b1"].Polling.MaxDelaySeconds)
+	}
+}
+
 type testModule struct {
 	Path string
 	Data string

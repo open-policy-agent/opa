@@ -3,10 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-const util = require("util");
-const { PrismaClient } = require("@prisma/client");
-const { ucastToPrisma } = require("@open-policy-agent/ucast-prisma");
-const prisma = new PrismaClient();
+import util from "util";
+import { PrismaClient } from "./generated/prisma/index.js";
+import { ucastToPrisma } from "@open-policy-agent/ucast-prisma";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
+
+const connectionString = process.env.DATABASE_URL || "postgresql://dummy:dummy@localhost:5432/dummy";
+const pool = new pg.Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 // Function to read JSON from stdin
 async function getStdinJson() {

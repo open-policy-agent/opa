@@ -17,6 +17,130 @@ import (
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 )
 
+func BenchmarkJSONRemoveArray(b *testing.B) {
+	sizes := []int{10, 100, 1000, 5000}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("size=%d", n), func(b *testing.B) {
+			// Create an object wrapping the array: {"a": [0, 1, ...]}
+			terms := make([]*ast.Term, n)
+			for i := range n {
+				terms[i] = ast.IntNumberTerm(i)
+			}
+			arr := ast.NewArray(terms...)
+			obj := ast.NewObject([2]*ast.Term{ast.StringTerm("a"), ast.NewTerm(arr)})
+
+			// Remove something inside the array to force traversal
+			paths := ast.NewSet(ast.StringTerm("a/nonexistent"))
+
+			operands := []*ast.Term{
+				ast.NewTerm(obj),
+				ast.NewTerm(paths),
+			}
+
+			for b.Loop() {
+				if err := builtinJSONRemove(
+					BuiltinContext{
+						Context: context.Background(),
+					},
+					operands,
+					func(*ast.Term) error {
+						return nil
+					},
+				); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkJSONFilterArray(b *testing.B) {
+	sizes := []int{10, 100, 1000, 5000}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("size=%d", n), func(b *testing.B) {
+			// Create an object with n keys
+			obj := ast.NewObject()
+			pathSlice := make([]*ast.Term, n)
+			for i := range n {
+				k := ast.StringTerm(fmt.Sprintf("k%d", i))
+				obj.Insert(k, ast.IntNumberTerm(i))
+				pathSlice[i] = k
+			}
+			// Filter all keys: json.filter(obj, ["k0", "k1", ...])
+			// This stresses pathsToObject (creating the filter mask)
+			paths := ast.NewSet(pathSlice...)
+
+			operands := []*ast.Term{
+				ast.NewTerm(obj),
+				ast.NewTerm(paths),
+			}
+
+			for b.Loop() {
+				if err := builtinJSONFilter(
+					BuiltinContext{
+						Context: context.Background(),
+					},
+					operands,
+					func(*ast.Term) error {
+						return nil
+					},
+				); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkJSONFilterArrayIndices(b *testing.B) {
+	sizes := []int{10, 100, 1000, 5000}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("size=%d", n), func(b *testing.B) {
+			// Create an object wrapping an array: {"a": [0, 1, ...]}
+			terms := make([]*ast.Term, n)
+			for i := range n {
+				terms[i] = ast.IntNumberTerm(i)
+			}
+			arr := ast.NewArray(terms...)
+			obj := ast.NewObject([2]*ast.Term{ast.StringTerm("a"), ast.NewTerm(arr)})
+
+			// Filter to keep the first half of the array elements
+			// json.filter(obj, ["a/0", "a/1", ... "a/n/2"])
+			filterSize := n / 2
+			if filterSize == 0 {
+				filterSize = 1
+			}
+			pathSlice := make([]*ast.Term, filterSize)
+			for i := range filterSize {
+				pathSlice[i] = ast.StringTerm(fmt.Sprintf("a/%d", i))
+			}
+			paths := ast.NewSet(pathSlice...)
+
+			operands := []*ast.Term{
+				ast.NewTerm(obj),
+				ast.NewTerm(paths),
+			}
+
+			for b.Loop() {
+				if err := builtinJSONFilter(
+					BuiltinContext{
+						Context: context.Background(),
+					},
+					operands,
+					func(*ast.Term) error {
+						return nil
+					},
+				); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkJSONPatchAddShallowScalar(b *testing.B) {
 	ctx := b.Context()
 

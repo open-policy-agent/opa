@@ -142,6 +142,7 @@ bundles:
     requirements:
     - source: my-alpha-app
     - source: my-shared-datasource
+      prefix: shared.external
 ```
 
 Note: the name `my-alpha-app` in the requirements is specifically referencing the name under sources (from the previous step). You will oftentimes name the bundle with the same name to “link” them logically together, these will normally (but not required to) be configured together in their own configuration file.

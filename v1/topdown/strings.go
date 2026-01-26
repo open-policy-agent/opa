@@ -614,12 +614,13 @@ func builtinTrim(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) er
 		return err
 	}
 
-	trimmed := strings.Trim(string(s), string(c))
-	if trimmed == string(s) {
+	str := string(s)
+	trimmed := strings.Trim(str, string(c))
+	if trimmed == str {
 		return iter(operands[0])
 	}
 
-	return iter(ast.InternedTerm(strings.Trim(string(s), string(c))))
+	return iter(ast.InternedTerm(trimmed))
 }
 
 func builtinTrimLeft(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

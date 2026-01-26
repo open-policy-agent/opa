@@ -6,9 +6,9 @@ package topdown
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Halt is a special error type that built-in function implementations return to indicate
@@ -82,13 +82,27 @@ func (e *Error) Is(target error) bool {
 }
 
 func (e *Error) Error() string {
-	msg := fmt.Sprintf("%v: %v", e.Code, e.Message)
+	buf, _ := e.AppendText(make([]byte, 0, e.StringLength()))
+	return util.ByteSliceToString(buf)
+}
 
+func (e *Error) AppendText(buf []byte) ([]byte, error) {
 	if e.Location != nil {
-		msg = e.Location.String() + ": " + msg
+		buf, _ := e.Location.AppendText(buf)
+		buf = append(append(buf, ": "...), e.Code...)
+		buf = append(append(buf, ": "...), e.Message...)
+		return buf, nil
 	}
 
-	return msg
+	return append(append(append(buf, e.Code...), ": "...), e.Message...), nil
+}
+
+func (e *Error) StringLength() int {
+	l := len(e.Code) + 2 + len(e.Message)
+	if e.Location != nil {
+		l += e.Location.StringLength() + 2
+	}
+	return l
 }
 
 func (e *Error) Wrap(err error) *Error {

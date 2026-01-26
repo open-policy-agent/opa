@@ -60,9 +60,6 @@ func BenchmarkCompileHandler(b *testing.B) {
 
 			for b.Loop() {
 				req := httptest.NewRequest("POST", "/v1/compile/"+path, bytes.NewBuffer(jsonData))
-				if err != nil {
-					b.Fatalf("Failed to create request: %v", err)
-				}
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("Accept", target)
 

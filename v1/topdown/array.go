@@ -89,8 +89,16 @@ func builtinArrayReverse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	}
 
 	length := arr.Len()
-	reversedArr := make([]*ast.Term, length)
 
+	if length == 0 {
+		return iter(ast.InternedEmptyArray)
+	}
+
+	if length == 1 {
+		return iter(operands[0])
+	}
+
+	reversedArr := make([]*ast.Term, length)
 	for index := range length {
 		reversedArr[index] = arr.Elem(length - index - 1)
 	}

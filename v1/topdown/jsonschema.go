@@ -110,7 +110,7 @@ func builtinJSONMatchSchema(bctx BuiltinContext, operands []*ast.Term, iter func
 	}
 
 	// In case of validation errors produce Rego array of objects to describe the errors.
-	arr := ast.NewArray()
+	arr := ast.NewArrayWithCapacity(len(result.Errors()))
 	for _, re := range result.Errors() {
 		o := ast.NewObject(
 			[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm(re.String())},

@@ -5,6 +5,35 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.12.3
+
+This is a bug fix release addressing two issues:
+
+### Bundle polling is being misconfigured when discovery bundle is updated ([#8215](https://github.com/open-policy-agent/opa/issues/8215))
+
+This is an issue where the polling interval for discovery (`discovery.polling.min_delay_seconds` and
+`discovery.polling.max_delay_seconds`) were misinterpreted on reconfiguration, causing extremely long update intervals.
+
+Reported by @loganmiller-chime, authored by @sspaink
+
+### Decision log `size` buffer
+`buffer_size_limit_bytes` misconfigured during reconfiguration ([#8213](https://github.com/open-policy-agent/opa/pull/8213))
+
+This is a regression in the decision log, where the `decision_logs.reporting.buffer_size_limit_bytes` was mistakenly
+assigned the value of `decision_logs.reporting.upload_size_limit_bytes` during reconfiguration.
+This issue is only present when `decision_logs.reporting.buffer_type` is set to `size`, which is the default value.
+
+Authored by @sspaink
+
+## 1.12.2
+
+This bug fix release address issues found in the new string interpolation feature
+
+- Add (*TemplateString).Copy() method (#8159) authored by @anderseknert
+- Fix template string not serialized with escaped { (#8161) authored by @anderseknert
+- fix(ast): skip template string vars in ref safety (#8174) authored by @thevilledev
+- fix(ast): use original var names in template error (#8180) authored by @thevilledev
+
 ## 1.12.1
 
 This bug fix release reverts a change to `regex.replace` that unintentionally changed its behaviour for anchored regular expressions.

@@ -301,6 +301,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         require.resolve("@easyops-cn/docusaurus-search-local"),
         {
           indexPages: true,
+          explicitSearchResultPath: true,
         },
       ],
       () => ({

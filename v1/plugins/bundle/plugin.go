@@ -147,7 +147,7 @@ func (p *Plugin) Stop(ctx context.Context) {
 
 // Reconfigure notifies the plugin that it's configuration has changed.
 // Any bundle configs that have changed or been added/removed will take
-// affect.
+// effect.
 func (p *Plugin) Reconfigure(ctx context.Context, config any) {
 	// Reconfiguring should not occur in parallel, lock to ensure
 	// nothing swaps underneath us with the current p.config and the updated one.

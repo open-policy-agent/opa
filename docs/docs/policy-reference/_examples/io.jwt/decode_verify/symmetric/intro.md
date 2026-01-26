@@ -4,7 +4,7 @@ This example uses a symmetric key to verify the token. This is not recommended f
 production use. Please see the examples below using `JWKs` or PEM-encoded certificates more examples.
 :::
 
-Sometimes when working with tools like [JWT.io](https://jwt.io) it can be
+Sometimes when working with tools like [JWT.io](https://www.jwt.io/) it can be
 useful to decode and verify JWT tokens signed with a symmetric key just to
 see what the output of `io.jwt.decode_verify()` looks like.
 

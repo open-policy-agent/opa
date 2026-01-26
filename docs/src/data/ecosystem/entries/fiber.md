@@ -7,7 +7,7 @@ software:
 - golang
 - fiber
 code:
-- https://github.com/gofiber/contrib/tree/main/opafiber
+- https://github.com/gofiber/contrib/blob/main/v3/opa/README.md
 ---
 Fiber is an Express inspired web framework built on top of Fasthttp, the fastest HTTP engine for Go.
 Designed to ease things up for fast development with zero memory allocation and performance in mind.

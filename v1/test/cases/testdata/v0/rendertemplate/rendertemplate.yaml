@@ -45,5 +45,20 @@ cases:
         template_string = `{{.testvarnotprovided}}`
         template_vars = {`test`: `hello world`}
         p = strings.render_template(template_string, template_vars)
-    want_error_code: eval_builtin_error
+    want_result:
+      - x: <undefined>
+    strict_error: true
+  - note: rendertemplate/missingmultiplekeys
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        template_string := `test {{.foo}} {{.bar}} {{.baz}}`
+
+        template_vars := {`baz`: 1}
+
+        p := strings.render_template(template_string, template_vars)
+    want_result:
+      - x: test <undefined> <undefined> 1
     strict_error: true

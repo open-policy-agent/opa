@@ -20,7 +20,16 @@ jobs:
       go: ${{ steps.changes.outputs.go }}
       wasm: ${{ steps.changes.outputs.wasm }}
       docs: ${{ steps.changes.outputs.docs }}
+      rego: ${{ steps.changes.outputs.rego }}
     steps:
+    - name: Check out repository code
+      uses: actions/checkout@v6
+
+    - name: Download OPA
+      uses: open-policy-agent/setup-opa@87c881550699b0257d7b7aeb8c33019d70bae4a2 # v2.3.0
+      with:
+        version: latest
+        
     - name: Check for file changes
       id: changes
       run: |
@@ -30,77 +39,45 @@ jobs:
         echo "go=true" >> $GITHUB_OUTPUT
         echo "wasm=true" >> $GITHUB_OUTPUT
         echo "docs=true" >> $GITHUB_OUTPUT
+        echo "rego=true" >> $GITHUB_OUTPUT
 
-        if ! curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
-          | jq -r '.[].filename' > changed_files.txt; then
+        if ! curl -s -o changed_files.json -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files"; then
           echo "Error: Failed to fetch changed files from GitHub API"
-          echo "Defaulting to running all checks (go=true, wasm=true, docs=true)"
+          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true)"
           exit 0
         fi
 
-        if [ ! -s changed_files.txt ]; then
+        if [ ! -s changed_files.json ]; then
           echo "Warning: No changed files found"
-          echo "Defaulting to running all checks (go=true, wasm=true, docs=true)"
+          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true)"
           exit 0
         fi
 
         echo "Changed files:"
-        cat changed_files.txt
+        jq -r '.[].filename' changed_files.json
 
-        # Check for Go-related changes
-        go_patterns="^(.*\.go$|\
-        .*\.yaml$|\
-        .*\.yml$|\
-        .*\.json$|\
-        .*\.mod$|\
-        .*\.sum$|\
-        .*\.sh$|\
-        ^Makefile$|\
-        ^\.go-version$|\
-        ^cmd/|\
-        ^internal/|\
-        ^v1/)"
-        if ! grep -E "$go_patterns" changed_files.txt > /dev/null 2>&1; then
-          echo "go=false" >> $GITHUB_OUTPUT
-          echo "No Go files changed, skipping Go checks"
-        else
-          echo "Found Go file changes"
-        fi
+        opa eval \
+          --data build/policy/pr-check/pr_check.rego \
+          --input changed_files.json \
+          --format pretty \
+          'data.policy["pr-check"]' > opa_result.json
 
-        # Check for WASM-related changes
-        wasm_patterns="^(Makefile|\
-        wasm/|\
-        ast/|\
-        internal/compiler/|\
-        internal/planner/|\
-        internal/wasm/|\
-        test/wasm/|\
-        test/cases/|\
-        v1/ast/|\
-        v1/test/cases/|\
-        v1/test/wasm/|\
-        v1/ir/)"
-        if ! grep -E "$wasm_patterns" changed_files.txt > /dev/null 2>&1; then
-          echo "wasm=false" >> $GITHUB_OUTPUT
-          echo "No WASM-related changes detected, skipping WASM checks"
-        else
-          echo "Found WASM-related changes"
-        fi
+        go_result=$(jq -r '.changes.go // false' opa_result.json)
+        wasm_result=$(jq -r '.changes.wasm // false' opa_result.json)
+        docs_result=$(jq -r '.changes.docs // false' opa_result.json)
+        rego_result=$(jq -r '.changes.rego // false' opa_result.json)
 
-        # Check for docs changes (docs/, builtin_metadata.json, capabilities/*)
-        docs_patterns="^(docs/|builtin_metadata\.json|capabilities/)"
-        if ! grep -E "$docs_patterns" changed_files.txt > /dev/null 2>&1; then
-          echo "docs=false" >> $GITHUB_OUTPUT
-          echo "No docs-related changes detected, skipping docs checks"
-        else
-          echo "Found docs-related changes"
-        fi
+        echo "go=${go_result}" >> $GITHUB_OUTPUT
+        echo "wasm=${wasm_result}" >> $GITHUB_OUTPUT
+        echo "docs=${docs_result}" >> $GITHUB_OUTPUT
+        echo "rego=${rego_result}" >> $GITHUB_OUTPUT
 
         echo "Final outputs:"
-        echo "go=$(grep '^go=' $GITHUB_OUTPUT | tail -1 | cut -d'=' -f2)"
-        echo "wasm=$(grep '^wasm=' $GITHUB_OUTPUT | tail -1 | cut -d'=' -f2)"
-        echo "docs=$(grep '^docs=' $GITHUB_OUTPUT | tail -1 | cut -d'=' -f2)"
+        echo "  go=${go_result}"
+        echo "  wasm=${wasm_result}"
+        echo "  docs=${docs_result}"
+        echo "  rego=${rego_result}"
 
   # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
@@ -453,7 +430,7 @@ jobs:
     name: Rego PR checks
     runs-on: ubuntu-24.04
     needs: check-changes
-    if: ${{ needs.check-changes.outputs.go == 'true' }}
+    if: ${{ needs.check-changes.outputs.rego == 'true' }}
     steps:
     - name: Checkout code
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1

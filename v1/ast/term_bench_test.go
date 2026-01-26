@@ -418,6 +418,48 @@ func BenchmarkSetIntersectionDifferentSize(b *testing.B) {
 	}
 }
 
+func BenchmarkSetUnion(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			setA := NewSet()
+			setB := NewSet()
+			for i := range n {
+				setA.Add(IntNumberTerm(i))
+				setB.Add(IntNumberTerm(i + n)) // disjoint sets
+			}
+			b.ResetTimer()
+			for b.Loop() {
+				setC := setA.Union(setB)
+				if setC.Len() != 2*n {
+					b.Fatal("expected combined size")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSetUnionOverlapping(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			setA := NewSet()
+			setB := NewSet()
+			for i := range n {
+				setA.Add(IntNumberTerm(i))
+				setB.Add(IntNumberTerm(i)) // identical sets
+			}
+			b.ResetTimer()
+			for b.Loop() {
+				setC := setA.Union(setB)
+				if setC.Len() != n {
+					b.Fatal("expected same size")
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkSetMembership(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
@@ -984,5 +1026,49 @@ func BenchmarkCountUnescapedLeftCurly(b *testing.B) {
 				_ = countUnescapedLeftCurly(s)
 			}
 		})
+	}
+}
+
+// 142.7 ns/op      96 B/op       8 allocs/op // original
+// 92.95 ns/op      32 B/op       1 allocs/op // using TextAppender, prealloc len, and ByteSliceToString
+func BenchmarkTemplateStringToString(b *testing.B) {
+	template := MustParseTerm(`$"Hello {foo}, {bar}!"`).Value.(*TemplateString)
+
+	var s string
+	for b.Loop() {
+		s = template.String()
+	}
+
+	if exp := `$"Hello {foo}, {bar}!"`; s != exp {
+		b.Fatalf("expected %q but got %q", exp, s)
+	}
+}
+
+// Performance same as above
+func BenchmarkTemplateStringToStringEscapeCurlies(b *testing.B) {
+	template := MustParseTerm(`$"Hello \{foo}, \{bar}!"`).Value.(*TemplateString)
+
+	var s string
+	for b.Loop() {
+		s = template.String()
+	}
+
+	if exp := `$"Hello \{foo}, \{bar}!"`; s != exp {
+		b.Fatalf("expected %q but got %q", exp, s)
+	}
+}
+
+// This can be improved..
+// 223.8 ns/op	     152 B/op	       5 allocs/op
+func BenchmarkTemplateStringToStringEscapeControl(b *testing.B) {
+	template := MustParseTerm(`$"Hello \n{foo}, \t\{bar}!"`).Value.(*TemplateString)
+
+	var s string
+	for b.Loop() {
+		s = template.String()
+	}
+
+	if exp := `$"Hello \n{foo}, \t\{bar}!"`; s != exp {
+		b.Fatalf("expected %q but got %q", exp, s)
 	}
 }

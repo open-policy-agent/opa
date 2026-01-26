@@ -146,7 +146,7 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 	// extant ast type!
 	switch x := value.(type) {
 	case *ast.Array:
-		result := ast.NewArray()
+		result := ast.NewArrayWithCapacity(x.Len())
 		// Iterate over the array's elements, and do the following:
 		// - Drop any Nulls
 		// - Drop any any empty object/array value (after running the pruner)
@@ -173,7 +173,7 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 		}
 		return result
 	case ast.Object:
-		result := ast.NewObject()
+		result := ast.NewObjectWithCapacity(x.Len())
 		// Iterate over our object's keys, and do the following:
 		// - Drop "Position".
 		// - Drop any key with a Null value.

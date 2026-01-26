@@ -266,7 +266,41 @@ func builtinRegexReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 		return err
 	}
 
-	res := re.ReplaceAllString(string(base), string(value))
+	// If no cancellation context, use the fast path
+	if bctx.Cancel == nil {
+		res := re.ReplaceAllString(string(base), string(value))
+		if res == string(base) {
+			return iter(operands[0])
+		}
+		return iter(ast.InternedTerm(res))
+	}
+
+	// Use sink writer for cancellation-aware replacement
+	sink := newSink(ast.RegexReplace.Name, len(base), bctx.Cancel)
+	src := []byte(base)
+	repl := []byte(value)
+
+	// Find all matches at once to preserve anchor behavior: replace("foo", "^[a-z]", "F") => "Foo"
+	allMatches := re.FindAllSubmatchIndex(src, -1)
+
+	lastEnd := 0
+	for _, match := range allMatches {
+		if _, err := sink.Write(src[lastEnd:match[0]]); err != nil {
+			return err
+		}
+
+		if _, err := sink.Write(re.Expand(nil, repl, src, match)); err != nil {
+			return err
+		}
+
+		lastEnd = match[1]
+	}
+
+	if _, err := sink.Write(src[lastEnd:]); err != nil {
+		return err
+	}
+
+	res := sink.String()
 	if res == string(base) {
 		return iter(operands[0])
 	}

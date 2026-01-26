@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/report"
+	"github.com/open-policy-agent/opa/internal/versioncheck"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/sdk/trace"
 
@@ -215,11 +215,10 @@ type Manager struct {
 	tracerProvider               *trace.TracerProvider
 	distributedTacingOpts        tracing.Options
 	registeredNDCacheTriggers    []func(bool)
-	registeredTelemetryGatherers map[string]report.Gatherer
 	bootstrapConfigLabels        map[string]string
 	hooks                        hooks.Hooks
-	enableTelemetry              bool
-	reporter                     report.Reporter
+	enableVersionCheck           bool
+	versionChecker               versioncheck.Checker
 	opaReportNotifyCh            chan struct{}
 	stop                         chan chan struct{}
 	parserOptions                ast.ParserOptions
@@ -421,18 +420,36 @@ func WithParserOptions(opts ast.ParserOptions) func(*Manager) {
 	}
 }
 
-// WithEnableTelemetry controls whether OPA will send telemetry reports to an external service.
-func WithEnableTelemetry(enableTelemetry bool) func(*Manager) {
+// WithEnableVersionCheck controls whether OPA will check for version updates.
+func WithEnableVersionCheck(enable bool) func(*Manager) {
 	return func(m *Manager) {
-		m.enableTelemetry = enableTelemetry
+		m.enableVersionCheck = enable
 	}
+}
+
+// WithEnableTelemetry controls whether OPA will check for version updates.
+//
+// Deprecated: please use WithEnableVersionCheck instead.
+func WithEnableTelemetry(enableTelemetry bool) func(*Manager) {
+	return WithEnableVersionCheck(enableTelemetry)
 }
 
 // WithTelemetryGatherers allows registration of telemetry gatherers which enable injection of additional data in the
 // telemetry report
-func WithTelemetryGatherers(gs map[string]report.Gatherer) func(*Manager) {
+//
+// Deprecated: This function is deprecated as telemetry gathering has been removed. Use WithVersionChecker to provide
+// a custom version checker implementation if needed.
+func WithTelemetryGatherers(gs map[string]versioncheck.Gatherer) func(*Manager) {
 	return func(m *Manager) {
-		m.registeredTelemetryGatherers = gs
+		// No-op: telemetry gatherers are no longer used
+	}
+}
+
+// WithVersionChecker sets a custom version checker implementation.
+// If not provided, a default GitHub-based version checker will be used when telemetry is enabled.
+func WithVersionChecker(checker versioncheck.Checker) func(*Manager) {
+	return func(m *Manager) {
+		m.versionChecker = checker
 	}
 }
 
@@ -510,25 +527,12 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		return nil, err
 	}
 
-	if m.enableTelemetry {
-		reporter, err := report.New(report.Options{Logger: m.logger})
+	if m.enableVersionCheck {
+		versionChecker, err := versioncheck.New(versioncheck.Options{Logger: m.logger})
 		if err != nil {
 			return nil, err
 		}
-		m.reporter = reporter
-
-		m.reporter.RegisterGatherer("min_compatible_version", func(_ context.Context) (any, error) {
-			var minimumCompatibleVersion string
-			if c := m.GetCompiler(); c != nil && c.Required != nil {
-				minimumCompatibleVersion, _ = c.Required.MinimumCompatibleVersion()
-			}
-			return minimumCompatibleVersion, nil
-		})
-
-		// register any additional gatherers
-		for k, g := range m.registeredTelemetryGatherers {
-			m.reporter.RegisterGatherer(k, g)
-		}
+		m.versionChecker = versionChecker
 	}
 
 	return m, nil
@@ -546,7 +550,7 @@ func (m *Manager) Init(ctx context.Context) error {
 		Context: storage.NewContext(),
 	}
 
-	if m.enableTelemetry {
+	if m.enableVersionCheck {
 		m.opaReportNotifyCh = make(chan struct{})
 		m.stop = make(chan chan struct{})
 		go m.sendOPAUpdateLoop(ctx)
@@ -972,7 +976,7 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	if compiler != nil {
 		m.setCompiler(compiler)
 
-		if m.enableTelemetry && event.PolicyChanged() {
+		if m.enableVersionCheck && event.PolicyChanged() {
 			m.opaReportNotifyCh <- struct{}{}
 		}
 
@@ -1176,9 +1180,9 @@ func (m *Manager) sendOPAUpdateLoop(ctx context.Context) {
 
 			if opaReportNotify {
 				opaReportNotify = false
-				_, err := m.reporter.SendReport(ctx)
+				_, err := m.versionChecker.LatestVersion(ctx)
 				if err != nil {
-					m.logger.WithFields(map[string]any{"err": err}).Debug("Unable to send OPA telemetry report.")
+					m.logger.WithFields(map[string]any{"err": err}).Debug("Unable to check OPA version.")
 				}
 			}
 
