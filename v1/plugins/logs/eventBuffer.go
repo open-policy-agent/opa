@@ -45,10 +45,10 @@ func newEventBuffer(bufferSizeLimitEvents int64, uploadSizeLimitBytes int64, cli
 		mode:       mode,
 		client:     client,
 		uploadPath: uploadPath,
-		stop:       make(chan chan struct{}),
 	}
 
 	if b.mode == plugins.TriggerImmediate {
+		b.stop = make(chan chan struct{})
 		go b.read()
 	}
 
@@ -84,15 +84,37 @@ func (b *eventBuffer) incrMetric(name string) {
 }
 
 func (b *eventBuffer) Flush() []*EventV1 {
-	// At this point the Encoder will already be flushed to the event buffer
-	// In immediate mode this happens after the loop is stopped
-	// In periodic mode this happens after every upload
-	lenEvents := len(b.buffer)
-	if lenEvents == 0 {
+	var events []*EventV1
+
+	result, err := b.enc.Flush()
+	if err != nil {
+		b.incrMetric(logEncodingFailureCounterName)
+		if b.logger != nil {
+			b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried.")
+		}
 		return nil
 	}
 
-	var events []*EventV1
+	for _, r := range result {
+		decodedEvents, err := newChunkDecoder(r).decode()
+		if err != nil {
+			b.incrMetric(logEncodingFailureCounterName)
+			if b.logger != nil {
+				b.logger.Error("Dropping multiple events due to encoding failure.")
+			}
+			continue
+		}
+
+		for i := range decodedEvents {
+			events = append(events, &decodedEvents[i])
+		}
+	}
+
+	lenEvents := len(b.buffer)
+	if lenEvents == 0 {
+		return events
+	}
+
 	for range lenEvents {
 		event := <-b.buffer
 		if event.EventV1 != nil {
