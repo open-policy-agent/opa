@@ -2179,6 +2179,10 @@ func TestPluginReconfigure(t *testing.T) {
 			fixture := newTestFixture(t, testFixtureOptions{
 				ReportingBufferType: tc.currentBufferType,
 			})
+			// make sure the event fails to upload so that it stays in the buffer
+			fixture.server.expCode = 500
+			fixture.server.ch = make(chan []EventV1, 4) // uploads are attempted multiple times
+
 			defer fixture.server.stop()
 
 			if err := fixture.plugin.Start(ctx); err != nil {
@@ -2191,9 +2195,6 @@ func TestPluginReconfigure(t *testing.T) {
 			if err := fixture.plugin.Log(ctx, logServerInfo("abc", tc.limitEvents, tc.limitBytes)); err != nil {
 				t.Fatal(err)
 			}
-			// make sure the event fails to upload so that it stays in the buffer
-			fixture.server.expCode = 500
-			fixture.server.ch = make(chan []EventV1, 4) // uploads are attempted multiple times
 
 			var config Config
 			resource := ""
