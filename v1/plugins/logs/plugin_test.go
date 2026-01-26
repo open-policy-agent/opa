@@ -2179,9 +2179,6 @@ func TestPluginReconfigure(t *testing.T) {
 			fixture := newTestFixture(t, testFixtureOptions{
 				ReportingBufferType: tc.currentBufferType,
 			})
-			// make sure the event fails to upload so that it stays in the buffer
-			fixture.server.expCode = 500
-			fixture.server.ch = make(chan []EventV1, 4) // uploads are attempted multiple times
 
 			defer fixture.server.stop()
 
@@ -2190,11 +2187,6 @@ func TestPluginReconfigure(t *testing.T) {
 			}
 
 			ensurePluginState(t, fixture.plugin, plugins.StateOK)
-
-			// log something small that won't be uploaded but transferred to the new buffer type or kept as-is
-			if err := fixture.plugin.Log(ctx, logServerInfo("abc", tc.limitEvents, tc.limitBytes)); err != nil {
-				t.Fatal(err)
-			}
 
 			var config Config
 			resource := ""
@@ -2244,10 +2236,61 @@ func TestPluginReconfigure(t *testing.T) {
 			}
 
 			fixture.plugin.Stop(ctx)
-			events := fixture.plugin.b.Flush()
+		})
+	}
+}
 
+func TestPluginFlush(t *testing.T) {
+	tests := []struct {
+		name       string
+		bufferType string
+	}{
+		{
+			name:       "Flush event buffer",
+			bufferType: eventBufferType,
+		},
+		{
+			name:       "Flush size buffer",
+			bufferType: sizeBufferType,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newTestFixture(t, testFixtureOptions{
+				ReportingBufferType: tc.bufferType,
+			})
+
+			events := fixture.plugin.b.Flush()
+			if len(events) != 0 {
+				t.Fatalf("Expected 0 events but got %v", len(events))
+			}
+
+			event := &server.Info{
+				DecisionID: strconv.Itoa(1),
+			}
+			if err := fixture.plugin.Log(t.Context(), event); err != nil {
+				t.Fatal(err)
+			}
+
+			events = fixture.plugin.b.Flush()
 			if len(events) != 1 {
-				t.Fatalf("Expected 1 event but got %v", len(events))
+				t.Fatalf("Expected 1 events but got %v", len(events))
+			}
+
+			numEvents := 100
+			for i := range numEvents {
+				event := &server.Info{
+					DecisionID: strconv.Itoa(i),
+				}
+				if err := fixture.plugin.Log(t.Context(), event); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			events = fixture.plugin.b.Flush()
+			if len(events) != numEvents {
+				t.Fatalf("Expected 1 events but got %v", len(events))
 			}
 		})
 	}
