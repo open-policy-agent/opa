@@ -12,13 +12,13 @@ The `glob.match` function matches strings against glob patterns with optional de
 Delimiters must be **single characters**. Each delimiter in the array must be exactly one character long.
 
 ```rego title="Valid delimiters"
-glob.match("a:*", [":"], "a:b")          # ✓ Single character
-glob.match("a/b.c", ["/", "."], "a/b.c") # ✓ Multiple single characters
+glob.match("a:*", [":"], "a:b")          # => true
+glob.match("a/b.c", ["/", "."], "a/b.c") # => true
 ```
 
 ```rego title="Invalid delimiters"
-glob.match("a::*", ["::"], "a::b")   # ✗ Multi-character delimiter (error)
-glob.match("a:*", [""], "a:b")       # ✗ Empty string delimiter (error)
+glob.match("a::*", ["::"], "a::b")   # => undefined
+glob.match("a:*", [""], "a:b")       # => undefined
 ```
 
 Delimiters are used to split the input into segments for matching. Each delimiter must be exactly one character to unambiguously identify segment boundaries. Using multi-character strings would create ambiguity in parsing.
@@ -28,13 +28,13 @@ If you provide multi-character or empty delimiters, `glob.match` will return `un
 An empty array `[]` defaults to `"."` (dot) as the delimiter:
 
 ```rego title="Default delimiter"
-glob.match("*.github.com", [], "api.github.com")  # uses "." delimiter
+glob.match("*.github.com", [], "api.github.com")  # => true
 ```
 
 Using `null` means no delimiters are used:
 
 ```rego title="No delimiters"
-glob.match("*hub.com", null, "api.cdn.github.com")  # no segmentation
+glob.match("*hub.com", null, "api.cdn.github.com")  # => true
 ```
 
 ## Multiple Delimiters
