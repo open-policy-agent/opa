@@ -170,28 +170,28 @@ func (b *eventBuffer) push(event *bufferItem) {
 }
 
 func (b *eventBuffer) processBufferItem(item *bufferItem) [][]byte {
-	var result [][]byte
 	if item.chunk != nil {
-		result = [][]byte{item.chunk}
-	} else {
-		event := item.EventV1
-		eventBytes, err := json.Marshal(&event)
-		if err != nil {
-			b.incrMetric(logEncodingFailureCounterName)
-			if b.logger != nil {
-				b.logger.Error("Dropping event due to encoding failure with decision ID: %v", event.DecisionID)
-			}
-			return nil
-		}
+		return [][]byte{item.chunk}
+	}
 
-		result, err = b.enc.Encode(*event, eventBytes)
-		if err != nil {
-			b.incrMetric(logEncodingFailureCounterName)
-			if b.logger != nil {
-				b.logger.Error("Dropping event due to encoding failure with decision ID: %v", event.DecisionID)
-			}
-			return nil
+	var result [][]byte
+	event := item.EventV1
+	eventBytes, err := json.Marshal(&event)
+	if err != nil {
+		b.incrMetric(logEncodingFailureCounterName)
+		if b.logger != nil {
+			b.logger.Error("Dropping event due to encoding failure with decision ID: %v", event.DecisionID)
 		}
+		return nil
+	}
+
+	result, err = b.enc.Encode(*event, eventBytes)
+	if err != nil {
+		b.incrMetric(logEncodingFailureCounterName)
+		if b.logger != nil {
+			b.logger.Error("Dropping event due to encoding failure with decision ID: %v", event.DecisionID)
+		}
+		return nil
 	}
 
 	return result

@@ -804,6 +804,7 @@ func (p *Plugin) Reconfigure(_ context.Context, config any) {
 	p.preparedDrop.drop()
 
 	<-done
+	go p.loop()
 }
 
 // Trigger can be used to control when the plugin attempts to upload
@@ -888,8 +889,10 @@ func (p *Plugin) loop() {
 		select {
 		case <-waitC:
 		case update := <-p.reconfig:
+			cancel() // need to cancel so that the timer loop is closed and reset
 			p.reconfigure(ctx, update.config)
 			update.done <- struct{}{}
+			return
 		case done := <-p.stop:
 			cancel()
 			done <- struct{}{}
