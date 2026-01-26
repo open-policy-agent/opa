@@ -1413,17 +1413,21 @@ func NewArray(a ...*Term) *Array {
 	arr := &Array{
 		elems:  a,
 		ground: termSliceIsGround(a),
-		// hashState is initialized to 0 (invalid hash)
 	}
+	// Initialize hash to "not computed" sentinel value
+	arr.hash.Store(arrayHashNotComputed)
 	return arr
 }
 
 // NewArrayWithCapacity returns a new empty Array with the given capacity pre-allocated.
 func NewArrayWithCapacity(capacity int) *Array {
-	return &Array{
+	arr := &Array{
 		elems:  make([]*Term, 0, capacity),
 		ground: true,
 	}
+	// Initialize hash to "not computed" sentinel value
+	arr.hash.Store(arrayHashNotComputed)
+	return arr
 }
 
 // Array represents an array as defined by the language. Arrays are similar to the
@@ -1432,11 +1436,18 @@ func NewArrayWithCapacity(capacity int) *Array {
 //
 // Optimization: removed hashs []int slice to save memory (8*N bytes per array).
 // Hash is now computed lazily on first access and cached atomically.
+const (
+	// arrayHashNotComputed is the sentinel value indicating hash has not been computed yet.
+	// Using MinInt64 ensures it's unlikely to collide with actual hash values.
+	arrayHashNotComputed = math.MinInt64
+)
+
 type Array struct {
-	elems     []*Term
-	ground    bool
-	hash      atomic.Int64  // cached hash value (atomic for race-free access)
-	hashValid atomic.Uint32 // 0 = invalid, 1 = valid
+	elems  []*Term
+	ground bool
+	// Cached hash value. Uses arrayHashNotComputed as sentinel for "not computed yet".
+	// This ensures atomic read/write without separate validity flag, avoiding race conditions.
+	hash atomic.Int64
 }
 
 // Copy returns a deep copy of arr.
@@ -1445,10 +1456,11 @@ func (arr *Array) Copy() *Array {
 		elems:  termSliceCopy(arr.elems),
 		ground: arr.ground,
 	}
-	// Copy hash if valid
-	if arr.hashValid.Load() == 1 {
-		cpy.hash.Store(arr.hash.Load())
-		cpy.hashValid.Store(1)
+	// Copy hash if already computed
+	if h := arr.hash.Load(); h != arrayHashNotComputed {
+		cpy.hash.Store(h)
+	} else {
+		cpy.hash.Store(arrayHashNotComputed)
 	}
 	return cpy
 }
@@ -1538,10 +1550,9 @@ func (arr *Array) Sorted() *Array {
 	slices.SortFunc(cpy, TermValueCompare)
 
 	a := NewArray(cpy...)
-	// If parent arr already has valid hash, copy it since sorting doesn't change hash
-	if arr.hashValid.Load() == 1 {
-		a.hash.Store(arr.hash.Load())
-		a.hashValid.Store(1)
+	// If parent arr already has computed hash, copy it since sorting doesn't change hash
+	if h := arr.hash.Load(); h != arrayHashNotComputed {
+		a.hash.Store(h)
 	}
 	return a
 }
@@ -1549,9 +1560,9 @@ func (arr *Array) Sorted() *Array {
 // Hash returns the hash code for the Value.
 // Computes hash lazily on first access and caches it atomically.
 func (arr *Array) Hash() int {
-	// Fast path: check if hash is already valid
-	if arr.hashValid.Load() == 1 {
-		return int(arr.hash.Load())
+	// Fast path: return cached hash if already computed
+	if h := arr.hash.Load(); h != arrayHashNotComputed {
+		return int(h)
 	}
 
 	// Slow path: compute hash
@@ -1560,14 +1571,14 @@ func (arr *Array) Hash() int {
 		h += e.Value.Hash()
 	}
 
-	// Try to atomically set valid flag using CAS
-	if arr.hashValid.CompareAndSwap(0, 1) {
-		// We won the race, store the hash
-		arr.hash.Store(int64(h))
+	// Try to atomically store the computed hash using CAS
+	// This ensures only one goroutine's computed value is stored
+	if arr.hash.CompareAndSwap(arrayHashNotComputed, int64(h)) {
+		// We won the race, return our computed hash
 		return h
 	}
 
-	// Another goroutine computed the hash, return theirs
+	// Another goroutine computed and stored the hash first, return theirs
 	return int(arr.hash.Load())
 }
 
@@ -1606,8 +1617,8 @@ func (arr *Array) Set(i int, v *Term) {
 
 // rehash invalidates the cached hash so it will be recomputed on next access.
 func (arr *Array) rehash() {
-	// Atomically invalidate the hash
-	arr.hashValid.Store(0)
+	// Atomically invalidate the hash by setting it to sentinel value
+	arr.hash.Store(arrayHashNotComputed)
 }
 
 // set sets the element i of arr.
@@ -1632,11 +1643,13 @@ func (arr *Array) Slice(i, j int) *Array {
 	// If it's not, the slice could still be.
 	gr := arr.ground || termSliceIsGround(elems)
 
-	return &Array{
+	slice := &Array{
 		elems:  elems,
 		ground: gr,
-		// hashState is initialized to 0 (invalid)
 	}
+	// Initialize hash to "not computed" sentinel value
+	slice.hash.Store(arrayHashNotComputed)
+	return slice
 }
 
 // Iter calls f on each element in arr. If f returns an error,
@@ -1668,13 +1681,14 @@ func (arr *Array) Append(v *Term) *Array {
 		elems:  append(arr.elems, v),
 		ground: arr.ground && v.IsGround(),
 	}
+	// Initialize hash to not computed
+	cpy.hash.Store(arrayHashNotComputed)
 
-	// If hash was already computed, we can update it incrementally
-	if arr.hashValid.Load() == 1 {
-		cpy.hash.Store(arr.hash.Load() + int64(v.Value.Hash()))
-		cpy.hashValid.Store(1)
+	// If parent hash was already computed, we can update it incrementally
+	if h := arr.hash.Load(); h != arrayHashNotComputed {
+		cpy.hash.Store(h + int64(v.Value.Hash()))
 	}
-	// else: hash is invalid, will be computed on first access
+	// else: hash not computed, will be computed on first access
 
 	return cpy
 }
