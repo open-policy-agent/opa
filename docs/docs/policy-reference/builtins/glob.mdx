@@ -5,7 +5,18 @@ title: Glob Matching
 
 ## Examples
 
-### Delimiter Requirements
+### `glob.match`
+
+`glob.match` matches strings against glob patterns with optional delimiters. The function returns `true` if the string matches the pattern and `false` otherwise.
+
+Common use cases for `glob.match` include:
+
+- Matching file paths and URLs with wildcard patterns
+- Validating domain names and hostnames against patterns
+- Filtering resources based on naming conventions
+- Checking configuration keys against allowed patterns
+
+#### Delimiter Requirements
 
 Delimiters must be **single characters**. Each delimiter in the array must be exactly one character long.
 
@@ -35,19 +46,19 @@ Using `null` means no delimiters are used:
 glob.match("*hub.com", null, "api.cdn.github.com")  # => true
 ```
 
-### Multiple Delimiters
+#### Multiple Delimiters
 
 You can specify multiple single-character delimiters to match paths with different separators.
 
 <PlaygroundExample dir={require.context("../_examples/glob/multiple_delimiters")} />
 
-### Indexing Considerations
+#### Indexing Considerations
 
 For `glob.match` to benefit from indexing optimizations, the pattern must contain the delimiter character(s). For example, `glob.match("a:*", [":"], input.x)` will be indexed because the pattern `"a:*"` contains the delimiter `":"`. However, `glob.match("a*", [":"], input.x)` will not be indexed because the pattern `"a*"` does not contain the delimiter. Similarly, `glob.match("foo*", null, input.x)` cannot be indexed because `null` delimiters have no character to match in the pattern.
 
 Non-indexed patterns still work correctly but may be slower on large datasets. See the [Policy Performance](../../policy-performance#glob-statements) guide for more details.
 
-### Basic Usage
+#### Basic Usage
 
 The following table shows examples of how `glob.match` works:
 
