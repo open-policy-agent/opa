@@ -34,9 +34,8 @@ type eventBuffer struct {
 	client      rest.Client
 	uploadPath  string
 	// Enables the read loop in immediate mode to constantly read from the event buffer
-	mode         plugins.TriggerMode
-	stop         chan chan struct{}
-	cancelUpload bool
+	mode plugins.TriggerMode
+	stop chan chan struct{}
 }
 
 func newEventBuffer(bufferSizeLimitEvents int64, uploadSizeLimitBytes int64, client rest.Client, uploadPath string, mode plugins.TriggerMode) *eventBuffer {
@@ -225,46 +224,6 @@ func (b *eventBuffer) processBufferItem(item *bufferItem) [][]byte {
 	return result
 }
 
-func (b *eventBuffer) flush(ctx context.Context) {
-	b.encoderLock.Lock()
-	defer b.encoderLock.Unlock()
-
-	eventLen := len(b.buffer)
-	for range eventLen {
-		item := b.readBufItem()
-		if item == nil {
-			return
-		}
-
-		result := b.processBufferItem(item)
-
-		if result != nil {
-			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-				if b.logger != nil {
-					b.logger.Error("Failed to upload decision logs: %v", err)
-				}
-
-				return
-			}
-		}
-	}
-
-	result, err := b.enc.Flush()
-	if err != nil {
-		// Choosing not to log the error to avoid sensitive event data leaking to the logs
-		b.logger.Error("Failed to upload decision logs due to encoding error.")
-		return
-	}
-	if result == nil {
-		return
-	}
-	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-		if b.logger != nil {
-			b.logger.Error("Failed to upload decision logs: %v", err)
-		}
-	}
-}
-
 func (b *eventBuffer) immediateRead(ctx context.Context, item *bufferItem) {
 	b.encoderLock.Lock()
 	defer b.encoderLock.Unlock()
@@ -272,10 +231,6 @@ func (b *eventBuffer) immediateRead(ctx context.Context, item *bufferItem) {
 	result := b.processBufferItem(item)
 	if result == nil {
 		return
-	}
-
-	if b.mode == plugins.TriggerImmediate {
-		b.cancelUpload = true
 	}
 
 	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
@@ -293,7 +248,6 @@ func (b *eventBuffer) read() {
 		case item := <-b.buffer:
 			b.immediateRead(ctx, item)
 		case done := <-b.stop:
-			b.flush(ctx)
 			done <- struct{}{}
 			return
 		}
@@ -307,32 +261,19 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 	b.encoderLock.Lock()
 	defer b.encoderLock.Unlock()
 
-	if b.mode == plugins.TriggerImmediate {
-		if b.cancelUpload {
-			b.cancelUpload = false
-			return &uploadCancelled{}
-		}
-	}
+	eventLen := len(b.buffer)
 
-	// while in periodic mode the events stay in the buffer to avoid needing a chunk buffer
-	if b.mode != plugins.TriggerImmediate {
-		eventLen := len(b.buffer)
-		if eventLen == 0 {
-			return &bufferEmpty{}
+	for range eventLen {
+		item := b.readBufItem()
+		if item == nil {
+			break
 		}
 
-		for range eventLen {
-			item := b.readBufItem()
-			if item == nil {
-				break
-			}
-
-			result := b.processBufferItem(item)
-			if result != nil {
-				if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-					if b.logger != nil {
-						b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried. Error: %v", err)
-					}
+		result := b.processBufferItem(item)
+		if result != nil {
+			if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
+				if b.logger != nil {
+					b.logger.Error("Failed to upload decision logs, events have been buffered an will be retried. Error: %v", err)
 				}
 			}
 		}

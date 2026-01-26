@@ -4149,7 +4149,8 @@ func TestNoDroppedEvents(t *testing.T) {
 }
 
 func TestDroppedEvents(t *testing.T) {
-	ctx := t.Context()
+	ctx, cancelFunc := context.WithDeadline(t.Context(), time.Now().Add(10*time.Second))
+	defer cancelFunc()
 	testLogger := test.New()
 	fixture := newTestFixture(t, testFixtureOptions{
 		ConsoleLogger: testLogger,
