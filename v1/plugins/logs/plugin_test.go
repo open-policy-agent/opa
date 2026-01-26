@@ -2178,6 +2178,8 @@ func TestPluginReconfigure(t *testing.T) {
 			ctx := context.Background()
 			fixture := newTestFixture(t, testFixtureOptions{
 				ReportingBufferType: tc.currentBufferType,
+				MinDelay:            300,
+				MaxDelay:            300,
 			})
 			// make sure the event fails to upload so that it stays in the buffer
 			fixture.server.expCode = 500
