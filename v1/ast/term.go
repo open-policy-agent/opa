@@ -669,8 +669,9 @@ func NumberTerm(n json.Number) *Term {
 }
 
 // IntNumberTerm creates a new Term with an integer Number value.
+// For values between -1 and 512, returns a cached Term to reduce allocations.
 func IntNumberTerm(i int) *Term {
-	return &Term{Value: newIntNumberValue(i)}
+	return internedIntNumberTerm(i)
 }
 
 // UIntNumberTerm creates a new Term with an unsigned integer Number value.
