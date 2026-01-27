@@ -2592,7 +2592,7 @@ p if {
 	}
 }
 
-func TestCheckUndefinedFunction(t *testing.T) {
+func TestCheckExpectedErrors(t *testing.T) {
 	tests := []struct {
 		name          string
 		policy        string
@@ -2623,40 +2623,6 @@ r := f()`,
 r := f()`,
 			expectedError: "rego_type_error: undefined function f",
 		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			module, err := ParseModuleWithOpts("policy.rego", tc.policy, ParserOptions{ProcessAnnotation: true})
-			if err != nil {
-				t.Fatal(err)
-			}
-			modules := map[string]*Module{"policy.rego": module}
-
-			capabilities := CapabilitiesForThisVersion()
-			compiler := NewCompiler().
-				WithUseTypeCheckAnnotations(true).
-				WithCapabilities(capabilities)
-			compiler.Compile(modules)
-
-			if !compiler.Failed() {
-				t.Fatal("expected error, got none")
-			}
-
-			if !strings.Contains(compiler.Errors.Error(), tc.expectedError) {
-				t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s",
-					tc.expectedError, compiler.Errors.Error())
-			}
-		})
-	}
-}
-
-func TestImprovedFunctionReferenceError(t *testing.T) {
-	tests := []struct {
-		name          string
-		policy        string
-		expectedError string
-	}{
 		{
 			name: "function used as reference",
 			policy: `package play
@@ -2668,7 +2634,7 @@ f(x) := x
 allow if {
     some x in f
 }`,
-			expectedError: "1 error occurred: policy.rego:8: rego_type_error: function data.play.f[__local1__] used as reference, not called",
+			expectedError: "policy.rego:8: rego_type_error: function data.play.f[__local1__] used as reference, not called",
 		},
 	}
 
