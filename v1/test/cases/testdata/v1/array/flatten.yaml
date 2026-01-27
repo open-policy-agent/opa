@@ -1,0 +1,58 @@
+---
+cases:
+  - note: array/flatten empty array
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := array.flatten(data.foo)
+    data:
+      foo: []
+    want_result:
+      - x: []
+  - note: array/flatten only arrays
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := array.flatten(data.foo)
+    data:
+      foo: [[1, 2], [3, 4], [5]]
+    want_result:
+      - x: [1, 2, 3, 4, 5]
+  - note: array/flatten has nesting depth 1
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := array.flatten(data.foo)
+    data:
+      foo: [[[1], [2, 3, []]], [[4, 5]]]
+    want_result:
+      - x: [[1], [2, 3, []], [4, 5]]
+  - note: array/flatten mixed types
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := array.flatten(data.foo)
+    data:
+      foo: [[1, 2], "string", [3, { "a": "b" }], 4.5, [6, [7, 8]]]
+    want_result:
+      - x: [1, 2, "string", 3, { "a": "b" }, 4.5, 6, [7, 8]]
+  - note: array/flatten type error
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := array.flatten(data.foo)
+    data:
+      foo: 42
+    strict_error: true
+    want_error: "array.flatten: operand 1 must be array but got number"
+    want_error_code: eval_type_error
