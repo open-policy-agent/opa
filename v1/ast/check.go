@@ -1089,7 +1089,13 @@ func newRefErrInvalid(loc *Location, ref Ref, idx int, have, want types.Type, on
 }
 
 func newRefErrUnsupported(loc *Location, ref Ref, idx int, have types.Type) *Error {
-	err := newRefError(loc, ref)
+	var err *Error
+	switch have.(type) {
+	case *types.Function:
+		err = NewError(TypeErr, loc, "function %s used as reference, not called", ref.String())
+	default:
+		err = newRefError(loc, ref)
+	}
 	err.Details = &RefErrUnsupportedDetail{
 		Ref:  ref,
 		Pos:  idx,
