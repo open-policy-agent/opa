@@ -2634,7 +2634,7 @@ f(x) := x
 allow if {
     some x in f
 }`,
-			expectedError: "policy.rego:8: rego_type_error: function data.play.f[__local1__] used as reference, not called",
+			expectedError: "policy.rego:8: rego_type_error: function data.play.f used as reference, not called",
 		},
 	}
 

@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -1092,7 +1093,15 @@ func newRefErrUnsupported(loc *Location, ref Ref, idx int, have types.Type) *Err
 	var err *Error
 	switch have.(type) {
 	case *types.Function:
-		err = NewError(TypeErr, loc, "function %s used as reference, not called", ref.String())
+		var function string
+		// drop any trailing references to unidentified parameters (e.g. __local1__)
+		if match, err := regexp.MatchString(`__local[0-9]+__`, ref[len(ref)-1].Value.String()); err == nil && match {
+			function = ref[:len(ref)-1].String()
+		} else {
+			function = ref.String()
+		}
+
+		err = NewError(TypeErr, loc, "function %s used as reference, not called", function)
 	default:
 		err = newRefError(loc, ref)
 	}
