@@ -2290,7 +2290,7 @@ func TestPluginFlush(t *testing.T) {
 
 			events = fixture.plugin.b.Flush()
 			if len(events) != numEvents {
-				t.Fatalf("Expected 1 events but got %v", len(events))
+				t.Fatalf("Expected %v events but got %v", numEvents, len(events))
 			}
 		})
 	}

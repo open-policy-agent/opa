@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -24,7 +23,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
-	"golang.org/x/time/rate"
 )
 
 func TestEventBuffer_Push(t *testing.T) {
@@ -33,8 +31,9 @@ func TestEventBuffer_Push(t *testing.T) {
 	expectedIds := make(map[string]struct{})
 	var expectedDropped uint64
 	limit := int64(2)
+	m := metrics.New()
 	b := newEventBuffer(limit, 0, rest.Client{}, "", plugins.TriggerManual)
-	b.WithMetrics(metrics.New())
+	b.WithMetrics(m)
 
 	id := "id1"
 	expectedIds[id] = struct{}{}
@@ -60,7 +59,19 @@ func TestEventBuffer_Push(t *testing.T) {
 
 	// Increase the limit, forcing the buffer to change
 	limit = int64(3)
-	reconfigureEventBuffer(b, limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
+	b.Stop(t.Context())
+	events := b.Flush()
+	b = newEventBuffer(
+		limit,
+		0,
+		rest.Client{},
+		"",
+		plugins.TriggerPeriodic,
+	)
+	b.WithMetrics(m)
+	for _, event := range events {
+		b.Push(event)
+	}
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	id = "id4"
@@ -77,7 +88,19 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	limit = int64(1)
-	reconfigureEventBuffer(b, limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
+	b.Stop(t.Context())
+	events = b.Flush()
+	b = newEventBuffer(
+		limit,
+		0,
+		rest.Client{},
+		"",
+		plugins.TriggerPeriodic,
+	)
+	b.WithMetrics(m)
+	for _, event := range events {
+		b.Push(event)
+	}
 	// Limit reconfigured from 3->1, dropping 2 more events.
 	expectedDropped = 4
 	delete(expectedIds, "id3")
@@ -85,7 +108,19 @@ func TestEventBuffer_Push(t *testing.T) {
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 
 	// Nothing changed
-	reconfigureEventBuffer(b, limit, 0, nil, rest.Client{}, "", plugins.TriggerPeriodic)
+	b.Stop(t.Context())
+	events = b.Flush()
+	b = newEventBuffer(
+		limit,
+		0,
+		rest.Client{},
+		"",
+		plugins.TriggerPeriodic,
+	)
+	b.WithMetrics(m)
+	for _, event := range events {
+		b.Push(event)
+	}
 	checkBufferState(t, limit, b, expectedDropped, expectedIds)
 }
 
@@ -121,14 +156,40 @@ func TestStopEventBufferLoop(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 	defer ts.Close()
-	e := newEventBuffer(100, 100, client, uploadPath, plugins.TriggerImmediate).WithLogger(logging.NewNoOpLogger())
-	e.Stop(t.Context())
-	e = newEventBuffer(100, 100, rest.Client{}, uploadPath, plugins.TriggerImmediate).WithLogger(logging.NewNoOpLogger())
-	e.Push(newTestEvent(t, strconv.Itoa(100), false))
-	if err := e.Upload(context.Background()); err != nil {
-		t.Fatal(err)
+
+	tests := []struct {
+		name       string
+		bufferType plugins.TriggerMode
+	}{
+		{
+			name:       "periodic mode",
+			bufferType: plugins.TriggerPeriodic,
+		},
+		{
+			name:       "immediate mode",
+			bufferType: plugins.TriggerImmediate,
+		},
 	}
-	e.Stop(t.Context())
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEventBuffer(100, 100, client, uploadPath, tc.bufferType).WithLogger(logging.NewNoOpLogger())
+			e.Stop(t.Context())
+			if t.Context().Err() != nil {
+				t.Fatalf("context error: %v", t.Context().Err())
+			}
+			e = newEventBuffer(100, 100, rest.Client{}, uploadPath, tc.bufferType).WithLogger(logging.NewNoOpLogger())
+			e.Push(newTestEvent(t, strconv.Itoa(100), false))
+			if err := e.Upload(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			e.Stop(t.Context())
+			if t.Context().Err() != nil {
+				t.Fatalf("context error: %v", t.Context().Err())
+			}
+		})
+	}
+
 }
 
 func TestEventBuffer_Upload(t *testing.T) {
@@ -295,49 +356,4 @@ func decodeLogEvent(t *testing.T, r io.Reader) []EventV1 {
 	}
 
 	return events
-}
-
-func reconfigureEventBuffer(b *eventBuffer, bufferSizeLimitEvents int64,
-	uploadSizeLimitBytes int64,
-	maxDecisionsPerSecond *float64,
-	client rest.Client,
-	uploadPath string,
-	mode plugins.TriggerMode,
-) {
-	b.Stop(context.Background())
-	defer func() {
-		if b.mode == plugins.TriggerImmediate {
-			go b.read()
-		}
-	}()
-
-	// prevent an upload from pushing events that failed to upload back into a closed buffer
-	b.uploadLock.Lock()
-	defer b.uploadLock.Unlock()
-
-	if maxDecisionsPerSecond != nil {
-		b.limiter = rate.NewLimiter(rate.Limit(*maxDecisionsPerSecond), int(math.Max(1, *maxDecisionsPerSecond)))
-	} else if b.limiter != nil {
-		b.limiter = nil
-	}
-
-	if b.enc.limit != uploadSizeLimitBytes {
-		b.enc.Reconfigure(uploadSizeLimitBytes)
-	}
-
-	b.mode = mode
-	b.client = client
-	b.uploadPath = uploadPath
-
-	if int64(cap(b.buffer)) == bufferSizeLimitEvents {
-		return
-	}
-
-	close(b.buffer)
-	oldBuffer := b.buffer
-	b.buffer = make(chan *bufferItem, bufferSizeLimitEvents)
-
-	for event := range oldBuffer {
-		b.push(event)
-	}
 }
