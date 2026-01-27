@@ -68,15 +68,6 @@ func newChunkEncoder(limit int64) *chunkEncoder {
 	return enc
 }
 
-func (enc *chunkEncoder) Reconfigure(limit int64) {
-	enc.limit = limit
-	enc.uncompressedLimit = limit
-	enc.uncompressedLimitScaleUpExponent = 0
-	enc.uncompressedLimitScaleDownExponent = 0
-	enc.threshold = int(float64(limit) * encCompressedLimitThreshold)
-	enc.lastDroppedNDSize = 0
-}
-
 // WithUncompressedLimit keep the adaptive uncompressed limit throughout the lifecycle of the size buffer
 // this ensures that the uncompressed limit can grow/shrink appropriately as new data comes in
 func (enc *chunkEncoder) WithUncompressedLimit(uncompressedLimit int64, uncompressedLimitScaleDownExponent float64, uncompressedLimitScaleUpExponent float64) *chunkEncoder {
@@ -388,6 +379,9 @@ func (enc *chunkEncoder) Flush() ([][]byte, error) {
 		r, err := enc.reset()
 		if err != nil {
 			return nil, err
+		}
+		if r == nil {
+			return result, nil
 		}
 		if len(r) < int(enc.limit) {
 			return append(result, r), nil

@@ -117,6 +117,9 @@ const (
 type TriggerMode = v1.TriggerMode
 
 const (
+	// TriggerImmediate represents uploading chunks when ready, flushed by the periodic polling mechanism
+	TriggerImmediate TriggerMode = v1.TriggerImmediate
+
 	// TriggerPeriodic represents periodic polling mechanism
 	TriggerPeriodic = v1.TriggerPeriodic
 
