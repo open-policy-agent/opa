@@ -1,4 +1,4 @@
-// Copyright 2017 The OPA Authors.  All rights reserved.
+// Copyright 2026 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
@@ -61,51 +61,6 @@ func BenchmarkBindingsAllocation(b *testing.B) {
 	}
 }
 
-// BenchmarkCustomFunctionInHotPath reproduces the scenario from issue #7266.
-// This tests calling custom functions thousands of times in a hot path (like inside walk()).
-func BenchmarkCustomFunctionInHotPath(b *testing.B) {
-	ctx := b.Context()
-
-	// Create a simple custom function with 2 arguments
-	module := `package test
-
-	is_ref(x, y) if {
-		x == y
-	}
-
-	result if {
-		is_ref(1, 1)
-	}
-	`
-
-	compiler := ast.MustCompileModules(map[string]string{
-		"test.rego": module,
-	})
-
-	store := inmem.NewFromObject(map[string]any{})
-
-	query := ast.MustParseBody(`data.test.result`)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for b.Loop() {
-		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-			q := NewQuery(query).
-				WithCompiler(compiler).
-				WithStore(store).
-				WithTransaction(txn)
-
-			_, err := q.Run(ctx)
-			return err
-		})
-
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
 // BenchmarkFunctionArgumentCounts benchmarks functions with varying argument counts.
 // This demonstrates the memory waste when small functions allocate 16-slot arrays.
 func BenchmarkFunctionArgumentCounts(b *testing.B) {
@@ -142,65 +97,6 @@ func BenchmarkFunctionArgumentCounts(b *testing.B) {
 				callArgs[i] = strconv.Itoa(i)
 			}
 			query := ast.MustParseBody(fmt.Sprintf(`test.f(%s)`, strings.Join(callArgs, ", ")))
-
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-					q := NewQuery(query).
-						WithCompiler(compiler).
-						WithStore(store).
-						WithTransaction(txn)
-
-					_, err := q.Run(ctx)
-					return err
-				})
-
-				if err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
-}
-
-// BenchmarkWalkWithCustomFunction simulates the common pattern of using walk() with custom predicates.
-// This is the exact scenario described in issue #7266.
-func BenchmarkWalkWithCustomFunction(b *testing.B) {
-	sizes := []int{10, 100, 1000}
-
-	for _, size := range sizes {
-		b.Run(fmt.Sprintf("walk_%d_items", size), func(b *testing.B) {
-			ctx := b.Context()
-
-			// Create test data with nested objects
-			items := make([]string, size)
-			for i := range size {
-				items[i] = fmt.Sprintf(`{"id": %d, "value": "item_%d"}`, i, i)
-			}
-
-			module := fmt.Sprintf(`package test
-
-			is_ref(x) if {
-				is_object(x)
-				x.id
-			}
-
-			count_refs[ref_count] if {
-				arr := [%s]
-				refs := [x | walk(arr, [_, x]); is_ref(x)]
-				ref_count := count(refs)
-			}
-			`, strings.Join(items, ", "))
-
-			compiler := ast.MustCompileModules(map[string]string{
-				"test.rego": module,
-			})
-
-			store := inmem.NewFromObject(map[string]any{})
-
-			query := ast.MustParseBody(`data.test.count_refs[x]`)
 
 			b.ReportAllocs()
 			b.ResetTimer()
