@@ -269,6 +269,34 @@ Setting an `ID` in `sdk.Options` is optional, but recommended. If you do not set
 for the system. While this is fine for testing, it makes it difficult to monitor the system over time, as a new ID will
 be created each time the SDK is initialized, such as when the process is restarted.
 
+#### Using the SDK client without a server
+
+You might want to use the high-level SDK to load policy from the filesystem instead of a bundle server.
+This can be useful if you do not have a bundle server, or you ship policy with the application using the SDK.
+In that case, you can use the SDK as normal, but modify the configuration to use a file scheme and path, instead of a HTTP server resource path.
+You will also not need to include any services in the configuration:
+
+```go
+bundleFilePath, err := filepath.Abs("./policy")
+if err != nil {
+	// handle error
+}
+
+// provide an absolute path to the location of the policy files
+config := []byte(fmt.Sprintf(`{
+	"bundles": {
+		"test": {
+			"resource": "file://%s"
+		}
+	},
+	"decision_logs": {
+		"console": true
+	}
+}`, bundleFilePath))
+
+// create an instance of the OPA object and use it to get policy decisions as normal.
+```
+
 #### Manually Triggering Bundle Reloads
 
 Users of the SDK can
