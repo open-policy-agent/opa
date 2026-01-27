@@ -7,7 +7,7 @@ title: Glob Matching
 
 ### `glob.match`
 
-`glob.match` matches strings against glob patterns with optional delimiters. The function returns `true` if the string matches the pattern and `false` otherwise.
+`glob.match` matches strings against glob patterns with optional delimiters. The function returns `true` if the string matches the pattern, `false` if it doesn't match, or `undefined` if invalid arguments are provided.
 
 Common use cases for `glob.match` include:
 
@@ -45,10 +45,6 @@ Using `null` means no delimiters are used:
 ```rego title="No delimiters"
 glob.match("*hub.com", null, "api.cdn.github.com")  # => true
 ```
-
-#### Multiple Delimiters
-
-You can specify multiple single-character delimiters to match paths with different separators.
 
 <PlaygroundExample dir={require.context("../_examples/glob/multiple_delimiters")} />
 
