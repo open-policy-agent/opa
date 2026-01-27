@@ -3,11 +3,11 @@ package example
 # Match file paths with either / or . separators
 file_path_match := glob.match("config/*.yaml", ["/", "."], "config/app.yaml")
 
-# Match domain names with dots and dashes as delimiters
-domain_match := glob.match("api.*.com", [".", "-"], "api.github.com")
+# Match hostnames with dots and dashes (e.g., api-v2.example.com)
+hostname_match := glob.match("api-*.example.com", [".", "-"], "api-v2.example.com")
 
-# Match colon-separated identifiers (like org:module:function)
-path_match := glob.match("org:*:function", [":", "/"], "org:module:function")
+# Match resource paths with colons and slashes (e.g., namespace:deployment/pod)
+resource_match := glob.match("*:*/pod", [":", "/"], "kube-system:nginx/pod")
 
-# Match with both colon and slash delimiters
-mixed_match := glob.match("*:*/*", [":", "/"], "app:service/endpoint")
+# Match service endpoints with both colon and slash delimiters
+endpoint_match := glob.match("*:*/*", [":", "/"], "app:service/endpoint")
