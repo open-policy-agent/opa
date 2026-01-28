@@ -1,0 +1,13 @@
+.container {
+  margin-bottom: 3rem;
+}
+
+.footnotesContainer {
+  font-size: 0.85em;
+  color: var(--ifm-color-emphasis-700);
+  margin-top: 0.5rem;
+}
+
+.footnote {
+  margin: 0.25rem 0;
+}

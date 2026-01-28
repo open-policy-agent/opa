@@ -1,0 +1,38 @@
+{
+  "slug": "2025",
+  "title": "2025 OPA Community Survey",
+  "year": 2025,
+  "intro": "This page presents the results from the 2025 OPA Community Survey. The survey was run at the end of 2025 online and during the KubeCon event in Atlanta.",
+  "sections": [
+    {
+      "tag": "general",
+      "title": "General",
+      "description": "This section contains questions seen by all respondents and is intended to give a high level overview of how OPA is used."
+    },
+    {
+      "tag": "gatekeeper",
+      "title": "Gatekeeper",
+      "description": "This section contains questions only shown to users who answered yes to using [Gatekeeper](https://open-policy-agent.github.io/gatekeeper/website/) and is intended to give a more detailed overview of OPA Gatekeeper users and their use cases."
+    },
+    {
+      "tag": "opa-envoy-plugin",
+      "title": "OPA Envoy Plugin",
+      "description": "These questions were only shown to users who said they were using [opa-envoy-plugin](https://www.openpolicyagent.org/docs/envoy). They are intended to shed light on where OPA Envoy Plugin is used, and how it can be made easier to use."
+    },
+    {
+      "tag": "conftest",
+      "title": "Conftest",
+      "description": "The following questions were only answered by users who said they were using the tool. They show how users typically invoke [Conftest](https://www.conftest.dev) and where they source policies from."
+    },
+    {
+      "tag": "regal",
+      "title": "Regal",
+      "description": "These questions are only answered by users of [Regal](https://openpolicyagent.org/projects/regal), the main developer tooling stack for Rego programmers. The questions shed light on how different features are used and where users find value in the project."
+    },
+    {
+      "tag": "demographic",
+      "title": "Demographics",
+      "description": "These questions are shown to all respondents and are intended to be used for comparisons with other questions and other survey years."
+    }
+  ]
+}

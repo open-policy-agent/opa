@@ -1,0 +1,21 @@
+{
+  "data": [],
+  "intro": "19 responses",
+  "bullets": [
+    {
+      "title": "Strong Appreciation",
+      "count": 7,
+      "sentence": "Users are enthusiastic about Regal, calling it \"best tool ever\" that \"augments Rego learning,\" with many finding it \"the best source of documentation for idiomatic Rego\" and valuing how it \"defines some common guidelines for how Rego code should look.\""
+    },
+    {
+      "title": "Feature Requests",
+      "count": 4,
+      "sentence": "Users want expanded capabilities, particularly \"find references\" and \"LSP rename\" for improved workflow, more \"auto fixable rules,\" and wish \"the examples on the OPA website were using rego that has zero violations from regal.\""
+    },
+    {
+      "title": "Usability Challenges",
+      "count": 4,
+      "sentence": "Some encounter friction, including Regal not reloading properly in VS Code requiring full restarts, difficulty with the debugger in Zed, rules that are \"hard to understand from documentation,\" and confusion \"when migrating code pre v1.\""
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "data": [
+    {
+      "label": "OPA website",
+      "value": 81
+    },
+    {
+      "label": "Rego Playground",
+      "value": 62
+    },
+    {
+      "label": "VS Code and other editor extensions",
+      "value": 23
+    },
+    {
+      "label": "Regal",
+      "value": 32
+    },
+    {
+      "label": "AI Chatbot or other LLM tool",
+      "value": 22
+    },
+    {
+      "label": "OPA videos on Youtube",
+      "value": 22
+    },
+    {
+      "label": "OPA at KubeCon or other conference",
+      "value": 12
+    }
+  ],
+  "otherResponses": [
+    "Used Styra academy. The course with OPA example was really useful",
+    "Writing a book",
+    "Slack (Help) Channel",
+    "I think Styra had some courses at some point, they were good. They are probably migrated to the OPA website at this point.",
+    "Cloud Native Foundation",
+    "Styra Trainings",
+    "Work",
+    "Styra Academy",
+    "Styra Academy",
+    "The Internet",
+    "opa slack workspace!",
+    "consultants",
+    "Consultants",
+    "Struggling through it in ~2019",
+    "Styra Academy",
+    "Fugue/Regula"
+  ]
+}

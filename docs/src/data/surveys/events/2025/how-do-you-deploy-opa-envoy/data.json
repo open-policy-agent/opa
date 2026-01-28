@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "label": "As a standalone service",
+      "value": 5
+    },
+    {
+      "label": "As a sidecar alongside Envoy when Envoy is deployed as a sidecar",
+      "value": 8
+    },
+    {
+      "label": "As a sidecar alongside Envoy when Envoy is deployed as a standalone service",
+      "value": 1
+    }
+  ]
+}

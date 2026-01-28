@@ -1,0 +1,15 @@
+{
+  "id": "do-you-find-the-documentation-for-opa-envoy-to-be-",
+  "title": "Do you find the documentation for OPA-Envoy to be sufficient?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "opa-envoy-plugin"
+  ],
+  "rank": 57
+}

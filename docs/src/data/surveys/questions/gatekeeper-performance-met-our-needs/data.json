@@ -1,0 +1,18 @@
+{
+  "id": "gatekeeper-performance-met-our-needs",
+  "title": "Gatekeeper performance met our needs",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 28
+}

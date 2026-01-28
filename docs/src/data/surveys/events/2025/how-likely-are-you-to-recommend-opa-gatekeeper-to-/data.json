@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "label": "Very unlikely",
+      "value": 0
+    },
+    {
+      "label": "Unlikely",
+      "value": 0
+    },
+    {
+      "label": "Somewhat unlikely",
+      "value": 1
+    },
+    {
+      "label": "Neither likely nor unlikely",
+      "value": 1
+    },
+    {
+      "label": "Somewhat likely",
+      "value": 2
+    },
+    {
+      "label": "Likely",
+      "value": 9
+    },
+    {
+      "label": "Very likely",
+      "value": 7
+    }
+  ]
+}

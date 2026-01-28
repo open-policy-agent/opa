@@ -1,0 +1,18 @@
+{
+  "id": "which-kubernetes-distributions-or-platforms-do-you",
+  "title": "Which Kubernetes distributions or platforms do you use Gatekeeper with?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 41
+}
