@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	wasm_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/loader"
@@ -266,6 +265,7 @@ type Runner struct {
 	customBuiltins        []*Builtin
 	defaultRegoVersion    ast.RegoVersion
 	parallel              int
+	strictBuiltinErrors   bool
 }
 
 // NewRunner returns a new runner.
@@ -305,6 +305,13 @@ func (r *Runner) SetCompiler(compiler *ast.Compiler) *Runner {
 // such as parsing input.
 func (r *Runner) RaiseBuiltinErrors(enabled bool) *Runner {
 	r.raiseBuiltinErrors = enabled
+	return r
+}
+
+// StrictBuiltinErrors causes builtin evaluation errors to be reported
+// as test ERRORs instead of FAILs.
+func (r *Runner) StrictBuiltinErrors(enabled bool) *Runner {
+	r.strictBuiltinErrors = enabled
 	return r
 }
 
@@ -724,8 +731,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 					expr := rule.Body[i]
 					moved := false
 
-					// If the expression is a generated assignment of a var in the head ref, we attempt to move it as far
-					// up the body as possible.
+					// If the expression is a generated assignment of a var in the head ref, we attempt to move it up the rule body
 					// This is a shallow move, we don't attempt to detect multiple levels of indirection and don't move such expressions; in such case, we move the assigning expression up to the first reference.
 					// Once done for all vars in the head ref, we can inject the test case function below the last (possibly moved) such expr.
 					// Note: We don't move non-generated expressions, as that could contradict author intent.
@@ -952,23 +958,37 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 
 	tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleRef.String(), dt, trace, printbuf.Bytes())
 
-	// If there was an error other than errors from builtins, prefer that error.
+	// Prefer non-builtin evaluation errors.
 	if err != nil {
 		tr.Error = err
-	} else if r.raiseBuiltinErrors && len(builtinErrors) > 0 {
-		if len(builtinErrors) == 1 {
-			tr.Error = &builtinErrors[0]
-		} else {
-			tr.Error = fmt.Errorf("%v", builtinErrors)
+		return tr, false
+	}
+
+	// Builtin error handling
+	if len(builtinErrors) > 0 {
+
+		if r.strictBuiltinErrors {
+			if len(builtinErrors) == 1 {
+				tr.Error = &builtinErrors[0]
+			} else {
+				errs := make([]error, 0, len(builtinErrors))
+				for i := range builtinErrors {
+					errs = append(errs, &builtinErrors[i])
+				}
+				tr.Error = errors.Join(errs...)
+			}
+			return tr, false
+		}
+
+		// Legacy behavior: only if explicitly enabled
+		if r.raiseBuiltinErrors {
+			tr.Fail = true
 		}
 	}
 
 	var stop bool
-	if err != nil {
-		if topdown.IsCancel(err) || wasm_errors.IsCancel(err) {
-			stop = ctx.Err() != context.DeadlineExceeded
-		}
-	} else if len(rs) == 0 {
+
+	if len(rs) == 0 {
 		tr.Fail = true
 	} else if rule.Head.DocKind() == ast.PartialObjectDoc {
 		tr.Fail, tr.SubResults = subResults(rs[0].Expressions[0].Value, trace)

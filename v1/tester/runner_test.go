@@ -749,72 +749,81 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 		}
 	})
 }
-
 func TestRunnerWithBuiltinErrors(t *testing.T) {
 	const ruleTemplate = `package test
 	import rego.v1
 
 	test_json_parsing if {
-      x := json.unmarshal("%s")
-	  x.test == 123
+		x := json.unmarshal("%s")
+		x.test == 123
 	}`
-
-	testCases := []struct {
-		desc          string
-		json          string
-		builtinErrors bool
-		wantErr       bool
-	}{
-		{
-			desc:          "Valid JSON with flag enabled does not raise an error",
-			json:          `{\"test\": 123}`,
-			builtinErrors: true,
-		},
-		{
-			desc:          "Invalid JSON with flag enabled raises an error",
-			json:          `test: 123`,
-			builtinErrors: true,
-			wantErr:       true,
-		},
-		{
-			desc: "Invalid JSON with flag disabled does not raise an error",
-			json: `test: 123`,
-		},
-	}
 
 	ctx := t.Context()
 
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			files := map[string]string{
-				"builtin_error_test.rego": fmt.Sprintf(ruleTemplate, tc.json),
+	t.Run("non-strict builtin errors remain FAIL", func(t *testing.T) {
+		files := map[string]string{
+			"builtin_error_test.rego": fmt.Sprintf(ruleTemplate, `test: 123`),
+		}
+
+		test.WithTempFS(files, func(d string) {
+			modules, store, err := tester.Load([]string{d}, nil)
+			if err != nil {
+				t.Fatal(err)
 			}
 
-			test.WithTempFS(files, func(d string) {
-				paths := []string{d}
-				modules, store, err := tester.Load(paths, nil)
-				if err != nil {
-					t.Fatal(err)
-				}
-				txn := storage.NewTransactionOrDie(ctx, store)
-				runner := tester.
-					NewRunner().
-					SetStore(store).
-					SetModules(modules).
-					RaiseBuiltinErrors(tc.builtinErrors)
+			txn := storage.NewTransactionOrDie(ctx, store)
+			runner := tester.NewRunner().
+				SetStore(store).
+				SetModules(modules)
 
-				ch, err := runner.RunTests(ctx, txn)
-				if err != nil {
-					t.Fatal(err)
+			ch, err := runner.RunTests(ctx, txn)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for result := range ch {
+				if result.Error != nil {
+					t.Fatalf("did not expect ERROR in non-strict mode")
 				}
-				for result := range ch {
-					if gotErr := result.Error != nil; gotErr != tc.wantErr {
-						t.Errorf("wantErr = %v, gotErr = %v", tc.wantErr, gotErr)
-					}
+				if !result.Fail {
+					t.Fatalf("expected FAIL in non-strict mode")
 				}
-			})
+			}
 		})
-	}
+	})
+
+	t.Run("strict builtin errors are reported as ERROR", func(t *testing.T) {
+		files := map[string]string{
+			"builtin_error_test.rego": fmt.Sprintf(ruleTemplate, `test: 123`),
+		}
+
+		test.WithTempFS(files, func(d string) {
+			modules, store, err := tester.Load([]string{d}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			txn := storage.NewTransactionOrDie(ctx, store)
+			runner := tester.NewRunner().
+				SetStore(store).
+				SetModules(modules).
+				StrictBuiltinErrors(true)
+
+			ch, err := runner.RunTests(ctx, txn)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for result := range ch {
+				if result.Error == nil {
+					t.Fatalf("expected ERROR in strict mode")
+				}
+				if result.Fail {
+					t.Fatalf("did not expect FAIL in strict mode")
+				}
+			}
+		})
+	})
 }
 
 func TestLoad_DefaultRegoVersion(t *testing.T) {
