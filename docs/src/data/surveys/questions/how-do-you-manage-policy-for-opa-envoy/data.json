@@ -1,0 +1,18 @@
+{
+  "id": "how-do-you-manage-policy-for-opa-envoy",
+  "title": "How do you manage policy for OPA-Envoy?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "opa-envoy-plugin"
+  ],
+  "rank": 54
+}

@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "label": "Very difficult",
+      "value": 0
+    },
+    {
+      "label": "Difficult",
+      "value": 1
+    },
+    {
+      "label": "Somewhat difficult",
+      "value": 3
+    },
+    {
+      "label": "Neither easy nor difficult",
+      "value": 2
+    },
+    {
+      "label": "Somewhat easy",
+      "value": 4
+    },
+    {
+      "label": "Easy",
+      "value": 8
+    },
+    {
+      "label": "Very easy",
+      "value": 2
+    }
+  ]
+}

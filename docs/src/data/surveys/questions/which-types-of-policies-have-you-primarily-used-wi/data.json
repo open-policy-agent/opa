@@ -1,0 +1,18 @@
+{
+  "id": "which-types-of-policies-have-you-primarily-used-wi",
+  "title": "Which types of policies have you primarily used with Gatekeeper?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 43
+}

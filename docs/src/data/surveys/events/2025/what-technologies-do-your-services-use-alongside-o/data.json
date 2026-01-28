@@ -1,0 +1,43 @@
+{
+  "data": [
+    {
+      "label": "gRPC",
+      "value": 9
+    },
+    {
+      "label": "Envoy Proxy",
+      "value": 6
+    },
+    {
+      "label": "Istio",
+      "value": 8
+    },
+    {
+      "label": "Envoy Gateway",
+      "value": 5
+    },
+    {
+      "label": "SPIFFE/SPIRE",
+      "value": 4
+    },
+    {
+      "label": "Contour",
+      "value": 2
+    },
+    {
+      "label": "cert-manager",
+      "value": 3
+    },
+    {
+      "label": "Kgateway",
+      "value": 1
+    },
+    {
+      "label": "Gloo",
+      "value": 2
+    }
+  ],
+  "otherResponses": [
+    "Skipper"
+  ]
+}

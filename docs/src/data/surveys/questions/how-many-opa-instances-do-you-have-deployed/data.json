@@ -1,0 +1,18 @@
+{
+  "id": "how-many-opa-instances-do-you-have-deployed",
+  "title": "How many OPA instances do you have deployed?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 4
+}

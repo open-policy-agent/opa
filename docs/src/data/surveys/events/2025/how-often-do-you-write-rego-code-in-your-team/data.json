@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "label": "Daily/Weekly - Regular policy development",
+      "value": 21
+    },
+    {
+      "label": "Monthly - Occasional policy updates",
+      "value": 17
+    },
+    {
+      "label": "Rarely - Only when necessary",
+      "value": 12
+    },
+    {
+      "label": "Not yet - Planning to start",
+      "value": 1
+    }
+  ]
+}

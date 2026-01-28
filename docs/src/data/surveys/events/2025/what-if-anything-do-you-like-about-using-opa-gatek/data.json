@@ -1,0 +1,16 @@
+{
+  "data": [],
+  "intro": "8 responses were summarized",
+  "bullets": [
+    {
+      "title": "Reliability & Standardization",
+      "count": 3,
+      "sentence": "Users appreciate that Gatekeeper simply works — \"it works,\" \"it just works,\" and it's become \"the de-facto standard versus alternatives like Kyverno.\""
+    },
+    {
+      "title": "Functionality & Integration",
+      "count": 3,
+      "sentence": "Teams value the capabilities it provides, from \"advanced admission control\" and \"policy guardrails/enforcement\" to easy \"integration into our current build process.\""
+    }
+  ]
+}

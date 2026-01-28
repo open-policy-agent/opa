@@ -1,0 +1,15 @@
+{
+  "id": "what-challenges-have-you-encountered-when-adopting",
+  "title": "What challenges have you encountered when adopting OPA-Envoy?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "opa-envoy-plugin"
+  ],
+  "rank": 55
+}

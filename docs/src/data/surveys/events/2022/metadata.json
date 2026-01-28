@@ -1,0 +1,19 @@
+{
+  "slug": "2022",
+  "title": "2022 OPA Community Survey",
+  "year": 2022,
+  "blog": "https://blog.openpolicyagent.org/open-policy-agent-2022-user-survey-summary-370cf0243bb7",
+  "intro": "This page presents selected results from the 2022 OPA Community Survey for comparison across years. For the full survey results and detailed analysis, please see the blog post.",
+  "sections": [
+    {
+      "tag": "general",
+      "title": "General",
+      "description": "This section contains questions seen by all respondents and is intended to give a high level overview of how OPA is used."
+    },
+    {
+      "tag": "demographic",
+      "title": "Demographics",
+      "description": "These questions are shown to all respondents and are intended to be used for comparisons with other questions and other survey years."
+    }
+  ]
+}

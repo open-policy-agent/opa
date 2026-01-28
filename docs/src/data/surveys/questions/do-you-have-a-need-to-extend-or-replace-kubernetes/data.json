@@ -1,0 +1,15 @@
+{
+  "id": "do-you-have-a-need-to-extend-or-replace-kubernetes",
+  "title": "Do you have a need to extend or replace Kubernetes RBAC with more fine-grained authorization?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 46
+}

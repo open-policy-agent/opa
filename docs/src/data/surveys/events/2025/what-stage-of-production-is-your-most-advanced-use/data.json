@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "label": "Evaluating/Experimentation",
+      "value": 18
+    },
+    {
+      "label": "Pre-production & QA",
+      "value": 14
+    },
+    {
+      "label": "Production",
+      "value": 56
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "data": [
+    {
+      "label": "1",
+      "value": 24
+    },
+    {
+      "label": "2-5",
+      "value": 31
+    },
+    {
+      "label": "6-10",
+      "value": 7
+    },
+    {
+      "label": "11-50",
+      "value": 7
+    },
+    {
+      "label": "more than 50",
+      "value": 7
+    },
+    {
+      "label": "I don't know",
+      "value": 12
+    }
+  ]
+}

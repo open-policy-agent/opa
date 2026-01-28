@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "label": "Ext_proc support",
+      "value": 1
+    },
+    {
+      "label": "Support an opinionated set of builtin helpers for common SPIFFE ID authorization tasks?",
+      "value": 4
+    },
+    {
+      "label": "Ext_authz HTTP API support",
+      "value": 3
+    }
+  ],
+  "otherResponses": [
+    "Source and Destination Spiffe in input when using ambient mode."
+  ]
+}
