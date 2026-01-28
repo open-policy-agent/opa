@@ -442,6 +442,10 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 			goBench = true
 			fallthrough
 		default:
+			if testParams.sortTests.String() != formats.SortNone {
+				_, _ = fmt.Fprintln(testParams.errOutput, "warning: --sort is only supported with JSON format")
+			}
+
 			reporter = tester.PrettyReporter{
 				Verbose:                  testParams.verbose,
 				Output:                   testParams.output,

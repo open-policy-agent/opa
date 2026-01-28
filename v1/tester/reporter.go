@@ -5,10 +5,12 @@
 package tester
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 
@@ -275,6 +277,10 @@ func (r JSONReporter) Report(ch chan *Result) error {
 
 	switch r.Sort {
 	case formats.SortDuration:
+		slices.SortFunc(report, func(i, j *Result) int {
+			return cmp.Compare(i.Duration, j.Duration)
+		})
+
 		sort.Slice(report, func(i, j int) bool {
 			return report[i].Duration > report[j].Duration
 		})
