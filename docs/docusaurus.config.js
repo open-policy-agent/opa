@@ -7,6 +7,7 @@ const path = require("path");
 
 import { loadPages } from "./src/lib/ecosystem/loadPages.js";
 import { loadRules } from "./src/lib/projects/regal/loadRules.js";
+import { loadSurveyEventData, loadSurveyQuestions, loadSurveyEventMetadata } from "./src/lib/surveys/loadSurveyData.js";
 
 const baseUrl = "/";
 
@@ -132,6 +133,7 @@ const baseUrl = "/";
               { to: "/security", label: "Security" },
               { to: "/support", label: "Support" },
               { to: "/community", label: "Community" },
+              { to: "/survey", label: "Survey" },
               { href: "https://blog.openpolicyagent.org/", label: "Blog" },
             ],
           },
@@ -533,6 +535,50 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
 
           async contentLoaded({ content, actions }) {
             await actions.createData("rules.json", JSON.stringify(content.rules, null, 2));
+          },
+        };
+      },
+
+      async function surveyData(context, options) {
+        return {
+          name: "survey-data",
+
+          async loadContent() {
+            const eventData = await loadSurveyEventData(
+              path.join(context.siteDir, "src/data/surveys/events/**/**/data.json")
+            );
+            const questions = await loadSurveyQuestions(
+              path.join(context.siteDir, "src/data/surveys/questions/**/data.json")
+            );
+            const eventMetadata = await loadSurveyEventMetadata(
+              path.join(context.siteDir, "src/data/surveys/events/**/metadata.json")
+            );
+
+            return { eventData, questions, eventMetadata };
+          },
+
+          async contentLoaded({ content, actions }) {
+            const { createData, addRoute } = actions;
+            const { eventData, questions, eventMetadata } = content;
+
+            await createData("survey-event-data.json", JSON.stringify(eventData, null, 2));
+            await createData("survey-questions.json", JSON.stringify(questions, null, 2));
+            await createData("survey-event-metadata.json", JSON.stringify(eventMetadata, null, 2));
+
+            // Create a page for each event
+            const eventSlugs = Object.keys(eventData);
+            await Promise.all(
+              eventSlugs.map(async (eventSlug) => {
+                const routePath = path.join(baseUrl, `/survey/${eventSlug}`);
+                return addRoute({
+                  path: routePath,
+                  component: require.resolve("./src/SurveyEvent/index.js"),
+                  exact: true,
+                  modules: {},
+                  customData: { eventSlug },
+                });
+              }),
+            );
           },
         };
       },
