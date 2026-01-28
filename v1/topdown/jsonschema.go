@@ -27,7 +27,7 @@ func astValueToJSONSchemaLoader(value ast.Value) (gojsonschema.JSONLoader, error
 			return nil, errors.New("invalid JSON string")
 		}
 		loader = gojsonschema.NewStringLoader(string(x))
-	case ast.Object:
+	case ast.Object, *ast.Array:
 		// In case of object serialize it to JSON representation.
 		var data any
 		data, err = ast.JSON(value)
