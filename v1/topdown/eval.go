@@ -969,7 +969,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	builtinName := ref.String()
 	bi, f, ok := e.builtinFunc(builtinName)
 	if !ok {
-		return unsupportedBuiltinErr(e.query[e.index].Location)
+		return unsupportedBuiltinErr(e.query[e.index].Location, builtinName)
 	}
 
 	if mocked { // value replacement of built-in call

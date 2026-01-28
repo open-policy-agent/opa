@@ -95,6 +95,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Arrays
 	ArrayConcat,
+	ArrayFlatten,
 	ArraySlice,
 	ArrayReverse,
 
@@ -889,6 +890,18 @@ var ArrayConcat = &Builtin{
 			types.Named("y", types.NewArray(nil, types.A)).Description("the second array"),
 		),
 		types.Named("z", types.NewArray(nil, types.A)).Description("the concatenation of `x` and `y`"),
+	),
+	CanSkipBctx: true,
+}
+
+var ArrayFlatten = &Builtin{
+	Name:        "array.flatten",
+	Description: "Non-recursively unpacks array items in arr into the flattened array. Other types are appended as-is.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("arr", types.NewArray(nil, types.A)).Description("the array to be flattened"),
+		),
+		types.Named("flattened", types.NewArray(nil, types.A)).Description("array flattened one level"),
 	),
 	CanSkipBctx: true,
 }

@@ -138,11 +138,11 @@ func objectDocKeyConflictErr(loc *ast.Location) error {
 	}
 }
 
-func unsupportedBuiltinErr(loc *ast.Location) error {
+func unsupportedBuiltinErr(loc *ast.Location, name string) error {
 	return &Error{
 		Code:     InternalErr,
 		Location: loc,
-		Message:  "unsupported built-in",
+		Message:  "unsupported built-in: " + name,
 	}
 }
 
