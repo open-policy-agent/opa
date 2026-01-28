@@ -9,8 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/cover"
 	"github.com/open-policy-agent/opa/v1/topdown"
@@ -261,6 +263,7 @@ func (r PrettyReporter) fmtBenchmark(tr *Result) string {
 // JSONReporter reports test results as array of JSON objects.
 type JSONReporter struct {
 	Output io.Writer
+	Sort   string
 }
 
 // Report prints the test report to the reporter's output.
@@ -270,12 +273,19 @@ func (r JSONReporter) Report(ch chan *Result) error {
 		report = append(report, tr)
 	}
 
+	switch r.Sort {
+	case formats.SortDuration:
+		sort.Slice(report, func(i, j int) bool {
+			return report[i].Duration > report[j].Duration
+		})
+	}
+
 	bs, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(r.Output, string(bs))
-	return nil
+	_, err = fmt.Fprintln(r.Output, string(bs))
+	return err
 }
 
 // JSONCoverageReporter reports coverage as a JSON structure.
