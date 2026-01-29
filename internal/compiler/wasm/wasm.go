@@ -90,6 +90,7 @@ var builtinsFunctions = map[string]string{
 	ast.Floor.Name:                      "opa_arith_floor",
 	ast.Rem.Name:                        "opa_arith_rem",
 	ast.ArrayConcat.Name:                "opa_array_concat",
+	ast.ArrayFlatten.Name:               "opa_array_flatten",
 	ast.ArrayReverse.Name:               "opa_array_reverse",
 	ast.ArraySlice.Name:                 "opa_array_slice",
 	ast.SetDiff.Name:                    "opa_set_diff",

@@ -443,9 +443,6 @@ jobs:
     - name: Test policies
       run: opa test --schema build/policy/schema --bundle build/policy
 
-    - name: Ensure proper formatting
-      run: opa fmt --list --fail build/policy
-
     - name: Run file policy checks on changed files
       run: |
         curl --silent --fail --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -o files.json \

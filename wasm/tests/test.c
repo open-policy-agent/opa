@@ -1738,6 +1738,28 @@ void test_array(void)
          opa_value_compare(r->elems[0].v, opa_number_int(2)) == 0 &&
          opa_value_compare(r->elems[1].v, opa_number_int(1)) == 0 &&
          opa_value_compare(r->elems[2].v, opa_number_int(0)) == 0);
+
+     // array.flatten [[0,1], [2,3], 4] -> [0,1,2,3,4]
+    opa_array_t *sub1 = opa_cast_array(opa_array());
+    opa_array_append(sub1, opa_number_int(0));
+    opa_array_append(sub1, opa_number_int(1));
+    
+    opa_array_t *sub2 = opa_cast_array(opa_array());
+    opa_array_append(sub2, opa_number_int(2));
+    opa_array_append(sub2, opa_number_int(3));
+    
+    opa_array_t *nested = opa_cast_array(opa_array());
+    opa_array_append(nested, &sub1->hdr);
+    opa_array_append(nested, &sub2->hdr);
+    opa_array_append(nested, opa_number_int(4));
+
+    r = opa_cast_array(opa_array_flatten(&nested->hdr));
+    test("array_flatten", r->len == 5 &&
+         opa_value_compare(r->elems[0].v, opa_number_int(0)) == 0 &&
+         opa_value_compare(r->elems[1].v, opa_number_int(1)) == 0 &&
+         opa_value_compare(r->elems[2].v, opa_number_int(2)) == 0 &&
+         opa_value_compare(r->elems[3].v, opa_number_int(3)) == 0 &&
+         opa_value_compare(r->elems[4].v, opa_number_int(4)) == 0);
 }
 
 WASM_EXPORT(test_types)
