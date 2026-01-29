@@ -51,14 +51,16 @@ func builtinArrayFlatten(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 
 	size := arr.Len()
 	preAlloc := size
+	containsArray := false
 
 	for i := range size {
 		if nested, ok := arr.Elem(i).Value.(*ast.Array); ok {
+			containsArray = true
 			preAlloc += nested.Len() - 1
 		}
 	}
 
-	if size == preAlloc {
+	if !containsArray && size == preAlloc {
 		return iter(operands[0]) // Empty array, or no nested arrays -> nothing to flatten.
 	}
 
