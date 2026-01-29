@@ -8,6 +8,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
 - A new `immediate` upload trigger mode
+- A new `array.flatten` built-in function
 - Numerous performance improvements
 
 ### Immediate Upload Trigger Mode in Decision Logger ([#8110](https://github.com/open-policy-agent/opa/issues/7455))
