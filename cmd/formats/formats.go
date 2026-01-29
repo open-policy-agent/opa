@@ -11,14 +11,16 @@ import (
 type option = string
 
 const (
-	Pretty   option = "pretty"
-	JSON     option = "json"
-	GoBench  option = "gobench"
-	Values   option = "values"
-	Bindings option = "bindings"
-	Source   option = "source"
-	Raw      option = "raw"
-	Discard  option = "discard"
+	Pretty       option = "pretty"
+	JSON         option = "json"
+	GoBench      option = "gobench"
+	Values       option = "values"
+	Bindings     option = "bindings"
+	Source       option = "source"
+	Raw          option = "raw"
+	Discard      option = "discard"
+	SortNone     option = "none"
+	SortDuration option = "duration"
 )
 
 // Returns an enum flag for the given formats, where the first provided format

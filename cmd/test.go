@@ -51,6 +51,7 @@ type testCommandParams struct {
 	benchmark    bool
 	benchMem     bool
 	runRegex     string
+	sortTests    *util.EnumFlag
 	count        int
 	target       *util.EnumFlag
 	skipExitZero bool
@@ -69,6 +70,7 @@ type testCommandParams struct {
 
 func newTestCommandParams() testCommandParams {
 	return testCommandParams{
+		sortTests:    formats.Flag(formats.SortNone, formats.SortDuration),
 		outputFormat: formats.Flag(formats.Pretty, formats.JSON, formats.GoBench),
 		explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes, explainModeDebug}),
 		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
@@ -434,11 +436,16 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		case formats.JSON:
 			reporter = tester.JSONReporter{
 				Output: testParams.output,
+				Sort:   testParams.sortTests.String(),
 			}
 		case formats.GoBench:
 			goBench = true
 			fallthrough
 		default:
+			if testParams.sortTests.String() != formats.SortNone {
+				_, _ = fmt.Fprintln(testParams.errOutput, "warning: --sort is only supported with JSON format")
+			}
+
 			reporter = tester.PrettyReporter{
 				Verbose:                  testParams.verbose,
 				Output:                   testParams.output,
@@ -576,6 +583,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
 	testCommand.Flags().IntVarP(&testParams.parallel, "parallel", "p", goRuntime.NumCPU(), "the number of tests that can run in parallel, defaulting to the number of CPUs (explicitly set with 0). Benchmarks are always run sequentially.")
 	testCommand.Flags().BoolVar(&testParams.failOnEmpty, "fail-on-empty", false, "Whether to fail the test when no test was run")
+	testCommand.Flags().Var(testParams.sortTests, "sort", "sort the JSON formatted test output")
 
 	// Shared flags
 	addOutputFormat(testCommand.Flags(), testParams.outputFormat)

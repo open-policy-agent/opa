@@ -111,6 +111,9 @@ opa_arith_rem,opa_bf_to_number
 opa_array_concat,opa_value_type
 opa_array_concat,opa_array_with_cap
 opa_array_concat,opa_array_append
+opa_array_flatten,opa_value_type
+opa_array_flatten,opa_array_with_cap
+opa_array_flatten,opa_array_append
 opa_array_slice,opa_value_type
 opa_array_slice,opa_number_try_int
 opa_array_slice,opa_array_with_cap
