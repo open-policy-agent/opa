@@ -2,7 +2,10 @@ package tester
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -633,288 +636,133 @@ ERROR: 1/14
 }
 
 func TestJSONReporter(t *testing.T) {
-	var buf bytes.Buffer
-	ts := []*Result{
+	tests := []struct {
+		name     string
+		sort     string
+		expected string
+	}{
 		{
-			Package: "data.foo.bar",
-			Name:    "test_baz",
-			Trace:   getFakeTraceEvents(),
+			name:     "default not sorted",
+			expected: "JSONReporter.json",
 		},
 		{
-			Package: "data.foo.bar",
-			Name:    "test_qux",
-			Error:   errors.New("some err"),
-			Trace:   getFakeTraceEvents(),
+			name:     "sorted",
+			sort:     "duration",
+			expected: "JSONReporter_sorted.json",
 		},
-		{
-			Package: "data.foo.bar",
-			Name:    "test_corge",
-			Fail:    true,
-			Trace:   getFakeTraceEvents(),
-		},
-		{
-			Package: "data.foo.bar",
-			Name:    "todo_test_qux",
-			Skip:    true,
-			Trace:   nil,
-		},
-		{
-			Package: "data.foo.bar",
-			Name:    "test_contains_print",
-			Output:  []byte("fake print output\n"),
-		},
-		{
-			Package: "data.foo.baz",
-			Name:    "p.q.r.test_quz",
-		},
-		{
-			Package: "data.foo.qux",
-			Name:    "test_cases_nested",
-			Trace:   getFakeTraceEvents(),
-			Fail:    true,
-			SubResults: SubResultMap{
-				"one": {
-					Name: "one",
-					Fail: false,
-					SubResults: SubResultMap{
-						"foo": {
-							Name: "foo",
-							Fail: false,
-						},
-						"bar": {
-							Name: "bar",
-							Fail: false,
-						},
-					},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			ts := []*Result{
+				{
+					Package:  "data.foo.bar",
+					Name:     "test_baz",
+					Trace:    getFakeTraceEvents(),
+					Duration: 7,
 				},
-				"two": {
-					Name: "two",
-					Fail: true,
+				{
+					Package:  "data.foo.bar",
+					Name:     "test_qux",
+					Error:    errors.New("some err"),
+					Trace:    getFakeTraceEvents(),
+					Duration: 6,
+				},
+				{
+					Package:  "data.foo.bar",
+					Name:     "test_corge",
+					Fail:     true,
+					Trace:    getFakeTraceEvents(),
+					Duration: 5,
+				},
+				{
+					Package:  "data.foo.bar",
+					Name:     "todo_test_qux",
+					Skip:     true,
+					Trace:    nil,
+					Duration: 4,
+				},
+				{
+					Package:  "data.foo.bar",
+					Name:     "test_contains_print",
+					Output:   []byte("fake print output\n"),
+					Duration: 3,
+				},
+				{
+					Package:  "data.foo.baz",
+					Name:     "p.q.r.test_quz",
+					Duration: 2,
+				},
+				{
+					Package: "data.foo.qux",
+					Name:    "test_cases_nested",
+					Trace:   getFakeTraceEvents(),
+					Fail:    true,
 					SubResults: SubResultMap{
-						"foo": {
-							Name: "foo",
+						"one": {
+							Name: "one",
+							Fail: false,
+							SubResults: SubResultMap{
+								"foo": {
+									Name: "foo",
+									Fail: false,
+								},
+								"bar": {
+									Name: "bar",
+									Fail: false,
+								},
+							},
+						},
+						"two": {
+							Name: "two",
 							Fail: true,
-						},
-						"bar": {
-							Name: "bar",
-							Fail: false,
+							SubResults: SubResultMap{
+								"foo": {
+									Name: "foo",
+									Fail: true,
+								},
+								"bar": {
+									Name: "bar",
+									Fail: false,
+								},
+							},
 						},
 					},
+					Location: &ast.Location{
+						File: "policy5.rego",
+					},
+					Duration: 1,
 				},
-			},
-			Location: &ast.Location{
-				File: "policy5.rego",
-			},
-		},
-	}
+			}
 
-	r := JSONReporter{
-		Output: &buf,
-	}
+			r := JSONReporter{
+				Output: &buf,
+				Sort:   tc.sort,
+			}
 
-	ch := resultsChan(ts)
+			ch := resultsChan(ts)
 
-	if err := r.Report(ch); err != nil {
-		t.Fatal(err)
-	}
+			if err := r.Report(ch); err != nil {
+				t.Fatal(err)
+			}
 
-	exp := util.MustUnmarshalJSON([]byte(`[ {
-  "location" : null,
-  "package" : "data.foo.bar",
-  "name" : "test_baz",
-  "duration" : 0,
-  "trace" : [ {
-    "Op" : "Fail",
-    "Node" : {
-      "index" : 0,
-      "terms" : [ {
-        "type" : "ref",
-        "value" : [ {
-          "type" : "var",
-          "value" : "eq"
-        } ]
-      }, {
-        "type" : "boolean",
-        "value" : true
-      }, {
-        "type" : "boolean",
-        "value" : false
-      } ]
-    },
-    "Location" : {
-      "file" : "",
-      "row" : 1,
-      "col" : 1
-    },
-    "QueryID" : 0,
-    "ParentID" : 0,
-    "Locals" : null,
-    "LocalMetadata" : null,
-    "Message" : "",
-    "Ref" : null
-  } ]
-}, {
-  "location" : null,
-  "package" : "data.foo.bar",
-  "name" : "test_qux",
-  "error" : { },
-  "duration" : 0,
-  "trace" : [ {
-    "Op" : "Fail",
-    "Node" : {
-      "index" : 0,
-      "terms" : [ {
-        "type" : "ref",
-        "value" : [ {
-          "type" : "var",
-          "value" : "eq"
-        } ]
-      }, {
-        "type" : "boolean",
-        "value" : true
-      }, {
-        "type" : "boolean",
-        "value" : false
-      } ]
-    },
-    "Location" : {
-      "file" : "",
-      "row" : 1,
-      "col" : 1
-    },
-    "QueryID" : 0,
-    "ParentID" : 0,
-    "Locals" : null,
-    "LocalMetadata" : null,
-    "Message" : "",
-    "Ref" : null
-  } ]
-}, {
-  "location" : null,
-  "package" : "data.foo.bar",
-  "name" : "test_corge",
-  "fail" : true,
-  "duration" : 0,
-  "trace" : [ {
-    "Op" : "Fail",
-    "Node" : {
-      "index" : 0,
-      "terms" : [ {
-        "type" : "ref",
-        "value" : [ {
-          "type" : "var",
-          "value" : "eq"
-        } ]
-      }, {
-        "type" : "boolean",
-        "value" : true
-      }, {
-        "type" : "boolean",
-        "value" : false
-      } ]
-    },
-    "Location" : {
-      "file" : "",
-      "row" : 1,
-      "col" : 1
-    },
-    "QueryID" : 0,
-    "ParentID" : 0,
-    "Locals" : null,
-    "LocalMetadata" : null,
-    "Message" : "",
-    "Ref" : null
-  } ]
-}, {
-  "location" : null,
-  "package" : "data.foo.bar",
-  "name" : "todo_test_qux",
-  "skip" : true,
-  "duration" : 0
-}, {
-  "location" : null,
-  "package" : "data.foo.bar",
-  "name" : "test_contains_print",
-  "duration" : 0,
-  "output" : "ZmFrZSBwcmludCBvdXRwdXQK"
-}, {
-  "location" : null,
-  "package" : "data.foo.baz",
-  "name" : "p.q.r.test_quz",
-  "duration" : 0
-}, {
-  "location" : {
-    "file" : "policy5.rego",
-    "row" : 0,
-    "col" : 0
-  },
-  "package" : "data.foo.qux",
-  "name" : "test_cases_nested",
-  "fail" : true,
-  "duration" : 0,
-  "trace" : [ {
-    "Op" : "Fail",
-    "Node" : {
-      "index" : 0,
-      "terms" : [ {
-        "type" : "ref",
-        "value" : [ {
-          "type" : "var",
-          "value" : "eq"
-        } ]
-      }, {
-        "type" : "boolean",
-        "value" : true
-      }, {
-        "type" : "boolean",
-        "value" : false
-      } ]
-    },
-    "Location" : {
-      "file" : "",
-      "row" : 1,
-      "col" : 1
-    },
-    "QueryID" : 0,
-    "ParentID" : 0,
-    "Locals" : null,
-    "LocalMetadata" : null,
-    "Message" : "",
-    "Ref" : null
-  } ],
-  "sub_results" : {
-    "one" : {
-      "name" : "one",
-      "sub_results" : {
-        "bar" : {
-          "name" : "bar"
-        },
-        "foo" : {
-          "name" : "foo"
-        }
-      }
-    },
-    "two" : {
-      "name" : "two",
-      "fail" : true,
-      "sub_results" : {
-        "bar" : {
-          "name" : "bar"
-        },
-        "foo" : {
-          "name" : "foo",
-          "fail" : true
-        }
-      }
-    }
-  }
-} ]
-`))
+			testdata, err := os.ReadFile(filepath.Join("testdata", tc.expected))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var actual, exp any
+			if err := json.Unmarshal(testdata, &exp); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(buf.Bytes(), &actual); err != nil {
+				t.Fatal(err)
+			}
 
-	result := util.MustUnmarshalJSON(buf.Bytes())
-
-	if !reflect.DeepEqual(result, exp) {
-		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
+			if !reflect.DeepEqual(actual, exp) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, actual)
+			}
+		})
 	}
 }
 
