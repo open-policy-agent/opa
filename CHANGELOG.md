@@ -3,7 +3,93 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.13.0
+
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
+
+- A new `immediate` upload trigger mode
+- A new `array.flatten` built-in function
+- Numerous performance improvements
+
+### Immediate Upload Trigger Mode in Decision Logger ([#8110](https://github.com/open-policy-agent/opa/issues/7455))
+
+An `immediate` trigger mode has been added to the Decision Logger; enabled by setting the `decision_logs.reporting.trigger` [configuration option](https://www.openpolicyagent.org/docs/configuration#decision-logs) to `immediate`.
+When enabled, log events are pushed to the log service as soon as the configured upload chunk size criteria is met; or, at latest, when the configured upload delay is reached.
+
+Authored by @sspaink
+
+### Runtime, SDK, Tooling
+
+- cmd/fmt: Do not overwrite file on `fmt` without changes ([#8222](https://github.com/open-policy-agent/opa/issues/8222)) authored by @Loic-R
+- cmd/test: Enable sorting JSON test results by duration ([#7444](https://github.com/open-policy-agent/opa/issues/7444)) authored by @sspaink
+- profiler: `nil` `*Profiler` should not report `Enabled()` ([#8256](https://github.com/open-policy-agent/opa/pull/8256)) authored by @anderseknert
+- rego: Add Data function to simplify adding data from map ([#5961](https://github.com/open-policy-agent/opa/issues/5961)) authored by @majiayu000 reported by @anderseknert
+- runtime: Correct naming & docs for version checking ([#8191](https://github.com/open-policy-agent/opa/pull/8191)) authored by @charlieegan3
+
+### Compiler, Topdown and Rego
+
+- ast: `Body.String()` doesn't panic on empty body ([#8244](https://github.com/open-policy-agent/opa/pull/8244)) authored by @srenatus
+- ast: Improve type error message when referencing functions ([#6840](https://github.com/open-policy-agent/opa/issues/6840)) authored by @sspaink
+- ast: Type Checker recognizes when a variable has multiple assignments but is an undefined function ([#7463](https://github.com/open-policy-agent/opa/issues/7463)) authored by @sspaink reported by @anderseknert
+- ast/parser: Avoid duplicate loc copies ([#8142](https://github.com/open-policy-agent/opa/pull/8142)) authored by @srenatus
+- topdown: Add `array.flatten` built-in function ([#8226](https://github.com/open-policy-agent/opa/issues/8226)) authored by @anderseknert
+- topdown: Fix issue where `numbers.range_step` built-in could erroneously return `undefined` value ([#8194](https://github.com/open-policy-agent/opa/pull/8194)) authored by @thevilledev
+- topdown: Remove hard-coded missing key error in `strings.render_template` built-in ([#7931](https://github.com/open-policy-agent/opa/issues/7931)) authored by @colinjlacy reported by @anderseknert
+- topdown: Re-introduce cancellation-awareness for `regex.replace` built-in ([#8179](https://github.com/open-policy-agent/opa/pull/8179)) authored by @srenatus  
+  from having been reverted in v1.12.1
+- topdown: Support arrays as input for `json.match_schema` ([#6615](https://github.com/open-policy-agent/opa/issues/6615)) authored by @sspaink reported by @mscudlik
+
+### Performance
+
+- ast: Improved annotations parsing ([#8210](https://github.com/open-policy-agent/opa/pull/8210)) authored by @anderseknert
+- ast: Reinstate zero-alloc paths in `Ref.String()` ([#8202](https://github.com/open-policy-agent/opa/pull/8202)) authored by @anderseknert
+- ast: Replace regex implementation in `IsVarCompatibleString` ([#8164](https://github.com/open-policy-agent/opa/pull/8164)) authored by @anderseknert
+- ast: Optimize `Set.Intersect` and `Set.Diff` ([#8167](https://github.com/open-policy-agent/opa/pull/8167)) authored by @thevilledev
+- ast: Optimize `Set.Union` ([#8172](https://github.com/open-policy-agent/opa/pull/8172)) authored by @thevilledev
+- ast: Reduce allocations in `Expr.MarshalJSON` ([#8204](https://github.com/open-policy-agent/opa/pull/8204)) authored by @thevilledev
+- ast: Reduce allocations in `Rule.MarshalJSON` ([#8205](https://github.com/open-policy-agent/opa/pull/8205)) authored by @thevilledev
+- ast: Reduce allocations in `Term.MarshalJSON` ([#8200](https://github.com/open-policy-agent/opa/pull/8200)) authored by @thevilledev
+- ast: Reduce allocations in `With.MarshalJSON` ([#8206](https://github.com/open-policy-agent/opa/pull/8206)) authored by @thevilledev
+- perf: `String()` implementations using appenders ([#8192](https://github.com/open-policy-agent/opa/pull/8192)) authored by @anderseknert
+- topdown: Avoid redundancy in builtinTrim ([#8237](https://github.com/open-policy-agent/opa/pull/8237)) authored by @thevilledev
+- topdown: Eliminate closure allocations in Set and virtual doc enumeration ([#8242](https://github.com/open-policy-agent/opa/pull/8242)) authored by @alex60217101990
+- topdown: Fast paths for `array.reverse` ([#8177](https://github.com/open-policy-agent/opa/pull/8177)) authored by @thevilledev
+- topdown: Optimize `json.remove` and `json.filter` ([#8193](https://github.com/open-policy-agent/opa/pull/8193)) authored by @thevilledev
+- topdown: Optimize `object` built-ins ([#8175](https://github.com/open-policy-agent/opa/pull/8175)) authored by @thevilledev
+- topdown: Optimize `union` built-in ([#8173](https://github.com/open-policy-agent/opa/pull/8173)) authored by @thevilledev
+- topdown: Pre-alloc in various built-ins ([#8198](https://github.com/open-policy-agent/opa/pull/8198)) authored by @thevilledev
+- topdown: Reduce allocs in float sum/product ([#8235](https://github.com/open-policy-agent/opa/pull/8235)) authored by @thevilledev
+- topdown: Skip set copy in `getObjectKeysParam` ([#8176](https://github.com/open-policy-agent/opa/pull/8176)) authored by @thevilledev
+
+### Docs, Website, Ecosystem
+
+- docs: Add authz-spring-boot-starter to Spring Security API ecosystem entry ([#8234](https://github.com/open-policy-agent/opa/pull/8234)) authored by @francois-eckert
+- docs: Add header for crypto example to make ([#8259](https://github.com/open-policy-agent/opa/pull/8259)) authored by @charlieegan3
+- docs: Add notes for automated agents ([#8147](https://github.com/open-policy-agent/opa/pull/8147), [#8203](https://github.com/open-policy-agent/opa/pull/8203)) authored by @charlieegan3
+- docs: Add opa-wasm-zig to the ecosystem ([#8163](https://github.com/open-policy-agent/opa/pull/8163)) authored by @burdzwastaken
+- docs: Add scripts to import docs from source ([#8148](https://github.com/open-policy-agent/opa/pull/8148)) authored by @charlieegan3
+- docs: Explain how to use the SDK without a initialising a server ([#8248](https://github.com/open-policy-agent/opa/pull/8248)) authored by @andrewcameronsims
+- docs: Fix a number of redirecting links ([#8165](https://github.com/open-policy-agent/opa/issues/8165) authored by @charlieegan3
+- docs: Fix template-expression examples ([#8199](https://github.com/open-policy-agent/opa/pull/8199)) authored by @johanfylling
+- docs/ocp: Mention source prefix/path options ([#8238](https://github.com/open-policy-agent/opa/pull/8238)) authored by @srenatus
+- website: Add redirect section for immutable referrers ([#8262](https://github.com/open-policy-agent/opa/issues/8262)) authored by @charlieegan3 reported by @KraLeoD
+- website: Display 2025 survey results on the website ([#8258](https://github.com/open-policy-agent/opa/pull/8258)) authored by @charlieegan3
+- website: Show breadcrumbs in search results ([#8207](https://github.com/open-policy-agent/opa/pull/8207)) authored by @charlieegan3
+
+### Miscellaneous
+
+- Decoupled the Rego job check from the Go job checks in the Github PR workflow ([#8203](https://github.com/open-policy-agent/opa/pull/8203)) authored by @SeanLedford
+- build: Format `pr_check.rego` with `opa fmt` ([#8201](https://github.com/open-policy-agent/opa/pull/8201)) authored by @thevilledev
+- build: Migrate PR check to OPA policy ([#8183](https://github.com/open-policy-agent/opa/pull/8183)) authored by @SeanLedford
+- build: Run `go get` against `main` to spot redacted ([#8146](https://github.com/open-policy-agent/opa/pull/8146)) authored by @charlieegan3
+- deps: Switch to maintained `go.yaml.in/yaml/v3` yaml library ([#8182](https://github.com/open-policy-agent/opa/pull/8182)) authored by @mrueg
+- test/cases: Increase yaml test coverage for some regex and string builtins ([#8152](https://github.com/open-policy-agent/opa/pull/8152)) authored by @srenatus
+- Dependency updates; notably:
+  - build: bump golang from 1.25.5 to 1.25.6 ([#8224](https://github.com/open-policy-agent/opa/pull/8224)) authored by @srenatus
+  - build(deps): bump go.opentelemetry.io deps from 1.38.0/0.63.0 to 1.39.0/0.64.0
+  - build(deps): bump klauspost/compress from v1.18.1 to v1.18.2 ([#8184](https://github.com/open-policy-agent/opa/pull/8184)) authored by @srenatus  
+    because of redaction warning
+  - build(deps): bump github.com/go-ini/ini from v1.67.0 to gopkg.in/ini.v1 v1.67.1 ([#8208](https://github.com/open-policy-agent/opa/issues/8208)) authored by @gabrpt
 
 ## 1.12.3
 
