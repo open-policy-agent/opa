@@ -1,0 +1,18 @@
+{
+  "id": "how-likely-are-you-to-recommend-opa-gatekeeper-to-",
+  "title": "How likely are you to recommend OPA Gatekeeper to a colleague or peer in the cloud-native community?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 29
+}

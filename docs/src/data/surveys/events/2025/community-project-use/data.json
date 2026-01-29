@@ -1,0 +1,23 @@
+{
+  "data": [
+    {
+      "label": "Regal",
+      "value": 52
+    },
+    {
+      "label": "OPA Gatekeeper",
+      "value": 23
+    },
+    {
+      "label": "Conftest",
+      "value": 18
+    },
+    {
+      "label": "OPA Envoy Plugin",
+      "value": 14
+    }
+  ],
+  "footnotes": [
+    "Survey respondents are only shown project-specific questions if they indicate they are using that project"
+  ]
+}

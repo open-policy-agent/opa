@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "label": "Manage Mutating Admission Policies similar to Validating Admission Policies",
+      "value": 8
+    },
+    {
+      "label": "Support for validating authorization webhooks",
+      "value": 5
+    }
+  ],
+  "otherResponses": [
+    "generate feature",
+    "Shared libs"
+  ]
+}

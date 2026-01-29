@@ -1,0 +1,18 @@
+{
+  "id": "what-additional-integration-documentation-would-yo",
+  "title": "What additional integration documentation would you find most helpful?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "opa-envoy-plugin"
+  ],
+  "rank": 59
+}

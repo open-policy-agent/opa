@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "label": "Object Storage (S3, GCS, etc.)",
+      "value": 4
+    },
+    {
+      "label": "OCI / Docker images (Dockerhub, GHCR, GAR, etc.)",
+      "value": 5
+    },
+    {
+      "label": "Git",
+      "value": 12
+    }
+  ]
+}

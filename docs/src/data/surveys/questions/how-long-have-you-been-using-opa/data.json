@@ -1,0 +1,18 @@
+{
+  "id": "how-long-have-you-been-using-opa",
+  "title": "How long have you been using OPA?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": true,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 3
+}

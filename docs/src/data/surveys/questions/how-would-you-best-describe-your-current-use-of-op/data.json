@@ -1,0 +1,18 @@
+{
+  "id": "how-would-you-best-describe-your-current-use-of-op",
+  "title": "How would you best describe your current use of OPA Gatekeeper?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 42
+}

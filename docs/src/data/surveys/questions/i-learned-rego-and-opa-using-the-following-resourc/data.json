@@ -1,0 +1,18 @@
+{
+  "id": "i-learned-rego-and-opa-using-the-following-resourc",
+  "title": "I learned Rego and OPA using the following resources",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 12
+}

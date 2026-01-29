@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "label": "No experience - Never used Kubernetes",
+      "value": 1
+    },
+    {
+      "label": "Beginner - Basic knowledge, learning fundamentals",
+      "value": 2
+    },
+    {
+      "label": "Intermediate - Regular use, comfortable with common tasks",
+      "value": 6
+    },
+    {
+      "label": "Advanced - Deep knowledge, complex deployments and troubleshooting",
+      "value": 9
+    },
+    {
+      "label": "Expert - Architect solutions, contribute to community, mentor others",
+      "value": 2
+    }
+  ]
+}

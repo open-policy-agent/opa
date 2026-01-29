@@ -1,0 +1,26 @@
+{
+  "data": [],
+  "intro": "34 responses tell a pretty strong story about not having time to contribute to OPA, among other reasons.",
+  "bullets": [
+    {
+      "title": "Time Constraints",
+      "count": 13,
+      "sentence": "The most common barrier is simply bandwidth, with many citing \"only so much time in the day,\" competing \"priorities at work,\" and \"other tasks with higher priorities.\""
+    },
+    {
+      "title": "Skills & Knowledge Gaps",
+      "count": 7,
+      "sentence": "Many feel underprepared, whether \"not familiar with go,\" still on the \"learning curve,\" or feeling \"not that advanced user yet\" to know what they could contribute."
+    },
+    {
+      "title": "Unclear Entry Points",
+      "count": 3,
+      "sentence": "Some want to contribute but lack direction, \"not sure what other contributions are welcome or needed\" or actively \"looking for my first issue to contribute to now\" and needing \"good first issues.\""
+    },
+    {
+      "title": "Company Policies & Restrictions",
+      "count": 2,
+      "sentence": "Organizational barriers prevent some from participating, including \"company policy on open-source contribution\" and workplaces \"not known for open-source contributions.\""
+    }
+  ]
+}

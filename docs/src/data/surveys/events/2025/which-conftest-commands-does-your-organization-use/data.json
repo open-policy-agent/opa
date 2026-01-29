@@ -1,0 +1,44 @@
+{
+  "data": [
+    {
+      "label": "test",
+      "value": 15
+    },
+    {
+      "label": "fmt",
+      "value": 3
+    },
+    {
+      "label": "parse",
+      "value": 4
+    },
+    {
+      "label": "verify",
+      "value": 8
+    },
+    {
+      "label": "pull",
+      "value": 3
+    },
+    {
+      "label": "push",
+      "value": 2
+    },
+    {
+      "label": "doc",
+      "value": 1
+    },
+    {
+      "label": "reformat",
+      "value": 1
+    },
+    {
+      "label": "kubectl",
+      "value": 1
+    },
+    {
+      "label": "plugin",
+      "value": 1
+    }
+  ]
+}

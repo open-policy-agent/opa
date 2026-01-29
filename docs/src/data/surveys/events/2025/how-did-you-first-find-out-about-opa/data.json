@@ -1,0 +1,26 @@
+{
+  "data": [],
+  "intro": "59 responses were grouped and summarized as follows",
+  "bullets": [
+    {
+      "title": "Work/Colleagues",
+      "count": 18,
+      "sentence": "Discovered through workplace connections, whether introduced by \"architects\" or \"consultants,\" learning from coworkers, or joining teams where OPA was already in use."
+    },
+    {
+      "title": "Kubernetes/Cloud Native Ecosystem",
+      "count": 15,
+      "sentence": "Found via the cloud native community through KubeCon events, CNCF resources, Gatekeeper, or while researching \"PodSecurityPolicy being deprecated by Kubernetes.\""
+    },
+    {
+      "title": "Research/Web Search",
+      "count": 12,
+      "sentence": "Discovered independently while searching for authorization and policy solutions, from \"browsing for available policy frameworks\" to finding \"a way to replace our home-developed authorization microservice.\""
+    },
+    {
+      "title": "Product Integrations",
+      "count": 6,
+      "sentence": "Encountered through existing tools and documentation, including \"Trino integration,\" \"Envoy ext_authz examples,\" and \"HashiCorp's website.\""
+    }
+  ]
+}

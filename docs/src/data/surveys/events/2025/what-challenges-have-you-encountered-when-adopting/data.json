@@ -1,0 +1,21 @@
+{
+  "data": [],
+  "intro": "7 responses were summarized",
+  "bullets": [
+    {
+      "title": "Documentation & Guidance Gaps",
+      "count": 2,
+      "sentence": "Users struggle with \"lack of documentation\" and want clearer guidance on patterns like \"leveraging SPIRE/SPIFFE identities for microservice authentication\" — noting \"there might be room for clearly documenting that as a good option.\""
+    },
+    {
+      "title": "Development & Data Challenges",
+      "count": 2,
+      "sentence": "Practical hurdles include \"local development without kubernetes\" requiring nginx workarounds, and \"getting external data into it,\" leading teams to build custom bundle servers."
+    },
+    {
+      "title": "Release & Policy Management",
+      "count": 2,
+      "sentence": "Operational concerns include being \"always behind the main OPA releases by few days\" and difficulties \"evaluating multiple policies.\""
+    }
+  ]
+}

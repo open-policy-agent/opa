@@ -1,0 +1,18 @@
+{
+  "id": "my-use-case-for-opa-requires-the-response-latency-",
+  "title": "My use case for OPA requires the response latency to be under...",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 10
+}
