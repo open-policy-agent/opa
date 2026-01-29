@@ -22,6 +22,17 @@ cases:
       foo: [[1, 2], [3, 4], [5]]
     want_result:
       - x: [1, 2, 3, 4, 5]
+  - note: array/flatten single item array in array
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := array.flatten(data.foo)
+    data:
+      foo: [1, 2, [3]]
+    want_result:
+      - x: [1, 2, 3]
   - note: array/flatten has nesting depth 1
     query: data.test.p = x
     modules:
