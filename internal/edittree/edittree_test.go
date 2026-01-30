@@ -765,7 +765,10 @@ func TestEditTreeApplyPatches(t *testing.T) {
 				patches = patches.Append(ast.MustParseTerm(tc.patches[i]))
 			}
 
-			et := NewEditTree(ast.MustParseTerm(tc.source))
+			et := EditTreeFromPool(ast.MustParseTerm(tc.source))
+			t.Cleanup(func() {
+				Dispose(et)
+			})
 			err := patches.Iter(func(term *ast.Term) error {
 				object, ok := term.Value.(ast.Object)
 				if !ok {

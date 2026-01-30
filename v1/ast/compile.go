@@ -2235,7 +2235,7 @@ func rewriteTemplateString(caps *Capabilities, gen *localVarGenerator, safe VarS
 	terms := make([]*Term, 0, len(ts.Parts))
 
 	if len(ts.Parts) == 0 {
-		terms = append(terms, StringTerm("").SetLocation(loc))
+		terms = append(terms, NewTerm(InternedEmptyStringValue).SetLocation(loc))
 	} else {
 		for _, p := range ts.Parts {
 			switch p := p.(type) {

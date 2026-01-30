@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"iter"
 	"strconv"
 )
 
@@ -19,23 +20,26 @@ type internable interface {
 
 var (
 	InternedNullValue Value = Null{}
-	InternedNullTerm        = &Term{Value: InternedNullValue}
+	InternedNullTerm        = NewTerm(InternedNullValue)
 
 	InternedBooleanTrueValue  Value = Boolean(true)
 	InternedBooleanFalseValue Value = Boolean(false)
-	InternedBooleanTrueTerm         = &Term{Value: InternedBooleanTrueValue}
-	InternedBooleanFalseTerm        = &Term{Value: InternedBooleanFalseValue}
+	InternedEmptyStringValue  Value = String("")
+	InternedEmptyArrayValue   Value = NewArray()
+	InternedEmptyRefValue     Value = Ref{}
+	InternedEmptyObjectValue  Value = NewObject()
+	InternedEmptySetValue     Value = NewSet()
 
-	InternedEmptyString = StringTerm("")
-	InternedEmptyObject = ObjectTerm()
-	InternedEmptyArray  = NewTerm(InternedEmptyArrayValue)
-	InternedEmptySet    = SetTerm()
-
-	InternedEmptyArrayValue = NewArray()
+	InternedBooleanTrue  = NewTerm(InternedBooleanTrueValue)
+	InternedBooleanFalse = NewTerm(InternedBooleanFalseValue)
+	InternedEmptyString  = NewTerm(InternedEmptyStringValue)
+	InternedEmptyObject  = NewTerm(InternedEmptyObjectValue)
+	InternedEmptyArray   = NewTerm(InternedEmptyArrayValue)
+	InternedEmptySet     = NewTerm(InternedEmptySetValue)
 
 	// since this is by far the most common negative number
 	minusOneValue Value = Number("-1")
-	minusOneTerm        = &Term{Value: minusOneValue}
+	minusOneTerm        = NewTerm(minusOneValue)
 
 	internedStringTerms = map[string]*Term{
 		"": InternedEmptyString,
@@ -68,7 +72,7 @@ func InternStringTerm(str ...string) {
 			continue
 		}
 
-		internedStringTerms[s] = StringTerm(s)
+		internedStringTerms[s] = &Term{Value: String(s)}
 	}
 }
 
@@ -215,6 +219,19 @@ func InternedIntNumberTermFromString(s string) *Term {
 	return nil
 }
 
+// InternedIntRange returns a sequence of interned integer number terms
+// from start (inclusive) to end (exclusive). For values outside of the
+// interned range, non-interned IntNumberTerms are returned.
+func InternedIntRange(start, end int) iter.Seq[*Term] {
+	return func(yield func(*Term) bool) {
+		for i := start; i < end; i++ {
+			if !yield(internedIntNumberTerm(i)) {
+				return
+			}
+		}
+	}
+}
+
 // HasInternedIntNumberTerm returns true if the given integer value maps to an interned
 // term, otherwise false.
 func HasInternedIntNumberTerm(i int) bool {
@@ -253,10 +270,10 @@ func internedBooleanValue(b bool) Value {
 // InternedBooleanTerm returns an interned term with the given boolean value.
 func internedBooleanTerm(b bool) *Term {
 	if b {
-		return InternedBooleanTrueTerm
+		return InternedBooleanTrue
 	}
 
-	return InternedBooleanFalseTerm
+	return InternedBooleanFalse
 }
 
 func internedIntNumberValue(i int) Value {
@@ -323,7 +340,7 @@ func init() {
 		// Various
 		"data", "input", "result", "keywords", "path", "v1", "error", "partial",
 		// HTTP
-		"code", "message", "status_code", "method", "url", "uri",
+		"code", "message", "status_code", "method", "url", "uri", "body", "raw_body", "headers", "query_params",
 		// JWT
 		"enc", "cty", "iss", "exp", "nbf", "aud", "secret", "cert",
 		// Decisions

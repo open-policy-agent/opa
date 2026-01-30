@@ -90,11 +90,9 @@ var cacheableHTTPStatusCodes = [...]int{
 }
 
 var (
-	httpSendNetworkErrTerm  = ast.StringTerm(HTTPSendNetworkErr)
-	httpSendInternalErrTerm = ast.StringTerm(HTTPSendInternalErr)
+	httpSendNetworkErrTerm, httpSendInternalErrTerm *ast.Term
 
 	allowedKeys                 = ast.NewSet()
-	keyCache                    = make(map[string]*ast.Term, len(allowedKeyNames))
 	cacheableCodes              = ast.NewSet()
 	requiredKeys                = ast.NewSet(ast.InternedTerm("method"), ast.InternedTerm("url"))
 	httpSendLatencyMetricKey    = "rego_builtin_http_send"
@@ -222,13 +220,13 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 func getKeyFromRequest(req ast.Object) (ast.Object, error) {
 	// deep copy so changes to key do not reflect in the request object
 	key := req.Copy()
-	cacheIgnoredHeadersTerm := req.Get(keyCache["cache_ignored_headers"])
-	allHeadersTerm := req.Get(ast.StringTerm("headers"))
+	cacheIgnoredHeadersTerm := req.Get(ast.InternedTerm("cache_ignored_headers"))
+	allHeadersTerm := req.Get(ast.InternedTerm("headers"))
 	// skip because no headers to delete
 	if cacheIgnoredHeadersTerm == nil || allHeadersTerm == nil {
 		// need to explicitly set cache_ignored_headers to null
 		// equivalent requests might have different sets of exclusion lists
-		key.Insert(ast.StringTerm("cache_ignored_headers"), ast.InternedNullTerm)
+		key.Insert(ast.InternedTerm("cache_ignored_headers"), ast.InternedNullTerm)
 		return key, nil
 	}
 	var cacheIgnoredHeaders []string
@@ -248,14 +246,22 @@ func getKeyFromRequest(req ast.Object) (ast.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	key.Insert(keyCache["headers"], ast.NewTerm(val))
+	key.Insert(ast.InternedTerm("headers"), ast.NewTerm(val))
 	// remove cache_ignored_headers key
-	key.Insert(keyCache["cache_ignored_headers"], ast.InternedNullTerm)
+	key.Insert(ast.InternedTerm("cache_ignored_headers"), ast.InternedNullTerm)
 	return key, nil
 }
 
 func init() {
-	createKeys()
+	for _, element := range allowedKeyNames {
+		ast.InternStringTerm(element)
+		allowedKeys.Add(ast.InternedTerm(element))
+	}
+
+	ast.InternStringTerm(HTTPSendNetworkErr, HTTPSendInternalErr)
+	httpSendNetworkErrTerm = ast.InternedTerm(HTTPSendNetworkErr)
+	httpSendInternalErrTerm = ast.InternedTerm(HTTPSendInternalErr)
+
 	createCacheableHTTPStatusCodes()
 	initDefaults()
 	RegisterBuiltinFunc(ast.HTTPSend.Name, builtinHTTPSend)
@@ -279,8 +285,7 @@ func handleHTTPSendErr(bctx BuiltinContext, err error) error {
 }
 
 func initDefaults() {
-	timeoutDuration := os.Getenv(defaultHTTPRequestTimeoutEnv)
-	if timeoutDuration != "" {
+	if timeoutDuration := os.Getenv(defaultHTTPRequestTimeoutEnv); timeoutDuration != "" {
 		var err error
 		defaultHTTPRequestTimeout, err = time.ParseDuration(timeoutDuration)
 		if err != nil {
@@ -714,7 +719,7 @@ func executeHTTPRequest(req *http.Request, client *http.Client, inputReqObj ast.
 	var err error
 	var retry int
 
-	retry, err = getNumberValFromReqObj(inputReqObj, keyCache["max_retry_attempts"])
+	retry, err = getNumberValFromReqObj(inputReqObj, ast.InternedTerm("max_retry_attempts"))
 	if err != nil {
 		return nil, err
 	}
@@ -1008,15 +1013,6 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 	return nil
 }
 
-func createKeys() {
-	for _, element := range allowedKeyNames {
-		term := ast.StringTerm(element)
-
-		allowedKeys.Add(term)
-		keyCache[element] = term
-	}
-}
-
 func createCacheableHTTPStatusCodes() {
 	for _, element := range cacheableHTTPStatusCodes {
 		cacheableCodes.Add(ast.InternedTerm(element))
@@ -1080,7 +1076,7 @@ func getNumberValFromReqObj(req ast.Object, key *ast.Term) (int, error) {
 }
 
 func getCachingMode(req ast.Object) (cachingMode, error) {
-	key := keyCache["caching_mode"]
+	key := ast.InternedTerm("caching_mode")
 	var s ast.String
 	var ok bool
 	if v := req.Get(key); v != nil {
@@ -1480,11 +1476,11 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 		return resp, nil
 	}
 
-	c.forceJSONDecode, err = getBoolValFromReqObj(c.key, keyCache["force_json_decode"])
+	c.forceJSONDecode, err = getBoolValFromReqObj(c.key, ast.InternedTerm("force_json_decode"))
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
-	c.forceYAMLDecode, err = getBoolValFromReqObj(c.key, keyCache["force_yaml_decode"])
+	c.forceYAMLDecode, err = getBoolValFromReqObj(c.key, ast.InternedTerm("force_yaml_decode"))
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
@@ -1551,11 +1547,11 @@ func (c *intraQueryCache) CheckCache() (ast.Value, error) {
 
 // InsertIntoCache inserts the key set on this object into the cache with the given value
 func (c *intraQueryCache) InsertIntoCache(value *http.Response) (ast.Value, error) {
-	forceJSONDecode, err := getBoolValFromReqObj(c.key, keyCache["force_json_decode"])
+	forceJSONDecode, err := getBoolValFromReqObj(c.key, ast.InternedTerm("force_json_decode"))
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
-	forceYAMLDecode, err := getBoolValFromReqObj(c.key, keyCache["force_yaml_decode"])
+	forceYAMLDecode, err := getBoolValFromReqObj(c.key, ast.InternedTerm("force_yaml_decode"))
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
@@ -1590,12 +1586,12 @@ func (c *intraQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 }
 
 func useInterQueryCache(req ast.Object) (bool, *forceCacheParams, error) {
-	value, err := getBoolValFromReqObj(req, keyCache["cache"])
+	value, err := getBoolValFromReqObj(req, ast.InternedTerm("cache"))
 	if err != nil {
 		return false, nil, err
 	}
 
-	valueForceCache, err := getBoolValFromReqObj(req, keyCache["force_cache"])
+	valueForceCache, err := getBoolValFromReqObj(req, ast.InternedTerm("force_cache"))
 	if err != nil {
 		return false, nil, err
 	}
@@ -1613,7 +1609,7 @@ type forceCacheParams struct {
 }
 
 func newForceCacheParams(req ast.Object) (*forceCacheParams, error) {
-	term := req.Get(keyCache["force_cache_duration_seconds"])
+	term := req.Get(ast.InternedTerm("force_cache_duration_seconds"))
 	if term == nil {
 		return nil, errors.New("'force_cache' set but 'force_cache_duration_seconds' parameter is missing")
 	}
@@ -1631,7 +1627,7 @@ func newForceCacheParams(req ast.Object) (*forceCacheParams, error) {
 func getRaiseErrorValue(req ast.Object) (bool, error) {
 	result := ast.Boolean(true)
 	var ok bool
-	if v := req.Get(keyCache["raise_error"]); v != nil {
+	if v := req.Get(ast.InternedTerm("raise_error")); v != nil {
 		if result, ok = v.Value.(ast.Boolean); !ok {
 			return false, errors.New("invalid value for raise_error field")
 		}

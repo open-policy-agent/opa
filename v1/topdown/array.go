@@ -95,12 +95,14 @@ func builtinArraySlice(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		return err
 	}
 
+	l := arr.Len()
+
 	// Clamp stopIndex to avoid out-of-range errors. If negative, clamp to zero.
 	// Otherwise, clamp to length of array.
 	if stopIndex < 0 {
 		stopIndex = 0
-	} else if stopIndex > arr.Len() {
-		stopIndex = arr.Len()
+	} else if stopIndex > l {
+		stopIndex = l
 	}
 
 	// Clamp startIndex to avoid out-of-range errors. If negative, clamp to zero.
@@ -111,7 +113,7 @@ func builtinArraySlice(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		startIndex = stopIndex
 	}
 
-	if startIndex == 0 && stopIndex >= arr.Len() {
+	if startIndex == 0 && stopIndex >= l {
 		return iter(operands[0])
 	}
 

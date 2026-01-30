@@ -2355,7 +2355,7 @@ func TestTopDownPartialEval(t *testing.T) {
 						ast.CallTerm(
 							ast.NewTerm(ast.Equal.Ref()),
 							ast.NewTerm(ast.InputRootRef),
-							ast.IntNumberTerm(1),
+							ast.InternedTerm(1),
 						),
 					),
 				),
