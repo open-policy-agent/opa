@@ -5,6 +5,13 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.13.1
+
+This bug fix release addresses an issue found in the new `array.flatten` built-in function
+
+- Fix issue in `array.flatten` handling of single item arrays (
+  #8273) ([#8272](https://github.com/open-policy-agent/opa/issues/8272)) authored by @anderseknert
+
 ## 1.13.0
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
