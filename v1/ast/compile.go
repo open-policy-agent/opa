@@ -2478,7 +2478,7 @@ func rewriteTemplateString(tsr *templateStringRewriter, safe VarSet, loc *Locati
 	terms := make([]*Term, 0, len(ts.Parts))
 
 	if len(ts.Parts) == 0 {
-		terms = append(terms, NewTerm(InternedEmptyString.Value).SetLocation(loc))
+		terms = append(terms, NewTerm(InternedEmptyStringValue).SetLocation(loc))
 	} else {
 		vis := ClearOrNewVarVisitor(nil).WithParams(SafetyCheckVisitorParams)
 		for _, p := range ts.Parts {

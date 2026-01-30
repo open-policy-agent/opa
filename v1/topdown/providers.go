@@ -14,12 +14,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
 
-var awsRequiredConfigKeyNames = ast.NewSet(
-	ast.StringTerm("aws_service"),
-	ast.StringTerm("aws_access_key"),
-	ast.StringTerm("aws_secret_access_key"),
-	ast.StringTerm("aws_region"),
-)
+var awsRequiredConfigKeyNames ast.Set
 
 func stringFromTerm(t *ast.Term) string {
 	if v, ok := t.Value.(ast.String); ok {
@@ -103,7 +98,7 @@ func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	if err != nil {
 		return err
 	}
-	service := stringFromTerm(awsConfigObj.Get(ast.StringTerm("aws_service")))
+	service := stringFromTerm(awsConfigObj.Get(ast.InternedTerm("aws_service")))
 	awsCreds := aws.CredentialsFromObject(awsConfigObj)
 
 	// Timestamp for signing.
@@ -130,11 +125,12 @@ func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	// Prepare required fields from the HTTP request object.
 	var theURL *url.URL
 	var method string
-	reqURL := reqObj.Get(ast.StringTerm("url"))
-	reqMethod := reqObj.Get(ast.StringTerm("method"))
+	reqURL := reqObj.Get(ast.InternedTerm("url"))
+	keyMethod := ast.InternedTerm("method")
+	reqMethod := reqObj.Get(keyMethod)
 
 	headers := ast.NewObject()
-	headersTerm := reqObj.Get(ast.StringTerm("headers"))
+	headersTerm := reqObj.Get(ast.InternedTerm("headers"))
 	if headersTerm != nil {
 		var ok bool
 		headers, ok = headersTerm.Value.(ast.Object)
@@ -146,10 +142,10 @@ func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	// Check types on the request parameters.
 	invalidParameters := ast.NewSet()
 	if _, ok := reqURL.Value.(ast.String); !ok {
-		invalidParameters.Add(ast.StringTerm("url"))
+		invalidParameters.Add(ast.InternedTerm("url"))
 	}
 	if _, ok := reqMethod.Value.(ast.String); !ok {
-		invalidParameters.Add(ast.StringTerm("method"))
+		invalidParameters.Add(keyMethod)
 	}
 	if invalidParameters.Len() > 0 {
 		return builtins.NewOperandErr(1, "invalid values for required request parameters(s): %v", invalidParameters)
@@ -161,8 +157,8 @@ func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	}
 	method = stringFromTerm(reqMethod)
 
-	bodyTerm := reqObj.Get(ast.StringTerm("body"))
-	rawBodyTerm := reqObj.Get(ast.StringTerm("raw_body"))
+	bodyTerm := reqObj.Get(ast.InternedTerm("body"))
+	rawBodyTerm := reqObj.Get(ast.InternedTerm("raw_body"))
 	body, err := getReqBodyBytes(bodyTerm, rawBodyTerm)
 	if err != nil {
 		return err
@@ -173,7 +169,7 @@ func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*a
 
 	// if payload signing config is set, pass it down to the signing method
 	disablePayloadSigning := false
-	t := awsConfigObj.Get(ast.StringTerm("disable_payload_signing"))
+	t := awsConfigObj.Get(ast.InternedTerm("disable_payload_signing"))
 	if t != nil {
 		if v, ok := t.Value.(ast.Boolean); ok {
 			disablePayloadSigning = bool(v)
@@ -188,24 +184,37 @@ func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	for k, v := range headersMap {
 		// objectToMap doesn't support arrays
 		if len(v) == 1 {
-			signedHeadersObj.Insert(ast.StringTerm(k), ast.StringTerm(v[0]))
+			signedHeadersObj.Insert(ast.InternedTerm(k), ast.StringTerm(v[0]))
 		}
 	}
 	// Set authorization header
-	signedHeadersObj.Insert(ast.StringTerm("Authorization"), ast.StringTerm(authHeader))
+	signedHeadersObj.Insert(ast.InternedTerm("Authorization"), ast.StringTerm(authHeader))
 
 	// set aws signature headers
 	for k, v := range awsHeadersMap {
-		signedHeadersObj.Insert(ast.StringTerm(k), ast.StringTerm(v))
+		signedHeadersObj.Insert(ast.InternedTerm(k), ast.StringTerm(v))
 	}
 
 	// Create new request object with updated headers.
 	out := reqObj.Copy()
-	out.Insert(ast.StringTerm("headers"), ast.NewTerm(signedHeadersObj))
+	out.Insert(ast.InternedTerm("headers"), ast.NewTerm(signedHeadersObj))
 
 	return iter(ast.NewTerm(out))
 }
 
 func init() {
+	for _, key := range []string{
+		"aws_service", "aws_access_key", "aws_secret_access_key", "aws_region", "disable_payload_signing",
+	} {
+		ast.InternStringTerm(key)
+	}
+
+	awsRequiredConfigKeyNames = ast.NewSet(
+		ast.InternedTerm("aws_service"),
+		ast.InternedTerm("aws_access_key"),
+		ast.InternedTerm("aws_secret_access_key"),
+		ast.InternedTerm("aws_region"),
+	)
+
 	RegisterBuiltinFunc(ast.ProvidersAWSSignReqObj.Name, builtinAWSSigV4SignReq)
 }
