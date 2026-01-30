@@ -120,6 +120,8 @@ When `?metrics=true` is specified in API requests, `http.send` operations expose
 
 | Metric | Description |
 | ------ | ----------- |
-| `timer_rego_builtin_http_send_ns` | Time spent in `http.send` calls during evaluation |
-| `counter_rego_builtin_http_send_interquery_cache_hits` | Number of `http.send` requests served from the inter-query cache. Only present when [inter-query caching](/docs/configuration/#caching) is enabled |
-| `counter_rego_builtin_http_send_network_requests` | Number of actual network requests made, excluding cached responses |
+| `timer_rego_builtin_http_send_ns` | Total time spent in `http.send` calls during query evaluation |
+| `counter_rego_builtin_http_send_interquery_cache_hits` | Number of inter-query cache hits for `http.send` requests. Only appears when [inter-query caching is enabled](/docs/configuration/#caching) in OPA's configuration and the request includes `cache` or `force_cache` set to `true` |
+| `counter_rego_builtin_http_send_network_requests` | Number of actual network requests made by `http.send` (excluding cached requests) |
+
+High cache hit ratios indicate effective caching and reduced network overhead. These metrics help identify I/O bottlenecks in policies that make external HTTP requests.

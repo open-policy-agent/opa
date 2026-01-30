@@ -117,4 +117,6 @@ When `?metrics=true` is specified in API requests, regex operations expose the f
 
 | Metric | Description |
 | ------ | ----------- |
-| `counter_rego_builtin_regex_interquery_value_cache_hits` | Number of compiled regex patterns served from the inter-query value cache. Only present when [inter-query value caching](/docs/configuration/#caching) is enabled and a previously compiled pattern is reused |
+| `counter_rego_builtin_regex_interquery_value_cache_hits` | Number of regex cache hits for compiled patterns. Only appears when [inter-query caching is enabled](/docs/configuration/#caching) in OPA's configuration and the same regex pattern is compiled and reused multiple times |
+
+Effective regex caching improves performance when the same patterns are used repeatedly. High cache hit ratios indicate that regex compilation overhead is being minimized through caching.

@@ -2333,14 +2333,14 @@ Query instrumentation can help diagnose performance problems, however, it can
 add significant overhead to query evaluation. We recommend leaving query
 instrumentation off unless you are debugging a performance problem.
 
-When query instrumentation is enabled (`instrument=true`), the following additional metrics are included:
-- **timer_eval_op_\*_ns**: evaluation operation timers
-- **histogram_eval_op_\***: evaluation operation time distributions
-- **timer_query_compile_stage_\*_ns**: query compilation stage timers. Only included when query compilation occurs — omitted when the query is served from the cache
+When query instrumentation is enabled (`instrument=true`), the following additional detailed evaluation metrics are included:
+- **timer_eval_op_***: Various evaluation operation timers (e.g., `timer_eval_op_plug_ns`, `timer_eval_op_resolve_ns`)
+- **histogram_eval_op_***: Histograms tracking evaluation operation time distributions
+- **timer_compile_stage_*_ns**: Compilation stage timers for the query and module compilation stages
 
-The following built-in function metrics are available with `metrics=true` and do not require `instrument=true`:
-- **timer_rego_builtin_\*_ns**: time spent executing a built-in function
-- **counter_rego_builtin_\***: built-in function counters, such as cache hits. Only included when the counted event occurs during evaluation
+Note that the following built-in metrics are available with `metrics=true` and do not require `instrument=true`:
+- **timer_rego_builtin_***: Built-in function execution times
+- **counter_rego_builtin_***: Built-in function call counts and cache hits
 
 ## Provenance
 
