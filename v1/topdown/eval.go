@@ -232,6 +232,18 @@ func (e *eval) child(query ast.Body, cpy *eval) {
 	cpy.findOne = false
 }
 
+// childWithBindingSizeHint is like child but creates bindings pre-sized for the expected number of variables.
+// This reduces memory waste when evaluating functions or rules with known argument counts.
+func (e *eval) childWithBindingSizeHint(query ast.Body, cpy *eval, sizeHint int) {
+	*cpy = *e
+	cpy.index = 0
+	cpy.query = query
+	cpy.queryID = cpy.queryIDFact.Next()
+	cpy.bindings = newBindingsWithSize(cpy.queryID, e.instr, sizeHint)
+	cpy.parent = e
+	cpy.findOne = false
+}
+
 func (e *eval) next(iter evalIterator) error {
 	e.index++
 	err := e.evalExpr(iter)
@@ -2247,7 +2259,11 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.T
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.child(rule.Body, child)
+	// Optimization: pre-size bindings based on function argument count to reduce memory waste.
+	// Function argument count is known at compile time and most functions have < 10 arguments.
+	// This avoids allocating the default 16-slot array when only 2-3 bindings are needed.
+	sizeHint := len(args)
+	e.e.childWithBindingSizeHint(rule.Body, child, sizeHint)
 	child.findOne = findOne
 
 	var result *ast.Term
