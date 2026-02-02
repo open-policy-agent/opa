@@ -1,8 +1,10 @@
 package h2c_test
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -10,15 +12,23 @@ import (
 
 	"golang.org/x/net/http2"
 
+	"github.com/open-policy-agent/opa/v1/runtime"
 	"github.com/open-policy-agent/opa/v1/test/e2e"
 )
 
-var testRuntime *e2e.TestRuntime
+var (
+	testRuntime       *e2e.TestRuntime
+	testSocketPathH2C string
+)
 
 func TestMain(m *testing.M) {
 	flag.Parse()
+
+	testSocketPathH2C = fmt.Sprintf("/tmp/opa-h2c-test-%d.sock", os.Getpid())
+	defer os.Remove(testSocketPathH2C)
+
 	testServerParams := e2e.NewAPIServerTestParams()
-	testServerParams.Addrs = &[]string{"localhost:0"}
+	testServerParams.Addrs = &[]string{"localhost:0", "unix://" + testSocketPathH2C}
 	testServerParams.DiagnosticAddrs = &[]string{"localhost:0"}
 	testServerParams.H2CEnabled = true
 
@@ -32,7 +42,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestH2CHTTPListeners(t *testing.T) {
-	// h2c-enabled client
 	client := http.Client{
 		Transport: &http2.Transport{
 			AllowHTTP: true,
@@ -65,4 +74,128 @@ func TestH2CHTTPListeners(t *testing.T) {
 
 		resp.Body.Close()
 	}
+}
+
+func TestH2CUnixDomainSocket(t *testing.T) {
+	t.Run("HTTP2Client", func(t *testing.T) {
+		client := http.Client{
+			Transport: &http2.Transport{
+				AllowHTTP: true,
+				DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
+					return net.Dial("unix", testSocketPathH2C)
+				},
+			},
+		}
+
+		resp, err := client.Get("http://localhost/health")
+		if err != nil {
+			t.Fatalf("failed to GET /health: %s", err)
+		}
+		defer resp.Body.Close()
+
+		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
+			t.Errorf("resp status: expected %d, got %d", expected, actual)
+		}
+		if expected, actual := 2, resp.ProtoMajor; expected != actual {
+			t.Errorf("resp.ProtoMajor: expected %d, got %d", expected, actual)
+		}
+	})
+
+	t.Run("HTTP1Client", func(t *testing.T) {
+		client := http.Client{
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", testSocketPathH2C)
+				},
+			},
+		}
+
+		resp, err := client.Get("http://localhost/health")
+		if err != nil {
+			t.Fatalf("failed to GET /health: %s", err)
+		}
+		defer resp.Body.Close()
+
+		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
+			t.Errorf("resp status: expected %d, got %d", expected, actual)
+		}
+		if expected, actual := 1, resp.ProtoMajor; expected != actual {
+			t.Errorf("resp.ProtoMajor: expected %d, got %d", expected, actual)
+		}
+	})
+}
+
+func TestH2CDisabledUnixDomainSocket(t *testing.T) {
+	socketPath := fmt.Sprintf("/tmp/opa-no-h2c-test-%d.sock", os.Getpid())
+	socketAddr := "unix://" + socketPath
+	t.Cleanup(func() {
+		_ = os.Remove(socketPath)
+	})
+
+	testServerParams := e2e.NewAPIServerTestParams()
+	testServerParams.Addrs = &[]string{socketAddr}
+	testServerParams.H2CEnabled = false
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	rt, err := e2e.NewTestRuntimeWithOpts(e2e.TestRuntimeOpts{}, testServerParams)
+	if err != nil {
+		t.Fatalf("failed to create test runtime: %s", err)
+	}
+
+	go func() {
+		if err := rt.Runtime.Serve(ctx); err != nil {
+			t.Logf("server stopped: %s", err)
+		}
+	}()
+
+	if err := rt.WaitForServerStatus(runtime.ServerInitialized); err != nil {
+		t.Fatalf("server failed to start: %s", err)
+	}
+
+	t.Run("HTTP1Client", func(t *testing.T) {
+		client := http.Client{
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", socketPath)
+				},
+			},
+		}
+
+		resp, err := client.Get("http://localhost/health")
+		if err != nil {
+			t.Fatalf("failed to GET /health: %s", err)
+		}
+		defer resp.Body.Close()
+
+		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
+			t.Errorf("resp status: expected %d, got %d", expected, actual)
+		}
+		if expected, actual := 1, resp.ProtoMajor; expected != actual {
+			t.Errorf("resp.ProtoMajor: expected %d, got %d", expected, actual)
+		}
+	})
+
+	t.Run("HTTP2ClientShouldFail", func(t *testing.T) {
+		client := http.Client{
+			Transport: &http2.Transport{
+				AllowHTTP: true,
+				DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
+					return net.Dial("unix", socketPath)
+				},
+			},
+		}
+
+		resp, err := client.Get("http://localhost/health")
+		if err != nil {
+			t.Logf("Expected failure for HTTP/2 client when h2c disabled: %s", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.ProtoMajor == 2 {
+			t.Errorf("HTTP/2 should not be available when h2c is disabled")
+		}
+	})
 }
