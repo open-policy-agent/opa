@@ -4,6 +4,8 @@
 
 **Category**: Bugs
 
+**Automatically fixable**: [Yes](/regal/fixing)
+
 **Avoid**
 ```rego
 package policy

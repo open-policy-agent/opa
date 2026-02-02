@@ -2,7 +2,7 @@
 
 **Summary**: Avoid chaining rule bodies
 
-**Category**: Style
+**Category**: Custom
 
 **Avoid**
 ```rego
@@ -37,8 +37,7 @@ understood by people new to Rego.
 ## Exceptions
 
 The `opa fmt` command will automatically "unchain" chained rule bodies, so if you have enabled the [opa-fmt](opa-fmt)
-rule, you may safely configure the level of this rule to `ignore`. While we normally don't include style rules covered
-by `opa fmt`, this one is peculiar enough that we felt it was worthy of an exception.
+rule (as it is by default), there's no point in enabling this rule.
 
 ## Configuration Options
 
@@ -46,8 +45,12 @@ This linter rule provides the following configuration options:
 
 ```yaml
 rules:
-  style:
+  custom:
     chained-rule-body:
+      # note that all rules in the "custom" category are disabled by default
+      # (i.e. level "ignore") as some configuration needs to be provided by
+      # the user (i.e. you!) in order for them to be useful.
+      #
       # one of "error", "warning", "ignore"
       level: error
 ```
@@ -55,4 +58,4 @@ rules:
 ## Related Resources
 
 - OPA Docs: [Incremental Definitions](https://www.openpolicyagent.org/docs/policy-language/#incremental-definitions)
-- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/style/chained-rule-body/chained_rule_body.rego)
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/custom/chained-rule-body/chained_rule_body.rego)
