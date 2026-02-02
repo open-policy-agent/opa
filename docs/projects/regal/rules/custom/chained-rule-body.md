@@ -36,7 +36,7 @@ understood by people new to Rego.
 
 ## Exceptions
 
-The `opa fmt` command will automatically "unchain" chained rule bodies, so if you have enabled the [opa-fmt](opa-fmt)
+The `opa fmt` command will automatically "unchain" chained rule bodies, so if you have enabled the [opa-fmt](https://www.openpolicyagent.org/projects/regal/rules/style/opa-fmt)
 rule (as it is by default), there's no point in enabling this rule.
 
 ## Configuration Options
