@@ -8,7 +8,7 @@ labels:
 code:
 - https://github.com/open-policy-agent/opa-docker-authz
 tutorials:
-- https://www.openpolicyagent.org/docs/latest/docker-authorization/
+- https://www.openpolicyagent.org/docs/docker-authorization
 inventors:
 - styra
 ---
