@@ -46,6 +46,26 @@ func TestParseCachingConfig(t *testing.T) {
 			input:   nil,
 			wantErr: false,
 		},
+		"invalid_config_missing_configuration": {
+			input: []byte(`inter_query_builtin_value_cache:
+    named:
+      io_jwt:`),
+			wantErr: true,
+		},
+		"invalid_config_missing_max_num_entries": {
+			input: []byte(`inter_query_builtin_value_cache:
+    named:
+      io_jwt:
+        max_num_entries: `),
+			wantErr: true,
+		},
+		"invalid_config_missing_disabled": {
+			input: []byte(`inter_query_builtin_value_cache:
+    named:
+      io_jwt:
+        disabled: `),
+			wantErr: true,
+		},
 		"default_limit": {
 			input:   []byte(`{"inter_query_builtin_cache": {},}`),
 			wantErr: false,
@@ -143,6 +163,54 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 		}
 	})
 
+	t.Run("config disabled", func(t *testing.T) {
+		// user configured `baz` to be disabled
+		disabled := true
+		cacheConfig := Config{
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*NamedValueCacheConfig{
+					"baz": {
+						Disabled: &disabled,
+					},
+				},
+			},
+		}
+
+		// by default, it is enabled
+		var defaultDisabled bool
+		RegisterDefaultInterQueryBuiltinValueCacheConfig("baz", &NamedValueCacheConfig{
+			Disabled: &defaultDisabled,
+		})
+
+		c := NewInterQueryValueCache(t.Context(), &cacheConfig)
+		if c.GetCache("baz") != nil {
+			t.Fatal("Expected cache to be disabled")
+		}
+	})
+
+	t.Run("config enabled", func(t *testing.T) {
+		var disabled bool
+		cacheConfig := Config{
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*NamedValueCacheConfig{
+					"baz": {
+						Disabled: &disabled,
+					},
+				},
+			},
+		}
+
+		defaultDisabled := true
+		RegisterDefaultInterQueryBuiltinValueCacheConfig("baz", &NamedValueCacheConfig{
+			Disabled: &defaultDisabled,
+		})
+
+		c := NewInterQueryValueCache(t.Context(), &cacheConfig)
+		if c.GetCache("baz") == nil {
+			t.Fatal("Expected cache to be enabled")
+		}
+	})
+
 	t.Run("override", func(t *testing.T) {
 		cacheConfig := Config{
 			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
@@ -167,6 +235,67 @@ func TestInterValueCache_DefaultConfiguration(t *testing.T) {
 
 func TestInterValueCache_NamedCaches(t *testing.T) {
 	t.Parallel()
+
+	t.Run("configured disable is respected", func(t *testing.T) {
+		disabled := true
+		config := Config{
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*NamedValueCacheConfig{
+					"foo": {
+						Disabled: &disabled,
+					},
+				},
+			},
+		}
+
+		c := NewInterQueryValueCache(t.Context(), &config)
+
+		nc := c.GetCache("foo")
+		if nc != nil {
+			t.Fatalf("Expected cache to be disabled, but got %v", nc)
+		}
+	})
+
+	t.Run("configured enable is respected", func(t *testing.T) {
+		var disabled bool
+		config := Config{
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*NamedValueCacheConfig{
+					"foo": {
+						Disabled: &disabled,
+					},
+				},
+			},
+		}
+
+		c := NewInterQueryValueCache(t.Context(), &config)
+
+		nc := c.GetCache("foo")
+		if nc == nil {
+			t.Fatalf("Expected cache to be enabled, but got %v", nc)
+		}
+	})
+
+	t.Run("Disable respected even if max_num_entries is specified", func(t *testing.T) {
+		disabled := true
+		config := Config{
+			InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{
+				NamedCacheConfigs: map[string]*NamedValueCacheConfig{
+					"foo": {
+						MaxNumEntries: &[]int{5}[0],
+						Disabled:      &disabled,
+					},
+				},
+			},
+		}
+
+		c := NewInterQueryValueCache(t.Context(), &config)
+
+		nc := c.GetCache("foo")
+		if nc != nil {
+			t.Fatalf("Expected cache to be disabled, but got %v", nc)
+		}
+	})
 
 	t.Run("configured max is respected", func(t *testing.T) {
 		config := Config{
