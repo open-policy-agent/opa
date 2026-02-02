@@ -9,7 +9,7 @@ require (
 	github.com/docker/go-connections v0.6.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-cmp v0.7.0
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.11.1
 	github.com/microsoft/go-mssqldb v1.9.6
 	github.com/open-policy-agent/opa v1.8.0
 	github.com/testcontainers/testcontainers-go v0.40.0
