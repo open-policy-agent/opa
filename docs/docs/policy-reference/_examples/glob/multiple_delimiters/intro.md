@@ -1,7 +1,7 @@
 This example demonstrates when you need multiple delimiters.
 
-Resource paths in systems like Kubernetes use multiple separator characters. In this pattern:
-- Colon (`:`) separates namespace from resource name
-- Slash (`/`) separates resource name from type
+Docker image references use multiple separator characters. In this pattern:
+- Slash (`/`) separates registry/organization from image name
+- Colon (`:`) separates image name from tag
 
-The pattern `*:*/pod` matches any namespace and resource name, but specifically resources of type "pod". By specifying both `:` and `/` as delimiters, `glob.match` segments the path: `["kube-system", "nginx", "pod"]`.
+The pattern `*/*:*` matches any registry/organization, image name, and tag. By specifying both `/` and `:` as delimiters, `glob.match` segments the path: `["registry.example.com", "library", "nginx", "latest"]`.
