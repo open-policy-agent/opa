@@ -30,5 +30,5 @@ docs_features:
       OPA instance. The feature is
       [documented in the walt.id docs](https://docs-old.walt.id/ssikit/concepts/open-policy-agent).
 ---
-Verifying W3C Verifiable Credentials for building SSI (Self-Sovereign Identity) use cases.
 
+Verifying W3C Verifiable Credentials for building SSI (Self-Sovereign Identity) use cases.

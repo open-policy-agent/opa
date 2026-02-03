@@ -24,4 +24,5 @@ docs_features:
       [These docs](https://docs.flipt.io/v1/authorization/overview)
       explain how it works.
 ---
+
 Flipt is an open-source, Enterprise-ready, GitOps enabled, CloudNative feature management solution.

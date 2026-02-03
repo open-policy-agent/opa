@@ -16,4 +16,3 @@ code:
 Strengthen the security posture of your source-code management. Detect and
 remediate misconfigurations, security and compliance issues across all your
 GitHub & GitLab assets with ease.
-

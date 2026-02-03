@@ -252,7 +252,7 @@ deny contains sprintf("User %s's location was '%s', but must be one of %v", [inp
 
 <RunSnippet command="data.interpolation.deny"/>
 
-In the above example, the `input.username` value is `undefined`; notice how 
+In the above example, the `input.username` value is `undefined`; notice how
 
 - the first `deny` rule uses string interpolation, and will output `User <undefined>'s role was 'guest', but must be one of ["admin", "employee"]`, whereas
 - the second `deny` rule uses `sprintf`, and will output no result as it failed to evaluate even though `input.username` is inconsequential to the logic in the rule's body.

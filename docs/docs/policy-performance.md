@@ -416,8 +416,8 @@ why policy evaluation is slow.
 
 The `opa eval` command provides the following profiler options:
 
-| Option                                                       | Detail                                                                                                                                                                                                                                   | Default                                                               |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Option            | Detail                                                                                                                                                                                                                                   | Default                                                               |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `--profile`       | Enables expression profiling and outputs profiler results.                                                                                                                                                                               | off                                                                   |
 | `--profile-sort`  | Criteria to sort the expression profiling results. This options implies `--profile`.                                                                                                                                                     | total_time_ns => num_eval => num_redo => num_gen_expr => file => line |
 | `--profile-limit` | Desired number of profiling results sorted on the given criteria. This options implies `--profile`.                                                                                                                                      | 10                                                                    |
@@ -741,8 +741,8 @@ to evaluate (loading, parsing, compiling, etc.) is omitted.
 
 #### Options for `opa bench`
 
-| Option                                                  | Detail                                            | Default |
-| ------------------------------------------------------- | ------------------------------------------------- | ------- |
+| Option       | Detail                                            | Default |
+| ------------ | ------------------------------------------------- | ------- |
 | `--benchmem` | Report memory allocations with benchmark results. | true    |
 | `--metrics`  | Report additional query performance metrics.      | true    |
 | `--count`    | Number of times to repeat the benchmark.          | 1       |
@@ -756,8 +756,8 @@ track relative time as policies change.
 
 #### Options for `opa test --bench`
 
-| Option                                                  | Detail                                            | Default |
-| ------------------------------------------------------- | ------------------------------------------------- | ------- |
+| Option       | Detail                                            | Default |
+| ------------ | ------------------------------------------------- | ------- |
 | `--benchmem` | Report memory allocations with benchmark results. | true    |
 | `--count`    | Number of times to repeat the benchmark.          | 1       |
 

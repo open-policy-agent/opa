@@ -194,7 +194,6 @@ Bundles are collections of policies and data that can be distributed to OPA inst
 {}
 ```
 
-
 ### `DELETE /v1/bundles/{bundle}`
 
 **Description**: Delete a bundle
@@ -352,7 +351,6 @@ Sources define where policies and data come from (Git repositories, local files,
 ```json
 {}
 ```
-
 
 ### `DELETE /v1/sources/{source}`
 
@@ -566,7 +564,6 @@ Stacks define how bundles are distributed to different environments or services 
 {}
 ```
 
-
 ### `DELETE /v1/stacks/{stack}`
 
 **Description**: Delete a stack
@@ -618,7 +615,7 @@ As a rule, the HTTP API will **never return** a secret value, it only allows aut
 
 ```json
 {
-  "result":  "api-token"
+  "result": "api-token"
 }
 ```
 
@@ -652,7 +649,6 @@ As a rule, the HTTP API will **never return** a secret value, it only allows aut
 ```json
 {}
 ```
-
 
 ### `DELETE /v1/secrets/{secret}`
 

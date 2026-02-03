@@ -12,4 +12,5 @@ blogs:
 inventors:
 - styra
 ---
+
 This integration enables the client of a SQL database to enhance a SQL query so that the results obey an OPA-defined policy.

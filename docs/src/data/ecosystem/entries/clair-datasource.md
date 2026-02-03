@@ -24,8 +24,8 @@ docs_features:
       [OPA contrib](https://github.com/open-policy-agent/contrib/tree/main/image_enforcer)
       uses OPA to enforce admission policy in Kubernetes.
 ---
+
 Admission control policies in Kubernetes can be augmented with
 vulnerability scanning results to make more informed decisions.
 This integration demonstrates how to integrate CoreOS Clair with OPA and
 run it as an admission controller.
-

@@ -10,4 +10,5 @@ tutorials:
 blogs:
 - https://www.styra.com/blog/integrating-identity-oauth2-and-openid-connect-in-open-policy-agent/
 ---
+
 Integrating OpenID Connect (OIDC) with Open Policy Agent

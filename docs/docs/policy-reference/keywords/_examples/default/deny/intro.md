@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
+
 When default deny behavior is required, knowing that a value will never be
 undefined is helpful. This is common in access control systems where access is
 denied unless explicitly allowed.

@@ -17,7 +17,6 @@ Not every construct is supported for every target.
 For a step-by-step walkthrough of evaluating a Rego policy _partially_, see [Evaluating a data filter policy](./partial-evaluation).
 :::
 
-
 ### What is Partial Evaluation?
 
 The translation of data policies into queries (like SQL WHERE clauses) is driven by _partial evaluation (PE)_ of a Rego query.
@@ -29,7 +28,6 @@ The _unknown_ values that remain during partial evaluation represent the pieces 
 :::tip
 When only _known_ values are used, **you can use all of Rego.**
 :::
-
 
 ## Example Preamble
 
@@ -55,13 +53,13 @@ Our data filters also depend on user information. These **known values** are rep
 }
 ```
 
-
 ## Simple comparisons
 
 The fragment supports simple comparisons, such as `==`, `!=`, `<`, `>`, `<=`, `>=`, between _unknown_ and _known_ values.
 It is not important if the _unknown_ is on the left-hand side ("LHS") or right-hand side ("RHS"), but it is critical that only one side is _unknown_:
 
 :::tip OK
+
 ```rego
 package filters
 
@@ -78,6 +76,7 @@ As you can see the _known_ values from `input.user` have been replaced.
 :::
 
 :::danger NOT OK
+
 ```rego
 package filters
 
@@ -86,6 +85,7 @@ include if {
 	input.fruits.price                       # plain unknown
 }
 ```
+
 :::
 
 :::info SQL
@@ -96,19 +96,23 @@ package filters
 
 include if input.fruits.name != input.fruits.colour
 ```
+
 SQL target: `WHERE name <> colour`
 :::
 
 :::info "Is Anything"
 For SQL and UCAST/Prisma, it's valid to assert that a field exists by unifying it with a wildcard:
+
 ```rego
 package filters
 
 include if input.fruits.price = _
 ```
+
 SQL target: `WHERE name IS NOT NULL`
 
 A more common way to do this would be function definition shorthands, like
+
 ```rego
 package filters
 
@@ -124,7 +128,6 @@ matches(x, x)   # exact match
 Here, the first `matches` definition would yield an expression like `_ = input.fruit.name` in the partial evaluation results.
 :::
 
-
 ## Built-in Functions
 
 Certain built-in functions can be translated with certain restrictions:
@@ -137,6 +140,7 @@ Certain built-in functions can be translated with certain restrictions:
 These built-in functions can only be used with _unknowns_ on the left-hand side.
 
 :::tip OK
+
 ```rego
 package filters
 
@@ -150,6 +154,7 @@ SQL target: `WHERE name LIKE 'ba%' AND colour IN ('blue', 'green')`.
 :::
 
 :::danger NOT OK
+
 ```rego
 package filters
 
@@ -159,11 +164,11 @@ include if {
 	regexp.match(input.fruits.name, '^b[an]+$') # unsupported builtin (for unknown values)
 }
 ```
+
 :::
 
 Other built-in functions are not supported **for usage with _unknown_ values**.
 If your filtering rules use other built-ins with _known values_, that's OK -- see below for an example.
-
 
 ## Rules and functions
 
@@ -175,6 +180,7 @@ Many Rego constructs are available for building filters, with certain restrictio
 Nonetheless, you can use rules and functions to structure your policy, as long as these restrictions are observed:
 
 :::tip OK
+
 ```rego
 package filters
 
@@ -198,6 +204,7 @@ SQL target: `WHERE name = 'pineapple'` if the user's email is not ending in `@co
 :::
 
 :::danger NOT OK
+
 ```rego
 package filters
 
@@ -206,14 +213,15 @@ include if only_pineapples
 default only_pineapples := false                    # default rule
 only_pineapples if input.fruits.name == "pineapple"
 ```
-:::
 
+:::
 
 ## `not` expressions
 
 Expressions using `not` are permitted for [simple expressions](#simple-comparisons) and [built-in functions](#built-in-functions).
 `not` combined with a _unknown_ value or a rule reference is not allowed.
 :::tip OK
+
 ```rego
 package filters
 
@@ -227,6 +235,7 @@ SQL target: `WHERE (NOT name = 'apple' AND NOT colour IN ('blue', 'green'))`.
 :::
 
 :::danger NOT OK
+
 ```rego
 package filters
 
@@ -236,4 +245,5 @@ include if not apple_ish                            # not + rule
 apple_ish if endswith(input.fruits.name, "apple")
 apple_ish if startswith(input.fruits.name, "apple")
 ```
+
 :::

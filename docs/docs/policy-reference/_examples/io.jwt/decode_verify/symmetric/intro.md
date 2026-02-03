@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
+
 :::warning
 This example uses a symmetric key to verify the token. This is not recommended for
 production use. Please see the examples below using `JWKs` or PEM-encoded certificates more examples.

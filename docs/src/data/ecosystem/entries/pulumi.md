@@ -27,4 +27,5 @@ docs_features:
       The Pulumi OPA bridge uses the Rego API to evaluate policies in a
       policy pack. View the [docs and code](https://github.com/pulumi/pulumi-policy-opa).
 ---
+
 Build infrastructure as code in familiar languages. CrossGuard is Pulumi's policy as code offering, providing OPA as one of the options to use for defining policy.
