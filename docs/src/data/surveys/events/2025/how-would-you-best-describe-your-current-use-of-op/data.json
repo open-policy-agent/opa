@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "label": "Just evaluating / experimenting",
+      "value": 3
+    },
+    {
+      "label": "Running in full production across multiple workloads or clusters",
+      "value": 8
+    },
+    {
+      "label": "Previously used but no longer using",
+      "value": 2
+    },
+    {
+      "label": "Running in limited production workloads",
+      "value": 4
+    },
+    {
+      "label": "Running in a development or test environment",
+      "value": 3
+    }
+  ]
+}

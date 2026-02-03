@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "label": "< 3 months",
+      "value": 3
+    },
+    {
+      "label": "6-12months",
+      "value": 5
+    },
+    {
+      "label": "more than 12 months",
+      "value": 7
+    },
+    {
+      "label": "more than 2 years",
+      "value": 6
+    }
+  ]
+}

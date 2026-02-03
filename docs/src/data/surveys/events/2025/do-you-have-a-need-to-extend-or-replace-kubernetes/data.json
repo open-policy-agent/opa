@@ -1,0 +1,16 @@
+{
+  "data": [],
+  "intro": "5 responses",
+  "bullets": [
+    {
+      "title": "Time-Based & Contextual Access",
+      "count": 1,
+      "sentence": "Users want dynamic authorization, such as granting \"time based access to support engineers to 'unblock' users in emergency situations where the risk of being down outweighs the security violations.\""
+    },
+    {
+      "title": "Resource Segmentation",
+      "count": 1,
+      "sentence": "Teams need finer controls \"to restrict certain use cases to segregated nodes.\""
+    }
+  ]
+}

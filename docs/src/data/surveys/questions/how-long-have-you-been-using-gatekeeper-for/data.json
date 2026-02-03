@@ -1,0 +1,18 @@
+{
+  "id": "how-long-have-you-been-using-gatekeeper-for",
+  "title": "How long have you been using Gatekeeper for?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 25
+}

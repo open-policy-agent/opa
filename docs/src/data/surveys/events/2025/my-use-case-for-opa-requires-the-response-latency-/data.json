@@ -1,0 +1,28 @@
+{
+  "data": [
+    {
+      "label": "<10ms",
+      "value": 30
+    },
+    {
+      "label": "<20ms",
+      "value": 17
+    },
+    {
+      "label": "<100ms",
+      "value": 16
+    },
+    {
+      "label": "<500ms",
+      "value": 4
+    },
+    {
+      "label": "500ms+",
+      "value": 3
+    },
+    {
+      "label": "I don't know",
+      "value": 17
+    }
+  ]
+}

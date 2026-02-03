@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "label": "Vanilla K8s",
+      "value": 5
+    },
+    {
+      "label": "OpenShift",
+      "value": 3
+    },
+    {
+      "label": "EKS",
+      "value": 6
+    },
+    {
+      "label": "AKS",
+      "value": 3
+    }
+  ],
+  "otherResponses": [
+    "EKS and AKS",
+    "KCC",
+    "Rancher"
+  ]
+}

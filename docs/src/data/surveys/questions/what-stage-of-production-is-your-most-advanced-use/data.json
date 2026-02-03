@@ -1,0 +1,18 @@
+{
+  "id": "what-stage-of-production-is-your-most-advanced-use",
+  "title": "What stage of production is your most advanced use case for OPA?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": true,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 2
+}

@@ -1,0 +1,12 @@
+{
+  "id": "country-of-residence",
+  "title": "Country of Residence",
+  "comparisonChartType": null,
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {},
+  "tags": [
+    "demographic"
+  ],
+  "rank": 72
+}

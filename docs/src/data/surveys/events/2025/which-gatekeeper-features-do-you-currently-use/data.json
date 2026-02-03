@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "label": "Sync (syncing Kubernetes objects into OPA for policy decisions)",
+      "value": 7
+    },
+    {
+      "label": "ConstraintTemplates & Constraints",
+      "value": 18
+    },
+    {
+      "label": "Mutation",
+      "value": 10
+    },
+    {
+      "label": "Audit functionality",
+      "value": 9
+    },
+    {
+      "label": "External data (e.g., validating against external systems/APIs)",
+      "value": 7
+    },
+    {
+      "label": "Exemptions / namespace exclusions",
+      "value": 8
+    },
+    {
+      "label": "Metrics / monitoring integration (Prometheus, etc.)",
+      "value": 2
+    }
+  ]
+}

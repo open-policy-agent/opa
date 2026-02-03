@@ -1,0 +1,35 @@
+{
+  "data": [
+    {
+      "label": "We do not use OPA for this use case.",
+      "value": 65
+    },
+    {
+      "label": "Prompt filtering",
+      "value": 3
+    },
+    {
+      "label": "Prompt governance",
+      "value": 4
+    },
+    {
+      "label": "Response filtering",
+      "value": 3
+    },
+    {
+      "label": "Response governance",
+      "value": 3
+    },
+    {
+      "label": "Prompt injection/augmentation",
+      "value": 2
+    },
+    {
+      "label": "Response transformation",
+      "value": 1
+    }
+  ],
+  "otherResponses": [
+    "Data filtering for rag"
+  ]
+}

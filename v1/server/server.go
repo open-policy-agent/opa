@@ -726,6 +726,10 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 		os.Remove(socketPath)
 	}
 
+	if s.h2cEnabled {
+		h2s := &http2.Server{}
+		h = h2c.NewHandler(h, h2s)
+	}
 	domainSocketServer := http.Server{Handler: h}
 	unixListener, err := net.Listen("unix", socketPath)
 	if err != nil {

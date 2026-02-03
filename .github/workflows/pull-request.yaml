@@ -23,7 +23,7 @@ jobs:
       rego: ${{ steps.changes.outputs.rego }}
     steps:
     - name: Check out repository code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v6.0.2
 
     - name: Download OPA
       uses: open-policy-agent/setup-opa@87c881550699b0257d7b7aeb8c33019d70bae4a2 # v2.3.0
@@ -88,7 +88,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Generate
       run: make clean generate
@@ -139,18 +139,18 @@ jobs:
           arch: arm64
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - id: go_version
       name: Read go version
       run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
     - name: Install Go (${{ steps.go_version.outputs.go_version }})
-      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+      uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
       with:
         go-version: ${{ steps.go_version.outputs.go_version }}
       if: matrix.os != 'linux'
-    - uses: mlugg/setup-zig@fa65c4058643678a4e4a9a60513944a7d8d35440 # v2.1.0
+    - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
       with:
         version: '0.15.2'
       if: matrix.os == 'windows'
@@ -188,19 +188,19 @@ jobs:
           run: macos-15
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - id: go_version
       name: Read go version
       run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
     - name: Install Go (${{ steps.go_version.outputs.go_version }})
-      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+      uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
       with:
         go-version: ${{ steps.go_version.outputs.go_version }}
 
     - name: Install Node
-      uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+      uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
 
     - name: Download generated artifacts
       uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -221,7 +221,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Golang Style and Lint Check
       run: make check
@@ -234,7 +234,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: YAML Style and Lint Check
       run: make check-yaml-tests
@@ -249,7 +249,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.wasm == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Download generated artifacts
       uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -273,7 +273,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Download generated artifacts
       uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -293,7 +293,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Download generated artifacts
       uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -312,7 +312,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
@@ -367,10 +367,10 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Install Go
-      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+      uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
       with:
         go-version: stable
 
@@ -410,12 +410,12 @@ jobs:
         os: [ubuntu-24.04, macos-15]
         version: ["1.24"]
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Download generated artifacts
       uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
       with:
         name: generated
-    - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+    - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
       with:
         go-version: ${{ matrix.version }}
     - run: make build
@@ -433,7 +433,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.rego == 'true' }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Download OPA
       uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
@@ -469,7 +469,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.docs == 'true' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Build docs
       run: make docs-install docs-build
@@ -499,7 +499,7 @@ jobs:
     if: always()
     steps:
     - name: Check out code
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Download OPA
       uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
       with:

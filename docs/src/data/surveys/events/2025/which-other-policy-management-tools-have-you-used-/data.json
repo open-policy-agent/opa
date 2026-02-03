@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "label": "OPA (Not Gatekeeper)",
+      "value": 9
+    },
+    {
+      "label": "Kyverno",
+      "value": 7
+    },
+    {
+      "label": "Conftest",
+      "value": 4
+    },
+    {
+      "label": "Polaris",
+      "value": 1
+    }
+  ],
+  "otherResponses": [
+    "Cedar, CUE, JSPolicy, Cloud Custodian, Sentinel",
+    "Cloud Custodian, CUE"
+  ]
+}

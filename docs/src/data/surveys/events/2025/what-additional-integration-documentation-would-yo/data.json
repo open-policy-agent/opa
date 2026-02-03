@@ -1,0 +1,23 @@
+{
+  "data": [
+    {
+      "label": "Istio Ambient",
+      "value": 5
+    },
+    {
+      "label": "Envoy Gateway",
+      "value": 4
+    },
+    {
+      "label": "Contour",
+      "value": 2
+    },
+    {
+      "label": "Kgateway",
+      "value": 1
+    }
+  ],
+  "otherResponses": [
+    "-"
+  ]
+}

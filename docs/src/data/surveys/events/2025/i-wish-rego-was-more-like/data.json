@@ -1,0 +1,48 @@
+{
+  "data": [
+    {
+      "label": "Go",
+      "value": 25
+    },
+    {
+      "label": "Java",
+      "value": 6
+    },
+    {
+      "label": "Javascript",
+      "value": 9
+    },
+    {
+      "label": "CEL",
+      "value": 7
+    },
+    {
+      "label": "Typescript",
+      "value": 8
+    },
+    {
+      "label": "SQL",
+      "value": 3
+    },
+    {
+      "label": "Prolog",
+      "value": 2
+    },
+    {
+      "label": "None of the above",
+      "value": 28
+    }
+  ],
+  "otherResponses": [
+    "\"When I see your face There's not a thing that I would change 'Cause you're amazing Just the way you are\" -Bruno Mars",
+    "We experience that developers have a difficult time learning Rego. Also teams arent motivated to learn it since after you have written your authorization policy for our API, it rarely need to be updated, not daily at least as your programs often do. So they dont want to use time learning a language they use a couple of times a year.",
+    "YAML/JSON",
+    "Python",
+    "python",
+    "honestly it's pretty good as it is",
+    "OCaml",
+    "Yaml",
+    "Python",
+    "kotlin, simplified; may be groovy with types inference"
+  ]
+}
