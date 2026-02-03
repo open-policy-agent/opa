@@ -4,7 +4,7 @@ labels:
   category: authorization
   type: poweredbyopa
 tutorials:
-- https://docs.alluxio.io/ee/user/2.10.0/en/security/OpenPolicyAgent-Integration.html
+- https://documentation.alluxio.io/ee-ai-en/administration/security/enabling-authorization#management-api-authorization-with-open-policy-agent-opa
 inventors:
 - alluxio
 ---

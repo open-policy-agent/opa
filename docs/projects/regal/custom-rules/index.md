@@ -298,10 +298,10 @@ aggregate contains entry if {
 
     # if found, collect the result into our aggregate collection
     # we don't really need the location here, but showing for demonstration
-    entry := result.aggregate(rego.metadata.chain(), {
+    entry := {
         # optional metadata here
         "package": input.package,
-    })
+    }
 }
 
 # METADATA

@@ -5,7 +5,7 @@ sidebar_position: 4
 
 [Gloo Edge](https://docs.solo.io/gloo-edge/latest/) is an Envoy based API Gateway that provides a Kubernetes CRD to manage Envoy configuration for performing traffic management and routing.
 
-Gloo Edge allows creation of a [Custom External Auth Service](https://docs.solo.io/gloo-edge/master/guides/security/auth/custom_auth/) that implements the Envoy spec for an [External Authorization Server](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html).
+Gloo Edge allows creation of a [Custom External Auth Service](https://docs.solo.io/gloo-edge/latest/guides/security/opa/) that implements the Envoy spec for an [External Authorization Server](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html).
 
 The purpose of this tutorial is to show how OPA could be used with Gloo Edge to apply security policies for upstream services.
 
