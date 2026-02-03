@@ -26,5 +26,8 @@
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "baseline-browser-mapping": "^2.9.19"
   }
 }
