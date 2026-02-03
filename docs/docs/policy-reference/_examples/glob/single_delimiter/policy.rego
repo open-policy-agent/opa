@@ -1,4 +1,4 @@
 package example
 
 # Match domain names using dot as delimiter
-domain_match := glob.match("api.*.com", ["."], "api.github.com")
+domain_match := glob.match("api.*.com", ["."], "api.example.com")
