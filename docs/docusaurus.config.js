@@ -7,7 +7,7 @@ const path = require("path");
 
 import { loadPages } from "./src/lib/ecosystem/loadPages.js";
 import { loadRules } from "./src/lib/projects/regal/loadRules.js";
-import { loadSurveyEventData, loadSurveyQuestions, loadSurveyEventMetadata } from "./src/lib/surveys/loadSurveyData.js";
+import { loadSurveyEventData, loadSurveyEventMetadata, loadSurveyQuestions } from "./src/lib/surveys/loadSurveyData.js";
 
 const baseUrl = "/";
 
@@ -320,7 +320,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           };
         },
       }),
-      async function ecosystemLanguagePageGen(context, options) {
+      async function ecosystemLanguagePageGen(context, _options) {
         return {
           name: "ecosystem-language-gen",
           async loadContent() {
@@ -329,13 +329,13 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           },
 
           async contentLoaded({ content, actions }) {
-            const { pagesByLanguage, languages } = content;
+            const { languages } = content;
             await Promise.all(
               Object.keys(languages).map(async (language) => {
                 const routePath = path.join(baseUrl, `/ecosystem/by-language/${language}`);
                 return actions.addRoute({
                   path: routePath,
-                  component: require.resolve("./src/EcosystemLanguage.js"),
+                  component: require.resolve("./src/EcosystemLanguage.jsx"),
                   exact: true,
                   modules: {},
                   customData: { language },
@@ -346,7 +346,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function ecosystemFeaturePageGen(context, options) {
+      async function ecosystemFeaturePageGen(context, _options) {
         return {
           name: "ecosystem-feature-gen",
           async loadContent() {
@@ -362,7 +362,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
                 const routePath = path.join(baseUrl, `/ecosystem/by-feature/${feature}`);
                 return actions.addRoute({
                   path: routePath,
-                  component: require.resolve("./src/EcosystemFeature.js"),
+                  component: require.resolve("./src/EcosystemFeature.jsx"),
                   exact: true,
                   modules: {},
                   customData: { feature },
@@ -373,7 +373,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function ecosystemData(context, options) {
+      async function ecosystemData(context, _options) {
         return {
           name: "ecosystem-data",
 
@@ -405,7 +405,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function builtinData(context, options) {
+      async function builtinData(_context, _options) {
         return {
           name: "builtin-data",
 
@@ -425,7 +425,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function ecosystemPagesGen(context, options) {
+      async function ecosystemPagesGen(context, _options) {
         return {
           name: "ecosystem-entries-pages-gen",
           async loadContent() {
@@ -441,7 +441,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
                 const routePath = path.join(baseUrl, `/ecosystem/entry/${entry.id}`);
                 return actions.addRoute({
                   path: routePath,
-                  component: require.resolve("./src/EcosystemEntry.js"),
+                  component: require.resolve("./src/EcosystemEntry.jsx"),
                   exact: true,
                   modules: {},
                   customData: { id: entry.id },
@@ -452,7 +452,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function versionsData(context, options) {
+      async function versionsData(context, _options) {
         return {
           name: "versions-data",
 
@@ -489,7 +489,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function cliData(context, options) {
+      async function cliData(context, _options) {
         return {
           name: "cli-data",
 
@@ -509,13 +509,13 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function versionsPageGen(context, options) {
+      async function versionsPageGen(_context, _options) {
         return {
           name: "version-page-gen",
-          async contentLoaded({ content, actions }) {
+          async contentLoaded({ content: _content, actions }) {
             return actions.addRoute({
               path: path.join(baseUrl, `/docs/archive`),
-              component: require.resolve("./src/Archive.js"),
+              component: require.resolve("./src/Archive.jsx"),
               exact: true,
               modules: {},
             });
@@ -523,7 +523,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function ecosystemData(context, options) {
+      async function regalData(_context, _options) {
         return {
           name: "regal",
 
@@ -539,19 +539,19 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function surveyData(context, options) {
+      async function surveyData(context, _options) {
         return {
           name: "survey-data",
 
           async loadContent() {
             const eventData = await loadSurveyEventData(
-              path.join(context.siteDir, "src/data/surveys/events/**/**/data.json")
+              path.join(context.siteDir, "src/data/surveys/events/**/**/data.json"),
             );
             const questions = await loadSurveyQuestions(
-              path.join(context.siteDir, "src/data/surveys/questions/**/data.json")
+              path.join(context.siteDir, "src/data/surveys/questions/**/data.json"),
             );
             const eventMetadata = await loadSurveyEventMetadata(
-              path.join(context.siteDir, "src/data/surveys/events/**/metadata.json")
+              path.join(context.siteDir, "src/data/surveys/events/**/metadata.json"),
             );
 
             return { eventData, questions, eventMetadata };
@@ -572,7 +572,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
                 const routePath = path.join(baseUrl, `/survey/${eventSlug}`);
                 return addRoute({
                   path: routePath,
-                  component: require.resolve("./src/SurveyEvent/index.js"),
+                  component: require.resolve("./src/SurveyEvent/index.jsx"),
                   exact: true,
                   modules: {},
                   customData: { eventSlug },

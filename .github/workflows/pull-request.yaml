@@ -474,6 +474,30 @@ jobs:
     - name: Build docs
       run: make docs-install docs-build
 
+  docs-fmt-check:
+    name: Docs Format Check
+    runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs == 'true' }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Check docs formatting
+      run: make docs-install docs-fmt-check
+
+  docs-lint-check:
+    name: Docs Lint Check
+    runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs == 'true' }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Lint docs
+      run: make docs-install docs-lint-check
+
   # This job is required to complete before merging, and is set as a branch
   # protection rule:
   # https://github.com/open-policy-agent/opa/settings/branch_protection_rules
@@ -495,6 +519,8 @@ jobs:
       go-version-build,
       rego-check-pr,
       docs-build,
+      docs-fmt-check,
+      docs-lint-check,
     ]
     if: always()
     steps:
