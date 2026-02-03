@@ -48,4 +48,5 @@ docs_features:
       There is an example provided here on
       [GitHub](https://github.com/open-policy-agent/conftest/tree/master/examples/hcl2).
 ---
+
 Conftest is a utility built on top of OPA to help you write tests against structured configuration data.

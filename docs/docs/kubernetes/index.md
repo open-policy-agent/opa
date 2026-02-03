@@ -278,8 +278,7 @@ See the [Policy Authoring](./kubernetes/primer) and [Tutorial: Ingress Validatio
 See the following pages on [kubernetes.io](https://kubernetes.io) for more
 information on admission control:
 
-- [A Guide to Kubernetes Admission
-  Controllers](https://kubernetes.io/blog/2019/03/21/a-guide-to-kubernetes-admission-controllers/)
+- [A Guide to Kubernetes Admission Controllers](https://kubernetes.io/blog/2019/03/21/a-guide-to-kubernetes-admission-controllers/)
   for a quick primer on admission controllers.
 - [Dynamic Admission Control](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/)
   for details on configuring external admission controllers.

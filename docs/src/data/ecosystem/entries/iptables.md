@@ -14,4 +14,5 @@ inventors:
 - cisco
 - styra
 ---
+
 IPTables is a useful tool available to Linux kernel for filtering network packets. OPA makes it possible to manage IPTables rules using context-aware policy.

@@ -560,4 +560,3 @@ loaded in lexical order and the last file to set a scalar or list value wins. If
 the –merge-conflict-fail argument is specified, then scalar and list values are
 never overridden and an error will be returned if two files set the same field
 to a different value.
-

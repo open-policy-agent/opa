@@ -1,5 +1,5 @@
-import React from 'react';
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import React from "react";
+import { Bar, BarChart as RechartsBarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 export default function HorizontalBarChart({ data, config }) {
   const showXAxis = config.showXAxis !== false;
@@ -13,7 +13,7 @@ export default function HorizontalBarChart({ data, config }) {
   return (
     <RechartsBarChart
       layout="vertical"
-      style={{ width: '100%', height: chartHeight }}
+      style={{ width: "100%", height: chartHeight }}
       data={data}
       margin={{
         top: 0,
@@ -29,13 +29,13 @@ export default function HorizontalBarChart({ data, config }) {
           dataKey="name"
           width={250}
           tick={{ fontSize: 12 }}
-          {...(config.yAxisLabel && { label: { value: config.yAxisLabel, angle: -90, position: 'insideLeft' } })}
+          {...(config.yAxisLabel && { label: { value: config.yAxisLabel, angle: -90, position: "insideLeft" } })}
         />
       )}
       {showXAxis && (
         <XAxis
           type="number"
-          {...(config.xAxisLabel && { label: { value: config.xAxisLabel, position: 'insideBottom', offset: -5 } })}
+          {...(config.xAxisLabel && { label: { value: config.xAxisLabel, position: "insideBottom", offset: -5 } })}
         />
       )}
       {showTooltip && <Tooltip />}

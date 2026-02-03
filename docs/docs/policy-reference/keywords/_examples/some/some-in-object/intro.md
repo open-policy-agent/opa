@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
+
 Similar to arrays, `some` can also be used on key->value pairs in
 objects. Here, we create two variables, one for the key and another
 for the value. The Rego rule is then evaluated for each pair.

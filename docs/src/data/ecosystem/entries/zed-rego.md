@@ -17,6 +17,7 @@ docs_features:
       syntax highlighting, running of OPA tests, completions, linting
       via the [Regal Language Server](/integrations/regal/).
 ---
+
 The [zed-rego extension](https://github.com/StyraInc/zed-rego)
 is an extension for the [Zed editor](https://zed.dev/) that provides
 support for the Rego language and OPA functionality. The extension

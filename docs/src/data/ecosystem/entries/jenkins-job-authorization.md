@@ -16,4 +16,5 @@ videos:
   venue: OPA Summit at Kubecon San Diego 2019
   link: https://www.youtube.com/watch?v=LhgxFICWsA8
 ---
-Jenkins automates software development processes.  OPA lets you control which people and which machines can run which Jenkins jobs.
+
+Jenkins automates software development processes. OPA lets you control which people and which machines can run which Jenkins jobs.

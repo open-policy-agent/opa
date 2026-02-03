@@ -32,6 +32,6 @@ docs_features:
       [how this works](https://docs.opal.ac/getting-started/quickstart/opal-playground/publishing-data-update/)
       in the OPAL docs.
 ---
+
 OPAL is an administration layer for Open Policy Agent (OPA), detecting changes in realtime to both policy and policy data and pushing live updates to your agents.
 OPAL brings open-policy up to the speed needed by live applications. As your application state changes (whether it's via your APIs, DBs, git, S3 or 3rd-party SaaS services), OPAL will make sure your services are always in sync with the authorization data and policy they need (and only those they need).
-

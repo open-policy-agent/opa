@@ -1,14 +1,14 @@
+import Link from "@docusaurus/Link";
+import Heading from "@theme/Heading";
 import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
-import Heading from "@theme/Heading";
-import Link from "@docusaurus/Link";
 
-import StandaloneLayout from "../components/StandaloneLayout";
 import QuestionSingle from "../components/QuestionSingle";
+import StandaloneLayout from "../components/StandaloneLayout";
 
 import allEventData from "@generated/survey-data/default/survey-event-data.json";
-import questions from "@generated/survey-data/default/survey-questions.json";
 import eventMetadata from "@generated/survey-data/default/survey-event-metadata.json";
+import questions from "@generated/survey-data/default/survey-questions.json";
 
 import styles from "./styles.module.css";
 
@@ -39,7 +39,7 @@ export default function SurveyEvent(props) {
   const groupedQuestions = useMemo(() => {
     const groups = questionIds.reduce((acc, questionId) => {
       const question = questions[questionId];
-      const tag = question?.tags?.[0] || 'uncategorized';
+      const tag = question?.tags?.[0] || "uncategorized";
       (acc[tag] = acc[tag] || []).push(questionId);
       return acc;
     }, {});
@@ -55,12 +55,11 @@ export default function SurveyEvent(props) {
   const { tagOrder, tagDisplayNames, tagDescriptions } = useMemo(() => {
     const order = metadata?.sections?.map(s => s.tag) || Object.keys(groupedQuestions);
     const displayNames = {
-      uncategorized: 'Other',
-      ...metadata?.sections?.reduce((acc, s) => ({ ...acc, [s.tag]: s.title }), {})
+      uncategorized: "Other",
+      ...metadata?.sections?.reduce((acc, s) => ({ ...acc, [s.tag]: s.title }), {}),
     };
     const descriptions = metadata?.sections?.reduce((acc, s) =>
-      s.description ? { ...acc, [s.tag]: s.description } : acc
-    , {}) || {};
+      s.description ? { ...acc, [s.tag]: s.description } : acc, {}) || {};
 
     return { tagOrder: order, tagDisplayNames: displayNames, tagDescriptions: descriptions };
   }, [metadata, groupedQuestions]);
@@ -95,8 +94,7 @@ export default function SurveyEvent(props) {
           {metadata.intro}
           {metadata?.blog && (
             <>
-              {" "}These results were originally presented in the following{" "}
-              <Link to={metadata.blog}>blog post</Link>.
+              {" "}These results were originally presented in the following <Link to={metadata.blog}>blog post</Link>.
             </>
           )}
         </p>

@@ -10,4 +10,5 @@ code:
 inventors:
 - infoblox
 ---
-CoreDNS is a cloud-native DNS server written in Go.  OPA can be used as a plugin to filter queries and responses.
+
+CoreDNS is a cloud-native DNS server written in Go. OPA can be used as a plugin to filter queries and responses.

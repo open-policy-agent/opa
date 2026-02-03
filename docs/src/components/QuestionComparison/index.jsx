@@ -1,9 +1,9 @@
-import React from 'react';
-import Heading from '@theme/Heading';
+import Heading from "@theme/Heading";
+import React from "react";
 
-import { getChartComponent } from '../charts';
+import { getChartComponent } from "../charts";
 
-import styles from './styles.module.css';
+import styles from "./styles.module.css";
 
 export default function QuestionComparison({
   questionId,

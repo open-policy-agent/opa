@@ -1608,7 +1608,6 @@ The following table summarizes the behavior for partial evaluation results.
 
 > The partially evaluated queries are represented as strings in the table above. The actual API response contains the JSON AST representation.
 
-
 ### Compling a Rego policy (and query) into data filters
 
 ```http
@@ -1619,15 +1618,13 @@ Content-Type: application/json
 Where the `{path}` is the slash delimited filter rule to be compiled.
 E.g., to compile the `data.filters.include` rule, query `/v1/compile/filters/include`
 
-
 #### Request Headers
 
-| Name | Required | Accepted Values | Description |
-| --- | --- | --- | --- |
-| Content-Type | No | `application/json` | Indicates the request body is either a JSON encoded document. |
-| Content-Encoding | No | gzip | Indicates the request body is a compressed gzip object. |
-| Accept | Yes | See [below](#accept-header--controlling-the-target-response-format) | See [below](#accept-header--controlling-the-target-response-format) |
-
+| Name             | Required | Accepted Values                                                     | Description                                                         |
+| ---------------- | -------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Content-Type     | No       | `application/json`                                                  | Indicates the request body is either a JSON encoded document.       |
+| Content-Encoding | No       | gzip                                                                | Indicates the request body is a compressed gzip object.             |
+| Accept           | Yes      | See [below](#accept-header--controlling-the-target-response-format) | See [below](#accept-header--controlling-the-target-response-format) |
 
 #### Accept Header – Controlling the Target Response Format
 
@@ -1635,25 +1632,23 @@ The same request can generate filters that are representable in many different w
 
 OPA uses the `Accept` header to denote the target response format.
 
-| Value | Response Schema | Description |
-| --- | --- | -- |
-| Multitarget: `application/vnd.opa.multitarget+json` | `result.{ucast,sqlserver,mysql,postgresql,sqlite}` | The partially evaluated result of the query in each target dialect. Use the `options.targetDialects` field in the request body to control targets. |
-| UCAST: `application/vnd.opa.ucast.all+json`, `application/vnd.opa.ucast.minimal+json`, `application/vnd.opa.ucast.linq+json`, `application/vnd.opa.ucast.prisma+json` | `result.query`| UCAST JSON object describing the conditions under which the query is true. |
-| SQL: `application/vnd.opa.sql.sqlserver+json`, `application/vnd.opa.sql.mysql+json`, `application/vnd.opa.sql.postgresql+json`, `application/vnd.opa.sql.sqlite+json` | `result.query`| String representing the SQL equivalent of the conditions under which the query is true. |
-
+| Value                                                                                                                                                                 | Response Schema                                    | Description                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Multitarget: `application/vnd.opa.multitarget+json`                                                                                                                   | `result.{ucast,sqlserver,mysql,postgresql,sqlite}` | The partially evaluated result of the query in each target dialect. Use the `options.targetDialects` field in the request body to control targets. |
+| UCAST: `application/vnd.opa.ucast.all+json`, `application/vnd.opa.ucast.minimal+json`, `application/vnd.opa.ucast.linq+json`, `application/vnd.opa.ucast.prisma+json` | `result.query`                                     | UCAST JSON object describing the conditions under which the query is true.                                                                         |
+| SQL: `application/vnd.opa.sql.sqlserver+json`, `application/vnd.opa.sql.mysql+json`, `application/vnd.opa.sql.postgresql+json`, `application/vnd.opa.sql.sqlite+json` | `result.query`                                     | String representing the SQL equivalent of the conditions under which the query is true.                                                            |
 
 #### Request Body
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `input` | `any` | No | The input document to use during partial evaluation and during mask rule evaluation (default: undefined). |
-| `options` | `object[string, any]` | No | Additional options to use during partial evaluation |
-| `options.disableInlining` | `array[string]` | No. Default: undefined | A list of rule references. |
-| `options.maskRule` | `string` | No | The rule to evaluate for generating column masks. Overrides any `mask_rule` annotations defined in the policy. |
-| `options.targetDialects` | `array[string]`, one of `ucast+all`, `ucast+minimal`, `ucast+prisma`, `ucast+linq`, `sql+sqlserver`, `sql+mysql`, `sql+postgresql` | Yes, if using `multitarget`. **Ignored for all other targets** | The output targets for partial evaluation. Different targets will have different constraints. Use [`Accept` header](#accept-header--controlling-the-target-response-format) to request a single compilation target.  |
-| `options.targetSQLTableMappings` | `object[string, object[string, string]]` | No | A mapping between tables and columns. See the [example](#example-mapping-table-and-column-names) for the schema. |
-| `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `[]`). |
-
+| Field                            | Type                                                                                                                               | Required                                                       | Description                                                                                                                                                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `input`                          | `any`                                                                                                                              | No                                                             | The input document to use during partial evaluation and during mask rule evaluation (default: undefined).                                                                                                           |
+| `options`                        | `object[string, any]`                                                                                                              | No                                                             | Additional options to use during partial evaluation                                                                                                                                                                 |
+| `options.disableInlining`        | `array[string]`                                                                                                                    | No. Default: undefined                                         | A list of rule references.                                                                                                                                                                                          |
+| `options.maskRule`               | `string`                                                                                                                           | No                                                             | The rule to evaluate for generating column masks. Overrides any `mask_rule` annotations defined in the policy.                                                                                                      |
+| `options.targetDialects`         | `array[string]`, one of `ucast+all`, `ucast+minimal`, `ucast+prisma`, `ucast+linq`, `sql+sqlserver`, `sql+mysql`, `sql+postgresql` | Yes, if using `multitarget`. **Ignored for all other targets** | The output targets for partial evaluation. Different targets will have different constraints. Use [`Accept` header](#accept-header--controlling-the-target-response-format) to request a single compilation target. |
+| `options.targetSQLTableMappings` | `object[string, object[string, string]]`                                                                                           | No                                                             | A mapping between tables and columns. See the [example](#example-mapping-table-and-column-names) for the schema.                                                                                                    |
+| `unknowns`                       | `array[string]`                                                                                                                    | No                                                             | The terms to treat as unknown during partial evaluation (default: `[]`).                                                                                                                                            |
 
 #### Example Request
 
@@ -1688,7 +1683,6 @@ Accept: application/vnd.opa.sql.postgresql+json
 }
 ```
 
-
 #### Example Response
 
 ```http
@@ -1703,7 +1697,6 @@ Content-Type: application/vnd.opa.sql.postgresql+json
   }
 }
 ```
-
 
 #### Unconditional Results from Filters Generation
 
@@ -1724,7 +1717,6 @@ An empty string `query` indicates **unconditional include**:
   }
 }
 ```
-
 
 #### Example: Mapping Table and Column Names
 
@@ -1772,7 +1764,6 @@ Accept: application/vnd.opa.sql.postgresql+json
 ```
 
 For multi-target requests, per-target replacementes are possible, since the SQL table names might not match what you need for a UCAST consumer library.
-
 
 ## Health API
 

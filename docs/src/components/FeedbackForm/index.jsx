@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from "react";
 import { Icon } from "@iconify/react";
+import React, { useEffect, useRef, useState } from "react";
 
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Admonition from "@theme/Admonition";
@@ -61,7 +61,7 @@ export default function FeedbackForm({ enablePopup = false }) {
             setPopupEnabled(false);
           }
         },
-        { threshold: 0.1 }
+        { threshold: 0.1 },
       );
 
       observer.observe(feedbackFormRef.current);
@@ -232,7 +232,7 @@ const FloatingPopup = ({ onClose, onFeedbackSelect }) => {
   };
 
   return (
-    <div className={`${styles.popup} ${showAnimation ? styles.show : ''}`}>
+    <div className={`${styles.popup} ${showAnimation ? styles.show : ""}`}>
       <button
         className={styles.closeButton}
         onClick={handleClose}
