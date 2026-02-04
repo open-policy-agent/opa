@@ -84,7 +84,7 @@ For simplification port-forwarding will be used. Open another terminal and execu
 kubectl port-forward deployment/gateway-proxy 8080:8080
 ```
 
-The `VirtualService` created in the previous step forwards requests to http://httpbin.org
+The `VirtualService` created in the previous step forwards requests to <http://httpbin.org>
 
 Let's test that Gloo works properly by running the below command in the first terminal.
 
@@ -111,35 +111,35 @@ import input.attributes.request.http as http_request
 default allow := false
 
 allow if {
-	is_token_valid
-	action_allowed
+  is_token_valid
+  action_allowed
 }
 
 is_token_valid if {
-	token.valid
-	now := time.now_ns() / 1000000000
-	token.payload.nbf <= now
-	now < token.payload.exp
+  token.valid
+  now := time.now_ns() / 1000000000
+  token.payload.nbf <= now
+  now < token.payload.exp
 }
 
 action_allowed if {
-	http_request.method == "GET"
-	token.payload.role == "guest"
+  http_request.method == "GET"
+  token.payload.role == "guest"
 }
 
 action_allowed if {
-	http_request.method == "GET"
-	token.payload.role == "admin"
+  http_request.method == "GET"
+  token.payload.role == "admin"
 }
 
 action_allowed if {
-	http_request.method == "POST"
-	token.payload.role == "admin"
+  http_request.method == "POST"
+  token.payload.role == "admin"
 }
 
 token := {"valid": valid, "payload": payload} if {
-	[_, encoded] := split(http_request.headers.authorization, " ")
-	[valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
+  [_, encoded] := split(http_request.headers.authorization, " ")
+  [valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
 }
 ```
 

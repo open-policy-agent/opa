@@ -17,14 +17,14 @@ much easier to read the one using `every` is.
 package play
 
 allow1 if {
-	every e in [1, 2, 3] {
-		e < 4
-	}
+  every e in [1, 2, 3] {
+    e < 4
+  }
 }
 
 # without every, don't do this!
 allow2 if {
-	{r | some e in [1, 2, 3]; r := e < 4} == {true}
+  {r | some e in [1, 2, 3]; r := e < 4} == {true}
 }
 ```
 

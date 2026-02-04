@@ -31,8 +31,8 @@ The code above will raise the following error:
 
 ```txt
 1 error occurred: policy.rego:3: rego_parse_error: unexpected assign token: expected rule value term (e.g., a := <VALUE> { ... })
-	a := "
-	  ^
+  a := "
+    ^
 ```
 
 The parser error is pointing to the `:=` token, which in this case is not the issue.
@@ -58,8 +58,8 @@ This new code will raise the following, more helpful, error:
 ```txt
 3 errors occurred:
 policy.rego:3: rego_parse_error: non-terminated string
-	a = "
-	    ^
+  a = "
+      ^
 ```
 
 **Note** however that generally this is not a recommended approach, see more detail

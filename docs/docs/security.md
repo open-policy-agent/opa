@@ -155,7 +155,7 @@ package system.authz
 default allow := false # Reject requests by default.
 
 allow if {
-	# Logic to authorize request goes here.
+  # Logic to authorize request goes here.
 }
 ```
 
@@ -310,17 +310,17 @@ follows:
 package system.authz
 
 default allow := {
-	"allowed": false,
-	"reason": "unauthorized resource access",
+  "allowed": false,
+  "reason": "unauthorized resource access",
 }
 
 allow := {"allowed": true} if { # Allow request if...
-	"secret" == input.identity # identity is the secret root key.
+  "secret" == input.identity # identity is the secret root key.
 }
 
 allow := {"allowed": false, "reason": reason} if {
-	not input.identity
-	reason := "no identity provided"
+  not input.identity
+  reason := "no identity provided"
 }
 ```
 
@@ -505,20 +505,20 @@ id_string := sprintf("%s://%s%s", [id_uri.Scheme, id_uri.Host, id_uri.Path])
 
 # client_acl represents an access control list and may defined in policy or pushed into OPA as data changes.
 client_acl := {
-	"spiffe://example.com/client-1": [["v1", "data"]],
-	"spiffe://example.com/client-2": [],
+  "spiffe://example.com/client-1": [["v1", "data"]],
+  "spiffe://example.com/client-2": [],
 }
 
 default allow := {"allowed": false, "reason": "Access denied: unknown caller"}
 
 allow := {"allowed": true} if {
-	input.path in client_acl[id_string]
+  input.path in client_acl[id_string]
 } else := {
-	"allowed": false,
-	"reason": sprintf("%s is not allowed to call /%s", [
-		id_string,
-		concat("/", input.path),
-	]),
+  "allowed": false,
+  "reason": sprintf("%s is not allowed to call /%s", [
+    id_string,
+    concat("/", input.path),
+  ]),
 }
 ```
 
@@ -626,8 +626,8 @@ default allow := false
 
 # Allow anonymous access to the default policy decision.
 allow if {
-	input.method == "POST"
-	input.path == [""]
+  input.method == "POST"
+  input.path == [""]
 }
 ```
 

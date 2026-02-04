@@ -26,8 +26,8 @@ package policy
 import future.keywords.if
 
 allow if {
-	user := input.user
-	input.user == "admin"
+  user := input.user
+  input.user == "admin"
 }
 ```
 
@@ -46,9 +46,9 @@ import future.keywords.contains
 import future.keywords.if
 
 deny contains message if {
-	input.user != "admin"
+  input.user != "admin"
 
-	msg := "user is not admin"
+  msg := "user is not admin"
 }
 ```
 

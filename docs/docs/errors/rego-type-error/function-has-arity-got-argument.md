@@ -31,7 +31,7 @@ import future.keywords.in
 default is_authorized(_, _) := false
 
 is_authorized(user_id, resource) if {
-	# implementation details
+  # implementation details
 }
 
 default allow := false
@@ -60,7 +60,7 @@ import future.keywords.in
 default is_authorized(_, _) := false
 
 is_authorized(user_id, resource) if {
-	# implementation details
+  # implementation details
 }
 
 default allow := false

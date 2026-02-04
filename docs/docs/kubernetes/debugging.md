@@ -145,9 +145,9 @@ patches := [
 package system
 
 main := {
-	"apiVersion": "admission.k8s.io/v1",
-	"kind": "AdmissionReview",
-	"response": response,
+  "apiVersion": "admission.k8s.io/v1",
+  "kind": "AdmissionReview",
+  "response": response,
 }
 
 response := {
@@ -170,4 +170,4 @@ patches := [
 
 Also, for more examples of how to construct mutating policies and integrating
 them with validating policies, see [these examples](https://github.com/open-policy-agent/library/tree/master/kubernetes/mutating-admission)
-in https://github.com/open-policy-agent/library.
+in <https://github.com/open-policy-agent/library>.

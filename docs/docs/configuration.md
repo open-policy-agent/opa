@@ -717,75 +717,75 @@ plugins:
 package plugins
 
 import (
-	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/plugins/rest"
-	"github.com/open-policy-agent/opa/runtime"
-	"github.com/open-policy-agent/opa/util"
+  "github.com/open-policy-agent/opa/plugins"
+  "github.com/open-policy-agent/opa/plugins/rest"
+  "github.com/open-policy-agent/opa/runtime"
+  "github.com/open-policy-agent/opa/util"
 )
 
 type Config struct {
-	Foo string `json:"foo"`
+  Foo string `json:"foo"`
 }
 
 type PluginFactory struct{}
 
 type Plugin struct {
-	manager  *plugins.Manager
-	config   Config
-	stop     chan chan struct{}
-	reconfig chan interface{}
+  manager  *plugins.Manager
+  config   Config
+  stop     chan chan struct{}
+  reconfig chan interface{}
 }
 
 func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (interface{}, error) {
-	var parsedConfig Config
-	if err := util.Unmarshal(config, &parsedConfig); err != nil {
-		return nil, err
-	}
-	return &parsedConfig, nil
+  var parsedConfig Config
+  if err := util.Unmarshal(config, &parsedConfig); err != nil {
+    return nil, err
+  }
+  return &parsedConfig, nil
 }
 
 func (p *PluginFactory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
-	return &Plugin{
-		config:   *config.(*Config),
-		manager:  manager,
-		stop:     make(chan chan struct{}),
-		reconfig: make(chan interface{}),
-	}
+  return &Plugin{
+    config:   *config.(*Config),
+    manager:  manager,
+    stop:     make(chan chan struct{}),
+    reconfig: make(chan interface{}),
+  }
 }
 
 func (p *Plugin) Start(ctx context.Context) error {
-	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
-	return nil
+  p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
+  return nil
 }
 
 func (p *Plugin) Stop(ctx context.Context) {
-	done := make(chan struct{})
-	p.stop <- done
-	<-done
-	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
-	return
+  done := make(chan struct{})
+  p.stop <- done
+  <-done
+  p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+  return
 }
 
 func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
-	p.reconfig <- config
-	return
+  p.reconfig <- config
+  return
 }
 
 func (p *Plugin) NewClient(c rest.Config) (*http.Client, error) {
-	t, err := rest.DefaultTLSConfig(c)
-	if err != nil {
-		return nil, err
-	}
-	return rest.DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+  t, err := rest.DefaultTLSConfig(c)
+  if err != nil {
+    return nil, err
+  }
+  return rest.DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (p *Plugin) Prepare(req *http.Request) error {
-	req.Header.Add("X-Custom-Auth-Protocol", "knock knock")
-	return nil
+  req.Header.Add("X-Custom-Auth-Protocol", "knock knock")
+  return nil
 }
 
 func init() {
-	runtime.RegisterPlugin("my_custom_auth", &PluginFactory{})
+  runtime.RegisterPlugin("my_custom_auth", &PluginFactory{})
 }
 ```
 
@@ -994,7 +994,7 @@ The `server` configuration sets:
 | `server.decoding.max_length`                                | `int`       | No, (default: 268435456)                                                 | Specifies the maximum allowed number of bytes to read from a request body.                                                                                                                                                |
 | `server.decoding.gzip.max_length`                           | `int`       | No, (default: 536870912)                                                 | Specifies the maximum allowed number of bytes to read from the gzip decompressor for gzip-encoded requests.                                                                                                               |
 | `server.encoding.gzip.min_length`                           | `int`       | No, (default: 1024)                                                      | Specifies the minimum length of the response to compress.                                                                                                                                                                 |
-| `server.encoding.gzip.compression_level`                    | `int`       | No, (default: 9)                                                         | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants          |
+| `server.encoding.gzip.compression_level`                    | `int`       | No, (default: 9)                                                         | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See <https://pkg.go.dev/compress/flate#pkg-constants>          |
 | `server.metrics.prom.http_request_duration_seconds.buckets` | `[]float64` | No, (default: [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1 ]) | Specifies the buckets for the `http_request_duration_seconds` metric. Each value is a float, it is expressed in seconds and subdivisions of it. E.g `1e-6` is 1 microsecond, `1e-3` 1 millisecond, `0.01` 10 milliseconds |
 
 ## Miscellaneous

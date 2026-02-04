@@ -38,8 +38,8 @@ When compiled, this will result in the following error:
 
 ```txt
 1 error occurred: policy.rego:6: rego_type_error: split: arity mismatch
-	have: (string, ???)
-	want: (x: string, delimiter: string)
+  have: (string, ???)
+  want: (x: string, delimiter: string)
 ```
 
 ## How To Fix It

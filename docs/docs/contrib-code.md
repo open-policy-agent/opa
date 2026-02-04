@@ -166,13 +166,13 @@ vulnerability scanning. To install, follow the [installation instructions](https
 To run the vulnerability scanning, on the code-base, run the following command:
 
 ```bash
-$ trivy fs .
+trivy fs .
 ```
 
 To run the vulnerability scanning on the container image, run the following command:
 
 ```bash
-$ trivy image <Image tag>
+trivy image <Image tag>
 ```
 
 If the tool catches any false positives, it's recommended to appropriately document them

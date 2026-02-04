@@ -53,7 +53,7 @@ Several of the steps below require `root` or `sudo` access. When you are
 modifying files under `/etc/docker` or signalling the Docker daemon to
 restart, you will need root access.
 
-### 1. Create an empty policy definition that will allow all requests.
+### 1. Create an empty policy definition that will allow all requests
 
 **authz.rego**:
 
@@ -67,7 +67,7 @@ This policy defines a single rule named `allow` that always produces the
 decision `true`. Once all the components are running, we will come back to
 the policy.
 
-### 2. Create policy bundle and OPA configuration.
+### 2. Create policy bundle and OPA configuration
 
 For the purpose of this example, we are going to use [Nginx](https://www.openpolicyagent.org/docs/management-bundles#nginx)
 to serve bundles from the same machine Docker is running on.
@@ -104,7 +104,7 @@ sudo mkdir -p /etc/docker/config
 sudo mv opa-config.yaml /etc/docker/config/
 ```
 
-### 3. Install the opa-docker-authz plugin.
+### 3. Install the opa-docker-authz plugin
 
 Install the `opa-docker-authz` plugin and point it to the config file just created.
 
@@ -128,7 +128,7 @@ Signal the Docker daemon to reload the configuration file.
 kill -HUP $(pidof dockerd)
 ```
 
-### 4. Run a simple Docker command to make sure everything is still working.
+### 4. Run a simple Docker command to make sure everything is still working
 
 ```shell
 docker ps
@@ -137,7 +137,7 @@ docker ps
 If everything is set up correctly, the command should exit successfully. You can
 expect to see log messages from OPA and the plugin.
 
-### 5. Test that the policy definition is working.
+### 5. Test that the policy definition is working
 
 Let’s modify our policy to **deny** all requests:
 
@@ -180,7 +180,7 @@ all be rejected.
 
 Now let's change the policy so that it's a bit more useful.
 
-### 6. Update the policy to reject requests with the unconfined [seccomp](https://en.wikipedia.org/wiki/Seccomp) profile:
+### 6. Update the policy to reject requests with the unconfined [seccomp](https://en.wikipedia.org/wiki/Seccomp) profile
 
 ```rego title="authz.rego"
 package docker.authz
@@ -188,17 +188,17 @@ package docker.authz
 default allow := false
 
 allow if {
-	not deny
+  not deny
 }
 
 deny if {
-	seccomp_unconfined
+  seccomp_unconfined
 }
 
 seccomp_unconfined if {
-	# This expression asserts that the string on the right-hand side is equal
-	# to an element in the array SecurityOpt referenced on the left-hand side.
-	input.Body.HostConfig.SecurityOpt[_] == "seccomp:unconfined"
+  # This expression asserts that the string on the right-hand side is equal
+  # to an element in the array SecurityOpt referenced on the left-hand side.
+  input.Body.HostConfig.SecurityOpt[_] == "seccomp:unconfined"
 }
 ```
 
@@ -340,7 +340,7 @@ Look for `SecurityOpt` and try changing it to see the result.
 
 </details>
 
-### 7. Test the policy is working by running a simple container:
+### 7. Test the policy is working by running a simple container
 
 ```shell
 docker run hello-world
@@ -359,7 +359,7 @@ seccomp!
 The rest of the tutorial shows how you can grant fine-grained access to specific
 clients.
 
-### <a name="identify-user"></a> 8. Identify the user in Docker requests.
+### <a name="identify-user"></a> 8. Identify the user in Docker requests
 
 > Back up your existing Docker configuration, just in case. You can replace your
 > original configuration after you are done with the tutorial.
@@ -387,7 +387,7 @@ EOF
 > other means of authentication. For the purpose of this tutorial, we assume that
 > an authentication system is place.
 
-### 9. Update the policy to include basic user access controls.
+### 9. Update the policy to include basic user access controls
 
 ```rego
 package docker.authz
@@ -396,27 +396,27 @@ default allow := false
 
 # allow if the user is granted read/write access.
 allow if {
-	user_id := input.Headers["Authz-User"]
-	user := users[user_id]
-	not user.readOnly
+  user_id := input.Headers["Authz-User"]
+  user := users[user_id]
+  not user.readOnly
 }
 
 # allow if the user is granted read-only access and the request is a GET.
 allow if {
-	user_id := input.Headers["Authz-User"]
-	users[user_id].readOnly
-	input.Method == "GET"
+  user_id := input.Headers["Authz-User"]
+  users[user_id].readOnly
+  input.Method == "GET"
 }
 
 # users defines permissions for the user. In this case, we define a single
 # attribute 'readOnly' that controls the kinds of commands the user can run.
 users := {
-	"bob": {"readOnly": true},
-	"alice": {"readOnly": false},
+  "bob": {"readOnly": true},
+  "alice": {"readOnly": false},
 }
 ```
 
-### 10. Attempt to run a container.
+### 10. Attempt to run a container
 
 Because the configured user is `"bob"`, the request is rejected:
 
@@ -424,7 +424,7 @@ Because the configured user is `"bob"`, the request is rejected:
 docker run hello-world
 ```
 
-### 11. Change the user to "alice" and re-run the container.
+### 11. Change the user to "alice" and re-run the container
 
 ```shell
 cat > ~/.docker/config.json <<EOF

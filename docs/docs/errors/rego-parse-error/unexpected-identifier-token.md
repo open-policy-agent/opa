@@ -31,7 +31,7 @@ import rego.v1
 
 allow if {
 // highlight-next-line
-	"admin" in input roles
+  "admin" in input roles
 }
 ```
 
@@ -40,8 +40,8 @@ question:
 
 ```txt
 1 error occurred: policy.rego:6: rego_parse_error: unexpected identifier token: expected \n or ; or }
-	"admin" in input roles
-	                 ^
+  "admin" in input roles
+                   ^
 ```
 
 Another case when this error can occur is when a statement has been added to the
@@ -55,7 +55,7 @@ import rego.v1
 
 allow if {
 // highlight-next-line
-	"admin" in input.roles endswith(input.email, "@example.com")
+  "admin" in input.roles endswith(input.email, "@example.com")
 }
 ```
 
@@ -67,9 +67,9 @@ package policy
 import rego.v1
 
 allow if {
-	"admin" in input.roles
+  "admin" in input.roles
 // highlight-next-line
-	endswith(input.email, "@example.com")
+  endswith(input.email, "@example.com")
 }
 ```
 

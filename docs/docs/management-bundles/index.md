@@ -813,7 +813,7 @@ Below are steps to use OpenID connect provider and kubernetes.
 }
 ```
 
-10. Create the kubernetes service account.
+1. Create the kubernetes service account.
     ```yaml
     apiVersion: v1
     kind: ServiceAccount
@@ -824,7 +824,7 @@ Below are steps to use OpenID connect provider and kubernetes.
       namespace: <k8 namespace, e.g. app-dev>
     automountServiceAccountToken: false
     ```
-11. Configure your kubernetes resources to use this service account.
+2. Configure your kubernetes resources to use this service account.
     ```yaml
     apiVersion: apps/v1
     kind: Deployment

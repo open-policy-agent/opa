@@ -656,11 +656,11 @@ import data.example.apps
 import data.example.sites
 
 apps_and_hostnames contains [name, hostname] if {
-	some i, j, k
-	name := apps[i].name
-	server := apps[i].servers[_]
-	sites[j].servers[k].name == server
-	hostname := sites[j].servers[k].hostname
+  some i, j, k
+  name := apps[i].name
+  server := apps[i].servers[_]
+  sites[j].servers[k].name == server
+  hostname := sites[j].servers[k].hostname
 }
 ```
 
@@ -682,16 +682,16 @@ import data.example.apps
 import data.example.sites
 
 same_site contains apps[k].name if {
-	some i, j, k
-	apps[i].name == "mysql"
+  some i, j, k
+  apps[i].name == "mysql"
 
-	server := apps[i].servers[_]
-	server == sites[j].servers[_].name
+  server := apps[i].servers[_]
+  server == sites[j].servers[_].name
 
-	other_server := sites[j].servers[_].name
-	server != other_server
+  other_server := sites[j].servers[_].name
+  server != other_server
 
-	other_server == apps[k].servers[_]
+  other_server == apps[k].servers[_]
 }
 ```
 
@@ -1044,21 +1044,21 @@ package roles
 
 # A partial object rule that converts a list of users to a mapping by "role" and then "id".
 users_by_role[role][id] := user if {
-	some user in input.users
-	id := user.id
-	role := user.role
+  some user in input.users
+  id := user.id
+  role := user.role
 }
 
 # Partial rule with an explicit "admin" key override
 users_by_role.admin[id] := user if {
-	some user in input.admins
-	id := user.id
+  some user in input.admins
+  id := user.id
 }
 
 # Leaf entries can be partial sets
 users_by_country[country] contains user.id if {
-	some user in input.users
-	country := user.country
+  some user in input.users
+  country := user.country
 }
 ```
 
@@ -1076,8 +1076,8 @@ package example
 
 # R1
 p[x].r := y if {
-	x := "q"
-	y := 1
+  x := "q"
+  y := 1
 }
 
 # R2
@@ -1100,8 +1100,8 @@ package example
 
 # R1
 p[x].r := y if {
-	x := "foo"
-	y := 1
+  x := "foo"
+  y := 1
 }
 
 # R2
@@ -1127,7 +1127,7 @@ p.q.r := {"s": 1}
 
 # R2
 p[x].r.t := 2 if {
-	x := "q"
+  x := "q"
 }
 ```
 
@@ -1148,7 +1148,7 @@ p.q.r.s := 1
 
 # R2
 p[x].r.t := 2 if {
-	x := "q"
+  x := "q"
 }
 ```
 
@@ -2259,15 +2259,15 @@ Using the `some` variant, it can be used to introduce new variables based on a c
 package some_in
 
 p contains x if {
-	some x in ["a", "r", "r", "a", "y"]
+  some x in ["a", "r", "r", "a", "y"]
 }
 
 q contains x if {
-	some x in {"s", "e", "t"}
+  some x in {"s", "e", "t"}
 }
 
 r contains x if {
-	some x in {"foo": "bar", "baz": "quz"}
+  some x in {"foo": "bar", "baz": "quz"}
 }
 ```
 
@@ -2279,15 +2279,15 @@ Furthermore, passing a second argument allows you to work with _object keys_ and
 package some_in
 
 p contains x if {
-	some x, "r" in ["a", "r", "r", "a", "y"] # key variable, value constant
+  some x, "r" in ["a", "r", "r", "a", "y"] # key variable, value constant
 }
 
 q[x] := y if {
-	some x, y in ["a", "r", "r", "a", "y"] # both variables
+  some x, y in ["a", "r", "r", "a", "y"] # both variables
 }
 
 r[y] := x if {
-	some x, y in {"foo": "bar", "baz": "quz"}
+  some x, y in {"foo": "bar", "baz": "quz"}
 }
 ```
 
@@ -2902,13 +2902,13 @@ package example
 # custom:
 #  severity: MEDIUM
 output := decision if {
-	input.number > 5
+  input.number > 5
 
-	annotation := rego.metadata.rule()
-	decision := {
-		"severity": annotation.custom.severity,
-		"message": annotation.description,
-	}
+  annotation := rego.metadata.rule()
+  decision := {
+    "severity": annotation.custom.severity,
+    "message": annotation.description,
+  }
 }
 ```
 
@@ -3071,10 +3071,10 @@ starts with a specific prefix.
 package kubernetes.admission
 
 deny contains msg if {
-	input.request.kind.kinds == "Pod"
-	image := input.request.object.spec.containers[_].image
-	not startswith(image, "hooli.com/")
-	msg := sprintf("image '%v' comes from untrusted registry", [image])
+  input.request.kind.kinds == "Pod"
+  image := input.request.object.spec.containers[_].image
+  not startswith(image, "hooli.com/")
+  msg := sprintf("image '%v' comes from untrusted registry", [image])
 }
 ```
 
@@ -3187,13 +3187,13 @@ default allow := false
 #   - input: schema.input
 #   - data.acl: schema["acl-schema"]
 allow if {
-	access := data.acl.alice
-	access[_] == input.operation
+  access := data.acl.alice
+  access[_] == input.operation
 }
 
 allow if {
-	access := data.acl.bob
-	access[_] == input.operation
+  access := data.acl.bob
+  access[_] == input.operation
 }
 ```
 
@@ -3339,10 +3339,10 @@ package kubernetes.admission
 # - input: schema.input
 # - input.request.object: schema.kubernetes.pod
 deny contains msg if {
-	input.request.kind.kind == "Pod"
-	image := input.request.object.spec.containers[_].image
-	not startswith(image, "hooli.com/")
-	msg := sprintf("image '%v' comes from untrusted registry", [image])
+  input.request.kind.kind == "Pod"
+  image := input.request.object.spec.containers[_].image
+  not startswith(image, "hooli.com/")
+  msg := sprintf("image '%v' comes from untrusted registry", [image])
 }
 ```
 
@@ -3403,8 +3403,8 @@ default allow := false
 #  - input: schema["input"]
 #  - data.acl: schema["acl-schema"]
 allow if {
-	access := data.acl[input.user]
-	access[_] == input.operation
+  access := data.acl[input.user]
+  access[_] == input.operation
 }
 
 # METADATA for whocan rule
@@ -3413,8 +3413,8 @@ allow if {
 #   - input: schema["whocan-input-schema"]
 #   - data.acl: schema["acl-schema"]
 whocan contains user if {
-	access := acl[user]
-	access[_] == input.operation
+  access := acl[user]
+  access[_] == input.operation
 }
 ```
 
@@ -3455,7 +3455,7 @@ package kubernetes.admission
 # schemas:
 #   - input: schema["input-anyOf"]
 deny if {
-	input.request.servers.versions == "Pod"
+  input.request.servers.versions == "Pod"
 }
 ```
 
@@ -3531,7 +3531,7 @@ package kubernetes.admission
 # schemas:
 #   - input: schema["input-allof"]
 deny if {
-	input.request.servers.versions == "Pod"
+  input.request.servers.versions == "Pod"
 }
 ```
 

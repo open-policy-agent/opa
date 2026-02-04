@@ -176,24 +176,24 @@ simple policy to block an S3 Bucket unless it has an `AccessControl` attribute s
 package system
 
 main := {
-	"allow": count(deny) == 0,
-	"violations": deny,
+  "allow": count(deny) == 0,
+  "violations": deny,
 }
 
 deny contains msg if {
-	bucket_create_or_update
-	not bucket_is_private
+  bucket_create_or_update
+  not bucket_is_private
 
-	msg := sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])
+  msg := sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])
 }
 
 bucket_create_or_update if {
-	input.resource.type == "AWS::S3::Bucket"
-	input.action in {"CREATE", "UPDATE"}
+  input.resource.type == "AWS::S3::Bucket"
+  input.action in {"CREATE", "UPDATE"}
 }
 
 bucket_is_private if {
-	input.resource.properties.AccessControl == "Private"
+  input.resource.properties.AccessControl == "Private"
 }
 ```
 
@@ -204,11 +204,11 @@ look correct at a first glance:
 
 ```rego
 deny contains msg if {
-	bucket_create_or_update
+  bucket_create_or_update
 
-	input.resource.properties.AccessControl != "Private"
+  input.resource.properties.AccessControl != "Private"
 
-	msg := sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])
+  msg := sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])
 }
 ```
 
@@ -225,14 +225,14 @@ attributes. An example S3 bucket policy might for example want to check that pub
 ```rego
 # Wrong: will allow both "true" and "false" values as both are considered "truthy"
 block_public_acls if {
-	input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls
+  input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls
 }
 ```
 
 ```rego
 # Correct: will allow only when property set to "true"
 block_public_acls if {
-	input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls == "true"
+  input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls == "true"
 }
 ```
 
@@ -362,8 +362,8 @@ take a look at what such a main policy might look like:
 package system
 
 main := {
-	"allow": count(violations) == 0,
-	"violations": violations,
+  "allow": count(violations) == 0,
+  "violations": violations,
 }
 
 # METADATA
@@ -377,12 +377,12 @@ main := {
 #   "delete" to the package name, e.g. data.aws.s3.bucket.delete
 #
 route := document(lower(component), lower(type)) if {
-	["AWS", component, type] = split(input.resource.type, "::")
+  ["AWS", component, type] = split(input.resource.type, "::")
 }
 
 violations contains msg if {
-	# Aggregate all deny rules found in routed document
-	some msg in route.deny
+  # Aggregate all deny rules found in routed document
+  some msg in route.deny
 }
 
 #
@@ -390,19 +390,19 @@ violations contains msg if {
 #
 
 violations contains "Missing input.resource" if {
-	not input.resource
+  not input.resource
 }
 
 violations contains "Missing input.resource.type" if {
-	not input.resource.type
+  not input.resource.type
 }
 
 violations contains "Missing input.resource.id" if {
-	not input.resource.id
+  not input.resource.id
 }
 
 violations contains "Missing input.action" if {
-	not input.action
+  not input.action
 }
 
 #
@@ -410,11 +410,11 @@ violations contains "Missing input.action" if {
 #
 
 document(component, type) := data.aws[component][type] if {
-	input.action != "DELETE"
+  input.action != "DELETE"
 }
 
 document(component, type) := data.aws[component][type].delete if {
-	input.action == "DELETE"
+  input.action == "DELETE"
 }
 ```
 
@@ -436,11 +436,11 @@ We can now modify our original policy to verify S3 bucket resources only:
 package aws.s3.bucket
 
 deny contains sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id]) if {
-	not bucket_is_private
+  not bucket_is_private
 }
 
 bucket_is_private if {
-	input.resource.properties.AccessControl == "Private"
+  input.resource.properties.AccessControl == "Private"
 }
 ```
 
@@ -465,7 +465,7 @@ package system.authz
 default allow := false
 
 allow if {
-	input.identity == "my_secret_token"
+  input.identity == "my_secret_token"
 }
 ```
 

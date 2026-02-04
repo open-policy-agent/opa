@@ -22,13 +22,13 @@ profile.
 package authz
 
 allow if {
-	input.path == ["users"]
-	input.method == "POST"
+  input.path == ["users"]
+  input.method == "POST"
 }
 
 allow if {
-	input.path == ["users", input.user_id]
-	input.method == "GET"
+  input.path == ["users", input.user_id]
+  input.method == "GET"
 }
 ```
 
@@ -40,19 +40,19 @@ package authz_test
 import data.authz
 
 test_post_allowed if {
-	authz.allow with input as {"path": ["users"], "method": "POST"}
+  authz.allow with input as {"path": ["users"], "method": "POST"}
 }
 
 test_get_anonymous_denied if {
-	not authz.allow with input as {"path": ["users"], "method": "GET"}
+  not authz.allow with input as {"path": ["users"], "method": "GET"}
 }
 
 test_get_user_allowed if {
-	authz.allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "bob"}
+  authz.allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "bob"}
 }
 
 test_get_another_user_denied if {
-	not authz.allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "alice"}
+  not authz.allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "alice"}
 }
 ```
 
@@ -112,7 +112,7 @@ Consider the following utility module:
 package authz
 
 allowed_actions(user) := [action |
-	user in data.actions[action]
+  user in data.actions[action]
 ]
 ```
 
@@ -124,14 +124,14 @@ package authz_test
 import data.authz
 
 test_allowed_actions_all_can_read if {
-	users := ["alice", "bob", "jane"]
-	r := ["alice", "bob"]
-	w := ["jane"]
-	p := {"read": r, "write": w}
+  users := ["alice", "bob", "jane"]
+  r := ["alice", "bob"]
+  w := ["jane"]
+  p := {"read": r, "write": w}
 
-	every user in users {
-		"read" in authz.allowed_actions(user) with data.actions as p
-	}
+  every user in users {
+    "read" in authz.allowed_actions(user) with data.actions as p
+  }
 }
 ```
 
@@ -172,7 +172,7 @@ package mypackage_test
 import data.mypackage
 
 test_some_descriptive_name if {
-	# test logic
+  # test logic
 }
 ```
 
@@ -220,7 +220,7 @@ test_error if 1 / 0
 
 # This test will be skipped.
 todo_test_missing_implementation if {
-	example.allow with data.roles as ["not", "implemented"]
+  example.allow with data.roles as ["not", "implemented"]
 }
 ```
 
@@ -301,26 +301,26 @@ Test cases are declared by adding their name(s) to the rule as variables in its 
 package example_test
 
 test_concat[note] if {
-	some note, tc in {
-		"empty + empty": {
-			"a": [],
-			"b": [],
-			"exp": [],
-		},
-		"empty + filled": {
-			"a": [],
-			"b": [1, 2],
-			"exp": [1, 2],
-		},
-		"filled + filled": {
-			"a": [1, 2],
-			"b": [3, 4],
-			"exp": [1, 2, 3], # Faulty expectation, this test case will fail
-		},
-	}
+  some note, tc in {
+    "empty + empty": {
+      "a": [],
+      "b": [],
+      "exp": [],
+    },
+    "empty + filled": {
+      "a": [],
+      "b": [1, 2],
+      "exp": [1, 2],
+    },
+    "filled + filled": {
+      "a": [1, 2],
+      "b": [3, 4],
+      "exp": [1, 2, 3], # Faulty expectation, this test case will fail
+    },
+  }
 
-	act := array.concat(tc.a, tc.b)
-	act == tc.exp
+  act := array.concat(tc.a, tc.b)
+  act == tc.exp
 }
 ```
 
@@ -345,10 +345,10 @@ package example_test
 import data.test_cases
 
 test_concat[note] if {
-	some note, tc in test_cases
+  some note, tc in test_cases
 
-	act := array.concat(tc.a, tc.b)
-	act == tc.exp
+  act := array.concat(tc.a, tc.b)
+  act == tc.exp
 }
 ```
 
@@ -390,35 +390,35 @@ This is useful when e.g. the same set of test cases can be used for asserting th
 package example_test
 
 test_sign_token[note][alg] if {
-	some note, tc in {
-		"claims": {
-			"claims": {"foo": "bar"},
-		},
-		"no claims": {
-			"claims": {},
-		},
-	}
+  some note, tc in {
+    "claims": {
+      "claims": {"foo": "bar"},
+    },
+    "no claims": {
+      "claims": {},
+    },
+  }
 
-	some alg in [
-		"HS256",
-		"HS333", # unknown signing algorithm, this test case will fail
-		"HS512",
-	]
+  some alg in [
+    "HS256",
+    "HS333", # unknown signing algorithm, this test case will fail
+    "HS512",
+  ]
 
-	secret := "foobar"
-	key := base64.encode(secret)
+  secret := "foobar"
+  key := base64.encode(secret)
 
-	token := io.jwt.encode_sign({
-		"typ": "JWT",
-		"alg": alg
-	}, tc.claims, {
-		"kty": "oct",
-		"k": key
-	})
+  token := io.jwt.encode_sign({
+    "typ": "JWT",
+    "alg": alg
+  }, tc.claims, {
+    "kty": "oct",
+    "k": key
+  })
 
-	[valid, _, payload] := io.jwt.decode_verify(token, {"secret": secret})
-	valid
-	payload = tc.claims
+  [valid, _, payload] := io.jwt.decode_verify(token, {"secret": secret})
+  valid
+  payload = tc.claims
 }
 ```
 
@@ -456,9 +456,9 @@ Below is a simple policy that depends on the data document.
 package authz
 
 allow if {
-	some x in data.policies
-	x.name == "test_policy"
-	matches_role(input.role)
+  some x in data.policies
+  x.name == "test_policy"
+  matches_role(input.role)
 }
 
 matches_role(my_role) if input.user in data.roles[my_role]
@@ -475,9 +475,9 @@ policies := [{"name": "test_policy"}]
 roles := {"admin": ["alice"]}
 
 test_allow_with_data if {
-	authz.allow with input as {"user": "alice", "role": "admin"}
-		with data.policies as policies
-		with data.roles as roles
+  authz.allow with input as {"user": "alice", "role": "admin"}
+    with data.policies as policies
+    with data.roles as roles
 }
 ```
 
@@ -510,7 +510,7 @@ package authz_test
 import data.authz
 
 test_replace_rule if {
-	authz.allow1 with authz.allow2 as true
+  authz.allow1 with authz.allow2 as true
 }
 ```
 
@@ -531,7 +531,7 @@ package authz
 import data.jwks.cert
 
 allow if {
-	[true, _, _] = io.jwt.decode_verify(input.headers["x-token"], {"cert": cert, "iss": "corp.issuer.com"})
+  [true, _, _] = io.jwt.decode_verify(input.headers["x-token"], {"cert": cert, "iss": "corp.issuer.com"})
 }
 ```
 
@@ -546,9 +546,9 @@ mock_decode_verify("my-jwt", _) := [true, {}, {}]
 mock_decode_verify(x, _)        := [false, {}, {}] if x != "my-jwt"
 
 test_allow if {
-	authz.allow with input.headers["x-token"] as "my-jwt"
-		with data.jwks.cert as "mock-cert"
-		with io.jwt.decode_verify as mock_decode_verify
+  authz.allow with input.headers["x-token"] as "my-jwt"
+    with data.jwks.cert as "mock-cert"
+    with io.jwt.decode_verify as mock_decode_verify
 }
 ```
 
@@ -563,10 +563,10 @@ In simple cases, a function can also be replaced with a value, as in
 
 ```rego
 test_allow_value if {
-	authz.allow
-		with input.headers["x-token"] as "my-jwt"
-		with data.jwks.cert as "mock-cert"
-		with io.jwt.decode_verify as [true, {}, {}]
+  authz.allow
+    with input.headers["x-token"] as "my-jwt"
+    with data.jwks.cert as "mock-cert"
+    with io.jwt.decode_verify as [true, {}, {}]
 }
 ```
 
@@ -582,11 +582,11 @@ function by a built-in function.
 package authz
 
 replace_rule if {
-	replace(input.label)
+  replace(input.label)
 }
 
 replace(label) if {
-	label == "test_label"
+  label == "test_label"
 }
 ```
 
@@ -598,7 +598,7 @@ package authz_test
 import data.authz
 
 test_replace_rule if {
-	authz.replace_rule with input.label as "does-not-matter" with replace as true
+  authz.replace_rule with input.label as "does-not-matter" with replace as true
 }
 ```
 

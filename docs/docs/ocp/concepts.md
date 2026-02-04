@@ -55,7 +55,7 @@ If you are interested in seeing this restriction relaxed please leave a comment 
 - **Excluded\_files**: (optional)
   A list of files to be excluded from the bundle during build for example any hidden files
 
-#### Examples:
+#### Examples
 
 **Filesystem:**
 
@@ -438,7 +438,7 @@ deny contains msg if {
 
 deny contains msg if {
   some stackname
-	some msg in data.pipelines.stacks[stackname].deny
+  some msg in data.pipelines.stacks[stackname].deny
 }
 ```
 

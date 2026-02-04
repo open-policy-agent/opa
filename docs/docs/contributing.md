@@ -71,7 +71,7 @@ If you have a talk or blog you'd like to share please feel free to post in:
 - [#ecosystem](https://openpolicyagent.slack.com/?redir=%2Farchives%2FC02J6LBL6GH%3Fname%3DC02J6LBL6GH) in Slack.
 - [Ecosystem Discussions](https://github.com/orgs/open-policy-agent/discussions/categories/ecosystem) on GitHub.
 
-## I'm interested in something else...
+## I'm interested in something else
 
 Sounds interesting, we'd love to hear all about it,
 [sign up for our Slack](https://slack.openpolicyagent.org/) and

@@ -72,11 +72,11 @@ As expected, OPA will report a syntax error:
 ```txt
 2 errors occurred:
 policy.rego:9: rego_parse_error: non-terminated string
-	    message := "This won't work!
-	               ^
+      message := "This won't work!
+                 ^
 policy.rego:9: rego_parse_error: illegal token
-	    message := "This won't work!
-	               ^
+      message := "This won't work!
+                 ^
 ```
 
 At this point, further processing isn't possible, and the error must be fixed before we can proceed.

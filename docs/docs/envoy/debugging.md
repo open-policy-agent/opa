@@ -37,7 +37,7 @@ This section provides examples of interacting with the Envoy External Authorizat
 - List all services exposed by the server
 
   ```bash
-  $ grpcurl -plaintext localhost:9191 list
+  grpcurl -plaintext localhost:9191 list
   ```
 
   Output:

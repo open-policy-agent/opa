@@ -26,7 +26,7 @@ import rego.v1
 default allow := false
 
 allow if {
-	"admin" in input.roles
+  "admin" in input.roles
 }
 
 default allow := false
@@ -54,7 +54,7 @@ import rego.v1
 default allow := false
 
 allow if {
-	"admin" in input.roles
+  "admin" in input.roles
 }
 ```
 

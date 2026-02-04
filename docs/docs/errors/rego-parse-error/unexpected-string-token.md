@@ -22,7 +22,7 @@ package policy
 import rego.v1
 
 allow if {
-	input.role "admin"
+  input.role "admin"
 }
 ```
 
@@ -30,8 +30,8 @@ The code above will raise the following error:
 
 ```txt
 1 error occurred: policy.rego:6: rego_parse_error: unexpected string token: expected \n or ; or }
-	input.roles "admin"
-	            ^
+  input.roles "admin"
+              ^
 ```
 
 ## How To Fix It

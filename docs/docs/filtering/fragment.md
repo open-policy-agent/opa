@@ -64,9 +64,9 @@ It is not important if the _unknown_ is on the left-hand side ("LHS") or right-h
 package filters
 
 include if {
-	input.fruits.name == "banana"                # LHS unknown, RHS constant
-	input.fruits.price <= input.user.budget      # LHS unknown, RHS known.
-	input.user.fav_colour == input.fruits.colour # LHS known, RHS unknown.
+  input.fruits.name == "banana"                # LHS unknown, RHS constant
+  input.fruits.price <= input.user.budget      # LHS unknown, RHS known.
+  input.user.fav_colour == input.fruits.colour # LHS known, RHS unknown.
 }
 ```
 
@@ -81,8 +81,8 @@ As you can see the _known_ values from `input.user` have been replaced.
 package filters
 
 include if {
-	input.fruits.name != input.fruits.colour # LHS and RHS unknown
-	input.fruits.price                       # plain unknown
+  input.fruits.name != input.fruits.colour # LHS and RHS unknown
+  input.fruits.price                       # plain unknown
 }
 ```
 
@@ -117,8 +117,8 @@ A more common way to do this would be function definition shorthands, like
 package filters
 
 include if {
-	some pat in data.filter.patterns
-	matches(pat, input.fruit.name)
+  some pat in data.filter.patterns
+  matches(pat, input.fruit.name)
 }
 
 matches("*", _) # "*" matches everything
@@ -145,8 +145,8 @@ These built-in functions can only be used with _unknowns_ on the left-hand side.
 package filters
 
 include if {
-	startswith(input.fruits.name, "ba")
-	input.fruits.colour in {"blue", "green"}
+  startswith(input.fruits.name, "ba")
+  input.fruits.colour in {"blue", "green"}
 }
 ```
 
@@ -159,9 +159,9 @@ SQL target: `WHERE name LIKE 'ba%' AND colour IN ('blue', 'green')`.
 package filters
 
 include if {
-	endswith("apple", input.fruits.name)        # RHS unknown
-	1, input.fruits.colour in ["blue", "green"] # k, v in ...
-	regexp.match(input.fruits.name, '^b[an]+$') # unsupported builtin (for unknown values)
+  endswith("apple", input.fruits.name)        # RHS unknown
+  1, input.fruits.colour in ["blue", "green"] # k, v in ...
+  regexp.match(input.fruits.name, '^b[an]+$') # unsupported builtin (for unknown values)
 }
 ```
 
@@ -187,8 +187,8 @@ package filters
 include if user_in_corp
 
 include if {
-	not user_in_corp
-	apple_ish
+  not user_in_corp
+  apple_ish
 }
 
 # apple_ish rule does not use `default` or `every`
@@ -226,8 +226,8 @@ Expressions using `not` are permitted for [simple expressions](#simple-compariso
 package filters
 
 include if {
-	not input.fruits.name == "apple"
-	not input.fruits.colour in {"blue", "green"}
+  not input.fruits.name == "apple"
+  not input.fruits.colour in {"blue", "green"}
 }
 ```
 

@@ -31,15 +31,15 @@ In `ast/builtins.go`, we declare the structure of our built-in function with a `
 
 ```go
 var Repeat = &Builtin{
-	Name:        "repeat", // The name of the function
-	Description: "Returns, as a string, the given string repeated the given number of times.",
-	Decl: types.NewFunction(
-		types.Args( // The built-in takes two arguments, where ..
-			types.Named("str", types.S).Description("string to repeat"),            // named string argument
-			types.Named("count", types.N).Description("how often to repeat `str`"), // named number argument
-		),
-		types.Named("output", types.S).Description("the repetitions"), // The return type is a string.
-	),
+  Name:        "repeat", // The name of the function
+  Description: "Returns, as a string, the given string repeated the given number of times.",
+  Decl: types.NewFunction(
+    types.Args( // The built-in takes two arguments, where ..
+      types.Named("str", types.S).Description("string to repeat"),            // named string argument
+      types.Named("count", types.N).Description("how often to repeat `str`"), // named number argument
+    ),
+    types.Named("output", types.S).Description("the repetitions"), // The return type is a string.
+  ),
   Categories: category("strings"), // the category the built-in belongs to
 }
 ```
