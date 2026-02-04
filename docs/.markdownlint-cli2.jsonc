@@ -17,7 +17,7 @@
     "MD040": false,
     // Configure hard tabs to convert to 2 spaces
     "MD010": {
-      "spaces_per_tab": 2
+      "spaces_per_tab": 4
     },
     // Configure MD025 to ignore frontmatter titles
     "MD025": {
