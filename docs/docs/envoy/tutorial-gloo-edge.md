@@ -84,7 +84,7 @@ For simplification port-forwarding will be used. Open another terminal and execu
 kubectl port-forward deployment/gateway-proxy 8080:8080
 ```
 
-The `VirtualService` created in the previous step forwards requests to <http://httpbin.org>
+The `VirtualService` created in the previous step forwards requests to [httpbin.org](http://httpbin.org)
 
 Let's test that Gloo works properly by running the below command in the first terminal.
 

@@ -170,4 +170,4 @@ patches := [
 
 Also, for more examples of how to construct mutating policies and integrating
 them with validating policies, see [these examples](https://github.com/open-policy-agent/library/tree/master/kubernetes/mutating-admission)
-in <https://github.com/open-policy-agent/library>.
+in the [OPA library on GitHub](https://github.com/open-policy-agent/library).
