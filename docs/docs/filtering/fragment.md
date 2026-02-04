@@ -17,7 +17,7 @@ Not every construct is supported for every target.
 For a step-by-step walkthrough of evaluating a Rego policy _partially_, see [Evaluating a data filter policy](./partial-evaluation).
 :::
 
-### What is Partial Evaluation?
+## What is Partial Evaluation?
 
 The translation of data policies into queries (like SQL WHERE clauses) is driven by _partial evaluation (PE)_ of a Rego query.
 

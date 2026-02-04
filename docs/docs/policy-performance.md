@@ -703,7 +703,7 @@ opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval --profile-so
 OPA provides CLI options to benchmark a single query via the `opa bench` command. This will evaluate similarly to
 `opa eval` but it will repeat the evaluation (in its most efficient form) a number of times and report metrics.
 
-#### Example: Benchmark rbac allow
+### Example: Benchmark rbac allow
 
 Using the same [policy source as shown above](#example-policy):
 

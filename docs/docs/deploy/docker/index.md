@@ -13,7 +13,7 @@ recommend you review this section to familiarize yourself with the basics.
 OPA releases are available as images on Docker Hub
 ([`openpolicyagent/opa`](https://hub.docker.com/r/openpolicyagent/opa/)).
 
-### Running with Docker
+## Running in Docker
 
 If you start OPA outside of Docker without any arguments, it prints a list of
 available commands. By default, the official OPA Docker image executes the `run`
@@ -53,7 +53,7 @@ Test that OPA is available:
 curl -i localhost:8181/
 ```
 
-#### Logging
+### Logging
 
 OPA logs to stderr and the level can be set with `--log-level/-l`. The default log level is `info` which causes OPA to log request/response information.
 
@@ -76,7 +76,7 @@ formats use "json-pretty" or "text".
 
 > **Note:** The `text` log format is not performance optimized or intended for production use.
 
-#### Volume Mounts
+### Volume Mounts
 
 By default, OPA does not include any data or policies.
 
@@ -101,7 +101,7 @@ greeting := msg if {
 }
 ```
 
-#### More Information
+### More Information
 
 For more information on OPA's command line, see `--help`:
 

@@ -13,7 +13,7 @@ field in API calls that return policy decisions.
 
 See the [Configuration Reference](./configuration) for configuration details.
 
-### Decision Log Service API
+## Decision Log Service API
 
 OPA expects the service to expose an API endpoint that will receive decision logs.
 
@@ -110,7 +110,7 @@ builtins cache information. This best-effort approach ensures that OPA reports d
 and bounds how large decision log events can get. This size-bounding is necessary, because some non-deterministic builtins
 (such as `http.send`) can increase the decision log event size by a potentially unbounded amount.
 
-### Local Decision Logs
+## Local Decision Logs
 
 Local console logging of decisions can be enabled via the `console` config option.
 This does not require any remote server. Example of minimal config to enable:
@@ -123,7 +123,7 @@ decision_logs:
 This will dump all decisions to the console. See
 [Configuration Reference](./configuration) for more details.
 
-### Masking Sensitive Data
+## Masking Sensitive Data
 
 Policy queries may contain sensitive information in the `input` document that
 must be removed or modified before decision logs are uploaded to the remote API
@@ -260,7 +260,7 @@ to track **remove** vs **upsert** mask operations.
 }
 ```
 
-### Drop Decision Logs
+## Drop Decision Logs
 
 Drop rules filters all decisions from logging where the rule evaluates to `true`.
 
@@ -295,7 +295,7 @@ decision_logs:
   drop_decision: /system/log/drop
 ```
 
-### Rate Limiting Decision Logs
+## Rate Limiting Decision Logs
 
 There are scenarios where OPA may be uploading decisions faster than what the remote service is able to consume. Although
 OPA provides a user-specified buffer size limit in bytes, it may be difficult to determine the ideal buffer size that will

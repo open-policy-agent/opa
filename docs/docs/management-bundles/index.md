@@ -24,7 +24,7 @@ see the section below.
 
 See the [Configuration Reference](./configuration) for configuration details.
 
-### Bundle build
+## Bundle build
 
 The CLI command [`opa build`](./cli/#build) gives you the capability to build your own bundles.
 
@@ -51,7 +51,7 @@ opa build --verification-key /path/to/public_key.pem --signing-key /path/to/priv
 
 For more information, see the [`opa build` command documentation.](./cli/#build)
 
-### Bundle Service API
+## Bundle Service API
 
 OPA expects the service to expose an API endpoint that serves bundles. The
 bundle API should allow clients to download bundles at an arbitrary URL. In
@@ -129,7 +129,7 @@ for verifying the signature of the bundle. See [this](#signing) section for deta
 
 See the following section for details on the bundle file format.
 
-#### Caching
+### Caching
 
 Services implementing the Bundle Service API should set the HTTP `Etag` header
 in bundle responses to identify the revision of the bundle. OPA will include the
@@ -137,7 +137,7 @@ in bundle responses to identify the revision of the bundle. OPA will include the
 check the `If-None-Match` header and reply with HTTP `304 Not Modified` if the
 bundle has not changed since the last update.
 
-#### HTTP Long Polling
+### HTTP Long Polling
 
 With the periodic bundle downloading (ie. `short polling`) technique, OPA sends regular requests to the remote HTTP
 server to pull any available bundle. If there is no new bundle, the server responds with a `304 Not Modified` response.
@@ -177,7 +177,7 @@ With the above configuration, OPA sends a long poll request to the server with a
 supports `long polling`, OPA expects the server to set the `Content-Type` header to `application/vnd.openpolicyagent.bundles`.
 If the server does not support `long polling`, OPA will fallback to the regular periodic polling.
 
-### Bundle File Format
+## Bundle File Format
 
 Bundle files are gzipped tarballs (`.tar.gz`) that contain policies and/or
 data.
@@ -353,7 +353,7 @@ and number keys are converted to strings.
 supported.
 :::
 
-### Multiple Sources of Policy and Data
+## Multiple Sources of Policy and Data
 
 By default, when OPA is configured to download policy and data from a
 bundle service, the entire content of OPA's policy and data cache is
@@ -407,7 +407,7 @@ When OPA loads scoped bundles, it validates that:
 If bundle validation fails, OPA will report the validation error via
 the Status API.
 
-### Debugging Your Bundles
+## Debugging Your Bundles
 
 When you run OPA, you can provide bundle files over the command line. This
 allows you to manually check that your bundles include all of the files that
@@ -417,7 +417,7 @@ you intended and that they are structured correctly. For example:
 opa run bundle.tar.gz
 ```
 
-### Signing
+## Signing
 
 To ensure the integrity of policies (ie. the policies are coming from a trusted source), policy bundles may be
 digitally signed so that industry-standard cryptographic primitives can verify their authenticity.
@@ -436,7 +436,7 @@ or when Bundle downloading is enabled. Sub-commands primarily used in developmen
 (such as `opa eval`, `opa test`, etc.) DO NOT verify bundle signatures at this point in time.
 :::
 
-#### Signature Format
+### Signature Format
 
 Recall that a [policy bundle](#bundle-file-format) is a gzipped tarball that contains policies and data. A signed bundle
 differs from a normal bundle in that it has a `.signatures.json` file as well.
@@ -577,7 +577,7 @@ bundle.RegisterSigner("custom", &CustomSigner{})
 bundle.RegisterVerifier("custom", &CustomVerifier{})
 ```
 
-### Delta Bundles
+## Delta Bundles
 
 A regular _snapshot_ bundle represents the entirety of OPA’s policy and data cache. When a new _snapshot_ bundle is
 downloaded, OPA will erase and overwrite all the policy and data in its cache before activating the new bundle. We can
@@ -597,7 +597,7 @@ single `patch.json` file at the root of the bundle which includes a [JSON Patch]
 _Delta_ bundles currently support updates to data only and not policies.
 :::
 
-#### Delta Bundle File Format
+### Delta Bundle File Format
 
 OPA expects a _delta_ bundle to contain an optional `.manifest` file and a required `patch.json` file that specifies a list of one or more
 patch operations on the data. OPA will generate an error if a _delta_ bundle contains any policy, data or wasm binary files.
@@ -1313,7 +1313,7 @@ One of the easiest method of managing your policy bundles is to store your code 
 
 In this example we are using the [ghcr.io](https://ghcr.io) OCI registry as the upstream repository and the OPA and ORAS CLI as our build and publishing tool.
 
-###### Starting from scratch
+##### Starting from scratch
 
 Let's set up a basic policy example structured as:
 

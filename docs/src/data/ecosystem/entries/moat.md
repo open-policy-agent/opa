@@ -25,7 +25,7 @@ docs_features:
 
 OPA and Trino are an awesome combination, but maintaining the policy documents and required data object can be painful. Moat makes this easy with managed curation of principals and tables/views, as well as a predefined set of RBAC/ABAC policies suitable for most use cases. These policies can be used as-is, modified or completely replaced as needed.
 
-#### Moat provides a Data Control Plane to serve bundles to OPA, including
+## Moat provides a Data Control Plane to serve bundles to OPA, including
 
 - SCIM2.0 server to allow integration with most identity providers (e.g Okta, EntraId)
 - Data objects and attributes ingested from various sources (SQL DBs, data catalogs etc)

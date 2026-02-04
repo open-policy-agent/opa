@@ -29,7 +29,7 @@ with the REST API directly.
 
 The following request headers are commonly used in some API endpoints:
 
-#### Content-Type
+### Content-Type
 
 It indicates the request body format. These are some values used in some APIs:
 
@@ -1771,7 +1771,7 @@ The `/health` API endpoint executes a simple built-in policy query to verify
 that the server is operational. Optionally it can account for bundle activation as well
 (useful for "ready" checks at startup).
 
-#### Query Parameters
+### Query Parameters
 
 - `bundles` - Boolean parameter to account for bundle activation status in response. This includes any discovery bundles or bundles defined in the loaded discovery configuration.
 - `plugins` - Boolean parameter to account for plugin status in response.

@@ -28,7 +28,7 @@ overrides the discovered configuration.**
 
 See the [Configuration Reference](./configuration) for configuration details.
 
-### Discovery Service API
+## Discovery Service API
 
 OPA expects the service to expose an API endpoint that serves bundles.
 
@@ -273,7 +273,7 @@ those changes are ignored. If the discovered configuration changes the discovery
 an error will be logged.
 If the discovered configuration changes the `labels` section, only labels that are additional compared to the bootstrap configuration are used, all other changes are ignored. If the discovery document changes its `labels` section over time, the effective set of labels is always the bootstrap configuration plus added labels from the latest discovery document.
 
-### Discovery Bundle Signature
+## Discovery Bundle Signature
 
 Like regular bundles, if the discovery bundle contains a `.signatures.json` file, OPA will verify the discovery
 bundle before activating it. The format of the `.signatures.json` file and the verification steps are same as that for
@@ -284,7 +284,7 @@ signature verification of a discovery bundle **CANNOT** be modified via discover
 > include the keys used to verify the non-discovery bundles. However, OPA does not enforce that recommendation. You may use
 > unsigned discovery bundles that themselves require non-discovery bundles to be signed.
 
-### Discovery Bundle Persistence
+## Discovery Bundle Persistence
 
 OPA can optionally persist the activated discovery bundle to disk for recovery purposes. To enable
 persistence, set the `discovery.persist` field to `true`. When bundle

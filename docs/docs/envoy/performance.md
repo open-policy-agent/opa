@@ -7,14 +7,16 @@ This page provides some guidance and best practices around benchmarking the perf
 to give users an idea of the overhead of using the plugin. It describes an example setup to perform the benchmarks, different
 benchmarking scenarios and important metrics that should be captured to understand the impact of the OPA-Envoy plugin.
 
-### Benchmark Setup
+## Benchmark Setup
 
-#### Sample App
+This first section outlines the setup for the benchmarking infrastructure.
+
+### Sample App
 
 The first component of the setup features a simple Go app which provides information about employees in a company. It
 exposes a `/people` endpoint to `get` and `create` employees. The app's source code can be found [on GitHub](https://github.com/ashutosh-narkar/go-test-server).
 
-#### Envoy
+### Envoy
 
 Next, is the Envoy proxy that runs alongside the example application. The Envoy configuration below defines an external authorization
 filter `envoy.ext_authz` for a gRPC authorization server. The config uses Envoy’s in-built gRPC client which
@@ -106,7 +108,7 @@ layered_runtime:
         global_downstream_max_connections: 50000
 ```
 
-#### OPA-Envoy Plugin
+### OPA-Envoy Plugin
 
 Now let's deploy OPA as an External Authorization server. Below is a sample configuration for the OPA-Envoy container:
 
@@ -151,13 +153,13 @@ containers:
 > 💡 The OPA-Envoy plugin can be configured to listen on a UNIX Domain Socket. A complete example of such a setup
 > can be found [in the opa-envoy-plugin examples](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/envoy-uds).
 
-### Load Generator And Measurement Tool
+### Load Generator and Measurement Tool
 
 Consider using a load generator and measurement tool that measures latency from the end user's perspective and reports
 latency as the percentiles of a distribution, e.g. `p50` (median), `p99`, `p999` etc. As example
 implementation of such a tool can be found [in the stress-opa-envoy repository](https://github.com/ashutosh-narkar/stress-opa-envoy).
 
-### Benchmark Scenarios
+## Benchmark Scenarios
 
 Following are some scenarios to perform benchmarks on. The results could be used to compare OPA-Envoy plugin's
 latency and resource consumption with the baseline (no-opa) case for instance.
@@ -234,7 +236,7 @@ role_perms := {
 This scenario is similar to the previous one expect the policy decision is an object which contains optional
 response headers. An example of such a policy can be found [in the Envoy Primer](../envoy/primer#example-policy-with-additional-controls).
 
-### Measurements
+## Measurements
 
 This section describes some metrics that should help to measure the cost of the OPA-Envoy plugin in terms of
 CPU and memory consumed as well as latency added.
@@ -252,9 +254,9 @@ CPU and memory consumed as well as latency added.
 - `Resource utilization` refers to the CPU and memory usage of the OPA-Envoy container. `kubectl top` utility can be
   leveraged to measure this.
 
-### Features
+## Features
 
-The sample OPA-Envoy deployment described [previously](#opa-envoy-plugin), does not utilize OPA's [decision logs](https://www.openpolicyagent.org/docs/management-decision-logs)
+The sample OPA-Envoy deployment described [previously](#opa-envoy-plugin), does not use OPA's [decision logs](https://www.openpolicyagent.org/docs/management-decision-logs)
 management API that enables periodic reporting of decision logs to remote HTTP servers or local console. Decision logging
 can be enabled by updating the OPA-Envoy configuration, and the guidance provided on this page can be used to
 gather benchmark results.
