@@ -12,7 +12,7 @@ This library does not make any backwards compatibility guarantees.
 
 ## Documentation
 
-See the [OPA docs](https://www.openpolicyagent.org/docs/latest/wasm/) on Wasm for an overview of the integration,
+See the [OPA docs](https://www.openpolicyagent.org/docs/wasm) on Wasm for an overview of the integration,
 compilation options, and more.
 
 ## Development

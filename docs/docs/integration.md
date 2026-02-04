@@ -262,7 +262,7 @@ func main() {
 }
 ```
 
-If you executed this code, the output (i.e. [Decision Log](https://www.openpolicyagent.org/docs/latest/management-decision-logs/) event)
+If you executed this code, the output (i.e. [Decision Log](https://www.openpolicyagent.org/docs/management-decision-logs) event)
 would be logged to the console by default.
 
 Setting an `ID` in `sdk.Options` is optional, but recommended. If you do not set an `ID`, a random one will be created

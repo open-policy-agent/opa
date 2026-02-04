@@ -32,3 +32,19 @@ generate-cli-docs:
 .PHONY: smoke-test
 smoke-test:
 	./bin/smoke-test.sh
+
+.PHONY: fmt
+fmt:
+	npx dprint fmt
+
+.PHONY: fmt-check
+fmt-check:
+	npx dprint check
+
+.PHONY: lint
+lint:
+	npx eslint --fix .
+
+.PHONY: lint-check
+lint-check:
+	npx eslint .

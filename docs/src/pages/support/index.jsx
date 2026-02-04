@@ -25,8 +25,7 @@ export default function Support() {
     >
       <Heading as="h1">Open Policy Agent Support</Heading>
       <p className="margin-bottom--lg">
-        Below is a list of companies that offer commercial support and other enterprise offerings for Open Policy
-        Agent.
+        Below is a list of companies that offer commercial support and other enterprise offerings for Open Policy Agent.
       </p>
 
       <CardGrid justifyCenter={false}>

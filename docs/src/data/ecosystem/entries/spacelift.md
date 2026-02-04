@@ -39,4 +39,5 @@ docs_features:
       [policy documentation](https://docs.spacelift.io/concepts/policy) for
       more information.
 ---
+
 Spacelift is a sophisticated CI/CD platform for Infrastructure as Code including Terraform, Pulumi, CloudFormation, Kubernetes, and Ansible. Spacelift utilizes Open Policy Agent to support a variety of policy types within the platform and Policy as Code for secure and compliance Infrastructure as Code.

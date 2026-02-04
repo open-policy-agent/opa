@@ -17,4 +17,5 @@ docs_features:
       component interacts with an OPA instance over the REST API to evaluate
       policy during CICD runs.
 ---
+
 Boomerang Bosun is a policy-based gating system that combines Policy Templates with Rules and data to validate Gates.

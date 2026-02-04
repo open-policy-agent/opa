@@ -1,5 +1,5 @@
-import React from 'react';
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import React from "react";
+import { Bar, BarChart as RechartsBarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 export default function BarChart({ data, config }) {
   const showXAxis = config.showXAxis !== false;
@@ -8,7 +8,7 @@ export default function BarChart({ data, config }) {
 
   return (
     <RechartsBarChart
-      style={{ width: '100%', height: '25rem' }}
+      style={{ width: "100%", height: "25rem" }}
       data={data}
       margin={{
         top: 20,
@@ -26,12 +26,10 @@ export default function BarChart({ data, config }) {
           textAnchor="end"
           height={120}
           tick={{ dy: 40 }}
-          {...(config.xAxisLabel && { label: { value: config.xAxisLabel, position: 'insideBottom', offset: -5 } })}
+          {...(config.xAxisLabel && { label: { value: config.xAxisLabel, position: "insideBottom", offset: -5 } })}
         />
       )}
-      {showYAxis && (
-        <YAxis label={{ value: config.yAxisLabel, angle: -90, position: 'insideLeft' }} />
-      )}
+      {showYAxis && <YAxis label={{ value: config.yAxisLabel, angle: -90, position: "insideLeft" }} />}
       {showTooltip && <Tooltip />}
       <Bar dataKey="value" fill="#888888" />
     </RechartsBarChart>

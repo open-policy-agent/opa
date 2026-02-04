@@ -13,4 +13,5 @@ blogs:
 inventors:
 - independent
 ---
+
 Pre-commit git hooks for OPA and Rego development

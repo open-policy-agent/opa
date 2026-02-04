@@ -14,4 +14,5 @@ videos:
   link: https://www.youtube.com/watch?v=R6tUNpRpdnY
 allow_missing_image: true
 ---
-Microservice authorization can be enforced through a network proxy like Envoy/Istio/Linkerd/... or can be enforced by modifying the microservice code to use a common library.  In both cases OPA makes the authorization decision that the network proxy or the library enforce.
+
+Microservice authorization can be enforced through a network proxy like Envoy/Istio/Linkerd/... or can be enforced by modifying the microservice code to use a common library. In both cases OPA makes the authorization decision that the network proxy or the library enforce.

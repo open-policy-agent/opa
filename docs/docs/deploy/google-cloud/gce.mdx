@@ -128,7 +128,8 @@ Please use the user data shell script below to install and run OPA:
 <ParamCodeBlock>
 {`#!/bin/bash
 
-curl -L -o /usr/local/bin/opa https://github.com/open-policy-agent/opa/releases/download/v{{version}}/opa_linux_amd64
+REPO=https://github.com/open-policy-agent/opa
+curl -L -o /usr/local/bin/opa $REPO/releases/download/v{{version}}/opa_linux_amd64
 chmod 755 /usr/local/bin/opa
 
 cat <<EOF > /etc/credstore/opa.service/config

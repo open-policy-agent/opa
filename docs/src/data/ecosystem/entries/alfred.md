@@ -18,5 +18,5 @@ docs_features:
       can't use the public playground. Read about
       [installation](https://github.com/dolevf/Open-Policy-Agent-Alfred#how-to-install).
 ---
-Alfred introduces a local graphical user interface to interact with Open Policy Agent and acts as an alternative to OPA's playground, allowing the user to keep information related to policy testing locally.
 
+Alfred introduces a local graphical user interface to interact with Open Policy Agent and acts as an alternative to OPA's playground, allowing the user to keep information related to policy testing locally.

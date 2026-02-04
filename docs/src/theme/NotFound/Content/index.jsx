@@ -42,7 +42,8 @@ export default function NotFoundContent({ className }) {
           </Heading>
           <div>
             <p>
-              This link will pre-populate the broken link information. You'll just need to fill in where you found this link.
+              This link will pre-populate the broken link information. You'll just need to fill in where you found this
+              link.
             </p>
             <p>
               <a

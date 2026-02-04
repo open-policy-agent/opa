@@ -1,20 +1,18 @@
-import React from "react";
-import Heading from "@theme/Heading";
 import Link from "@docusaurus/Link";
 import Admonition from "@theme/Admonition";
+import Heading from "@theme/Heading";
+import React from "react";
 
-import StandaloneLayout from "../../components/StandaloneLayout";
 import QuestionComparison from "../../components/QuestionComparison";
+import StandaloneLayout from "../../components/StandaloneLayout";
 
 import eventData from "@generated/survey-data/default/survey-event-data.json";
-import questions from "@generated/survey-data/default/survey-questions.json";
 import eventMetadata from "@generated/survey-data/default/survey-event-metadata.json";
+import questions from "@generated/survey-data/default/survey-questions.json";
 
 export default function Survey() {
   // Get all unique question IDs from events
-  const allQuestionIds = Object.values(eventData).flatMap(data =>
-    Object.keys(data)
-  );
+  const allQuestionIds = Object.values(eventData).flatMap(data => Object.keys(data));
   const uniqueQuestionIds = Array.from(new Set(allQuestionIds));
 
   // Filter for only featured questions
@@ -34,7 +32,7 @@ export default function Survey() {
   const eventLinks = eventSlugs.map((slug, index) => ({
     slug,
     year: eventMetadata[slug]?.year || slug,
-    separator: index > 0 && (index === eventSlugs.length - 1 ? ", and " : ", ")
+    separator: index > 0 && (index === eventSlugs.length - 1 ? ", and " : ", "),
   }));
 
   // Prepare featured questions data for rendering
@@ -43,7 +41,7 @@ export default function Survey() {
     question: questions[questionId],
     eventData,
     eventSlugs,
-    eventMetadata
+    eventMetadata,
   }));
 
   return (
@@ -64,15 +62,15 @@ export default function Survey() {
       </p>
 
       <p>
-        The charts that follow make a number of comparisons from over the years
-        where the same questions were asked.
+        The charts that follow make a number of comparisons from over the years where the same questions were asked.
       </p>
 
       <Heading as="h2">Annual Trends</Heading>
 
       <Admonition type="caution">
         <p>
-          The following section is a work in progress effort to compare some trends in survey responses over the years we've run them. Please see the 2025 survey for the most recent results and complete question set.
+          The following section is a work in progress effort to compare some trends in survey responses over the years
+          we've run them. Please see the 2025 survey for the most recent results and complete question set.
         </p>
       </Admonition>
 
@@ -89,4 +87,3 @@ export default function Survey() {
     </StandaloneLayout>
   );
 }
-

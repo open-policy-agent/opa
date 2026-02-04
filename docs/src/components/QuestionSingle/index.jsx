@@ -1,9 +1,9 @@
-import React from 'react';
-import Heading from '@theme/Heading';
+import Heading from "@theme/Heading";
+import React from "react";
 
-import { getChartComponent } from '../charts';
+import { getChartComponent } from "../charts";
 
-import styles from './styles.module.css';
+import styles from "./styles.module.css";
 
 export default function QuestionSingle({
   question,
@@ -15,7 +15,7 @@ export default function QuestionSingle({
 
   const ChartComponent = getChartComponent(question.chartType);
 
-  if (question.chartType === 'text-list') {
+  if (question.chartType === "text-list") {
     return (
       <div className={styles.container}>
         <Heading as="h3">{question.title}</Heading>
@@ -32,7 +32,7 @@ export default function QuestionSingle({
 
   const chartData = eventData.data.map(item => ({
     name: item.label,
-    value: item.value
+    value: item.value,
   }));
 
   const categories = [];

@@ -55,4 +55,5 @@ docs_features:
       Read about this integration in the
       [OPA Docs](https://www.openpolicyagent.org/docs/envoy).
 ---
+
 Envoy is a networking abstraction for cloud-native applications. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.

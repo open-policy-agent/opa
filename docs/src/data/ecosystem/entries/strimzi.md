@@ -21,4 +21,5 @@ docs_features:
       Strimzi can be configured to use OPA via the REST API as the Kafka
       authorizer using [this project](https://github.com/scholzj/demo-opa-kafka-authorization).
 ---
+
 Strimzi provides a way to run an Apache Kafka cluster on Kubernetes in various deployment configurations. Strimzi ships with the OPA authorizer plugin right out of the box, and supports OPA as an option for Kafka authorization.

@@ -18,5 +18,6 @@ docs_features:
       library to process rego policies when validating the signatures and
       attestations of container images and other software artifacts.
 ---
+
 Securely verify supply chain artifacts, and enforce policies about how they were built and tested,
 in a manageable, scalable, and declarative way.
