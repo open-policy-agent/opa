@@ -80,6 +80,11 @@ func populateDefaultTypes(t *testing.T, fieldType reflect.Type, fieldValue refle
 			fieldValue.Set(newStruct)
 
 			return true
+		case reflect.Bool:
+			newBool := true
+			fieldValue.Set(reflect.ValueOf(&newBool))
+
+			return true
 		}
 
 	case reflect.Bool:
