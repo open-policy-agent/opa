@@ -416,12 +416,12 @@ why policy evaluation is slow.
 
 The `opa eval` command provides the following profiler options:
 
-| Option            | Detail                                                                                                                                                                                                                                   | Default                                                               |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `--profile`       | Enables expression profiling and outputs profiler results.                                                                                                                                                                               | off                                                                   |
-| `--profile-sort`  | Criteria to sort the expression profiling results. This options implies `--profile`.                                                                                                                                                     | total_time_ns => num_eval => num_redo => num_gen_expr => file => line |
-| `--profile-limit` | Desired number of profiling results sorted on the given criteria. This options implies `--profile`.                                                                                                                                      | 10                                                                    |
-| `--count`         | Desired number of evaluations that profiling metrics are to be captured for. With `--format=pretty`, the output will contain min, max, mean and the 90th and 99th percentile. All collected percentiles can be found in the JSON output. | 1                                                                     |
+| Option            | Detail                                                                                                                                                                                                                                   | Default                                                                           |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `--profile`       | Enables expression profiling and outputs profiler results.                                                                                                                                                                               | off                                                                               |
+| `--profile-sort`  | Criteria to sort the expression profiling results. This options implies `--profile`.                                                                                                                                                     | `total_time_ns` => `num_eval` => `num_redo` => `num_gen_expr` => `file` => `line` |
+| `--profile-limit` | Desired number of profiling results sorted on the given criteria. This options implies `--profile`.                                                                                                                                      | 10                                                                                |
+| `--count`         | Desired number of evaluations that profiling metrics are to be captured for. With `--format=pretty`, the output will contain min, max, mean and the 90th and 99th percentile. All collected percentiles can be found in the JSON output. | 1                                                                                 |
 
 #### Sort criteria for the profile results
 
@@ -464,8 +464,8 @@ If we profile the above policy we would get something like the following output:
 ```
 
 The first entry indicates that line `test.rego:8` has a `EVAL/REDO` count of `3`. If we look at the expression on line `test.rego:8`
-ie `x = a + b * c` it's not immediately clear why this line has a `EVAL/REDO` count of `3`. But we also notice that there
-are `3` generated expressions (ie. `NUM GEN EXPR`) at line `test.rego:8`. This is because the compiler rewrites the above policy to
+i.e. `x = a + b * c` it's not immediately clear why this line has a `EVAL/REDO` count of `3`. But we also notice that there
+are `3` generated expressions (i.e. `NUM GEN EXPR`) at line `test.rego:8`. This is because the compiler rewrites the above policy to
 something like below:
 
 `p = true if { __local0__ = 1; __local1__ = 2; __local2__ = 3; mul(__local1__, __local2__, __local3__); plus(__local0__, __local3__, __local4__); x = __local4__  }`
@@ -663,7 +663,7 @@ opa  eval --data rbac.rego --profile-limit 5 --profile-sort num_eval --format=pr
 As seen from the above table, the results are arranged first in decreasing
 order of number of evaluations and if two expressions have been evaluated
 the same number of times, the default criteria is used since no other sort criteria is provided.
-In this case, total_time_ns => num_redo => file => line.
+In this case, `total_time_ns` => `num_redo` => `file` => `line`.
 Also `--profile` option is implied and does not need to be provided.
 
 ##### Example: Display top 5 profile results based on the 'number of times an expression is evaluated' and 'number of times an expression is re-evaluated'
@@ -688,7 +688,7 @@ opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval,num_redo --f
 
 As seen from the above table, result are first arranged based on _number of evaluations_,
 then _number of re-evaluations_ and finally the default criteria is used.
-In this case, total_time_ns => file => line.
+In this case, `total_time_ns` => `file` => `line`.
 The `--profile-sort` options accepts repeated or comma-separated values for the criteria.
 The order of the criteria on the command line determine their priority.
 
@@ -703,7 +703,7 @@ opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval --profile-so
 OPA provides CLI options to benchmark a single query via the `opa bench` command. This will evaluate similarly to
 `opa eval` but it will repeat the evaluation (in its most efficient form) a number of times and report metrics.
 
-### Example: Benchmark rbac allow
+### Example: Benchmark RBAC allow
 
 Using the same [policy source as shown above](#example-policy):
 
@@ -787,7 +787,7 @@ data.rbac.test_user_has_role_negative: PASS (318.047µs)
 PASS: 2/2
 ```
 
-#### Example: Benchmark rbac unit tests
+#### Example: Benchmark RBAC unit tests
 
 ```bash
 opa test -v --bench ./rbac.rego ./rbac_test.rego
@@ -802,7 +802,7 @@ data.rbac.test_user_has_role_negative    44526      26348 ns/op      22033 timer
 PASS: 2/2
 ```
 
-#### Example: Benchmark rbac unit tests and compare with `benchstat`
+#### Example: Benchmark RBAC unit tests and compare with `benchstat`
 
 The benchmark output formats default to `pretty`, but support a `gobench` format which complies with the
 [Golang Benchmark Data Format](https://go.googlesource.com/proposal/+/master/design/14313-benchmark-format.md).

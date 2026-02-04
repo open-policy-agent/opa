@@ -3,11 +3,11 @@ title: "Tutorial: Ingress Validation"
 ---
 
 This tutorial shows how to deploy OPA as an admission controller from scratch.
-It covers the OPA-kubernetes version that uses kube-mgmt.
+It covers the OPA-Kubernetes version that uses kube-mgmt.
 The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper) has its own docs.
 For the purpose of the tutorial we will deploy two policies that ensure:
 
-- Ingress hostnames must be on allowlist on the Namespace containing the Ingress.
+- Ingress hostnames must be on `allowlist` on the Namespace containing the Ingress.
 - Two ingresses in different namespaces must not have the same hostname.
 
 > 💡 Kubernetes does not guarantee consistency across resources. If two

@@ -12,7 +12,7 @@ authorized or not.
 
 This feature makes it possible to delegate authorization decisions to an
 external service and also makes the request context available to the service. The request context contains information
-such as the source of a network activity, destination of a network activity, the network request (eg. http request).
+such as the source of a network activity, destination of a network activity, the network request (e.g., HTTP request).
 All this information can be used by the external service to make an informed decision about the fate of the
 incoming request received by Envoy.
 

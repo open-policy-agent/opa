@@ -32,7 +32,7 @@ field will help uncover potential network issues as `403 Forbidden` is also gene
 
 ## Interacting with the gRPC server
 
-This section provides examples of interacting with the Envoy External Authorization gRPC server using the [grpcurl](https://github.com/fullstorydev/grpcurl) tool.
+This section provides examples of interacting with the Envoy External Authorization gRPC server using the [`grpcurl`](https://github.com/fullstorydev/grpcurl) tool.
 
 - List all services exposed by the server
 

@@ -3,7 +3,7 @@ sidebar_label: assigned var {name} unused
 image: /img/opa-errors.png
 ---
 
-# rego_compile_error: assigned var `{name}` unused
+# `rego_compile_error`: assigned var `{name}` unused
 
 This error is caused by a variable being assigned a value, but never used. This is often the result of a typo or
 mis-named variable being assigned.

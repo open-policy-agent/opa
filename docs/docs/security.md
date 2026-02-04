@@ -303,7 +303,7 @@ Content-Type: application/json
 ```
 
 Besides boolean responses, authorization policies can change the message included
-in the deny response. Do do that, policy decisions must yield an object response as
+in the deny response. To do that, policy decisions must yield an object response as
 follows:
 
 ```rego

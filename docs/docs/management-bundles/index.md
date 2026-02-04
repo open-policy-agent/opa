@@ -139,7 +139,7 @@ bundle has not changed since the last update.
 
 ### HTTP Long Polling
 
-With the periodic bundle downloading (ie. `short polling`) technique, OPA sends regular requests to the remote HTTP
+With the periodic bundle downloading (i.e. `short polling`) technique, OPA sends regular requests to the remote HTTP
 server to pull any available bundle. If there is no new bundle, the server responds with a `304 Not Modified` response.
 The polling frequency depends on the latency that the client can tolerate in
 retrieving updated information from the server. A drawback of this
@@ -419,7 +419,7 @@ opa run bundle.tar.gz
 
 ## Signing
 
-To ensure the integrity of policies (ie. the policies are coming from a trusted source), policy bundles may be
+To ensure the integrity of policies (i.e. the policies are coming from a trusted source), policy bundles may be
 digitally signed so that industry-standard cryptographic primitives can verify their authenticity.
 
 OPA supports digital signatures for policy bundles. Specifically, a signed bundle is a normal OPA bundle that includes
@@ -513,7 +513,7 @@ SHA-512-224
 SHA-512-25
 ```
 
-To calculate the digest for unstructured files (ie. all files except JSON or YAML files), apply the hash
+To calculate the digest for unstructured files (i.e. all files except JSON or YAML files), apply the hash
 function to the byte stream of the file.
 
 For structured files, read the byte stream and parse into a JSON structure; then recursively order the fields of all
@@ -783,16 +783,16 @@ Both methods are going to need a policy for either the service account or the IA
 
 Using EKS IAM Roles for Service Account (Web Identity) Credential.
 
-Below are steps to use OpenID connect provider and kubernetes.
+Below are steps to use OpenID connect provider and Kubernetes.
 
 1. Go to the "IAM" section of the AWS console.
 1. Click Add provider and select OpenID connect.
-1. For Provider URL enter the one belonging to your chosen kubernetes cluster.
+1. For Provider URL enter the one belonging to your chosen Kubernetes cluster.
 1. Click on Get thumbprint
 1. For the audience enter: sts.amazonaws.com
 1. Add the provider.
 1. Once the provider is added, copy the ARN for the identity provider. Here's an example ARN: `arn:aws:iam::<your AWS account ID>:oidc-provider/oidc.eks.ap-northeast-1.amazonaws.com/id/DFGHJKKJHGF34HFDFGHY44TRFDE4RGDF`
-1. Create an IAM role (eg: app_dev_role) with the policy created above and assign it to the kubernetes service account.
+1. Create an IAM role (e.g., `app_dev_role`) with the policy created above and assign it to the Kubernetes service account.
 1. Go to Trust relationships inside the created role and click Edit trust relationship and enter the following policy document.
 
    ```json
@@ -807,7 +807,7 @@ Below are steps to use OpenID connect provider and kubernetes.
          "Action": "sts:AssumeRoleWithWebIdentity",
          "Condition": {
            "StringEquals": {
-             "<the OpenID connect URL, e.g. oidc.eks.ap-northeast-1.amazonaws.com/id/B7060B6E991747ADDDC61ADD4B7875CF>:sub": "system:serviceaccount:<kubernetes namespace, e.g. app-dev>:<the kubernetes serviceaccount name, eg: app-dev-service-account>"
+             "<the OpenID connect URL, e.g. oidc.eks.ap-northeast-1.amazonaws.com/id/B7060B6E991747ADDDC61ADD4B7875CF>:sub": "system:serviceaccount:<Kubernetes namespace, e.g. app-dev>:<the Kubernetes serviceaccount name, eg: app-dev-service-account>"
            }
          }
        }
@@ -815,7 +815,7 @@ Below are steps to use OpenID connect provider and kubernetes.
    }
    ```
 
-1. Create the kubernetes service account.
+1. Create the Kubernetes service account.
 
    ```yaml
    apiVersion: v1
@@ -828,7 +828,7 @@ Below are steps to use OpenID connect provider and kubernetes.
    automountServiceAccountToken: false
    ```
 
-1. Configure your kubernetes resources to use this service account.
+1. Configure your Kubernetes resources to use this service account.
 
    ```yaml
    apiVersion: apps/v1
@@ -846,7 +846,7 @@ Below are steps to use OpenID connect provider and kubernetes.
          ******
    ```
 
-You should now be able to access AWS services from your kubernetes cluster.
+You should now be able to access AWS services from your Kubernetes cluster.
 
 The above steps should add the following variable to the pod.
 
@@ -1111,7 +1111,7 @@ Note that for the time being, the [Shared Key or Shared Access Signature (SAS)](
 1. Go to Azure Active Directory.
 2. In the left menu, click "App Registrations" followed by "New Registration". Name your app (client) amd leave the other options be. Click "Register".
 3. Click "Certificates and Secrets". Either create a secret to be used for [OAuth2 Client Credentials](https://www.openpolicyagent.org/docs/latest/configuration/#oauth2-client-credentials) or upload a certificate for [OAuth2 Client Credentials JWT authentication](https://www.openpolicyagent.org/docs/latest/configuration/#oauth2-client-credentials-jwt-authentication).
-4. In the menu to the left, click "API permissions". Click "Add a permission". Choose "Azure Storage" and check the "user_impersonation" checkbox.
+4. In the menu to the left, click "API permissions". Click "Add a permission". Choose "Azure Storage" and check the `user_impersonation` checkbox.
 5. Click "Add admin consent for Default Directory". Answer Yes on the followup question.
 6. Navigate back to your storage account. Click "Access Control (IAM)". Click "Add role assignments".
 7. Select the "Storage Blob Data Contributor" role. Leave "Assign access to" as "User, group or service principal". Search and select the name of the app created in step 2.

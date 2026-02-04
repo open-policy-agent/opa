@@ -3,7 +3,7 @@ sidebar_label: var cannot be used for rule name
 image: /img/opa-errors.png
 ---
 
-# rego_parse_error: var cannot be used for rule name
+# `rego_parse_error`: var cannot be used for rule name
 
 This cause for this error isn't always obvious at first glance, but as any parser error, this one is caused by an error
 in the syntax of a Rego policy, and one around _rule declarations_ specifically. Look closely at the rule head for

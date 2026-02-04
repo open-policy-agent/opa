@@ -3,7 +3,7 @@ sidebar_label: match error
 image: /img/opa-errors.png
 ---
 
-# rego_type_error: match error
+# `rego_type_error`: match error
 
 Just like the category suggests, this error is emitted by the _type checker_ during the compilation stage. This error
 is commonly triggered by comparing two values of different types, like a string and an integer (`"1" == 1`). In order

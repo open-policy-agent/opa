@@ -42,7 +42,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 1. The following steps assume a remote named `upstream` exists that references the OPA source
    repository. As needed, add an `upstream` remote for the repository:
 
-   ```
+   ```sh
    git remote add upstream git@github.com:open-policy-agent/opa.git
    git fetch --tags upstream
    ```
@@ -164,7 +164,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 The following steps assume a remote named `upstream` exists that references the OPA source
 repository. As needed, add an `upstream` remote for the repository:
 
-```
+```sh
 git remote add upstream git@github.com:open-policy-agent/opa.git
 git fetch --tags upstream
 ```

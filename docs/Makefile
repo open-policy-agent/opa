@@ -56,3 +56,7 @@ markdownlint:
 .PHONY: markdownlint-check
 markdownlint-check:
 	npx markdownlint-cli2
+
+.PHONY: spell-check
+spell-check:
+	vale --config=.vale.ini .

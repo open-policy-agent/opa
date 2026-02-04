@@ -510,6 +510,26 @@ jobs:
     - name: Check markdown linting
       run: make docs-install docs-markdownlint-check
 
+  docs-spell-check:
+    name: Docs Spell Check
+    runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs == 'true' }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Install Vale
+      run: |
+        wget -O vale.tar.gz https://github.com/errata-ai/vale/releases/download/v3.13.0/vale_3.13.0_Linux_64-bit.tar.gz
+        sudo tar xzf vale.tar.gz -C /usr/local/bin vale
+        rm vale.tar.gz
+        vale --version
+
+    - name: Run Vale spell check
+      run: vale --config=.vale.ini .
+      working-directory: docs
+
   # This job is required to complete before merging, and is set as a branch
   # protection rule:
   # https://github.com/open-policy-agent/opa/settings/branch_protection_rules
@@ -534,6 +554,7 @@ jobs:
       docs-fmt-check,
       docs-lint-check,
       docs-markdownlint-check,
+      docs-spell-check,
     ]
     if: always()
     steps:

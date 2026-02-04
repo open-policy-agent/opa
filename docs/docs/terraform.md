@@ -12,7 +12,7 @@ the changes Terraform is about to make before it makes them. Such policy based c
 - Enforcing organizational rules around the changes to infrastructure state
 
 Terraform is a popular integration case for OPA and there are already a number
-of popular tools for running policy on HCL and plan JSONs. Browse existing
+of popular tools for running policy on HCL and plan JSON. Browse existing
 <EcosystemFeatureLink feature="terraform"> tools using OPA and
 Terraform</EcosystemFeatureLink> in the OPA Ecosystem.
 
@@ -446,13 +446,13 @@ Here is the expected contents of `tfplan.json`.
 }
 ```
 
-The json plan output produced by terraform contains a lot of information. For this tutorial, we will be interested by:
+The JSON plan output produced by terraform contains a lot of information. For this tutorial, we will be interested by:
 
 - `.resource_changes`: array containing all the actions that terraform will apply on the infrastructure.
 - `.resource_changes[].type`: the type of resource (e.g. `aws_instance` , `aws_iam` ...)
 - `.resource_changes[].change.actions`: array of actions applied on the resource (`create`, `update`, `delete`...)
 
-For more information about the json plan representation, please check the [terraform documentation](https://www.terraform.io/docs/internals/json-format.html#plan-representation)
+For more information about the JSON plan representation, please check the [terraform documentation](https://www.terraform.io/docs/internals/json-format.html#plan-representation)
 
 ### 3. Write the OPA policy to check the plan
 
@@ -696,7 +696,7 @@ In addition to loading policies from the local filesystem, `opa exec` can fetch 
 opa build policy/
 ```
 
-Next, serve the bundle via nginx:
+Next, serve the bundle via NGINX:
 
 ```bash
 docker run --rm --name bundle_server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest
@@ -794,7 +794,7 @@ terraform plan --out tfplan.binary
 
 ### 2. Convert the new Terraform plan into JSON
 
-Use the Terraform show command to produce the json representation of the terraform plan
+Use the Terraform show command to produce the JSON representation of the terraform plan
 
 ```shell
 terraform show -json tfplan.binary > tfplan2.json
@@ -806,7 +806,7 @@ The policy evaluates if a security group is valid based on the contents of it's 
 
 - Resources can be specified under the root module or in child modules
 - We want to evaluate against the combined group of these resources
-- This example is scoped to the planned changes section of the json representation
+- This example is scoped to the planned changes section of the JSON representation
 
 The policy uses the walk keyword to explore the json structure, and uses conditions to filter for the specific paths where resources would be found.
 

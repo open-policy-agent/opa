@@ -3,7 +3,7 @@ sidebar_label: object keys must be unique
 image: /img/opa-errors.png
 ---
 
-# eval_conflict_error: object keys must be unique
+# `eval_conflict_error`: object keys must be unique
 
 As in all programming languages, keys in object values must be unique. In Rego, if an object or rule is being
 constructed with duplicate keys, this error will be raised. The same error is raised for both partial rules

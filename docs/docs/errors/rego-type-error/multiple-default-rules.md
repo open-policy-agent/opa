@@ -3,7 +3,7 @@ sidebar_label: multiple default rules
 image: /img/opa-errors.png
 ---
 
-# rego_type_error: multiple default rules `{name}` found
+# `rego_type_error`: multiple default rules `{name}` found
 
 This error is emitted by the type checker during the compilation stage when multiple `default` definitions are found
 for one rule. The error message will show the rule e.g. `data.example.allow` that has multiple definitions, but the line

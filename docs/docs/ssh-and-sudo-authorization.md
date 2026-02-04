@@ -30,7 +30,7 @@ Furthermore, we'll assume we have the following set of users and hosts:
 Authentication (verifying user identity) is outside the scope of OPA's
 responsibility so this tutorial relies on identities being statically
 defined. In real-world scenarios authentication can be delegated to SSH itself
-(authorized_keys) or other identity management systems.
+(`authorized_keys`) or other identity management systems.
 
 Let's get started.
 
@@ -394,7 +394,7 @@ This happens because the _display_ policy is shared by the PAM configurations of
 In production, it is more practical to use separate policy packages for each PAM configuration.
 
 We have not defined the SSH _authz_ policy to work with elevation, so you can enter any value
-into the prompt that comes up for for SSH.
+into the prompt that comes up for SSH.
 
 For `sudo`, enter the ticket number `1234` to get access.
 

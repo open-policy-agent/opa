@@ -335,7 +335,7 @@ data.example_test.test_concat: FAIL (263.375µs)
 FAIL: 1/1
 ```
 
-Just as in regular evaluation, test-case data doesn't need to be declared as inline Rego, but can be loaded from json and yaml data files:
+Just as in regular evaluation, test-case data doesn't need to be declared as inline Rego, but can be loaded from JSON and YAML data files:
 
 **file_example_test.rego**:
 

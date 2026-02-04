@@ -168,7 +168,7 @@ In addition, parameters may be of type `operand`. The `operand` type represents
 a tagged union that can refer to a local variable, boolean constant, or string
 constant index:
 
-```
+```json
 {
     "type": "local" | "bool" | "string_index"
     "value": number | boolean | number

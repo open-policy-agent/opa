@@ -3,7 +3,7 @@ sidebar_label: "unexpected assign token"
 image: /img/opa-errors.png
 ---
 
-# rego_parse_error: unexpected assign token
+# `rego_parse_error`: unexpected assign token
 
 In some cases when an assign token (`:=`) precedes some invalid Rego code, the
 parser will raise this error.

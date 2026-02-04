@@ -3,7 +3,7 @@ sidebar_label: "unexpected {name} keyword"
 image: /img/opa-errors.png
 ---
 
-# rego_parse_error: unexpected `{name}` keyword
+# `rego_parse_error`: unexpected `{name}` keyword
 
 This parser error is raised when an unexpected keyword is encountered. Keywords are usually misplaced
 due to a missing operator or a misconception about how the keyword is used in Rego.

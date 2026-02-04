@@ -3,7 +3,7 @@ sidebar_label: function name has arity n, got m argument(s)
 image: /img/opa-errors.png
 ---
 
-# rego_type_error: function `{name}` has arity n, got m argument(s)
+# `rego_type_error`: function `{name}` has arity n, got m argument(s)
 
 [Arity](https://en.wikipedia.org/wiki/Arity) is a term used to describe the number of arguments a function takes.
 This error happens when a user-defined function is called with an unexpected number of arguments - the wrong _arity_.

@@ -3,7 +3,7 @@ sidebar_label: "unexpected { token: expected \n or ; or }"
 image: /img/opa-errors.png
 ---
 
-# rego_parse_error: unexpected `{` token: expected `\n` or ; or `}`
+# `rego_parse_error`: unexpected `{` token: expected `\n` or ; or `}`
 
 This error is raised when the Rego parser encounters an unexpected `{` token. Like many
 language, Rego used `{` and `}` to denote blocks of code. This error is raised when

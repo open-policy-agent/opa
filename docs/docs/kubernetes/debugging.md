@@ -57,7 +57,7 @@ OPA.
 ## Ensure the webhook is configured for the proper namespaces
 
 When you create the webhook according to the installation instructions,
-it includes a namespaceSelector so that you
+it includes a `namespaceSelector` so that you
 can decide which namespaces to ignore.
 
 ```yaml

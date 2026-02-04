@@ -3,7 +3,7 @@ sidebar_label: "unexpected } token"
 image: /img/opa-errors.png
 ---
 
-# rego_parse_error: unexpected `}` token
+# `rego_parse_error`: unexpected `}` token
 
 This error is raised when the Rego parser encounters an unexpected `}` token. Like many
 language, Rego used `{` and `}` to denote blocks of code. This error is raised when

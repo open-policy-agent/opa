@@ -12,25 +12,25 @@ session!
 
 The errors currently documented are:
 
-| Stage       | Category              | Message                                                                                                                              |
-| ----------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| parsing     | rego_parse_error      | [var cannot be used for rule name](./errors/rego-parse-error/var-cannot-be-used-for-rule-name)                                       |
-| parsing     | rego_parse_error      | [unexpected `{name}` keyword](./errors/rego-parse-error/unexpected-name-keyword)                                                     |
-| parsing     | rego_parse_error      | [unexpected assign token](./errors/rego-parse-error/unexpected-assign-token)                                                         |
-| parsing     | rego_parse_error      | [unexpected `{` token](./errors/rego-parse-error/unexpected-left-curly-token)                                                        |
-| parsing     | rego_parse_error      | [unexpected identifier token](./errors/rego-parse-error/unexpected-identifier-token)                                                 |
-| parsing     | rego_parse_error      | [unexpected `}` token](./errors/rego-parse-error/unexpected-right-curly-token)                                                       |
-| parsing     | rego_parse_error      | [unexpected string token](./errors/rego-parse-error/unexpected-string-token)                                                         |
-| compilation | rego_recursion_error  | [rule `{name}` is recursive](./errors/rego-recursion-error/rule-name-is-recursive)                                                   |
-| compilation | rego_type_error       | [conflicting rules `{name}` found](./errors/rego-type-error/conflicting-rules-name-found)                                            |
-| compilation | rego_type_error       | [match error](./errors/rego-type-error/match-error)                                                                                  |
-| compilation | rego_type_error       | [arity mismatch](./errors/rego-type-error/arity-mismatch)                                                                            |
-| compilation | rego_type_error       | [function has arity](./errors/rego-type-error/function-has-arity-got-argument)                                                       |
-| compilation | rego_type_error       | [unsafe built-in function calls in expression: `{name}`](./errors/rego-type-error/unsafe-built-in-function-calls-in-expression-name) |
-| compilation | rego_unsafe_var_error | [var `{name}` is unsafe](./errors/rego-unsafe-var-error/var-name-is-unsafe)                                                          |
-| compilation | rego_compile_error    | [assigned var `{name}` unused](./errors/rego-compile-error/assigned-var-name-unused)                                                 |
-| evaluation  | eval_conflict_error   | [complete rules must not produce multiple outputs](./errors/eval-conflict-error/complete-rules-must-not-produce-multiple-outputs)    |
-| evaluation  | eval_conflict_error   | [object keys must be unique](./errors/eval-conflict-error/object-keys-must-be-unique)                                                |
+| Stage       | Category                | Message                                                                                                                              |
+| ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| parsing     | `rego_parse_error`      | [var cannot be used for rule name](./errors/rego-parse-error/var-cannot-be-used-for-rule-name)                                       |
+| parsing     | `rego_parse_error`      | [unexpected `{name}` keyword](./errors/rego-parse-error/unexpected-name-keyword)                                                     |
+| parsing     | `rego_parse_error`      | [unexpected assign token](./errors/rego-parse-error/unexpected-assign-token)                                                         |
+| parsing     | `rego_parse_error`      | [unexpected `{` token](./errors/rego-parse-error/unexpected-left-curly-token)                                                        |
+| parsing     | `rego_parse_error`      | [unexpected identifier token](./errors/rego-parse-error/unexpected-identifier-token)                                                 |
+| parsing     | `rego_parse_error`      | [unexpected `}` token](./errors/rego-parse-error/unexpected-right-curly-token)                                                       |
+| parsing     | `rego_parse_error`      | [unexpected string token](./errors/rego-parse-error/unexpected-string-token)                                                         |
+| compilation | `rego_recursion_error`  | [rule `{name}` is recursive](./errors/rego-recursion-error/rule-name-is-recursive)                                                   |
+| compilation | `rego_type_error`       | [conflicting rules `{name}` found](./errors/rego-type-error/conflicting-rules-name-found)                                            |
+| compilation | `rego_type_error`       | [match error](./errors/rego-type-error/match-error)                                                                                  |
+| compilation | `rego_type_error`       | [arity mismatch](./errors/rego-type-error/arity-mismatch)                                                                            |
+| compilation | `rego_type_error`       | [function has arity](./errors/rego-type-error/function-has-arity-got-argument)                                                       |
+| compilation | `rego_type_error`       | [unsafe built-in function calls in expression: `{name}`](./errors/rego-type-error/unsafe-built-in-function-calls-in-expression-name) |
+| compilation | `rego_unsafe_var_error` | [var `{name}` is unsafe](./errors/rego-unsafe-var-error/var-name-is-unsafe)                                                          |
+| compilation | `rego_compile_error`    | [assigned var `{name}` unused](./errors/rego-compile-error/assigned-var-name-unused)                                                 |
+| evaluation  | `eval_conflict_error`   | [complete rules must not produce multiple outputs](./errors/eval-conflict-error/complete-rules-must-not-produce-multiple-outputs)    |
+| evaluation  | `eval_conflict_error`   | [object keys must be unique](./errors/eval-conflict-error/object-keys-must-be-unique)                                                |
 
 ## How To Read Pages in this Section
 

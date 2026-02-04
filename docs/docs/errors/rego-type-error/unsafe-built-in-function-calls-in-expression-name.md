@@ -3,7 +3,7 @@ sidebar_label: "unsafe built-in function calls in expression: {name}"
 image: /img/opa-errors.png
 ---
 
-# rego_type_error: unsafe built-in function calls in expression: `{name}`
+# `rego_type_error`: unsafe built-in function calls in expression: `{name}`
 
 | Stage         | Category          | Message                                                                                                     |
 | ------------- | ----------------- | ----------------------------------------------------------------------------------------------------------- |

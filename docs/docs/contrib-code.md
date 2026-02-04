@@ -66,7 +66,7 @@ format:
 
 For example, a change to the `ast` package:
 
-```
+```txt
 ast: Fix X when Y happens
 
 <Details...>

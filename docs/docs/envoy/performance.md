@@ -166,11 +166,11 @@ latency and resource consumption with the baseline (no-opa) case for instance.
 
 - **App Only**
 
-In this case, requests are sent directly to the application ie. no Envoy and OPA in the request path.
+In this case, requests are sent directly to the application i.e. no Envoy and OPA in the request path.
 
 - **App and Envoy**
 
-In this case, OPA is not included in the request path but Envoy is (ie. [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) disabled).
+In this case, OPA is not included in the request path but Envoy is (i.e. [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) disabled).
 
 - **App, Envoy and OPA (NOP policy)**
 

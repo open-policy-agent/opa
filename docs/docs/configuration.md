@@ -203,9 +203,9 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.azure_keyvault.key`                   | `string`   | No       | Specify what key name should be used for signing.                                                                                                                                                           |
 | `services[_].credentials.oauth2.azure_keyvault.key_version`           | `string`   | No       | Key version that should be used for signing. Will used latest if not specified                                                                                                                              |
 | `services[_].credentials.oauth2.azure_keyvault.key_algorithm`         | `string`   | No       | Specifies the signing algorithm used by the key `azure_keyvault.key`. `ES256, ES256K, PS256, RS256, ES384, PS384, RS384, ES512, PS512 or RS512)`                                                            |
-| `services[_].credentials.oauth2.azure_keyvault.vault`                 | `string`   | No       | The name of the azure keyvault. used for interpolation of URL.                                                                                                                                              |
-| `services[_].credentials.oauth2.azure_keyvault.api_version`           | `string`   | No       | The version of the [azure keyvault sign api](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/sign/sign?view=rest-keyvault-keys-2025-07-01). Defaults to "7.4"                                      |
-| `services[_].credentials.oauth2.azure_signing.service`                | `string`   | No       | What azure service to use for signing. only valid service currently is "keyvault".                                                                                                                          |
+| `services[_].credentials.oauth2.azure_keyvault.vault`                 | `string`   | No       | The name of the Azure Key Vault, used for interpolation of URL.                                                                                                                                             |
+| `services[_].credentials.oauth2.azure_keyvault.api_version`           | `string`   | No       | The version of the [Azure Key Vault sign API](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/sign/sign?view=rest-keyvault-keys-2025-07-01). Defaults to "7.4"                                     |
+| `services[_].credentials.oauth2.azure_signing.service`                | `string`   | No       | What Azure service to use for signing. Only valid service currently is `keyvault`.                                                                                                                          |
 | `services[_].credentials.oauth2.azure_signing.azure_managed_identity` | `{}`       | No       | What managed identity OPA will try to use for auth in azure. Identity has to have signing rights to the key in `azure_keyvault.key`. see [managed-identity](#azure-managed-identities-token) for more info. |
 | `services[_].credentials.oauth2.client_assertion_path`                | `string`   | No       | To specify a path to find a client assertion file. Used for Azure Workload Identity.                                                                                                                        |
 | `services[_].credentials.oauth2.client_assertion`                     | `string`   | No       | To specify a client assertion. Used for Azure Workload Identity.                                                                                                                                            |
@@ -833,7 +833,7 @@ included in the actual bundle gzipped tarball.
 | `decision_logs.service`                            | `string`  | No                               | Name of the service to use to contact remote server. If no `plugin` is specified, and `console` logging is disabled, this will default to the first `service` name defined in the Services configuration.                                                |
 | `decision_logs.partition_name`                     | `string`  | No                               | Deprecated: Use `resource` instead. Path segment to include in status updates.                                                                                                                                                                           |
 | `decision_logs.resource`                           | `string`  | No (default: `/logs`)            | Full path to use for sending decision logs to a remote server.                                                                                                                                                                                           |
-| `decision_logs.reporting.buffer_type`              | `string`  | No (default: `size`)             | Toggles the type of buffer to use. The two available options are "size" or "event". Refer to the [Decision Log Plugin README](https://github.com/open-policy-agent/opa/blob/main/v1/plugins/logs/README.md) for for a detailed comparison.               |
+| `decision_logs.reporting.buffer_type`              | `string`  | No (default: `size`)             | Toggles the type of buffer to use. The two available options are "size" or "event". Refer to the [Decision Log Plugin README](https://github.com/open-policy-agent/opa/blob/main/v1/plugins/logs/README.md) for a detailed comparison.                   |
 | `decision_logs.reporting.buffer_size_limit_events` | `int64`   | No (default: `10000`)            | Decision log buffer size limit by events. OPA will drop old events from the log if this limit is exceeded. By default, 100 events are held. This number has to be greater than zero. Only works with "event" buffer type.                                |
 | `decision_logs.reporting.buffer_size_limit_bytes`  | `int64`   | No (default: `unlimited`)        | Decision log buffer size limit in bytes. OPA will drop old events from the log if this limit is exceeded. By default, no limit is set. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set. Only works with "size" buffer type. |
 | `decision_logs.reporting.max_decisions_per_second` | `float64` | No                               | Maximum number of decision log events to buffer per second. OPA will drop events if the rate limit is exceeded. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set.                                                            |
@@ -886,7 +886,7 @@ Keys is a dictionary mapping the key name to the actual key and optionally the a
 | `keys[_].algorithm`   | `string` | No (default: `RS256`)               | Name of the signing algorithm.                            |
 | `keys[_].scope`       | `string` | No                                  | Scope to use for bundle signature verification.           |
 
-> Note: If the `scope` is provided in a bundle's `signing` configuration (ie. `bundles[_].signing.scope`),
+> Note: If the `scope` is provided in a bundle's `signing` configuration (i.e. `bundles[_].signing.scope`),
 > it takes precedence over `keys[_].scope`.
 
 The following signing algorithms are supported:
@@ -1045,7 +1045,7 @@ any values set in the config file.
 
 There are two options to use: `--set` and `--set-file`
 
-Both options take in a key=value format where the key is a selector for the yaml
+Both options take in a key=value format where the key is a selector for the YAML
 config structure, for example: `decision_logs.reporting.min_delay_seconds=300` is equivalent
 to JSON `{"decision_logs": {"reporting": {"min_delay_seconds": 300}}}`. Multiple values can be
 specified with comma separators (`key1=value,key2=value2,..`). Or with additional `--set`

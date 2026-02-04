@@ -44,7 +44,7 @@ The tutorial has been tested on the following platforms:
 
 - Ubuntu 20.04 (64-bit)
 
-If you are using a different distro, OS, or architecture, the steps will be the
+If you are using a different distribution, OS, or architecture, the steps will be the
 same. However, there may be slight differences in the commands you need to run.
 
 ## Steps

@@ -8,7 +8,7 @@ sidebar_position: 14
 The v1.0 release of OPA comes with functionality to run in a backwards
 compatible, v0.x mode. This is used by running OPA with the `--v0-compatible`
 flag or using the v0.x compatible options in Go integrations. When enabled, OPA
-instances and Go integrations will behave as they do in pre v1.0 releases.
+instances and Go integrations will behave as they do in OPA releases before v1.0.
 
 ### When to use v0.x compatibility mode
 
@@ -51,7 +51,7 @@ Note (*): the `check` and `fmt` commands also support the `--v0-v1` flag,
 which will check/format Rego modules as if compatible with the Rego syntax of
 _both_ the old 0.x OPA version and current OPA v1.0.
 
-Note (*): Pre v1.0 versions of OPA also support a comparable `--v1-compatible`
+Note (*): OPA versions before v1.0 also support a comparable `--v1-compatible`
 flag which can be used to produce and consume Rego v1 bundles. See
 [Upgrading to v1.0](./v0-upgrade) for more information on how to use this flag
 as part of an upgrade to OPA v1.0.

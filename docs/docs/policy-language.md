@@ -969,7 +969,7 @@ max_memory := 4 if restricted_users[user]
 <RunSnippet id="complete.rego" command="data.complete"/>
 
 OPA returns an error in this case because the rule definitions are in _conflict_.
-The value produced by max_memory cannot be 32 and 4 **at the same time**.
+The value produced by `max_memory` cannot be 32 and 4 **at the same time**.
 
 The documents produced by rules with complete definitions may still be undefined:
 
@@ -1158,7 +1158,7 @@ As `R1` is now instead defining a value within the dynamic extent of `R2`'s refe
 
 ### Functions
 
-Rego supports user-defined functions that can be called with the same semantics as [built-in functions](#built-in-functions). They have access to both the [the data document](./philosophy/#the-opa-document-model) and [the input document](./philosophy/#the-opa-document-model).
+Rego supports user-defined functions that can be called with the same semantics as [built-in functions](#built-in-functions). They have access to both [the data document](./philosophy/#the-opa-document-model) and [the input document](./philosophy/#the-opa-document-model).
 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
@@ -1900,7 +1900,7 @@ result := true if {
 
 <RunSnippet files="#imports.rego" command="data.authz.result"/>
 
-catherine is only allowed access at weekends. The following query uses `with` to
+Catherine is only allowed access at weekends. The following query uses `with` to
 test this functionality:
 
 ```rego
@@ -2074,7 +2074,7 @@ The value of a `default` function follows the same conditions as that of a `defa
 function satisfies the following properties:
 
 - same arity as other functions with the same name
-- arguments should only be plain variables ie. no composite values
+- arguments should only be plain variables i.e. no composite values
 - argument names should not be repeated
 
 :::info
@@ -2098,7 +2098,7 @@ found. Once a match is found, rule evaluation does not proceed to rules further
 in the chain.
 
 The `else` keyword is useful if you are porting policies into Rego from an
-order-sensitive system like IPTables.
+order-sensitive system like iptables.
 
 ```rego
 package else_example
@@ -2600,17 +2600,17 @@ comment block containing the YAML document is finished
 
 ### Annotations
 
-| Name              | Type                                                        | Description                                                                                                                                            |
-| ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more in the [Metadata Scope section below](#metadata-scope).                                            |
-| title             | string                                                      | A human-readable name for the annotation target. Read more in the [Metadata Title section below](#metadata-title).                                     |
-| description       | string                                                      | A description of the annotation target. Read more in the [Metadata Description section below](#metadata-description).                                  |
-| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more in the [Metadata Related Resources section below](#metadata-related_resources).  |
-| authors           | list of strings                                             | A list of authors for the annotation target. Read more in the [Metadata Authors section below](#metadata-authors).                                     |
-| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).            |
-| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).               |
-| entrypoint        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint). |
-| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                       |
+| Name                | Type                                                        | Description                                                                                                                                            |
+| ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| scope               | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more in the [Metadata Scope section below](#metadata-scope).                                            |
+| `title`             | string                                                      | A human-readable name for the annotation target. Read more in the [Metadata Title section below](#metadata-title).                                     |
+| `description`       | string                                                      | A description of the annotation target. Read more in the [Metadata Description section below](#metadata-description).                                  |
+| `related_resources` | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more in the [Metadata Related Resources section below](#metadata-related_resources).  |
+| `authors`           | list of strings                                             | A list of authors for the annotation target. Read more in the [Metadata Authors section below](#metadata-authors).                                     |
+| `organizations`     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).            |
+| `schemas`           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).               |
+| `entrypoint`        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint). |
+| `custom`            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                       |
 
 ### Metadata `Scope`
 

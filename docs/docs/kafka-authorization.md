@@ -14,7 +14,7 @@ topics. In this tutorial you will use OPA to define and enforce an
 authorization policy stating:
 
 - Consumers of topics containing Personally Identifiable Information (PII) must be on allow list.
-- Producers to topics with _high fanout_ must be on allow list.
+- Producers to topics with _high fan-out_ must be on allow list.
 
 In addition, this tutorial shows how to break up a policy with small helper
 rules to reuse logic and improve overall readability.
@@ -428,7 +428,7 @@ Not authorized to read from topic credit-scores.
 Processed a total of 0 messages
 ```
 
-### 4. Extend the policy to prevent services from accidentally writing to topics with large fanout
+### 4. Extend the policy to prevent services from accidentally writing to topics with large fan-out
 
 First, add the following content to the policy file (`./policies/tutorial.rego`):
 
@@ -455,7 +455,7 @@ producer_is_allowlisted_for_large_fanout if {
 ```
 
 Next, update the `topic_metadata` data structure in the same file to indicate
-that the `click-stream` topic has a high fanout.
+that the `click-stream` topic has a high fan-out.
 
 ```rego
 topic_metadata := {
@@ -474,7 +474,7 @@ Last, build a bundle from the updated policy.
 opa build --bundle policies/ --output bundles/bundle.tar.gz
 ```
 
-### 5. Exercise the policy that restricts producer access to topics with high fanout
+### 5. Exercise the policy that restricts producer access to topics with high fan-out
 
 First, run `kafka-console-producer` and simulate a service with access to the
 `click-stream` topic.
@@ -496,7 +496,7 @@ docker run -v $(pwd)/cert/client:/tmp/client --rm --network opa-kafka-tutorial_d
 Once you see the 10 messages produced by the first part of this step, exit the console consumer (^C).
 
 Lastly, run `kafka-console-producer` to simulate a service that should **not**
-have access to _high fanout_ topics.
+have access to _high fan-out_ topics.
 
 ```bash
 docker run -v $(pwd)/cert/client:/tmp/client --rm --network opa-kafka-tutorial_default \
@@ -504,7 +504,7 @@ docker run -v $(pwd)/cert/client:/tmp/client --rm --network opa-kafka-tutorial_d
     bash -c 'echo "{\"user\": \"alice\", \"button\": \"bogus\"}" | kafka-console-producer --topic click-stream --broker-list broker:9093 -producer.config /tmp/client/anon_producer.properties'
 ```
 
-Because `anon_producer` is not authorized to write to high fanout topics, the
+Because `anon_producer` is not authorized to write to high fan-out topics, the
 request will be denied and the producer will output an error message.
 
 ```

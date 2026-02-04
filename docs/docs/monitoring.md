@@ -16,7 +16,7 @@ attribute `opa.decision_id` of the evaluation's decision ID _if_ the server
 has decision logging enabled.
 
 See [the configuration documentation](./configuration/#distributed-tracing)
-for all OpenTelemetry-related configurables.
+for all OpenTelemetry-related configurable options.
 
 ## Prometheus
 

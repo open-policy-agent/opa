@@ -131,4 +131,4 @@ opa run -s https://example.com/bundles/bundle.tar.gz
 ```
 
 If you need to configure the OPA instance with other options, you can use a config file to
-make more detailed configurations. Read more in the [Configuration documentation](./configuration) documentation.
+make more detailed configurations. Read more in the [Configuration documentation](./configuration).

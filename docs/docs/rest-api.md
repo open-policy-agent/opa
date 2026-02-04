@@ -8,7 +8,7 @@ groups:
 
 - [Policy API](#policy-api) - manage policy loaded into the OPA instance.
 - [Data API](#data-api) - evaluate rules and retrieve data.
-- [Query API](#query-api) - execute adhoc queries.
+- [Query API](#query-api) - execute ad hoc queries.
 - [Compile API](#compile-api) - access Rego's [Partial Evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) and data filtering functionality.
 - [Health API](#health-api) - access instance operational health information.
 - [Config API](#config-api) - view instance configuration.
@@ -39,7 +39,7 @@ It indicates the request body format. These are some values used in some APIs:
 
 #### Accept-Encoding
 
-It could have `gzip` value which indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the [configuration section](./configuration/#server).
+It could have `gzip` value which indicates the server should respond with a Gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the [configuration section](./configuration/#server).
 
 #### Content-Encoding
 
@@ -803,12 +803,12 @@ case, the response will not contain a `result` property.
 
 #### Response Message
 
-- **result** - The base or virtual document referred to by the URL path. If the
+- `result` - The base or virtual document referred to by the URL path. If the
   path is undefined, this key will be omitted.
-- **metrics** - If query metrics are enabled, this field contains query
+- `metrics` - If query metrics are enabled, this field contains query
   performance metrics collected during the parse, compile, and evaluation steps.
 
-- **decision_id** - If decision logging is enabled, this field contains a string
+- `decision_id` - If decision logging is enabled, this field contains a string
   that uniquely identifies the decision. The identifier will be included in the
   decision log event for this decision. Callers can use the identifier for
   correlation purposes.
@@ -904,12 +904,12 @@ case, the response will not contain a `result` property.
 
 #### Response Message
 
-- **result** - The base or virtual document referred to by the URL path. If the
+- `result` - The base or virtual document referred to by the URL path. If the
   path is undefined, this key will be omitted.
-- **metrics** - If query metrics are enabled, this field contains query
+- `metrics` - If query metrics are enabled, this field contains query
   performance metrics collected during the parse, compile, and evaluation steps.
 
-- **decision_id** - If decision logging is enabled, this field contains a string
+- `decision_id` - If decision logging is enabled, this field contains a string
   that uniquely identifies the decision. The identifier will be included in the
   decision log event for this decision. Callers can use the identifier for
   correlation purposes.
@@ -1269,9 +1269,9 @@ Content-Type: application/json
 "hello, alice"
 ```
 
-### Execute an Ad-hoc Query
+### Execute an Ad hoc Query
 
-Execute an ad-hoc query and return bindings for variables found in the query.
+Execute an ad hoc query and return bindings for variables found in the query.
 
 ```
 GET /v1/query
@@ -1279,7 +1279,7 @@ GET /v1/query
 
 #### Query Parameters
 
-- **q** - The ad-hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded. Only used in GET method. For POST method the query is sent as part of the request body and this parameter is not used.
+- **q** - The ad hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded. Only used in GET method. For POST method the query is sent as part of the request body and this parameter is not used.
 - **pretty** - If parameter is `true`, response will be formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **notes**, **fails**, **full**, **debug**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
@@ -1358,7 +1358,7 @@ on the OPA blog shows how SQL can be generated based on Compile API output.
 For more details on Partial Evaluation in OPA, please refer to
 [this blog post](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422).
 
-Note that nondeterminstic builtins (like `http.send`) are _not evaluated_ during PE.
+Note that non-determinstic builtins (like `http.send`) are _not evaluated_ during PE.
 You can change that by providing `nondeterminsticBuiltins: true` in your payload options.
 This would be desirable when using PE for generating filters using extra information
 from `http.send`.
@@ -1608,7 +1608,7 @@ The following table summarizes the behavior for partial evaluation results.
 
 > The partially evaluated queries are represented as strings in the table above. The actual API response contains the JSON AST representation.
 
-### Compling a Rego policy (and query) into data filters
+### Compiling a Rego policy (and query) into data filters
 
 ```http
 POST /v1/compile/{path:.+}
@@ -1763,7 +1763,7 @@ Accept: application/vnd.opa.sql.postgresql+json
 }
 ```
 
-For multi-target requests, per-target replacementes are possible, since the SQL table names might not match what you need for a UCAST consumer library.
+For multi-target requests, per-target replacements are possible, since the SQL table names might not match what you need for a UCAST consumer library.
 
 ## Health API
 
@@ -2182,12 +2182,12 @@ When the `explain` query parameter is set to anything except `off`, the response
 
 Trace Event objects contain the following fields:
 
-- **op** - identifies the kind of Trace Event. Values: **"Enter"**, **"Exit"**, **"Eval"**, **"Fail"**, **"Redo"**.
-- **query_id** - uniquely identifies the query that the Trace Event was emitted for.
-- **parent_id** - identifies the parent query.
-- **type** - indicates the type of the **node** field. Values: **"expr"**, **"rule"**, **"body"**.
-- **node** - contains the AST element associated with the evaluation step.
-- **locals** - contains the term bindings from the query at the time when the Trace Event was emitted.
+- `op` - identifies the kind of Trace Event. Values: `Enter`, `Exit`, `Eval`, `Fail`, `Redo`.
+- `query_id` - uniquely identifies the query that the Trace Event was emitted for.
+- `parent_id` - identifies the parent query.
+- `type` - indicates the type of the **node** field. Values: `expr`, `rule`, `body`.
+- `node` - contains the AST element associated with the evaluation step.
+- `locals` - contains the term bindings from the query at the time when the Trace Event was emitted.
 
 #### Query IDs
 
@@ -2195,14 +2195,14 @@ Queries often reference rules or contain comprehensions. In both cases, query
 evaluation involves evaluation of one or more other queries, e.g., the body of
 the rule or comprehension.
 
-Trace Events from different queries can be distinguished by the **query_id**
+Trace Events from different queries can be distinguished by the `query_id`
 field.
 
-Trace Events from related queries can be identified by the **parent_id** field.
+Trace Events from related queries can be identified by the `parent_id` field.
 
 For example, if query A references a rule R, Trace Events emitted as part of
-evaluating rule R's body will have the **parent_id** field set to query A's
-**query_id**.
+evaluating rule R's body will have the `parent_id` field set to query A's
+`query_id`.
 
 #### Types of Events
 
@@ -2304,14 +2304,14 @@ Content-Type: application/json
 
 OPA currently supports the following query performance metrics:
 
-- **timer_rego_input_parse_ns**: time taken (in nanoseconds) to parse the input
-- **timer_rego_query_parse_ns**: time taken (in nanoseconds) to parse the query.
-- **timer_rego_query_compile_ns**: time taken (in nanoseconds) to compile the query.
-- **timer_rego_query_eval_ns**: time taken (in nanoseconds) to evaluate the query.
-- **timer_rego_module_parse_ns**: time taken (in nanoseconds) to parse the input policy module.
-- **timer_rego_module_compile_ns**: time taken (in nanoseconds) to compile the loaded policy modules.
-- **timer_server_handler_ns**: time take (in nanoseconds) to handle the API request.
-- **counter_server_query_cache_hit**: number of cache hits for the query.
+- `timer_rego_input_parse_ns`: time taken (in nanoseconds) to parse the input
+- `timer_rego_query_parse_ns`: time taken (in nanoseconds) to parse the query.
+- `timer_rego_query_compile_ns`: time taken (in nanoseconds) to compile the query.
+- `timer_rego_query_eval_ns`: time taken (in nanoseconds) to evaluate the query.
+- `timer_rego_module_parse_ns`: time taken (in nanoseconds) to parse the input policy module.
+- `timer_rego_module_compile_ns`: time taken (in nanoseconds) to compile the loaded policy modules.
+- `timer_server_handler_ns`: time take (in nanoseconds) to handle the API request.
+- `counter_server_query_cache_hit`: number of cache hits for the query.
 
 The `counter_server_query_cache_hit` counter gives an indication about whether OPA creates a new Rego query
 or it uses a pre-processed query which holds some prepared state to serve the API request. A pre-processed query will be
@@ -2370,13 +2370,13 @@ Content-Type: application/json
 
 OPA currently supports the following query provenance information:
 
-- **version**: The version of this OPA instance.
-- **build_commit**: The git commit id of this OPA build.
-- **build_timestamp**: The timestamp when this instance was built.
-- **build_host**: The hostname where this instance was built.
-- **revision**: (Deprecated) The _revision_ string included in a .manifest file (if present) within
+- `version`: The version of this OPA instance.
+- `build_commit`: The git commit id of this OPA build.
+- `build_timestamp`: The timestamp when this instance was built.
+- `build_host`: The hostname where this instance was built.
+- `revision`: (Deprecated) The _revision_ string included in a .manifest file (if present) within
   a bundle. Omitted when `bundles` are configured.
-- **bundles**: A set of key-value pairs describing each bundle activated on the server. Includes
+- `bundles`: A set of key-value pairs describing each bundle activated on the server. Includes
   the `revision` field which is the _revision_ string included in a .manifest file (if present)
   within a bundle
 

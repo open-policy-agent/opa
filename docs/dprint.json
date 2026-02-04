@@ -10,7 +10,8 @@
     "**/package-lock.json",
     "**/regal/**",
     "**/style-guide.md",
-    "**/cheatsheet.md"
+    "**/cheatsheet.md",
+    "src/data/cli.json"
   ],
   "plugins": [
     "https://plugins.dprint.dev/markdown-0.17.8.wasm",

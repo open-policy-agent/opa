@@ -3,7 +3,7 @@ sidebar_label: "unexpected string token"
 image: /img/opa-errors.png
 ---
 
-# rego_parse_error: unexpected string token
+# `rego_parse_error`: unexpected string token
 
 This parser error is raised when the Rego parser encounters an unexpected string token. This is typically
 caused by a missing keyword or operator.

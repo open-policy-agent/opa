@@ -22,7 +22,7 @@ OPA runtime, see the [Adding Built-in Functions to the OPA Runtime](#adding-buil
 
 OPA supports built-in functions for simple operations like string manipulation
 and arithmetic as well as more complex operations like JWT verification and
-executing HTTP requests. If you need to to extend OPA with custom built-in
+executing HTTP requests. If you need to extend OPA with custom built-in
 functions for use cases or integrations that are not supported out-of-the-box
 you can supply the function definitions when you prepare queries.
 
