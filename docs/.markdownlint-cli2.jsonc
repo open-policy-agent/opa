@@ -1,0 +1,41 @@
+{
+  // Configuration for markdownlint-cli2
+  "config": {
+    // Use default rules with some exceptions
+    "default": true,
+    // Allow inline HTML (common in documentation)
+    "MD033": false,
+    // Allow long lines (code blocks and tables can be long)
+    "MD013": false,
+    // Allow multiple headers with the same content (Docusaurus indexes duplicates for us)
+    "MD024": false,
+    // Allow emphasis as heading
+    "MD036": false,
+    // Allow fenced code blocks without blank lines around them
+    "MD031": false,
+    // Allow fenced code blocks without language specified
+    "MD040": false,
+    // Configure hard tabs to convert to 2 spaces
+    "MD010": {
+      "spaces_per_tab": 2
+    },
+    // Configure MD025 to ignore frontmatter titles
+    "MD025": {
+      "front_matter_title": ""
+    }
+  },
+  "globs": [
+    "**/*.md"
+  ],
+  "ignores": [
+    "node_modules",
+    "build",
+    ".docusaurus",
+    // Imported from other repos, should not be checked
+    "projects/regal",
+    "docs/cheatsheet.md",
+    "docs/style-guide.md",
+    // Auto-generated, should not be checked
+    "docs/cli.md"
+  ]
+}
