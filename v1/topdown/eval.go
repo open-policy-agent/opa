@@ -222,17 +222,7 @@ func (e *eval) closure(query ast.Body, cpy *eval) {
 	cpy.findOne = false
 }
 
-func (e *eval) child(query ast.Body, cpy *eval) {
-	*cpy = *e
-	cpy.index = 0
-	cpy.query = query
-	cpy.queryID = cpy.queryIDFact.Next()
-	cpy.bindings = newBindings(cpy.queryID, e.instr)
-	cpy.parent = e
-	cpy.findOne = false
-}
-
-// childWithBindingSizeHint is like child but creates bindings pre-sized for the expected number of variables.
+// childWithBindingSizeHint creates a child evaluator with bindings pre-sized for the expected number of variables.
 // This reduces memory waste when evaluating functions or rules with known argument counts.
 func (e *eval) childWithBindingSizeHint(query ast.Body, cpy *eval, sizeHint int) {
 	*cpy = *e
