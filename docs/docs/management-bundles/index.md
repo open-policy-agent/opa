@@ -502,14 +502,16 @@ or `opa sign --help` for more details.
 
 The following hashing algorithms are supported:
 
-    MD5
-    SHA-1
-    SHA-224
-    SHA-256
-    SHA-384
-    SHA-512
-    SHA-512-224
-    SHA-512-256
+```txt
+MD5
+SHA-1
+SHA-224
+SHA-256
+SHA-384
+SHA-512
+SHA-512-224
+SHA-512-25
+```
 
 To calculate the digest for unstructured files (ie. all files except JSON or YAML files), apply the hash
 function to the byte stream of the file.
