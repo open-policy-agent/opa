@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD041 -->
+
 This example shows how to use `crypto.md5` to verify payload integrity by computing a digest of the JSON representation and comparing it with an expected value.
 
 Content verification is helpful where you need to ensure data hasn't been tampered with or missed during transmission. The digest acts as a fingerprint - any change to the payload will result in a different digest.

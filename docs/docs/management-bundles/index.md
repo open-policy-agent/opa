@@ -814,32 +814,32 @@ Below are steps to use OpenID connect provider and kubernetes.
 ```
 
 1. Create the kubernetes service account.
-    ```yaml
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      annotations:
-        eks.amazonaws.com/role-arn: <the ARN of the IAM role from your account, e.g. arn:aws:iam::<aws_account eg, 123456789012>:role/app_dev_role>
-      name: <service account name, e.g. app-dev-service-account>
-      namespace: <k8 namespace, e.g. app-dev>
-    automountServiceAccountToken: false
-    ```
+   ```yaml
+   apiVersion: v1
+   kind: ServiceAccount
+   metadata:
+     annotations:
+       eks.amazonaws.com/role-arn: <the ARN of the IAM role from your account, e.g. arn:aws:iam::<aws_account eg, 123456789012>:role/app_dev_role>
+     name: <service account name, e.g. app-dev-service-account>
+     namespace: <k8 namespace, e.g. app-dev>
+   automountServiceAccountToken: false
+   ```
 2. Configure your kubernetes resources to use this service account.
-    ```yaml
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      ******
-    spec:
-      ******
-      template:
-        *******
-        spec:
-          serviceAccountName: app-dev-service-account # <--- like this
-          automountServiceAccountToken: true
-          containers:
-          ******
-    ```
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     ******
+   spec:
+     ******
+     template:
+       *******
+       spec:
+         serviceAccountName: app-dev-service-account # <--- like this
+         automountServiceAccountToken: true
+         containers:
+         ******
+   ```
 
 You should now be able to access AWS services from your kubernetes cluster.
 

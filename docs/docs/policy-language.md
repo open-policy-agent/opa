@@ -2600,17 +2600,17 @@ comment block containing the YAML document is finished
 
 ### Annotations
 
-| Name              | Type                                                        | Description                                                                                                        |
-| ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more in the [Metadata Scope section below](#metadata-scope).                                       |
-| title             | string                                                      | A human-readable name for the annotation target. Read more in the [Metadata Title section below](#metadata-title).                                |
-| description       | string                                                      | A description of the annotation target. Read more in the [Metadata Description section below](#metadata-description).                                   |
-| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more in the [Metadata Related Resources section below](#metadata-related_resources).         |
-| authors           | list of strings                                             | A list of authors for the annotation target. Read more in the [Metadata Authors section below](#metadata-authors).                                  |
-| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).               |
-| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).            |
+| Name              | Type                                                        | Description                                                                                                                                            |
+| ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more in the [Metadata Scope section below](#metadata-scope).                                            |
+| title             | string                                                      | A human-readable name for the annotation target. Read more in the [Metadata Title section below](#metadata-title).                                     |
+| description       | string                                                      | A description of the annotation target. Read more in the [Metadata Description section below](#metadata-description).                                  |
+| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more in the [Metadata Related Resources section below](#metadata-related_resources).  |
+| authors           | list of strings                                             | A list of authors for the annotation target. Read more in the [Metadata Authors section below](#metadata-authors).                                     |
+| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).            |
+| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).               |
 | entrypoint        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint). |
-| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                   |
+| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                       |
 
 ### Metadata `Scope`
 
