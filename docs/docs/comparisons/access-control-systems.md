@@ -121,19 +121,19 @@ statements above.)
 ```rego
 # Pairs of roles that no user can be assigned to simultaneously
 sod_roles := [
-  ["create-payment", "approve-payment"],
-  ["create-vendor", "pay-vendor"],
+    ["create-payment", "approve-payment"],
+    ["create-vendor", "pay-vendor"],
 ]
 
 # Find all users violating SOD
 sod_violation contains user if {
-  some user
-  # grab one role for a user
-  role1 := user_roles[user][_]
-  # grab another role for that same user
-  role2 := user_roles[user][_]
-  # check if those roles are forbidden by SOD
-  sod_roles[_] == [role1, role2]
+    some user
+    # grab one role for a user
+    role1 := user_roles[user][_]
+    # grab another role for that same user
+    role2 := user_roles[user][_]
+    # check if those roles are forbidden by SOD
+    sod_roles[_] == [role1, role2]
 }
 ```
 
@@ -182,42 +182,42 @@ package abac
 
 # User attributes
 user_attributes := {
-  "alice": {"tenure": 15, "title": "trader"},
-  "bob": {"tenure": 5, "title": "analyst"},
+    "alice": {"tenure": 15, "title": "trader"},
+    "bob": {"tenure": 5, "title": "analyst"},
 }
 
 # Stock attributes
 ticker_attributes := {
-  "MSFT": {"exchange": "NASDAQ", "price": 59.20},
-  "AMZN": {"exchange": "NASDAQ", "price": 813.64},
+    "MSFT": {"exchange": "NASDAQ", "price": 59.20},
+    "AMZN": {"exchange": "NASDAQ", "price": 813.64},
 }
 
 default allow := false
 
 # all traders may buy NASDAQ under $2M
 allow if {
-  # lookup the user's attributes
-  user := user_attributes[input.user]
-  # check that the user is a trader
-  user.title == "trader"
-  # check that the stock being purchased is sold on the NASDAQ
-  ticker_attributes[input.ticker].exchange == "NASDAQ"
-  # check that the purchase amount is under $2M
-  input.amount <= 2000000
+    # lookup the user's attributes
+    user := user_attributes[input.user]
+    # check that the user is a trader
+    user.title == "trader"
+    # check that the stock being purchased is sold on the NASDAQ
+    ticker_attributes[input.ticker].exchange == "NASDAQ"
+    # check that the purchase amount is under $2M
+    input.amount <= 2000000
 }
 
 # traders with 10+ years experience may buy NASDAQ under $5M
 allow if {
-  # lookup the user's attributes
-  user := user_attributes[input.user]
-  # check that the user is a trader
-  user.title == "trader"
-  # check that the stock being purchased is sold on the NASDAQ
-  ticker_attributes[input.ticker].exchange == "NASDAQ"
-  # check that the user has at least 10 years of experience
-  user.tenure > 10
-  # check that the purchase amount is under $5M
-  input.amount <= 5000000
+    # lookup the user's attributes
+    user := user_attributes[input.user]
+    # check that the user is a trader
+    user.title == "trader"
+    # check that the stock being purchased is sold on the NASDAQ
+    ticker_attributes[input.ticker].exchange == "NASDAQ"
+    # check that the user has at least 10 years of experience
+    user.tenure > 10
+    # check that the purchase amount is under $5M
+    input.amount <= 5000000
 }
 ```
 
@@ -292,46 +292,46 @@ default allow := false
 
 # FirstStatement
 allow if {
-  principals_match
-  input.action == "iam:ChangePassword"
+    principals_match
+    input.action == "iam:ChangePassword"
 }
 
 # SecondStatement
 allow if {
-  principals_match
-  input.action == "s3:ListAllMyBuckets"
+    principals_match
+    input.action == "s3:ListAllMyBuckets"
 }
 
 # ThirdStatement
 #  Use helpers to handle implicit OR in the AWS policy.
 #  Below all of the 'principals_match', 'actions_match' and 'resources_match' must be true.
 allow if {
-  principals_match
-  actions_match
-  resources_match
+    principals_match
+    actions_match
+    resources_match
 }
 
 # principals_match is true if input.principal matches
 principals_match if {
-  input.principal == "alice"
+    input.principal == "alice"
 }
 
 # actions_match is true if input.action matches one in the list
 actions_match if {
-  # iterate over the actions in the list
-  actions := ["s3:List.*", "s3:Get.*"]
-  action := actions[_]
-  # check if input.action matches an action
-  regex.globs_match(input.action, action)
+    # iterate over the actions in the list
+    actions := ["s3:List.*", "s3:Get.*"]
+    action := actions[_]
+    # check if input.action matches an action
+    regex.globs_match(input.action, action)
 }
 
 # resources_match is true if input.resource matches one in the list
 resources_match if {
-  # iterate over the resources in the list
-  resources := ["arn:aws:s3:::confidential-data", "arn:aws:s3:::confidential-data/.*"]
-  resource := resources[_]
-  # check if input.resource matches a resource
-  regex.globs_match(input.resource, resource)
+    # iterate over the resources in the list
+    resources := ["arn:aws:s3:::confidential-data", "arn:aws:s3:::confidential-data/.*"]
+    resource := resources[_]
+    # check if input.resource matches a resource
+    regex.globs_match(input.resource, resource)
 }
 ```
 

@@ -188,17 +188,17 @@ package docker.authz
 default allow := false
 
 allow if {
-  not deny
+    not deny
 }
 
 deny if {
-  seccomp_unconfined
+    seccomp_unconfined
 }
 
 seccomp_unconfined if {
-  # This expression asserts that the string on the right-hand side is equal
-  # to an element in the array SecurityOpt referenced on the left-hand side.
-  input.Body.HostConfig.SecurityOpt[_] == "seccomp:unconfined"
+    # This expression asserts that the string on the right-hand side is equal
+    # to an element in the array SecurityOpt referenced on the left-hand side.
+    input.Body.HostConfig.SecurityOpt[_] == "seccomp:unconfined"
 }
 ```
 
@@ -396,23 +396,23 @@ default allow := false
 
 # allow if the user is granted read/write access.
 allow if {
-  user_id := input.Headers["Authz-User"]
-  user := users[user_id]
-  not user.readOnly
+    user_id := input.Headers["Authz-User"]
+    user := users[user_id]
+    not user.readOnly
 }
 
 # allow if the user is granted read-only access and the request is a GET.
 allow if {
-  user_id := input.Headers["Authz-User"]
-  users[user_id].readOnly
-  input.Method == "GET"
+    user_id := input.Headers["Authz-User"]
+    users[user_id].readOnly
+    input.Method == "GET"
 }
 
 # users defines permissions for the user. In this case, we define a single
 # attribute 'readOnly' that controls the kinds of commands the user can run.
 users := {
-  "bob": {"readOnly": true},
-  "alice": {"readOnly": false},
+    "bob": {"readOnly": true},
+    "alice": {"readOnly": false},
 }
 ```
 

@@ -702,11 +702,11 @@ import data.ports
 import data.servers
 
 public_servers contains server if {
-  some k, m
-  server := servers[_]
-  server.ports[_] == ports[k].id
-  ports[k].networks[_] == networks[m].id
-  networks[m].public == true
+    some k, m
+    server := servers[_]
+    server.ports[_] == ports[k].id
+    ports[k].networks[_] == networks[m].id
+    networks[m].public == true
 }
 ```
 
@@ -1241,7 +1241,7 @@ Content-Type: text/plain
 package system
 
 main := msg if {
-  msg := sprintf("hello, %v", [input.user])
+    msg := sprintf("hello, %v", [input.user])
 }
 ```
 
@@ -1399,7 +1399,7 @@ The example below assumes that OPA has been given the following policy:
 package example
 
 allow if {
-  input.subject.clearance_level >= data.reports[_].clearance_level
+    input.subject.clearance_level >= data.reports[_].clearance_level
 }
 ```
 
@@ -1494,11 +1494,11 @@ For example, if you extend the policy above to include a "break glass" condition
 package example
 
 allow if {
-  input.subject.clearance_level >= data.reports[_].clearance_level
+    input.subject.clearance_level >= data.reports[_].clearance_level
 }
 
 allow if {
-  data.break_glass = true
+    data.break_glass = true
 }
 ```
 
@@ -1572,8 +1572,8 @@ exception:
 package example
 
 allow if {
-  input.subject.clearance_level >= data.reports[_].clearance_level
-  exceptions[input.subject.name]
+    input.subject.clearance_level >= data.reports[_].clearance_level
+    exceptions[input.subject.name]
 }
 
 exceptions contains "bob"
@@ -1664,8 +1664,8 @@ package filters
 include if input.fruits.name == input.favorite
 
 include if {
-  input.fruits.name == "apple"
-  not input.favorite
+    input.fruits.name == "apple"
+    not input.favorite
 }
 ```
 
@@ -1879,7 +1879,7 @@ default ready := false
 
 # opa is ready once all plugins have reported OK at least once
 ready if {
-  input.plugins_ready
+    input.plugins_ready
 }
 ```
 
@@ -1896,8 +1896,8 @@ default ready := false
 # opa is ready once all plugins have reported OK at least once AND
 # the bundle plugin is currently in an OK state
 ready if {
-  input.plugins_ready
-  input.plugin_state.bundle == "OK"
+    input.plugins_ready
+    input.plugin_state.bundle == "OK"
 }
 ```
 

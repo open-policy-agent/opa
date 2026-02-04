@@ -24,8 +24,8 @@ package policy
 import rego.v1
 
 deny if {
-  input.roles == {}}
-  input.user != "admin"
+    input.roles == {}}
+    input.user != "admin"
 }
 ```
 
@@ -33,8 +33,8 @@ The code above will raise the following error:
 
 ```txt
 1 error occurred: policy.rego:8: rego_parse_error: unexpected } token
-  }
-  ^
+    }
+    ^
 ```
 
 The parser error is pointing to the later `}` token, which in this case is not the issue.

@@ -438,7 +438,7 @@ deny contains msg if {
 
 deny contains msg if {
   some stackname
-  some msg in data.pipelines.stacks[stackname].deny
+    some msg in data.pipelines.stacks[stackname].deny
 }
 ```
 

@@ -87,18 +87,18 @@ referring to illegal registries:
 package kubernetes.admission
 
 deny contains reason if {
-  some container
-  input_containers[container]
-  not startswith(container.image, "hooli.com/")
-  reason := "container image refers to illegal registry (must be hooli.com)"
+    some container
+    input_containers[container]
+    not startswith(container.image, "hooli.com/")
+    reason := "container image refers to illegal registry (must be hooli.com)"
 }
 
 input_containers contains container if {
-  container := input.request.object.spec.containers[_]
+    container := input.request.object.spec.containers[_]
 }
 
 input_containers contains container if {
-  container := input.request.object.spec.template.spec.containers[_]
+    container := input.request.object.spec.template.spec.containers[_]
 }
 ```
 

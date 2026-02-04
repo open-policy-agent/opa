@@ -23,8 +23,8 @@ package policy
 import rego.v1
 
 obj := {k: v |
-  k := "foo"
-  some v in [1, 2]
+    k := "foo"
+    some v in [1, 2]
 }
 ```
 
@@ -37,8 +37,8 @@ package policy
 import rego.v1
 
 obj_rule[k] := v if {
-  k := "foo"
-  some v in [1, 2]
+    k := "foo"
+    some v in [1, 2]
 }
 ```
 
@@ -53,12 +53,12 @@ package policy
 import rego.v1
 
 deny[input.document] := msg if {
-  doc := data.documents[input.document]
-  some permission in input.permissions
+    doc := data.documents[input.document]
+    some permission in input.permissions
 
-  not permission in doc.permissions[input.user]
+    not permission in doc.permissions[input.user]
 
-  msg := sprintf("missing %s permission", [permission])
+    msg := sprintf("missing %s permission", [permission])
 }
 ```
 
@@ -155,14 +155,14 @@ package policy
 import rego.v1
 
 deny contains msg if {
-  some action in input.actions
-  doc := data.documents[action.document]
+    some action in input.actions
+    doc := data.documents[action.document]
 
-  some permission in action.permissions
+    some permission in action.permissions
 
-  not permission in doc.permissions[input.user]
+    not permission in doc.permissions[input.user]
 
-  msg := sprintf("missing %s permission for document %s", [permission, action.document])
+    msg := sprintf("missing %s permission for document %s", [permission, action.document])
 }
 ```
 

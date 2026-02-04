@@ -147,9 +147,9 @@ patches := [
 package system
 
 main := {
-  "apiVersion": "admission.k8s.io/v1",
-  "kind": "AdmissionReview",
-  "response": response,
+    "apiVersion": "admission.k8s.io/v1",
+    "kind": "AdmissionReview",
+    "response": response,
 }
 
 response := {

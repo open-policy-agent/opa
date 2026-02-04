@@ -22,7 +22,7 @@ package policy
 import rego.v1
 
 allow if {
-  input.admin true
+    input.admin true
 }
 ```
 
@@ -30,8 +30,8 @@ The code above will raise the following error showing the location of the unexpe
 
 ```txt
 1 error occurred: policy.rego:6: rego_parse_error: unexpected true keyword: expected \n or ; or }
-  input.admin true
-              ^
+    input.admin true
+                ^
 ```
 
 Another example of the same error can be seen in this code, where a policy has been written
@@ -43,7 +43,7 @@ package policy
 import rego.v1
 
 allow if {
-  input.admin else "admin" in input.roles
+    input.admin else "admin" in input.roles
 }
 ```
 

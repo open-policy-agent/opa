@@ -83,64 +83,64 @@ query_ast := graphql.parse(input.query, input.schema)[0] # If validation fails, 
 default allow := false
 
 allow if {
-  employeeByIDQueries != {}
-  every query in employeeByIDQueries {
-    allowed_query(query)
-  }
+    employeeByIDQueries != {}
+    every query in employeeByIDQueries {
+        allowed_query(query)
+    }
 }
 
 # Allow users to see the salaries of their subordinates. (variable case)
 allowed_query(q) if {
-  selected_salary(q)
-  varname := variable_arg(q, "id")
-  input.variables[varname] in subordinates[input.user] # Do value lookup from the 'variables' object.
+    selected_salary(q)
+    varname := variable_arg(q, "id")
+    input.variables[varname] in subordinates[input.user] # Do value lookup from the 'variables' object.
 }
 
 # Allow users to see the salaries of their subordinates. (constant value case)
 allowed_query(q) if {
-  selected_salary(q)
-  username := constant_string_arg(q, "id")
-  username in subordinates[input.user]
+    selected_salary(q)
+    username := constant_string_arg(q, "id")
+    username in subordinates[input.user]
 }
 
 # Helper rules.
 
 # Allow users to get their own salaries. (variable case)
 allowed_query(q) if {
-  selected_salary(q)
-  varname := variable_arg(q, "id")
-  input.user == input.variables[varname] # Do value lookup from the 'variables' object.
+    selected_salary(q)
+    varname := variable_arg(q, "id")
+    input.user == input.variables[varname] # Do value lookup from the 'variables' object.
 }
 
 # Allow users to get their own salaries. (constant value case)
 allowed_query(q) if {
-  selected_salary(q)
-  username := constant_string_arg(q, "id")
-  input.user == username
+    selected_salary(q)
+    username := constant_string_arg(q, "id")
+    input.user == username
 }
 
 # Helper functions.
 
 # Build up an object with all queries of interest as values.
 employeeByIDQueries contains value if {
-  some value
-  walk(query_ast, [_, value])
-  value.Name == "employeeByID"
-  count(value.SelectionSet) > 0 # Ensure we latch onto an employeeByID query.
+    some value
+    walk(query_ast, [_, value])
+    value.Name == "employeeByID"
+    count(value.SelectionSet) > 0 # Ensure we latch onto an employeeByID query.
 }
 
 # Extract the string value of a constant value argument.
 constant_string_arg(value, argname) := arg.Value.Raw if {
-  some arg in value.Arguments
-  arg.Name == argname
-  arg.Value.Kind == 3
+    some arg in value.Arguments
+    arg.Name == argname
+    arg.Value.Kind == 3
 }
 
 # Extract the variable name for a variable argument.
 variable_arg(value, argname) := arg.Value.Raw if {
-  some arg in value.Arguments
-  arg.Name == argname
-  arg.Value.Kind == 0
+    some arg in value.Arguments
+    arg.Name == argname
+    arg.Value.Kind == 0
 }
 
 # Ensure we're dealing with a selection set that includes the "salary" field.
@@ -309,8 +309,8 @@ package graphqlapi.authz
 
 # Allow HR members to get anyone's salary.
 allowed_query(q) if {
-  selected_salary(q)
-  input.user == hr[_]
+    selected_salary(q)
+    input.user == hr[_]
 }
 
 # David is the only member of HR.
@@ -355,60 +355,60 @@ query_ast := graphql.parse(input.query, input.schema)[0] # If validation fails, 
 
 # Allow users to see the salaries of their subordinates. (variable case)
 allowed_query(q) if {
-  selected_salary(q)
-  varname := variable_arg(q, "id")
-  input.variables[varname] in token.payload.subordinates # Do value lookup from the 'variables' object.
+    selected_salary(q)
+    varname := variable_arg(q, "id")
+    input.variables[varname] in token.payload.subordinates # Do value lookup from the 'variables' object.
 }
 
 # Allow users to see the salaries of their subordinates. (constant value case)
 allowed_query(q) if {
-  selected_salary(q)
-  username := constant_string_arg(q, "id")
-  username in token.payload.subordinates
+    selected_salary(q)
+    username := constant_string_arg(q, "id")
+    username in token.payload.subordinates
 }
 
 # Allow users to get their own salaries. (variable case)
 allowed_query(q) if {
-  selected_salary(q)
-  varname := variable_arg(q, "id")
-  token.payload.user == input.variables[varname] # Do value lookup from the 'variables' object.
+    selected_salary(q)
+    varname := variable_arg(q, "id")
+    token.payload.user == input.variables[varname] # Do value lookup from the 'variables' object.
 }
 
 # Allow users to get their own salaries. (constant value case)
 allowed_query(q) if {
-  selected_salary(q)
-  username := constant_string_arg(q, "id")
-  token.payload.user == username
+    selected_salary(q)
+    username := constant_string_arg(q, "id")
+    token.payload.user == username
 }
 
 # Allow HR members to get anyone's salary.
 allowed_query(q) if {
-  selected_salary(q)
-  token.payload.hr == true
+    selected_salary(q)
+    token.payload.hr == true
 }
 
 # Helper functions.
 
 # Build up a set with all queries of interest as values.
 employeeByIDQueries contains value if {
-  some value
-  walk(query_ast, [_, value])
-  value.Name == "employeeByID"
-  count(value.SelectionSet) > 0 # Ensure we latch onto an employeeByID query.
+    some value
+    walk(query_ast, [_, value])
+    value.Name == "employeeByID"
+    count(value.SelectionSet) > 0 # Ensure we latch onto an employeeByID query.
 }
 
 # Extract the string value of a constant value argument.
 constant_string_arg(value, argname) := arg.Value.Raw if {
-  some arg in value.Arguments
-  arg.Name == argname
-  arg.Value.Kind == 3
+    some arg in value.Arguments
+    arg.Name == argname
+    arg.Value.Kind == 3
 }
 
 # Extract the variable name for a variable argument.
 variable_arg(value, argname) := arg.Value.Raw if {
-  some arg in value.Arguments
-  arg.Name == argname
-  arg.Value.Kind == 0
+    some arg in value.Arguments
+    arg.Name == argname
+    arg.Value.Kind == 0
 }
 
 # Ensure we're dealing with a selection set that includes the "salary" field.
@@ -419,11 +419,11 @@ selected_salary(value) := value.SelectionSet[_].Name == "salary"
 default allow := false
 
 allow if {
-  employeeByIDQueries != {}
-  user_owns_token # Ensure we validate the JWT token.
-  every query in employeeByIDQueries {
-    allowed_query(query)
-  }
+    employeeByIDQueries != {}
+    user_owns_token # Ensure we validate the JWT token.
+    every query in employeeByIDQueries {
+        allowed_query(query)
+    }
 }
 
 # Helper rules ... (Same as example.rego)
@@ -438,7 +438,7 @@ user_owns_token if input.user == token.payload.azp
 
 # Helper to get the token payload.
 token := {"payload": payload} if {
-  [_, payload, _] := io.jwt.decode(input.token)
+    [_, payload, _] := io.jwt.decode(input.token)
 }
 ```
 

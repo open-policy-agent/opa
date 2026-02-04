@@ -24,8 +24,8 @@ package policy
 import rego.v1
 
 deny if {
-  input.roles == {}{
-  input.user != "admin"
+    input.roles == {}{
+    input.user != "admin"
 }
 ```
 
@@ -33,8 +33,8 @@ The code above will raise the following error, helpfully showing the location in
 
 ```txt
 1 error occurred: policy.rego:6: rego_parse_error: unexpected { token: expected \n or ; or }
-  input.roles == {}{
-                   ^
+    input.roles == {}{
+                     ^
 ```
 
 ## How To Fix It

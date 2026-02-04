@@ -71,8 +71,8 @@ package example.authz
 default allow := false
 
 allow if {
-  input.method == "GET"
-  input.path == ["salary", input.subject.user]
+    input.method == "GET"
+    input.path == ["salary", input.subject.user]
 }
 
 allow if is_admin
@@ -196,69 +196,69 @@ Here is an example that shows this process:
 package main
 
 import (
-  "bytes"
-  "context"
-  "fmt"
+    "bytes"
+    "context"
+    "fmt"
 
-  "github.com/open-policy-agent/opa/v1/sdk"
-  sdktest "github.com/open-policy-agent/opa/v1/sdk/test"
+    "github.com/open-policy-agent/opa/v1/sdk"
+    sdktest "github.com/open-policy-agent/opa/v1/sdk/test"
 )
 
 func main() {
-  ctx := context.Background()
+    ctx := context.Background()
 
-  // create a mock HTTP bundle server
-  server, err := sdktest.NewServer(sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-    "example.rego": `
-        package authz
+    // create a mock HTTP bundle server
+    server, err := sdktest.NewServer(sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+        "example.rego": `
+                package authz
 
-        default allow := false
+                default allow := false
 
-        allow if input.open == "sesame"
-      `,
-  }))
-  if err != nil {
-    // handle error.
-  }
-
-  defer server.Stop()
-
-  // provide the OPA configuration which specifies
-  // fetching policy bundles from the mock server
-  // and logging decisions locally to the console
-  config := []byte(fmt.Sprintf(`{
-    "services": {
-      "test": {
-        "url": %q
-      }
-    },
-    "bundles": {
-      "test": {
-        "resource": "/bundles/bundle.tar.gz"
-      }
-    },
-    "decision_logs": {
-      "console": true
+                allow if input.open == "sesame"
+            `,
+    }))
+    if err != nil {
+        // handle error.
     }
-  }`, server.URL()))
 
-  // create an instance of the OPA object
-  opa, err := sdk.New(ctx, sdk.Options{
-    ID:     "opa-test-1",
-    Config: bytes.NewReader(config),
-  })
-  if err != nil {
-    // handle error.
-  }
+    defer server.Stop()
 
-  defer opa.Stop(ctx)
+    // provide the OPA configuration which specifies
+    // fetching policy bundles from the mock server
+    // and logging decisions locally to the console
+    config := []byte(fmt.Sprintf(`{
+        "services": {
+            "test": {
+                "url": %q
+            }
+        },
+        "bundles": {
+            "test": {
+                "resource": "/bundles/bundle.tar.gz"
+            }
+        },
+        "decision_logs": {
+            "console": true
+        }
+    }`, server.URL()))
 
-  // get the named policy decision for the specified input
-  if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/authz/allow", Input: map[string]interface{}{"open": "sesame"}}); err != nil {
-    // handle error.
-  } else if decision, ok := result.Result.(bool); !ok || !decision {
-    // handle error.
-  }
+    // create an instance of the OPA object
+    opa, err := sdk.New(ctx, sdk.Options{
+        ID:     "opa-test-1",
+        Config: bytes.NewReader(config),
+    })
+    if err != nil {
+        // handle error.
+    }
+
+    defer opa.Stop(ctx)
+
+    // get the named policy decision for the specified input
+    if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/authz/allow", Input: map[string]interface{}{"open": "sesame"}}); err != nil {
+        // handle error.
+    } else if decision, ok := result.Result.(bool); !ok || !decision {
+        // handle error.
+    }
 }
 ```
 
@@ -279,19 +279,19 @@ You will also not need to include any services in the configuration:
 ```go
 bundleFilePath, err := filepath.Abs("./policy")
 if err != nil {
-  // handle error
+    // handle error
 }
 
 // provide an absolute path to the location of the policy files
 config := []byte(fmt.Sprintf(`{
-  "bundles": {
-    "test": {
-      "resource": "file://%s"
+    "bundles": {
+        "test": {
+            "resource": "file://%s"
+        }
+    },
+    "decision_logs": {
+        "console": true
     }
-  },
-  "decision_logs": {
-    "console": true
-  }
 }`, bundleFilePath))
 
 // create an instance of the OPA object and use it to get policy decisions as normal.

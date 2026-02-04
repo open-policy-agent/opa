@@ -20,10 +20,10 @@ For example, the following rule has one local variable `user`, and that variable
 package linear
 
 allow if {
-  some user
-  input.method == "GET"
-  input.path = ["accounts", user]
-  input.user == user
+    some user
+    input.method == "GET"
+    input.path = ["accounts", user]
+    input.user == user
 }
 ```
 
@@ -84,27 +84,27 @@ package indexed
 default allow := false
 
 allow if {
-  some user
-  input.method == "GET"
-  input.path = ["accounts", user]
-  input.user == user
+    some user
+    input.method == "GET"
+    input.path = ["accounts", user]
+    input.user == user
 }
 
 allow if {
-  input.method == "GET"
-  input.path == ["accounts", "report"]
-  roles[input.user][_] == "admin"
+    input.method == "GET"
+    input.path == ["accounts", "report"]
+    roles[input.user][_] == "admin"
 }
 
 allow if {
-  input.method == "POST"
-  input.path == ["accounts"]
-  roles[input.user][_] == "admin"
+    input.method == "POST"
+    input.path == ["accounts"]
+    roles[input.user][_] == "admin"
 }
 
 roles := {
-  "bob": ["admin", "hr"],
-  "alice": ["procurement"],
+    "bob": ["admin", "hr"],
+    "alice": ["procurement"],
 }
 ```
 
@@ -166,15 +166,15 @@ The most common case for this are a set of `allow` rules:
 package earlyexit
 
 allow if {
-  input.user == "alice"
+    input.user == "alice"
 }
 
 allow if {
-  input.user == "bob"
+    input.user == "bob"
 }
 
 allow if {
-  input.group == "admins"
+    input.group == "admins"
 }
 ```
 
@@ -188,37 +188,37 @@ package earlyexit.examples
 # p, q, r and s could be evaluated with early-exit semantics:
 
 p if {
-  # ...
+    # ...
 }
 
 q := 123 if {
-  # ...
+    # ...
 }
 
 r := {"hello": "world"} if {
-  # ...
+    # ...
 }
 
 s(x) := 12 if {
-  # ...
+    # ...
 }
 
 # u, v, w, and y could _not_
 
 u contains x if { # not a complete document rule, but a partial set
-  x := 911
+    x := 911
 }
 
 v := x if { # x is a variable, not ground
-  x := true
+    x := true
 }
 
 w := {"foo": x} if { # a compound term containing a variable
-  x := "bar"
+    x := "bar"
 }
 
 y(z) := r if { # variable value, not ground
-  r := z + 1
+    r := z + 1
 }
 ```
 
@@ -229,8 +229,8 @@ When "early exit" is possible for a (set of) rules, iterations inside that rule 
 package earlyexit.iteration
 
 p if {
-  some p
-  data.projects[p] == "project-a"
+    some p
+    data.projects[p] == "project-a"
 }
 ```
 
@@ -246,15 +246,15 @@ early; an evaluation with `{"user": "bob", "group": "admins"}` _would not_:
 package earlyexit
 
 allow if {
-  input.user == "alice"
+    input.user == "alice"
 }
 
 allow := false if {
-  input.user == "bob"
+    input.user == "bob"
 }
 
 allow if {
-  input.group == "admins"
+    input.group == "admins"
 }
 ```
 
@@ -331,19 +331,19 @@ To implement the policy above we could write:
 package example
 
 deny contains msg if {
-  some i
-  count(exposed_ports_by_interface[i]) > 100
-  msg := sprintf("interface '%v' exposes too many ports", [i])
+    some i
+    count(exposed_ports_by_interface[i]) > 100
+    msg := sprintf("interface '%v' exposes too many ports", [i])
 }
 
 exposed_ports_by_interface := {intf: ports |
-  some i
-  intf := input.exposed[i].interface
-  ports := [port |
-    some j
-    input.exposed[j].interface == intf
-    port := input.exposed[j].port
-  ]
+    some i
+    intf := input.exposed[i].interface
+    ports := [port |
+        some j
+        input.exposed[j].interface == intf
+        port := input.exposed[j].port
+    ]
 }
 ```
 
@@ -368,42 +368,42 @@ The following examples shows rules that are **not** indexed:
 package example
 
 not_indexed_because_missing_assignment if {
-  x := input[_]
-  [y | some y; x == input[y]]
+    x := input[_]
+    [y | some y; x == input[y]]
 }
 
 not_indexed_because_includes_with if {
-  x := input[_]
-  ys := [y | some y; x := input[y]] with input as {}
+    x := input[_]
+    ys := [y | some y; x := input[y]] with input as {}
 }
 
 not_indexed_because_negated if {
-  x := input[_]
-  not data.arr = [y | some y; x := input[y]]
+    x := input[_]
+    not data.arr = [y | some y; x := input[y]]
 }
 
 not_indexed_because_safety if {
-  obj := input.foo.bar
-  x := obj[_]
-  ys := [y | some y; x == obj[y]]
+    obj := input.foo.bar
+    x := obj[_]
+    ys := [y | some y; x == obj[y]]
 }
 
 not_indexed_because_no_closure if {
-  ys := [y | x := input[y]]
+    ys := [y | x := input[y]]
 }
 
 not_indexed_because_reference_operand_closure if {
-  x := input[y].x
-  ys := [y | x == input[y].z[_]]
+    x := input[y].x
+    ys := [y | x == input[y].z[_]]
 }
 
 not_indexed_because_nested_closure if {
-  x := 1
-  y := 2
-  _ = [i |
-    x == input.foo[i]
-    _ = [j | y == input.bar[j]]
-  ]
+    x := 1
+    y := 2
+    _ = [i |
+        x == input.foo[i]
+        _ = [j | y == input.bar[j]]
+    ]
 }
 ```
 
@@ -442,10 +442,10 @@ let's take the following policy:
 package test
 
 p if {
-  a := 1
-  b := 2
-  c := 3
-  x = a + (b * c)
+    a := 1
+    b := 2
+    c := 3
+    x = a + (b * c)
 }
 ```
 
@@ -485,35 +485,35 @@ package rbac
 # Example input request
 
 inp := {
-  "subject": "bob",
-  "resource": "foo123",
-  "action": "write",
+    "subject": "bob",
+    "resource": "foo123",
+    "action": "write",
 }
 
 # Example RBAC configuration.
 bindings := [
-  {
-    "user": "alice",
-    "roles": ["dev", "test"],
-  },
-  {
-    "user": "bob",
-    "roles": ["test"],
-  },
+    {
+        "user": "alice",
+        "roles": ["dev", "test"],
+    },
+    {
+        "user": "bob",
+        "roles": ["test"],
+    },
 ]
 
 roles := [
-  {
-    "name": "dev",
-    "permissions": [
-      {"resource": "foo123", "action": "write"},
-      {"resource": "foo123", "action": "read"},
-    ],
-  },
-  {
-    "name": "test",
-    "permissions": [{"resource": "foo123", "action": "read"}],
-  },
+    {
+        "name": "dev",
+        "permissions": [
+            {"resource": "foo123", "action": "write"},
+            {"resource": "foo123", "action": "read"},
+        ],
+    },
+    {
+        "name": "test",
+        "permissions": [{"resource": "foo123", "action": "read"}],
+    },
 ]
 
 # Example RBAC policy implementation.
@@ -521,23 +521,23 @@ roles := [
 default allow := false
 
 allow if {
-  some role_name
-  user_has_role[role_name]
-  role_has_permission[role_name]
+    some role_name
+    user_has_role[role_name]
+    role_has_permission[role_name]
 }
 
 user_has_role contains role_name if {
-  binding := bindings[_]
-  binding.user == inp.subject
-  role_name := binding.roles[_]
+    binding := bindings[_]
+    binding.user == inp.subject
+    role_name := binding.roles[_]
 }
 
 role_has_permission contains role_name if {
-  role := roles[_]
-  role_name := role.name
-  perm := role.permissions[_]
-  perm.resource == inp.resource
-  perm.action == inp.action
+    role := roles[_]
+    role_name := role.name
+    perm := role.permissions[_]
+    perm.resource == inp.resource
+    perm.action == inp.action
 }
 ```
 
@@ -769,11 +769,11 @@ Adding a unit test file for the [policy source as shown above](#example-policy):
 package rbac
 
 test_user_has_role_dev if {
-  user_has_role.dev with input as {"subject": "alice"}
+    user_has_role.dev with input as {"subject": "alice"}
 }
 
 test_user_has_role_negative if {
-  not user_has_role["super-admin"] with input as {"subject": "alice"}
+    not user_has_role["super-admin"] with input as {"subject": "alice"}
 }
 ```
 

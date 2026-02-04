@@ -247,13 +247,13 @@ package kafka.authz
 default allow := false
 
 allow if {
-  not deny
+    not deny
 }
 
 deny if {
-  is_read_operation
-  topic_contains_pii
-  not consumer_is_allowlisted_for_pii
+    is_read_operation
+    topic_contains_pii
+    not consumer_is_allowlisted_for_pii
 }
 
 #-----------------------------------------------------------------------------
@@ -271,11 +271,11 @@ topic_metadata := {"credit-scores": {"tags": ["pii"]}}
 #-----------------------------------
 
 topic_contains_pii if {
-  "pii" in topic_metadata[topic_name].tags
+    "pii" in topic_metadata[topic_name].tags
 }
 
 consumer_is_allowlisted_for_pii if {
-  principal.name in consumer_allowlist.pii
+    principal.name in consumer_allowlist.pii
 }
 
 #-----------------------------------------------------------------------------
@@ -285,32 +285,32 @@ consumer_is_allowlisted_for_pii if {
 #-----------------------------------------------------------------------------
 
 is_write_operation if {
-  input.action.operation == "WRITE"
+    input.action.operation == "WRITE"
 }
 
 is_read_operation if {
-  input.action.operation == "READ"
+    input.action.operation == "READ"
 }
 
 is_topic_resource if {
-  input.action.resourcePattern.resourceType == "TOPIC"
+    input.action.resourcePattern.resourceType == "TOPIC"
 }
 
 topic_name := input.action.resourcePattern.name if {
-  is_topic_resource
+    is_topic_resource
 }
 
 principal := {"fqn": parsed.CN, "name": cn_parts[0]} if {
-  parsed := parse_user(input.requestContext.principal.name)
-  cn_parts := split(parsed.CN, ".")
+    parsed := parse_user(input.requestContext.principal.name)
+    cn_parts := split(parsed.CN, ".")
 }
 
 # If client certificates aren't used for authentication
 else := {"fqn": "", "name": input.requestContext.principal.name}
 
 parse_user(user) := {key: value |
-  parts := split(user, ",")
-  [key, value] := split(parts[_], "=")
+    parts := split(user, ",")
+    [key, value] := split(parts[_], "=")
 }
 ```
 
@@ -434,23 +434,23 @@ First, add the following content to the policy file (`./policies/tutorial.rego`)
 
 ```rego
 deny if {
-  is_write_operation
-  topic_has_large_fanout
-  not producer_is_allowlisted_for_large_fanout
+    is_write_operation
+    topic_has_large_fanout
+    not producer_is_allowlisted_for_large_fanout
 }
 
 producer_allowlist := {
-  "large-fanout": {
-    "fanout_producer",
-  }
+    "large-fanout": {
+        "fanout_producer",
+    }
 }
 
 topic_has_large_fanout if {
-  topic_metadata[topic_name].tags[_] == "large-fanout"
+    topic_metadata[topic_name].tags[_] == "large-fanout"
 }
 
 producer_is_allowlisted_for_large_fanout if {
-  producer_allowlist["large-fanout"][_] == principal.name
+    producer_allowlist["large-fanout"][_] == principal.name
 }
 ```
 

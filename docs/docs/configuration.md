@@ -717,75 +717,75 @@ plugins:
 package plugins
 
 import (
-  "github.com/open-policy-agent/opa/plugins"
-  "github.com/open-policy-agent/opa/plugins/rest"
-  "github.com/open-policy-agent/opa/runtime"
-  "github.com/open-policy-agent/opa/util"
+    "github.com/open-policy-agent/opa/plugins"
+    "github.com/open-policy-agent/opa/plugins/rest"
+    "github.com/open-policy-agent/opa/runtime"
+    "github.com/open-policy-agent/opa/util"
 )
 
 type Config struct {
-  Foo string `json:"foo"`
+    Foo string `json:"foo"`
 }
 
 type PluginFactory struct{}
 
 type Plugin struct {
-  manager  *plugins.Manager
-  config   Config
-  stop     chan chan struct{}
-  reconfig chan interface{}
+    manager  *plugins.Manager
+    config   Config
+    stop     chan chan struct{}
+    reconfig chan interface{}
 }
 
 func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (interface{}, error) {
-  var parsedConfig Config
-  if err := util.Unmarshal(config, &parsedConfig); err != nil {
-    return nil, err
-  }
-  return &parsedConfig, nil
+    var parsedConfig Config
+    if err := util.Unmarshal(config, &parsedConfig); err != nil {
+        return nil, err
+    }
+    return &parsedConfig, nil
 }
 
 func (p *PluginFactory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
-  return &Plugin{
-    config:   *config.(*Config),
-    manager:  manager,
-    stop:     make(chan chan struct{}),
-    reconfig: make(chan interface{}),
-  }
+    return &Plugin{
+        config:   *config.(*Config),
+        manager:  manager,
+        stop:     make(chan chan struct{}),
+        reconfig: make(chan interface{}),
+    }
 }
 
 func (p *Plugin) Start(ctx context.Context) error {
-  p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
-  return nil
+    p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
+    return nil
 }
 
 func (p *Plugin) Stop(ctx context.Context) {
-  done := make(chan struct{})
-  p.stop <- done
-  <-done
-  p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
-  return
+    done := make(chan struct{})
+    p.stop <- done
+    <-done
+    p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+    return
 }
 
 func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
-  p.reconfig <- config
-  return
+    p.reconfig <- config
+    return
 }
 
 func (p *Plugin) NewClient(c rest.Config) (*http.Client, error) {
-  t, err := rest.DefaultTLSConfig(c)
-  if err != nil {
-    return nil, err
-  }
-  return rest.DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+    t, err := rest.DefaultTLSConfig(c)
+    if err != nil {
+        return nil, err
+    }
+    return rest.DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (p *Plugin) Prepare(req *http.Request) error {
-  req.Header.Add("X-Custom-Auth-Protocol", "knock knock")
-  return nil
+    req.Header.Add("X-Custom-Auth-Protocol", "knock knock")
+    return nil
 }
 
 func init() {
-  runtime.RegisterPlugin("my_custom_auth", &PluginFactory{})
+    runtime.RegisterPlugin("my_custom_auth", &PluginFactory{})
 }
 ```
 

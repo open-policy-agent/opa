@@ -154,9 +154,9 @@ resources, supply the following policy to OPA:
 package system.log
 
 mask contains "/input/password" if {
-  # OPA provides the entire decision log event as input to the masking policy.
-  # Refer to the original input document under input.input.
-  input.input.resource == "user"
+    # OPA provides the entire decision log event as input to the masking policy.
+    # Refer to the original input document under input.input.
+    input.input.resource == "user"
 }
 
 # To mask certain fields unconditionally, omit the rule body.
@@ -219,8 +219,8 @@ Optional Fields:
 package system.log
 
 mask contains {"op": "upsert", "path": "/input/password", "value": "**REDACTED**"} if {
-  # conditionally upsert password if it existed in the original event
-  input.input.password
+    # conditionally upsert password if it existed in the original event
+    input.input.password
 }
 ```
 
@@ -270,8 +270,8 @@ This rule will drop all requests to the _allow_ rule in the _kafka_ package, tha
 package system.log
 
 drop if {
-  input.path == "kafka/allow"
-  input.result == true
+    input.path == "kafka/allow"
+    input.result == true
 }
 ```
 
@@ -282,8 +282,8 @@ Log only requests for _delete_ and _alter_ operations
 package system.log
 
 drop if {
-  input.path == "kafka/allow"
-  not input.input.action.operation in {"DELETE", "ALTER"}
+    input.path == "kafka/allow"
+    not input.input.action.operation in {"DELETE", "ALTER"}
 }
 ```
 
