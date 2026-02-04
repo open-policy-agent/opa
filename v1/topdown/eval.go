@@ -239,7 +239,7 @@ func estimateBodyBindingCount(body ast.Body) int {
 	if len(body) == 0 {
 		return 0
 	}
-	estimate := min(len(body), 16)
+	estimate := min(len(body), maxLinearScan)
 	return estimate
 }
 

@@ -24,6 +24,10 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+// maxBindingsEstimate is the cap for binding count estimates in comprehensions.
+// This value aligns with maxLinearScan in topdown/bindings.go.
+const maxBindingsEstimate = 16
+
 var (
 	NullValue Value = Null{}
 
@@ -2738,8 +2742,8 @@ func (ac *ArrayComprehension) EstimateBindingCount() int {
 		return 0
 	}
 	// Heuristic: most comprehensions have 1-3 variables per expression
-	// Use body length as approximation, capped at maxLinearScan
-	estimate := min(len(ac.Body), 16)
+	// Use body length as approximation, capped at maxBindingsEstimate
+	estimate := min(len(ac.Body), maxBindingsEstimate)
 	return estimate
 }
 
@@ -2809,7 +2813,7 @@ func (oc *ObjectComprehension) EstimateBindingCount() int {
 	if len(oc.Body) == 0 {
 		return 0
 	}
-	estimate := min(len(oc.Body), 16)
+	estimate := min(len(oc.Body), maxBindingsEstimate)
 	return estimate
 }
 
@@ -2876,7 +2880,7 @@ func (sc *SetComprehension) EstimateBindingCount() int {
 	if len(sc.Body) == 0 {
 		return 0
 	}
-	estimate := min(len(sc.Body), 16)
+	estimate := min(len(sc.Body), maxBindingsEstimate)
 	return estimate
 }
 
