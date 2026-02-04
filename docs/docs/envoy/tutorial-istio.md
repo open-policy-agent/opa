@@ -118,7 +118,7 @@ The `quick_start.yaml` manifest defines the following resources:
 
   <RunSnippet files="#input.json #authz.rego" command="data.example.result" />
 
-  An example of the complete input received by OPA can be seen [here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio#example-input).
+  An example of the complete input received by OPA can be seen [in the Istio examples](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio#example-input).
 
   > In typical deployments the policy would either be built into the OPA container
   > image or it would be fetched dynamically via the [Bundle API](../management-bundles/). ConfigMaps are
@@ -217,4 +217,4 @@ This tutorial also showed a sample OPA policy that returns a `boolean` decision
 to indicate whether a request should be allowed or not.
 
 More details about the tutorial can be seen
-[here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio).
+[in the opa-envoy-plugin Istio examples](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio).

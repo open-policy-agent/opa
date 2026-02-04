@@ -358,7 +358,7 @@ If everything worked you will see the Go struct representation of the decision
 log event written to stdout.
 
 The source code for this example can be found
-[here](https://github.com/open-policy-agent/contrib/tree/main/decision_logger_plugin_example).
+[in the contrib repository](https://github.com/open-policy-agent/contrib/tree/main/decision_logger_plugin_example).
 
 :::info
 If there is a mask policy set (see [Decision Logger](./management-decision-logs)

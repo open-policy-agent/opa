@@ -558,4 +558,4 @@ to be sent to the downstream client or upstream. An example of a rule that
 returns an object that not only indicates if a request is allowed or not but
 also provides optional response headers, body and HTTP status that can be sent
 to the downstream client or upstream can be seen
-[here](https://github.com/open-policy-agent/opa-envoy-plugin#example-policy-with-object-response).
+[in the opa-envoy-plugin documentation](https://github.com/open-policy-agent/opa-envoy-plugin#example-policy-with-object-response).

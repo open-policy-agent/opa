@@ -22,7 +22,7 @@ In this example:
 - system is the name of another source that declares package x.y
 - because x.y is a prefix of x.y.z, they overlap
 
-If you are interested in seeing this restriction relaxed please leave a comment [here](https://github.com/open-policy-agent/opa-control-plane/issues/30) including any details you can share about your use case.
+If you are interested in seeing this restriction relaxed please leave a comment [on Issue #30](https://github.com/open-policy-agent/opa-control-plane/issues/30) including any details you can share about your use case.
 
 ### Bundle Configuration Fields
 

@@ -221,8 +221,8 @@ else := {"allowed": true, "uid": uid}
 
 Build an OPA bundle containing policies defined in the previous step. In our setup, OPA will download policies from the
 bundle service and the `kube-mgmt` container will load Kubernetes resources into OPA. Since we load policy and data into
-OPA from multiple sources, we need to scope the bundle to a subset of OPA’s policy and data cache by defining a manifest.
-More information about this can be found [here](../management-bundles#multiple-sources-of-policy-and-data). Run the
+OPA from multiple sources, we need to scope the bundle to a subset of OPA's policy and data cache by defining a manifest.
+More information about this can be found [in the Bundle Management documentation](../management-bundles#multiple-sources-of-policy-and-data). Run the
 following commands in the `policies` folder created in the previous step.
 
 ```bash

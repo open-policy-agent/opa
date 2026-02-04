@@ -129,7 +129,7 @@ You might find it easier to build your OPA integration using one of the
 
 Every time the demo web server receives an HTTP request, it
 asks OPA to decide whether an HTTP API is authorized or not
-using a single RESTful API call. An example code is [here](https://github.com/open-policy-agent/contrib/blob/main/api_authz/docker/echo_server.py),
+using a single RESTful API call. An example code is [available in the contrib repository](https://github.com/open-policy-agent/contrib/blob/main/api_authz/docker/echo_server.py),
 but the crux of the (Python) code is shown below.
 
 ```python

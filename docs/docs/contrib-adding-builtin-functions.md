@@ -10,7 +10,7 @@ impractical to implement natively in Rego (e.g., CIDR arithmetic). Implementatio
 dependencies. If absolutely necessary, consider importing the code manually into the `internal` package.
 
 :::info
-Read more about extending OPA with custom built-in functions in go [here](./extensions#custom-built-in-functions-in-go).
+Read more about extending OPA with custom built-in functions in go [in the Extensions documentation](./extensions#custom-built-in-functions-in-go).
 :::
 
 Adding a new built-in function involves the following steps:
@@ -155,7 +155,7 @@ For this example, we'll get an entry for our new function under the `Strings` se
 ### Add a capability
 
 :::info
-Read more about extending the default capabilities list for built-ins [here](./operations#built-ins).
+Read more about extending the default capabilities list for built-ins [in the Operations documentation](./operations#built-ins).
 :::
 
 One of the security features of OPA is [capabilities](./operations#capabilities) checks on policies, allowing users to restrict which built-in functions will be available to policies at runtime.

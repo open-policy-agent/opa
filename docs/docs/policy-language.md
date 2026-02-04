@@ -1355,7 +1355,7 @@ t if {
 <RunSnippet command="data.negation.t"/>
 
 Negation is required to check whether some value _does not_ exist in a collection: `not p["foo"]`. That is not the same as complementing the `==` operator in an expression `p[_] == "foo"` which yields `p[_] != "foo"`
-which means for any item in `p`, return true if the item is not `"foo"`. See more details [here](/projects/regal/rules/bugs/not-equals-in-loop).
+which means for any item in `p`, return true if the item is not `"foo"`. See more details [in the Regal documentation](/projects/regal/rules/bugs/not-equals-in-loop).
 
 For example, we can write a rule that defines a document containing names of
 apps not deployed on the `"prod"` site:
@@ -2602,15 +2602,15 @@ comment block containing the YAML document is finished
 
 | Name              | Type                                                        | Description                                                                                                        |
 | ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more [here](#metadata-scope).                                       |
-| title             | string                                                      | A human-readable name for the annotation target. Read more [here](#metadata-title).                                |
-| description       | string                                                      | A description of the annotation target. Read more [here](#metadata-description).                                   |
-| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more [here](#metadata-related_resources).         |
-| authors           | list of strings                                             | A list of authors for the annotation target. Read more [here](#metadata-authors).                                  |
-| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more [here](#metadata-organizations).               |
-| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more [here](#metadata-schemas).            |
-| entrypoint        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more [here](#metadata-entrypoint). |
-| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more [here](#metadata-custom).                   |
+| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more in the [Metadata Scope section below](#metadata-scope).                                       |
+| title             | string                                                      | A human-readable name for the annotation target. Read more in the [Metadata Title section below](#metadata-title).                                |
+| description       | string                                                      | A description of the annotation target. Read more in the [Metadata Description section below](#metadata-description).                                   |
+| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more in the [Metadata Related Resources section below](#metadata-related_resources).         |
+| authors           | list of strings                                             | A list of authors for the annotation target. Read more in the [Metadata Authors section below](#metadata-authors).                                  |
+| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).               |
+| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).            |
+| entrypoint        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint). |
+| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                   |
 
 ### Metadata `Scope`
 
@@ -2803,7 +2803,7 @@ allow if {
 ### Metadata `schemas`
 
 The `schemas` annotation is a list of key value pairs, associating schemas to data values.
-In-depth information on this topic can be found [here](#annotations).
+In-depth information on this topic can be found [in the Annotations section](#annotations).
 
 #### Schema Reference Format
 
@@ -3668,7 +3668,7 @@ In this case, we are overriding the root of all documents to have some schema. S
 
 ### References
 
-For more examples, please see [here](https://github.com/aavarghese/opa-schema-examples).
+For more examples, please see [the opa-schema-examples repository](https://github.com/aavarghese/opa-schema-examples).
 
 This contains samples for Envoy, Kubernetes, and Terraform including corresponding JSON Schemas.
 

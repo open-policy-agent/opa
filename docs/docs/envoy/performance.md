@@ -12,7 +12,7 @@ benchmarking scenarios and important metrics that should be captured to understa
 #### Sample App
 
 The first component of the setup features a simple Go app which provides information about employees in a company. It
-exposes a `/people` endpoint to `get` and `create` employees. The app's source code can be found [here](https://github.com/ashutosh-narkar/go-test-server).
+exposes a `/people` endpoint to `get` and `create` employees. The app's source code can be found [on GitHub](https://github.com/ashutosh-narkar/go-test-server).
 
 #### Envoy
 
@@ -149,13 +149,13 @@ containers:
 > cores that OPA can consume.
 >
 > 💡 The OPA-Envoy plugin can be configured to listen on a UNIX Domain Socket. A complete example of such a setup
-> can be found [here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/envoy-uds).
+> can be found [in the opa-envoy-plugin examples](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/envoy-uds).
 
 ### Load Generator And Measurement Tool
 
-Consider using a load generator and measurement tool that measures latency from the end user’s perspective and reports
+Consider using a load generator and measurement tool that measures latency from the end user's perspective and reports
 latency as the percentiles of a distribution, e.g. `p50` (median), `p99`, `p999` etc. As example
-implementation of such a tool can be found [here](https://github.com/ashutosh-narkar/stress-opa-envoy).
+implementation of such a tool can be found [in the stress-opa-envoy repository](https://github.com/ashutosh-narkar/stress-opa-envoy).
 
 ### Benchmark Scenarios
 
@@ -232,7 +232,7 @@ role_perms := {
 - **App, Envoy and OPA (Header Injection policy)**
 
 This scenario is similar to the previous one expect the policy decision is an object which contains optional
-response headers. An example of such a policy can be found [here](../envoy/primer#example-policy-with-additional-controls).
+response headers. An example of such a policy can be found [in the Envoy Primer](../envoy/primer#example-policy-with-additional-controls).
 
 ### Measurements
 
