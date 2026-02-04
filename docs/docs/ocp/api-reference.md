@@ -86,7 +86,9 @@ Bundles are collections of policies and data that can be distributed to OPA inst
           "source": "my-app-policies"
         },
         {
-          "source": "shared-policies"
+          "source": "shared-policies",
+          "path": "library",
+          "prefix": "shared.lib"
         }
       ],
       "excluded_files": [
@@ -174,7 +176,9 @@ Bundles are collections of policies and data that can be distributed to OPA inst
       "source": "auth-policies"
     },
     {
-      "source": "common-utils"
+      "source": "common-utils",
+      "path": "utils",
+      "prefix": "shared.utils"
     }
   ],
   "excluded_files": [
@@ -189,7 +193,6 @@ Bundles are collections of policies and data that can be distributed to OPA inst
 ```json
 {}
 ```
-
 
 ### `DELETE /v1/bundles/{bundle}`
 
@@ -348,7 +351,6 @@ Sources define where policies and data come from (Git repositories, local files,
 ```json
 {}
 ```
-
 
 ### `DELETE /v1/sources/{source}`
 
@@ -548,7 +550,9 @@ Stacks define how bundles are distributed to different environments or services 
       "source": "dev-policies"
     },
     {
-      "source": "testing-utils"
+      "source": "testing-utils",
+      "path": "utils.testing",
+      "prefix": "test.utils"
     }
   ]
 }
@@ -559,7 +563,6 @@ Stacks define how bundles are distributed to different environments or services 
 ```json
 {}
 ```
-
 
 ### `DELETE /v1/stacks/{stack}`
 
@@ -612,7 +615,7 @@ As a rule, the HTTP API will **never return** a secret value, it only allows aut
 
 ```json
 {
-  "result":  "api-token"
+  "result": "api-token"
 }
 ```
 
@@ -646,7 +649,6 @@ As a rule, the HTTP API will **never return** a secret value, it only allows aut
 ```json
 {}
 ```
-
 
 ### `DELETE /v1/secrets/{secret}`
 

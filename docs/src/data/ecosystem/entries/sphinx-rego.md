@@ -10,4 +10,5 @@ labels:
   category: tooling
   layer: cicd
 ---
+
 Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.

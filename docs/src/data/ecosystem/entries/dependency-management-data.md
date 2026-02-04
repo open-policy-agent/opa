@@ -22,6 +22,7 @@ docs_features:
       Example policies can be found [in DMD's example project](https://gitlab.com/tanna.dev/dependency-management-data-example/-/tree/main/policies?ref_type=heads)
       and provide an indication of some common use-cases.
 ---
+
 dependency-management-data is a set of tooling that makes it easier to
 understand the usage of Open Source and internal dependencies in an
 organisation, taking data from Renovate, GitHub Dependabot, or Software Bill of

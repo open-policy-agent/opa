@@ -19,6 +19,6 @@ blogs:
 videos:
 - https://www.youtube.com/watch?v=RJkgmdjJn_w
 ---
+
 Aserto is a cloud-native authorization service that makes it easy to add permissions and RBAC to your SaaS applications and APIs.
 Aserto is based on the Open Policy Agent.
-

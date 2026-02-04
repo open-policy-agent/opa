@@ -1,0 +1,14 @@
+{
+  "id": "what-if-anything-do-you-dislike-about-using-opa-ga",
+  "title": "What, if anything, do you dislike about using OPA Gatekeeper?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "gatekeeper"
+  ]
+}

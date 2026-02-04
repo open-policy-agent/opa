@@ -1,0 +1,13 @@
+.tagSection {
+  margin-bottom: 4rem;
+}
+
+.tagHeading {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.tagDescription {
+  margin-bottom: 2rem;
+  color: var(--ifm-color-emphasis-700);
+}

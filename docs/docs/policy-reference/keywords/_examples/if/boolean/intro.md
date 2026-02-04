@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
+
 Most commonly, `if` is used to create boolean rules where if any rule head is
 true, then the whole rule is true. In this simple example, when both:
 

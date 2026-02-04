@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "label": "Via files built into the container filesystem",
+      "value": 4
+    },
+    {
+      "label": "Via files mounted into the container filesystem at runtime (configmap, etc)",
+      "value": 3
+    },
+    {
+      "label": "Via a bundle server",
+      "value": 8
+    },
+    {
+      "label": "Via bundles mounted or built into the container filesystem",
+      "value": 2
+    }
+  ]
+}

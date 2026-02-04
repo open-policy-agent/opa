@@ -10,12 +10,10 @@ Column masking rules in Rego are used to generate an object that specifies exact
 You will develop an intuition for what valid masking rules look like, and how to build default-deny and default-allow masking policies.
 :::
 
-
 ### What is Column Masking?
 
 For our data filtering use case, a row might be returned from the database that has a sensitive column present.
 We still want the application to be able to display everything it can to the user, but ideally hiding or modifying the sensitive values before display.
-
 
 ## Format of a Column Masks Object
 
@@ -65,7 +63,6 @@ In the above example, `users.id` and `tickets.description` will be replaced with
 :::note No masking function means show value
 Note that the value keyed under `users.id` is **empty**, which implies "show value". This can be useful in default-deny masking policies to allow a column through under certain conditions.
 :::
-
 
 ## Creating a default-deny style masking policy
 
@@ -117,6 +114,7 @@ masks.tickets.description.replace.value := {} if {
   "admin" in data.roles[input.tenant][input.user]
 }
 ```
+
 </TabItem>
 <TabItem value="data" label="roles/data.json">
 
@@ -127,9 +125,9 @@ masks.tickets.description.replace.value := {} if {
   "ceasar": ["resolver"]
 }
 ```
+
 </TabItem>
 </Tabs>
-
 
 ### Reader role
 
@@ -168,7 +166,6 @@ Content-Type: application/json
 }
 ```
 
-
 ### Admin Role
 
 An Admin should be able to see every field of every ticket, since their role triggers a dedicated rule body that removes the masking function.
@@ -202,7 +199,6 @@ Content-Type: application/json
 }
 ```
 
-
 ## Creating a default-allow style masking policy
 
 For this example, we will keep the support ticket application setup from before. We are still limiting which fields of a tickets that a user can see, based on their role.
@@ -230,6 +226,7 @@ masks.tickets.description.replace.value := "<description>" if {
   "reader" in data.roles[input.tenant][input.user]
 }
 ```
+
 </TabItem>
 <TabItem value="data" label="roles/data.json">
 
@@ -240,9 +237,9 @@ masks.tickets.description.replace.value := "<description>" if {
   "ceasar": ["resolver"]
 }
 ```
+
 </TabItem>
 </Tabs>
-
 
 ### Reader role
 
@@ -280,7 +277,6 @@ Content-Type: application/json
   }
 }
 ```
-
 
 ### Resolver Role
 

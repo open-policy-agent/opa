@@ -69,6 +69,14 @@ func TestAstValueToJSONSchemaLoader(t *testing.T) {
 			),
 			valid: true,
 		},
+		{
+			note: "array simple input",
+			schema: ast.NewArray(
+				ast.StringTerm("foo"),
+				ast.StringTerm("bar"),
+			),
+			valid: true,
+		},
 	}
 
 	for _, tc := range cases {

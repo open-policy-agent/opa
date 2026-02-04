@@ -11,11 +11,11 @@ package policy
 
 allow if something
 
-unrelated_rule if {
+unrelated_rule if { # <--- this rule is breaking up allow
     # ...
 }
 
-allow if something_else
+allow if something_else # <--- should be with the first allow
 ```
 
 **Prefer**
@@ -34,6 +34,8 @@ unrelated_rule if {
 
 ## Rationale
 
+In Rego, rules can can be formed of many 'rule heads', partial definitions
+covering specific cases which together make up the behaviour of the whole rule.
 Rules that are defined incrementally should have their definitions grouped together, as this makes the code easier to
 follow. While this is mostly a style preference, having incremental rules grouped also allows editors like VS Code to
 "know" that the rules belong together, allowing them to be smarter when displaying the symbols of a workspace.

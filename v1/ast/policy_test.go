@@ -91,6 +91,53 @@ func TestBodyEmptyJSON(t *testing.T) {
 	}
 }
 
+func TestBodyStringAndStringLength(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       Body
+		wantLength int
+	}{
+		{
+			name:       "empty body",
+			body:       Body{},
+			wantLength: len(""),
+		},
+		{
+			name:       "nil body",
+			body:       nil,
+			wantLength: len(""),
+		},
+		{
+			name:       "single expression",
+			body:       MustParseBody("true"),
+			wantLength: len("true"),
+		},
+		{
+			name:       "two expressions",
+			body:       MustParseBody("true; false"),
+			wantLength: len("true; false"),
+		},
+		{
+			name:       "three expressions",
+			body:       MustParseBody("x = 1; y = 2; z = 3"),
+			wantLength: len("x = 1; y = 2; z = 3"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotLength := tt.body.StringLength()
+			if gotLength != tt.wantLength {
+				t.Errorf("Body.StringLength() = %d, want %d (body: %q)", gotLength, tt.wantLength, tt.body.String())
+			}
+
+			if gotLength < 0 {
+				t.Errorf("Body.StringLength() returned negative value: %d", gotLength)
+			}
+		})
+	}
+}
+
 func TestPackageEquals(t *testing.T) {
 	pkg1 := &Package{Path: RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")).Value.(Ref)}
 	pkg2 := &Package{Path: RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")).Value.(Ref)}

@@ -18,6 +18,6 @@ docs_features:
       [NodeJS OPA Wasm Module](https://github.com/open-policy-agent/npm-opa-wasm)
       to enforce policy at the edge of Cloudflare's network.
 ---
+
 Cloudflare Workers are a serverless platform that supports Wasm.
 This integration uses OPA's Wasm compiler to generate code enforced at the edge of Cloudflare's network.
-

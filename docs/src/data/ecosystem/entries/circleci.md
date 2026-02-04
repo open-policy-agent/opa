@@ -9,4 +9,5 @@ tutorials:
 inventors:
 - circleci
 ---
+
 Use config policy management to create organization-level policies to impose rules and scopes around which configuration elements are required, allowed, not allowed etc.

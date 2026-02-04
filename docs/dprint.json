@@ -1,0 +1,20 @@
+{
+  "lineWidth": 120,
+  "indentWidth": 2,
+  "useTabs": false,
+  "includes": ["**/*.{md,json,js,jsx,ts,tsx}"],
+  "excludes": [
+    "**/node_modules",
+    "**/.docusaurus",
+    "**/build",
+    "**/package-lock.json",
+    "**/regal/**",
+    "**/style-guide.md",
+    "**/cheatsheet.md"
+  ],
+  "plugins": [
+    "https://plugins.dprint.dev/markdown-0.17.8.wasm",
+    "https://plugins.dprint.dev/json-0.19.4.wasm",
+    "https://plugins.dprint.dev/typescript-0.93.0.wasm"
+  ]
+}

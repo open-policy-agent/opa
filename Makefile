@@ -160,7 +160,7 @@ wasm-sdk-e2e-test: generate
 .PHONY: check
 check:
 ifeq ($(DOCKER_RUNNING), 1)
-	docker run --rm -v $(shell pwd):/app:ro,Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
+	$(DOCKER) run --rm -v $(shell pwd):/app:ro,Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
 else
 	@echo "Docker not installed or running. Skipping golangci run."
 endif
@@ -168,7 +168,7 @@ endif
 .PHONY: fmt
 fmt:
 ifeq ($(DOCKER_RUNNING), 1)
-	docker run --rm -v $(shell pwd):/app:Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
+	$(DOCKER) run --rm -v $(shell pwd):/app:Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
 else
 	@echo "Docker not installed or running. Skipping golangci run."
 endif
@@ -470,7 +470,7 @@ check-fuzz: fuzz
 # not be able to use any module cache.
 .PHONY: check-go-module
 check-go-module:
-	docker run \
+	$(DOCKER) run \
 	  $(DOCKER_FLAGS) \
 	  -w /src \
 	  -v $(PWD):/src:Z \
@@ -482,7 +482,7 @@ check-go-module:
 .PHONY: check-yaml-tests
 check-yaml-tests:
 ifeq ($(DOCKER_RUNNING), 1)
-	docker run --rm -v $(shell pwd):/data:ro,Z -w /data pipelinecomponents/yamllint:${YAML_LINT_VERSION} yamllint -f $(YAML_LINT_FORMAT) v1/test/cases/testdata
+	$(DOCKER) run --rm -v $(shell pwd):/data:ro,Z -w /data pipelinecomponents/yamllint:${YAML_LINT_VERSION} yamllint -f $(YAML_LINT_FORMAT) v1/test/cases/testdata
 else
 	@echo "Docker not installed or running. Skipping yamllint run."
 endif

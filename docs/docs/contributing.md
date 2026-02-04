@@ -14,7 +14,7 @@ you can [sign up here](https://slack.openpolicyagent.org/).
 
 ## I'd like to help OPA users
 
-Most users ask in the [#help](https://openpolicyagent.slack.com/archives/CBR63TK2A)
+Most users ask in the [#help](https://openpolicyagent.slack.com/?redir=%2Farchives%2FCBR63TK2A%3Fname%3DCBR63TK2A)
 channel in Slack, hang out in there and see if there are any questions you
 can help with.
 
@@ -68,7 +68,7 @@ to have your project listed on the ecosystem page.
 
 If you have a talk or blog you'd like to share please feel free to post in:
 
-- [#ecosystem](https://openpolicyagent.slack.com/archives/C02J6LBL6GH) in Slack.
+- [#ecosystem](https://openpolicyagent.slack.com/?redir=%2Farchives%2FC02J6LBL6GH%3Fname%3DC02J6LBL6GH) in Slack.
 - [Ecosystem Discussions](https://github.com/orgs/open-policy-agent/discussions/categories/ecosystem) on GitHub.
 
 ## I'm interested in something else...

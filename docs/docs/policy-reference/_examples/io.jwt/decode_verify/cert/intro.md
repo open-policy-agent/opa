@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
+
 Some users may prefer to use a certificate to verify the JWT token. This example
 shows how to use a certificate to verify the JWT. Much like the other examples,
 it only checks the `iss` claim.

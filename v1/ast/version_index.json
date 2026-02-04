@@ -25,6 +25,11 @@
       "Minor": 17,
       "Patch": 0
     },
+    "array.flatten": {
+      "Major": 1,
+      "Minor": 13,
+      "Patch": 0
+    },
     "array.reverse": {
       "Major": 0,
       "Minor": 36,

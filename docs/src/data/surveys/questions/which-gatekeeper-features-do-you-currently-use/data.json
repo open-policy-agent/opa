@@ -1,0 +1,18 @@
+{
+  "id": "which-gatekeeper-features-do-you-currently-use",
+  "title": "Which Gatekeeper features do you currently use?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 44
+}

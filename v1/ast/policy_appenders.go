@@ -68,15 +68,6 @@ func (pkg *Package) AppendText(buf []byte) ([]byte, error) {
 
 	path := pkg.Path[1:] // omit "data"
 
-	if s, ok := path[0].Value.(String); ok {
-		buf = append(buf, s...) // first term should never be quoted
-		if len(path) == 1 {
-			return buf, nil
-		}
-		buf = append(buf, '.')
-		path = path[1:]
-	}
-
 	return path.AppendText(buf)
 }
 

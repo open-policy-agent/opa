@@ -18,4 +18,5 @@ docs_features:
       [This blog post](https://apisix.apache.org/blog/2021/12/24/open-policy-agent//)
       explains how such a configuration can be achieved.
 ---
+
 Apache APISIX provides a plugin for delegating fine-grained authorization decisions to OPA.

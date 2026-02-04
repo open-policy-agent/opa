@@ -1032,3 +1032,44 @@ func BenchmarkTemplateStringVsConcatVsSprintf(b *testing.B) {
 		})
 	}
 }
+
+// array.flatten-16         	  969697	      1269 ns/op	    2186 B/op	      34 allocs/op
+// array.concat-16          	  462535	      2293 ns/op	    3082 B/op	      58 allocs/op
+func BenchmarkArrayFlattenWithAndWithoutBuiltin(b *testing.B) {
+	b.Run("array.flatten", func(b *testing.B) {
+		runFlattenBenchmark(b, `x = array.flatten(
+			[[1,2,3], [4,5,6], [7,8,9], 10, [11,12]]
+		) == [1,2,3,4,5,6,7,8,9,10,11,12]`)
+	})
+
+	b.Run("array.concat", func(b *testing.B) {
+		runFlattenBenchmark(b, `x = array.concat(
+			array.concat([1,2,3], [4,5,6]),
+			array.concat([7,8,9], array.concat([10], [11,12]))
+		) == [1,2,3,4,5,6,7,8,9,10,11,12]`)
+	})
+}
+
+func runFlattenBenchmark(b *testing.B, query string) {
+	b.Helper()
+
+	cqr, err := ast.NewCompiler().QueryCompiler().Compile(ast.MustParseBody(query))
+	if err != nil {
+		b.Fatal(err)
+	}
+	q := NewQuery(cqr)
+
+	for b.Loop() {
+		rs, err := q.Run(b.Context())
+		if err != nil {
+			b.Fatalf("Unexpected topdown query error: %v", err)
+		}
+		if len(rs) != 1 {
+			b.Fatalf("Expected one result, got: %v", rs)
+		}
+		if x := rs[0][ast.Var("x")]; !ast.Boolean(true).Equal(x.Value) {
+			b.Fatalf("Expected true result, got: %v", x)
+		}
+	}
+
+}

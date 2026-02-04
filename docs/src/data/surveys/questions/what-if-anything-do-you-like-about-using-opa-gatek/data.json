@@ -1,0 +1,14 @@
+{
+  "id": "what-if-anything-do-you-like-about-using-opa-gatek",
+  "title": "What, if anything, do you like about using OPA Gatekeeper?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "gatekeeper"
+  ]
+}

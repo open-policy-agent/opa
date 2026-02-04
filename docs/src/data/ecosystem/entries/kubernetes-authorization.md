@@ -21,7 +21,7 @@ docs_features:
       [an example project](https://github.com/open-policy-agent/contrib/tree/main/k8s_authorization)
       showing how it's possible to integrate OPA with Kubernetes User Authorization.
 ---
-Kubernetes Authorization is a pluggable mechanism that lets administrators control which users can run which APIs and
-is often handled by builtin RBAC.  OPA's policy language is more flexible than the RBAC, for example,
-writing policy using a prohibited list of APIs instead of the usual RBAC style of listing the permitted APIs.
 
+Kubernetes Authorization is a pluggable mechanism that lets administrators control which users can run which APIs and
+is often handled by builtin RBAC. OPA's policy language is more flexible than the RBAC, for example,
+writing policy using a prohibited list of APIs instead of the usual RBAC style of listing the permitted APIs.

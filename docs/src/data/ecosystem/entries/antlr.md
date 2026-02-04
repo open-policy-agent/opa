@@ -8,4 +8,5 @@ code:
 inventors:
 - independent
 ---
+
 ANTLR4 grammar for Rego.

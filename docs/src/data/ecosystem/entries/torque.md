@@ -32,4 +32,5 @@ docs_features:
       Torque supports Terraform policy enforcement and defines some
       [sample policies here](https://github.com/QualiTorque/opa).
 ---
+
 Torque by Quali is a cloud-based platform that provides infrastructure automation and orchestration solutions for digital transformation and DevOps initiatives. Troque utilizes Open Policy Agent (OPA) to enforce policy-as-code, enabling users to define and automate their own security, compliance, and governance policies across their infrastructure.

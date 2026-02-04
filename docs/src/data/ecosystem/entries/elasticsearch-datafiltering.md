@@ -12,4 +12,5 @@ tutorials:
 inventors:
 - styra
 ---
-Elasticsearch is a distributed, open source search and analytics engine.  This OPA integration lets an elasticsearch client construct queries so that the data returned by elasticsearch obeys OPA-defined policies.
+
+Elasticsearch is a distributed, open source search and analytics engine. This OPA integration lets an elasticsearch client construct queries so that the data returned by elasticsearch obeys OPA-defined policies.

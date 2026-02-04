@@ -1,0 +1,18 @@
+{
+  "id": "does-regal-help-you-find-bugs",
+  "title": "Does Regal help you find bugs?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "regal"
+  ],
+  "rank": 67
+}

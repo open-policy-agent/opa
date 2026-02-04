@@ -32,7 +32,7 @@ func getDefaultInterQueryBuiltinValueCacheConfig(name string) *NamedValueCacheCo
 
 // RegisterDefaultInterQueryBuiltinValueCacheConfig registers a default configuration for the inter-query value cache;
 // used when none has been explicitly configured.
-// To disable a named cache when not configured, pass a nil config.
+// To disable a named cache when not configured, pass a config with the disabled value set to true.
 func RegisterDefaultInterQueryBuiltinValueCacheConfig(name string, config *NamedValueCacheConfig) {
 	interQueryBuiltinValueCacheDefaultConfigs[name] = config
 }
@@ -58,7 +58,8 @@ func (c *Config) Clone() *Config {
 // NamedValueCacheConfig represents the configuration of a named cache that built-in functions can utilize.
 // A default configuration to be used if not explicitly configured can be registered using RegisterDefaultInterQueryBuiltinValueCacheConfig.
 type NamedValueCacheConfig struct {
-	MaxNumEntries *int `json:"max_num_entries,omitempty"`
+	MaxNumEntries *int  `json:"max_num_entries,omitempty"`
+	Disabled      *bool `json:"disabled,omitempty"`
 }
 
 // Clone creates a deep copy of NamedValueCacheConfig.
@@ -72,6 +73,10 @@ func (n *NamedValueCacheConfig) Clone() *NamedValueCacheConfig {
 	if n.MaxNumEntries != nil {
 		maxEntries := *n.MaxNumEntries
 		clone.MaxNumEntries = &maxEntries
+	}
+	if n.Disabled != nil {
+		disabled := *n.Disabled
+		clone.Disabled = &disabled
 	}
 
 	return clone
@@ -220,9 +225,15 @@ func (c *Config) validateAndInjectDefaults() error {
 	}
 
 	for name, namedConfig := range c.InterQueryBuiltinValueCache.NamedCacheConfigs {
-		numEntries := *namedConfig.MaxNumEntries
-		if numEntries < 0 {
-			return fmt.Errorf("invalid max_num_entries %v for named cache %v", numEntries, name)
+		if namedConfig == nil || (namedConfig.MaxNumEntries == nil && namedConfig.Disabled == nil) {
+			return fmt.Errorf("missing configuration for named cache %v", name)
+		}
+
+		if namedConfig.MaxNumEntries != nil {
+			numEntries := *namedConfig.MaxNumEntries
+			if numEntries < 0 {
+				return fmt.Errorf("invalid max_num_entries %v for named cache %v", numEntries, name)
+			}
 		}
 	}
 
@@ -602,6 +613,10 @@ func (c *interQueryBuiltinValueCache) GetCache(name string) InterQueryValueCache
 
 		if config == nil {
 			// No config, cache disabled.
+			return nil
+		}
+
+		if config.Disabled != nil && *config.Disabled {
 			return nil
 		}
 

@@ -8,4 +8,5 @@ software:
 code:
 - https://github.com/summerwind/opa-nginx-rbac
 ---
+
 OPA Authorization for Nginx

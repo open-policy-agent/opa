@@ -15,4 +15,5 @@ docs_features:
       The [integration is documented](https://github.com/minio/minio/blob/master/docs/iam/opa.md)
       in the Minio docs.
 ---
-Minio is an open source, on-premise object database compatible with the Amazon S3 API.  This integration lets OPA enforce policies on Minio's API.
+
+Minio is an open source, on-premise object database compatible with the Amazon S3 API. This integration lets OPA enforce policies on Minio's API.

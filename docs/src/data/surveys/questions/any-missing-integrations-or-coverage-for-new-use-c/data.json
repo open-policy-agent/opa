@@ -1,0 +1,15 @@
+{
+  "id": "any-missing-integrations-or-coverage-for-new-use-c",
+  "title": "Any missing integrations or coverage for new use cases?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 20
+}

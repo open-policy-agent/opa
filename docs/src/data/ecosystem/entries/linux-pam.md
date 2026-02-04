@@ -11,4 +11,5 @@ code:
 inventors:
 - styra
 ---
+
 Host-level access controls are an important part of every organization's security strategy. OPA provides fine-grained, context-aware controls for SSH and sudo using Linux-PAM.

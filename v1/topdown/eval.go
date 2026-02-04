@@ -943,7 +943,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	mock, mocked := e.functionMocks.Get(ref)
 	if mocked {
 		if m, ok := mock.Value.(ast.Ref); ok && isFunction(e.compiler.TypeEnv, m) { // builtin or data function
-			mockCall := append([]*ast.Term{ast.NewTerm(m)}, terms[1:]...)
+			mockCall := append([]*ast.Term{mock}, terms[1:]...)
 
 			e.functionMocks.Push()
 			err := e.evalCall(mockCall, func() error {
@@ -990,7 +990,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	builtinName := ref.String()
 	bi, f, ok := e.builtinFunc(builtinName)
 	if !ok {
-		return unsupportedBuiltinErr(e.query[e.index].Location)
+		return unsupportedBuiltinErr(e.query[e.index].Location, builtinName)
 	}
 
 	if mocked { // value replacement of built-in call
@@ -1264,7 +1264,6 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 }
 
 func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
-
 	ref := a.Value.(ast.Ref)
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
@@ -1526,23 +1525,37 @@ func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term,
 	if err != nil {
 		return err
 	}
+
+	if len(elements) == 0 {
+		return e.biunify(ast.InternedEmptyArray, b, b1, b2, iter)
+	}
+
 	return e.biunify(ast.NewTerm(ast.NewArray(elements...)), b, b1, b2, iter)
 }
 
 func (e *eval) biunifyComprehensionSet(x *ast.SetComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
-	result := ast.NewSet()
 	child := evalPool.Get()
 
 	e.closure(x.Body, child)
 	defer evalPool.Put(child)
 
+	var result ast.Set
 	err := child.Run(func(child *eval) error {
-		result.Add(child.bindings.Plug(x.Term))
+		if result == nil {
+			result = ast.NewSet(child.bindings.Plug(x.Term))
+		} else {
+			result.Add(child.bindings.Plug(x.Term))
+		}
 		return nil
 	})
 	if err != nil {
 		return err
 	}
+
+	if result == nil {
+		return e.biunify(ast.InternedEmptySet, b, b1, b2, iter)
+	}
+
 	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
 }
 
@@ -1552,21 +1565,28 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 
 	e.closure(x.Body, child)
 
-	result := ast.NewObject()
-
+	var result ast.Object
 	err := child.Run(func(child *eval) error {
 		key := child.bindings.Plug(x.Key)
 		value := child.bindings.Plug(x.Value)
-		exist := result.Get(key)
-		if exist != nil && !exist.Equal(value) {
-			return objectDocKeyConflictErr(x.Key.Location)
+		if result == nil {
+			result = ast.NewObject(ast.Item(key, value))
+		} else {
+			if exist := result.Get(key); exist != nil && !exist.Equal(value) {
+				return objectDocKeyConflictErr(x.Key.Location)
+			}
+			result.Insert(key, value)
 		}
-		result.Insert(key, value)
 		return nil
 	})
 	if err != nil {
 		return err
 	}
+
+	if result == nil {
+		return e.biunify(ast.InternedEmptyObject, b, b1, b2, iter)
+	}
+
 	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
 }
 
@@ -2511,6 +2531,20 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 	return cpy.eval(iter)
 }
 
+// enumerateNext is a helper to avoid closure allocation in enumerate loops.
+// Method values don't allocate, unlike explicit closures.
+// Using a pointer to evalTree avoids copying the 96-byte structure.
+// Fields are ordered by size for optimal memory alignment (16 > 8 > 8 bytes).
+type enumerateNext struct {
+	iter unifyIterator // 16 bytes (interface)
+	e    *evalTree     // 8 bytes (pointer)
+	key  *ast.Term     // 8 bytes (pointer)
+}
+
+func (en *enumerateNext) call() error {
+	return en.e.next(en.iter, en.key)
+}
+
 func (e evalTree) enumerate(iter unifyIterator) error {
 
 	if e.e.inliningControl.Disabled(e.plugged[:e.pos], true) {
@@ -2526,14 +2560,17 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 	dc.deferred = nil
 	defer deecPool.Put(dc)
 
+	// Use method value to avoid closure allocation.
+	// Create once and reuse for both doc and virtual doc enumeration.
+	en := enumerateNext{iter: iter, e: &e, key: nil}
+
 	if doc != nil {
 		switch doc := doc.(type) {
 		case *ast.Array:
 			for i := range doc.Len() {
 				k := ast.InternedTerm(i)
-				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
-					return e.next(iter, k)
-				})
+				en.key = k
+				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, en.call)
 
 				if err := dc.handleErr(err); err != nil {
 					return err
@@ -2542,21 +2579,20 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		case ast.Object:
 			ki := doc.KeysIterator()
 			for k, more := ki.Next(); more; k, more = ki.Next() {
-				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
-					return e.next(iter, k)
-				})
+				en.key = k
+				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, en.call)
 				if err := dc.handleErr(err); err != nil {
 					return err
 				}
 			}
 		case ast.Set:
-			if err := doc.Iter(func(elem *ast.Term) error {
-				err := e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, func() error {
-					return e.next(iter, elem)
-				})
-				return dc.handleErr(err)
-			}); err != nil {
-				return err
+			// Use Slice() to avoid closure allocation in Iter()
+			for _, elem := range doc.Slice() {
+				en.key = elem
+				err := e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, en.call)
+				if err := dc.handleErr(err); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -2569,11 +2605,11 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		return nil
 	}
 
+	// Reuse the same enumerateNext for virtual documents
 	for _, k := range e.node.Sorted {
 		key := ast.NewTerm(k)
-		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, func() error {
-			return e.next(iter, key)
-		}); err != nil {
+		en.key = key
+		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, en.call); err != nil {
 			return err
 		}
 	}
@@ -2621,9 +2657,7 @@ func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error
 	result := ast.NewObject()
 
 	for _, k := range node.Sorted {
-
 		child := node.Children[k]
-
 		if child.Hide {
 			continue
 		}
@@ -3387,7 +3421,12 @@ func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, l *ast.Locat
 }
 
 func hasCollisions(path ast.Ref, visitedRefs *[]ast.Ref, b *bindings) bool {
-	collisionPathTerm := b.Plug(ast.NewTerm(path))
+	// Avoid allocating a new term just for the sake of a lookup
+	term := ast.TermPtrPool.Get()
+	term.Value = path
+	collisionPathTerm := b.Plug(term)
+	ast.TermPtrPool.Put(term)
+
 	collisionPath := collisionPathTerm.Value.(ast.Ref)
 	for _, c := range *visitedRefs {
 		if collisionPath.HasPrefix(c) && !collisionPath.Equal(c) {
@@ -3399,15 +3438,15 @@ func hasCollisions(path ast.Ref, visitedRefs *[]ast.Ref, b *bindings) bool {
 }
 
 func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term, visitedRefs *[]ast.Ref) (*ast.Term, bool, error) {
-
 	var exists bool
 	head := rule.Head
 
 	switch v := result.Value.(type) {
 	case ast.Set:
 		key := b.Plug(head.Key)
-		exists = v.Contains(key)
-		v.Add(key)
+		if exists = v.Contains(key); !exists {
+			v.Add(key)
+		}
 	case ast.Object:
 		// data.p.q[r].s.t := 42 {...}
 		//         |----|-|
@@ -3916,12 +3955,10 @@ func (e evalTerm) get(plugged *ast.Term) (*ast.Term, *bindings) {
 }
 
 func (e evalTerm) save(iter unifyIterator) error {
-
 	v := e.e.generateVar(fmt.Sprintf("ref_%d", e.e.genvarid))
 	e.e.genvarid++
 
 	return e.e.biunify(e.term, v, e.termbindings, e.bindings, func() error {
-
 		suffix := e.ref[e.pos:]
 		ref := make(ast.Ref, len(suffix)+1)
 		ref[0] = v
@@ -3940,7 +3977,8 @@ type evalEvery struct {
 
 func (e evalEvery) eval(iter unifyIterator) error {
 	// unknowns in domain or body: save the expression, PE its body
-	if e.e.unknown(e.Domain, e.e.bindings) || e.e.unknown(e.Body, e.e.bindings) {
+	// partial() check to avoid e.Body -> Node boxing allocation
+	if e.e.partial() && (e.e.unknown(e.Domain, e.e.bindings) || e.e.unknown(e.Body, e.e.bindings)) {
 		return e.save(iter)
 	}
 
@@ -3979,12 +4017,19 @@ func (e evalEvery) eval(iter unifyIterator) error {
 
 		child.closure(e.Body, body)
 		body.findOne = true
-		body.traceEnter(e.Body)
+
+		if e.e.traceEnabled {
+			body.traceEnter(e.Body)
+		}
+
 		done := false
 		err := body.eval(func(*eval) error {
-			body.traceExit(e.Body)
+			if e.e.traceEnabled {
+				body.traceExit(e.Body)
+				body.traceRedo(e.Body)
+			}
 			done = true
-			body.traceRedo(e.Body)
+
 			return nil
 		})
 		if !done {

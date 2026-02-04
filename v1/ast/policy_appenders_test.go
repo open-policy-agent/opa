@@ -52,6 +52,18 @@ r = true`,
 		want: `package example.foo`,
 	},
 	{
+		name: "package with special chars",
+		node: &ast.Package{
+			Path: ast.Ref{
+				ast.DefaultRootDocument,
+				ast.StringTerm("pkg"),
+				ast.StringTerm("with-a"),
+				ast.StringTerm("dash"),
+			},
+		},
+		want: `package pkg["with-a"].dash`,
+	},
+	{
 		name: "import",
 		node: &ast.Import{
 			Path:  ast.NewTerm(ast.MustParseRef("data.example.foo")),
