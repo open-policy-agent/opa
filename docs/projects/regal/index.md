@@ -279,3 +279,4 @@ The current Roadmap items are all related to the preparation for
 - [lsp: Support a JetBrains LSP client (#1560)](https://github.com/open-policy-agent/regal/issues/1560)
 
 If there's something you'd like to have added to the roadmap, either open an issue, or reach out in the community Slack!
+

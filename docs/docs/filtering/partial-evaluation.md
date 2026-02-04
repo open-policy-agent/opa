@@ -64,6 +64,7 @@ include if {
 
 include if input.products.price == "free"
 ```
+
 </SideBySideColumn>
 <SideBySideColumn>
 The first `include` rule is evaluated.
@@ -93,6 +94,7 @@ include if {
 
 include if input.products.price == "free"
 ```
+
 </SideBySideColumn>
 <SideBySideColumn>
 The expression `input.users.name == user` uses `user`, which is _known_, "dana".
@@ -128,6 +130,7 @@ include if {
 
 include if input.products.price == "free"
 ```
+
 </SideBySideColumn>
 <SideBySideColumn>
 Our expression's <abbr title="left-hand side">LHS</abbr> is known, "low", which is not different from "low".
@@ -161,6 +164,7 @@ include if {
 
 include if input.products.price == "free"
 ```
+
 </SideBySideColumn>
 <SideBySideColumn>
 Evaluating our second rule body, we again get a condition from the comparison with `user`, which is `input.user`, and known to be "dana":
@@ -168,6 +172,7 @@ Evaluating our second rule body, we again get a condition from the comparison wi
 ```rego
 input.users.name == "dana"
 ```
+
 </SideBySideColumn>
 </SideBySideContainer>
 
@@ -193,6 +198,7 @@ include if {
 
 include if input.products.price == "free"
 ```
+
 </SideBySideColumn>
 <SideBySideColumn>
 The expression `input.budget == "low"` has only known parts, `input.budget`, and "low", and is indeed true.
@@ -222,6 +228,7 @@ include if {
 
 include if input.products.price == "free"
 ```
+
 </SideBySideColumn>
 <SideBySideColumn>
 The next expression, `input.products.price < 500`, involves a number literal and an unknown, and thus adds a condition:
@@ -257,11 +264,13 @@ include if {
 # highlight-next-line
 include if input.products.price == "free"
 ```
+
 </SideBySideColumn>
 <SideBySideColumn>
 As with every new rule body, the set of conditions is _reset_.
 
 This expression includes one unknown and one literal, so it adds a condition to our set:
+
 ```rego
 input.products.price == "free"
 ```
@@ -284,9 +293,11 @@ It has yielded two sets of conditions, **A** and **B**, which form the basis of 
 input.users.name == "dana"
 input.products.price < 500
 ```
+
 ```rego title="B (Rego)"
 input.products.price == "free"
 ```
+
 </SideBySideColumn>
 </SideBySideContainer>
 
@@ -302,19 +313,21 @@ When translating, each of the sets is translated into SQL expressions:
 ```sql title="A (SQL)"
 users.name = "dana" AND products.price < 500
 ```
+
 ```sql title="B (SQL)"
 products.price = "free"
 ```
+
 </SideBySideColumn>
 </SideBySideContainer>
 
 ---
 
 Finally, the two are combined with `OR`:
+
 ```sql title="A OR B"
 (users.name = "dana" AND products.price < 500) OR products.price = "free"
 ```
-
 
 ## Next Steps
 

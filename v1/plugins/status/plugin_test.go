@@ -1086,7 +1086,7 @@ func TestParseConfigTriggerMode(t *testing.T) {
 			config:   []byte(`{"trigger": "foo"}`),
 			expected: "foo",
 			wantErr:  true,
-			err:      errors.New("invalid status config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			err:      errors.New("invalid status config: invalid trigger mode \"foo\" (want \"periodic\", \"manual\" or \"immediate\")"),
 		},
 	}
 

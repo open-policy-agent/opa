@@ -7,7 +7,7 @@ sidebar_label: Style Guide
 <!-- The source of truth for this file is at https://github.com/StyraInc/rego-style-guide/blob/main/style-guide.md -->
 
 The purpose of this style guide is to provide a collection of recommendations and best practices for authoring
-[Rego](https://www.openpolicyagent.org/docs/latest/policy-language/).
+[Rego](https://www.openpolicyagent.org/docs/policy-language).
 From the maintainers of [Open Policy Agent](https://www.openpolicyagent.org) (OPA),
 and some of the most experienced members of the community,
 we hope to share lessons learnt from authoring and reviewing hundreds of thousands of lines of Rego over the years.
@@ -36,7 +36,7 @@ the problem at hand.
 
 #### Related Resources
 
-- [Policy Performance](https://www.openpolicyagent.org/docs/latest/policy-performance/)
+- [Policy Performance](https://www.openpolicyagent.org/docs/policy-performance)
 
 ### Use `opa fmt`
 
@@ -79,7 +79,7 @@ pipeline.
 
 ### Use metadata annotations
 
-Favor [metadata annotations](https://www.openpolicyagent.org/docs/latest/policy-language/#metadata) over regular comments.
+Favor [metadata annotations](https://www.openpolicyagent.org/docs/policy-language#metadata) over regular comments.
 
 Metadata annotations allow external tools and editors to parse their contents, potentially leveraging them for
 something useful, like in-line explanations, generated docs, etc.
@@ -142,7 +142,7 @@ Use regular comments inside of rule bodies, or for packages and rules you consid
 
 #### Related Resources
 
-- [Annotations](https://www.openpolicyagent.org/docs/latest/policy-language/#metadata)
+- [Annotations](https://www.openpolicyagent.org/docs/policy-language#metadata)
 
 ### Get to know the built-in functions
 
@@ -289,8 +289,8 @@ if encountering undefined in a rule is likely desirable, this doesn't hold true 
 i.e. rules like `deny` (as opposed to `allow`). Saying `deny is undefined` or `deny is false` if undefined is
 encountered, essentially means that any occurrence of undefined (such as when attributes are missing in the input
 document) would lead to the `deny` rule not getting enforced. This is particularly common writing partial rules (i.e.
-rules that build [sets](https://www.openpolicyagent.org/docs/latest/policy-language/#generating-sets) or
-[objects](https://www.openpolicyagent.org/docs/latest/policy-language/#generating-objects)).
+rules that build [sets](https://www.openpolicyagent.org/docs/policy-language#generating-sets) or
+[objects](https://www.openpolicyagent.org/docs/policy-language#generating-objects)).
 
 Consider for example this simple rule:
 
@@ -329,7 +329,7 @@ cases covered.
 
 #### Related Resources
 
-- [OPA AWS CloudFormation Hook Tutorial](https://www.openpolicyagent.org/docs/latest/aws-cloudformation-hooks/)
+- [OPA AWS CloudFormation Hook Tutorial](https://www.openpolicyagent.org/docs/aws-cloudformation-hooks)
 
 ### Consider partial helper rules over comprehensions in rule bodies
 
@@ -618,7 +618,7 @@ This function has been deprecated for a long time, and will eventually be remove
 
 ### Don't use unification operator for assignment or comparison
 
-The [unification](https://www.openpolicyagent.org/docs/latest/policy-language/#unification-) operator (`=`) allows you
+The [unification](https://www.openpolicyagent.org/docs/policy-language#unification-) operator (`=`) allows you
 to combine assignment and comparison. While this is useful in a few specific cases (see "Notes / Exceptions" below),
 using the assignment operator (`:=`) for assignment, and the comparison operator (`==`) for comparison, is almost always
 preferable. Separating assignment from comparison clearly demonstrates intent, and removes the ambiguity around scope
@@ -796,7 +796,7 @@ allow if {
 
 #### Related Resources
 
-- [Five things you didn't know about OPA](https://www.styra.com/blog/five-things-you-didnt-know-about-opa).
+- [Five things you didn't know about OPA](https://www.styra.com/blog/five-things-you-didnt-know-about-opa/).
 
 ## Functions
 
@@ -835,7 +835,7 @@ is_preferred_login_method(method, user, all_login_methods) if {
 
 Older Rego policies sometimes contain an unusual way to declare where the return value of a function call should be
 stored — the last argument of the function. True to it's
-[Datalog](https://www.openpolicyagent.org/docs/latest/policy-language/#what-is-rego) roots, return values may be stored
+[Datalog](https://www.openpolicyagent.org/docs/policy-language#what-is-rego) roots, return values may be stored
 either using assignment (i.e. `:=`) or by appending a variable name to the argument list of a function. These two
 expressions are thus equivalent:
 
@@ -1034,7 +1034,7 @@ of completeness, and to provide context for older policies.
 **With the introduction of the `import rego.v1` construct in OPA v0.59.0, this is no longer needed**
 
 In order to evolve the Rego language without breaking existing policies, many new features require importing
-["future" keywords](https://www.openpolicyagent.org/docs/latest/policy-language/#future-keywords), like `contains`,
+["future" keywords](https://www.openpolicyagent.org/docs/policy-language#future-keywords), like `contains`,
 `every`, `if` and `in`. While it might seem convenient to use the "catch-all" form of `import future.keywords` to
 import all of the future keywords, this construct risks breaking your policies when new keywords are introduced, and
 their names happen to collide with names you've used for variables or rules.

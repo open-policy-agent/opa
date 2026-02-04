@@ -1,0 +1,15 @@
+{
+  "id": "how-did-you-first-find-out-about-opa",
+  "title": "How did you first find out about OPA?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 18
+}

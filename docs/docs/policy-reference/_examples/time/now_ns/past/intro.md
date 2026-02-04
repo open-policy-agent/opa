@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
+
 In this example, we see compare an
 [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) timestamp
 with the current time to determine if the timestamp is in the past.

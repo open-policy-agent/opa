@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
+
 So far, all the examples on this page have used the `constraints` parameter
 to specify the claims that should be checked and their values. The functionality
 covered by `constraints` represents the core checks when verifying a JWT token.

@@ -8,6 +8,11 @@
         max-width: 80%;
         margin: 0 auto;
     }
+
+    /* Narrower max-width when TOC is present to make room for the TOC column */
+    .colWithTOC {
+        max-width: 75%;
+    }
 }
 
 .container {

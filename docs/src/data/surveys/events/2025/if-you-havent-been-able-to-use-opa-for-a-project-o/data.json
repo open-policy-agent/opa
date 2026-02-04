@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "label": "Team dynamics, buy-in",
+      "value": 22
+    },
+    {
+      "label": "Lack of familiarity over in-house approaches",
+      "value": 20
+    },
+    {
+      "label": "Deployment and management overhead",
+      "value": 11
+    },
+    {
+      "label": "Missing integrations",
+      "value": 9
+    }
+  ],
+  "otherResponses": [
+    "Lack of clear documentation",
+    "Rego complexity",
+    "Product immaturity",
+    "lack of a data plane",
+    "To authorize an API call we often rely on data that is too large to be loaded into OPA, e.g. data in a database. Maybe have missed it, or just havent looked hard enough, but we find it difficult to fetch data from a database in Rego.",
+    "management don't understand it",
+    "OPA syntax too complicated. compare to other language i had to think more times",
+    "No support for custom authorization webhook",
+    "Staffing",
+    "custom engine based on Groovy scripting"
+  ]
+}

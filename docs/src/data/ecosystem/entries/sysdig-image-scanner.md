@@ -18,4 +18,5 @@ docs_feature:
       [README](https://github.com/sysdiglabs/opa-image-scanner#overview)
       for more details.
 ---
+
 Sysdig’s OPA Image Scanner combines Sysdig Secure image scanner with OPA policy-based rego language to evaluate the scan results and the admission context, providing great flexibility on the admission decision.

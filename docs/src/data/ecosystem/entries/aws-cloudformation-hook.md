@@ -22,4 +22,5 @@ docs_features:
       Read [the tutorial](https://www.openpolicyagent.org/docs/latest/aws-cloudformation-hooks/)
       here in the OPA documentation.
 ---
+
 AWS CloudFormation Hook that uses OPA to make policy decisions on infrastructure provisioned via AWS CloudFormation

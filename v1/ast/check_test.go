@@ -2592,7 +2592,7 @@ p if {
 	}
 }
 
-func TestCheckUndefinedFunction(t *testing.T) {
+func TestCheckExpectedErrors(t *testing.T) {
 	tests := []struct {
 		name          string
 		policy        string
@@ -2623,6 +2623,26 @@ r := f()`,
 r := f()`,
 			expectedError: "rego_type_error: undefined function f",
 		},
+		{
+			name: "function used as reference",
+			policy: `package play
+
+import rego.v1
+
+f(x) := x
+
+allow if {
+    some x in f
+}`,
+			expectedError: "policy.rego:8: rego_type_error: function data.play.f used as reference, not called",
+		},
+		{
+			name: "function used as reference",
+			policy: `package play
+
+p if { [data.base.foo] }`,
+			expectedError: "policy.rego:3: rego_type_error: function data.base.foo used as reference, not called",
+		},
 	}
 
 	for _, tc := range tests {
@@ -2631,13 +2651,19 @@ r := f()`,
 			if err != nil {
 				t.Fatal(err)
 			}
-			modules := map[string]*Module{"policy.rego": module}
 
 			capabilities := CapabilitiesForThisVersion()
 			compiler := NewCompiler().
 				WithUseTypeCheckAnnotations(true).
 				WithCapabilities(capabilities)
-			compiler.Compile(modules)
+			pOpts := ParserOptions{AllFutureKeywords: true}
+
+			functions := []string{
+				`foo([a, b]) = y if { split(a, b, y) }`,
+			}
+			body := strings.Join(functions, "\n")
+			base := "package base\n" + body
+			compiler.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, pOpts), "policy.rego": module})
 
 			if !compiler.Failed() {
 				t.Fatal("expected error, got none")

@@ -4,20 +4,19 @@ description: UCAST Syntax
 sidebar_position: 5
 ---
 
-
 # UCAST Syntax
 
 The data filtering support makes use of the [Universal Conditions AST (UCAST)](https://github.com/stalniy/ucast) project to represent (as JSON) a universal set of conditions that can be applied to filter data.
 
 UCAST allows 3 types of nodes in the tree:
+
 - **Document-level Condition** nodes: Used to apply an operator to the entire document/table, e.g. the EXISTS operator in SQL. These types of nodes are _not used_ by any of our interpreters.
 - **Compound Condition** nodes: Used to apply an operator across N-many child nodes.
 - **Field Condition** nodes: Used to apply an operator to a field and an optional value.
 
-
 ## Expanded Syntax
 
-``` python
+```python
 START := EXPRS
 
 EXPRS := COMPOUND_EXPR | FIELD_EXPR
@@ -125,12 +124,12 @@ The `FIELD_NAME` corresponds to the field being referenced in the database. `COM
 ```
 </details>
 
-
 ## Concise syntax
 
 UCAST supports an abbreviated "concise" syntax, which allows leaving out the often redundant "type" and "operation" fields from the nodes. It uses some implicit construction rules to make common collections of conditions easier to write.
 
 Two assumptions made in the concise format:
+
 - The default compound operation is **and**.
 - The default field operation is **eq**.
 
@@ -152,122 +151,122 @@ COMPOUND_OP_NAME := 'and' | 'or' | 'not'
 
 The `FIELD_NAME` corresponds to the field being referenced in the database.
 
-
 ## Compound Operations
 
 The `not` operation is not generally supported by all clients.
 
-Operation | `COMPOUND_OP_NAME` | Supported Types | [`@open-policy-agent/ucast-prisma`](https://github.com/open-policy-agent/opa-typescript/tree/main/packages/ucast-prisma) | [`OpenPolicyAgent.Ucast.Linq`](https://github.com/open-policy-agent/ucast-linq)
----|---|---|---|---
-And | `and` | `array` | :white_check_mark: | :white_check_mark:
-Or | `or` | `array` | :white_check_mark: | :white_check_mark:
-Not | `not` | `array` with 1 entry | :white_check_mark: | :x:
-
+| Operation | `COMPOUND_OP_NAME` | Supported Types      | [`@open-policy-agent/ucast-prisma`](https://github.com/open-policy-agent/opa-typescript/tree/main/packages/ucast-prisma) | [`OpenPolicyAgent.Ucast.Linq`](https://github.com/open-policy-agent/ucast-linq) |
+| --------- | ------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| And       | `and`              | `array`              | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| Or        | `or`               | `array`              | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| Not       | `not`              | `array` with 1 entry | :white_check_mark:                                                                                                       | :x:                                                                             |
 
 ## Field Operations
 
 Not all **field operations** are supported by every database integration. The following is a (non-comprehensive) compatibility matrix for the EOPA supported UCAST interpreters.
 
-Operation | `FIELD_OP_NAME` | Supported `VALUE` Types | [`@open-policy-agent/ucast-prisma`](https://github.com/open-policy-agent/opa-typescript/tree/main/packages/ucast-prisma) | [`OpenPolicyAgent.Ucast.Linq`](https://github.com/open-policy-agent/ucast-linq)
----|---|---|---|---
-Equals | `eq` | `string`, `number`, `boolean`, `null` | :white_check_mark: | :white_check_mark:
-Not Equals | `ne` | `string`, `number`, `boolean`, `null` | :white_check_mark: | :white_check_mark:
-Less Than | `lt` | `number` | :white_check_mark: | :white_check_mark:
-Less Than or Equals | `lte` | `number` | :white_check_mark: | :white_check_mark:
-Greater Than | `gt` | `number` | :white_check_mark: | :white_check_mark:
-Greater Than or Equals | `gte` | `number` | :white_check_mark: | :white_check_mark:
-In | `in` | `array` | :white_check_mark: | :white_check_mark:
-Not In | `nin` | `array` | :white_check_mark: | :white_check_mark:
-Contains | `contains` | `string`, `number`, `boolean` | :white_check_mark: | :x:
-Starts With | `startswith` | `string` | :white_check_mark: | :x:
-Ends With | `endswith` | `string` | :white_check_mark: | :x:
-
+| Operation              | `FIELD_OP_NAME` | Supported `VALUE` Types               | [`@open-policy-agent/ucast-prisma`](https://github.com/open-policy-agent/opa-typescript/tree/main/packages/ucast-prisma) | [`OpenPolicyAgent.Ucast.Linq`](https://github.com/open-policy-agent/ucast-linq) |
+| ---------------------- | --------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Equals                 | `eq`            | `string`, `number`, `boolean`, `null` | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| Not Equals             | `ne`            | `string`, `number`, `boolean`, `null` | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| Less Than              | `lt`            | `number`                              | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| Less Than or Equals    | `lte`           | `number`                              | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| Greater Than           | `gt`            | `number`                              | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| Greater Than or Equals | `gte`           | `number`                              | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| In                     | `in`            | `array`                               | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| Not In                 | `nin`           | `array`                               | :white_check_mark:                                                                                                       | :white_check_mark:                                                              |
+| Contains               | `contains`      | `string`, `number`, `boolean`         | :white_check_mark:                                                                                                       | :x:                                                                             |
+| Starts With            | `startswith`    | `string`                              | :white_check_mark:                                                                                                       | :x:                                                                             |
+| Ends With              | `endswith`      | `string`                              | :white_check_mark:                                                                                                       | :x:                                                                             |
 
 ## Examples
-
 
 ### Simple: Product Prices
 
 Use case: Show products with a price less than or equal to $500
 
 Expanded Format:
+
 ```json
 {
-    "type": "field",
-    "field": "products.price",
-    "operator": "lte",
-    "value": 500
+  "type": "field",
+  "field": "products.price",
+  "operator": "lte",
+  "value": 500
 }
 ```
 
 Concise Format:
+
 ```json
 {
-    "products.price": {
-      "lte": 500
-    }
+  "products.price": {
+    "lte": 500
+  }
 }
 ```
-
 
 ### Compound: Support Tickets
 
 Use Case: Show tickets that are assigned to "Alice Zimmerman" and have a severity of 1 or 2.
 
 Expanded Format:
+
 ```json
 {
-    "type": "compound",
-    "operator": "and",
-    "value": [
-        {
-            "type": "field",
-            "field": "tickets.assignee",
-            "operator": "eq",
-            "value": "Alice Zimmerman"
-        },
-        {
-            "type": "field",
-            "field": "tickets.severity",
-            "operator": "in",
-            "value": [1, 2]
-        }
-    ]
+  "type": "compound",
+  "operator": "and",
+  "value": [
+    {
+      "type": "field",
+      "field": "tickets.assignee",
+      "operator": "eq",
+      "value": "Alice Zimmerman"
+    },
+    {
+      "type": "field",
+      "field": "tickets.severity",
+      "operator": "in",
+      "value": [1, 2]
+    }
+  ]
 }
 ```
 
 Concise Format:
+
 ```json
 {
-    "tickets.assignee": "Alice Zimmerman",
-    "tickets.severity": { "in": [1, 2] },
+  "tickets.assignee": "Alice Zimmerman",
+  "tickets.severity": { "in": [1, 2] }
 }
 ```
-
 
 ### Nots and Column Comparisons: Support Tickets
 
 Use Case: Show tickets where the assignee is not the resolver.
 
 Expanded Format:
+
 ```json
 {
-    "type": "compound",
-    "operator": "not",
-    "value": [
-        {
-            "type": "field",
-            "field": "tickets.assignee",
-            "operator": "eq",
-            "value": { "field": "tickets.resolver" }
-        }
-    ]
+  "type": "compound",
+  "operator": "not",
+  "value": [
+    {
+      "type": "field",
+      "field": "tickets.assignee",
+      "operator": "eq",
+      "value": { "field": "tickets.resolver" }
+    }
+  ]
 }
 ```
 
 Concise Format:
+
 ```json
 {
-    "not": [{"tickets.assignee": {"field": "tickets.resolver"}}]
+  "not": [{ "tickets.assignee": { "field": "tickets.resolver" } }]
 }
 ```

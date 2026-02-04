@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "label": "0-2 years",
+      "value": 2
+    },
+    {
+      "label": "3-5 years",
+      "value": 8
+    },
+    {
+      "label": "6-10 years",
+      "value": 21
+    },
+    {
+      "label": "11-15 years",
+      "value": 10
+    },
+    {
+      "label": "15+ years",
+      "value": 40
+    }
+  ]
+}

@@ -44,7 +44,7 @@ composition. The signature of the rule declares the context to be provided
 upon evaluation, and the body is a collection of conditions and decisions.
 
 Please note that the definition of `expr` and `literal` are taken from
-the [Common Expression Language](http://github.com/google/cel-spec) (CEL):
+the [Common Expression Language](https://github.com/google/cel-spec) (CEL):
 
 ```
 rule_decl

@@ -11,7 +11,7 @@ blogs:
 tutorials:
 - https://www.openpolicyagent.org/docs/kafka-authorization
 code:
-- https://github.com/StyraInc/opa-kafka-plugin
+- https://github.com/StyraOSS/opa-kafka-plugin
 - https://github.com/llofberg/kafka-authorizer-opa
 - https://github.com/opencredo/opa-single-message-transformer
 inventors:
@@ -34,7 +34,7 @@ docs_features:
       that uses OPA to make authorization decisions by calling the REST API.
 
       Installation and configuration instructions are available in the
-      project's [README](https://github.com/StyraInc/opa-kafka-plugin#installation).
+      project's [README](https://github.com/StyraOSS/opa-kafka-plugin#installation).
 ---
 
 Apache Kafka is a high-performance distributed streaming platform deployed by

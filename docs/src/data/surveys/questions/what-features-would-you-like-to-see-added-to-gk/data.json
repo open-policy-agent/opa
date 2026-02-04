@@ -1,0 +1,18 @@
+{
+  "id": "what-features-would-you-like-to-see-added-to-gk",
+  "title": "What features would you like to see added to Gatekeeper?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 49
+}

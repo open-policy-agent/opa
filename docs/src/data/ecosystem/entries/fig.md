@@ -9,4 +9,5 @@ code:
 inventors:
 - fig
 ---
+
 Beautiful shell autocompletion for OPA and many other commands, for Mac OS

@@ -95,6 +95,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Arrays
 	ArrayConcat,
+	ArrayFlatten,
 	ArraySlice,
 	ArrayReverse,
 
@@ -893,6 +894,18 @@ var ArrayConcat = &Builtin{
 	CanSkipBctx: true,
 }
 
+var ArrayFlatten = &Builtin{
+	Name:        "array.flatten",
+	Description: "Non-recursively unpacks array items in arr into the flattened array. Other types are appended as-is.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("arr", types.NewArray(nil, types.A)).Description("the array to be flattened"),
+		),
+		types.Named("flattened", types.NewArray(nil, types.A)).Description("array flattened one level"),
+	),
+	CanSkipBctx: true,
+}
+
 var ArraySlice = &Builtin{
 	Name:        "array.slice",
 	Description: "Returns a slice of a given array. If `start` is greater or equal than `stop`, `slice` is `[]`.",
@@ -1662,7 +1675,7 @@ var JSONPatch = &Builtin{
 		"Additionally works on sets, where a value contained in the set is considered to be its path.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("object", types.A).Description("the object to patch"), // TODO(sr): types.A?
+			types.Named("target", types.A).Description("the object, array or set to patch"),
 			types.Named("patches", types.NewArray(
 				nil,
 				types.NewObject(

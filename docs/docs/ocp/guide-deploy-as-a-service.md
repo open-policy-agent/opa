@@ -59,6 +59,7 @@ It uses the same configuration format as `opactl run`, see `opactl db migrate --
 Notably, it comes with a `--dry-run` flag for _not actually applying_ the migrations.
 
 When OCP starts without `--apply-migrations`, it will
+
 1. warn if there are un-applied migrations known to the binary
 2. warn if the binary appears to be stale (database's migration state is newer than the binary's migrations)
 3. finally, attempt to use the database as-is.
@@ -142,6 +143,7 @@ bundles:
     requirements:
     - source: my-alpha-app
     - source: my-shared-datasource
+      prefix: shared.external
 ```
 
 Note: the name `my-alpha-app` in the requirements is specifically referencing the name under sources (from the previous step). You will oftentimes name the bundle with the same name to “link” them logically together, these will normally (but not required to) be configured together in their own configuration file.

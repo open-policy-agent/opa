@@ -5,6 +5,7 @@
 **Category**: Custom
 
 **Avoid**
+
 ```rego
 package policy
 
@@ -20,6 +21,7 @@ deny contains message if {
 ```
 
 **Prefer**
+
 ```rego
 package policy
 
@@ -58,6 +60,9 @@ deny contains message if {
 }
 ```
 
+The `include-interpolated` configuration option may be used to count interpolated strings as a scalar (string) values,
+which will have Regal recommend moving them to the head even when `only-scalars` is set to `true`.
+
 ## Configuration Options
 
 This linter rule provides the following configuration options:
@@ -74,10 +79,13 @@ rules:
       # whether to only suggest moving scalar values (strings, numbers, booleans, null)
       # to the head, and not expressions or functions
       only-scalars: false
+      # when set to true, counts interpolated strings as a scalar value, and will suggest
+      # moving them to the head even when `only-scalars` is true
+      include-interpolated: false
       # variable names to exempt from the rule (by default, none)
       except-var-names:
-      - report
-      - violation
+        - report
+        - violation
 ```
 
 ## Related Resources

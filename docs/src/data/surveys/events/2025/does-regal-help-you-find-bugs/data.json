@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "label": "Sometimes - mixed results",
+      "value": 9
+    },
+    {
+      "label": "Yes, catches bugs before deployment",
+      "value": 21
+    },
+    {
+      "label": "Yes, but only basic issues",
+      "value": 16
+    },
+    {
+      "label": "No, haven't found it helpful",
+      "value": 3
+    }
+  ]
+}

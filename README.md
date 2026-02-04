@@ -30,17 +30,17 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 
 ## Want to integrate OPA?
 
-- See the high-level [Go SDK](https://www.openpolicyagent.org/docs/latest/integration/#integrating-with-the-go-sdk) or the low-level Go API
-  [![GoDoc](https://godoc.org/github.com/open-policy-agent/opa?status.svg)](https://godoc.org/github.com/open-policy-agent/opa/rego)
+- See the high-level [Go SDK](https://www.openpolicyagent.org/docs/integration#integrating-with-the-go-sdk) or the low-level Go API
+  [![GoDoc](https://pkg.go.dev/badge/github.com/open-policy-agent/opa?utm_source=godoc)](https://pkg.go.dev/github.com/open-policy-agent/opa/rego?utm_source=godoc)
   to integrate OPA with services written in Go.
 - See the [REST API](https://www.openpolicyagent.org/docs/rest-api.html)
   reference to integrate OPA with services written in other languages.
-- See the [integration docs](https://www.openpolicyagent.org/docs/latest/integration/) for more options.
+- See the [integration docs](https://www.openpolicyagent.org/docs/integration) for more options.
 
 ## Want to contribute to OPA?
 
-- Read the [Contributing Guide](https://www.openpolicyagent.org/docs/latest/contributing/) to learn how to make your first contribution.
-- Use [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in Slack to talk to other contributors and OPA maintainers.
+- Read the [Contributing Guide](https://www.openpolicyagent.org/docs/contributing) to learn how to make your first contribution.
+- Use [#contributors](https://openpolicyagent.slack.com/?redir=%2Farchives%2FC02L1TLPN59%3Fname%3DC02L1TLPN59) in Slack to talk to other contributors and OPA maintainers.
 - File a [GitHub Issue](https://github.com/open-policy-agent/opa/issues) to request features or report bugs.
 
 ## How does OPA work?
@@ -87,12 +87,12 @@ and more, see [openpolicyagent.org](https://www.openpolicyagent.org).
 - Open Policy Agent Intro @ KubeCon EU 2021: [Video](https://www.youtube.com/watch?v=2CgeiWkliaw)
 - Using Open Policy Agent to Meet Evolving Policy Requirements @ KubeCon NA 2020: [video](https://www.youtube.com/watch?v=zVuM7F_BTyc)
 - Applying Policy Throughout The Application Lifecycle with Open Policy Agent @ CloudNativeCon 2019: [video](https://www.youtube.com/watch?v=cXfsaE6RKfc)
-- Open Policy Agent Introduction @ CloudNativeCon EU 2018: [video](https://youtu.be/XEHeexPpgrA), [slides](https://www.slideshare.net/TorinSandall/opa-the-cloud-native-policy-engine)
-- Rego Deep Dive @ CloudNativeCon EU 2018: [video](https://youtu.be/4mBJSIhs2xQ), [slides](https://www.slideshare.net/TorinSandall/rego-deep-dive)
-- How Netflix Is Solving Authorization Across Their Cloud @ CloudNativeCon US 2017: [video](https://www.youtube.com/watch?v=R6tUNpRpdnY), [slides](https://www.slideshare.net/TorinSandall/how-netflix-is-solving-authorization-across-their-cloud).
-- Policy-based Resource Placement in Kubernetes Federation @ LinuxCon Beijing 2017: [slides](https://www.slideshare.net/TorinSandall/policybased-resource-placement-across-hybrid-cloud), [screencast](https://www.youtube.com/watch?v=hRz13baBhfg&feature=youtu.be)
-- Enforcing Bespoke Policies In Kubernetes @ KubeCon US 2017: [video](https://www.youtube.com/watch?v=llDI8VvkUj8), [slides](https://www.slideshare.net/TorinSandall/enforcing-bespoke-policies-in-kubernetes)
-- Istio's Mixer: Policy Enforcement with Custom Adapters @ CloudNativeCon US 2017: [video](https://www.youtube.com/watch?v=czZLXUqzd24), [slides](https://www.slideshare.net/TorinSandall/istios-mixer-policy-enforcement-with-custom-adapters-cloud-nativecon-17)
+- Open Policy Agent Introduction @ CloudNativeCon EU 2018: [video](https://youtu.be/XEHeexPpgrA), [slides](https://www.slideshare.net/slideshow/opa-the-cloud-native-policy-engine/96644504)
+- Rego Deep Dive @ CloudNativeCon EU 2018: [video](https://youtu.be/4mBJSIhs2xQ), [slides](https://www.slideshare.net/slideshow/rego-deep-dive/96644608)
+- How Netflix Is Solving Authorization Across Their Cloud @ CloudNativeCon US 2017: [video](https://www.youtube.com/watch?v=R6tUNpRpdnY), [slides](https://www.slideshare.net/slideshow/how-netflix-is-solving-authorization-across-their-cloud/84384095).
+- Policy-based Resource Placement in Kubernetes Federation @ LinuxCon Beijing 2017: [slides](https://www.slideshare.net/slideshow/policybased-resource-placement-across-hybrid-cloud/83876901), [screencast](https://www.youtube.com/watch?v=hRz13baBhfg&feature=youtu.be)
+- Enforcing Bespoke Policies In Kubernetes @ KubeCon US 2017: [video](https://www.youtube.com/watch?v=llDI8VvkUj8), [slides](https://www.slideshare.net/slideshow/enforcing-bespoke-policies-in-kubernetes/83877237)
+- Istio's Mixer: Policy Enforcement with Custom Adapters @ CloudNativeCon US 2017: [video](https://www.youtube.com/watch?v=czZLXUqzd24), [slides](https://www.slideshare.net/slideshow/istios-mixer-policy-enforcement-with-custom-adapters-cloud-nativecon-17/83877455)
 
 ## Security
 

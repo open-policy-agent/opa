@@ -18,8 +18,8 @@ docs_features:
       [documented here](https://github.com/chef/automate/tree/master/components/authz-service#authz-with-opa).
 allow_missing_image: true
 ---
+
 Application require authorization decisions made at the API gateway, frontend, backend, and database.
 OPA helps developers decouple authorization logic from application code, define a custom authorization model
 that enables end-users to control tenant permissions, and enforce that policy across the different components of the
 application (gateway, frontend, backend, database).
-

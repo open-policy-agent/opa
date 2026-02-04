@@ -1,0 +1,10 @@
+{
+  "data": [
+    { "label": "Evaluating/Experimentation", "value": 30 },
+    { "label": "Pre-production & QA", "value": 27 },
+    { "label": "Production", "value": 43 }
+  ],
+  "footnotes": [
+    "The use case question split the evaluating and experimenting options, these are grouped here to make comparisons between years easier. Evaluation was 12% and experimentation was 18%, combined to give 30% as we see here."
+  ]
+}

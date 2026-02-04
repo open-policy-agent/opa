@@ -18,4 +18,5 @@ docs_features:
       [This tutorial](https://docs.dapr.io/reference/components-reference/supported-middleware/middleware-opa/)
       explains how to configure it.
 ---
+
 Middleware to apply Open Policy Agent policies on incoming requests

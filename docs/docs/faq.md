@@ -314,7 +314,7 @@ not p[x]
 
 ## JSON Web Tokens (JWTs)
 
-[JSON Web Tokens (JWTs)](https://jwt.io/) are an industry standard for exchanging information between services. Often they are used to represent information about the users logged into a system. OPA has special-purpose code for dealing with JWTs.
+[JSON Web Tokens (JWTs)](https://www.jwt.io/) are an industry standard for exchanging information between services. Often they are used to represent information about the users logged into a system. OPA has special-purpose code for dealing with JWTs.
 
 All JWTs with OPA come in as strings. That string is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported.
 

@@ -38,8 +38,8 @@ func New() *Profiler {
 }
 
 // Enabled returns true if profiler is enabled.
-func (*Profiler) Enabled() bool {
-	return true
+func (p *Profiler) Enabled() bool {
+	return p != nil
 }
 
 // Config returns the standard Tracer configuration for the profiler

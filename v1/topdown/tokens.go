@@ -1290,7 +1290,11 @@ func createTokenCacheKey(serializedJwt ast.Value, publicKey ast.Value) ast.Value
 
 func init() {
 	// By default, the JWT cache is disabled.
-	cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(tokenCacheName, nil)
+	disabled := true
+	var tokenCache = cache.NamedValueCacheConfig{
+		Disabled: &disabled,
+	}
+	cache.RegisterDefaultInterQueryBuiltinValueCacheConfig(tokenCacheName, &tokenCache)
 
 	RegisterBuiltinFunc(ast.JWTDecode.Name, builtinJWTDecode)
 	RegisterBuiltinFunc(ast.JWTVerifyRS256.Name, builtinJWTVerifyRS256)

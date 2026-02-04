@@ -27,6 +27,45 @@ opa_value *opa_array_concat(opa_value *a, opa_value *b)
 }
 
 OPA_BUILTIN
+opa_value *opa_array_flatten(opa_value *a)
+{
+    if (opa_value_type(a) != OPA_ARRAY)
+    {
+        return NULL;
+    }
+
+    opa_array_t *arr = opa_cast_array(a);
+
+    if (arr->len == 0) {
+        return a;
+    }
+
+    int n = arr->len;
+    
+    for (int i = 0; i < arr->len; i++) {
+        if (opa_value_type(arr->elems[i].v) == OPA_ARRAY) {
+            opa_array_t *subarr = opa_cast_array(arr->elems[i].v);
+            n += subarr->len - 1;
+        }
+    }
+    
+    opa_array_t *flat = opa_cast_array(opa_array_with_cap(n));
+
+    for (int i = 0; i < arr->len; i++) {
+        if (opa_value_type(arr->elems[i].v) == OPA_ARRAY) {
+            opa_array_t *subarr = opa_cast_array(arr->elems[i].v);
+            for (int j = 0; j < subarr->len; j++) {
+                opa_array_append(flat, subarr->elems[j].v);
+            }
+        } else {
+            opa_array_append(flat, arr->elems[i].v);
+        }
+    }
+
+    return &flat->hdr;
+}
+
+OPA_BUILTIN
 opa_value *opa_array_slice(opa_value *a, opa_value *i, opa_value *j)
 {
     if (opa_value_type(a) != OPA_ARRAY || opa_value_type(i) != OPA_NUMBER || opa_value_type(j) != OPA_NUMBER)

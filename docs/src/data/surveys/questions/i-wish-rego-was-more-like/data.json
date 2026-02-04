@@ -1,0 +1,18 @@
+{
+  "id": "i-wish-rego-was-more-like",
+  "title": "I wish Rego was more like...",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 15
+}

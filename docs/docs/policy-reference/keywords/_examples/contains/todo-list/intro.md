@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
+
 While this first example is trivially simple and unlikely to be useful when building real
 policies, it illustrates the fundamental reason for using the `contains` keyword: building sets.
 Sets are unordered collections, and they form an important building block for many policies.

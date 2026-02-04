@@ -38,6 +38,12 @@
 /docs/kubernetes-admission-control.html /docs/kubernetes
 
 # -----------------------------------------------------------------------------
+# Redirects for immutable referrers
+# -----------------------------------------------------------------------------
+# https://ieeexplore.ieee.org/document/11323460/references#references 
+/docs/policylanguage/ /docs/policy-language
+
+# -----------------------------------------------------------------------------
 # Redirects for legacy usage external resources
 # -----------------------------------------------------------------------------
 

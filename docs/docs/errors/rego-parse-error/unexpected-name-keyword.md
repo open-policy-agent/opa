@@ -58,4 +58,4 @@ A common cause for such misunderstandings is expressing or in Rego, if you think
 [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) on this topic here you might want to check out.
 
 Failing that, the best place to start is to review the OPA documentation on Rego, see this page for an
-[explanation of Rego's keywords](https://www.openpolicyagent.org/docs/policy-language/).
+[explanation of Rego's keywords](https://www.openpolicyagent.org/docs/policy-language).

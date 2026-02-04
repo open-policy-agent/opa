@@ -516,3 +516,17 @@ func TestProfilerTraceConfig(t *testing.T) {
 		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
 	}
 }
+
+func TestProfilerEnabled(t *testing.T) {
+	t.Parallel()
+
+	var profiler *Profiler
+
+	if profiler.Enabled() {
+		t.Fatal("Expected non-initialized profiler to be disabled")
+	}
+
+	if profiler = New(); !profiler.Enabled() {
+		t.Fatal("Expected initialized profiler to be enabled")
+	}
+}

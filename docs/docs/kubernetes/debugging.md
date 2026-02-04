@@ -8,7 +8,7 @@ configured correctly. If none of these tips work, feel free to join
 [our slack](https://slack.openpolicyagent.org) and ask for help.
 
 The tips below cover the OPA-Kubernetes integration that uses kube-mgmt.
-The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper)
+The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper/)
 has its own docs.
 
 ### Check for the `openpolicyagent.org/kube-mgmt-status` annotation on ConfigMaps containing policies

@@ -5,4 +5,3 @@ category: createwithopa
 ---
 
 OPA’s [REST API](/docs/rest-api) is the foundation for many integrations. Public examples are listed below.
-

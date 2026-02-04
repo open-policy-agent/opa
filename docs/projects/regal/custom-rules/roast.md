@@ -216,6 +216,24 @@ The `name` attribute found in the OPA AST for `rules` is unreliable, as it's not
 attribute however always is. While this doesn't come with any real cost in terms of AST size or performance, consistency
 is key.
 
+### Added `interpolated` boolean attribute to template string expression nodes
+
+Expressions found in template strings (like `$"{upper(input.name)}"`) are normal expressions as far as OPA is concerned.
+While that may be true, some linter rules targeted at "normal" expressions aren't applicable for expressions found
+in template strings. Take for example the
+[unassigned-return-value](https://www.openpolicyagent.org/projects/regal/rules/bugs/unassigned-return-value) rule, which
+would normally consider an expression like `upper(input.name)` to be a bug, as the return value of the `upper` call
+never is assigned. This is not the case for expressions found in template strings, as the output of their expressions
+is used to build the interpolated string. In order to avoid traversing the module tree twice — once for regular
+expressions, and once for expressions found in template strings — the Roast format instead marks expressions
+template strings with an `interpolated` boolean attribute set to `true`. This attribute is only present for
+expressions found in template strings, and is thus either `true` or missing, never `false`.
+
+### Template string `multi_line` attribute only present when `true`
+
+Following the Roast convention of omitting boolean attributes that are `false`, the `multi_line` attribute found
+on template string nodes is only present when `true`.
+
 ### Fixed inconsistencies in the original Rego AST
 
 A few inconsistencies exist in the original AST JSON format:

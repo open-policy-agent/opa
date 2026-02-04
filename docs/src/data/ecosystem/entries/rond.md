@@ -30,5 +30,5 @@ docs_features:
       [OPA evaluator](https://github.com/rond-authz/rond/blob/4c27fa6a127f68b8670a39c792b0e40dac52dafa/core/opaevaluator.go#L173)
       code.
 ---
-Rönd is a lightweight container that distributes security policy enforcement throughout your application.
 
+Rönd is a lightweight container that distributes security policy enforcement throughout your application.

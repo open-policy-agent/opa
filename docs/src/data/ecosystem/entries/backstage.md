@@ -12,4 +12,5 @@ tutorials:
 code:
 - https://github.com/Parsifal-M/backstage-opa-plugins/tree/main/plugins/permission-backend-module-opa-wrapper
 ---
+
 This integration is a plugin that acts as a wrapper around the Backstage permissions system, allowing you to use OPA to enforce permissions!

@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
+
 `if` is also used in functions. Much like rules, in Rego functions can have one
 or more heads. The head and body of a function are also separated by the `if`
 keyword for consistency and readability.

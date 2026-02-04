@@ -1,0 +1,18 @@
+{
+  "id": "how-would-you-describe-your-expertise-with-policy-",
+  "title": "How would you describe your expertise with policy-as-code tools?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 37
+}
