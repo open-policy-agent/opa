@@ -529,7 +529,7 @@ secrets:
     password: ${GITHUB_TOKEN}
 ```
 
-# Configuration Organization
+## Configuration Organization
 
 OCP configuration files can be organized as a single file or split across
 multiple files and directories. For small or simple deployments, a single

@@ -45,9 +45,7 @@ This tutorial requires
 [latest version of Terraform](https://developer.hashicorp.com/terraform), but
 it is untested. Contributions welcome!)
 
-# Getting Started
-
-## Steps
+## Getting Started
 
 ### 1. Create and save a Terraform plan
 
@@ -730,9 +728,7 @@ Keep in mind that it's up to you to decide how to use OPA's Terraform tests and 
 
 If you'd like to explore an additional example that uses terraform modules please continue below.
 
-# Working with Modules
-
-## Module Steps
+## Working with Modules
 
 ### 1. Create and save Terraform module plan
 
@@ -920,7 +916,7 @@ Additional use cases might include:
 - Making sure naming standards for resources are followed
 - Security or operational requirements
 
-# Ecosystem Projects
+## Ecosystem Projects
 
 <EcosystemEmbed feature="terraform">
 As further reading, you might be interested to review the Terraform integrations

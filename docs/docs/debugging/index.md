@@ -61,13 +61,13 @@ profiling and optimizing Rego policies.
 Here are some projects in the OPA ecosystem that can help with debugging Rego policies.
 </EcosystemEmbed>
 
-# Debugging OPA Instances in Distributed Systems
+## Debugging OPA Instances in Distributed Systems
 
 Debugging problems in distributed systems poses a number of challenges. Since OPA is commonly deployed in a distributed
 fashion, as part of a larger platform, it is helpful to understand the various tools and techniques available for
 debugging OPA in these environments.
 
-## OPA Logs
+### OPA Logs
 
 OPA logs are a great place to start when debugging issues. The logs can be used to understand what OPA is doing
 at any given time. Common issues such as failing to load in policy or data bundles will be shown here.
@@ -75,7 +75,7 @@ at any given time. Common issues such as failing to load in policy or data bundl
 You can also enable debug logging to get more detailed information about what OPA is doing with `--log-level debug`.
 This is documented in the [CLI documentation](./cli/#run) for `opa run`.
 
-### Decision Logging
+#### Decision Logging
 
 When OPA responds to a query, it is making a decision based on the policy and data that it has loaded. With the default
 logging configuration, these are not logged in detail to the OPA logs. However, it is possible to enable console decision
@@ -89,7 +89,7 @@ decision_logs:
 It might be preferable to send these logs to an HTTP endpoint or other system, to learn more about decision logging,
 take a look at the [Decision Logging documentation](./management-decision-logs).
 
-## Metrics, Health and Status APIs
+### Metrics, Health and Status APIs
 
 Like other cloud-native tools, OPA exposes `/metrics` and `/health` endpoints that can be used to understand the
 state of an OPA instance at any given time.
@@ -102,7 +102,7 @@ state of an OPA instance at any given time.
 - `/status` - is a JSON formatted endpoint that shows both health and metrics information. Read more in
   [Status API documentation](./rest-api/#status-api).
 
-## Manually Querying OPA
+### Manually Querying OPA
 
 In distributed systems, it's common that an OPA instance is being invoked by another service, sometimes it can be helpful
 to isolate the OPA instance and query it directly. This can be done using the [REST API](./rest-api).
