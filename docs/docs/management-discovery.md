@@ -72,7 +72,7 @@ services[discovery.service].url          discovery.resource
 > The `discovery.resource` field defaults to `bundles/<discovery.name>`. The default
 > is convenient if you want to serve discovery bundles and normal bundles from the same API
 > endpoint. If only one service is defined, there is no need to set `discovery.service`.
-
+>
 > The optional `discovery.signing` field can be used to specify the `keyid` and `scope` that should be used
 > for verifying the signature of the discovery bundle. See [this](#discovery-bundle-signature) section for details.
 

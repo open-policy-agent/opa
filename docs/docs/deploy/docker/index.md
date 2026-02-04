@@ -137,7 +137,7 @@ This section shows how to quickly deploy OPA on top of Kubernetes to try it out.
 
 > If you are interested in using OPA to enforce admission control policies in
 > Kubernetes, see the [Kubernetes Admission Control Tutorial](../kubernetes/tutorial).
-
+>
 > These steps assume Kubernetes is deployed with
 > [minikube](https://github.com/kubernetes/minikube). If you are using a different
 > Kubernetes provider, the steps should be similar. You may need to use a
