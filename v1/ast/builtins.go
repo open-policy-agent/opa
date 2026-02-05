@@ -3404,8 +3404,9 @@ var InternalTestCase = &Builtin{
 }
 
 var InternalTemplateString = &Builtin{
-	Name: "internal.template_string",
-	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.A)}, types.S),
+	Name:        "internal.template_string",
+	Decl:        types.NewFunction([]types.Type{types.NewArray(nil, types.A)}, types.S),
+	CanSkipBctx: true, // Uses bctx.Location for error reporting, but that is always provided in eval
 }
 
 /**

@@ -1374,20 +1374,18 @@ func (c *Compiler) checkRuleConflicts() {
 			return !c.err(NewError(TypeErr, node.Values[0].Loc(), "conflicting rules %v found", name))
 
 		case len(defaultRules) > 1:
+			buf := append(append(append(make([]byte, 0, 64), "multiple default rules "...), name...), " found at "...)
+			buf, _ = defaultRules[0].Loc().AppendText(buf)
 
-			defaultRuleLocations := strings.Builder{}
-			defaultRuleLocations.WriteString(defaultRules[0].Loc().String())
-			for i := 1; i < len(defaultRules); i++ {
-				defaultRuleLocations.WriteString(", ")
-				defaultRuleLocations.WriteString(defaultRules[i].Loc().String())
+			for _, next := range defaultRules[1:] {
+				buf, _ = next.Loc().AppendText(append(buf, ", "...))
 			}
 
-			return !c.err(NewError(
-				TypeErr,
-				defaultRules[0].Module.Package.Loc(),
-				"multiple default rules %s found at %s",
-				name, defaultRuleLocations.String()),
-			)
+			return !c.err(&Error{
+				Code:     TypeErr,
+				Location: defaultRules[0].Module.Package.Loc(),
+				Message:  util.ByteSliceToString(buf),
+			})
 		}
 
 		return false
@@ -2279,30 +2277,99 @@ func (c *Compiler) builtinLoc(ref Ref) *Builtin {
 	return nil
 }
 
+// isRefToKnownDefinedRule answers whether a rule (counting all incremental definitions) reference
+// is known to evaluate to a value (not undefined). A rule reference is considered safe if it references
+// a rule with no arguments (i.e. not a function) and:
+// - The rule has a `default` value assigned
+// - The rule is a multi-value rule — it generates a set that may be empty but not undefined
+// - The rule is a "constant", meaning it has a single definition, a ground value and no body
+func (c *Compiler) isRefToKnownDefinedRule(ref Ref) bool {
+	var matched *TreeNode
+	if len(ref) < 2 || !ref.HasPrefix(DefaultRootRef) {
+		return false
+	}
+	if matched = c.RuleTree.Find(ref); matched == nil || len(matched.Values) == 0 {
+		return false
+	}
+	first := matched.Values[0]
+	if len(first.Head.Args) > 0 {
+		return false
+	}
+	if first.Default || first.Head.RuleKind() == MultiValue {
+		return true
+	}
+	if len(matched.Values) == 1 {
+		return isConstantRule(first)
+	}
+	return slices.ContainsFunc(matched.Values[1:], func(r *Rule) bool {
+		return r.Default
+	})
+}
+
+// templateStringRewriter
+type templateStringRewriter struct {
+	rule        *Rule
+	gen         *localVarGenerator
+	vis         *VarVisitor
+	rewritten   map[Var]Var
+	arity       func(Ref) int
+	safeRuleRef func(Ref) bool
+	builtins    builtinLocator
+	capsSupport bool
+}
+
+func rewriterFromCompiler(c *Compiler) *templateStringRewriter {
+	return &templateStringRewriter{
+		vis:         NewVarVisitor(),
+		gen:         c.localvargen,
+		builtins:    c.builtinLoc,
+		arity:       c.GetArity,
+		safeRuleRef: c.isRefToKnownDefinedRule,
+		rewritten:   c.RewrittenVars,
+		capsSupport: c.capabilities.ContainsFeature(FeatureTemplateStrings) &&
+			c.capabilities.ContainsBuiltin(InternalTemplateString.Name),
+	}
+}
+
+func rewriterFromQueryCompiler(qc *queryCompiler, gen *localVarGenerator) *templateStringRewriter {
+	rw := rewriterFromCompiler(qc.compiler)
+	rw.gen = gen
+	return rw
+}
+
+func (tsr *templateStringRewriter) Clear() *templateStringRewriter {
+	tsr.rule = nil
+	tsr.vis = tsr.vis.Clear()
+	return tsr
+}
+
 // rewriteTemplateStrings rewrites template-string calls as they appear in bodies; e.g. rules, comprehensions, etc.
 func (c *Compiler) rewriteTemplateStrings() {
+	tsr := rewriterFromCompiler(c)
 	modified := false
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		WalkRules(mod, func(r *Rule) bool {
+			tsr = tsr.Clear()
 			safe := r.Head.Args.Vars()
+
+			if len(r.Head.Args) > 0 {
+				tsr.vis = tsr.vis.WithParams(VarVisitorParams{SkipTemplateStrings: true})
+				tsr.vis.WalkArgs(r.Head.Args)
+			}
+
 			safe.Update(ReservedVars)
 
-			modrec, safe, errs := rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, c.builtinLoc, c.RewrittenVars, r.Body)
+			modrec, safe, errs := rewriteTemplateStrings(tsr, safe, r.Body)
 			if modrec {
 				modified = true
 			}
-			for _, err := range errs {
-				c.err(err)
-			}
+			c.err(errs...)
 
-			modrec, _, errs = rewriteTemplateStrings(c.capabilities, c.localvargen, c.GetArity, safe, c.builtinLoc, c.RewrittenVars, r.Head)
-			if modrec {
+			if modrec, _, errs = rewriteTemplateStrings(tsr, safe, r.Head); modrec {
 				modified = true
 			}
-			for _, err := range errs {
-				c.err(err)
-			}
+			c.err(errs...)
 
 			return false
 		})
@@ -2312,14 +2379,14 @@ func (c *Compiler) rewriteTemplateStrings() {
 	}
 }
 
-func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity func(Ref) int, globals VarSet, builtins builtinLocator, rewritten map[Var]Var, x any) (bool, VarSet, Errors) {
+func rewriteTemplateStrings(tsr *templateStringRewriter, globals VarSet, x any) (bool, VarSet, Errors) {
 	var errs Errors
 	var modified bool
 
 	// All output vars in the current body are safe, recursively
 	var safe VarSet
 	if b, ok := x.(Body); ok {
-		safe = outputVarsForBody(b, getArity, globals, nil)
+		safe = outputVarsForBody(b, tsr.arity, globals, tsr.vis)
 		safe.Update(globals)
 	} else {
 		safe = globals.Copy()
@@ -2331,43 +2398,43 @@ func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity
 		switch x := x.(type) {
 		case *Term:
 			if _, ok := x.Value.(*TemplateString); ok {
-				modrec, errsrec = rewriteTemplateStringTerm(caps, gen, safe, builtins, rewritten, x)
+				modrec, errsrec = rewriteTemplateStringTerm(tsr, safe, x)
 			}
 		case *SetComprehension:
 			var s VarSet
-			modrec, s, errsrec = rewriteTemplateStrings(caps, gen, getArity, safe, builtins, rewritten, x.Body)
+			modrec, s, errsrec = rewriteTemplateStrings(tsr, safe, x.Body)
 			if modrec {
 				modified = true
 			}
 			errs = append(errs, errsrec...)
 
-			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, builtins, rewritten, x.Term)
+			modrec, errsrec = rewriteTemplateStringTerm(tsr, s, x.Term)
 		case *ArrayComprehension:
 			var s VarSet
-			modrec, s, errsrec = rewriteTemplateStrings(caps, gen, getArity, safe, builtins, rewritten, x.Body)
+			modrec, s, errsrec = rewriteTemplateStrings(tsr, safe, x.Body)
 			if modrec {
 				modified = true
 			}
 			errs = append(errs, errsrec...)
 
-			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, builtins, rewritten, x.Term)
+			modrec, errsrec = rewriteTemplateStringTerm(tsr, s, x.Term)
 		case *ObjectComprehension:
 			var s VarSet
-			modrec, s, errsrec = rewriteTemplateStrings(caps, gen, getArity, safe, builtins, rewritten, x.Body)
+			modrec, s, errsrec = rewriteTemplateStrings(tsr, safe, x.Body)
 			if modrec {
 				modified = true
 			}
 			errs = append(errs, errsrec...)
 
-			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, builtins, rewritten, x.Key)
+			modrec, errsrec = rewriteTemplateStringTerm(tsr, s, x.Key)
 			if modrec {
 				modified = true
 			}
 			errs = append(errs, errsrec...)
 
-			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, s, builtins, rewritten, x.Value)
+			modrec, errsrec = rewriteTemplateStringTerm(tsr, s, x.Value)
 		case *Every:
-			modrec, errsrec = rewriteTemplateStringTerm(caps, gen, safe, builtins, rewritten, x.Domain)
+			modrec, errsrec = rewriteTemplateStringTerm(tsr, safe, x.Domain)
 			if modrec {
 				modified = true
 			}
@@ -2375,7 +2442,7 @@ func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity
 
 			s := safe.Copy()
 			s.Update(x.KeyValueVars())
-			modrec, _, errsrec = rewriteTemplateStrings(caps, gen, getArity, s, builtins, rewritten, x.Body)
+			modrec, _, errsrec = rewriteTemplateStrings(tsr, s, x.Body)
 		}
 		if modrec {
 			modified = true
@@ -2388,9 +2455,9 @@ func rewriteTemplateStrings(caps *Capabilities, gen *localVarGenerator, getArity
 	return modified, safe, errs
 }
 
-func rewriteTemplateStringTerm(caps *Capabilities, gen *localVarGenerator, globals VarSet, builtins builtinLocator, rewritten map[Var]Var, t *Term) (bool, Errors) {
+func rewriteTemplateStringTerm(tsr *templateStringRewriter, globals VarSet, t *Term) (bool, Errors) {
 	if ts, ok := t.Value.(*TemplateString); ok {
-		call, errs := rewriteTemplateString(caps, gen, globals, builtins, rewritten, t.Loc(), ts)
+		call, errs := rewriteTemplateString(tsr, globals, t.Loc(), ts)
 		if len(errs) != 0 {
 			return false, errs
 		}
@@ -2402,8 +2469,8 @@ func rewriteTemplateStringTerm(caps *Capabilities, gen *localVarGenerator, globa
 
 type builtinLocator func(Ref) *Builtin
 
-func rewriteTemplateString(caps *Capabilities, gen *localVarGenerator, safe VarSet, builtins builtinLocator, rewritten map[Var]Var, loc *Location, ts *TemplateString) (Call, Errors) {
-	if !caps.ContainsFeature(FeatureTemplateStrings) || !caps.ContainsBuiltin(InternalTemplateString.Name) {
+func rewriteTemplateString(tsr *templateStringRewriter, safe VarSet, loc *Location, ts *TemplateString) (Call, Errors) {
+	if !tsr.capsSupport {
 		return nil, Errors{NewError(CompileErr, loc, "template-strings are not supported")}
 	}
 
@@ -2411,16 +2478,21 @@ func rewriteTemplateString(caps *Capabilities, gen *localVarGenerator, safe VarS
 	terms := make([]*Term, 0, len(ts.Parts))
 
 	if len(ts.Parts) == 0 {
-		terms = append(terms, StringTerm("").SetLocation(loc))
+		terms = append(terms, NewTerm(InternedEmptyString.Value).SetLocation(loc))
 	} else {
+		vis := ClearOrNewVarVisitor(nil).WithParams(SafetyCheckVisitorParams)
 		for _, p := range ts.Parts {
 			switch p := p.(type) {
 			case *Expr:
 				var t *Term
 				if p.IsCall() {
 					// Assert that the call isn't for a known relation built-in
-					if bi := builtins(p.Operator()); bi != nil && bi.Relation {
-						errs = append(errs, NewError(CompileErr, t.Loc(), "illegal call to relation built-in '%s' that may cause multiple outputs", bi.Name))
+					if bi := tsr.builtins(p.Operator()); bi != nil && bi.Relation {
+						errs = append(errs, NewError(
+							CompileErr,
+							t.Loc(),
+							"illegal call to relation built-in '%s' that may cause multiple outputs", bi.Name,
+						))
 						continue
 					}
 					t = CallTerm(p.Terms.([]*Term)...)
@@ -2428,18 +2500,31 @@ func rewriteTemplateString(caps *Capabilities, gen *localVarGenerator, safe VarS
 					var ok bool
 					t, ok = p.Terms.(*Term)
 					if !ok {
-						errs = append(errs, NewError(CompileErr, p.Location, "unexpected template-string expression type: %T", p.Terms))
+						errs = append(errs, NewError(
+							CompileErr,
+							p.Location,
+							"unexpected template-string expression type: %T", p.Terms))
 						continue
 					}
 				}
 
-				vis := ClearOrNewVarVisitor(nil).WithParams(SafetyCheckVisitorParams)
+				if ref, ok := t.Value.(Ref); ok && tsr.safeRuleRef(ref) {
+					terms = append(terms, SetTerm(t))
+					continue
+				}
+
+				if _, ok := t.Value.(Var); ok {
+					terms = append(terms, SetTerm(t))
+					continue
+				}
+
+				vis = ClearOrNewVarVisitor(vis).WithParams(SafetyCheckVisitorParams)
 				vis.Walk(t)
 				vars := vis.Vars()
 				if vars.DiffCount(safe) > 0 {
 					unsafe := vars.Diff(safe)
 					for _, v := range unsafe.Sorted() {
-						if w, ok := rewritten[v]; ok {
+						if w, ok := tsr.rewritten[v]; ok {
 							v = w
 						}
 						errs = append(errs, NewError(CompileErr, t.Loc(), "var %v is undeclared", v))
@@ -2447,14 +2532,18 @@ func rewriteTemplateString(caps *Capabilities, gen *localVarGenerator, safe VarS
 				}
 
 				loc := t.Loc()
-				x := NewTerm(gen.Generate()).SetLocation(loc)
+				x := NewTerm(tsr.gen.Generate()).SetLocation(loc)
 				capture := Equality.Expr(x, t).SetLocation(loc)
 				capture.With = p.With
 				terms = append(terms, SetComprehensionTerm(x, NewBody(capture)).SetLocation(loc))
 			case *Term:
 				terms = append(terms, p)
 			default:
-				errs = append(errs, NewError(CompileErr, loc, "expected only term or expression parts in template-string, got %T", p))
+				errs = append(errs, NewError(
+					CompileErr,
+					loc,
+					"expected only term or expression parts in template-string, got %T", p,
+				))
 				return nil, errs
 			}
 		}
@@ -3559,7 +3648,8 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 
 func (qc *queryCompiler) rewriteTemplateStrings(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
-	if _, _, errs := rewriteTemplateStrings(qc.compiler.capabilities, gen, qc.compiler.GetArity, ReservedVars, qc.compiler.builtinLoc, qc.rewritten, body); len(errs) > 0 {
+	tsr := rewriterFromQueryCompiler(qc, gen)
+	if _, _, errs := rewriteTemplateStrings(tsr, ReservedVars, body); len(errs) > 0 {
 		return nil, errs
 	}
 	return body, nil
@@ -4054,12 +4144,11 @@ func (n *TreeNode) add(path Ref, rule *Rule) {
 }
 
 // Size returns the number of rules in the tree.
-func (n *TreeNode) Size() int {
-	s := len(n.Values)
+func (n *TreeNode) Size() (s int) {
 	for _, c := range n.Children {
 		s += c.Size()
 	}
-	return s
+	return s + len(n.Values)
 }
 
 // Child returns n's child with key k.
@@ -4790,11 +4879,8 @@ func newLocalVarGenerator(suffix string, node any) *localVarGenerator {
 func (l *localVarGenerator) Generate() Var {
 	buf := make([]byte, 0, len(l.suffix)+util.NumDigitsInt(l.next)+2)
 	for {
-		buf = append(buf, l.suffix...)
-		buf = util.AppendInt(buf, l.next)
-		buf = append(buf, "__"...)
-
-		result := Var(string(buf))
+		buf = append(util.AppendInt(append(buf, l.suffix...), l.next), "__"...)
+		result := Var(util.ByteSliceToString(buf))
 		l.next++
 		if !l.exclude.Contains(result) {
 			return result
@@ -5420,6 +5506,29 @@ func rewriteExprTermsInHead(gen *localVarGenerator, rule *Rule) {
 	}
 }
 
+// isEmptyBody true for a rule like `pi := 3.14 if { true}`
+func isEmptyBody(body Body) bool {
+	if len(body) == 1 {
+		if term, ok := body[0].Terms.(*Term); ok {
+			return Boolean(true).Equal(term.Value)
+		}
+	}
+
+	return false
+}
+
+func isConstantRule(rule *Rule) bool {
+	if isEmptyBody(rule.Body) {
+		switch v := rule.Head.Value.Value.(type) {
+		case String, Var, Number, Boolean, Null:
+			return true
+		case *Array, *object, Set:
+			return v.IsGround()
+		}
+	}
+	return false
+}
+
 // appendToBody inlines Body.Append and adds additional logic for
 // replacing a single 'true' expression (i.e an empty body) with
 // the first expression to be appended, while appending the rest
@@ -5432,13 +5541,11 @@ func appendToBody(body Body, exprs ...*Expr) Body {
 	}
 
 	blen := len(body)
-	if blen == 1 {
-		if term, ok := body[0].Terms.(*Term); ok && Boolean(true).Equal(term.Value) {
-			// body will no longer be empty, so instead of appending,
-			// replace the 'true' expression with the new expression.
-			exprs[0].Index = 0
-			body[0], exprs = exprs[0], exprs[1:]
-		}
+	if blen == 1 && isEmptyBody(body) {
+		// body will no longer be empty, so instead of appending,
+		// replace the 'true' expression with the new expression.
+		exprs[0].Index = 0
+		body[0], exprs = exprs[0], exprs[1:]
 	}
 	for i, expr := range exprs {
 		expr.Index = blen + i

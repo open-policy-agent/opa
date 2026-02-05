@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -40,7 +41,6 @@ func (*mockHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 }
 
 func TestBasic(t *testing.T) {
-
 	// Policy for testing access to policies.
 	compiler := func() *ast.Compiler {
 		module := `
@@ -228,7 +228,7 @@ func TestBasic(t *testing.T) {
 				t.Fatalf("Expected status code %v but got: %v", tc.expectedStatus, recorder)
 			}
 
-			if !Equal(tc.expectedPrint, output) {
+			if !slices.Equal(tc.expectedPrint, output) {
 				t.Errorf("Expected output %v, got %v", tc.expectedPrint, output)
 			}
 
@@ -522,7 +522,6 @@ func TestInterQueryCache(t *testing.T) {
 }
 
 func TestInterQueryValueCache(t *testing.T) {
-
 	compiler := func() *ast.Compiler {
 		module := `
         package system.authz
@@ -556,16 +555,4 @@ func TestInterQueryValueCache(t *testing.T) {
 
 	// Execute the policy
 	basic.ServeHTTP(recorder, req)
-}
-
-func Equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
 }
