@@ -305,7 +305,7 @@
       x: {
         type: "band",
         domain: data.map((d) => tags[d.commit] || d.commit),
-        tickFormat: (d) => d.substring(0, 7),
+        ticks: tagsInData,
         tickRotate: -45,
         tickAnchor: "start",
         clip: false,
@@ -368,7 +368,8 @@
   </script>
   <script type="text/markdown">
     ```
-    ${commit ? `Author: ${commit?.github_username}
+    ${commit ? `Commit: ${x?.commit}
+Author: ${commit?.github_username}
 Date: ${commit?.author_date}
 
 ${commit?.message}` : ""}
