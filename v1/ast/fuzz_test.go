@@ -13,7 +13,9 @@ import (
 )
 
 var testcases = sync.OnceValue(func() []cases.TestCase {
-	return cases.MustLoad("../test/cases/testdata").Sorted().Cases
+	c := cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases
+	c = append(c, cases.MustLoad("../test/cases/testdata/v0").Sorted().Cases...)
+	return c
 })
 
 func FuzzCompileModules(f *testing.F) {
