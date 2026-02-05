@@ -15,7 +15,7 @@
     "MD031": false,
     // Allow fenced code blocks without language specified
     "MD040": false,
-    // Configure hard tabs to convert to 2 spaces
+    // Configure hard tabs to convert to spaces, can be auto fixed
     "MD010": {
       "spaces_per_tab": 4
     },
