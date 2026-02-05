@@ -1,7 +1,7 @@
 FROM ubuntu:20.04@sha256:0b897358ff6624825fb50d20ffb605ab0eaea77ced0adb8c6a4b756513dec6fc
 
-ARG WABT_VERSION=1.0.24
-ARG BINARYEN_VERSION=version_102
+ARG WABT_VERSION=1.0.39
+ARG BINARYEN_VERSION=version_125
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y curl git build-essential python
@@ -39,8 +39,9 @@ RUN git clone https://github.com/WebAssembly/wabt && \
 RUN git clone https://github.com/WebAssembly/binaryen && \
     cd binaryen && \
     git checkout $BINARYEN_VERSION && \
-    cmake . && \
-    make
+    git submodule update --init && \
+    cmake . -DBUILD_TESTS=OFF && \
+    make wasm-opt wasm-dis wasm-as
 
 ENV PATH="/binaryen/bin:/wabt/out/clang/Debug:${PATH}"
 
