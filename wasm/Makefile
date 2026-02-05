@@ -30,13 +30,16 @@ CPPFLAGS += \
 	--target=wasm32-unknown-unknown-wasm \
 	-fno-exceptions \
 	-fno-rtti \
-	-I src/lib \
-	-I src/libc++ \
-	-I /usr/lib/llvm-13/include/c++/v1 \
-	-I /usr/lib/llvm-13/lib/clang/13.0.0/include \
+	-nostdinc++ \
+	-isystem src/libc++ \
+	-isystem /usr/lib/llvm-21/include/c++/v1 \
+	-isystem /usr/lib/llvm-21/lib/clang/21.1.7/include \
+	-isystem src/lib \
 	-I src/re2 \
 	-D_LIBCPP_HAS_NO_THREADS \
-	-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
+	-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION \
+	-D_LIBCPP_HAS_NO_LOCALIZATION \
+	-D_LIBCPP_NO_EXCEPTIONS
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O1 -gdwarf -DDEBUG

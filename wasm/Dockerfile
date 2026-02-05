@@ -21,7 +21,6 @@ RUN apt-get update && \
       lld-21 && \
     update-alternatives --install /usr/bin/ld ld /usr/bin/lld-21 90 && \
     update-alternatives --install /usr/bin/cc cc /usr/bin/clang-21 90 && \
-    update-alternatives --install /usr/bin/cpp cpp /usr/bin/clang++-21 90 && \
     update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-21 90
 
 RUN ln -s /usr/bin/clang-21 /usr/bin/clang && \
