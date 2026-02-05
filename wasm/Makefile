@@ -1,6 +1,7 @@
 DOCKER := docker
 DOCKER_FLAGS := --rm -e DEBUG
 DEBUG ?= 0
+USE_DOCKER ?= 1
 
 ifeq ($(shell tty > /dev/null && echo 1 || echo 0), 1)
 DOCKER_FLAGS += -it
@@ -11,6 +12,12 @@ WASM_BUILDER_VERSION := 1.7
 WASM_BUILDER_IMAGE := $(DOCKER_WASM_BUILDER_IMAGE):$(WASM_BUILDER_VERSION)
 WASM_TEST_NODE_VERSION := lts
 WASM_OBJ_DIR := _obj
+
+# Set compilers for local builds when not using Docker
+ifeq ($(USE_DOCKER), 0)
+CC ?= clang
+CXX ?= clang++
+endif
 
 CFLAGS += \
 	-MD \
@@ -62,7 +69,9 @@ builder: Dockerfile
 
 .PHONY: ensure-builder
 ensure-builder:
+ifeq ($(USE_DOCKER), 1)
 	@$(DOCKER) inspect $(WASM_BUILDER_IMAGE) > /dev/null || $(DOCKER) pull $(WASM_BUILDER_IMAGE) || $(MAKE) builder
+endif
 
 .PHONY: push-builder
 push-builder:
@@ -70,13 +79,22 @@ push-builder:
 
 .PHONY: build
 build:
+ifeq ($(USE_DOCKER), 1)
 	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src:Z $(WASM_BUILDER_IMAGE) \
 	  make --no-builtin-rules $(WASM_OBJ_DIR)/opa.wasm $(WASM_OBJ_DIR)/callgraph.csv
+else
+	@$(MAKE) --no-builtin-rules $(WASM_OBJ_DIR)/opa.wasm $(WASM_OBJ_DIR)/callgraph.csv
+endif
 
 .PHONY: test
 test:
+ifeq ($(USE_DOCKER), 1)
 	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src:Z $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa-test.wasm
 	@$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE -v $(CURDIR):/src:Z -w /src node:$(WASM_TEST_NODE_VERSION) node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+else
+	@$(MAKE) $(WASM_OBJ_DIR)/opa-test.wasm
+	@node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+endif
 
 .PHONY: hack
 hack:
