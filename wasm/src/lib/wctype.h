@@ -1,7 +1,7 @@
 #ifndef OPA_WCTYPE_H
 #define OPA_WCTYPE_H
 
-#include <stddef.h>
+#include "wchar.h"
 
 #ifdef __cplusplus
 extern "C" {

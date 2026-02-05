@@ -14,6 +14,13 @@ double log10(double x);
 // not implemented:
 
 #define INFINITY (__builtin_inff())
+#define NAN (__builtin_nanf(""))
+
+#define FP_NAN 0
+#define FP_INFINITE 1
+#define FP_ZERO 2
+#define FP_SUBNORMAL 3
+#define FP_NORMAL 4
 
 double acos(double x);
 float acosf(float x);
@@ -242,15 +249,15 @@ float truncf(float x);
 long double truncl(long double x);
 
 int fpclassify(float x);
-int isfinite(float x);
+// int isfinite(float x);  // Conflicts with LLVM 21 libc++
 int isgreater(float x, float y);
 int isgreaterequal(float x, float y);
-int isinf(float x);
+// int isinf(float x);  // Conflicts with LLVM 21 libc++
 int isless(float x, float y);
 int islessequal(float x, float y);
 int islessgreater(float x, float y);
-int isnan(float x);
-int isnormal(float x);
+// int isnan(float x);  // Conflicts with LLVM 21 libc++
+// int isnormal(float x);  // Conflicts with LLVM 21 libc++
 int isunordered(float x, float y);
 int signbit(float x);
 
