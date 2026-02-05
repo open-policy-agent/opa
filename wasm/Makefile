@@ -27,7 +27,15 @@ CFLAGS += \
 	-I src/lib \
 	-I src/libmpdec \
 	-DCONFIG_32 \
-	-DANSI
+	-DANSI \
+	-mno-bulk-memory \
+	-mno-bulk-memory-opt \
+	-mno-multivalue \
+	-mno-reference-types \
+	-mno-nontrapping-fptoint \
+	-mno-sign-ext \
+	-mno-mutable-globals \
+	-mno-call-indirect-overlong
 
 CPPFLAGS += \
 	-std=c++17 \
@@ -46,7 +54,15 @@ CPPFLAGS += \
 	-D_LIBCPP_HAS_NO_THREADS \
 	-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION \
 	-D_LIBCPP_HAS_NO_LOCALIZATION \
-	-D_LIBCPP_NO_EXCEPTIONS
+	-D_LIBCPP_NO_EXCEPTIONS \
+	-mno-bulk-memory \
+	-mno-bulk-memory-opt \
+	-mno-multivalue \
+	-mno-reference-types \
+	-mno-nontrapping-fptoint \
+	-mno-sign-ext \
+	-mno-mutable-globals \
+	-mno-call-indirect-overlong
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O1 -gdwarf -DDEBUG
