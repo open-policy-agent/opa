@@ -970,11 +970,9 @@ func BenchmarkObjectGetFromBaseDoc(b *testing.B) {
 	}
 }
 
-// templatestring           216386      5524 ns/op   10074 B/op	     158 allocs/op
-// templatestring                       5219 ns/op    8337 B/op      152 allocs/op don't pass bctx
-// --
-// concat                   272054      4500 ns/op    6728 B/op	     123 allocs/op
-// sprintf                  280381      4421 ns/op    6365 B/op	     121 allocs/op
+// templatestring-16         	  234561	      5096 ns/op	    8257 B/op	     150 allocs/op
+// concat-16                 	  286130	      4265 ns/op	    6624 B/op	     118 allocs/op
+// sprintf-16                	  286662	      4206 ns/op	    6260 B/op	     116 allocs/op
 func BenchmarkTemplateStringVsConcatVsSprintf(b *testing.B) {
 	ctx := b.Context()
 	store := inmem.NewFromObject(map[string]any{})
