@@ -203,9 +203,9 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.azure_keyvault.key`                   | `string`   | No       | Specify what key name should be used for signing.                                                                                                                                                           |
 | `services[_].credentials.oauth2.azure_keyvault.key_version`           | `string`   | No       | Key version that should be used for signing. Will used latest if not specified                                                                                                                              |
 | `services[_].credentials.oauth2.azure_keyvault.key_algorithm`         | `string`   | No       | Specifies the signing algorithm used by the key `azure_keyvault.key`. `ES256, ES256K, PS256, RS256, ES384, PS384, RS384, ES512, PS512 or RS512)`                                                            |
-| `services[_].credentials.oauth2.azure_keyvault.vault`                 | `string`   | No       | The name of the azure keyvault. used for interpolation of URL.                                                                                                                                              |
-| `services[_].credentials.oauth2.azure_keyvault.api_version`           | `string`   | No       | The version of the [azure keyvault sign api](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/sign/sign?view=rest-keyvault-keys-2025-07-01). Defaults to "7.4"                                      |
-| `services[_].credentials.oauth2.azure_signing.service`                | `string`   | No       | What azure service to use for signing. only valid service currently is "keyvault".                                                                                                                          |
+| `services[_].credentials.oauth2.azure_keyvault.vault`                 | `string`   | No       | The name of the Azure Key Vault, used for interpolation of URL.                                                                                                                                             |
+| `services[_].credentials.oauth2.azure_keyvault.api_version`           | `string`   | No       | The version of the [Azure Key Vault sign API](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/sign/sign?view=rest-keyvault-keys-2025-07-01). Defaults to "7.4"                                     |
+| `services[_].credentials.oauth2.azure_signing.service`                | `string`   | No       | What Azure service to use for signing. Only valid service currently is `keyvault`.                                                                                                                          |
 | `services[_].credentials.oauth2.azure_signing.azure_managed_identity` | `{}`       | No       | What managed identity OPA will try to use for auth in azure. Identity has to have signing rights to the key in `azure_keyvault.key`. see [managed-identity](#azure-managed-identities-token) for more info. |
 | `services[_].credentials.oauth2.client_assertion_path`                | `string`   | No       | To specify a path to find a client assertion file. Used for Azure Workload Identity.                                                                                                                        |
 | `services[_].credentials.oauth2.client_assertion`                     | `string`   | No       | To specify a client assertion. Used for Azure Workload Identity.                                                                                                                                            |
@@ -717,75 +717,75 @@ plugins:
 package plugins
 
 import (
-	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/plugins/rest"
-	"github.com/open-policy-agent/opa/runtime"
-	"github.com/open-policy-agent/opa/util"
+    "github.com/open-policy-agent/opa/plugins"
+    "github.com/open-policy-agent/opa/plugins/rest"
+    "github.com/open-policy-agent/opa/runtime"
+    "github.com/open-policy-agent/opa/util"
 )
 
 type Config struct {
-	Foo string `json:"foo"`
+    Foo string `json:"foo"`
 }
 
 type PluginFactory struct{}
 
 type Plugin struct {
-	manager  *plugins.Manager
-	config   Config
-	stop     chan chan struct{}
-	reconfig chan interface{}
+    manager  *plugins.Manager
+    config   Config
+    stop     chan chan struct{}
+    reconfig chan interface{}
 }
 
 func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (interface{}, error) {
-	var parsedConfig Config
-	if err := util.Unmarshal(config, &parsedConfig); err != nil {
-		return nil, err
-	}
-	return &parsedConfig, nil
+    var parsedConfig Config
+    if err := util.Unmarshal(config, &parsedConfig); err != nil {
+        return nil, err
+    }
+    return &parsedConfig, nil
 }
 
 func (p *PluginFactory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
-	return &Plugin{
-		config:   *config.(*Config),
-		manager:  manager,
-		stop:     make(chan chan struct{}),
-		reconfig: make(chan interface{}),
-	}
+    return &Plugin{
+        config:   *config.(*Config),
+        manager:  manager,
+        stop:     make(chan chan struct{}),
+        reconfig: make(chan interface{}),
+    }
 }
 
 func (p *Plugin) Start(ctx context.Context) error {
-	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
-	return nil
+    p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
+    return nil
 }
 
 func (p *Plugin) Stop(ctx context.Context) {
-	done := make(chan struct{})
-	p.stop <- done
-	<-done
-	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
-	return
+    done := make(chan struct{})
+    p.stop <- done
+    <-done
+    p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+    return
 }
 
 func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
-	p.reconfig <- config
-	return
+    p.reconfig <- config
+    return
 }
 
 func (p *Plugin) NewClient(c rest.Config) (*http.Client, error) {
-	t, err := rest.DefaultTLSConfig(c)
-	if err != nil {
-		return nil, err
-	}
-	return rest.DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+    t, err := rest.DefaultTLSConfig(c)
+    if err != nil {
+        return nil, err
+    }
+    return rest.DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (p *Plugin) Prepare(req *http.Request) error {
-	req.Header.Add("X-Custom-Auth-Protocol", "knock knock")
-	return nil
+    req.Header.Add("X-Custom-Auth-Protocol", "knock knock")
+    return nil
 }
 
 func init() {
-	runtime.RegisterPlugin("my_custom_auth", &PluginFactory{})
+    runtime.RegisterPlugin("my_custom_auth", &PluginFactory{})
 }
 ```
 
@@ -833,7 +833,7 @@ included in the actual bundle gzipped tarball.
 | `decision_logs.service`                            | `string`  | No                               | Name of the service to use to contact remote server. If no `plugin` is specified, and `console` logging is disabled, this will default to the first `service` name defined in the Services configuration.                                                |
 | `decision_logs.partition_name`                     | `string`  | No                               | Deprecated: Use `resource` instead. Path segment to include in status updates.                                                                                                                                                                           |
 | `decision_logs.resource`                           | `string`  | No (default: `/logs`)            | Full path to use for sending decision logs to a remote server.                                                                                                                                                                                           |
-| `decision_logs.reporting.buffer_type`              | `string`  | No (default: `size`)             | Toggles the type of buffer to use. The two available options are "size" or "event". Refer to the [Decision Log Plugin README](https://github.com/open-policy-agent/opa/blob/main/v1/plugins/logs/README.md) for for a detailed comparison.               |
+| `decision_logs.reporting.buffer_type`              | `string`  | No (default: `size`)             | Toggles the type of buffer to use. The two available options are "size" or "event". Refer to the [Decision Log Plugin README](https://github.com/open-policy-agent/opa/blob/main/v1/plugins/logs/README.md) for a detailed comparison.                   |
 | `decision_logs.reporting.buffer_size_limit_events` | `int64`   | No (default: `10000`)            | Decision log buffer size limit by events. OPA will drop old events from the log if this limit is exceeded. By default, 100 events are held. This number has to be greater than zero. Only works with "event" buffer type.                                |
 | `decision_logs.reporting.buffer_size_limit_bytes`  | `int64`   | No (default: `unlimited`)        | Decision log buffer size limit in bytes. OPA will drop old events from the log if this limit is exceeded. By default, no limit is set. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set. Only works with "size" buffer type. |
 | `decision_logs.reporting.max_decisions_per_second` | `float64` | No                               | Maximum number of decision log events to buffer per second. OPA will drop events if the rate limit is exceeded. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set.                                                            |
@@ -886,7 +886,7 @@ Keys is a dictionary mapping the key name to the actual key and optionally the a
 | `keys[_].algorithm`   | `string` | No (default: `RS256`)               | Name of the signing algorithm.                            |
 | `keys[_].scope`       | `string` | No                                  | Scope to use for bundle signature verification.           |
 
-> Note: If the `scope` is provided in a bundle's `signing` configuration (ie. `bundles[_].signing.scope`),
+> Note: If the `scope` is provided in a bundle's `signing` configuration (i.e. `bundles[_].signing.scope`),
 > it takes precedence over `keys[_].scope`.
 
 The following signing algorithms are supported:
@@ -989,13 +989,13 @@ The `server` configuration sets:
   The gzip compression settings are used when the client sends `Accept-Encoding: gzip`
 - buckets for `http_request_duration_seconds` histogram
 
-| Field                                                       | Type        | Required                                                                 | Description                                                                                                                                                                                                               |
-| ----------------------------------------------------------- | ----------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `server.decoding.max_length`                                | `int`       | No, (default: 268435456)                                                 | Specifies the maximum allowed number of bytes to read from a request body.                                                                                                                                                |
-| `server.decoding.gzip.max_length`                           | `int`       | No, (default: 536870912)                                                 | Specifies the maximum allowed number of bytes to read from the gzip decompressor for gzip-encoded requests.                                                                                                               |
-| `server.encoding.gzip.min_length`                           | `int`       | No, (default: 1024)                                                      | Specifies the minimum length of the response to compress.                                                                                                                                                                 |
-| `server.encoding.gzip.compression_level`                    | `int`       | No, (default: 9)                                                         | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants          |
-| `server.metrics.prom.http_request_duration_seconds.buckets` | `[]float64` | No, (default: [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1 ]) | Specifies the buckets for the `http_request_duration_seconds` metric. Each value is a float, it is expressed in seconds and subdivisions of it. E.g `1e-6` is 1 microsecond, `1e-3` 1 millisecond, `0.01` 10 milliseconds |
+| Field                                                       | Type        | Required                                                                 | Description                                                                                                                                                                                                                          |
+| ----------------------------------------------------------- | ----------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `server.decoding.max_length`                                | `int`       | No, (default: 268435456)                                                 | Specifies the maximum allowed number of bytes to read from a request body.                                                                                                                                                           |
+| `server.decoding.gzip.max_length`                           | `int`       | No, (default: 536870912)                                                 | Specifies the maximum allowed number of bytes to read from the gzip decompressor for gzip-encoded requests.                                                                                                                          |
+| `server.encoding.gzip.min_length`                           | `int`       | No, (default: 1024)                                                      | Specifies the minimum length of the response to compress.                                                                                                                                                                            |
+| `server.encoding.gzip.compression_level`                    | `int`       | No, (default: 9)                                                         | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See [Go documentation](https://pkg.go.dev/compress/flate#pkg-constants) |
+| `server.metrics.prom.http_request_duration_seconds.buckets` | `[]float64` | No, (default: [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1 ]) | Specifies the buckets for the `http_request_duration_seconds` metric. Each value is a float, it is expressed in seconds and subdivisions of it. E.g `1e-6` is 1 microsecond, `1e-3` 1 millisecond, `0.01` 10 milliseconds            |
 
 ## Miscellaneous
 
@@ -1045,7 +1045,7 @@ any values set in the config file.
 
 There are two options to use: `--set` and `--set-file`
 
-Both options take in a key=value format where the key is a selector for the yaml
+Both options take in a key=value format where the key is a selector for the YAML
 config structure, for example: `decision_logs.reporting.min_delay_seconds=300` is equivalent
 to JSON `{"decision_logs": {"reporting": {"min_delay_seconds": 300}}}`. Multiple values can be
 specified with comma separators (`key1=value,key2=value2,..`). Or with additional `--set`

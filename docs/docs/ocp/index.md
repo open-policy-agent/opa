@@ -46,7 +46,7 @@ This example is designed for rapid iteration and learning, making it ideal for n
 
 ## 1. Install binary
 
-Install the opactl tool using one of the install methods [listed below](#installation).
+Install the `opactl` tool using one of the install methods [listed below](#installation).
 
 ## 2. Define a bundle
 
@@ -118,7 +118,7 @@ OCP Docker image executes the `run` command. Some of the arguments for OCP's `ru
 - `--addr` to set the listening address (default: `localhost:8282`).
 - `--log-level` to set the log level (default: `"info"`).
 
-OCP Docker images are available on Docker Hub for the edge releases (ie. tip of `main` branch). To get more information
+OCP Docker images are available on Docker Hub for the edge releases (i.e. tip of `main` branch). To get more information
 on the other `run` command arguments:
 
 ```bash

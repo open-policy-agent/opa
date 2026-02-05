@@ -11,7 +11,7 @@ The tips below cover the OPA-Kubernetes integration that uses kube-mgmt.
 The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper/)
 has its own docs.
 
-### Check for the `openpolicyagent.org/kube-mgmt-status` annotation on ConfigMaps containing policies
+## Ensure `openpolicyagent.org/kube-mgmt-status` annotations are set
 
 If you are loading policies into OPA via
 [kube-mgmt](https://github.com/open-policy-agent/kube-mgmt) you can check the
@@ -24,7 +24,7 @@ If the annotation is
 missing entirely, check the `kube-mgmt` container logs for connection errors
 between the container and the Kubernetes API server.
 
-### Check the `kube-mgmt` container logs for error messages
+## Check the `kube-mgmt` container logs for error messages
 
 When `kube-mgmt` is healthy, the container logs will be quiet/empty. If you are
 trying to enforce policies based on Kubernetes context (e.g., to check for
@@ -33,7 +33,7 @@ Kubernetes objects into OPA. If `kube-mgmt` is unable to list/watch resources in
 the Kubernetes API server, they will not be replicated into OPA and the policy
 will not get enforced.
 
-### Check the `opa` container logs for TLS errors
+## Check the `opa` container logs for TLS errors
 
 Communication between the Kubernetes API server and OPA is secured with TLS. If
 the CA bundle specified in the webhook configuration is out-of-sync with the
@@ -41,7 +41,7 @@ server certificate that OPA is configured with, OPA will log errors indicating a
 TLS issue. Verify that the CA bundle specified in the validating or mutating
 webhook configurations matches the server certificate you configured OPA to use.
 
-### Check for POST requests in the `opa` container logs
+## Check for POST requests in the `opa` container logs
 
 When the Kubernetes API server queries OPA for admission control decisions, it
 sends HTTP `POST` requests. If there are no `POST` requests contained in the
@@ -54,10 +54,10 @@ OPA.
 - If you are running on AWS EKS make sure your security group settings allow
   traffic from Kubernetes "master" nodes to the node(s) where OPA is running.
 
-### Ensure the webhook is configured for the proper namespaces
+## Ensure the webhook is configured for the proper namespaces
 
 When you create the webhook according to the installation instructions,
-it includes a namespaceSelector so that you
+it includes a `namespaceSelector` so that you
 can decide which namespaces to ignore.
 
 ```yaml
@@ -76,7 +76,7 @@ If OPA is making decision on namespaces (like `kube-system`) that you would
 prefer OPA would ignore, assign the namespace the label
 `openpolicyagent.org/webhook: ignore`.
 
-### Ensure mutating policies construct JSON Patches correctly
+## Ensure mutating policies construct JSON Patches correctly
 
 If you are using OPA to enforce mutating admission policies you must ensure the
 JSON Patch objects you generate escape "/" characters in the JSON Pointer. For
@@ -115,45 +115,20 @@ API server will not process it:
 
 <SideBySideContainer>
 <SideBySideColumn>
+
 ```rego title="Correct"
 package system
 
 main := {
-"apiVersion": "admission.k8s.io/v1",
-"kind": "AdmissionReview",
-"response": response,
-}
-
-response := {
-"allowed": true,
-"patchType": "JSONPatch",
-"patch": base64.encode(json.marshal(patches)) # <-- GOOD: uses base64.encode
-}
-
-patches := [
-{
-"op": "add",
-"path": "/metadata/annotations/acmecorp.com~1myannotation",
-"value": "somevalue"
-}
-]
-
-````
-</SideBySideColumn>
-<SideBySideColumn>
-```rego title="Incorrect"
-package system
-
-main := {
-	"apiVersion": "admission.k8s.io/v1",
-	"kind": "AdmissionReview",
-	"response": response,
+  "apiVersion": "admission.k8s.io/v1",
+  "kind": "AdmissionReview",
+  "response": response,
 }
 
 response := {
   "allowed": true,
   "patchType": "JSONPatch",
-  "patch": base64url.encode(json.marshal(patches))   # <-- BAD: uses base64url.encode
+  "patch": base64.encode(json.marshal(patches)) # <-- GOOD: uses base64.encode
 }
 
 patches := [
@@ -163,11 +138,38 @@ patches := [
     "value": "somevalue"
   }
 ]
-````
+```
+
+</SideBySideColumn>
+<SideBySideColumn>
+
+```rego title="Incorrect"
+package system
+
+main := {
+    "apiVersion": "admission.k8s.io/v1",
+    "kind": "AdmissionReview",
+    "response": response,
+}
+
+response := {
+  "allowed": true,
+  "patchType": "JSONPatch",
+  "patch": base64url.encode(json.marshal(patches)) # <-- BAD: uses base64url.encode
+}
+
+patches := [
+  {
+    "op": "add",
+    "path": "/metadata/annotations/acmecorp.com~1myannotation",
+    "value": "somevalue"
+  }
+]
+```
 
 </SideBySideColumn>
 </SideBySideContainer>
 
 Also, for more examples of how to construct mutating policies and integrating
 them with validating policies, see [these examples](https://github.com/open-policy-agent/library/tree/master/kubernetes/mutating-admission)
-in https://github.com/open-policy-agent/library.
+in the [OPA library on GitHub](https://github.com/open-policy-agent/library).

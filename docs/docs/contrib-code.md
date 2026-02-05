@@ -36,7 +36,7 @@ Looking for developer environment set-up? Head over to the
 ['Contributing: Development'](./contrib-development/) page.
 :::
 
-### Commit Messages
+## Commit Messages
 
 Commit messages should explain _why_ the changes were made and should probably
 look like this:
@@ -66,7 +66,7 @@ format:
 
 For example, a change to the `ast` package:
 
-```
+```txt
 ast: Fix X when Y happens
 
 <Details...>
@@ -124,7 +124,7 @@ patches and reject PRs where code origin cannot be verified.
 See more in our [AI Guidelines](#ai-guidelines).
 :::
 
-### Code Review
+## Code Review
 
 Before a Pull Request is merged, it will undergo code review from other members
 of the OPA community. In order to streamline the code review process, when
@@ -154,7 +154,7 @@ the review process. Use your judgement about what constitutes a small Pull
 Request. If you aren't sure, send a message to the OPA slack or post a comment
 on the Pull Request.
 
-### Vulnerability scanning
+## Vulnerability scanning
 
 On each Pull Request, a series of tests will be run to ensure that the code
 is up to standard. Part of this process is also to run vulnerability scanning
@@ -166,13 +166,13 @@ vulnerability scanning. To install, follow the [installation instructions](https
 To run the vulnerability scanning, on the code-base, run the following command:
 
 ```bash
-$ trivy fs .
+trivy fs .
 ```
 
 To run the vulnerability scanning on the container image, run the following command:
 
 ```bash
-$ trivy image <Image tag>
+trivy image <Image tag>
 ```
 
 If the tool catches any false positives, it's recommended to appropriately document them

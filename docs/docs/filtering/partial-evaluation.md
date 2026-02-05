@@ -332,4 +332,4 @@ Finally, the two are combined with `OR`:
 ## Next Steps
 
 - To learn more about which Rego expressions can be used in filter policies, continue to [Writing valid data filtering policies](./fragment).
-- Find all information about supported options and tweaks for translation in the [Data Filters Compilation API reference](../rest-api#compling-a-rego-policy-and-query-into-data-filters).
+- Find all information about supported options and tweaks for translation in the [Data Filters Compilation API reference](../rest-api#compiling-a-rego-policy-and-query-into-data-filters).

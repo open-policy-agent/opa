@@ -3,11 +3,11 @@ title: "Tutorial: Ingress Validation"
 ---
 
 This tutorial shows how to deploy OPA as an admission controller from scratch.
-It covers the OPA-kubernetes version that uses kube-mgmt.
+It covers the OPA-Kubernetes version that uses kube-mgmt.
 The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper) has its own docs.
 For the purpose of the tutorial we will deploy two policies that ensure:
 
-- Ingress hostnames must be on allowlist on the Namespace containing the Ingress.
+- Ingress hostnames must be on `allowlist` on the Namespace containing the Ingress.
 - Two ingresses in different namespaces must not have the same hostname.
 
 > 💡 Kubernetes does not guarantee consistency across resources. If two
@@ -129,33 +129,33 @@ import data.kubernetes.namespaces
 operations := {"CREATE", "UPDATE"}
 
 deny contains msg if {
-	input.request.kind.kind == "Ingress"
-	operations[input.request.operation]
-	host := input.request.object.spec.rules[_].host
-	not fqdn_matches_any(host, valid_ingress_hosts)
-	msg := sprintf("invalid ingress host %q", [host])
+    input.request.kind.kind == "Ingress"
+    operations[input.request.operation]
+    host := input.request.object.spec.rules[_].host
+    not fqdn_matches_any(host, valid_ingress_hosts)
+    msg := sprintf("invalid ingress host %q", [host])
 }
 
 valid_ingress_hosts := {host |
-	allowlist := namespaces[input.request.namespace].metadata.annotations["ingress-allowlist"]
-	hosts := split(allowlist, ",")
-	host := hosts[_]
+    allowlist := namespaces[input.request.namespace].metadata.annotations["ingress-allowlist"]
+    hosts := split(allowlist, ",")
+    host := hosts[_]
 }
 
 fqdn_matches_any(str, patterns) if {
-	fqdn_matches(str, patterns[_])
+    fqdn_matches(str, patterns[_])
 }
 
 fqdn_matches(str, pattern) if {
-	pattern_parts := split(pattern, ".")
-	pattern_parts[0] == "*"
-	suffix := trim(pattern, "*.")
-	endswith(str, suffix)
+    pattern_parts := split(pattern, ".")
+    pattern_parts[0] == "*"
+    suffix := trim(pattern, "*.")
+    endswith(str, suffix)
 }
 
 fqdn_matches(str, pattern) if {
-	not contains(pattern, "*")
-	str == pattern
+    not contains(pattern, "*")
+    str == pattern
 }
 ```
 
@@ -172,14 +172,14 @@ package kubernetes.admission
 import data.kubernetes.ingresses
 
 deny contains msg if {
-	some other_ns, other_ingress
-	input.request.kind.kind == "Ingress"
-	input.request.operation == "CREATE"
-	host := input.request.object.spec.rules[_].host
-	ingress := ingresses[other_ns][other_ingress]
-	other_ns != input.request.namespace
-	ingress.spec.rules[_].host == host
-	msg := sprintf("invalid ingress host %q (conflicts with %v/%v)", [host, other_ns, other_ingress])
+    some other_ns, other_ingress
+    input.request.kind.kind == "Ingress"
+    input.request.operation == "CREATE"
+    host := input.request.object.spec.rules[_].host
+    ingress := ingresses[other_ns][other_ingress]
+    other_ns != input.request.namespace
+    ingress.spec.rules[_].host == host
+    msg := sprintf("invalid ingress host %q (conflicts with %v/%v)", [host, other_ns, other_ingress])
 }
 ```
 
@@ -194,9 +194,9 @@ package system
 import data.kubernetes.admission
 
 main := {
-	"apiVersion": "admission.k8s.io/v1",
-	"kind": "AdmissionReview",
-	"response": response,
+    "apiVersion": "admission.k8s.io/v1",
+    "kind": "AdmissionReview",
+    "response": response,
 }
 
 default uid := ""
@@ -204,12 +204,12 @@ default uid := ""
 uid := input.request.uid
 
 response := {
-	"allowed": false,
-	"uid": uid,
-	"status": {"message": reason},
+    "allowed": false,
+    "uid": uid,
+    "status": {"message": reason},
 } if {
-	reason = concat(", ", admission.deny)
-	reason != ""
+    reason = concat(", ", admission.deny)
+    reason != ""
 }
 
 else := {"allowed": true, "uid": uid}
@@ -221,8 +221,8 @@ else := {"allowed": true, "uid": uid}
 
 Build an OPA bundle containing policies defined in the previous step. In our setup, OPA will download policies from the
 bundle service and the `kube-mgmt` container will load Kubernetes resources into OPA. Since we load policy and data into
-OPA from multiple sources, we need to scope the bundle to a subset of OPA’s policy and data cache by defining a manifest.
-More information about this can be found [here](../management-bundles#multiple-sources-of-policy-and-data). Run the
+OPA from multiple sources, we need to scope the bundle to a subset of OPA's policy and data cache by defining a manifest.
+More information about this can be found [in the Bundle Management documentation](../management-bundles#multiple-sources-of-policy-and-data). Run the
 following commands in the `policies` folder created in the previous step.
 
 ```bash

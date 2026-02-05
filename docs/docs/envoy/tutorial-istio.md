@@ -51,16 +51,16 @@ The `quick_start.yaml` manifest defines the following resources:
   default allow := false
 
   allow if {
-  	input.parsed_path[0] == "health"
-  	input.attributes.request.method == "GET"
+      input.parsed_path[0] == "health"
+      input.attributes.request.method == "GET"
   }
 
   allow if {
-  	some user_role in _user_roles[_user_name]
-  	some permission in _role_permissions[user_role]
+      some user_role in _user_roles[_user_name]
+      some permission in _role_permissions[user_role]
 
-  	permission.method == input.attributes.request.http.method
-  	permission.path == input.attributes.request.http.path
+      permission.method == input.attributes.request.http.method
+      permission.path == input.attributes.request.http.path
   }
 
   # Underscore prefix used only to signal that rules and functions are
@@ -68,21 +68,21 @@ The `quick_start.yaml` manifest defines the following resources:
   # It has no special meaning to OPA.
 
   _user_name := parsed if {
-  	[_, encoded] := split(input.attributes.request.http.headers.authorization, " ")
-  	[parsed, _] := split(base64url.decode(encoded), ":")
+      [_, encoded] := split(input.attributes.request.http.headers.authorization, " ")
+      [parsed, _] := split(base64url.decode(encoded), ":")
   }
 
   _user_roles := {
-  	"alice": ["guest"],
-  	"bob": ["admin"],
+      "alice": ["guest"],
+      "bob": ["admin"],
   }
 
   _role_permissions := {
-  	"guest": [{"method": "GET", "path": "/productpage"}],
-  	"admin": [
-  		{"method": "GET", "path": "/productpage"},
-  		{"method": "GET", "path": "/api/v1/products"},
-  	],
+      "guest": [{"method": "GET", "path": "/productpage"}],
+      "admin": [
+          {"method": "GET", "path": "/productpage"},
+          {"method": "GET", "path": "/api/v1/products"},
+      ],
   }
   ```
 
@@ -118,7 +118,7 @@ The `quick_start.yaml` manifest defines the following resources:
 
   <RunSnippet files="#input.json #authz.rego" command="data.example.result" />
 
-  An example of the complete input received by OPA can be seen [here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio#example-input).
+  An example of the complete input received by OPA can be seen [in the Istio examples](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio#example-input).
 
   > In typical deployments the policy would either be built into the OPA container
   > image or it would be fetched dynamically via the [Bundle API](../management-bundles/). ConfigMaps are
@@ -217,4 +217,4 @@ This tutorial also showed a sample OPA policy that returns a `boolean` decision
 to indicate whether a request should be allowed or not.
 
 More details about the tutorial can be seen
-[here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio).
+[in the opa-envoy-plugin Istio examples](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio).

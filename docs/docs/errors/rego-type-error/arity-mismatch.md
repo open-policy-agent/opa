@@ -3,7 +3,7 @@ sidebar_label: arity mismatch
 image: /img/opa-errors.png
 ---
 
-# rego_type_error: `{built-in name}` arity mismatch
+# `rego_type_error`: `{built-in name}` arity mismatch
 
 [Arity](https://en.wikipedia.org/wiki/Arity) is a term used to describe the number of arguments a function takes.
 This error happens when one of Rego's
@@ -38,8 +38,8 @@ When compiled, this will result in the following error:
 
 ```txt
 1 error occurred: policy.rego:6: rego_type_error: split: arity mismatch
-	have: (string, ???)
-	want: (x: string, delimiter: string)
+    have: (string, ???)
+    want: (x: string, delimiter: string)
 ```
 
 ## How To Fix It

@@ -3,7 +3,7 @@ sidebar_label: assigned var {name} unused
 image: /img/opa-errors.png
 ---
 
-# rego_compile_error: assigned var `{name}` unused
+# `rego_compile_error`: assigned var `{name}` unused
 
 This error is caused by a variable being assigned a value, but never used. This is often the result of a typo or
 mis-named variable being assigned.
@@ -26,8 +26,8 @@ package policy
 import future.keywords.if
 
 allow if {
-	user := input.user
-	input.user == "admin"
+    user := input.user
+    input.user == "admin"
 }
 ```
 
@@ -46,9 +46,9 @@ import future.keywords.contains
 import future.keywords.if
 
 deny contains message if {
-	input.user != "admin"
+    input.user != "admin"
 
-	msg := "user is not admin"
+    msg := "user is not admin"
 }
 ```
 

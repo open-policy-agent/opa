@@ -4,6 +4,8 @@ sidebar_position: 2
 title: Python
 ---
 
+# Python and Rego Language Comparison
+
 <!-- markdownlint-disable MD044 -->
 
 import SideBySideLanguageComparison from "@site/src/components/SideBySideLanguageComparison";
@@ -11,8 +13,6 @@ import SideBySideLanguageComparison from "@site/src/components/SideBySideLanguag
 import { Ex1Title, Ex1Intro, Ex1Outro, Ex1Python, Ex1Rego } from './ex1.js';
 import { Ex2Title, Ex2Intro, Ex2Python, Ex2Rego } from './ex2.js';
 import { Ex3Title, Ex3Intro, Ex3Python, Ex3Rego } from './ex3.js';
-
-# Python and Rego Language Comparison
 
 Python is a versatile programming language commonly used in domains such as
 data analysis, web development, automation, and scientific computing.

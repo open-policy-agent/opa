@@ -3,7 +3,7 @@ sidebar_label: rule {name} is recursive
 image: /img/opa-errors.png
 ---
 
-# rego_recursion_error: rule `{name}` is recursive
+# `rego_recursion_error`: rule `{name}` is recursive
 
 An important property of Rego compared to general purpose programming languages is that policy evaluation should be
 known to _terminate_. Some common programming constructs, like `while` loops, or recursive references, can't

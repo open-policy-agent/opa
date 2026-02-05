@@ -12,7 +12,7 @@ OPA-Envoy plugin. If none of these tips work, feel free to join
 ### Benchmarking Queries
 
 The `opa bench` command evaluates a Rego query multiple times and reports metrics. You can also profile your polices using
-`opa eval` to understand expression evaluation time. More information on improving policy performance can be found [here](https://www.openpolicyagent.org/docs/policy-performance).
+`opa eval` to understand expression evaluation time. More information on improving policy performance can be found [in the Policy Performance documentation](https://www.openpolicyagent.org/docs/policy-performance).
 
 ### Analyzing Decision Logs
 
@@ -32,12 +32,12 @@ field will help uncover potential network issues as `403 Forbidden` is also gene
 
 ## Interacting with the gRPC server
 
-This section provides examples of interacting with the Envoy External Authorization gRPC server using the [grpcurl](https://github.com/fullstorydev/grpcurl) tool.
+This section provides examples of interacting with the Envoy External Authorization gRPC server using the [`grpcurl`](https://github.com/fullstorydev/grpcurl) tool.
 
 - List all services exposed by the server
 
   ```bash
-  $ grpcurl -plaintext localhost:9191 list
+  grpcurl -plaintext localhost:9191 list
   ```
 
   Output:

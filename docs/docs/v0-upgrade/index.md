@@ -520,7 +520,7 @@ Both users of the
 [v0 SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/sdk)
 and
 [v0 Rego](https://pkg.go.dev/github.com/open-policy-agent/opa/rego) packages are
-encoraged to upgrade to the new v1 packages instead. These can be found here:
+encouraged to upgrade to the new v1 packages instead. These can be found here:
 
 - [SDK v1](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/sdk)
 - [Rego v1](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/rego)

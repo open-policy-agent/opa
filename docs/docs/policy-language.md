@@ -656,11 +656,11 @@ import data.example.apps
 import data.example.sites
 
 apps_and_hostnames contains [name, hostname] if {
-	some i, j, k
-	name := apps[i].name
-	server := apps[i].servers[_]
-	sites[j].servers[k].name == server
-	hostname := sites[j].servers[k].hostname
+    some i, j, k
+    name := apps[i].name
+    server := apps[i].servers[_]
+    sites[j].servers[k].name == server
+    hostname := sites[j].servers[k].hostname
 }
 ```
 
@@ -682,16 +682,16 @@ import data.example.apps
 import data.example.sites
 
 same_site contains apps[k].name if {
-	some i, j, k
-	apps[i].name == "mysql"
+    some i, j, k
+    apps[i].name == "mysql"
 
-	server := apps[i].servers[_]
-	server == sites[j].servers[_].name
+    server := apps[i].servers[_]
+    server == sites[j].servers[_].name
 
-	other_server := sites[j].servers[_].name
-	server != other_server
+    other_server := sites[j].servers[_].name
+    server != other_server
 
-	other_server == apps[k].servers[_]
+    other_server == apps[k].servers[_]
 }
 ```
 
@@ -969,7 +969,7 @@ max_memory := 4 if restricted_users[user]
 <RunSnippet id="complete.rego" command="data.complete"/>
 
 OPA returns an error in this case because the rule definitions are in _conflict_.
-The value produced by max_memory cannot be 32 and 4 **at the same time**.
+The value produced by `max_memory` cannot be 32 and 4 **at the same time**.
 
 The documents produced by rules with complete definitions may still be undefined:
 
@@ -1044,21 +1044,21 @@ package roles
 
 # A partial object rule that converts a list of users to a mapping by "role" and then "id".
 users_by_role[role][id] := user if {
-	some user in input.users
-	id := user.id
-	role := user.role
+    some user in input.users
+    id := user.id
+    role := user.role
 }
 
 # Partial rule with an explicit "admin" key override
 users_by_role.admin[id] := user if {
-	some user in input.admins
-	id := user.id
+    some user in input.admins
+    id := user.id
 }
 
 # Leaf entries can be partial sets
 users_by_country[country] contains user.id if {
-	some user in input.users
-	country := user.country
+    some user in input.users
+    country := user.country
 }
 ```
 
@@ -1076,8 +1076,8 @@ package example
 
 # R1
 p[x].r := y if {
-	x := "q"
-	y := 1
+    x := "q"
+    y := 1
 }
 
 # R2
@@ -1100,8 +1100,8 @@ package example
 
 # R1
 p[x].r := y if {
-	x := "foo"
-	y := 1
+    x := "foo"
+    y := 1
 }
 
 # R2
@@ -1127,7 +1127,7 @@ p.q.r := {"s": 1}
 
 # R2
 p[x].r.t := 2 if {
-	x := "q"
+    x := "q"
 }
 ```
 
@@ -1148,7 +1148,7 @@ p.q.r.s := 1
 
 # R2
 p[x].r.t := 2 if {
-	x := "q"
+    x := "q"
 }
 ```
 
@@ -1158,7 +1158,7 @@ As `R1` is now instead defining a value within the dynamic extent of `R2`'s refe
 
 ### Functions
 
-Rego supports user-defined functions that can be called with the same semantics as [built-in functions](#built-in-functions). They have access to both the [the data document](./philosophy/#the-opa-document-model) and [the input document](./philosophy/#the-opa-document-model).
+Rego supports user-defined functions that can be called with the same semantics as [built-in functions](#built-in-functions). They have access to both [the data document](./philosophy/#the-opa-document-model) and [the input document](./philosophy/#the-opa-document-model).
 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
@@ -1355,7 +1355,7 @@ t if {
 <RunSnippet command="data.negation.t"/>
 
 Negation is required to check whether some value _does not_ exist in a collection: `not p["foo"]`. That is not the same as complementing the `==` operator in an expression `p[_] == "foo"` which yields `p[_] != "foo"`
-which means for any item in `p`, return true if the item is not `"foo"`. See more details [here](/projects/regal/rules/bugs/not-equals-in-loop).
+which means for any item in `p`, return true if the item is not `"foo"`. See more details [in the Regal documentation](/projects/regal/rules/bugs/not-equals-in-loop).
 
 For example, we can write a rule that defines a document containing names of
 apps not deployed on the `"prod"` site:
@@ -1900,7 +1900,7 @@ result := true if {
 
 <RunSnippet files="#imports.rego" command="data.authz.result"/>
 
-catherine is only allowed access at weekends. The following query uses `with` to
+Catherine is only allowed access at weekends. The following query uses `with` to
 test this functionality:
 
 ```rego
@@ -2074,7 +2074,7 @@ The value of a `default` function follows the same conditions as that of a `defa
 function satisfies the following properties:
 
 - same arity as other functions with the same name
-- arguments should only be plain variables ie. no composite values
+- arguments should only be plain variables i.e. no composite values
 - argument names should not be repeated
 
 :::info
@@ -2098,7 +2098,7 @@ found. Once a match is found, rule evaluation does not proceed to rules further
 in the chain.
 
 The `else` keyword is useful if you are porting policies into Rego from an
-order-sensitive system like IPTables.
+order-sensitive system like iptables.
 
 ```rego
 package else_example
@@ -2259,15 +2259,15 @@ Using the `some` variant, it can be used to introduce new variables based on a c
 package some_in
 
 p contains x if {
-	some x in ["a", "r", "r", "a", "y"]
+    some x in ["a", "r", "r", "a", "y"]
 }
 
 q contains x if {
-	some x in {"s", "e", "t"}
+    some x in {"s", "e", "t"}
 }
 
 r contains x if {
-	some x in {"foo": "bar", "baz": "quz"}
+    some x in {"foo": "bar", "baz": "quz"}
 }
 ```
 
@@ -2279,15 +2279,15 @@ Furthermore, passing a second argument allows you to work with _object keys_ and
 package some_in
 
 p contains x if {
-	some x, "r" in ["a", "r", "r", "a", "y"] # key variable, value constant
+    some x, "r" in ["a", "r", "r", "a", "y"] # key variable, value constant
 }
 
 q[x] := y if {
-	some x, y in ["a", "r", "r", "a", "y"] # both variables
+    some x, y in ["a", "r", "r", "a", "y"] # both variables
 }
 
 r[y] := x if {
-	some x, y in {"foo": "bar", "baz": "quz"}
+    some x, y in {"foo": "bar", "baz": "quz"}
 }
 ```
 
@@ -2600,17 +2600,17 @@ comment block containing the YAML document is finished
 
 ### Annotations
 
-| Name              | Type                                                        | Description                                                                                                        |
-| ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| scope             | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more [here](#metadata-scope).                                       |
-| title             | string                                                      | A human-readable name for the annotation target. Read more [here](#metadata-title).                                |
-| description       | string                                                      | A description of the annotation target. Read more [here](#metadata-description).                                   |
-| related_resources | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more [here](#metadata-related_resources).         |
-| authors           | list of strings                                             | A list of authors for the annotation target. Read more [here](#metadata-authors).                                  |
-| organizations     | list of strings                                             | A list of organizations related to the annotation target. Read more [here](#metadata-organizations).               |
-| schemas           | list of object                                              | A list of associations between value paths and schema definitions. Read more [here](#metadata-schemas).            |
-| entrypoint        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more [here](#metadata-entrypoint). |
-| custom            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more [here](#metadata-custom).                   |
+| Name                | Type                                                        | Description                                                                                                                                            |
+| ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| scope               | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more in the [Metadata Scope section below](#metadata-scope).                                            |
+| `title`             | string                                                      | A human-readable name for the annotation target. Read more in the [Metadata Title section below](#metadata-title).                                     |
+| `description`       | string                                                      | A description of the annotation target. Read more in the [Metadata Description section below](#metadata-description).                                  |
+| `related_resources` | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more in the [Metadata Related Resources section below](#metadata-related_resources).  |
+| `authors`           | list of strings                                             | A list of authors for the annotation target. Read more in the [Metadata Authors section below](#metadata-authors).                                     |
+| `organizations`     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).            |
+| `schemas`           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).               |
+| `entrypoint`        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint). |
+| `custom`            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                       |
 
 ### Metadata `Scope`
 
@@ -2803,7 +2803,7 @@ allow if {
 ### Metadata `schemas`
 
 The `schemas` annotation is a list of key value pairs, associating schemas to data values.
-In-depth information on this topic can be found [here](#annotations).
+In-depth information on this topic can be found [in the Annotations section](#annotations).
 
 #### Schema Reference Format
 
@@ -2902,13 +2902,13 @@ package example
 # custom:
 #  severity: MEDIUM
 output := decision if {
-	input.number > 5
+    input.number > 5
 
-	annotation := rego.metadata.rule()
-	decision := {
-		"severity": annotation.custom.severity,
-		"message": annotation.description,
-	}
+    annotation := rego.metadata.rule()
+    decision := {
+        "severity": annotation.custom.severity,
+        "message": annotation.description,
+    }
 }
 ```
 
@@ -3071,10 +3071,10 @@ starts with a specific prefix.
 package kubernetes.admission
 
 deny contains msg if {
-	input.request.kind.kinds == "Pod"
-	image := input.request.object.spec.containers[_].image
-	not startswith(image, "hooli.com/")
-	msg := sprintf("image '%v' comes from untrusted registry", [image])
+    input.request.kind.kinds == "Pod"
+    image := input.request.object.spec.containers[_].image
+    not startswith(image, "hooli.com/")
+    msg := sprintf("image '%v' comes from untrusted registry", [image])
 }
 ```
 
@@ -3187,13 +3187,13 @@ default allow := false
 #   - input: schema.input
 #   - data.acl: schema["acl-schema"]
 allow if {
-	access := data.acl.alice
-	access[_] == input.operation
+    access := data.acl.alice
+    access[_] == input.operation
 }
 
 allow if {
-	access := data.acl.bob
-	access[_] == input.operation
+    access := data.acl.bob
+    access[_] == input.operation
 }
 ```
 
@@ -3339,10 +3339,10 @@ package kubernetes.admission
 # - input: schema.input
 # - input.request.object: schema.kubernetes.pod
 deny contains msg if {
-	input.request.kind.kind == "Pod"
-	image := input.request.object.spec.containers[_].image
-	not startswith(image, "hooli.com/")
-	msg := sprintf("image '%v' comes from untrusted registry", [image])
+    input.request.kind.kind == "Pod"
+    image := input.request.object.spec.containers[_].image
+    not startswith(image, "hooli.com/")
+    msg := sprintf("image '%v' comes from untrusted registry", [image])
 }
 ```
 
@@ -3403,8 +3403,8 @@ default allow := false
 #  - input: schema["input"]
 #  - data.acl: schema["acl-schema"]
 allow if {
-	access := data.acl[input.user]
-	access[_] == input.operation
+    access := data.acl[input.user]
+    access[_] == input.operation
 }
 
 # METADATA for whocan rule
@@ -3413,8 +3413,8 @@ allow if {
 #   - input: schema["whocan-input-schema"]
 #   - data.acl: schema["acl-schema"]
 whocan contains user if {
-	access := acl[user]
-	access[_] == input.operation
+    access := acl[user]
+    access[_] == input.operation
 }
 ```
 
@@ -3455,7 +3455,7 @@ package kubernetes.admission
 # schemas:
 #   - input: schema["input-anyOf"]
 deny if {
-	input.request.servers.versions == "Pod"
+    input.request.servers.versions == "Pod"
 }
 ```
 
@@ -3531,7 +3531,7 @@ package kubernetes.admission
 # schemas:
 #   - input: schema["input-allof"]
 deny if {
-	input.request.servers.versions == "Pod"
+    input.request.servers.versions == "Pod"
 }
 ```
 
@@ -3668,7 +3668,7 @@ In this case, we are overriding the root of all documents to have some schema. S
 
 ### References
 
-For more examples, please see [here](https://github.com/aavarghese/opa-schema-examples).
+For more examples, please see [the opa-schema-examples repository](https://github.com/aavarghese/opa-schema-examples).
 
 This contains samples for Envoy, Kubernetes, and Terraform including corresponding JSON Schemas.
 

@@ -3,7 +3,7 @@ sidebar_label: multiple default rules {name} found
 image: /img/opa-errors.png
 ---
 
-# rego_type_error: multiple default rules `{name}` found
+# `rego_type_error`: multiple default rules `{name}` found
 
 The `default` keyword is used to define a base value for a rule that will be used if the other
 rules do not match. `default` is a special case, and only one such case can be defined per rule.
@@ -26,7 +26,7 @@ import rego.v1
 default allow := false
 
 allow if {
-	"admin" in input.roles
+    "admin" in input.roles
 }
 
 default allow := false
@@ -54,7 +54,7 @@ import rego.v1
 default allow := false
 
 allow if {
-	"admin" in input.roles
+    "admin" in input.roles
 }
 ```
 

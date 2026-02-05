@@ -22,11 +22,11 @@ In this example:
 - system is the name of another source that declares package x.y
 - because x.y is a prefix of x.y.z, they overlap
 
-If you are interested in seeing this restriction relaxed please leave a comment [here](https://github.com/open-policy-agent/opa-control-plane/issues/30) including any details you can share about your use case.
+If you are interested in seeing this restriction relaxed please leave a comment [on Issue #30](https://github.com/open-policy-agent/opa-control-plane/issues/30) including any details you can share about your use case.
 
 ### Bundle Configuration Fields
 
-- **object\_storage:**
+- `object_storage`:
   Configure the storage backend (S3, GCS, Azure Cloud Storage, or filesystem, etc.) for bundle distribution. OCP will write bundles to the object storage backend and the bundles will be served from there.
   - Filesystem:
     - Path: Path where the bundle will be created
@@ -36,7 +36,7 @@ If you are interested in seeing this restriction relaxed please leave a comment 
       - Example: `my-prod-bucket`
     - Key: Path and or name of the bundle to be built
       - Example: `prod/bundle.tar.gz`
-    - Region: Aws region bucket was created in
+    - Region: AWS region bucket was created in
     - Credentials: Reference a named Secret for authenticating with the target object store.
   - GCP Cloud Storage (gcp):
     - Project: GCP project the bucket is a part of
@@ -48,18 +48,16 @@ If you are interested in seeing this restriction relaxed please leave a comment 
     - Container: Name of the blob storage container
     - Path: Path and name of the bundle to be created
     - Credentials: Reference a named Secret for authenticating with the target object store.
-- **labels:**
+- `labels`:
   Add metadata to bundles to describe environment, team, system-type, etc. Labels are used by Stacks (see below) for bundle selection and policy composition.
-- **requirements:**
+- `requirements`:
   Specify policies or data (from Sources) that must be included in the bundle. Requirements can include optional `path` and `prefix` settings to rewrite package names and data paths.
-- **Excluded\_files**: (optional)
+- `excluded_files`: (optional)
   A list of files to be excluded from the bundle during build for example any hidden files
 
-#### Examples:
+#### Examples
 
-**Filesystem:**
-
-```yaml
+```yaml title="Filesystem"
 bundles:
   prod-app:
     object_storage:
@@ -72,9 +70,7 @@ bundles:
     - source: app-policy
 ```
 
-**Amazon S3 (aws):**
-
-```yaml
+```yaml title="Amazon S3 (aws)"
 bundles:
   prod-app:
     object_storage:
@@ -86,9 +82,7 @@ bundles:
         credentials: s3-prod-creds
 ```
 
-**GCP Cloud Storage (gcp):**
-
-```yaml
+```yaml title="GCP Cloud Storage (gcp)"
 bundles:
   prod-app:
     object_storage:
@@ -99,9 +93,7 @@ bundles:
         credentials: gcp-service-account
 ```
 
-**Azure Blob Storage (azure):**
-
-```yaml
+```yaml title="Azure Blob Storage (azure)"
 bundles:
   prod-app:
     object_storage:
@@ -148,7 +140,7 @@ Sources define how OCP pulls Rego and data from external systems, local files, o
 
 **Example:**
 Configuration sourcing policy from git (`app-policy`), data from file (`global-data`)
-and additional data pulled via http from Amazon S3 (`s3-data`). Information about used credentials is available in [Secrets](#secrets) section.
+and additional data pulled via HTTP from Amazon S3 (`s3-data`). Information about used credentials is available in [Secrets](#secrets) section.
 
 ```yaml
 sources:
@@ -438,7 +430,7 @@ deny contains msg if {
 
 deny contains msg if {
   some stackname
-	some msg in data.pipelines.stacks[stackname].deny
+    some msg in data.pipelines.stacks[stackname].deny
 }
 ```
 
@@ -529,7 +521,7 @@ secrets:
     password: ${GITHUB_TOKEN}
 ```
 
-# Configuration Organization
+## Configuration Organization
 
 OCP configuration files can be organized as a single file or split across
 multiple files and directories. For small or simple deployments, a single

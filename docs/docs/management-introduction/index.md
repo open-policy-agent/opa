@@ -18,7 +18,7 @@ import HostLocalDiagram from './assets/HostLocalDiagram';
 
 OPA is designed to enable _distributed_ policy enforcement. You can run OPA next
 to each and every service that needs to offload policy decision-making. By
-colocating OPA with the services that require decision-making, you ensure that
+co-locating OPA with the services that require decision-making, you ensure that
 policy decisions are rendered as fast as possible and in a highly-available
 manner.
 

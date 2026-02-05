@@ -82,11 +82,11 @@ To run OCP with a highly available RDS setup:
 endpoint: mydb.cluster-abcdefghijkl.us-east-1.rds.amazonaws.com:5432
 ```
 
-3. **Read Replicas for Scaling**
+1. **Read Replicas for Scaling**
    If your OCP deployment requires read scaling, you can configure read replicas in RDS. This is generally not required for OCP itself, but can be useful for analytics or reporting workloads.
-4. **TLS Encryption**
+2. **TLS Encryption**
    Download the latest Amazon RDS CA bundle from: [https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html) Store it in your container or host, and reference it in `root_certificates`.
-5. **Secrets Management**
+3. **Secrets Management**
    Store the database password as well as AWS credentials in an OCP secret, such as:
 
 ```yaml

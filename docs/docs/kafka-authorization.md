@@ -14,7 +14,7 @@ topics. In this tutorial you will use OPA to define and enforce an
 authorization policy stating:
 
 - Consumers of topics containing Personally Identifiable Information (PII) must be on allow list.
-- Producers to topics with _high fanout_ must be on allow list.
+- Producers to topics with _high fan-out_ must be on allow list.
 
 In addition, this tutorial shows how to break up a policy with small helper
 rules to reuse logic and improve overall readability.
@@ -28,7 +28,7 @@ by any other bundle server [implementation](./management-bundles/#implementation
 
 ## Steps
 
-### 1. Bootstrap the tutorial environment using Docker Compose.
+### 1. Bootstrap the tutorial environment using Docker Compose
 
 First, let's create some directories. We'll create one for our policy files, a second one for built bundles, and a third
 one or the OPA authorizer plugin.
@@ -227,7 +227,7 @@ docker-compose --project-name opa-kafka-tutorial up
 
 Now that the tutorial environment is running, we can define an authorization policy using OPA and test it.
 
-### 2. Define a policy to restrict consumer access to topics containing Personally Identifiable Information (PII).
+### 2. Define a policy to restrict consumer access to topics containing Personally Identifiable Information (PII)
 
 Update the `policies/tutorial.rego` with the following content.
 
@@ -247,13 +247,13 @@ package kafka.authz
 default allow := false
 
 allow if {
-	not deny
+    not deny
 }
 
 deny if {
-	is_read_operation
-	topic_contains_pii
-	not consumer_is_allowlisted_for_pii
+    is_read_operation
+    topic_contains_pii
+    not consumer_is_allowlisted_for_pii
 }
 
 #-----------------------------------------------------------------------------
@@ -271,11 +271,11 @@ topic_metadata := {"credit-scores": {"tags": ["pii"]}}
 #-----------------------------------
 
 topic_contains_pii if {
-	"pii" in topic_metadata[topic_name].tags
+    "pii" in topic_metadata[topic_name].tags
 }
 
 consumer_is_allowlisted_for_pii if {
-	principal.name in consumer_allowlist.pii
+    principal.name in consumer_allowlist.pii
 }
 
 #-----------------------------------------------------------------------------
@@ -285,32 +285,32 @@ consumer_is_allowlisted_for_pii if {
 #-----------------------------------------------------------------------------
 
 is_write_operation if {
-	input.action.operation == "WRITE"
+    input.action.operation == "WRITE"
 }
 
 is_read_operation if {
-	input.action.operation == "READ"
+    input.action.operation == "READ"
 }
 
 is_topic_resource if {
-	input.action.resourcePattern.resourceType == "TOPIC"
+    input.action.resourcePattern.resourceType == "TOPIC"
 }
 
 topic_name := input.action.resourcePattern.name if {
-	is_topic_resource
+    is_topic_resource
 }
 
 principal := {"fqn": parsed.CN, "name": cn_parts[0]} if {
-	parsed := parse_user(input.requestContext.principal.name)
-	cn_parts := split(parsed.CN, ".")
+    parsed := parse_user(input.requestContext.principal.name)
+    cn_parts := split(parsed.CN, ".")
 }
 
 # If client certificates aren't used for authentication
 else := {"fqn": "", "name": input.requestContext.principal.name}
 
 parse_user(user) := {key: value |
-	parts := split(user, ",")
-	[key, value] := split(parts[_], "=")
+    parts := split(user, ",")
+    [key, value] := split(parts[_], "=")
 }
 ```
 
@@ -375,7 +375,7 @@ opa build --bundle policies/ --output bundles/bundle.tar.gz
 
 At this point, you can exercise the policy.
 
-### 3. Exercise the policy that restricts consumer access to topics containing PII.
+### 3. Exercise the policy that restricts consumer access to topics containing PII
 
 This step shows how you can grant fine-grained access to services using
 Kafka. In this scenario, some services are allowed to read PII data while
@@ -428,34 +428,34 @@ Not authorized to read from topic credit-scores.
 Processed a total of 0 messages
 ```
 
-### 4. Extend the policy to prevent services from accidentally writing to topics with large fanout.
+### 4. Extend the policy to prevent services from accidentally writing to topics with large fan-out
 
 First, add the following content to the policy file (`./policies/tutorial.rego`):
 
 ```rego
 deny if {
-	is_write_operation
-	topic_has_large_fanout
-	not producer_is_allowlisted_for_large_fanout
+    is_write_operation
+    topic_has_large_fanout
+    not producer_is_allowlisted_for_large_fanout
 }
 
 producer_allowlist := {
-	"large-fanout": {
-		"fanout_producer",
-	}
+    "large-fanout": {
+        "fanout_producer",
+    }
 }
 
 topic_has_large_fanout if {
-	topic_metadata[topic_name].tags[_] == "large-fanout"
+    topic_metadata[topic_name].tags[_] == "large-fanout"
 }
 
 producer_is_allowlisted_for_large_fanout if {
-	producer_allowlist["large-fanout"][_] == principal.name
+    producer_allowlist["large-fanout"][_] == principal.name
 }
 ```
 
 Next, update the `topic_metadata` data structure in the same file to indicate
-that the `click-stream` topic has a high fanout.
+that the `click-stream` topic has a high fan-out.
 
 ```rego
 topic_metadata := {
@@ -474,7 +474,7 @@ Last, build a bundle from the updated policy.
 opa build --bundle policies/ --output bundles/bundle.tar.gz
 ```
 
-### 5. Exercise the policy that restricts producer access to topics with high fanout.
+### 5. Exercise the policy that restricts producer access to topics with high fan-out
 
 First, run `kafka-console-producer` and simulate a service with access to the
 `click-stream` topic.
@@ -496,7 +496,7 @@ docker run -v $(pwd)/cert/client:/tmp/client --rm --network opa-kafka-tutorial_d
 Once you see the 10 messages produced by the first part of this step, exit the console consumer (^C).
 
 Lastly, run `kafka-console-producer` to simulate a service that should **not**
-have access to _high fanout_ topics.
+have access to _high fan-out_ topics.
 
 ```bash
 docker run -v $(pwd)/cert/client:/tmp/client --rm --network opa-kafka-tutorial_default \
@@ -504,7 +504,7 @@ docker run -v $(pwd)/cert/client:/tmp/client --rm --network opa-kafka-tutorial_d
     bash -c 'echo "{\"user\": \"alice\", \"button\": \"bogus\"}" | kafka-console-producer --topic click-stream --broker-list broker:9093 -producer.config /tmp/client/anon_producer.properties'
 ```
 
-Because `anon_producer` is not authorized to write to high fanout topics, the
+Because `anon_producer` is not authorized to write to high fan-out topics, the
 request will be denied and the producer will output an error message.
 
 ```

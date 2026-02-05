@@ -4,7 +4,7 @@ title: 'Rego Keyword Examples: if'
 ---
 
 The `if` keyword is used when defining rules in Rego. `if` separates the
-rule head from the rule body, making it clear which part of the rule is
+rule head from the rule body, making it clear which part of the rule
 is the condition (the part following the `if`).
 
 The keyword is also use to make the policy rules written in Rego easier to

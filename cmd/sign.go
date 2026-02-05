@@ -68,7 +68,7 @@ for a list of supported signing algorithms.
 The key to be used for signing the JWT MUST be provided using the --signing-key flag.
 For example, for RSA family of algorithms, the command expects a PEM file containing
 the private key.
-For HMAC family of algorithms (eg. HS256), the secret can be provided using
+For HMAC family of algorithms (e.g. HS256), the secret can be provided using
 the --signing-key flag.
 
 ` + brand + ` 'sign' can ONLY be used with the --bundle flag to load paths that refer to

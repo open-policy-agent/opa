@@ -3,7 +3,7 @@ sidebar_label: "unexpected } token"
 image: /img/opa-errors.png
 ---
 
-# rego_parse_error: unexpected `}` token
+# `rego_parse_error`: unexpected `}` token
 
 This error is raised when the Rego parser encounters an unexpected `}` token. Like many
 language, Rego used `{` and `}` to denote blocks of code. This error is raised when
@@ -24,8 +24,8 @@ package policy
 import rego.v1
 
 deny if {
-	input.roles == {}}
-	input.user != "admin"
+    input.roles == {}}
+    input.user != "admin"
 }
 ```
 
@@ -33,8 +33,8 @@ The code above will raise the following error:
 
 ```txt
 1 error occurred: policy.rego:8: rego_parse_error: unexpected } token
-	}
-	^
+    }
+    ^
 ```
 
 The parser error is pointing to the later `}` token, which in this case is not the issue.

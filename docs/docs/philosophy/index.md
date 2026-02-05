@@ -197,13 +197,13 @@ flowchart TD
 > in modern systems; however, OPA is not tied to any particular data format. OPA
 > uses its own internal representation for structures like maps and lists (a.k.a.,
 > objects and arrays in JSON.)
-
+>
 > [2] The term "document" comes from the document-oriented database world. Document
 > is just a generic term to refer to data or information encoded in some standard
 > format like JSON, YAML, XML, etc. Document-oriented data does not have to adhere
 > to a strict schema like data in the relational world. Documents are often deeply
 > nested, hierarchical data structures containing several levels of embedded
 > maps and lists.
-
+>
 > [3] Internally, HTTP requests like `GET /v1/data` or `GET /v1/data/foo/bar` are turned
 > into Rego queries that are almost identical to the HTTP path (e.g., `data` or `data.foo.bar`)

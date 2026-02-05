@@ -3,7 +3,7 @@ sidebar_label: complete rules must not produce multiple outputs
 image: /img/opa-errors.png
 ---
 
-# eval_conflict_error: complete rules must not produce multiple outputs
+# `eval_conflict_error`: complete rules must not produce multiple outputs
 
 Complete rules are rules that evaluate to a single value, or possibly, don't complete evaluation at all (where their
 value is `undefined`). An "output" in this context could be likened to a **return value**, as should be familiar to
