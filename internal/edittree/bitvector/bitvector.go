@@ -2,10 +2,12 @@
 // which supports lookups, sets, appends, insertions, and deletions.
 package bitvector
 
+import "slices"
+
 // A BitVector is a variable sized vector of bits. It supports
 // lookups, sets, appends, insertions, and deletions.
 //
-// This class is not thread safe.
+// Operations are not thread safe.
 type BitVector struct {
 	data   []byte
 	length int
@@ -14,10 +16,25 @@ type BitVector struct {
 // NewBitVector creates and initializes a new bit vector with length
 // elements, using data as its initial contents.
 func NewBitVector(data []byte, length int) *BitVector {
-	return &BitVector{
-		data:   data,
-		length: length,
+	return &BitVector{data: data, length: length}
+}
+
+func (vector *BitVector) Clear() *BitVector {
+	if vector == nil {
+		return nil
 	}
+	clear(vector.data)
+	vector.length = 0
+
+	return vector
+}
+
+func (vector *BitVector) Reset(size, length int) *BitVector {
+	clear(vector.data)
+	vector.data = slices.Grow(vector.data, size)[:size]
+	vector.length = length
+
+	return vector
 }
 
 // Bytes returns a slice of the contents of the bit vector. If the caller changes the returned slice,

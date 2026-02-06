@@ -148,12 +148,17 @@ package edittree
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/edittree/bitvector"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
+
+var refPool = util.NewSlicePool[*ast.Term](1)
+
+var editTreePool = util.NewSyncPool[EditTree]()
 
 // Deletions are encoded with a nil value pointer.
 type EditTree struct {
@@ -171,31 +176,66 @@ func NewEditTree(term *ast.Term) *EditTree {
 		return nil
 	}
 
-	var tree EditTree
+	return initForTerm(&EditTree{}, term)
+}
+
+func EditTreeFromPool(term *ast.Term) *EditTree {
+	return initForTerm(editTreePool.Get(), term)
+}
+
+func Dispose(e *EditTree) {
+	if e != nil {
+		editTreePool.Put(e.Reset())
+	}
+}
+
+func (e *EditTree) Reset() *EditTree {
+	e.value = nil
+	clear(e.childKeys)
+	clear(e.childScalarValues)
+	clear(e.childCompositeValues)
+
+	e.eliminated = e.eliminated.Clear()
+	e.insertions = e.insertions.Clear()
+
+	return e
+}
+
+func initForTerm(tree *EditTree, term *ast.Term) *EditTree {
+	tree.value = term
+
 	switch x := term.Value.(type) {
 	case ast.Object, ast.Set:
-		tree = EditTree{
-			value:                term,
-			childKeys:            map[int]*ast.Term{},
-			childScalarValues:    map[int]*ast.Term{},
-			childCompositeValues: map[int]*EditTree{},
+		if tree.childKeys == nil {
+			tree.childKeys = map[int]*ast.Term{}
+		}
+		if tree.childScalarValues == nil {
+			tree.childScalarValues = map[int]*ast.Term{}
+		}
+		if tree.childCompositeValues == nil {
+			tree.childCompositeValues = map[int]*EditTree{}
 		}
 	case *ast.Array:
-		tree = EditTree{
-			value:                term,
-			childScalarValues:    map[int]*ast.Term{},
-			childCompositeValues: map[int]*EditTree{},
+		if tree.childScalarValues == nil {
+			tree.childScalarValues = map[int]*ast.Term{}
+		}
+		if tree.childCompositeValues == nil {
+			tree.childCompositeValues = map[int]*EditTree{}
 		}
 		bytesLength := ((x.Len() - 1) / 8) + 1 // How many bytes to use for the bit-vectors.
-		tree.eliminated = bitvector.NewBitVector(make([]byte, bytesLength), x.Len())
-		tree.insertions = bitvector.NewBitVector(make([]byte, bytesLength), x.Len())
-	default:
-		tree = EditTree{
-			value: term,
+		if tree.eliminated == nil {
+			tree.eliminated = bitvector.NewBitVector(make([]byte, bytesLength), x.Len())
+		} else {
+			tree.eliminated = tree.eliminated.Reset(bytesLength, x.Len())
+		}
+		if tree.insertions == nil {
+			tree.insertions = bitvector.NewBitVector(make([]byte, bytesLength), x.Len())
+		} else {
+			tree.insertions = tree.insertions.Reset(bytesLength, x.Len())
 		}
 	}
 
-	return &tree
+	return tree
 }
 
 // Returns correct (collision-resolved) hash for this term + whether or not
@@ -231,17 +271,14 @@ func isComposite(t *ast.Term) bool {
 	}
 }
 
-//gcassert:inline
 func (e *EditTree) setChildKey(hash int, key *ast.Term) {
 	e.childKeys[hash] = key
 }
 
-//gcassert:inline
 func (e *EditTree) setChildScalarValue(hash int, value *ast.Term) {
 	e.childScalarValues[hash] = value
 }
 
-//gcassert:inline
 func (e *EditTree) setChildCompositeValue(hash int, child *EditTree) {
 	e.childCompositeValues[hash] = child
 }
@@ -278,11 +315,10 @@ func (e *EditTree) Insert(key, value *ast.Term) (*EditTree, error) {
 		// We only collapse this Set-typed node if a composite type is involved.
 		if isComposite(key) {
 			// TODO: Investigate re-rendering *only* the immediate composite children.
-			collapsed := e.Render()
-			e.value = collapsed
-			e.childKeys = map[int]*ast.Term{}
-			e.childScalarValues = map[int]*ast.Term{}
-			e.childCompositeValues = map[int]*EditTree{}
+			e.value = e.Render()
+			clear(e.childKeys)
+			clear(e.childScalarValues)
+			clear(e.childCompositeValues)
 		}
 		return e.unsafeInsertSet(key, value), nil
 	case *ast.Array:
@@ -301,12 +337,13 @@ func (e *EditTree) Insert(key, value *ast.Term) (*EditTree, error) {
 }
 
 func (e *EditTree) unsafeInsertObject(key, value *ast.Term) *EditTree {
-	child := NewEditTree(value)
 	keyHash, found := e.getKeyHash(key)
 	if found {
 		e.deleteChildValue(keyHash)
 	}
 	e.setChildKey(keyHash, key)
+
+	child := NewEditTree(value)
 	if isComposite(value) {
 		e.setChildCompositeValue(keyHash, child)
 	} else {
@@ -331,10 +368,9 @@ func (e *EditTree) unsafeInsertSet(key, value *ast.Term) *EditTree {
 }
 
 func (e *EditTree) unsafeInsertArray(idx int, value *ast.Term) *EditTree {
-	child := NewEditTree(value)
 	// Collect insertion indexes above the insertion site for rewriting.
-	rewritesScalars := []int{}
-	rewritesComposites := []int{}
+	var rewritesScalars, rewritesComposites []int
+
 	for i := idx; i < e.insertions.Length(); i++ {
 		if e.insertions.Element(i) == 1 {
 			if _, ok := e.childScalarValues[i]; ok {
@@ -369,6 +405,8 @@ func (e *EditTree) unsafeInsertArray(idx int, value *ast.Term) *EditTree {
 	} else {
 		e.insertions.Insert(1, idx)
 	}
+
+	child := NewEditTree(value)
 	if isComposite(value) {
 		e.setChildCompositeValue(idx, child)
 	} else {
@@ -427,9 +465,9 @@ func (e *EditTree) Delete(key *ast.Term) (*EditTree, error) {
 			// TODO: Investigate re-rendering *only* the immediate composite children.
 			collapsed := e.Render()
 			e.value = collapsed
-			e.childKeys = map[int]*ast.Term{}
-			e.childScalarValues = map[int]*ast.Term{}
-			e.childCompositeValues = map[int]*EditTree{}
+			clear(e.childKeys)
+			clear(e.childScalarValues)
+			clear(e.childCompositeValues)
 		} else {
 			keyHash, found := e.getKeyHash(key)
 			// If child found, replace with delete node. If delete node already existed, error.
@@ -539,7 +577,14 @@ func findIndexOfNthZero(n int, bv *bitvector.BitVector) (int, bool) {
 // Helper function for sets/objects when the key isn't present in either
 // child map.
 func (e *EditTree) fallbackDelete(key *ast.Term) (*EditTree, error) {
-	value, err := e.value.Value.Find(ast.Ref{key})
+	// get ref from pool
+	rptr := refPool.Get(1)
+	defer refPool.Put(rptr)
+
+	ref := *rptr
+	ref[0] = key
+
+	value, err := e.value.Value.Find(ref)
 	if err != nil {
 		return nil, fmt.Errorf("cannot delete child key %v that does not exist", key)
 	}
@@ -595,7 +640,7 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 		}
 		// Fall back to looking up the key in e.value.
 		// Extend the tree if key is present. Error otherwise.
-		if v, err := x.Find(ast.Ref{path[0]}); err == nil {
+		if v, err := x.Find(path[:1]); err == nil {
 			child, err := e.Insert(path[0], ast.NewTerm(v))
 			if err != nil {
 				return nil, err
@@ -611,12 +656,11 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 		if isComposite(key) {
 			collapsed := e.Render()
 			e.value = collapsed
-			e.childKeys = map[int]*ast.Term{}
-			e.childScalarValues = map[int]*ast.Term{}
-			e.childCompositeValues = map[int]*EditTree{}
+			clear(e.childKeys)
+			clear(e.childScalarValues)
+			clear(e.childCompositeValues)
 		} else {
-			keyHash, found := e.getKeyHash(key)
-			if found {
+			if keyHash, found := e.getKeyHash(key); found {
 				if term, ok := e.childScalarValues[keyHash]; ok {
 					child := NewEditTree(term)
 					return child.Unfold(path[1:])
@@ -625,14 +669,14 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 		}
 		// Fall back to looking up the key in e.value.
 		// Extend the tree if key is present. Error otherwise.
-		if v, err := e.value.Value.Find(ast.Ref{path[0]}); err == nil {
+		if v, err := e.value.Value.Find(path[:1]); err == nil {
 			child, err := e.Insert(path[0], ast.NewTerm(v))
 			if err != nil {
 				return nil, err
 			}
 			return child.Unfold(path[1:])
 		}
-		return nil, fmt.Errorf("path %v does not exist in set term %v", ast.Ref{path[0]}, e.value.Value)
+		return nil, fmt.Errorf("path %v does not exist in set term %v", path[:1], e.value.Value)
 	case *ast.Array:
 		idx, err := toIndex(e.insertions.Length(), path[0])
 		if err != nil {
@@ -647,13 +691,17 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 		}
 
 		idxt := ast.InternedTerm(idx)
+		rptr := refPool.Get(1)
+		defer refPool.Put(rptr)
+
+		ref := *rptr
+		ref[0] = idxt
 
 		// Fall back to looking up the key in e.value.
 		// Extend the tree if key is present. Error otherwise.
-		if v, err := x.Find(ast.Ref{idxt}); err == nil {
+		if v, err := x.Find(ref); err == nil {
 			// TODO: Consider a more efficient "Replace" function that special-cases this for arrays instead?
-			_, err := e.Delete(idxt)
-			if err != nil {
+			if _, err := e.Delete(idxt); err != nil {
 				return nil, err
 			}
 			child, err := e.Insert(idxt, ast.NewTerm(v))
@@ -662,7 +710,7 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 			}
 			return child.Unfold(path[1:])
 		}
-		return nil, fmt.Errorf("path %v does not exist in array term %v", ast.IntNumberTerm(idx), e.value.Value)
+		return nil, fmt.Errorf("path %v does not exist in array term %v", ast.InternedTerm(idx), e.value.Value)
 	default:
 		// Catch all primitive types.
 		return nil, fmt.Errorf("expected composite type for path %v, found value: %v (type: %T)", path[0], x, x)
@@ -787,8 +835,7 @@ func (e *EditTree) Render() *ast.Term {
 				if t, ok := e.childScalarValues[i]; ok {
 					out = append(out, t)
 				} else if child, ok := e.childCompositeValues[i]; ok {
-					t := child.Render()
-					out = append(out, t)
+					out = append(out, child.Render())
 				} else {
 					panic(fmt.Errorf("invalid index %d does not exist in array", i))
 				}
@@ -810,9 +857,10 @@ func (e *EditTree) InsertAtPath(path ast.Ref, value *ast.Term) (*EditTree, error
 
 	if len(path) == 0 {
 		e.value = value
-		e.childKeys = map[int]*ast.Term{}
-		e.childScalarValues = map[int]*ast.Term{}
-		e.childCompositeValues = map[int]*EditTree{}
+		clear(e.childKeys)
+		clear(e.childScalarValues)
+		clear(e.childCompositeValues)
+
 		if v, ok := value.Value.(*ast.Array); ok {
 			bytesLength := ((v.Len() - 1) / 8) + 1 // How many bytes to use for the bit-vectors.
 			e.eliminated = bitvector.NewBitVector(make([]byte, bytesLength), v.Len())
@@ -921,24 +969,19 @@ func (e *EditTree) Exists(path ast.Ref) bool {
 			// so that we can accurately unfold it again for an update,
 			// once we know that the key we care about is present.
 			if isComposite(key) {
-				collapsed := e.Render()
-				e.value = collapsed
-				e.childKeys = map[int]*ast.Term{}
-				e.childScalarValues = map[int]*ast.Term{}
-				e.childCompositeValues = map[int]*EditTree{}
-			} else {
-				keyHash, found := e.getKeyHash(key)
-				if found {
-					if _, ok := e.childScalarValues[keyHash]; ok {
-						return len(path) == 1
-					}
+				e.value = e.Render()
+				clear(e.childKeys)
+				clear(e.childScalarValues)
+				clear(e.childCompositeValues)
+			} else if keyHash, found := e.getKeyHash(key); found {
+				if _, ok := e.childScalarValues[keyHash]; ok {
+					return len(path) == 1
 				}
 			}
 			// Fallback if child lookup failed.
 			_, err := e.value.Value.Find(path)
 			return err == nil
 		case *ast.Array:
-			var idx int
 			idx, err := toIndex(e.insertions.Length(), path[0])
 			if err != nil {
 				return false
@@ -951,7 +994,16 @@ func (e *EditTree) Exists(path ast.Ref) bool {
 			}
 			// Fallback if child lookup failed.
 			// We have to ensure that the lookup term is a number here, or Find will fail.
-			_, err = x.Find(ast.Ref{ast.InternedTerm(idx)}.Concat(path[1:]))
+			rptr := refPool.Get(len(path))
+
+			ref := *rptr
+			ref[0] = ast.InternedTerm(idx)
+			copy(ref[1:], path[1:])
+
+			_, err = x.Find(ref)
+
+			refPool.Put(rptr)
+
 			return err == nil
 		default:
 			// Catch all primitive types.
@@ -978,8 +1030,7 @@ func toIndex(arrayLength int, term *ast.Term) (int, error) {
 		if v == "-" {
 			return arrayLength, nil
 		}
-		num := ast.Number(v)
-		if i, ok = num.Int(); !ok {
+		if i, ok = ast.Number(v).Int(); !ok {
 			return 0, errors.New("invalid string for indexing")
 		}
 		if v != "0" && strings.HasPrefix(string(v), "0") {
@@ -1004,6 +1055,13 @@ func (e *EditTree) Filter(paths []ast.Ref) *ast.Term {
 		return nil
 	}
 
+	tptr, rptr := ast.TermPtrPool.Get(), refPool.Get(1)
+	defer func() {
+		tptr.Value = nil
+		ast.TermPtrPool.Put(tptr)
+		refPool.Put(rptr)
+	}()
+
 	// Separate out keys for this level.
 	// In the event of paths like "a", "a/b", "a/b/c", the "a" path will win out.
 	// Nil keys, such as "" or [], are not permitted. (legacy behavior)
@@ -1026,7 +1084,8 @@ func (e *EditTree) Filter(paths []ast.Ref) *ast.Term {
 	renderNow := ast.NewSet(renderNowList...)
 	// Clear everything out of the pathMap that has a renderNow candidate.
 	for k := range pathMap {
-		if renderNow.Contains(ast.NewTerm(k)) {
+		tptr.Value = k
+		if renderNow.Contains(tptr) {
 			delete(pathMap, k)
 		}
 	}
@@ -1035,37 +1094,47 @@ func (e *EditTree) Filter(paths []ast.Ref) *ast.Term {
 	switch e.value.Value.(type) {
 	case ast.Object:
 		out := make([][2]*ast.Term, 0, renderNow.Len()+len(pathMap))
+		ref := *rptr
+
 		// Render any finished paths.
-		renderNow.Foreach(func(k *ast.Term) {
-			if e.Exists(ast.Ref{k}) {
-				subtreeResult, _ := e.RenderAtPath(ast.Ref{k})
+		for _, k := range renderNow.Slice() {
+			ref[0] = k
+			if e.Exists(ref) {
+				subtreeResult, _ := e.RenderAtPath(ref)
 				out = append(out, [2]*ast.Term{k, subtreeResult})
 			}
-		})
+		}
 		// Recursively descend remaining paths.
 		for k, p := range pathMap {
-			if e.Exists(ast.Ref{ast.NewTerm(k)}) {
-				child, _ := e.Unfold(ast.Ref{ast.NewTerm(k)})
+			tptr.Value = k
+			ref[0] = tptr
+			if e.Exists(ref) {
+				child, _ := e.Unfold(ref)
 				subtreeResult := child.Filter(p)
 				out = append(out, [2]*ast.Term{ast.NewTerm(k), subtreeResult})
 			}
 		}
+		refPool.Put(rptr)
+
 		return ast.ObjectTerm(out...)
 	case ast.Set:
 		out := make([]*ast.Term, 0, renderNow.Len()+len(pathMap))
+		ref := *rptr
 		// Render any finished paths.
-		renderNow.Foreach(func(k *ast.Term) {
-			if e.Exists(ast.Ref{k}) {
-				subtreeResult, _ := e.RenderAtPath(ast.Ref{k})
+		for _, k := range renderNow.Slice() {
+			ref[0] = k
+			if e.Exists(ref) {
+				subtreeResult, _ := e.RenderAtPath(ref)
 				out = append(out, subtreeResult)
 			}
-		})
+		}
 		// Recursively descend remaining paths.
 		for k, p := range pathMap {
-			if e.Exists(ast.Ref{ast.NewTerm(k)}) {
-				child, _ := e.Unfold(ast.Ref{ast.NewTerm(k)})
-				subtreeResult := child.Filter(p)
-				out = append(out, subtreeResult)
+			tptr.Value = k
+			ref[0] = tptr
+			if e.Exists(ref) {
+				child, _ := e.Unfold(ref)
+				out = append(out, child.Filter(p))
 			}
 		}
 		return ast.SetTerm(out...)
@@ -1074,26 +1143,27 @@ func (e *EditTree) Filter(paths []ast.Ref) *ast.Term {
 		// original array. We build a new Array with modified/deleted keys.
 		out := make([]*ast.Term, 0, renderNow.Len()+len(pathMap))
 		// Sort array indexes before descending.
-		idxList := make([]*ast.Term, 0, len(pathMap))
-		renderNow.Foreach(func(k *ast.Term) {
-			idxList = append(idxList, k)
-		})
+		idxList := append(make([]*ast.Term, 0, renderNow.Len()+len(pathMap)), renderNow.Slice()...)
 		for k := range pathMap {
 			idxList = append(idxList, ast.NewTerm(k))
 		}
-		sort.Sort(termSlice(idxList))
+
+		slices.SortFunc(idxList, ast.TermValueCompare)
+
+		ref := *rptr
+
 		// Render child or recursively descend as needed.
 		for i := range idxList {
 			k := idxList[i]
-			if renderNow.Contains(k) {
-				if e.Exists(ast.Ref{k}) {
-					subtreeResult, _ := e.RenderAtPath(ast.Ref{k})
+			ref[0] = k
+			if e.Exists(ref) {
+				if renderNow.Contains(k) {
+					subtreeResult, _ := e.RenderAtPath(ref)
 					out = append(out, subtreeResult)
+				} else {
+					child, _ := e.Unfold(ref)
+					out = append(out, child.Filter(pathMap[k.Value]))
 				}
-			} else if e.Exists(ast.Ref{k}) {
-				child, _ := e.Unfold(ast.Ref{k})
-				subtreeResult := child.Filter(pathMap[k.Value])
-				out = append(out, subtreeResult)
 			}
 		}
 		return ast.ArrayTerm(out...)
@@ -1101,9 +1171,3 @@ func (e *EditTree) Filter(paths []ast.Ref) *ast.Term {
 		return e.value
 	}
 }
-
-type termSlice []*ast.Term
-
-func (s termSlice) Less(i, j int) bool { return ast.Compare(s[i].Value, s[j].Value) < 0 }
-func (s termSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s termSlice) Len() int           { return len(s) }

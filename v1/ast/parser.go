@@ -1893,7 +1893,7 @@ func (p *Parser) parseNumber() *Term {
 func (p *Parser) parseString() *Term {
 	if p.s.lit[0] == '"' {
 		if p.s.lit == "\"\"" {
-			return NewTerm(InternedEmptyString.Value).SetLocation(p.s.Loc())
+			return NewTerm(InternedEmptyStringValue).SetLocation(p.s.Loc())
 		}
 
 		inner := p.s.lit[1 : len(p.s.lit)-1]

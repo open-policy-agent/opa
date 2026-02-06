@@ -77,10 +77,8 @@ func TestFindTarget(t *testing.T) {
 			wantNil: true,
 		},
 		{
-			name: "term with non-var non-ref value",
-			stack: []ast.Node{
-				ast.IntNumberTerm(42),
-			},
+			name:    "term with non-var non-ref value",
+			stack:   []ast.Node{ast.InternedTerm(42)},
 			wantNil: true,
 		},
 	}
