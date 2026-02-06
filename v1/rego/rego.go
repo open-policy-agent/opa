@@ -687,6 +687,7 @@ type Rego struct {
 	compilerHook                func(*ast.Compiler)
 	evalMode                    *ast.CompilerEvalMode
 	filter                      filter.LoaderFilter
+	evaluated                   *[]string // TODO: name preliminary
 }
 
 func (r *Rego) RegoVersion() ast.RegoVersion {
@@ -1376,6 +1377,15 @@ func CompilerHook(hook func(*ast.Compiler)) func(r *Rego) {
 func EvalMode(mode ast.CompilerEvalMode) func(r *Rego) {
 	return func(r *Rego) {
 		r.evalMode = &mode
+	}
+}
+
+// EvaluatedRules returns an option that registers a slice to record rule IDs
+// that were successfully evaluated during query evaluation.
+// TODO: name preliminary
+func EvaluatedRules(evaluated *[]string) func(r *Rego) {
+	return func(r *Rego) {
+		r.evaluated = evaluated
 	}
 }
 
@@ -2314,7 +2324,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithVirtualCache(ectx.virtualCache).
 		WithBaseCache(ectx.baseCache).
 		WithRequestMetadata(ectx.requestMetadata).
-		WithResponseMetadata(ectx.responseMetadata)
+		WithResponseMetadata(ectx.responseMetadata).
+		WithEvaluated(r.evaluated)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

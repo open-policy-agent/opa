@@ -558,7 +558,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 func hasMetadataWithID(comments []*Comment) bool {
 	for i := range comments {
-		if isMetadataComment(comments[i]) {
+		if IsMetadataComment(comments[i]) {
 			for i++; i < len(comments) && !blockBuster(comments[i], comments[i-1]); i++ {
 				if bytes.Contains(comments[i].Text, []byte("id:")) {
 					return true

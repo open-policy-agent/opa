@@ -109,6 +109,7 @@ type eval struct {
 	runtime                     *ast.Term
 	builtinErrors               *builtinErrors
 	roundTripper                CustomizeRoundTripper
+	evaluated                   *[]string // TODO: name preliminary
 	genvarprefix                string
 	query                       ast.Body
 	tracers                     []QueryTracer
@@ -231,6 +232,22 @@ func (e *eval) closure(query ast.Body, cpy *eval) {
 	cpy.queryID = cpy.queryIDFact.Next()
 	cpy.parent = e
 	cpy.findOne = false
+}
+
+// recordRuleEvaluated records the ID of a successfully evaluated rule.
+// TODO(stephan): name preliminary
+func (e *eval) recordRuleEvaluated(rule *ast.Rule) {
+	if e.evaluated == nil || rule == nil {
+		return
+	}
+
+	// Annotations are attached to rules during compilation, so we check rule.Annotations directly
+	for _, a := range rule.Annotations {
+		if a.ID != "" {
+			*e.evaluated = append(*e.evaluated, a.ID)
+			return
+		}
+	}
 }
 
 // childWithBindingSizeHint creates a child evaluator with bindings pre-sized for the expected number of variables.
@@ -2346,6 +2363,7 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.T
 	err := child.biunifyTerms(e.terms[1:], args, e.e.bindings, child.bindings, func() error {
 		return child.eval(func(child *eval) error {
 			child.traceExit(rule)
+			e.e.recordRuleEvaluated(rule)
 
 			// Partial evaluation must save an expression that tests the output value if the output value
 			// was not captured to handle the case where the output value may be `false`.
@@ -3018,6 +3036,7 @@ func (e evalVirtualPartial) evalAllRulesNoCache(rules []*ast.Rule) (*ast.Term, e
 		child.traceEnter(rule)
 		err := child.eval(func(*eval) error {
 			child.traceExit(rule)
+			e.e.recordRuleEvaluated(rule)
 			var err error
 			result, _, err = e.reduce(rule, child.bindings, result, &visitedRefs)
 			if err != nil {
@@ -3740,6 +3759,7 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 	var result *ast.Term
 	err := child.eval(func(child *eval) error {
 		child.traceExit(rule)
+		e.e.recordRuleEvaluated(rule)
 
 		result = child.bindings.Plug(rule.Head.Value)
 

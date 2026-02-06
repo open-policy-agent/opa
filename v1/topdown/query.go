@@ -65,6 +65,7 @@ type Query struct {
 	baseCache                   BaseCache
 	requestMetadata             map[string]any
 	responseMetadata            map[string]any
+	evaluated                   *[]string // TODO: name preliminary
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -350,6 +351,13 @@ func (q *Query) WithResponseMetadata(m map[string]any) *Query {
 	return q
 }
 
+// WithEvaluated sets a slice to record rule IDs that were successfully evaluated.
+// TODO: name preliminary
+func (q *Query) WithEvaluated(evaluated *[]string) *Query {
+	q.evaluated = evaluated
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -433,6 +441,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		strictObjects:    q.strictObjects,
 		requestMetadata:  q.requestMetadata,
 		responseMetadata: q.responseMetadata,
+		evaluated:        q.evaluated,
 	}
 
 	if len(q.disableInlining) > 0 {
@@ -623,6 +632,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		roundTripper:                q.roundTripper,
 		requestMetadata:             q.requestMetadata,
 		responseMetadata:            q.responseMetadata,
+		evaluated:                   q.evaluated,
 	}
 	if e.requestMetadata == nil {
 		e.requestMetadata = map[string]any{}
