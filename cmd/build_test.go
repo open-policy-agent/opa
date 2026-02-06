@@ -2691,6 +2691,95 @@ allow if {
 	}
 }
 
+func TestBuildOptimizedLevel2(t *testing.T) {
+	tests := []struct {
+		note          string
+		files         map[string]string
+		expectedFiles map[string]string
+	}{
+		{
+			note: "Parse package path correctly",
+			files: map[string]string{
+				"test.rego": `package demo["test-policy"]
+
+# METADATA
+# entrypoint: true
+default allow := false
+
+allow if {
+	some value in input
+}
+`,
+			},
+			expectedFiles: map[string]string{
+				"/optimized/demo/test-policy.rego": `package demo["test-policy"]
+
+default allow := false
+
+allow if __local2__1 = input[__local1__1]
+`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.optimizationLevel = 2
+
+				err := dobuild(params, []string{root})
+
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				f, err := os.Open(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer f.Close()
+
+				gr, err := gzip.NewReader(f)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				tr := tar.NewReader(gr)
+
+				foundFiles := map[string]struct{}{}
+				for {
+					f, err := tr.Next()
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						t.Fatal(err)
+					}
+					foundFiles[f.Name] = struct{}{}
+					expectedFile := tc.expectedFiles[f.Name]
+					if expectedFile != "" {
+						data, err := io.ReadAll(tr)
+						if err != nil {
+							t.Fatal(err)
+						}
+						actualFile := string(data)
+						if actualFile != expectedFile {
+							t.Fatalf("expected file %s to be:\n\n%v\n\ngot:\n\n%v", f.Name, expectedFile, actualFile)
+						}
+					}
+				}
+
+				for expectedFile := range tc.expectedFiles {
+					if _, ok := foundFiles[expectedFile]; !ok {
+						t.Fatalf("expected file %s not found in bundle, got: %v", expectedFile, foundFiles)
+					}
+				}
+			})
+		})
+	}
+}
+
 func TestBuildOptimizedWithRegoVersion(t *testing.T) {
 	tests := []struct {
 		note                string
