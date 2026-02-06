@@ -1447,6 +1447,37 @@ func (arr *Array) Copy() *Array {
 	}
 }
 
+// CopyNonGround returns a new array with deep copies of the non-ground elements
+// and shallow copies of the ground elements. This is a much cheaper operation
+// than Copy for arrays with predominantly ground elements.
+func (arr *Array) CopyNonGround() *Array {
+	if arr == nil {
+		return nil
+	}
+
+	// If the entire array is ground, we can return it as-is since ground
+	// values are immutable
+	if arr.IsGround() {
+		return arr
+	}
+
+	newElems := make([]*Term, len(arr.elems))
+	for i, elem := range arr.elems {
+		if elem.IsGround() {
+			newElems[i] = elem // Shallow copy for ground terms
+		} else {
+			newElems[i] = elem.Copy() // Deep copy for non-ground terms
+		}
+	}
+
+	return &Array{
+		elems:  newElems,
+		hashs:  arr.hashs, // Can reuse hashes - they don't change
+		hash:   arr.hash,
+		ground: arr.ground,
+	}
+}
+
 // Equal returns true if arr is equal to other.
 func (arr *Array) Equal(other Value) bool {
 	if arr == other {
@@ -1726,6 +1757,42 @@ func (s *set) Copy() Set {
 	for hash := range s.elems {
 		cpy.elems[hash] = s.elems[hash].Copy()
 		cpy.keys = append(cpy.keys, cpy.elems[hash])
+	}
+
+	return cpy
+}
+
+// CopyNonGround returns a new set with deep copies of the non-ground elements
+// and shallow copies of the ground elements. This is a much cheaper operation
+// than Copy for sets with predominantly ground elements.
+func (s *set) CopyNonGround() Set {
+	if s == nil {
+		return nil
+	}
+
+	// If the entire set is ground, we can return it as-is since ground
+	// values are immutable
+	if s.IsGround() {
+		return s
+	}
+
+	cpy := &set{
+		hash:      s.hash,
+		ground:    s.ground,
+		sortGuard: sync.Once{},
+		elems:     make(map[int]*Term, len(s.elems)),
+		keys:      make([]*Term, len(s.keys)),
+	}
+
+	i := 0
+	for hash, elem := range s.elems {
+		if elem.IsGround() {
+			cpy.elems[hash] = elem // Shallow copy for ground terms
+		} else {
+			cpy.elems[hash] = elem.Copy() // Deep copy for non-ground terms
+		}
+		cpy.keys[i] = cpy.elems[hash]
+		i++
 	}
 
 	return cpy
@@ -2354,6 +2421,47 @@ func (obj *object) Copy() Object {
 		return k.Copy(), v.Copy(), nil
 	})
 	cpy.(*object).hash = obj.hash
+	return cpy
+}
+
+// CopyNonGround returns a new object with deep copies of the non-ground keys/values
+// and shallow copies of the ground keys/values. This is a much cheaper operation
+// than Copy for objects with predominantly ground elements.
+func (obj *object) CopyNonGround() Object {
+	if obj == nil {
+		return nil
+	}
+
+	// If the entire object is ground, we can return it as-is since ground
+	// values are immutable
+	if obj.IsGround() {
+		return obj
+	}
+
+	cpy := newobject(obj.Len())
+
+	// Copy each key-value pair, using shallow copy for ground terms
+	for _, node := range obj.keys {
+		var k, v *Term
+
+		// Copy key
+		if node.key.IsGround() {
+			k = node.key // Shallow copy
+		} else {
+			k = node.key.Copy() // Deep copy
+		}
+
+		// Copy value
+		if node.value.IsGround() {
+			v = node.value // Shallow copy
+		} else {
+			v = node.value.Copy() // Deep copy
+		}
+
+		cpy.insert(k, v, false)
+	}
+
+	cpy.hash = obj.hash
 	return cpy
 }
 
