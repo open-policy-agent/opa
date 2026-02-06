@@ -11,7 +11,6 @@ import (
 	"maps"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -2069,7 +2068,7 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 						rule.Head.Key = expr.Operand(0)
 					}
 					rule.Head.Reference[i] = expr.Operand(0)
-					rule.Body.Append(expr)
+					rule.Body = appendToBody(rule.Body, expr)
 				}
 			}
 
@@ -2538,18 +2537,18 @@ func (c *Compiler) rewriteRefsInHead() {
 			if requiresEval(rule.Head.Key) {
 				expr := f.Generate(rule.Head.Key)
 				rule.Head.Key = expr.Operand(0)
-				rule.Body.Append(expr)
+				rule.Body = appendToBody(rule.Body, expr)
 			}
 			if requiresEval(rule.Head.Value) {
 				expr := f.Generate(rule.Head.Value)
 				rule.Head.Value = expr.Operand(0)
-				rule.Body.Append(expr)
+				rule.Body = appendToBody(rule.Body, expr)
 			}
 			for i := 0; i < len(rule.Head.Args); i++ {
 				if requiresEval(rule.Head.Args[i]) {
 					expr := f.Generate(rule.Head.Args[i])
 					rule.Head.Args[i] = expr.Operand(0)
-					rule.Body.Append(expr)
+					rule.Body = appendToBody(rule.Body, expr)
 				}
 			}
 			return false
@@ -2683,7 +2682,7 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 					chain.Location = firstChainCall.Location
 					eq := eqFactory.Generate(chain)
 					metadataChainVar = eq.Operands()[0].Value.(Var)
-					body.Append(eq)
+					body = appendToBody(body, eq)
 				}
 
 				var metadataRuleVar Var
@@ -2707,12 +2706,10 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 					metadataRuleTerm.Location = firstRuleCall.Location
 					eq := eqFactory.Generate(metadataRuleTerm)
 					metadataRuleVar = eq.Operands()[0].Value.(Var)
-					body.Append(eq)
+					body = appendToBody(body, eq)
 				}
 
-				for _, expr := range rule.Body {
-					body.Append(expr)
-				}
+				body = appendToBody(body, rule.Body...)
 				rule.Body = body
 
 				vis := func(b Body) bool {
@@ -3603,11 +3600,9 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 	}
 
 	result := make([]*Term, 0, len(indexVars))
-
 	for v := range indexVars {
 		result = append(result, NewTerm(v))
 	}
-
 	slices.SortFunc(result, TermValueCompare)
 
 	debugRes := make([]*Term, len(result))
@@ -3848,7 +3843,7 @@ func NewRuleTree(mtree *ModuleTreeNode) *TreeNode {
 	}
 
 	root.DepthFirst(func(x *TreeNode) bool {
-		x.sort()
+		slices.SortFunc(x.Sorted, Value.Compare)
 		return false
 	})
 
@@ -3929,10 +3924,6 @@ func (n *TreeNode) DepthFirst(f func(*TreeNode) bool) {
 	}
 }
 
-func (n *TreeNode) sort() {
-	slices.SortFunc(n.Sorted, Value.Compare)
-}
-
 func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
 	depth := len(ref) - 1
 	key := ref[depth].Value
@@ -3968,8 +3959,7 @@ func (n *TreeNode) flattenChildren() []Ref {
 		})
 	}
 
-	slices.SortFunc(ret.s, RefCompare)
-	return ret.s
+	return util.SortedFunc(ret.s, RefCompare)
 }
 
 // Graph represents the graph of dependencies between rules.
@@ -4139,11 +4129,7 @@ func NewGraphTraversal(graph *Graph) *GraphTraversal {
 
 // Edges lists all dependency connections for a given node
 func (g *GraphTraversal) Edges(x util.T) []util.T {
-	r := []util.T{}
-	for v := range g.graph.Dependencies(x) {
-		r = append(r, v)
-	}
-	return r
+	return util.Keys(g.graph.Dependencies(x))
 }
 
 // Visited returns whether a node has been visited, setting a node to visited if not
@@ -4187,7 +4173,6 @@ func (vs unsafeVars) Update(o unsafeVars) {
 }
 
 func (vs unsafeVars) Vars() (result []unsafeVarLoc) {
-
 	locs := map[Var]*Location{}
 
 	// If var appears in multiple sets then pick first by location.
@@ -4200,17 +4185,12 @@ func (vs unsafeVars) Vars() (result []unsafeVarLoc) {
 	}
 
 	for v, loc := range locs {
-		result = append(result, unsafeVarLoc{
-			Var: v,
-			Loc: loc,
-		})
+		result = append(result, unsafeVarLoc{Var: v, Loc: loc})
 	}
 
-	slices.SortFunc(result, func(a, b unsafeVarLoc) int {
+	return util.SortedFunc(result, func(a, b unsafeVarLoc) int {
 		return a.Loc.Compare(b.Loc)
 	})
-
-	return result
 }
 
 func (vs unsafeVars) Slice() (result []unsafePair) {
@@ -4622,7 +4602,7 @@ func (l *localVarGenerator) Generate() Var {
 	buf := make([]byte, 0, len(l.suffix)+util.NumDigitsInt(l.next)+2)
 	for {
 		buf = append(buf, l.suffix...)
-		buf = strconv.AppendInt(buf, int64(l.next), 10)
+		buf = util.AppendInt(buf, l.next)
 		buf = append(buf, "__"...)
 
 		result := Var(string(buf))
@@ -4662,8 +4642,7 @@ func requiresEval(x *Term) bool {
 }
 
 func resolveRef(globals map[Var]*usedRef, ignore *declaredVarStack, ref Ref) Ref {
-
-	r := Ref{}
+	r := make(Ref, 0, len(ref))
 	for i, x := range ref {
 		switch v := x.Value.(type) {
 		case Var:
@@ -4883,6 +4862,9 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 		return &cpy
 	case *TemplateString:
 		ts := &TemplateString{}
+		if len(v.Parts) > 0 {
+			ts.Parts = make([]Node, 0, len(v.Parts))
+		}
 		for _, p := range v.Parts {
 			if expr, ok := p.(*Expr); ok {
 				ts.Parts = append(ts.Parts, resolveRefsInExpr(globals, ignore, expr))
@@ -4996,26 +4978,26 @@ func rewriteComprehensionTerms(f *equalityFactory, node any) (any, error) {
 			if requiresEval(x.Term) {
 				expr := f.Generate(x.Term)
 				x.Term = expr.Operand(0)
-				x.Body.Append(expr)
+				x.Body = appendToBody(x.Body, expr)
 			}
 			return x, nil
 		case *SetComprehension:
 			if requiresEval(x.Term) {
 				expr := f.Generate(x.Term)
 				x.Term = expr.Operand(0)
-				x.Body.Append(expr)
+				x.Body = appendToBody(x.Body, expr)
 			}
 			return x, nil
 		case *ObjectComprehension:
 			if requiresEval(x.Key) {
 				expr := f.Generate(x.Key)
 				x.Key = expr.Operand(0)
-				x.Body.Append(expr)
+				x.Body = appendToBody(x.Body, expr)
 			}
 			if requiresEval(x.Value) {
 				expr := f.Generate(x.Value)
 				x.Value = expr.Operand(0)
-				x.Body.Append(expr)
+				x.Body = appendToBody(x.Body, expr)
 			}
 			return x, nil
 		}
@@ -5070,7 +5052,7 @@ func rewriteTestEqualities(f *equalityFactory, body Body) Body {
 				every.Body = rewriteTestEqualities(f, every.Body)
 			}
 		}
-		result = appendExpr(result, expr)
+		result = appendToBody(result, expr)
 	}
 	return result
 }
@@ -5115,19 +5097,15 @@ func rewriteDynamics(f *equalityFactory, body Body) Body {
 	return result
 }
 
-func appendExpr(body Body, expr *Expr) Body {
-	body.Append(expr)
-	return body
-}
-
 func rewriteDynamicsEqExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	if !validEqAssignArgCount(expr) {
-		return appendExpr(result, expr)
+		return appendToBody(result, expr)
 	}
 	terms := expr.Terms.([]*Term)
 	result, terms[1] = rewriteDynamicsInTerm(expr, f, terms[1], result)
 	result, terms[2] = rewriteDynamicsInTerm(expr, f, terms[2], result)
-	return appendExpr(result, expr)
+	result.Append(expr)
+	return result
 }
 
 func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr, result Body) Body {
@@ -5135,20 +5113,23 @@ func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	for i := 1; i < len(terms); i++ {
 		result, terms[i] = rewriteDynamicsOne(expr, f, terms[i], result)
 	}
-	return appendExpr(result, expr)
+	result.Append(expr)
+	return result
 }
 
 func rewriteDynamicsEveryExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	ev := expr.Terms.(*Every)
 	result, ev.Domain = rewriteDynamicsOne(expr, f, ev.Domain, result)
 	ev.Body = rewriteDynamics(f, ev.Body)
-	return appendExpr(result, expr)
+	result.Append(expr)
+	return result
 }
 
 func rewriteDynamicsTermExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	term := expr.Terms.(*Term)
 	result, expr.Terms = rewriteDynamicsInTerm(expr, f, term, result)
-	return appendExpr(result, expr)
+	result.Append(expr)
+	return result
 }
 
 func rewriteDynamicsInTerm(original *Expr, f *equalityFactory, term *Term, result Body) (Body, *Term) {
@@ -5235,25 +5216,46 @@ func rewriteDynamicsComprehensionBody(original *Expr, f *equalityFactory, body B
 func rewriteExprTermsInHead(gen *localVarGenerator, rule *Rule) {
 	for i := range rule.Head.Args {
 		support, output := expandExprTerm(gen, rule.Head.Args[i])
-		for j := range support {
-			rule.Body.Append(support[j])
-		}
+		rule.Body = appendToBody(rule.Body, support...)
 		rule.Head.Args[i] = output
 	}
 	if rule.Head.Key != nil {
 		support, output := expandExprTerm(gen, rule.Head.Key)
-		for i := range support {
-			rule.Body.Append(support[i])
-		}
+		rule.Body = appendToBody(rule.Body, support...)
 		rule.Head.Key = output
 	}
 	if rule.Head.Value != nil {
 		support, output := expandExprTerm(gen, rule.Head.Value)
-		for i := range support {
-			rule.Body.Append(support[i])
-		}
+		rule.Body = appendToBody(rule.Body, support...)
 		rule.Head.Value = output
 	}
+}
+
+// appendToBody inlines Body.Append and adds additional logic for
+// replacing a single 'true' expression (i.e an empty body) with
+// the first expression to be appended, while appending the rest
+// of the expressions as normal. Additionally accepts multiple
+// expressions to append, which potentially reduces allocations
+// in larger appends.
+func appendToBody(body Body, exprs ...*Expr) Body {
+	if len(exprs) == 0 {
+		return body
+	}
+
+	blen := len(body)
+	if blen == 1 {
+		if term, ok := body[0].Terms.(*Term); ok && Boolean(true).Equal(term.Value) {
+			// body will no longer be empty, so instead of appending,
+			// replace the 'true' expression with the new expression.
+			exprs[0].Index = 0
+			body[0], exprs = exprs[0], exprs[1:]
+		}
+	}
+	for i, expr := range exprs {
+		expr.Index = blen + i
+	}
+
+	return append(body, exprs...)
 }
 
 func rewriteExprTermsInBody(gen *localVarGenerator, body Body) Body {
@@ -5280,9 +5282,8 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 				extras[i].With = expr.With
 			}
 		}
-		result = append(result, extras...)
 		expr.Terms = term
-		result = append(result, expr)
+		result = append(append(result, extras...), expr)
 	case []*Term:
 		for i := 1; i < len(terms); i++ {
 			var extras []*Expr
@@ -5356,30 +5357,19 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 		output = NewTerm(cpy).SetLocation(term.Location)
 	case *ArrayComprehension:
 		support, term := expandExprTerm(gen, v.Term)
-		for i := range support {
-			v.Body.Append(support[i])
-		}
 		v.Term = term
-		v.Body = rewriteExprTermsInBody(gen, v.Body)
+		v.Body = rewriteExprTermsInBody(gen, appendToBody(v.Body, support...))
 	case *SetComprehension:
 		support, term := expandExprTerm(gen, v.Term)
-		for i := range support {
-			v.Body.Append(support[i])
-		}
 		v.Term = term
-		v.Body = rewriteExprTermsInBody(gen, v.Body)
+		v.Body = rewriteExprTermsInBody(gen, appendToBody(v.Body, support...))
 	case *ObjectComprehension:
 		support, key := expandExprTerm(gen, v.Key)
-		for i := range support {
-			v.Body.Append(support[i])
-		}
+		v.Body = appendToBody(v.Body, support...)
 		v.Key = key
 		support, value := expandExprTerm(gen, v.Value)
-		for i := range support {
-			v.Body.Append(support[i])
-		}
 		v.Value = value
-		v.Body = rewriteExprTermsInBody(gen, v.Body)
+		v.Body = rewriteExprTermsInBody(gen, appendToBody(v.Body, support...))
 	}
 	return
 }
@@ -6051,8 +6041,7 @@ func rewriteDeclaredVarsInTemplateString(g *localVarGenerator, stack *localDecla
 }
 
 func rewriteDeclaredVarsInArrayComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ArrayComprehension, errs Errors, strict bool) Errors {
-	used := NewVarSet()
-	used.Update(v.Term.Vars())
+	used := v.Term.Vars()
 
 	stack.Push()
 	v.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, v.Body, errs, strict)
@@ -6205,7 +6194,6 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 		}
 	case isInputRef(target): // ok, valid
 	case isBuiltinRefOrVar:
-
 		// NOTE(sr): first we ensure that parsed Var builtins (`count`, `concat`, etc)
 		// are rewritten to their proper Ref convention
 		if v, ok := target.Value.(Var); ok {
@@ -6261,30 +6249,23 @@ func validateWithFunctionValue(bs map[string]*Builtin, unsafeMap map[string]stru
 }
 
 func isInputRef(term *Term) bool {
-	if ref, ok := term.Value.(Ref); ok {
-		if ref.HasPrefix(InputRootRef) {
-			return true
-		}
-	}
-	return false
+	ref, ok := term.Value.(Ref)
+	return ok && ref.HasPrefix(InputRootRef)
 }
 
 func isDataRef(term *Term) bool {
-	if ref, ok := term.Value.(Ref); ok {
-		if ref.HasPrefix(DefaultRootRef) {
-			return true
-		}
-	}
-	return false
+	ref, ok := term.Value.(Ref)
+	return ok && ref.HasPrefix(DefaultRootRef)
 }
 
 func isBuiltinRefOrVar(bs map[string]*Builtin, unsafeBuiltinsMap map[string]struct{}, term *Term) (bool, *Error) {
 	switch v := term.Value.(type) {
 	case Ref, Var:
-		if _, ok := unsafeBuiltinsMap[v.String()]; ok {
+		vs := v.String()
+		if _, ok := unsafeBuiltinsMap[vs]; ok {
 			return false, NewError(CompileErr, term.Location, "with keyword replacing built-in function: target must not be unsafe: %q", v)
 		}
-		_, ok := bs[v.String()]
+		_, ok := bs[vs]
 		return ok, nil
 	}
 	return false, nil
@@ -6330,9 +6311,7 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 	// If the expression contains unsafe generated variables, report which
 	// expressions are unsafe instead of the variables that are unsafe (since
 	// the latter are not meaningful to the user.)
-	pairs := unsafe.Slice()
-
-	slices.SortFunc(pairs, func(a, b unsafePair) int {
+	pairs := util.SortedFunc(unsafe.Slice(), func(a, b unsafePair) int {
 		return a.Expr.Location.Compare(b.Expr.Location)
 	})
 
@@ -6425,6 +6404,5 @@ func (rs *refSet) Sorted() []*Term {
 	for i := range rs.s {
 		terms[i] = NewTerm(rs.s[i])
 	}
-	slices.SortFunc(terms, TermValueCompare)
-	return terms
+	return util.SortedFunc(terms, TermValueCompare)
 }
