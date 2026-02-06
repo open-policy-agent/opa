@@ -1684,7 +1684,7 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 	e.instr.startTimer(evalOpRuleIndex)
 	defer e.instr.stopTimer(evalOpRuleIndex)
 
-	index := e.compiler.RuleIndex(ref)
+	index := e.ruleIndex(ref)
 	if index == nil {
 		return nil, nil
 	}
@@ -1733,6 +1733,11 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 	}
 
 	return result, err
+}
+
+// ruleIndex performs a lookup for a RuleIndex in the compiler's RuleTree.
+func (e *eval) ruleIndex(ref ast.Ref) ast.RuleIndex {
+	return e.compiler.RuleIndex(ref)
 }
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {

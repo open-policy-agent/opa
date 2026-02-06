@@ -3426,7 +3426,7 @@ result := test.module("policy.rego")
 			t.Fatalf("No results")
 		}
 		got := rs[0].Expressions[0].Value
-		want := "package test\n\nresult := __local0__ if { true; test.module(\"policy.rego\", __local0__) }"
+		want := "package test\n\nresult := __local0__ if { test.module(\"policy.rego\", __local0__) }"
 		if got != want {
 			t.Errorf("Expected %q, got %q", want, got)
 		}
