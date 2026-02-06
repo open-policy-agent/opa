@@ -129,7 +129,6 @@ type Compiler struct {
 
 	localvargen                *localVarGenerator
 	moduleLoader               ModuleLoader
-	ruleIndices                *util.HasherMap[Ref, RuleIndex]
 	stages                     []stage
 	maxErrs                    int
 	errCount                   uint32
@@ -313,7 +312,6 @@ func NewCompiler() *Compiler {
 		Modules:               map[string]*Module{},
 		RewrittenVars:         map[Var]Var{},
 		Required:              &Capabilities{},
-		ruleIndices:           util.NewHasherMap[Ref, RuleIndex](RefEqual),
 		maxErrs:               CompileErrorLimitDefault,
 		mu:                    &sync.Mutex{},
 		after:                 map[string][]CompilerStageDefinition{},
@@ -597,7 +595,7 @@ func (c *Compiler) GetRulesExact(ref Ref) (rules []*Rule) {
 		}
 	}
 
-	return extractRules(node.Values)
+	return node.Values
 }
 
 // GetRulesForVirtualDocument returns a slice of rules that produce the virtual
@@ -624,11 +622,11 @@ func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
 			return nil
 		}
 		if len(node.Values) > 0 {
-			return extractRules(node.Values)
+			return node.Values
 		}
 	}
 
-	return extractRules(node.Values)
+	return node.Values
 }
 
 // GetRulesWithPrefix returns a slice of rules that share the prefix ref.
@@ -659,7 +657,7 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	var acc func(node *TreeNode)
 
 	acc = func(node *TreeNode) {
-		rules = append(rules, extractRules(node.Values)...)
+		rules = append(rules, node.Values...)
 		for _, child := range node.Children {
 			if child.Hide {
 				continue
@@ -670,14 +668,6 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 
 	acc(node)
 
-	return rules
-}
-
-func extractRules(s []any) []*Rule {
-	rules := make([]*Rule, len(s))
-	for i := range s {
-		rules[i] = s[i].(*Rule)
-	}
 	return rules
 }
 
@@ -816,9 +806,9 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 }
 
 // Utility: add all rule values to the set.
-func insertRules(set map[*Rule]struct{}, rules []any) {
+func insertRules(set map[*Rule]struct{}, rules []*Rule) {
 	for _, rule := range rules {
-		set[rule.(*Rule)] = struct{}{}
+		set[rule] = struct{}{}
 	}
 }
 
@@ -827,11 +817,10 @@ func insertRules(set map[*Rule]struct{}, rules []any) {
 // data.a.b.c.p, refs data.a.b.c.p.x and data.a.b.c would not return a
 // RuleIndex built for the rule.
 func (c *Compiler) RuleIndex(path Ref) RuleIndex {
-	r, ok := c.ruleIndices.Get(path)
-	if !ok {
-		return nil
+	if node := c.RuleTree.Find(path); node != nil {
+		return node.Index
 	}
-	return r
+	return nil
 }
 
 // PassesTypeCheck determines whether the given body passes type checking
@@ -931,11 +920,15 @@ func (c *Compiler) buildRuleIndices() {
 		if len(node.Values) == 0 {
 			return false
 		}
-		rules := extractRules(node.Values)
+		rules := node.Values
 		hasNonGroundRef := false
 		for _, r := range rules {
 			hasNonGroundRef = !r.Head.Ref().IsGround()
+			if hasNonGroundRef {
+				break
+			}
 		}
+
 		if hasNonGroundRef {
 			// Collect children to ensure that all rules within the extent of a rule with a general ref
 			// are found on the same index. E.g. the following rules should be indexed under data.a.b.c:
@@ -946,7 +939,7 @@ func (c *Compiler) buildRuleIndices() {
 			// b.c.d2.e[x] := 3 { x := input.x }
 			for _, child := range node.Children {
 				child.DepthFirst(func(c *TreeNode) bool {
-					rules = append(rules, extractRules(c.Values)...)
+					rules = append(rules, c.Values...)
 					return false
 				})
 			}
@@ -956,11 +949,10 @@ func (c *Compiler) buildRuleIndices() {
 			return isVirtual(c.RuleTree, ref.GroundPrefix())
 		})
 		if index.Build(rules) {
-			c.ruleIndices.Put(rules[0].Ref().GroundPrefix(), index)
+			node.Index = index
 		}
 		return hasNonGroundRef // currently, we don't allow those branches to go deeper
 	})
-
 }
 
 func (c *Compiler) buildComprehensionIndices() {
@@ -1080,7 +1072,7 @@ func (c *Compiler) checkRecursion() {
 
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		for _, rule := range node.Values {
-			for node := rule.(*Rule); node != nil; node = node.Else {
+			for node := rule; node != nil; node = node.Else {
 				c.checkSelfPath(node.Loc(), eq, node, node)
 			}
 		}
@@ -1123,7 +1115,7 @@ func (c *Compiler) checkRuleConflicts() {
 		defaultRules := make([]*Rule, 0)
 
 		for _, rule := range node.Values {
-			r := rule.(*Rule)
+			r := rule
 			ref := r.Ref()
 			name = rw(ref.CopyNonGround()).String() // varRewriter operates in-place
 			kinds[r.Head.RuleKind()] = struct{}{}
@@ -1180,10 +1172,10 @@ func (c *Compiler) checkRuleConflicts() {
 
 		switch {
 		case conflicts != nil:
-			return !c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "rule %v conflicts with %v", name, conflicts))
+			return !c.err(NewError(TypeErr, node.Values[0].Loc(), "rule %v conflicts with %v", name, conflicts))
 
 		case len(kinds) > 1 || len(arities) > 1 || (completeRules >= 1 && partialRules >= 1):
-			return !c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "conflicting rules %v found", name))
+			return !c.err(NewError(TypeErr, node.Values[0].Loc(), "conflicting rules %v found", name))
 
 		case len(defaultRules) > 1:
 
@@ -3819,10 +3811,11 @@ func (n *ModuleTreeNode) DepthFirst(f func(*ModuleTreeNode) bool) {
 // rule path.
 type TreeNode struct {
 	Key      Value
-	Values   []any
+	Values   []*Rule
 	Children map[Value]*TreeNode
 	Sorted   []Value
 	Hide     bool
+	Index    RuleIndex
 }
 
 func (n *TreeNode) String() string {
@@ -3948,7 +3941,7 @@ func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
 		Children: nil,
 	}
 	if rule != nil {
-		node.Values = []any{rule}
+		node.Values = []*Rule{rule}
 	}
 
 	for i := len(ref) - 2; i >= 0; i-- {
@@ -3968,7 +3961,7 @@ func (n *TreeNode) flattenChildren() []Ref {
 	for _, sub := range n.Children { // we only want the children, so don't use n.DepthFirst() right away
 		sub.DepthFirst(func(x *TreeNode) bool {
 			for _, r := range x.Values {
-				rule := r.(*Rule)
+				rule := r
 				ret.AddPrefix(rule.Ref())
 			}
 			return false
@@ -6190,7 +6183,7 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 			// and edge case anyways.
 			if child := targetNode.Child(ref[len(ref)-1].Value); child != nil {
 				for _, v := range child.Values {
-					if len(v.(*Rule).Head.Args) > 0 {
+					if len(v.Head.Args) > 0 {
 						if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, c.RuleTree, value); err != nil || ok {
 							return false, err // err may be nil
 						}
@@ -6204,7 +6197,7 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 			// TODO: check that target ref doesn't exist?
 			if valueNode := c.RuleTree.Find(r); valueNode != nil {
 				for _, v := range valueNode.Values {
-					if len(v.(*Rule).Head.Args) > 0 {
+					if len(v.Head.Args) > 0 {
 						return false, nil
 					}
 				}
