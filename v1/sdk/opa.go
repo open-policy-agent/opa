@@ -337,6 +337,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 				tracer:                      options.Tracer,
 				profiler:                    options.Profiler,
 				instrument:                  options.Instrument,
+				evaluatedRules:              &record.EvaluatedRules,
 			})
 			if record.Error == nil {
 				record.Results = &result.Result
@@ -566,6 +567,7 @@ type evalArgs struct {
 	tracer                      topdown.QueryTracer
 	profiler                    topdown.QueryTracer
 	instrument                  bool
+	evaluatedRules              *[]string
 }
 
 func evaluate(ctx context.Context, args evalArgs) (any, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
@@ -592,7 +594,7 @@ func evaluate(ctx context.Context, args evalArgs) (any, types.ProvenanceV1, ast.
 	}
 
 	pq, err := args.queryCache.Get(r.String(), func(query string) (*rego.PreparedEvalQuery, error) {
-		pq, err := rego.New(
+		opts := []func(*rego.Rego){
 			rego.Time(args.now),
 			rego.Metrics(args.m),
 			rego.Query(query),
@@ -602,7 +604,12 @@ func evaluate(ctx context.Context, args evalArgs) (any, types.ProvenanceV1, ast.
 			rego.PrintHook(args.printHook),
 			rego.StrictBuiltinErrors(args.strictBuiltinErrors),
 			rego.Instrument(args.instrument),
-			rego.Runtime(args.runtime)).PrepareForEval(ctx)
+			rego.Runtime(args.runtime),
+		}
+		if args.evaluatedRules != nil {
+			opts = append(opts, rego.EvaluatedRules(args.evaluatedRules))
+		}
+		pq, err := rego.New(opts...).PrepareForEval(ctx)
 		if err != nil {
 			return nil, err
 		}
