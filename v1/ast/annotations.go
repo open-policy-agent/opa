@@ -27,6 +27,7 @@ type (
 	// Annotations represents metadata attached to other AST nodes such as rules.
 	Annotations struct {
 		Scope            string                       `json:"scope"`
+		ID               string                       `json:"id,omitempty"`
 		Title            string                       `json:"title,omitempty"`
 		Entrypoint       bool                         `json:"entrypoint,omitempty"`
 		Description      string                       `json:"description,omitempty"`
@@ -133,6 +134,10 @@ func (a *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
+	if cmp := strings.Compare(a.ID, other.ID); cmp != 0 {
+		return cmp
+	}
+
 	if cmp := strings.Compare(a.Title, other.Title); cmp != 0 {
 		return cmp
 	}
@@ -194,6 +199,10 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 
 	data := map[string]any{
 		"scope": a.Scope,
+	}
+
+	if a.ID != "" {
+		data["id"] = a.ID
 	}
 
 	if a.Title != "" {
@@ -434,6 +443,10 @@ func (a *Annotations) toObject() (*Object, *Error) {
 
 	if len(a.Scope) > 0 {
 		obj.Insert(InternedTerm("scope"), InternedTerm(a.Scope))
+	}
+
+	if len(a.ID) > 0 {
+		obj.Insert(InternedTerm("id"), StringTerm(a.ID))
 	}
 
 	if len(a.Title) > 0 {
