@@ -2044,6 +2044,7 @@ type Object interface {
 	Len() int
 	Get(*Term) *Term
 	Copy() Object
+	CopyNonGround() Object
 	Insert(*Term, *Term)
 	Iter(func(*Term, *Term) error) error
 	Until(func(*Term, *Term) bool) bool
@@ -2111,6 +2112,10 @@ func (l *lazyObj) Compare(other Value) int {
 }
 
 func (l *lazyObj) Copy() Object {
+	return l
+}
+
+func (l *lazyObj) CopyNonGround() Object {
 	return l
 }
 

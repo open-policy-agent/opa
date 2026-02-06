@@ -200,8 +200,9 @@ func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	}
 
 	// Create new request object with updated headers.
-	out := reqObj.Copy()
-	out.Insert(ast.StringTerm("headers"), ast.NewTerm(signedHeadersObj))
+	// Using CopyNonGround() to avoid copying ground elements
+	out := reqObj.CopyNonGround()
+	out.Insert(ast.InternedTerm("headers"), ast.NewTerm(signedHeadersObj))
 
 	return iter(ast.NewTerm(out))
 }
