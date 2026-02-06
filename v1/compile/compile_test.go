@@ -1218,13 +1218,11 @@ func TestCompilerOptimizationL2(t *testing.T) {
 
 			prunedExp := ast.MustParseModuleWithOpts(`
 				package test
-
 				q if { input.x = data.foo }`,
 				ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 			optimizedExp := ast.MustParseModuleWithOpts(`
 				package test
-
 				default p = false
 				p if { input.x = 1 }`,
 				ast.ParserOptions{RegoVersion: ast.RegoV1})
@@ -3101,12 +3099,12 @@ func TestOptimizerOutput(t *testing.T) {
 					q contains 2`,
 			},
 			wantModules: map[string]string{
-				"optimized/test/p/q.rego": `
-					package test.p.q
+				"optimized/test.rego": `
+					package test
 
-					default r = false
-					r = true if { 1 = input.x }
-					r = true if { 2 = input.x }
+					default p.q.r = false
+					p.q.r = true if { 1 = input.x }
+					p.q.r = true if { 2 = input.x }
 
 				`,
 				"test.rego": `

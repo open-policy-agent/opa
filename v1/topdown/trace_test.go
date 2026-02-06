@@ -1233,12 +1233,10 @@ query:1      | Eval data.test = _
 query:1      | Index data.test.chain_no_output_var (matched 1 rule)
 query:9      | Enter data.test.chain_no_output_var
 query:9      | | Eval __local8__ = [{"path": ["test", "chain_no_output_var"]}]
-query:9      | | Eval true
 query:9      | | Eval __local4__ = __local8__
 query:9      | | Exit data.test.chain_no_output_var
 query:9      | Redo data.test.chain_no_output_var
 query:9      | | Redo __local4__ = __local8__
-query:9      | | Redo true
 query:9      | | Redo __local8__ = [{"path": ["test", "chain_no_output_var"]}]
 query:1      | Index data.test.chain_with_output_var (matched 1 rule, early exit)
 query:11     | Enter data.test.chain_with_output_var
@@ -1253,12 +1251,10 @@ query:12     | | Redo __local9__ = [{"path": ["test", "chain_with_output_var"]}]
 query:1      | Index data.test.rule_no_output_var (matched 1 rule)
 query:2      | Enter data.test.rule_no_output_var
 query:2      | | Eval __local6__ = {}
-query:2      | | Eval true
 query:2      | | Eval __local2__ = __local6__
 query:2      | | Exit data.test.rule_no_output_var
 query:2      | Redo data.test.rule_no_output_var
 query:2      | | Redo __local2__ = __local6__
-query:2      | | Redo true
 query:2      | | Redo __local6__ = {}
 query:1      | Index data.test.rule_with_output_var (matched 1 rule, early exit)
 query:4      | Enter data.test.rule_with_output_var

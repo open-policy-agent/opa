@@ -1684,7 +1684,7 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 	e.instr.startTimer(evalOpRuleIndex)
 	defer e.instr.stopTimer(evalOpRuleIndex)
 
-	index := e.compiler.RuleIndex(ref)
+	index := e.ruleIndex(ref)
 	if index == nil {
 		return nil, nil
 	}
@@ -1733,6 +1733,11 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 	}
 
 	return result, err
+}
+
+// ruleIndex performs a lookup for a RuleIndex in the compiler's RuleTree.
+func (e *eval) ruleIndex(ref ast.Ref) ast.RuleIndex {
+	return e.compiler.RuleIndex(ref)
 }
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
@@ -3667,17 +3672,22 @@ func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 }
 
 func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
-
-	path := e.e.namespaceRef(e.plugged[:e.pos+1])
+	originalPath := e.plugged[:e.pos+1]
+	namespacePath := e.e.namespaceRef(originalPath)
 	term := ast.NewTerm(e.e.namespaceRef(e.ref))
 
 	var defined bool
 
-	if e.e.saveSupport.Exists(path) {
+	if e.e.saveSupport.Exists(namespacePath) {
 		defined = true
 	} else {
 		for i := range e.ir.Rules {
-			ok, err := e.partialEvalSupportRule(e.ir.Rules[i], path)
+			// Split the rule from the package
+			ruleRef := originalPath.Copy()[len(e.ir.Rules[i].Module.Package.Path):]
+			ruleRef[0].Value = ast.Var(ruleRef[0].Value.(ast.String))
+			// Get the namespaced package path without the rule
+			packagePath := namespacePath.Copy()[:len(namespacePath)-len(ruleRef)]
+			ok, err := e.partialEvalSupportRule(e.ir.Rules[i], packagePath, ruleRef)
 			if err != nil {
 				return err
 			}
@@ -3687,7 +3697,12 @@ func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 		}
 
 		if e.ir.Default != nil {
-			ok, err := e.partialEvalSupportRule(e.ir.Default, path)
+			// Split the rule from the package
+			ruleRef := originalPath.Copy()[len(e.ir.Default.Module.Package.Path):]
+			ruleRef[0].Value = ast.Var(ruleRef[0].Value.(ast.String))
+			// Get the namespaced package path without the rule
+			packagePath := namespacePath.Copy()[:len(namespacePath)-len(ruleRef)]
+			ok, err := e.partialEvalSupportRule(e.ir.Default, packagePath, ruleRef)
 			if err != nil {
 				return err
 			}
@@ -3704,7 +3719,7 @@ func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 	return e.e.saveUnify(term, e.rterm, e.bindings, e.rbindings, iter)
 }
 
-func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) (bool, error) {
+func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, packagePath ast.Ref, ruleRef ast.Ref) (bool, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
@@ -3723,7 +3738,6 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref
 		// Skip this rule body if it fails to type-check.
 		// Type-checking failure means the rule body will never succeed.
 		if e.e.compiler.PassesTypeCheck(plugged) {
-			pkg, ruleRef := splitPackageAndRule(path)
 			head := ast.RefHead(ruleRef, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
 
 			if !e.e.inliningControl.shallow {
@@ -3733,7 +3747,7 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref
 				plugged = applyCopyPropagation(cp, e.e.instr, plugged)
 			}
 
-			e.e.saveSupport.InsertByPkg(pkg, &ast.Rule{
+			e.e.saveSupport.InsertByPkg(packagePath, &ast.Rule{
 				Head:    head,
 				Body:    plugged,
 				Default: rule.Default,

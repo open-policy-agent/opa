@@ -821,11 +821,11 @@ func TestRuleIndices(t *testing.T) {
 
 			for k, expIndex := range tc.exp {
 				kref := MustParseRef(k)
-				i, ok := c.ruleIndices.Get(kref)
-				if i == nil || !ok {
+				node := c.RuleTree.Find(kref)
+				if node == nil || node.Index == nil {
 					t.Fatalf("expected rule indices for %v", k)
 				}
-				index := i.(*baseDocEqIndex)
+				index := node.Index.(*baseDocEqIndex)
 				for _, expRef := range expIndex {
 					found := false
 					for _, r := range index.root.rules {
@@ -867,7 +867,7 @@ c.d.e = 1 if true`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("c.d.e"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 	})
@@ -894,10 +894,10 @@ d.e = 2 if true`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("c.d.e"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if exp, act := MustParseRef("d.e"), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("d.e"), node.Values[1].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 	})
@@ -932,7 +932,7 @@ d.e.f = 2 if true`
 		if exp, act := 1, len(node.Values); exp != act {
 			t.Fatalf("expected %d values, found %d", exp, act)
 		}
-		if exp, act := MustParseRef("d.e.f"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("d.e.f"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 	})
@@ -959,22 +959,22 @@ b[d] { d := "bar" }`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if act := node.Values[0].(*Rule).Head.Value; act != nil {
+		if act := node.Values[0].Head.Value; act != nil {
 			t.Errorf("expected rule value nil, found %v", act)
 		}
-		if exp, act := VarTerm("c"), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := VarTerm("c"), node.Values[0].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if act := node.Values[1].(*Rule).Head.Value; act != nil {
+		if act := node.Values[1].Head.Value; act != nil {
 			t.Errorf("expected rule value nil, found %v", act)
 		}
-		if exp, act := VarTerm("d"), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := VarTerm("d"), node.Values[1].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 	})
@@ -1000,22 +1000,22 @@ b[2]`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if act := node.Values[0].(*Rule).Head.Value; act != nil {
+		if act := node.Values[0].Head.Value; act != nil {
 			t.Errorf("expected rule value nil, found %v", act)
 		}
-		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(1), node.Values[0].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if act := node.Values[1].(*Rule).Head.Value; act != nil {
+		if act := node.Values[1].Head.Value; act != nil {
 			t.Errorf("expected rule value nil, found %v", act)
 		}
-		if exp, act := IntNumberTerm(2), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(2), node.Values[1].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 	})
@@ -1051,13 +1051,13 @@ b[2] = 2`
 		if exp, act := 1, len(node.Values); exp != act {
 			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
 		}
-		if exp, act := MustParseRef("b[1]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("b[1]"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(1), node.Values[0].Head.Value; !exp.Equal(act) {
 			t.Errorf("expected rule value %v, found %v", exp, act)
 		}
-		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(1), node.Values[0].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 
@@ -1069,13 +1069,13 @@ b[2] = 2`
 		if exp, act := 1, len(node.Values); exp != act {
 			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
 		}
-		if exp, act := MustParseRef("b[2]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("b[2]"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if exp, act := IntNumberTerm(2), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(2), node.Values[0].Head.Value; !exp.Equal(act) {
 			t.Errorf("expected rule value %v, found %v", exp, act)
 		}
-		if exp, act := IntNumberTerm(2), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(2), node.Values[0].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 	})
@@ -2674,9 +2674,9 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 
 				r = [__local4__] { x = 1; data.test.f(x, __local4__) }
 
-				f(__local0__) = __local5__ { true; data.test.g(__local0__, __local5__) }
+				f(__local0__) = __local5__ { data.test.g(__local0__, __local5__) }
 
-				pi = __local6__ { true; plus(3, 0.14, __local6__) }
+				pi = __local6__ { plus(3, 0.14, __local6__) }
 
 				with_value { data.test.f(1, __local7__); 1 with input as __local7__ }
 			`,
@@ -2708,7 +2708,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			expected: `
 				package test
 
-				f(__local0__[0]) { true; __local0__ = [1] }`,
+				f(__local0__[0]) { __local0__ = [1] }`,
 		},
 		{
 			note: "every: domain (array)",
@@ -4109,7 +4109,7 @@ p := count([x | q[x]])
 q[1] = 1
 `,
 			exp: `package test
-p := __local0__ if { true; __local1__ = [x | data.test.q[x]]; count(__local1__, __local0__) }
+p := __local0__ if { __local1__ = [x | data.test.q[x]]; count(__local1__, __local0__) }
 q[1] = 1
 `,
 		},
@@ -4458,14 +4458,14 @@ import input.qux as baz
 
 p[foo[bar[i]]] = {"baz": baz, "corge": corge} if { true }
 `),
-			exp: MustParseRule(`p[__local0__] = __local1__ { true; __local0__ = input.x.y.foo[data.doc1[i]]; __local1__ = {"baz": input.qux, "corge": data.doc2} }`),
+			exp: MustParseRule(`p[__local0__] = __local1__ { __local0__ = input.x.y.foo[data.doc1[i]]; __local1__ = {"baz": input.qux, "corge": data.doc2} }`),
 		},
 		{
 			note: "array comprehension value",
 			mod: module(`package head
 q = [true | true] if { true }
 `),
-			exp: MustParseRule(`q = __local0__ { true; __local0__ = [true | true] }`),
+			exp: MustParseRule(`q = __local0__ { __local0__ = [true | true] }`),
 		},
 		{
 			note: "array comprehension value in else head",
@@ -4476,7 +4476,7 @@ q if {
 	true
 }
 `),
-			exp: MustParseRule(`q = true { false } else = __local0__ { true; __local0__ = [true | true] }`),
+			exp: MustParseRule(`q = true { false } else = __local0__ { __local0__ = [true | true] }`),
 		},
 		{
 			note: "array comprehension value in head (comprehension-local var)",
@@ -4487,7 +4487,7 @@ q = [a | a := true] if {
 	true
 }
 `),
-			exp: MustParseRule(`q = __local2__ { false; __local2__ = [__local0__ | __local0__ = true] } else = __local3__ { true; __local3__ = [__local1__ | __local1__ = true] }`),
+			exp: MustParseRule(`q = __local2__ { false; __local2__ = [__local0__ | __local0__ = true] } else = __local3__ { __local3__ = [__local1__ | __local1__ = true] }`),
 		},
 		{
 			note: "array comprehension value in function head (comprehension-local var)",
@@ -4498,7 +4498,7 @@ f(x) = [a | a := true] if {
 	true
 }
 `),
-			exp: MustParseRule(`f(__local0__) = __local3__ { false; __local3__ = [__local1__ | __local1__ = true] } else = __local4__ { true; __local4__ = [__local2__ | __local2__ = true] }`),
+			exp: MustParseRule(`f(__local0__) = __local3__ { false; __local3__ = [__local1__ | __local1__ = true] } else = __local4__ { __local4__ = [__local2__ | __local2__ = true] }`),
 		},
 		{
 			note: "array comprehension value in else-func head (reused arg rewrite)",
@@ -4509,14 +4509,14 @@ f(x, y) = [x | y] if {
 	true
 }
 `),
-			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = [__local0__ | __local1__] } else = __local3__ { true; __local3__ = [__local0__ | __local1__] }`),
+			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = [__local0__ | __local1__] } else = __local3__ { __local3__ = [__local0__ | __local1__] }`),
 		},
 		{
 			note: "object comprehension value",
 			mod: module(`package head
 r = {"true": true | true} if { true }
 `),
-			exp: MustParseRule(`r = __local0__ { true; __local0__ = {"true": true | true} }`),
+			exp: MustParseRule(`r = __local0__ { __local0__ = {"true": true | true} }`),
 		},
 		{
 			note: "object comprehension value in else head",
@@ -4527,7 +4527,7 @@ q if {
 	true
 }
 `),
-			exp: MustParseRule(`q = true { false } else = __local0__ { true; __local0__ = {"true": true | true} }`),
+			exp: MustParseRule(`q = true { false } else = __local0__ { __local0__ = {"true": true | true} }`),
 		},
 		{
 			note: "object comprehension value in head (comprehension-local var)",
@@ -4538,7 +4538,7 @@ q = {"a": a | a := true} if {
 	true
 }
 `),
-			exp: MustParseRule(`q = __local2__ { false; __local2__ = {"a": __local0__ | __local0__ = true} } else = __local3__ { true; __local3__ = {"a": __local1__ | __local1__ = true} }`),
+			exp: MustParseRule(`q = __local2__ { false; __local2__ = {"a": __local0__ | __local0__ = true} } else = __local3__ { __local3__ = {"a": __local1__ | __local1__ = true} }`),
 		},
 		{
 			note: "object comprehension value in function head (comprehension-local var)",
@@ -4549,7 +4549,7 @@ f(x) = {"a": a | a := true} if {
 	true
 }
 `),
-			exp: MustParseRule(`f(__local0__) = __local3__ { false; __local3__ = {"a": __local1__ | __local1__ = true} } else = __local4__ { true; __local4__ = {"a": __local2__ | __local2__ = true} }`),
+			exp: MustParseRule(`f(__local0__) = __local3__ { false; __local3__ = {"a": __local1__ | __local1__ = true} } else = __local4__ { __local4__ = {"a": __local2__ | __local2__ = true} }`),
 		},
 		{
 			note: "object comprehension value in else-func head (reused arg rewrite)",
@@ -4560,14 +4560,14 @@ f(x, y) = {x: y | true} if {
 	true
 }
 `),
-			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__: __local1__ | true} } else = __local3__ { true; __local3__ = {__local0__: __local1__ | true} }`),
+			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__: __local1__ | true} } else = __local3__ { __local3__ = {__local0__: __local1__ | true} }`),
 		},
 		{
 			note: "set comprehension value",
 			mod: module(`package head
 s = {true | true} if { true }
 `),
-			exp: MustParseRule(`s = __local0__ { true; __local0__ = {true | true} }`),
+			exp: MustParseRule(`s = __local0__ { __local0__ = {true | true} }`),
 		},
 		{
 			note: "set comprehension value in else head",
@@ -4578,7 +4578,7 @@ q = {false | false} if {
 	true
 }
 `),
-			exp: MustParseRule(`q = __local0__ { false; __local0__ = {false | false} } else = __local1__ { true; __local1__ = {true | true} }`),
+			exp: MustParseRule(`q = __local0__ { false; __local0__ = {false | false} } else = __local1__ { __local1__ = {true | true} }`),
 		},
 		{
 			note: "set comprehension value in head (comprehension-local var)",
@@ -4589,7 +4589,7 @@ q = {a | a := true} if {
 	true
 }
 `),
-			exp: MustParseRule(`q = __local2__ { false; __local2__ = {__local0__ | __local0__ = true} } else = __local3__ { true; __local3__ = {__local1__ | __local1__ = true} }`),
+			exp: MustParseRule(`q = __local2__ { false; __local2__ = {__local0__ | __local0__ = true} } else = __local3__ { __local3__ = {__local1__ | __local1__ = true} }`),
 		},
 		{
 			note: "set comprehension value in function head (comprehension-local var)",
@@ -4600,7 +4600,7 @@ f(x) = {a | a := true} if {
 	true
 }
 `),
-			exp: MustParseRule(`f(__local0__) = __local3__ { false; __local3__ = {__local1__ | __local1__ = true} } else = __local4__ { true; __local4__ = {__local2__ | __local2__ = true} }`),
+			exp: MustParseRule(`f(__local0__) = __local3__ { false; __local3__ = {__local1__ | __local1__ = true} } else = __local4__ { __local4__ = {__local2__ | __local2__ = true} }`),
 		},
 		{
 			note: "set comprehension value in else-func head (reused arg rewrite)",
@@ -4611,7 +4611,7 @@ f(x, y) = {x | y} if {
 	true
 }
 `),
-			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__ | __local1__} } else = __local3__ { true; __local3__ = {__local0__ | __local1__} }`),
+			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__ | __local1__} } else = __local3__ { __local3__ = {__local0__ | __local1__} }`),
 		},
 		{
 			note: "import in else value",
@@ -4623,7 +4623,7 @@ elsekw if {
 	true
 }
 `),
-			exp: MustParseRule(`elsekw { false } else = __local0__ { true; __local0__ = input.qux }`),
+			exp: MustParseRule(`elsekw { false } else = __local0__ { __local0__ = input.qux }`),
 		},
 		{
 			note: "import ref in last ref head term",
@@ -4631,7 +4631,7 @@ elsekw if {
 import data.doc1 as bar
 x.y.z[bar[i]] = true
 `),
-			exp: MustParseRule(`x.y.z[__local0__] = true { true; __local0__ = data.doc1[i] }`),
+			exp: MustParseRule(`x.y.z[__local0__] = true { __local0__ = data.doc1[i] }`),
 		},
 		{
 			note: "import ref in multi-value ref rule",
@@ -4640,7 +4640,7 @@ import data.doc1 as bar
 x.y.w contains bar[i] if true
 `),
 			exp: func() *Rule {
-				exp, _ := ParseRuleWithOpts(`x.y.w contains __local0__ if {true; __local0__ = data.doc1[i] }`, popts)
+				exp, _ := ParseRuleWithOpts(`x.y.w contains __local0__ if { __local0__ = data.doc1[i] }`, popts)
 				return exp
 			}(),
 		},
@@ -4860,7 +4860,6 @@ p := rego.metadata.chain()`,
 
 p := __local0__ if {
 	__local1__ = [{"path": ["test", "p"]}]
-	true
 	__local0__ = __local1__
 }`,
 		},
@@ -5791,7 +5790,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				p if {
 					__local0__ = "bar"
-					{__local1__ | true; __local1__ = { 2 | true with input[__local0__] as 1 }}
+					{__local1__ | __local1__ = { 2 | true with input[__local0__] as 1 }}
 				}
 			`,
 		},
@@ -7213,7 +7212,6 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 }
 
 func TestCompilerRewritePrintCallsErasure(t *testing.T) {
-
 	cases := []struct {
 		note   string
 		module string
@@ -7293,7 +7291,7 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 			p = {1 | print("x")}`,
 			exp: `package test
 
-			p = __local0__ if { true; __local0__ = {1 | true} }`,
+			p = __local0__ if { __local0__ = {1 | true} }`,
 		},
 	}
 
@@ -7490,7 +7488,6 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			exp: `package test
 
 			p = __local1__ if {
-				true
 				__local1__ = {1 | __local2__ = { __local0__ | __local0__ = "x"}; internal.print([__local2__])}
 			}`,
 		},
@@ -7501,7 +7498,7 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			f(a) = {1 | a[x]; print(x)}`,
 			exp: `package test
 
-			f(__local0__) = __local2__ if { true; __local2__ = {1 | __local0__[x]; __local3__ = {__local1__ | __local1__ = x}; internal.print([__local3__])} }
+			f(__local0__) = __local2__ if { __local2__ = {1 | __local0__[x]; __local3__ = {__local1__ | __local1__ = x}; internal.print([__local3__])} }
 			`,
 		},
 		{
@@ -7543,7 +7540,7 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 				print(x)
 			}`,
 			exp: `package test
-			q = __local3__ if { true; __local3__ = input }
+			q = __local3__ if { __local3__ = input }
 			p = true if {
 				json.unmarshal("{}", __local2__)
 				__local0__ = data.test.q with input as __local2__
@@ -7583,7 +7580,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p := $""`,
 			exp: `package test
 				p := __local0__ if { 
-					true
 					internal.template_string([""], __local0__) 
 				}`,
 		},
@@ -7593,7 +7589,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p contains $""`,
 			exp: `package test
 				p contains __local0__ if { 
-					true
 					internal.template_string([""], __local0__) 
 				}`,
 		},
@@ -7602,8 +7597,7 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 			module: `package test
 				p[$""] := true`,
 			exp: `package test
-				p[__local0__] := true if { 
-					true
+				p[__local0__] := true if {
 					internal.template_string([""], __local1__)
 					__local0__ = __local1__
 				}`,
@@ -7640,7 +7634,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p := $"foo bar"`,
 			exp: `package test
 				p := __local0__ if { 
-					true
 					internal.template_string(["foo bar"], __local0__) 
 				}`,
 		},
@@ -7650,7 +7643,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p contains $"foo bar"`,
 			exp: `package test
 				p contains __local0__ if { 
-					true
 					internal.template_string(["foo bar"], __local0__) 
 				}`,
 		},
@@ -7660,7 +7652,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p[$"foo bar"] := true`,
 			exp: `package test
 				p[__local0__] := true if { 
-					true
 					internal.template_string(["foo bar"], __local1__)
 					__local0__ = __local1__
 				}`,
@@ -7697,7 +7688,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p := $"{input.x}"`,
 			exp: `package test
 				p := __local1__ if { 
-					true 
 					__local2__ = {__local0__ | __local0__ = input.x}; internal.template_string([__local2__], __local1__)
 				}`,
 		},
@@ -7707,7 +7697,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p contains $"{input.x}"`,
 			exp: `package test
 				p contains __local1__ if { 
-					true
 					__local2__ = {__local0__ | __local0__ = input.x}
 					internal.template_string([__local2__], __local1__)
 				}`,
@@ -7718,7 +7707,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p[$"{input.x}"] := true`,
 			exp: `package test
 				p[__local0__] := true if { 
-					true
 					__local3__ = {__local1__ | __local1__ = input.x}
 					internal.template_string([__local3__], __local2__)
 					__local0__ = __local2__
@@ -7758,7 +7746,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				f($"{input.x}") := 42`,
 			exp: `package test
 				f(__local1__) := 42 if { 
-					true
 					__local2__ = {__local0__ | __local0__ = input.x}
 					internal.template_string([__local2__], __local1__)
 				}`,
@@ -7869,7 +7856,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				f(x) := $"{x}"`,
 			exp: `package test
 				f(__local0__) := __local2__ if { 
-					true
 					__local3__ = {__local1__ | __local1__ = __local0__}
 					internal.template_string([__local3__], __local2__)
 				}`,
@@ -7896,7 +7882,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p := $"{false}, {42}, {13.37}, {"foo"}, {` + "`bar`" + `}, {null}"`,
 			exp: `package test
 				p := __local0__ if { 
-					true
 					internal.template_string([false, ", ", 42, ", ", 13.37, ", ", "foo", ", ", "bar", ", ", null], __local0__) 
 				}`,
 		},
@@ -7908,7 +7893,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p := $"{[1, 2, 3]}, {{false, true}}, {{"a": "b"}}"`,
 			exp: `package test
 				p := __local3__ if { 
-					true
 					__local4__ = {__local0__ | __local0__ = [1, 2, 3]}
 					__local5__ = {__local1__ | __local1__ = {false, true}}
 					__local6__ = {__local2__ | __local2__ = {"a": "b"}}
@@ -7925,7 +7909,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 			exp: `package test
 				f(__local0__) := __local0__ if { true }
 				p := __local3__ if { 
-					true
 					__local5__ = {__local1__ | 
 						__local4__ = input.x
 						data.test.f(__local4__, __local2__)
@@ -7942,7 +7925,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 			exp: `package test
 				f(__local0__) := __local0__ if { true }
 				p contains __local3__ if { 
-					true
 					__local5__ = {__local1__ | 
 						__local4__ = input.x
 						data.test.f(__local4__, __local2__)
@@ -7959,7 +7941,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 			exp: `package test
 				f(__local1__) := __local1__ if { true }
 				p[__local0__] := true if { 
-					true
 					__local6__ = {__local2__ | 
 						__local5__ = input.x
 						data.test.f(__local5__, __local3__)
@@ -7996,7 +7977,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p := $"{input.x + 2}"`,
 			exp: `package test
 				p := __local2__ if { 
-					true
 					__local4__ = {__local0__ | 
 						__local3__ = input.x
 						plus(__local3__, 2, __local1__)
@@ -8011,7 +7991,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p contains $"{input.x + 2}"`,
 			exp: `package test
 				p contains __local2__ if { 
-					true
 					__local4__ = {__local0__ | 
 						__local3__ = input.x
 						plus(__local3__, 2, __local1__)
@@ -8026,7 +8005,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p[$"{input.x + 2}"] := true`,
 			exp: `package test
 				p[__local0__] := true if {
-					true
 					__local5__ = {__local1__ | 
 						__local4__ = input.x
 						plus(__local4__, 2, __local2__)
@@ -8235,7 +8213,7 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 			module: `package test
 				f($"{[x | y := input.ys[_]; x := y]}") := 42`,
 			exp: `package test
-				f(__local3__) := 42 if { true
+				f(__local3__) := 42 if {
 					__local4__ = {__local2__ | 
 						__local2__ = [__local1__ | __local0__ = input.ys[_]
 						__local1__ = __local0__]
@@ -8366,7 +8344,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p = true if { 
 					false 
 				} else := __local1__ if { 
-					true
 					__local2__ = {__local0__ | 
 						__local0__ = input.y
 					}
@@ -8400,7 +8377,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p := $"foo {$"bar {data.a}"}"`,
 			exp: `package test
 				p := __local3__ if { 
-					true
 					__local5__ = {__local0__ |
 						__local4__ = {__local1__ | 
 							__local1__ = data.a
@@ -8417,7 +8393,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p contains $"foo {$"bar {data.a}"}"`,
 			exp: `package test
 				p contains __local3__ if { 
-					true
 					__local5__ = {__local0__ |
 						__local4__ = {__local1__ | 
 							__local1__ = data.a
@@ -8434,7 +8409,6 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				p[$"foo {$"bar {data.a}"}"] := true`,
 			exp: `package test
 				p[__local0__] := true if { 
-					true
 					__local6__ = {__local1__ | 
 						__local5__ = {__local2__ | 
 							__local2__ = data.a
@@ -8478,9 +8452,8 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				a := input
 				p := $"{a with input as 42} {a with input as {"x": true}}"`,
 			exp: `package test
-				a := __local3__ if { true; __local3__ = input }
+				a := __local3__ if { __local3__ = input }
 				p := __local2__ if { 
-					true
 					__local4__ = {__local0__ | __local0__ = data.test.a with input as 42}
 					__local5__ = {__local1__ | __local1__ = data.test.a with input as {"x": true}}
 					internal.template_string([__local4__, " ", __local5__], __local2__)
@@ -8495,8 +8468,8 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 					$"{a} {b}" with input as 42
 				}`,
 			exp: `package test
-				a := __local3__ if { true; __local3__ = input }
-				b := __local4__ if { true; __local4__ = input }
+				a := __local3__ if { __local3__ = input }
+				b := __local4__ if { __local4__ = input }
 				p = true if { 
 					__local5__ = {__local0__ | __local0__ = data.test.a} with input as 42
 					__local6__ = {__local1__ | __local1__ = data.test.b} with input as 42
@@ -8512,7 +8485,7 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 					x := $"{a with input.x as 1}" with input.y as 2
 				}`,
 			exp: `package test
-				a := __local2__ if { true
+				a := __local2__ if {
 					__local4__ = input.x
 					__local5__ = input.y
 					plus(__local4__, __local5__, __local2__)
