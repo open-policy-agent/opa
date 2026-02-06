@@ -1745,7 +1745,8 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 
 		// Copy ref here as ref otherwise always escapes to the heap,
 		// whether tracing is enabled or not.
-		r := ref.Copy()
+		// Using CopyNonGround() to avoid deep copying ground terms.
+		r := ref.CopyNonGround()
 		e.traceIndex(e.query[e.index], msg.String(), &r)
 	}
 
@@ -3397,7 +3398,8 @@ func (q vcKeyScope) AppendText(buf []byte) ([]byte, error) {
 
 // reduce removes vars from the tail of the ref.
 func (q vcKeyScope) reduce() vcKeyScope {
-	ref := q.Ref.Copy()
+	// Using CopyNonGround() since we only slice the ref, not modifying Values
+	ref := q.Ref.CopyNonGround()
 	var i int
 	for i = len(q.Ref) - 1; i >= 0; i-- {
 		if _, ok := q.Ref[i].Value.(ast.Var); !ok {
@@ -4120,7 +4122,8 @@ func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
 
 func (e *eval) namespaceRef(ref ast.Ref) ast.Ref {
 	if e.skipSaveNamespace {
-		return ref.Copy()
+		// Using CopyNonGround() as ground parts won't be modified
+		return ref.CopyNonGround()
 	}
 	return ref.Insert(e.saveNamespace, 1)
 }
