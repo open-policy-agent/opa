@@ -65,6 +65,9 @@ import (
 var (
 	registeredPlugins    map[string]plugins.Factory
 	registeredPluginsMux sync.Mutex
+
+	registeredStorageBackends    map[string]StorageBackendBuilder
+	registeredStorageBackendsMux sync.Mutex
 )
 
 const (
@@ -74,6 +77,12 @@ const (
 	defaultLaterUploadInterval = 6 * time.Hour
 )
 
+// StorageBackendBuilder defines a function that creates a storage.Store instance.
+// This is the signature used for registering custom storage backends via
+// RegisterStorageBackend. The function receives the same parameters as the
+// StoreBuilder field in Params, allowing custom backends to initialize properly.
+type StorageBackendBuilder func(ctx context.Context, logger logging.Logger, registerer prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error)
+
 // RegisterPlugin registers a plugin factory with the runtime
 // package. When the runtime is created, the factories are used to parse
 // plugin configuration and instantiate plugins. If no configuration is
@@ -82,6 +91,40 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 	registeredPluginsMux.Lock()
 	defer registeredPluginsMux.Unlock()
 	registeredPlugins[name] = factory
+}
+
+// RegisterStorageBackend registers a custom storage backend builder with the
+// runtime package. This allows users to provide alternative storage implementations
+// beyond the built-in inmem and disk options. When OPA runtime initializes storage,
+// it will check if a backend with the given name has been registered and use it
+// if specified in the configuration.
+//
+// This function enables CLI users to inject custom storage backends by creating
+// a custom main.go that registers their storage implementation before invoking
+// standard OPA commands.
+//
+// Example usage:
+//
+//	func init() {
+//	    runtime.RegisterStorageBackend("my_backend", func(ctx context.Context, logger logging.Logger, registerer prometheus.Registerer, config []byte, id string) (storage.Store, error) {
+//	        // Initialize and return your custom storage implementation
+//	        return myCustomStore, nil
+//	    })
+//	}
+//
+// The storage backend can then be selected via configuration:
+//
+//	storage:
+//	  backend: my_backend
+//	  my_backend:
+//	    # custom backend configuration
+//
+// This function is thread-safe and idempotent - registering the same name
+// multiple times will overwrite the previous registration.
+func RegisterStorageBackend(name string, builder StorageBackendBuilder) {
+	registeredStorageBackendsMux.Lock()
+	defer registeredStorageBackendsMux.Unlock()
+	registeredStorageBackends[name] = builder
 }
 
 // Params stores the configuration for an OPA instance.
@@ -441,6 +484,26 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		params.DiskStorage, err = disk.OptionsFromConfig(config, params.ID)
 		if err != nil {
 			return nil, fmt.Errorf("parse disk store configuration: %w", err)
+		}
+	}
+
+	// Check if a custom storage backend is specified in configuration
+	// If found and params.StoreBuilder is not set, use the registered backend
+	if params.StoreBuilder == nil && len(registeredStorageBackends) > 0 {
+		parsedConfig, parseErr := opa_config.ParseConfig(config, params.ID)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse config: %w", parseErr)
+		}
+		if parsedConfig.Storage != nil && parsedConfig.Storage.Backend != nil {
+			backendName := *parsedConfig.Storage.Backend
+			registeredStorageBackendsMux.Lock()
+			builder, ok := registeredStorageBackends[backendName]
+			registeredStorageBackendsMux.Unlock()
+
+			if !ok {
+				return nil, fmt.Errorf("storage backend %q not registered (use runtime.RegisterStorageBackend to register)", backendName)
+			}
+			params.StoreBuilder = builder
 		}
 	}
 
@@ -1084,4 +1147,5 @@ func verifyAuthorizationPolicySchema(m *plugins.Manager) error {
 
 func init() {
 	registeredPlugins = make(map[string]plugins.Factory)
+	registeredStorageBackends = make(map[string]StorageBackendBuilder)
 }

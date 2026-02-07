@@ -366,6 +366,255 @@ for details) the `Event` received by the demo plugin will potentially be differe
 than the example documented.
 :::
 
+## Custom Storage Backends
+
+:::note Rego v1 Only
+This feature is only available when using OPA with Rego v1 (`github.com/open-policy-agent/opa/v1/*` packages).
+:::
+
+OPA's default in-memory storage can be replaced with custom implementations to integrate external data stores, implement specialized caching strategies, or use alternative persistence mechanisms. While `params.StoreBuilder` has long existed for programmatic SDK usage, the storage backend registration API enables CLI users to inject custom storage without modifying OPA's core code.
+
+### Use Cases
+
+- **External storage systems**: Integrate Redis, PostgreSQL, or other databases as the primary data store
+- **Distributed caching**: Implement distributed caching layers across OPA instances
+- **Hybrid storage**: Combine in-memory policy storage with external data persistence
+- **Custom partitioning**: Optimize storage layout for specific data access patterns
+
+### Registration API
+
+Register storage backends using `runtime.RegisterStorageBackend()`. This must be called before OPA runtime initialization, typically in an `init()` function or custom `main()`.
+
+**Function signature:**
+
+```go
+func RegisterStorageBackend(name string, builder StorageBackendBuilder)
+
+type StorageBackendBuilder func(
+    ctx context.Context,
+    logger logging.Logger,
+    registerer prometheus.Registerer,
+    config []byte,
+    id string,
+) (storage.Store, error)
+```
+
+**Parameters:**
+
+- `name`: Identifier used in configuration to select this backend
+- `builder`: Factory function that creates a `storage.Store` instance
+- Builder receives the full OPA configuration as `config []byte` for custom parsing
+
+### Basic Example
+
+**1. Register the backend:**
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+
+    "github.com/open-policy-agent/opa/runtime"
+    "github.com/open-policy-agent/opa/v1/logging"
+    "github.com/open-policy-agent/opa/v1/storage"
+    "github.com/open-policy-agent/opa/v1/storage/inmem"
+    "github.com/prometheus/client_golang/prometheus"
+)
+
+func init() {
+    runtime.RegisterStorageBackend("custom", func(
+        ctx context.Context,
+        logger logging.Logger,
+        registerer prometheus.Registerer,
+        config []byte,
+        id string,
+    ) (storage.Store, error) {
+        logger.Info("Initializing custom storage backend")
+
+        // Return your custom storage implementation
+        // For this example, we wrap the default inmem store
+        return inmem.New(), nil
+    })
+}
+
+func main() {
+    if err := runtime.RealMain(os.Args[1:]); err != nil {
+        fmt.Fprintln(os.Stderr, err)
+        os.Exit(1)
+    }
+}
+```
+
+**2. Configure OPA to use the backend:**
+
+```json
+{
+  "storage": {
+    "backend": "custom"
+  }
+}
+```
+
+**3. Build and run:**
+
+```bash
+go build -o opa-custom main.go
+./opa-custom run --server --config-file config.json
+```
+
+### Implementation Requirements
+
+Custom storage backends must implement the `storage.Store` interface:
+
+```go
+type Store interface {
+    NewTransaction(context.Context, ...TransactionParams) (Transaction, error)
+    Read(context.Context, Transaction, Path) (any, error)
+    Write(context.Context, Transaction, PatchOp, Path, any) error
+    Commit(context.Context, Transaction) error
+    Truncate(context.Context, Transaction, TransactionParams, Iterator) error
+
+    // Policy and trigger management
+    Policy
+    Trigger
+}
+```
+
+See the [storage package documentation](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/storage) for complete interface details.
+
+### Configuration Parsing
+
+The builder receives the full OPA configuration as raw bytes. Parse it to extract backend-specific settings:
+
+```go
+import "github.com/open-policy-agent/opa/v1/config"
+
+func myBackendBuilder(
+    ctx context.Context,
+    logger logging.Logger,
+    registerer prometheus.Registerer,
+    configBytes []byte,
+    id string,
+) (storage.Store, error) {
+    // Parse OPA config
+    cfg, err := config.ParseConfig(configBytes, id)
+    if err != nil {
+        return nil, err
+    }
+
+    // Extract custom backend config from storage section
+    var backendConfig struct {
+        Storage struct {
+            MyBackend map[string]any `json:"my_backend"`
+        } `json:"storage"`
+    }
+
+    if err := json.Unmarshal(configBytes, &backendConfig); err != nil {
+        return nil, err
+    }
+
+    // Initialize with custom config...
+    return createMyBackend(backendConfig.Storage.MyBackend)
+}
+```
+
+Configuration example:
+
+```json
+{
+  "storage": {
+    "backend": "my_backend",
+    "my_backend": {
+      "connection_string": "postgresql://...",
+      "pool_size": 10
+    }
+  }
+}
+```
+
+### Storage Selection Priority
+
+OPA selects storage in the following order:
+
+1. **Disk storage**: If `storage.disk` is configured
+2. **Programmatic builder**: If `params.StoreBuilder` is set (SDK usage)
+3. **Registered backend**: If `storage.backend` is configured and registered
+4. **Default**: In-memory storage
+
+This ensures backward compatibility with existing deployments while enabling new extension patterns.
+
+### Thread Safety
+
+Storage implementations must be **thread-safe**. OPA may access storage concurrently from multiple goroutines. Use appropriate synchronization primitives (mutexes, channels, etc.) to protect shared state.
+
+### Error Handling
+
+Return descriptive errors from builder functions. OPA will fail to start if storage initialization fails:
+
+```go
+if connectionErr != nil {
+    return nil, fmt.Errorf("connect to backend: %w", connectionErr)
+}
+```
+
+### Testing Custom Backends
+
+Test custom backends using the same patterns as OPA's built-in tests:
+
+```go
+func TestCustomBackend(t *testing.T) {
+    runtime.RegisterStorageBackend("test", myBuilder)
+
+    configContent := `{"storage": {"backend": "test"}}`
+    configFile := filepath.Join(t.TempDir(), "config.json")
+    os.WriteFile(configFile, []byte(configContent), 0644)
+
+    params := runtime.NewParams()
+    params.ConfigFile = configFile
+    params.Addrs = &[]string{"localhost:0"}
+
+    rt, err := runtime.NewRuntime(context.Background(), params)
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    // Verify backend is being used...
+}
+```
+
+### Observability
+
+Leverage the provided `logger` and Prometheus `registerer` for monitoring:
+
+```go
+// Logging
+logger.Info("Backend initialized: %s", backendType)
+logger.Error("Failed to connect: %v", err)
+
+// Metrics
+queryCounter := prometheus.NewCounter(prometheus.CounterOpts{
+    Name: "custom_storage_queries_total",
+    Help: "Total number of storage queries",
+})
+registerer.MustRegister(queryCounter)
+```
+
+### Limitations
+
+- Backend registration must occur **before** runtime initialization
+- Only one backend can be active per OPA instance
+- Backend changes require OPA restart (no dynamic reconfiguration)
+- Disk storage and custom backends are mutually exclusive
+
+### Examples
+
+For complete working examples, see:
+
+- [CUSTOM_STORAGE_EXAMPLE.md](https://github.com/open-policy-agent/opa/blob/main/CUSTOM_STORAGE_EXAMPLE.md) in the OPA repository
+
 ## Setting the OPA Runtime Version
 
 The OPA runtime version is set statically at build-time. The following global variables
