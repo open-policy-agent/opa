@@ -1064,7 +1064,7 @@ func (c *Compiler) buildExecutionPlan() *executionPlan {
 				name:       afterStage.Name,
 				metricName: afterStage.MetricName,
 				f: func() {
-					if err := c.runStageAfter(afterStage.MetricName, afterStage.Stage); err != nil {
+					if err := afterStage.Stage(c); err != nil {
 						c.err(err)
 					}
 				},
@@ -1848,29 +1848,24 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 	}
 }
 
-func (c *Compiler) runStage(metricName string, f func()) {
-	if c.metrics != nil {
-		c.metrics.Timer(metricName).Start()
-		defer c.metrics.Timer(metricName).Stop()
-	}
-	f()
-}
-
-func (c *Compiler) runStageAfter(metricName string, s CompilerStage) *Error {
-	if c.metrics != nil {
-		c.metrics.Timer(metricName).Start()
-		defer c.metrics.Timer(metricName).Stop()
-	}
-	return s(c)
-}
-
 func (c *Compiler) compile() {
 	plan := c.getOrBuildPlan()
 
-	for _, s := range plan.stages {
-		c.runStage(s.metricName, s.f)
-		if c.Failed() {
-			return
+	if c.metrics != nil {
+		for _, s := range plan.stages {
+			c.metrics.Timer(s.metricName).Start()
+			s.f()
+			c.metrics.Timer(s.metricName).Stop()
+			if c.Failed() {
+				return
+			}
+		}
+	} else {
+		for _, s := range plan.stages {
+			s.f()
+			if c.Failed() {
+				return
+			}
 		}
 	}
 }
