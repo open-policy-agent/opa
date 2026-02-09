@@ -1,6 +1,7 @@
 This example demonstrates when you need multiple delimiters.
 
 Docker image references use multiple separator characters. In this pattern:
+
 - Slash (`/`) separates registry/organization from image name
 - Colon (`:`) separates image name from tag
 
