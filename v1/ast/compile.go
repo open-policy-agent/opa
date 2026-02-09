@@ -375,7 +375,8 @@ type QueryCompiler interface {
 	// WithStageAfter registers a stage to run during query compilation after
 	// the named stage.
 	//
-	// Deprecated: Use [ast.QueryCompiler.WithStageAfterID].
+	// Caution: Use [ast.QueryCompiler.WithStageAfterID] instead. It provides
+	// more (Golang) compile-time safety
 	WithStageAfter(after string, stage QueryCompilerStageDefinition) QueryCompiler
 
 	// WithStageAfterID registers a stage to run during query compilation after
@@ -512,7 +513,8 @@ func (c *Compiler) WithPathConflictsCheckRoots(rootPaths []string) *Compiler {
 // WithStageAfter registers a stage to run during compilation after
 // the named stage.
 //
-// Deprecated: Use [ast.Compiler.WithStageAfterID] instead.
+// Caution: Consider using [ast.QueryCompiler.WithStageAfterID] instead. It provides
+// more (Golang) compile-time safety
 func (c *Compiler) WithStageAfter(after string, stage CompilerStageDefinition) *Compiler {
 	c.after[after] = append(c.after[after], stage)
 	c.plan = nil // invalidate cached plan
