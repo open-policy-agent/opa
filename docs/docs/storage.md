@@ -11,11 +11,7 @@ OPA provides multiple storage options to suit different deployment requirements 
 
 ## Custom Storage Backends
 
-:::note Rego v1 Only
-Custom storage backends are only available when using OPA with Rego v1.
-:::
-
-For advanced use cases requiring integration with external data stores (Redis, PostgreSQL, etc.) or specialized storage strategies, OPA supports custom storage backend registration. See the [Custom Storage Backends](./extensions#custom-storage-backends) section in the extensions documentation for implementation details.
+For advanced use cases requiring integration with external data stores or specialized storage strategies, OPA supports custom storage backend registration. See the [Custom Storage Backends](./extensions#custom-storage-backends) section in the extensions documentation for details.
 
 ## Disk
 

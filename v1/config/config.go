@@ -57,11 +57,6 @@ func (s *ServerConfig) Clone() *ServerConfig {
 // StorageConfig represents Config's storage options.
 type StorageConfig struct {
 	Disk json.RawMessage `json:"disk,omitempty"`
-	// Backend specifies the name of a custom storage backend to use.
-	// If specified, OPA will use the storage backend registered via
-	// runtime.RegisterStorageBackend() with this name instead of the
-	// default inmem or disk storage.
-	Backend *string `json:"backend,omitempty"`
 }
 
 // Clone creates a deep copy of StorageConfig.
@@ -75,11 +70,6 @@ func (s *StorageConfig) Clone() *StorageConfig {
 	if s.Disk != nil {
 		clone.Disk = make(json.RawMessage, len(s.Disk))
 		copy(clone.Disk, s.Disk)
-	}
-
-	if s.Backend != nil {
-		backendCopy := *s.Backend
-		clone.Backend = &backendCopy
 	}
 
 	return clone

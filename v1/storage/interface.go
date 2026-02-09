@@ -54,6 +54,14 @@ type NonEmptyer interface {
 	NonEmpty(context.Context, Transaction) func([]string) (bool, error)
 }
 
+// Closer is an optional interface that storage implementations can implement
+// to perform cleanup operations when the store is being shut down.
+// If a Store implements this interface, Close will be called during
+// graceful shutdown of the OPA runtime.
+type Closer interface {
+	Close(context.Context) error
+}
+
 // TransactionParams describes a new transaction.
 type TransactionParams struct {
 

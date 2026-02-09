@@ -2058,8 +2058,18 @@ func TestCustomStoreBuilder(t *testing.T) {
 func TestRegisteredStorageBackend(t *testing.T) {
 	ctx := t.Context()
 
+	// Save the current registered backend to restore after test
+	registeredStorageBackendMux.Lock()
+	oldBackend := registeredStorageBackend
+	registeredStorageBackendMux.Unlock()
+	defer func() {
+		registeredStorageBackendMux.Lock()
+		registeredStorageBackend = oldBackend
+		registeredStorageBackendMux.Unlock()
+	}()
+
 	// Register a custom storage backend
-	RegisterStorageBackend("test_backend", func(_ context.Context, logger logging.Logger, registerer prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error) {
+	RegisterStorageBackend(func(_ context.Context, logger logging.Logger, registerer prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error) {
 		if logger == nil {
 			t.Fatal("logger empty")
 		}
@@ -2075,23 +2085,10 @@ func TestRegisteredStorageBackend(t *testing.T) {
 		return &fakeStore{inmem.New()}, nil
 	})
 
-	// Create config that specifies the custom backend
-	configContent := `{
-		"storage": {
-			"backend": "test_backend"
-		}
-	}`
-
-	configFile := filepath.Join(t.TempDir(), "config.json")
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
-		t.Fatalf("write config file: %v", err)
-	}
-
 	testLogger := testLog.New()
 	params := NewParams()
 	params.Logger = testLogger
 	params.Addrs = &[]string{"localhost:0"}
-	params.ConfigFile = configFile
 
 	rt, err := NewRuntime(ctx, params)
 	if err != nil {
@@ -2130,38 +2127,6 @@ func TestRegisteredStorageBackend(t *testing.T) {
 	// Verify we're using the custom storage backend (fakeStore)
 	if !reflect.DeepEqual(map[string]any{"fake": []any{"foo", "bar"}}, payload.Result) {
 		t.Errorf("unexpected result: %v", payload.Result)
-	}
-}
-
-func TestRegisteredStorageBackendNotFound(t *testing.T) {
-	ctx := t.Context()
-
-	// Create config that specifies a non-existent backend
-	configContent := `{
-		"storage": {
-			"backend": "nonexistent_backend"
-		}
-	}`
-
-	configFile := filepath.Join(t.TempDir(), "config.json")
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
-		t.Fatalf("write config file: %v", err)
-	}
-
-	testLogger := testLog.New()
-	params := NewParams()
-	params.Logger = testLogger
-	params.Addrs = &[]string{"localhost:0"}
-	params.ConfigFile = configFile
-
-	_, err := NewRuntime(ctx, params)
-	if err == nil {
-		t.Fatal("Expected error for non-existent backend, got nil")
-	}
-
-	expectedErrMsg := `storage backend "nonexistent_backend" not registered`
-	if !strings.Contains(err.Error(), expectedErrMsg) {
-		t.Fatalf("Expected error containing %q, got: %v", expectedErrMsg, err)
 	}
 }
 

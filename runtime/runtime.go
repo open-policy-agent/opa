@@ -28,8 +28,8 @@ type StorageBackendBuilder = v1.StorageBackendBuilder
 // runtime package. This allows users to provide alternative storage implementations
 // beyond the built-in inmem and disk options. See v1.RegisterStorageBackend for
 // detailed documentation and usage examples.
-func RegisterStorageBackend(name string, builder StorageBackendBuilder) {
-	v1.RegisterStorageBackend(name, builder)
+func RegisterStorageBackend(builder StorageBackendBuilder) {
+	v1.RegisterStorageBackend(builder)
 }
 
 // Params stores the configuration for an OPA instance.

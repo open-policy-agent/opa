@@ -368,95 +368,44 @@ than the example documented.
 
 ## Custom Storage Backends
 
-:::note Rego v1 Only
-This feature is only available when using OPA with Rego v1 (`github.com/open-policy-agent/opa/v1/*` packages).
-:::
-
-OPA's default in-memory storage can be replaced with custom implementations to integrate external data stores, implement specialized caching strategies, or use alternative persistence mechanisms. While `params.StoreBuilder` has long existed for programmatic SDK usage, the storage backend registration API enables CLI users to inject custom storage without modifying OPA's core code.
-
-### Use Cases
-
-- **External storage systems**: Integrate Redis, PostgreSQL, or other databases as the primary data store
-- **Distributed caching**: Implement distributed caching layers across OPA instances
-- **Hybrid storage**: Combine in-memory policy storage with external data persistence
-- **Custom partitioning**: Optimize storage layout for specific data access patterns
+OPA's default in-memory storage can be replaced with custom implementations to integrate external data stores or implement specialized storage strategies. This enables CLI users to inject custom storage without modifying OPA's core code.
 
 ### Registration API
 
-Register storage backends using `runtime.RegisterStorageBackend()`. This must be called before OPA runtime initialization, typically in an `init()` function or custom `main()`.
-
-**Function signature:**
+Custom storage backends can be registered using `runtime.RegisterStorageBackend()`. This must be called before OPA runtime initialization, typically in an `init()` function or custom `main()`.
 
 ```go
-func RegisterStorageBackend(name string, builder StorageBackendBuilder)
-
-type StorageBackendBuilder func(
-    ctx context.Context,
-    logger logging.Logger,
-    registerer prometheus.Registerer,
-    config []byte,
-    id string,
-) (storage.Store, error)
-```
-
-**Parameters:**
-
-- `name`: Identifier used in configuration to select this backend
-- `builder`: Factory function that creates a `storage.Store` instance
-- Builder receives the full OPA configuration as `config []byte` for custom parsing
-
-### Basic Example
-
-**1. Register the backend:**
-
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-    "os"
-
-    "github.com/open-policy-agent/opa/runtime"
-    "github.com/open-policy-agent/opa/v1/logging"
-    "github.com/open-policy-agent/opa/v1/storage"
-    "github.com/open-policy-agent/opa/v1/storage/inmem"
-    "github.com/prometheus/client_golang/prometheus"
-)
-
 func init() {
-    runtime.RegisterStorageBackend("custom", func(
+    runtime.RegisterStorageBackend(func(
         ctx context.Context,
         logger logging.Logger,
         registerer prometheus.Registerer,
         config []byte,
         id string,
     ) (storage.Store, error) {
-        logger.Info("Initializing custom storage backend")
-
         // Return your custom storage implementation
-        // For this example, we wrap the default inmem store
-        return inmem.New(), nil
+        return myCustomStore, nil
     })
 }
+```
 
-func main() {
-    if err := runtime.RealMain(os.Args[1:]); err != nil {
-        fmt.Fprintln(os.Stderr, err)
-        os.Exit(1)
-    }
+If a custom backend is registered, it will be used instead of the default in-memory or disk storage (unless `params.StoreBuilder` is explicitly set, which takes precedence).
+
+**Resource Cleanup:** If your custom storage implementation needs to perform cleanup (close connections, flush buffers, etc.), implement the `storage.Closer` interface:
+
+```go
+type MyStore struct {
+    // ... your storage implementation
+}
+
+// Implement storage.Closer for resource cleanup
+func (s *MyStore) Close(ctx context.Context) error {
+    // Close connections, flush buffers, etc.
+    return s.conn.Close()
 }
 ```
 
-**2. Configure OPA to use the backend:**
-
-```json
-{
-  "storage": {
-    "backend": "custom"
-  }
-}
-```
+The `Close()` method will be called automatically during graceful shutdown of the OPA runtime.
 
 **3. Build and run:**
 

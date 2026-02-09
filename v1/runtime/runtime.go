@@ -66,8 +66,8 @@ var (
 	registeredPlugins    map[string]plugins.Factory
 	registeredPluginsMux sync.Mutex
 
-	registeredStorageBackends    map[string]StorageBackendBuilder
-	registeredStorageBackendsMux sync.Mutex
+	registeredStorageBackend    StorageBackendBuilder
+	registeredStorageBackendMux sync.Mutex
 )
 
 const (
@@ -95,9 +95,7 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 
 // RegisterStorageBackend registers a custom storage backend builder with the
 // runtime package. This allows users to provide alternative storage implementations
-// beyond the built-in inmem and disk options. When OPA runtime initializes storage,
-// it will check if a backend with the given name has been registered and use it
-// if specified in the configuration.
+// beyond the built-in inmem and disk options.
 //
 // This function enables CLI users to inject custom storage backends by creating
 // a custom main.go that registers their storage implementation before invoking
@@ -106,25 +104,26 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 // Example usage:
 //
 //	func init() {
-//	    runtime.RegisterStorageBackend("my_backend", func(ctx context.Context, logger logging.Logger, registerer prometheus.Registerer, config []byte, id string) (storage.Store, error) {
+//	    runtime.RegisterStorageBackend(func(ctx context.Context, logger logging.Logger, registerer prometheus.Registerer, config []byte, id string) (storage.Store, error) {
 //	        // Initialize and return your custom storage implementation
 //	        return myCustomStore, nil
 //	    })
 //	}
 //
-// The storage backend can then be selected via configuration:
+// If a custom backend is registered, it will be used instead of the default inmem
+// or disk storage (unless params.StoreBuilder is explicitly set, which takes precedence).
 //
-//	storage:
-//	  backend: my_backend
-//	  my_backend:
-//	    # custom backend configuration
+// Resource cleanup: If your storage implementation needs to perform cleanup operations
+// (close connections, flush buffers, etc.), implement the storage.Closer interface.
+// The Close(context.Context) error method will be called automatically during
+// graceful shutdown of the OPA runtime.
 //
-// This function is thread-safe and idempotent - registering the same name
-// multiple times will overwrite the previous registration.
-func RegisterStorageBackend(name string, builder StorageBackendBuilder) {
-	registeredStorageBackendsMux.Lock()
-	defer registeredStorageBackendsMux.Unlock()
-	registeredStorageBackends[name] = builder
+// This function is thread-safe. Only one custom storage backend can be registered.
+// Calling this function multiple times will replace the previously registered backend.
+func RegisterStorageBackend(builder StorageBackendBuilder) {
+	registeredStorageBackendMux.Lock()
+	defer registeredStorageBackendMux.Unlock()
+	registeredStorageBackend = builder
 }
 
 // Params stores the configuration for an OPA instance.
@@ -487,24 +486,13 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	// Check if a custom storage backend is specified in configuration
-	// If found and params.StoreBuilder is not set, use the registered backend
-	if params.StoreBuilder == nil && len(registeredStorageBackends) > 0 {
-		parsedConfig, parseErr := opa_config.ParseConfig(config, params.ID)
-		if parseErr != nil {
-			return nil, fmt.Errorf("parse config: %w", parseErr)
+	// If no explicit StoreBuilder is set, check for a registered custom backend
+	if params.StoreBuilder == nil {
+		registeredStorageBackendMux.Lock()
+		if registeredStorageBackend != nil {
+			params.StoreBuilder = registeredStorageBackend
 		}
-		if parsedConfig.Storage != nil && parsedConfig.Storage.Backend != nil {
-			backendName := *parsedConfig.Storage.Backend
-			registeredStorageBackendsMux.Lock()
-			builder, ok := registeredStorageBackends[backendName]
-			registeredStorageBackendsMux.Unlock()
-
-			if !ok {
-				return nil, fmt.Errorf("storage backend %q not registered (use runtime.RegisterStorageBackend to register)", backendName)
-			}
-			params.StoreBuilder = builder
-		}
+		registeredStorageBackendMux.Unlock()
 	}
 
 	switch {
@@ -1046,6 +1034,16 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
 		}
 	}
+
+	// Close storage if it implements the storage.Closer interface
+	if closer, ok := rt.Store.(storage.Closer); ok {
+		if err := closer.Close(ctx); err != nil {
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to close storage gracefully.")
+			return err
+		}
+		rt.logger.Debug("Storage closed.")
+	}
+
 	return nil
 }
 
@@ -1147,5 +1145,4 @@ func verifyAuthorizationPolicySchema(m *plugins.Manager) error {
 
 func init() {
 	registeredPlugins = make(map[string]plugins.Factory)
-	registeredStorageBackends = make(map[string]StorageBackendBuilder)
 }
