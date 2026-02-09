@@ -592,7 +592,7 @@ func TestCompilerCheckTypesWithSchema(t *testing.T) {
 	schemaSet := NewSchemaSet()
 	schemaSet.Put(SchemaRootRef, schema)
 	c.WithSchemas(schemaSet)
-	compileStages(c, c.checkTypes)
+	compileStages(c, StageCheckTypes)
 	assertNotFailed(t, c)
 }
 
@@ -616,7 +616,7 @@ func TestCompilerCheckTypesWithRegexPatternInSchema(t *testing.T) {
 	schemaSet := NewSchemaSet()
 	schemaSet.Put(SchemaRootRef, schema)
 	c.WithSchemas(schemaSet)
-	compileStages(c, c.checkTypes)
+	compileStages(c, StageCheckTypes)
 	assertNotFailed(t, c)
 }
 
@@ -745,7 +745,7 @@ func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
 			schemaSet := NewSchemaSet()
 			schemaSet.Put(SchemaRootRef, schema)
 			c.WithSchemas(schemaSet)
-			compileStages(c, c.checkTypes)
+			compileStages(c, StageCheckTypes)
 			if tc.expectedError != nil {
 				if errors.Is(c.Errors, tc.expectedError) {
 					t.Fatal("Unexpected error:", err)

@@ -181,6 +181,83 @@ func TestAllStages(t *testing.T) {
 	}
 }
 
+func TestWithOnlyStagesUpToInternal(t *testing.T) {
+	tests := []struct {
+		name             string
+		target           StageID
+		expectedCount    int
+		shouldContain    []StageID
+		shouldNotContain []StageID
+	}{
+		{
+			name:          "up to SetRuleTree",
+			target:        StageSetRuleTree,
+			expectedCount: 8,
+			shouldContain: []StageID{
+				StageResolveRefs,
+				StageSetModuleTree,
+				StageSetRuleTree,
+			},
+			shouldNotContain: []StageID{
+				StageRewriteLocalVars,
+				StageBuildRuleIndices,
+			},
+		},
+		{
+			name:          "up to BuildRuleIndices",
+			target:        StageBuildRuleIndices,
+			expectedCount: 32, // includes "after" stage from init()
+			shouldContain: []StageID{
+				StageResolveRefs,
+				StageCheckTypes,
+				StageBuildRuleIndices,
+			},
+			shouldNotContain: []StageID{
+				StageBuildComprehensionIndices,
+				StageBuildRequiredCapabilities,
+			},
+		},
+		{
+			name:          "up to last stage",
+			target:        StageBuildRequiredCapabilities,
+			expectedCount: 34, // includes "after" stage from init()
+			shouldContain: []StageID{
+				StageResolveRefs,
+				StageBuildRequiredCapabilities,
+			},
+			shouldNotContain: []StageID{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := NewCompiler().withOnlyStagesUpTo(tc.target)
+			stages := c.StagesToRun()
+
+			if len(stages) != tc.expectedCount {
+				t.Errorf("expected %d stages, got %d", tc.expectedCount, len(stages))
+			}
+
+			stageMap := make(map[StageID]bool)
+			for _, s := range stages {
+				stageMap[s] = true
+			}
+
+			for _, expected := range tc.shouldContain {
+				if !stageMap[expected] {
+					t.Errorf("expected stage %q to be present", expected)
+				}
+			}
+
+			for _, notExpected := range tc.shouldNotContain {
+				if stageMap[notExpected] {
+					t.Errorf("expected stage %q to NOT be present", notExpected)
+				}
+			}
+		})
+	}
+}
+
 func TestCompilerStageSkippingWithAfterStages(t *testing.T) {
 	t.Run("after stages are included in plan", func(t *testing.T) {
 		c := NewCompiler()

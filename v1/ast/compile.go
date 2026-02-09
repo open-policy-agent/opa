@@ -518,6 +518,31 @@ func (c *Compiler) WithSkipStages(stages ...StageID) *Compiler {
 	return c
 }
 
+// withOnlyStagesUpTo configures the compiler to run only stages up to and
+// including the specified target stage. All stages after the target will be skipped.
+func (c *Compiler) withOnlyStagesUpTo(target StageID) *Compiler {
+	allStages := AllStages()
+	var skipStages []StageID
+	foundTarget := false
+
+	for _, stage := range allStages {
+		if stage == target {
+			foundTarget = true
+			continue
+		}
+		if foundTarget {
+			skipStages = append(skipStages, stage)
+		}
+	}
+
+	if !foundTarget {
+		// Target not found, don't skip anything
+		return c
+	}
+
+	return c.WithSkipStages(skipStages...)
+}
+
 // WithMetrics will set a metrics.Metrics and be used for profiling
 // the Compiler instance.
 func (c *Compiler) WithMetrics(metrics metrics.Metrics) *Compiler {
