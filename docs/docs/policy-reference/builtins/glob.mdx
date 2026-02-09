@@ -16,7 +16,7 @@ Common use cases for `glob.match` include:
 - Filtering resources based on naming conventions
 - Checking configuration keys against allowed patterns
 
-Delimiters must be **single characters**. Each delimiter in the array must be exactly one character long.
+Delimiters are used to split the input into segments for matching. Delimiters must be **single characters** for unambiguous parsing.
 
 ```rego title="Valid delimiters"
 glob.match("a:*", [":"], "a:b")          # => true
@@ -27,8 +27,6 @@ glob.match("a/b.c", ["/", "."], "a/b.c") # => true
 glob.match("a::*", ["::"], "a::b")   # => undefined
 glob.match("a:*", [""], "a:b")       # => undefined
 ```
-
-Delimiters are used to split the input into segments for matching. Each delimiter must be exactly one character to unambiguously identify segment boundaries. Using multi-character strings would create ambiguity in parsing.
 
 If you provide multi-character or empty delimiters, `glob.match` will return `undefined` (or an error with `--strict-builtin-errors` enabled).
 
@@ -44,9 +42,9 @@ Using `null` means no delimiters are used:
 glob.match("*hub.com", null, "api.cdn.github.com")  # => true
 ```
 
-<PlaygroundExample dir={require.context("../_examples/glob/single_delimiter")} />
+<PlaygroundExample dir={require.context("../_examples/glob/domain_matching")} />
 
-<PlaygroundExample dir={require.context("../_examples/glob/multiple_delimiters")} />
+<PlaygroundExample dir={require.context("../_examples/glob/image_matching")} />
 
 :::tip
 For performance considerations when using `glob.match`, see the [Policy Performance](../../policy-performance#glob-statements) guide.
