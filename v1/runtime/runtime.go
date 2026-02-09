@@ -93,33 +93,18 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 	registeredPlugins[name] = factory
 }
 
-// RegisterStorageBackend registers a custom storage backend builder with the
-// runtime package. This allows users to provide alternative storage implementations
-// beyond the built-in inmem and disk options.
+// RegisterStorageBackend registers a custom storage backend builder.
+// If registered, it will be used instead of the default inmem storage.
 //
-// This function enables CLI users to inject custom storage backends by creating
-// a custom main.go that registers their storage implementation before invoking
-// standard OPA commands.
-//
-// Example usage:
+// Example:
 //
 //	func init() {
 //	    runtime.RegisterStorageBackend(func(ctx context.Context, logger logging.Logger, registerer prometheus.Registerer, config []byte, id string) (storage.Store, error) {
-//	        // Initialize and return your custom storage implementation
 //	        return myCustomStore, nil
 //	    })
 //	}
 //
-// If a custom backend is registered, it will be used instead of the default inmem
-// or disk storage (unless params.StoreBuilder is explicitly set, which takes precedence).
-//
-// Resource cleanup: If your storage implementation needs to perform cleanup operations
-// (close connections, flush buffers, etc.), implement the storage.Closer interface.
-// The Close(context.Context) error method will be called automatically during
-// graceful shutdown of the OPA runtime.
-//
-// This function is thread-safe. Only one custom storage backend can be registered.
-// Calling this function multiple times will replace the previously registered backend.
+// Implement storage.Closer for resource cleanup during shutdown.
 func RegisterStorageBackend(builder StorageBackendBuilder) {
 	registeredStorageBackendMux.Lock()
 	defer registeredStorageBackendMux.Unlock()

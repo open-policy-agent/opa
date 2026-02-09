@@ -9,10 +9,6 @@ OPA provides multiple storage options to suit different deployment requirements 
 - **In-memory** (default): Fast, ephemeral storage suitable for most use cases
 - **Disk**: Persistent storage for datasets that exceed available memory
 
-## Custom Storage Backends
-
-For advanced use cases requiring integration with external data stores or specialized storage strategies, OPA supports custom storage backend registration. See the [Custom Storage Backends](./extensions#custom-storage-backends) section in the extensions documentation for details.
-
 ## Disk
 
 This page outlines configuration options relevant to using the disk storage

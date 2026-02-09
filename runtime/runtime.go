@@ -24,10 +24,8 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 // RegisterStorageBackend.
 type StorageBackendBuilder = v1.StorageBackendBuilder
 
-// RegisterStorageBackend registers a custom storage backend builder with the
-// runtime package. This allows users to provide alternative storage implementations
-// beyond the built-in inmem and disk options. See v1.RegisterStorageBackend for
-// detailed documentation and usage examples.
+// RegisterStorageBackend registers a custom storage backend builder.
+// This allows users to provide alternative storage implementations.
 func RegisterStorageBackend(builder StorageBackendBuilder) {
 	v1.RegisterStorageBackend(builder)
 }
