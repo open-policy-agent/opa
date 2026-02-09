@@ -92,7 +92,7 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	return &DefinitionQueryResult{Result: location}, nil
 }
 
-func (o *Oracle) compileUpto(stage string, modules map[string]*ast.Module, bs []byte, filename string) (*ast.Compiler, *ast.Module, error) {
+func (o *Oracle) compileUpto(stage ast.StageID, modules map[string]*ast.Module, bs []byte, filename string) (*ast.Compiler, *ast.Module, error) {
 	var compiler *ast.Compiler
 	if o.compiler != nil {
 		compiler = o.compiler
@@ -100,7 +100,7 @@ func (o *Oracle) compileUpto(stage string, modules map[string]*ast.Module, bs []
 		compiler = ast.NewCompiler()
 	}
 
-	compiler = compiler.WithStageAfter(stage, ast.CompilerStageDefinition{
+	compiler = compiler.WithStageAfterID(stage, ast.CompilerStageDefinition{
 		Name: "halt",
 		Stage: func(c *ast.Compiler) *ast.Error {
 			return &ast.Error{

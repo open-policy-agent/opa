@@ -173,6 +173,9 @@ type CompilerStage func(*Compiler) *Error
 type StageID string
 
 // Compiler stage identifiers.
+// Please use them when you depend on a compiler stage, like via  [ast.Compiler.WithStageAfterID].
+// There is no guarantee that they are stable across OPA versions, but using the identifiers
+// at least lets you know what your attention is needed when you depend on the stages.
 const (
 	StageResolveRefs                StageID = "ResolveRefs"
 	StageInitLocalVarGen            StageID = "InitLocalVarGen"
@@ -208,6 +211,9 @@ const (
 	StageBuildRuleIndices           StageID = "BuildRuleIndices"
 	StageBuildComprehensionIndices  StageID = "BuildComprehensionIndices"
 	StageBuildRequiredCapabilities  StageID = "BuildRequiredCapabilities"
+
+	// These only exist in the [ast.QueryCompiler]:
+	StageCheckSafety StageID = "CheckSafety"
 )
 
 // AllStages returns the complete list of compiler stages in execution order.
@@ -368,7 +374,13 @@ type QueryCompiler interface {
 
 	// WithStageAfter registers a stage to run during query compilation after
 	// the named stage.
+	//
+	// Deprecated: Use [ast.QueryCompiler.WithStageAfterID].
 	WithStageAfter(after string, stage QueryCompilerStageDefinition) QueryCompiler
+
+	// WithStageAfterID registers a stage to run during query compilation after
+	// the named stage.
+	WithStageAfterID(after StageID, stage QueryCompilerStageDefinition) QueryCompiler
 
 	// RewrittenVars maps generated vars in the compiled query to vars from the
 	// parsed query. For example, given the query "input := 1" the rewritten
@@ -394,7 +406,7 @@ type QueryCompilerStageDefinition struct {
 }
 
 type stage struct {
-	name       string
+	name       StageID
 	metricName string
 	f          func()
 }
@@ -423,43 +435,43 @@ func NewCompiler() *Compiler {
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
-		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
+		{StageResolveRefs, "compile_stage_resolve_refs", c.resolveAllRefs},
 		// The local variable generator must be initialized after references are
 		// resolved and the dynamic module loader has run but before subsequent
 		// stages that need to generate variables.
-		{"InitLocalVarGen", "compile_stage_init_local_var_gen", c.initLocalVarGen},
-		{"RewriteRuleHeadRefs", "compile_stage_rewrite_rule_head_refs", c.rewriteRuleHeadRefs},
-		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
-		{"CheckDuplicateImports", "compile_stage_check_imports", c.checkImports},
-		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
-		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
-		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree}, // depends on RewriteRuleHeadRefs
-		{"RewriteLocalVars", "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
-		{"RewriteTemplateStrings", "compile_stage_rewrite_template_strings", c.rewriteTemplateStrings},
-		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
-		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
-		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
-		{"ParseMetadataBlocks", "compile_stage_parse_metadata_blocks", c.parseMetadataBlocks},
-		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
-		{"RewriteRegoMetadataCalls", "compile_stage_rewrite_rego_metadata_calls", c.rewriteRegoMetadataCalls},
-		{"SetGraph", "compile_stage_set_graph", c.setGraph},
-		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
-		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
-		{"RewriteWithValues", "compile_stage_rewrite_with_values", c.rewriteWithModifiers},
-		{"CheckRuleConflicts", "compile_stage_check_rule_conflicts", c.checkRuleConflicts},
-		{"CheckUndefinedFuncs", "compile_stage_check_undefined_funcs", c.checkUndefinedFuncs},
-		{"CheckSafetyRuleHeads", "compile_stage_check_safety_rule_heads", c.checkSafetyRuleHeads},
-		{"CheckSafetyRuleBodies", "compile_stage_check_safety_rule_bodies", c.checkSafetyRuleBodies},
-		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
-		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
-		{"RewriteTestRulesForTracing", "compile_stage_rewrite_test_rules_for_tracing", c.rewriteTestRuleEqualities}, // must run after RewriteDynamicTerms
-		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
-		{"CheckTypes", "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
-		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
-		{"CheckDeprecatedBuiltins", "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
-		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},
-		{"BuildComprehensionIndices", "compile_stage_rebuild_comprehension_indices", c.buildComprehensionIndices},
-		{"BuildRequiredCapabilities", "compile_stage_build_required_capabilities", c.buildRequiredCapabilities},
+		{StageInitLocalVarGen, "compile_stage_init_local_var_gen", c.initLocalVarGen},
+		{StageRewriteRuleHeadRefs, "compile_stage_rewrite_rule_head_refs", c.rewriteRuleHeadRefs},
+		{StageCheckKeywordOverrides, "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
+		{StageCheckDuplicateImports, "compile_stage_check_imports", c.checkImports},
+		{StageRemoveImports, "compile_stage_remove_imports", c.removeImports},
+		{StageSetModuleTree, "compile_stage_set_module_tree", c.setModuleTree},
+		{StageSetRuleTree, "compile_stage_set_rule_tree", c.setRuleTree}, // depends on RewriteRuleHeadRefs
+		{StageRewriteLocalVars, "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
+		{StageRewriteTemplateStrings, "compile_stage_rewrite_template_strings", c.rewriteTemplateStrings},
+		{StageCheckVoidCalls, "compile_stage_check_void_calls", c.checkVoidCalls},
+		{StageRewritePrintCalls, "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
+		{StageRewriteExprTerms, "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
+		{StageParseMetadataBlocks, "compile_stage_parse_metadata_blocks", c.parseMetadataBlocks},
+		{StageSetAnnotationSet, "compile_stage_set_annotationset", c.setAnnotationSet},
+		{StageRewriteRegoMetadataCalls, "compile_stage_rewrite_rego_metadata_calls", c.rewriteRegoMetadataCalls},
+		{StageSetGraph, "compile_stage_set_graph", c.setGraph},
+		{StageRewriteComprehensionTerms, "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
+		{StageRewriteRefsInHead, "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
+		{StageRewriteWithValues, "compile_stage_rewrite_with_values", c.rewriteWithModifiers},
+		{StageCheckRuleConflicts, "compile_stage_check_rule_conflicts", c.checkRuleConflicts},
+		{StageCheckUndefinedFuncs, "compile_stage_check_undefined_funcs", c.checkUndefinedFuncs},
+		{StageCheckSafetyRuleHeads, "compile_stage_check_safety_rule_heads", c.checkSafetyRuleHeads},
+		{StageCheckSafetyRuleBodies, "compile_stage_check_safety_rule_bodies", c.checkSafetyRuleBodies},
+		{StageRewriteEquals, "compile_stage_rewrite_equals", c.rewriteEquals},
+		{StageRewriteDynamicTerms, "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
+		{StageRewriteTestRulesForTracing, "compile_stage_rewrite_test_rules_for_tracing", c.rewriteTestRuleEqualities}, // must run after RewriteDynamicTerms
+		{StageCheckRecursion, "compile_stage_check_recursion", c.checkRecursion},
+		{StageCheckTypes, "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
+		{StageCheckUnsafeBuiltins, "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
+		{StageCheckDeprecatedBuiltins, "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
+		{StageBuildRuleIndices, "compile_stage_rebuild_indices", c.buildRuleIndices},
+		{StageBuildComprehensionIndices, "compile_stage_rebuild_comprehension_indices", c.buildComprehensionIndices},
+		{StageBuildRequiredCapabilities, "compile_stage_build_required_capabilities", c.buildRequiredCapabilities},
 	}
 
 	return c
@@ -499,8 +511,18 @@ func (c *Compiler) WithPathConflictsCheckRoots(rootPaths []string) *Compiler {
 
 // WithStageAfter registers a stage to run during compilation after
 // the named stage.
+//
+// Deprecated: Use [ast.Compiler.WithStageAfterID] instead.
 func (c *Compiler) WithStageAfter(after string, stage CompilerStageDefinition) *Compiler {
 	c.after[after] = append(c.after[after], stage)
+	c.plan = nil // invalidate cached plan
+	return c
+}
+
+// WithStageAfterID registers a stage to run during compilation after
+// the identified stage.
+func (c *Compiler) WithStageAfterID(after StageID, stage CompilerStageDefinition) *Compiler {
+	c.after[string(after)] = append(c.after[string(after)], stage)
 	c.plan = nil // invalidate cached plan
 	return c
 }
@@ -1034,13 +1056,13 @@ func (c *Compiler) buildExecutionPlan() *executionPlan {
 	}
 
 	for _, s := range c.stages {
-		if _, skip := c.skipStages[StageID(s.name)]; skip {
+		if _, skip := c.skipStages[s.name]; skip {
 			continue
 		}
 
-		plan.stages = append(plan.stages, plannedStage(s))
+		plan.stages = append(plan.stages, plannedStage{name: string(s.name), metricName: s.metricName, f: s.f})
 
-		for _, a := range c.after[s.name] {
+		for _, a := range c.after[string(s.name)] {
 			if _, skip := c.skipStages[StageID(a.Name)]; skip {
 				continue
 			}
@@ -3356,6 +3378,11 @@ func (qc *queryCompiler) WithStageAfter(after string, stage QueryCompilerStageDe
 	return qc
 }
 
+func (qc *queryCompiler) WithStageAfterID(after StageID, stage QueryCompilerStageDefinition) QueryCompiler {
+	qc.after[string(after)] = append(qc.after[string(after)], stage)
+	return qc
+}
+
 func (qc *queryCompiler) WithUnsafeBuiltins(unsafe map[string]struct{}) QueryCompiler {
 	qc.unsafeBuiltins = unsafe
 	return qc
@@ -3391,7 +3418,7 @@ func (qc *queryCompiler) runStageAfter(metricName string, query Body, s QueryCom
 }
 
 type queryStage = struct {
-	name       string
+	name       StageID
 	metricName string
 	f          func(*QueryContext, Body) (Body, error)
 }
@@ -3404,21 +3431,21 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 	query = query.Copy()
 
 	stages := []queryStage{
-		{"CheckKeywordOverrides", "query_compile_stage_check_keyword_overrides", qc.checkKeywordOverrides},
-		{"ResolveRefs", "query_compile_stage_resolve_refs", qc.resolveRefs},
-		{"RewriteLocalVars", "query_compile_stage_rewrite_local_vars", qc.rewriteLocalVars},
-		{"RewriteTemplateStrings", "compile_stage_rewrite_template_strings", qc.rewriteTemplateStrings},
-		{"CheckVoidCalls", "query_compile_stage_check_void_calls", qc.checkVoidCalls},
-		{"RewritePrintCalls", "query_compile_stage_rewrite_print_calls", qc.rewritePrintCalls},
-		{"RewriteExprTerms", "query_compile_stage_rewrite_expr_terms", qc.rewriteExprTerms},
-		{"RewriteComprehensionTerms", "query_compile_stage_rewrite_comprehension_terms", qc.rewriteComprehensionTerms},
-		{"RewriteWithValues", "query_compile_stage_rewrite_with_values", qc.rewriteWithModifiers},
-		{"CheckUndefinedFuncs", "query_compile_stage_check_undefined_funcs", qc.checkUndefinedFuncs},
-		{"CheckSafety", "query_compile_stage_check_safety", qc.checkSafety},
-		{"RewriteDynamicTerms", "query_compile_stage_rewrite_dynamic_terms", qc.rewriteDynamicTerms},
-		{"CheckTypes", "query_compile_stage_check_types", qc.checkTypes},
-		{"CheckUnsafeBuiltins", "query_compile_stage_check_unsafe_builtins", qc.checkUnsafeBuiltins},
-		{"CheckDeprecatedBuiltins", "query_compile_stage_check_deprecated_builtins", qc.checkDeprecatedBuiltins},
+		{StageCheckKeywordOverrides, "query_compile_stage_check_keyword_overrides", qc.checkKeywordOverrides},
+		{StageResolveRefs, "query_compile_stage_resolve_refs", qc.resolveRefs},
+		{StageRewriteLocalVars, "query_compile_stage_rewrite_local_vars", qc.rewriteLocalVars},
+		{StageRewriteTemplateStrings, "compile_stage_rewrite_template_strings", qc.rewriteTemplateStrings},
+		{StageCheckVoidCalls, "query_compile_stage_check_void_calls", qc.checkVoidCalls},
+		{StageRewritePrintCalls, "query_compile_stage_rewrite_print_calls", qc.rewritePrintCalls},
+		{StageRewriteExprTerms, "query_compile_stage_rewrite_expr_terms", qc.rewriteExprTerms},
+		{StageRewriteComprehensionTerms, "query_compile_stage_rewrite_comprehension_terms", qc.rewriteComprehensionTerms},
+		{StageRewriteWithValues, "query_compile_stage_rewrite_with_values", qc.rewriteWithModifiers},
+		{StageCheckUndefinedFuncs, "query_compile_stage_check_undefined_funcs", qc.checkUndefinedFuncs},
+		{StageCheckSafety, "query_compile_stage_check_safety", qc.checkSafety},
+		{StageRewriteDynamicTerms, "query_compile_stage_rewrite_dynamic_terms", qc.rewriteDynamicTerms},
+		{StageCheckTypes, "query_compile_stage_check_types", qc.checkTypes},
+		{StageCheckUnsafeBuiltins, "query_compile_stage_check_unsafe_builtins", qc.checkUnsafeBuiltins},
+		{StageCheckDeprecatedBuiltins, "query_compile_stage_check_deprecated_builtins", qc.checkDeprecatedBuiltins},
 	}
 	if qc.compiler.evalMode == EvalModeTopdown {
 		stages = append(stages, queryStage{"BuildComprehensionIndex", "query_compile_stage_build_comprehension_index", qc.buildComprehensionIndices})
@@ -3432,7 +3459,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		if err != nil {
 			return nil, qc.applyErrorLimit(err)
 		}
-		for _, s := range qc.after[s.name] {
+		for _, s := range qc.after[string(s.name)] {
 			query, err = qc.runStageAfter(s.MetricName, query, s.Stage)
 			if err != nil {
 				return nil, qc.applyErrorLimit(err)
