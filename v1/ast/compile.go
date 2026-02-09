@@ -542,9 +542,9 @@ func (c *Compiler) WithSkipStages(stages ...StageID) *Compiler {
 	return c
 }
 
-// withOnlyStagesUpTo configures the compiler to run only stages up to and
+// WithOnlyStagesUpTo configures the compiler to run only stages up to and
 // including the specified target stage. All stages after the target will be skipped.
-func (c *Compiler) withOnlyStagesUpTo(target StageID) *Compiler {
+func (c *Compiler) WithOnlyStagesUpTo(target StageID) *Compiler {
 	allStages := AllStages()
 	i := slices.Index(allStages, target)
 	if i == -1 {

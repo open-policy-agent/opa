@@ -231,7 +231,7 @@ func TestWithOnlyStagesUpToInternal(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := NewCompiler().withOnlyStagesUpTo(tc.target)
+			c := NewCompiler().WithOnlyStagesUpTo(tc.target)
 			stages := c.StagesToRun()
 
 			if len(stages) != tc.expectedCount {

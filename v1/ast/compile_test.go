@@ -11487,22 +11487,18 @@ func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 func compileStages(c *Compiler, stageID StageID) {
 	c.init()
 
-	// Build sorted list from existing modules (required before stages run)
 	c.sorted = make([]string, 0, len(c.Modules))
 	for name := range c.Modules {
 		c.sorted = append(c.sorted, name)
 	}
 	sort.Strings(c.sorted)
 
-	// Tests need to see all errors, not just the first few
-	c.SetErrorLimit(0)
+	c = c.SetErrorLimit(0) // Tests need to see all errors, not just the first few
 
-	// Apply stage filtering if requested
 	if stageID != "" {
-		c.withOnlyStagesUpTo(stageID)
+		c = c.WithOnlyStagesUpTo(stageID)
 	}
 
-	// Run the compilation stages (InitLocalVarGen stage will set c.localvargen)
 	c.compile()
 }
 
