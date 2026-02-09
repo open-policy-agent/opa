@@ -524,9 +524,7 @@ func (c *Compiler) WithStageAfter(after string, stage CompilerStageDefinition) *
 // WithStageAfterID registers a stage to run during compilation after
 // the identified stage.
 func (c *Compiler) WithStageAfterID(after StageID, stage CompilerStageDefinition) *Compiler {
-	c.after[string(after)] = append(c.after[string(after)], stage)
-	c.plan = nil // invalidate cached plan
-	return c
+	return c.WithStageAfter(string(after), stage)
 }
 
 // WithSkipStages configures the compiler to skip the specified stages during
@@ -3381,8 +3379,7 @@ func (qc *queryCompiler) WithStageAfter(after string, stage QueryCompilerStageDe
 }
 
 func (qc *queryCompiler) WithStageAfterID(after StageID, stage QueryCompilerStageDefinition) QueryCompiler {
-	qc.after[string(after)] = append(qc.after[string(after)], stage)
-	return qc
+	return qc.WithStageAfter(string(after), stage)
 }
 
 func (qc *queryCompiler) WithUnsafeBuiltins(unsafe map[string]struct{}) QueryCompiler {
