@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD041 -->
+
 This example demonstrates when you need multiple delimiters.
 
 Docker image references use multiple separator characters. In this pattern:

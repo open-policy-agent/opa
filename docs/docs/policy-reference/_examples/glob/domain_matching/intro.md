@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD041 -->
+
 This example shows basic glob matching with a single delimiter.
 
 The pattern `app.*.com` matches domain names where:
