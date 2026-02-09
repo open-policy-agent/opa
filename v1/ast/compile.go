@@ -210,6 +210,46 @@ const (
 	StageBuildRequiredCapabilities  StageID = "BuildRequiredCapabilities"
 )
 
+// AllStages returns the complete list of compiler stages in execution order.
+func AllStages() []StageID {
+	return []StageID{
+		StageResolveRefs,
+		StageInitLocalVarGen,
+		StageRewriteRuleHeadRefs,
+		StageCheckKeywordOverrides,
+		StageCheckDuplicateImports,
+		StageRemoveImports,
+		StageSetModuleTree,
+		StageSetRuleTree,
+		StageRewriteLocalVars,
+		StageRewriteTemplateStrings,
+		StageCheckVoidCalls,
+		StageRewritePrintCalls,
+		StageRewriteExprTerms,
+		StageParseMetadataBlocks,
+		StageSetAnnotationSet,
+		StageRewriteRegoMetadataCalls,
+		StageSetGraph,
+		StageRewriteComprehensionTerms,
+		StageRewriteRefsInHead,
+		StageRewriteWithValues,
+		StageCheckRuleConflicts,
+		StageCheckUndefinedFuncs,
+		StageCheckSafetyRuleHeads,
+		StageCheckSafetyRuleBodies,
+		StageRewriteEquals,
+		StageRewriteDynamicTerms,
+		StageRewriteTestRulesForTracing,
+		StageCheckRecursion,
+		StageCheckTypes,
+		StageCheckUnsafeBuiltins,
+		StageCheckDeprecatedBuiltins,
+		StageBuildRuleIndices,
+		StageBuildComprehensionIndices,
+		StageBuildRequiredCapabilities,
+	}
+}
+
 // CompilerEvalMode allows toggling certain stages that are only
 // needed for certain modes, Concretely, only "topdown" mode will
 // have the compiler build comprehension and rule indices.

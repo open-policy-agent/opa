@@ -135,6 +135,52 @@ func TestCompilerStageSkippingWithEvalMode(t *testing.T) {
 	})
 }
 
+func TestAllStages(t *testing.T) {
+	allStages := AllStages()
+
+	if len(allStages) == 0 {
+		t.Fatal("AllStages() should return non-empty list")
+	}
+
+	// Check some expected stages are present
+	expectedStages := []StageID{
+		StageResolveRefs,
+		StageCheckTypes,
+		StageBuildRuleIndices,
+		StageBuildComprehensionIndices,
+	}
+
+	stageMap := make(map[StageID]bool)
+	for _, s := range allStages {
+		stageMap[s] = true
+	}
+
+	for _, expected := range expectedStages {
+		if !stageMap[expected] {
+			t.Errorf("expected stage %q to be in AllStages(), but it was not", expected)
+		}
+	}
+
+	// Verify AllStages matches what a compiler would run
+	c := NewCompiler()
+	c.Compile(map[string]*Module{})
+
+	planned := c.StagesToRun()
+	if len(allStages) != len(planned) {
+		t.Errorf("AllStages() returned %d stages but compiler plans to run %d stages", len(allStages), len(planned))
+	}
+
+	// Check that AllStages and planned stages match
+	for i, expected := range allStages {
+		if i >= len(planned) {
+			break
+		}
+		if expected != planned[i] {
+			t.Errorf("AllStages()[%d] = %q, but compiler plans to run %q", i, expected, planned[i])
+		}
+	}
+}
+
 func TestCompilerStageSkippingWithAfterStages(t *testing.T) {
 	t.Run("after stages are included in plan", func(t *testing.T) {
 		c := NewCompiler()
