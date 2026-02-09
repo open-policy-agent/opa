@@ -158,6 +158,8 @@ type Compiler struct {
 	evalMode                   CompilerEvalMode              //
 	rewriteTestRulesForTracing bool                          // rewrite test rules to capture dynamic values for tracing.
 	defaultRegoVersion         RegoVersion
+	skipStages                 map[StageID]struct{} // stages to skip during compilation
+	plan                       *executionPlan       // computed execution plan (cached)
 }
 
 func (c *Compiler) DefaultRegoVersion() RegoVersion {
@@ -166,6 +168,47 @@ func (c *Compiler) DefaultRegoVersion() RegoVersion {
 
 // CompilerStage defines the interface for stages in the compiler.
 type CompilerStage func(*Compiler) *Error
+
+// StageID uniquely identifies a compiler stage.
+type StageID string
+
+// Compiler stage identifiers.
+const (
+	StageResolveRefs                StageID = "ResolveRefs"
+	StageInitLocalVarGen            StageID = "InitLocalVarGen"
+	StageRewriteRuleHeadRefs        StageID = "RewriteRuleHeadRefs"
+	StageCheckKeywordOverrides      StageID = "CheckKeywordOverrides"
+	StageCheckDuplicateImports      StageID = "CheckDuplicateImports"
+	StageRemoveImports              StageID = "RemoveImports"
+	StageSetModuleTree              StageID = "SetModuleTree"
+	StageSetRuleTree                StageID = "SetRuleTree"
+	StageRewriteLocalVars           StageID = "RewriteLocalVars"
+	StageRewriteTemplateStrings     StageID = "RewriteTemplateStrings"
+	StageCheckVoidCalls             StageID = "CheckVoidCalls"
+	StageRewritePrintCalls          StageID = "RewritePrintCalls"
+	StageRewriteExprTerms           StageID = "RewriteExprTerms"
+	StageParseMetadataBlocks        StageID = "ParseMetadataBlocks"
+	StageSetAnnotationSet           StageID = "SetAnnotationSet"
+	StageRewriteRegoMetadataCalls   StageID = "RewriteRegoMetadataCalls"
+	StageSetGraph                   StageID = "SetGraph"
+	StageRewriteComprehensionTerms  StageID = "RewriteComprehensionTerms"
+	StageRewriteRefsInHead          StageID = "RewriteRefsInHead"
+	StageRewriteWithValues          StageID = "RewriteWithValues"
+	StageCheckRuleConflicts         StageID = "CheckRuleConflicts"
+	StageCheckUndefinedFuncs        StageID = "CheckUndefinedFuncs"
+	StageCheckSafetyRuleHeads       StageID = "CheckSafetyRuleHeads"
+	StageCheckSafetyRuleBodies      StageID = "CheckSafetyRuleBodies"
+	StageRewriteEquals              StageID = "RewriteEquals"
+	StageRewriteDynamicTerms        StageID = "RewriteDynamicTerms"
+	StageRewriteTestRulesForTracing StageID = "RewriteTestRulesForTracing"
+	StageCheckRecursion             StageID = "CheckRecursion"
+	StageCheckTypes                 StageID = "CheckTypes"
+	StageCheckUnsafeBuiltins        StageID = "CheckUnsafeBuiltins"
+	StageCheckDeprecatedBuiltins    StageID = "CheckDeprecatedBuiltins"
+	StageBuildRuleIndices           StageID = "BuildRuleIndices"
+	StageBuildComprehensionIndices  StageID = "BuildComprehensionIndices"
+	StageBuildRequiredCapabilities  StageID = "BuildRequiredCapabilities"
+)
 
 // CompilerEvalMode allows toggling certain stages that are only
 // needed for certain modes, Concretely, only "topdown" mode will
@@ -187,6 +230,18 @@ type CompilerStageDefinition struct {
 	Name       string
 	MetricName string
 	Stage      CompilerStage
+}
+
+// executionPlan represents the complete ordered list of stages to execute.
+type executionPlan struct {
+	stages []plannedStage
+}
+
+// plannedStage represents a single stage in the execution plan.
+type plannedStage struct {
+	name       string
+	metricName string
+	f          func()
 }
 
 // RulesOptions defines the options for retrieving rules by Ref from the
@@ -406,6 +461,20 @@ func (c *Compiler) WithPathConflictsCheckRoots(rootPaths []string) *Compiler {
 // the named stage.
 func (c *Compiler) WithStageAfter(after string, stage CompilerStageDefinition) *Compiler {
 	c.after[after] = append(c.after[after], stage)
+	c.plan = nil // invalidate cached plan
+	return c
+}
+
+// WithSkipStages configures the compiler to skip the specified stages during
+// compilation. This invalidates any cached execution plan.
+func (c *Compiler) WithSkipStages(stages ...StageID) *Compiler {
+	if c.skipStages == nil {
+		c.skipStages = make(map[StageID]struct{}, len(stages))
+	}
+	for _, s := range stages {
+		c.skipStages[s] = struct{}{}
+	}
+	c.plan = nil // invalidate cached plan
 	return c
 }
 
@@ -904,6 +973,61 @@ func (c *Compiler) WithModuleLoader(f ModuleLoader) *Compiler {
 func (c *Compiler) WithDefaultRegoVersion(regoVersion RegoVersion) *Compiler {
 	c.defaultRegoVersion = regoVersion
 	return c
+}
+
+// buildExecutionPlan creates the unified list of stages to execute, including
+// both main stages and "after" stages, with filtering applied.
+func (c *Compiler) buildExecutionPlan() *executionPlan {
+	plan := &executionPlan{
+		stages: make([]plannedStage, 0, len(c.stages)*2),
+	}
+
+	for _, s := range c.stages {
+		if _, skip := c.skipStages[StageID(s.name)]; skip {
+			continue
+		}
+
+		plan.stages = append(plan.stages, plannedStage(s))
+
+		for _, a := range c.after[s.name] {
+			if _, skip := c.skipStages[StageID(a.Name)]; skip {
+				continue
+			}
+
+			afterStage := a // Capture variables in closure properly
+			plan.stages = append(plan.stages, plannedStage{
+				name:       afterStage.Name,
+				metricName: afterStage.MetricName,
+				f: func() {
+					if err := c.runStageAfter(afterStage.MetricName, afterStage.Stage); err != nil {
+						c.err(err)
+					}
+				},
+			})
+		}
+	}
+
+	return plan
+}
+
+// getOrBuildPlan ensures we have a valid execution plan.
+func (c *Compiler) getOrBuildPlan() *executionPlan {
+	if c.plan == nil {
+		c.plan = c.buildExecutionPlan()
+	}
+	return c.plan
+}
+
+// StagesToRun returns the list of stage IDs that will be executed during
+// compilation, in execution order. This includes both main stages and any
+// registered "after" stages.
+func (c *Compiler) StagesToRun() []StageID {
+	plan := c.getOrBuildPlan()
+	result := make([]StageID, len(plan.stages))
+	for i, s := range plan.stages {
+		result[i] = StageID(s.name)
+	}
+	return result
 }
 
 func (c *Compiler) counterAdd(name string, n uint64) {
@@ -1676,27 +1800,12 @@ func (c *Compiler) runStageAfter(metricName string, s CompilerStage) *Error {
 }
 
 func (c *Compiler) compile() {
-	for _, s := range c.stages {
-		if c.evalMode == EvalModeIR {
-			switch s.name {
-			case "BuildRuleIndices", "BuildComprehensionIndices":
-				continue // skip these stages
-			}
-		}
+	plan := c.getOrBuildPlan()
 
-		if c.allowUndefinedFuncCalls && (s.name == "CheckUndefinedFuncs" || s.name == "CheckSafetyRuleBodies") {
-			continue
-		}
-
+	for _, s := range plan.stages {
 		c.runStage(s.metricName, s.f)
 		if c.Failed() {
 			return
-		}
-		for _, a := range c.after[s.name] {
-			if err := c.runStageAfter(a.MetricName, a.Stage); err != nil {
-				c.err(err)
-				return
-			}
 		}
 	}
 }
@@ -1765,6 +1874,14 @@ func (c *Compiler) init() {
 		WithSchemaSet(c.schemaSet).
 		WithInputType(c.inputType).
 		Env(c.builtins)
+
+	// Configure default stage skips based on existing configuration
+	if c.evalMode == EvalModeIR {
+		c.WithSkipStages(StageBuildRuleIndices, StageBuildComprehensionIndices)
+	}
+	if c.allowUndefinedFuncCalls {
+		c.WithSkipStages(StageCheckUndefinedFuncs, StageCheckSafetyRuleBodies)
+	}
 
 	c.initialized = true
 }
