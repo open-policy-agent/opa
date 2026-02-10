@@ -1,0 +1,80 @@
+{
+  "title": "OPA at KubeCon + CloudNativeCon Europe 2026",
+  "location": "Amsterdam, NL",
+  "startDate": "2026-03-24",
+  "endDate": "2026-03-26",
+  "banner": "2026-kubecon-eu.png",
+  "agenda": [
+    {
+      "day": "Monday",
+      "date": "March 23",
+      "items": [
+        {
+          "type": "session",
+          "sessionType": "lightning",
+          "title": "Project Lightning Talk: How To Add A New Language Feature To OPA",
+          "datetime": "10:20 - 10:25",
+          "room": "Elicium 2",
+          "speakers": [
+            {
+              "name": "Charlie Egan",
+              "title": "Maintainer"
+            }
+          ],
+          "link": "https://kccnceu2026.sched.com/event/2EFwy"
+        }
+      ]
+    },
+    {
+      "day": "Tuesday",
+      "date": "March 24",
+      "items": [
+        {
+          "type": "booth",
+          "location": "P-22B, Project Pavilion",
+          "hours": "10:45 – 19:00 (includes KubeCrawl + CloudNativeFest from 17:30 – 19:00)"
+        }
+      ]
+    },
+    {
+      "day": "Wednesday",
+      "date": "March 25",
+      "items": [
+        {
+          "type": "booth",
+          "location": "P-22B, Project Pavilion",
+          "hours": "10:45 – 17:20"
+        },
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "OPA Intro & Deep Dive",
+          "datetime": "14:15 - 14:45",
+          "room": "E103-105",
+          "speakers": [
+            {
+              "name": "Charlie Egan",
+              "title": "Maintainer"
+            },
+            {
+              "name": "Anders Eknert",
+              "title": "Maintainer"
+            }
+          ],
+          "link": "https://kccnceu2026.sched.com/event/2EF4m"
+        }
+      ]
+    },
+    {
+      "day": "Thursday",
+      "date": "March 26",
+      "items": [
+        {
+          "type": "booth",
+          "location": "P-22B, Project Pavilion",
+          "hours": "10:45 – 14:30"
+        }
+      ]
+    }
+  ]
+}

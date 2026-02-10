@@ -1,0 +1,20 @@
+.boothItem {
+    background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+    border: 1px solid var(--ifm-color-emphasis-300);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+}
+
+.boothDetails {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.boothDetailItem {
+    font-size: 0.95rem;
+}
+
+.boothDetailItem strong {
+    margin-right: 0.5rem;
+}

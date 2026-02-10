@@ -6,6 +6,7 @@ import fs from "fs/promises";
 const path = require("path");
 
 import { loadPages } from "./src/lib/ecosystem/loadPages.js";
+import { loadEvents } from "./src/lib/events/loadEvents.js";
 import { loadRules } from "./src/lib/projects/regal/loadRules.js";
 import { loadSurveyEventData, loadSurveyEventMetadata, loadSurveyQuestions } from "./src/lib/surveys/loadSurveyData.js";
 
@@ -445,6 +446,51 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
                   exact: true,
                   modules: {},
                   customData: { id: entry.id },
+                });
+              }),
+            );
+          },
+        };
+      },
+
+      async function eventsData(context, _options) {
+        return {
+          name: "events-data",
+
+          async loadContent() {
+            const events = await loadEvents(path.join(context.siteDir, "src/data/events/*.json"));
+            return { events };
+          },
+
+          async contentLoaded({ content, actions }) {
+            const { createData } = actions;
+            const { events } = content;
+
+            await createData("events.json", JSON.stringify(events, null, 2));
+          },
+        };
+      },
+
+      async function eventsPagesGen(context, _options) {
+        return {
+          name: "events-pages-gen",
+          async loadContent() {
+            const events = await loadEvents(path.join(context.siteDir, "src/data/events/*.json"));
+            return { events };
+          },
+
+          async contentLoaded({ content, actions }) {
+            const { events } = content;
+
+            await Promise.all(
+              Object.values(events).map(async (event) => {
+                const routePath = path.join(baseUrl, `/events/${event.id}`);
+                return actions.addRoute({
+                  path: routePath,
+                  component: require.resolve("./src/EventPage.jsx"),
+                  exact: true,
+                  modules: {},
+                  customData: { id: event.id },
                 });
               }),
             );
