@@ -1,0 +1,73 @@
+.card {
+    background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+    border: 1px solid var(--ifm-color-emphasis-300);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+[data-theme='dark'] .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.header {
+    margin-bottom: 1rem;
+}
+
+.title {
+    font-size: 1.1rem;
+    margin: 0;
+    color: var(--ifm-font-color-base);
+}
+
+.lightningIcon {
+    color: #f39c12;
+    width: 1.2rem;
+    height: 1.2rem;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0.25rem;
+}
+
+.details {
+    padding: 1rem;
+    background-color: var(--ifm-color-emphasis-100);
+    border-radius: 0.25rem;
+}
+
+[data-theme='dark'] .details {
+    background-color: var(--ifm-color-emphasis-200);
+}
+
+.detailItem {
+    margin: 0.5rem 0;
+    font-size: 0.95rem;
+}
+
+.detailItem:first-child {
+    margin-top: 0;
+}
+
+.detailItem:last-child {
+    margin-bottom: 0;
+}
+
+.detailItem strong {
+    color: var(--ifm-font-color-base);
+    margin-right: 0.5rem;
+}
+
+.inlineLink {
+    color: var(--ifm-color-primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.inlineLink:hover {
+    text-decoration: underline;
+}
