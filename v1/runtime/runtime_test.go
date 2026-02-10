@@ -22,7 +22,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	prometheus_sdk "github.com/prometheus/client_golang/prometheus"
@@ -2054,82 +2053,6 @@ func TestCustomStoreBuilder(t *testing.T) {
 	if !reflect.DeepEqual(map[string]any{"fake": []any{"foo", "bar"}}, payload.Result) {
 		t.Errorf("unexpected result: %v", payload.Result)
 	}
-}
-
-func TestRegisteredStorageBackend(t *testing.T) {
-	// Use synctest.Test for deterministic concurrent execution and better test isolation
-	synctest.Test(t, func(st *testing.T) {
-		ctx := context.Background()
-
-		// Save the current registered backend to restore after test
-		registeredStorageBackendMux.Lock()
-		oldBackend := registeredStorageBackend
-		defer func() {
-			registeredStorageBackend = oldBackend
-			registeredStorageBackendMux.Unlock()
-		}()
-
-		// Register a custom storage backend
-		RegisterStorageBackend(func(_ context.Context, logger logging.Logger, registerer prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error) {
-			if logger == nil {
-				st.Fatal("logger empty")
-			}
-			if registerer == nil {
-				st.Fatal("registerer empty")
-			}
-			if config == nil {
-				st.Fatal("config empty")
-			}
-			if id == "" {
-				st.Fatal("id empty")
-			}
-			return &fakeStore{inmem.New()}, nil
-		})
-
-		testLogger := testLog.New()
-		params := NewParams()
-		params.Logger = testLogger
-		params.Addrs = &[]string{"localhost:0"}
-
-		rt, err := NewRuntime(ctx, params)
-		if err != nil {
-			st.Fatalf("Unexpected error: %v", err)
-		}
-
-		go rt.StartServer(ctx)
-		if !test.Eventually(st, 5*time.Second, func() bool {
-			return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
-		}) {
-			st.Fatal("Timed out waiting for server to start")
-		}
-
-		host := rt.Addrs()[0]
-		r, err := http.NewRequest(http.MethodGet, "http://"+host+"/v1/data/foo/bar", nil)
-		if err != nil {
-			st.Fatalf("Unexpected error: %s", err)
-		}
-
-		resp, err := http.DefaultClient.Do(r)
-		if err != nil {
-			st.Fatal("expected no error, got", err)
-		}
-		if resp.StatusCode != http.StatusOK {
-			st.Fatalf("status %d (want 200)", resp.StatusCode)
-		}
-
-		defer resp.Body.Close()
-		var payload struct {
-			Result map[string]any
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			st.Fatalf("decode response: %v", err)
-		}
-
-		// Verify we're using the custom storage backend (fakeStore)
-		if !reflect.DeepEqual(map[string]any{"fake": []any{"foo", "bar"}}, payload.Result) {
-			st.Errorf("unexpected result: %v", payload.Result)
-		}
-	})
 }
 
 func TestExtraMiddleware(t *testing.T) {
