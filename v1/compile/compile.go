@@ -411,17 +411,11 @@ func (c *Compiler) Build(ctx context.Context) error {
 }
 
 func (c *Compiler) init() error {
-
 	if c.capabilities == nil {
 		c.capabilities = ast.CapabilitiesForThisVersion()
 	}
 
-	var found bool
-	if slices.Contains(Targets, c.target) {
-		found = true
-	}
-
-	if !found {
+	if !slices.Contains(Targets, c.target) {
 		return fmt.Errorf("invalid target %q", c.target)
 	}
 
