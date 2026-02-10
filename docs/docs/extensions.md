@@ -401,13 +401,6 @@ func main() {
 }
 ```
 
-Build and run:
-
-```bash
-go build -o opa-custom
-./opa-custom run --server
-```
-
 If your storage needs resource cleanup (close connections, flush buffers, etc.), implement the [`storage.Closer`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/storage#Closer) interface. The `Close()` method will be called during graceful shutdown
 
 ## Setting the OPA Runtime Version

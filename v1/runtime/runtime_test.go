@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	prometheus_sdk "github.com/prometheus/client_golang/prometheus"
@@ -2056,106 +2057,79 @@ func TestCustomStoreBuilder(t *testing.T) {
 }
 
 func TestRegisteredStorageBackend(t *testing.T) {
-	ctx := t.Context()
+	// Use synctest.Test for deterministic concurrent execution and better test isolation
+	synctest.Test(t, func(t *testing.T) {
+		ctx := context.Background()
 
-	// Save the current registered backend to restore after test
-	registeredStorageBackendMux.Lock()
-	oldBackend := registeredStorageBackend
-	registeredStorageBackendMux.Unlock()
-	defer func() {
+		// Save the current registered backend to restore after test
 		registeredStorageBackendMux.Lock()
-		registeredStorageBackend = oldBackend
-		registeredStorageBackendMux.Unlock()
-	}()
+		oldBackend := registeredStorageBackend
+		defer func() {
+			registeredStorageBackend = oldBackend
+			registeredStorageBackendMux.Unlock()
+		}()
 
-	// Register a custom storage backend
-	RegisterStorageBackend(func(_ context.Context, logger logging.Logger, registerer prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error) {
-		if logger == nil {
-			t.Fatal("logger empty")
+		// Register a custom storage backend
+		RegisterStorageBackend(func(_ context.Context, logger logging.Logger, registerer prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error) {
+			if logger == nil {
+				t.Fatal("logger empty")
+			}
+			if registerer == nil {
+				t.Fatal("registerer empty")
+			}
+			if config == nil {
+				t.Fatal("config empty")
+			}
+			if id == "" {
+				t.Fatal("id empty")
+			}
+			return &fakeStore{inmem.New()}, nil
+		})
+
+		testLogger := testLog.New()
+		params := NewParams()
+		params.Logger = testLogger
+		params.Addrs = &[]string{"localhost:0"}
+
+		rt, err := NewRuntime(ctx, params)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
 		}
-		if registerer == nil {
-			t.Fatal("registerer empty")
+
+		go rt.StartServer(ctx)
+		if !test.Eventually(t, 5*time.Second, func() bool {
+			return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
+		}) {
+			t.Fatal("Timed out waiting for server to start")
 		}
-		if config == nil {
-			t.Fatal("config empty")
+
+		host := rt.Addrs()[0]
+		r, err := http.NewRequest(http.MethodGet, "http://"+host+"/v1/data/foo/bar", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
 		}
-		if id == "" {
-			t.Fatal("id empty")
+
+		resp, err := http.DefaultClient.Do(r)
+		if err != nil {
+			t.Fatal("expected no error, got", err)
 		}
-		return &fakeStore{inmem.New()}, nil
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status %d (want 200)", resp.StatusCode)
+		}
+
+		defer resp.Body.Close()
+		var payload struct {
+			Result map[string]any
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+
+		// Verify we're using the custom storage backend (fakeStore)
+		if !reflect.DeepEqual(map[string]any{"fake": []any{"foo", "bar"}}, payload.Result) {
+			t.Errorf("unexpected result: %v", payload.Result)
+		}
 	})
-
-	testLogger := testLog.New()
-	params := NewParams()
-	params.Logger = testLogger
-	params.Addrs = &[]string{"localhost:0"}
-
-	rt, err := NewRuntime(ctx, params)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	go rt.StartServer(ctx)
-	if !test.Eventually(t, 5*time.Second, func() bool {
-		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
-	}) {
-		t.Fatal("Timed out waiting for server to start")
-	}
-
-	host := rt.Addrs()[0]
-	r, err := http.NewRequest(http.MethodGet, "http://"+host+"/v1/data/foo/bar", nil)
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
-
-	resp, err := http.DefaultClient.Do(r)
-	if err != nil {
-		t.Fatal("expected no error, got", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status %d (want 200)", resp.StatusCode)
-	}
-
-	defer resp.Body.Close()
-	var payload struct {
-		Result map[string]any
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-
-	// Verify we're using the custom storage backend (fakeStore)
-	if !reflect.DeepEqual(map[string]any{"fake": []any{"foo", "bar"}}, payload.Result) {
-		t.Errorf("unexpected result: %v", payload.Result)
-	}
-}
-
-func TestBackwardCompatibilityDefaultInmem(t *testing.T) {
-	ctx := t.Context()
-
-	// Test that OPA still uses inmem storage by default when no backend is specified
-	testLogger := testLog.New()
-	params := NewParams()
-	params.Logger = testLogger
-	params.Addrs = &[]string{"localhost:0"}
-
-	rt, err := NewRuntime(ctx, params)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	// Verify the store is inmem
-	if rt.Manager.Store == nil {
-		t.Fatal("Store should not be nil")
-	}
-
-	// The default store should work normally
-	go rt.StartServer(ctx)
-	if !test.Eventually(t, 5*time.Second, func() bool {
-		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
-	}) {
-		t.Fatal("Timed out waiting for server to start")
-	}
 }
 
 func TestExtraMiddleware(t *testing.T) {

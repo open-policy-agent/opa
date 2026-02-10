@@ -2,13 +2,6 @@
 title: Storage
 ---
 
-OPA provides multiple storage options to suit different deployment requirements and data scales.
-
-## Built-in Storage Options
-
-- **In-memory** (default): Fast, ephemeral storage suitable for most use cases
-- **Disk**: Persistent storage for datasets that exceed available memory
-
 ## Disk
 
 This page outlines configuration options relevant to using the disk storage

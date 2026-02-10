@@ -95,15 +95,6 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 
 // RegisterStorageBackend registers a custom storage backend builder.
 // If registered, it will be used instead of the default inmem storage.
-//
-// Example:
-//
-//	func init() {
-//	    runtime.RegisterStorageBackend(func(ctx context.Context, logger logging.Logger, registerer prometheus.Registerer, config []byte, id string) (storage.Store, error) {
-//	        return myCustomStore, nil
-//	    })
-//	}
-//
 // Implement storage.Closer for resource cleanup during shutdown.
 func RegisterStorageBackend(builder StorageBackendBuilder) {
 	registeredStorageBackendMux.Lock()
@@ -474,9 +465,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	// If no explicit StoreBuilder is set, check for a registered custom backend
 	if params.StoreBuilder == nil {
 		registeredStorageBackendMux.Lock()
-		if registeredStorageBackend != nil {
-			params.StoreBuilder = registeredStorageBackend
-		}
+		params.StoreBuilder = registeredStorageBackend
 		registeredStorageBackendMux.Unlock()
 	}
 
