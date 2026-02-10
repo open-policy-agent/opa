@@ -602,7 +602,7 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 			}
 			c := NewCompiler()
 			c.Modules = mods
-			compileStages(c, c.rewriteRuleHeadRefs)
+			compileStages(c, StageRewriteRuleHeadRefs)
 			if tc.err != "" {
 				assertCompilerErrorStrings(t, c, []string{tc.err})
 			} else {
@@ -738,7 +738,7 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 				c.Modules[strconv.Itoa(i)] = m
 				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
-			compileStages(c, c.setRuleTree)
+			compileStages(c, StageSetRuleTree)
 			if len(c.Errors) > 0 {
 				t.Fatal(c.Errors)
 			}
@@ -817,7 +817,7 @@ func TestRuleIndices(t *testing.T) {
 				c.Modules[strconv.Itoa(i)] = m
 				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
-			compileStages(c, c.buildRuleIndices)
+			compileStages(c, StageBuildRuleIndices)
 
 			for k, expIndex := range tc.exp {
 				kref := MustParseRef(k)
@@ -1543,7 +1543,7 @@ c.d.e[x5] if true
 f.g.h[y] = x6 if y := "y"
 i.j.k contains x7 if true
 `, popts)
-	compileStages(c, c.checkSafetyRuleHeads)
+	compileStages(c, StageCheckSafetyRuleHeads)
 
 	makeErrMsg := func(v string) string {
 		return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe", v)
@@ -1621,7 +1621,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 				`package test
 				p { %s }`, tc.body), opts)
 
-			compileStages(c, c.checkSafetyRuleBodies)
+			compileStages(c, StageCheckSafetyRuleBodies)
 
 			if c.Failed() {
 				t.Errorf("%v (#%d): Unexpected compilation error: %v", tc.note, i, c.Errors)
@@ -1703,7 +1703,7 @@ p if {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			c.Modules = map[string]*Module{"mod": tc.mod}
-			compileStages(c, c.checkSafetyRuleBodies)
+			compileStages(c, StageCheckSafetyRuleBodies)
 			assertNotFailed(t, c)
 			last := len(c.Modules["mod"].Rules) - 1
 			actual := c.Modules["mod"].Rules[last].Body
@@ -1797,7 +1797,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 				`, moduleBegin, tc.moduleContent), popts),
 			}
 
-			compileStages(c, c.checkSafetyRuleBodies)
+			compileStages(c, StageCheckSafetyRuleBodies)
 
 			// Get errors.
 			result := compilerErrsToStringSlice(c.Errors)
@@ -1867,7 +1867,7 @@ func TestCompilerCheckTypes(t *testing.T) {
 	c := NewCompiler()
 	modules := getCompilerTestModules()
 	c.Modules = map[string]*Module{"mod6": modules["mod6"], "mod7": modules["mod7"]}
-	compileStages(c, c.checkTypes)
+	compileStages(c, StageCheckTypes)
 	assertNotFailed(t, c)
 }
 
@@ -1882,7 +1882,7 @@ x if {
 		p == true
 	}
 }`)}
-	compileStages(c, c.checkTypes)
+	compileStages(c, StageCheckTypes)
 	assertNotFailed(t, c)
 }
 
@@ -1963,7 +1963,7 @@ p[r] := 2 if { r := "foo" }`,
 		return false, nil
 	})
 
-	compileStages(c, c.checkRuleConflicts)
+	compileStages(c, StageCheckRuleConflicts)
 
 	expected := []string{
 		"rego_compile_error: conflict check for data path badrules/existserr/p: unexpected error",
@@ -2010,7 +2010,7 @@ p if { true }`,
 		return false, nil
 	}).WithPathConflictsCheckRoots([]string{"badrules"})
 
-	compileStages(c, c.checkRuleConflicts)
+	compileStages(c, StageCheckRuleConflicts)
 
 	expected := []string{
 		"rego_compile_error: conflict check for data path badrules/existserr/p: unexpected error",
@@ -2045,7 +2045,7 @@ func TestCompilerCheckRuleConflictsDefaultFunction(t *testing.T) {
 			}
 			c := NewCompiler()
 			c.Modules = mods
-			compileStages(c, c.checkRuleConflicts)
+			compileStages(c, StageCheckRuleConflicts)
 			if tc.err != "" {
 				assertCompilerErrorStrings(t, c, []string{tc.err})
 			} else {
@@ -2291,7 +2291,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 			}
 			c := NewCompiler()
 			c.Modules = mods
-			compileStages(c, c.checkRuleConflicts)
+			compileStages(c, StageCheckRuleConflicts)
 			if tc.err != "" {
 				assertCompilerErrorStrings(t, c, []string{tc.err})
 			} else {
@@ -2357,7 +2357,7 @@ func TestCompilerCheckRulePkgConflicts(t *testing.T) {
 			}
 			c := NewCompiler()
 			c.Modules = mods
-			compileStages(c, c.checkRuleConflicts)
+			compileStages(c, StageCheckRuleConflicts)
 			if len(tc.err) > 0 {
 				assertCompilerErrorStrings(t, c, tc.err)
 			} else {
@@ -2808,7 +2808,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			compiler.Modules = map[string]*Module{
 				"test": MustParseModuleWithOpts(tc.module, opts),
 			}
-			compileStages(compiler, compiler.rewriteExprTerms)
+			compileStages(compiler, StageRewriteExprTerms)
 
 			switch exp := tc.expected.(type) {
 			case string:
@@ -2919,7 +2919,7 @@ p := [data() | data := 1]`,
 			compiler.Modules = map[string]*Module{
 				"test": MustParseModuleWithOpts(tc.module, opts),
 			}
-			compileStages(compiler, compiler.rewriteLocalVars)
+			compileStages(compiler, StageRewriteLocalVars)
 
 			result := make([]string, 0, len(compiler.Errors))
 			for i := range compiler.Errors {
@@ -3482,7 +3482,7 @@ func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocat
 			compiler.Modules = map[string]*Module{
 				"test": MustParseModuleWithOpts(tc.module, ParserOptions{RegoVersion: RegoV0}),
 			}
-			compileStages(compiler, nil)
+			compileStages(compiler, "")
 
 			if strict {
 				assertErrors(t, compiler.Errors, tc.expectedErrors, assertLocation)
@@ -4062,7 +4062,7 @@ func TestCompileRegoV1Import(t *testing.T) {
 					compiler.Modules[name] = parsed
 				}
 			}
-			compileStages(compiler, nil)
+			compileStages(compiler, "")
 			assertErrors(t, compiler.Errors, tc.expectedErrors, true)
 		})
 	}
@@ -4271,7 +4271,7 @@ p[foo[bar[i]]] := {"baz": baz} if { true }`)
 		this.is.dotted if { this_is_not }
 	`)
 
-	compileStages(c, c.resolveAllRefs)
+	compileStages(c, StageResolveRefs)
 	assertNotFailed(t, c)
 
 	// Basic test cases.
@@ -4431,7 +4431,7 @@ func TestCompilerResolveErrors(t *testing.T) {
 		`),
 	}
 
-	compileStages(c, c.resolveAllRefs)
+	compileStages(c, StageResolveRefs)
 
 	expected := []string{
 		`args must not shadow input`,
@@ -4650,7 +4650,7 @@ x.y.w contains bar[i] if true
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			c.Modules["head"] = tc.mod
-			compileStages(c, c.rewriteRefsInHead)
+			compileStages(c, StageRewriteRefsInHead)
 			assertNotFailed(t, c)
 			act := c.Modules["head"].Rules[0]
 			assertRulesEqual(t, act, tc.exp)
@@ -4732,7 +4732,7 @@ a.b.c contains x if x := input`, popts),
 			}
 			c := NewCompiler().WithCapabilities(caps)
 			c.Modules["test"] = tc.mod
-			compileStages(c, c.rewriteRefsInHead)
+			compileStages(c, StageRewriteRefsInHead)
 			if tc.err != "" {
 				assertErrorWithMessage(t, c.Errors, tc.err)
 			} else {
@@ -4978,7 +4978,7 @@ p = true if {
 			c.Modules = map[string]*Module{
 				"test.rego": module(tc.module),
 			}
-			compileStages(c, c.rewriteRegoMetadataCalls)
+			compileStages(c, StageRewriteRegoMetadataCalls)
 			assertNotFailed(t, c)
 
 			result := c.Modules["test.rego"]
@@ -5009,7 +5009,7 @@ p := self.metadata.chain(42)
 q := self.metadata.rule`),
 	}
 
-	compileStages(c, nil)
+	compileStages(c, "")
 	assertNotFailed(t, c)
 }
 
@@ -5528,7 +5528,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			c.Modules = map[string]*Module{
 				"test.rego": module(tc.module, setRegoVersion),
 			}
-			compileStages(c, c.rewriteLocalVars)
+			compileStages(c, StageRewriteLocalVars)
 			assertNotFailed(t, c)
 			result := c.Modules["test.rego"]
 			var exp *Module
@@ -5591,7 +5591,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 	arg_nested_redeclared({{arg_nested| arg_nested := 1; arg_nested := 2}}) if { true }
 	`)
 
-	compileStages(c, c.rewriteLocalVars)
+	compileStages(c, StageRewriteLocalVars)
 
 	expectedErrors := []string{
 		"var r1 referenced above",
@@ -5694,7 +5694,7 @@ func TestRewriteDeclaredVarsStage(t *testing.T) {
 				"test.rego": module(tc.module),
 			}
 
-			compileStages(c, c.rewriteLocalVars)
+			compileStages(c, StageRewriteLocalVars)
 
 			exp := module(tc.exp)
 			result := c.Modules["test.rego"]
@@ -6643,7 +6643,7 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 			compiler.Modules = map[string]*Module{
 				"test": module(tc.module),
 			}
-			compileStages(compiler, nil)
+			compileStages(compiler, "")
 
 			assertErrors(t, compiler.Errors, tc.expectedErrors, true)
 		})
@@ -6710,7 +6710,7 @@ func TestCompileUnusedAssignedVarsErrorLocations(t *testing.T) {
 			compiler.Modules = map[string]*Module{
 				"test": module(tc.module),
 			}
-			compileStages(compiler, nil)
+			compileStages(compiler, "")
 			assertErrors(t, compiler.Errors, tc.expectedErrors, true)
 		})
 	}
@@ -6813,7 +6813,7 @@ func TestCompileUnusedDeclaredVarsErrorLocations(t *testing.T) {
 			compiler.Modules = map[string]*Module{
 				"test": module(tc.module),
 			}
-			compileStages(compiler, nil)
+			compileStages(compiler, "")
 
 			assertErrors(t, compiler.Errors, tc.expectedErrors, true)
 		})
@@ -6850,17 +6850,8 @@ func TestCompileInvalidEqAssignExpr(t *testing.T) {
 					eq(1)
 				}`, ParserOptions{RegoVersion: tc.regoVersion, AllFutureKeywords: true})
 
-			var prev func()
-			checkUndefinedFuncs := reflect.ValueOf(c.checkUndefinedFuncs)
-
-			for _, stage := range c.stages {
-				if reflect.ValueOf(stage.f).Pointer() == checkUndefinedFuncs.Pointer() {
-					break
-				}
-				prev = stage.f
-			}
-
-			compileStages(c, prev)
+			// Run up to CheckRuleConflicts (the stage before CheckUndefinedFuncs)
+			compileStages(c, StageCheckRuleConflicts)
 			assertNotFailed(t, c)
 		})
 	}
@@ -6877,7 +6868,7 @@ func TestCompilerRewriteComprehensionTerm(t *testing.T) {
 	obj_comp = {x[i]: x[i] | arr2[j] = x}
 	`)
 
-	compileStages(c, c.rewriteComprehensionTerms)
+	compileStages(c, StageRewriteComprehensionTerms)
 	assertNotFailed(t, c)
 
 	arrCompRule := c.Modules["head"].Rules[2]
@@ -6945,7 +6936,7 @@ func TestCompilerRewriteDoubleEq(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			c.Modules["test"] = module("package test\n" + tc.input)
-			compileStages(c, c.rewriteEquals)
+			compileStages(c, StageRewriteEquals)
 			assertNotFailed(t, c)
 			exp := MustParseBody(tc.exp)
 			result := c.Modules["test"].Rules[0].Body
@@ -7003,7 +6994,7 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 			c := NewCompiler()
 			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			c.Modules["test"] = module(fixture + tc.input)
-			compileStages(c, c.rewriteDynamicTerms)
+			compileStages(c, StageRewriteDynamicTerms)
 			assertNotFailed(t, c)
 			expected := MustParseBodyWithOpts(tc.expected, opts)
 			result := c.Modules["test"].Rules[1].Body
@@ -7193,7 +7184,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 				c = tc.opts(c)
 			}
 			c.Modules["test"] = module(fixture + tc.input)
-			compileStages(c, c.rewriteWithModifiers)
+			compileStages(c, StageRewriteWithValues)
 			if tc.wantErr == nil {
 				assertNotFailed(t, c)
 				expected := tc.expectedRule
@@ -8944,7 +8935,7 @@ func TestCompilerMockVirtualDocumentPartially(t *testing.T) {
 	q = x if { p = x with p.a as 2 }
 	`)
 
-	compileStages(c, c.rewriteWithModifiers)
+	compileStages(c, StageRewriteWithValues)
 	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword cannot partially replace virtual document(s)"})
 }
 
@@ -9397,7 +9388,7 @@ func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
 			compiler.Modules = map[string]*Module{
 				"test": module(tc.module),
 			}
-			compileStages(compiler, compiler.rewriteLocalVars)
+			compileStages(compiler, StageRewriteLocalVars)
 
 			if strict {
 				assertErrors(t, compiler.Errors, tc.expectedErrors, false)
@@ -9434,7 +9425,7 @@ func TestCompilerSetGraph(t *testing.T) {
 	t if { false } else if { true }
 
 	`)
-	compileStages(c, c.setGraph)
+	compileStages(c, StageSetGraph)
 
 	assertNotFailed(t, c)
 
@@ -9546,7 +9537,7 @@ func TestGraphCycle(t *testing.T) {
 		"mod1": module(mod1),
 	}
 
-	compileStages(c, c.setGraph)
+	compileStages(c, StageSetGraph)
 	assertNotFailed(t, c)
 
 	_, ok := c.Graph.Sort()
@@ -9578,7 +9569,7 @@ func TestGraphCycle(t *testing.T) {
 		"elsekw": module(elsekw),
 	}
 
-	compileStages(c, c.setGraph)
+	compileStages(c, StageSetGraph)
 	assertNotFailed(t, c)
 
 	_, ok = c.Graph.Sort()
@@ -9694,7 +9685,7 @@ dataref = true if { data }`,
 		}`),
 	}
 
-	compileStages(c, c.checkRecursion)
+	compileStages(c, StageCheckRecursion)
 
 	makeRuleErrMsg := func(pkg, rule string, loop ...string) string {
 		l := make([]string, len(loop))
@@ -9780,7 +9771,7 @@ foo if {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			c.Modules = map[string]*Module{tc.note: tc.mod}
-			compileStages(c, c.checkRecursion)
+			compileStages(c, StageCheckRecursion)
 
 			result := compilerErrsToStringSlice(c.Errors)
 			expected := tc.err
@@ -9814,7 +9805,7 @@ final_allow if {
 }`
 	c := NewCompiler()
 	c.Modules = map[string]*Module{"test": module(policy)}
-	compileStages(c, c.checkRecursion)
+	compileStages(c, StageCheckRecursion)
 
 	expected := Errors{
 		&Error{Code: "rego_recursion_error", Message: "rule data.test.results.foo is recursive: data.test.results.foo -> data.test.final_allow -> data.test.results.foo"},
@@ -10026,7 +10017,7 @@ q["a"] = 1 if { true }
 q["b"] = 2 if { true }`,
 	})
 
-	compileStages(compiler, nil)
+	compileStages(compiler, "")
 
 	rule1 := compiler.Modules["mod1"].Rules[0]
 	rule2 := compiler.Modules["mod1"].Rules[1]
@@ -10080,7 +10071,7 @@ r5.baz = 7 if { input.y }
 `,
 	})
 
-	compileStages(compiler, nil)
+	compileStages(compiler, "")
 
 	rule1 := compiler.Modules["mod1"].Rules[0]
 	rule2d := compiler.Modules["mod2"].Rules[0]
@@ -11490,36 +11481,25 @@ func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 	return compiler
 }
 
-// helper function to run compiler upto given stage. If nil is provided, a
-// normal compile run is performed.
-func compileStages(c *Compiler, upto func()) {
-
+// compileStages is a helper function to run compiler up to a given stage.
+// If stageID is empty, a normal full compile run is performed.
+// This works directly on c.Modules that are already set by tests.
+func compileStages(c *Compiler, stageID StageID) {
 	c.init()
 
+	c.sorted = make([]string, 0, len(c.Modules))
 	for name := range c.Modules {
 		c.sorted = append(c.sorted, name)
 	}
-
-	c.localvargen = newLocalVarGeneratorForModuleSet(c.sorted, c.Modules)
-
 	sort.Strings(c.sorted)
-	c.SetErrorLimit(0)
 
-	if upto == nil {
-		c.compile()
-		return
+	c = c.SetErrorLimit(0) // Tests need to see all errors, not just the first few
+
+	if stageID != "" {
+		c = c.WithOnlyStagesUpTo(stageID)
 	}
 
-	target := reflect.ValueOf(upto)
-
-	for _, s := range c.stages {
-		if s.f(); c.Failed() {
-			return
-		}
-		if reflect.ValueOf(s.f).Pointer() == target.Pointer() {
-			break
-		}
-	}
+	c.compile()
 }
 
 func getCompilerTestModules() map[string]*Module {
@@ -12796,7 +12776,7 @@ test_something = true if {
 			c := getCompilerWithParsedModules(ms).
 				WithRewriteTestRules(tc.rewrite)
 
-			compileStages(c, c.rewriteTestRuleEqualities)
+			compileStages(c, StageRewriteTestRulesForTracing)
 			assertNotFailed(t, c)
 
 			result := c.Modules["test.rego"]

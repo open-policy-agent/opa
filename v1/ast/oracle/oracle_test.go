@@ -1047,17 +1047,6 @@ func TestCompileUptoNoBuffer(t *testing.T) {
 	}
 }
 
-func TestCompileUptoBadStageName(t *testing.T) {
-	t.Parallel()
-	_, _, err := New().compileUpto("DEADBEEF", map[string]*ast.Module{
-		"test.rego": ast.MustParseModule("package test\np=1"),
-	}, nil, "test.rego")
-
-	if err.Error() != "unreachable: did not halt" {
-		t.Fatal("expected halt error but got:", err)
-	}
-}
-
 func TestUsingCustomCompiler(t *testing.T) {
 	t.Parallel()
 	m := metrics.New()

@@ -92,7 +92,7 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	return &DefinitionQueryResult{Result: location}, nil
 }
 
-func (o *Oracle) compileUpto(stage string, modules map[string]*ast.Module, bs []byte, filename string) (*ast.Compiler, *ast.Module, error) {
+func (o *Oracle) compileUpto(stage ast.StageID, modules map[string]*ast.Module, bs []byte, filename string) (*ast.Compiler, *ast.Module, error) {
 	var compiler *ast.Compiler
 	if o.compiler != nil {
 		compiler = o.compiler
@@ -100,41 +100,30 @@ func (o *Oracle) compileUpto(stage string, modules map[string]*ast.Module, bs []
 		compiler = ast.NewCompiler()
 	}
 
-	compiler = compiler.WithStageAfter(stage, ast.CompilerStageDefinition{
-		Name: "halt",
-		Stage: func(c *ast.Compiler) *ast.Error {
-			return &ast.Error{
-				Code: "halt",
-			}
-		},
-	})
-
-	var module *ast.Module
-
-	if len(bs) > 0 {
-		var err error
-		module, err = ast.ParseModule(filename, util.ByteSliceToString(bs))
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		module = modules[filename]
+	if stage != "" {
+		compiler = compiler.WithOnlyStagesUpTo(stage)
 	}
 
 	if modules == nil {
 		modules = map[string]*ast.Module{}
 	}
 
+	var module *ast.Module
+	var err error
+
 	if len(bs) > 0 {
+		module, err = ast.ParseModule(filename, util.ByteSliceToString(bs))
+		if err != nil {
+			return nil, nil, err
+		}
 		modules[filename] = module
+	} else {
+		module = modules[filename]
 	}
 
 	compiler.Compile(modules)
-
-	if stage != "" {
-		if err := halted(compiler); err != nil {
-			return nil, nil, err
-		}
+	if compiler.Failed() {
+		return nil, nil, compiler.Errors
 	}
 
 	return compiler, module, nil
