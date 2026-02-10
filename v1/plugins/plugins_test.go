@@ -14,6 +14,7 @@ import (
 
 	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/storage/mock"
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
@@ -613,4 +614,118 @@ func (p prometheusRegisterMock) MustRegister(collector ...prom.Collector) {
 func (p prometheusRegisterMock) Unregister(collector prom.Collector) bool {
 	delete(p.Collectors, collector)
 	return true
+}
+
+// mockExternalSource is a simple implementation for testing
+type mockExternalSource struct {
+	refs  []ast.Ref
+	rules []*ast.Rule
+}
+
+func (m *mockExternalSource) Refs() []ast.Ref {
+	return m.refs
+}
+
+func (m *mockExternalSource) Init(context.Context, ast.Ref) (ast.ExternalRuleIndex, error) {
+	return &mockExternalIndex{rules: m.rules}, nil
+}
+
+type mockExternalIndex struct {
+	rules []*ast.Rule
+}
+
+func (*mockExternalIndex) Opts() *ast.ExternalSourceOptions {
+	return nil
+}
+
+func (m *mockExternalIndex) Lookup(context.Context, ...ast.LookupOption) ([]*ast.Rule, ast.ExternalRuleIndex, error) {
+	return m.rules, nil, nil
+}
+
+// testExternalSourcePlugin registers an external source during construction
+type testExternalSourcePlugin struct {
+	manager *Manager
+	started bool
+}
+
+func (p *testExternalSourcePlugin) Start(context.Context) error {
+	p.started = true
+	return nil
+}
+
+func (*testExternalSourcePlugin) Stop(context.Context) {}
+
+func (*testExternalSourcePlugin) Reconfigure(context.Context, any) {}
+
+// TestExternalSourceIntegration verifies external source behavior during plugin lifecycle
+func TestExternalSourceIntegration(t *testing.T) {
+	t.Run("sources wired after plugin start", func(t *testing.T) {
+		ctx := context.Background()
+		m, err := New([]byte(`{}`), "test", inmem.New())
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := m.Init(ctx); err != nil {
+			t.Fatalf("Failed to initialize manager: %v", err)
+		}
+
+		module := ast.MustParseModule(`package external.test
+test_rule := true`)
+		pkgRef := ast.MustParseRef("data.external.test")
+
+		source := &mockExternalSource{
+			refs:  []ast.Ref{pkgRef},
+			rules: module.Rules,
+		}
+
+		plugin := &testExternalSourcePlugin{manager: m}
+		m.Register("test_external_source", plugin)
+		m.RegisterExternalSource(pkgRef, source)
+
+		if len(m.GetExternalSources()) != 1 {
+			t.Fatalf("Expected 1 external source, got %d", len(m.GetExternalSources()))
+		}
+
+		if err := m.Start(ctx); err != nil {
+			t.Fatalf("Failed to start manager: %v", err)
+		}
+
+		if !plugin.started {
+			t.Fatal("Expected plugin to be started")
+		}
+
+		compiler := m.GetCompiler()
+		if compiler == nil || compiler.RuleTree == nil {
+			t.Fatal("Expected compiler with rule tree after Start()")
+		}
+	})
+
+	t.Run("no recompilation when no sources registered", func(t *testing.T) {
+		ctx := context.Background()
+		m, err := New([]byte(`{}`), "test", inmem.New())
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := m.Init(ctx); err != nil {
+			t.Fatalf("Failed to initialize manager: %v", err)
+		}
+
+		compilerBeforeStart := m.GetCompiler()
+		if compilerBeforeStart == nil {
+			t.Fatal("Expected compiler to be initialized after Init()")
+		}
+
+		plugin := &testPlugin{m: m}
+		m.Register("test_plugin", plugin)
+
+		if err := m.Start(ctx); err != nil {
+			t.Fatalf("Failed to start manager: %v", err)
+		}
+
+		if m.GetCompiler() != compilerBeforeStart {
+			t.Fatal("Expected compiler to remain the same when no external sources registered")
+		}
+	})
 }

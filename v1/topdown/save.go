@@ -357,7 +357,7 @@ func splitPackageAndRule(path ast.Ref) (ast.Ref, ast.Ref) {
 // being saved. This check allows the evaluator to evaluate statements
 // completely during partial evaluation as long as they do not depend on any
 // kind of unknown value or statements that would generate saves.
-func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, ss *saveSet, b *bindings, x any, rec bool) bool {
+func saveRequired(compilerTree *ast.TreeNode, extStack *externalTreeStack, ic *inliningControl, icIgnoreInternal bool, ss *saveSet, b *bindings, x any, rec bool) bool {
 
 	var found bool
 
@@ -389,8 +389,9 @@ func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, s
 				} else if ic.Disabled(v.ConstantPrefix(), icIgnoreInternal) {
 					found = true
 				} else {
-					for _, rule := range c.GetRulesDynamicWithOpts(v, ast.RulesOptions{IncludeHiddenModules: false}) {
-						if saveRequired(c, ic, icIgnoreInternal, ss, b, rule, true) {
+					rules := getRulesDynamic(compilerTree, extStack, v, ast.RulesOptions{IncludeHiddenModules: false})
+					for _, rule := range rules {
+						if saveRequired(compilerTree, extStack, ic, icIgnoreInternal, ss, b, rule, true) {
 							found = true
 							break
 						}
@@ -404,6 +405,76 @@ func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, s
 	vis.Walk(x)
 
 	return found
+}
+
+// getRulesDynamic looks up rules in both the compiler tree and external sources.
+func getRulesDynamic(compilerTree *ast.TreeNode, extStack *externalTreeStack, ref ast.Ref, opts ast.RulesOptions) []*ast.Rule {
+	var rules []*ast.Rule
+
+	// Check external trees
+	if extStack != nil {
+		for i := range extStack.entries {
+			entry := &extStack.entries[i]
+			if entry.tree != nil && ref.HasPrefix(entry.ref) {
+				// Navigate into the external tree using the remaining path
+				remaining := ref[len(entry.ref):]
+				rules = append(rules, getRulesFromTree(entry.tree, remaining, opts)...)
+			}
+		}
+	}
+
+	// Then check compiler tree
+	rules = append(rules, getRulesFromTree(compilerTree, ref, opts)...)
+
+	return rules
+}
+
+// getRulesFromTree walks a tree to find all rules matching the given ref.
+func getRulesFromTree(node *ast.TreeNode, ref ast.Ref, opts ast.RulesOptions) []*ast.Rule {
+	set := map[*ast.Rule]struct{}{}
+	var walk func(*ast.TreeNode, int)
+	walk = func(nav *ast.TreeNode, i int) {
+		switch {
+		case i >= len(ref):
+			nav.DepthFirst(func(descendant *ast.TreeNode) bool {
+				for _, rule := range descendant.Values {
+					set[rule] = struct{}{}
+				}
+				if opts.IncludeHiddenModules {
+					return false
+				}
+				return descendant.Hide
+			})
+
+		case i == 0 || ast.IsConstant(ref[i].Value):
+			if child := nav.Child(ref[i].Value); child != nil {
+				for _, rule := range child.Values {
+					set[rule] = struct{}{}
+				}
+				walk(child, i+1)
+			} else {
+				return
+			}
+
+		default:
+			for _, child := range nav.Children {
+				if child.Hide && !opts.IncludeHiddenModules {
+					continue
+				}
+				for _, rule := range child.Values {
+					set[rule] = struct{}{}
+				}
+				walk(child, i+1)
+			}
+		}
+	}
+
+	walk(node, 0)
+	rules := make([]*ast.Rule, 0, len(set))
+	for rule := range set {
+		rules = append(rules, rule)
+	}
+	return rules
 }
 
 func ignoreExprDuringPartial(expr *ast.Expr) bool {

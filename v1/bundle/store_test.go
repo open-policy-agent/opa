@@ -3714,7 +3714,7 @@ func testWriteData(t *testing.T, tc testWriteModuleCase, legacy bool) {
 			}
 		}
 
-		err := writeModules(t.Context(), mockStore, txn, compiler, metrics.NoOp(), tc.bundles, tc.extraMods, legacy)
+		err := writeModules(t.Context(), mockStore, txn, compiler, metrics.NoOp(), tc.bundles, tc.extraMods, legacy, nil)
 		if !tc.expectErr && err != nil {
 			t.Fatalf("unepected error: %s", err)
 		} else if tc.expectErr && err == nil {

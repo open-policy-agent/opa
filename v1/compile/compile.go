@@ -87,7 +87,8 @@ type Compiler struct {
 	fsys                         fs.FS                      // file system to use when loading paths
 	ns                           string
 	regoVersion                  ast.RegoVersion
-	followSymlinks               bool // optionally follow symlinks in the bundle directory when building the bundle
+	followSymlinks               bool      // optionally follow symlinks in the bundle directory when building the bundle
+	externalRefs                 []ast.Ref // external entrypoints provided dynamically
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -176,6 +177,12 @@ func (c *Compiler) WithDebug(sink io.Writer) *Compiler {
 // erased at compile-time.
 func (c *Compiler) WithEnablePrintStatements(yes bool) *Compiler {
 	c.enablePrintStatements = yes
+	return c
+}
+
+// WithExternalRefs sets the external entrypoints that are provided dynamically.
+func (c *Compiler) WithExternalRefs(refs []ast.Ref) *Compiler {
+	c.externalRefs = refs
 	return c
 }
 

@@ -819,14 +819,15 @@ func TestRuleIndices(t *testing.T) {
 				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
 			compileStages(c, StageBuildRuleIndices)
+			t.Log(c.RuleTree.Dump())
 
 			for k, expIndex := range tc.exp {
 				kref := MustParseRef(k)
-				node := c.RuleTree.Find(kref)
-				if node == nil || node.Index == nil {
+				i := c.RuleIndex(kref)
+				if i == nil {
 					t.Fatalf("expected rule indices for %v", k)
 				}
-				index := node.Index.(*baseDocEqIndex)
+				index := i.(*baseDocEqIndex)
 				for _, expRef := range expIndex {
 					found := false
 					for _, r := range index.root.rules {
@@ -1199,7 +1200,7 @@ func TestRuleTree(t *testing.T) {
 		t.Fatalf("Expected user.system node to be visible")
 	}
 
-	if !isVirtual(tree, MustParseRef("data.a.b.empty")) {
+	if !tree.isVirtual(MustParseRef("data.a.b.empty")) {
 		t.Fatal("Expected data.a.b.empty to be virtual")
 	}
 
