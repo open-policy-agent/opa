@@ -25,21 +25,22 @@ func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error
 
 func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
 	if filter == nil || filter.Len() == 0 {
-		var pathCopy *ast.Array
 		if path == nil {
-			pathCopy = ast.InternedEmptyArrayValue
+			if err := iter(ast.ArrayTerm(ast.NewTerm(ast.InternedEmptyArrayValue), input)); err != nil {
+				return err
+			}
 		} else {
 			// Shallow copy, as while the array is modified, the elements are not
-			pathCopy = copyShallow(path)
-		}
+			pathCopy := copyShallow(path)
 
-		// TODO(ae): I'd *really* like these terms to be retrieved from a sync.Pool, and
-		// returned after iter is called. However, all my atttempts to do this have failed
-		// as there seems to be something holding on to these references after the call,
-		// leading to modifications that entirely alter the results. Perhaps this is not
-		// possible to do, but if it is,it would be a huge performance win.
-		if err := iter(ast.ArrayTerm(ast.NewTerm(pathCopy), input)); err != nil {
-			return err
+			// TODO(ae): I'd *really* like these terms to be retrieved from a sync.Pool, and
+			// returned after iter is called. However, all my atttempts to do this have failed
+			// as there seems to be something holding on to these references after the call,
+			// leading to modifications that entirely alter the results. Perhaps this is not
+			// possible to do, but if it is,it would be a huge performance win.
+			if err := iter(ast.ArrayTerm(ast.NewTerm(pathCopy), input)); err != nil {
+				return err
+			}
 		}
 	}
 
