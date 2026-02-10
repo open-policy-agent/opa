@@ -19,17 +19,6 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 	v1.RegisterPlugin(name, factory)
 }
 
-// StorageBackendBuilder defines a function that creates a storage.Store instance.
-// This is the signature used for registering custom storage backends via
-// RegisterStorageBackend.
-type StorageBackendBuilder = v1.StorageBackendBuilder
-
-// RegisterStorageBackend registers a custom storage backend builder.
-// This allows users to provide alternative storage implementations.
-func RegisterStorageBackend(builder StorageBackendBuilder) {
-	v1.RegisterStorageBackend(builder)
-}
-
 // Params stores the configuration for an OPA instance.
 type Params = v1.Params
 

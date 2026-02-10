@@ -370,7 +370,7 @@ than the example documented.
 
 OPA's default in-memory storage can be replaced with custom implementations.
 
-Custom storage backends must implement the [`storage.Store`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/storage#Store) interface. Register your backend by calling [`runtime.RegisterStorageBackend`](https://pkg.go.dev/github.com/open-policy-agent/opa/runtime#RegisterStorageBackend) before OPA runtime initialization.
+Custom storage backends must implement the [`storage.Store`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/storage#Store) interface. Register your backend by calling [`v1/runtime.RegisterStorageBackend`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/runtime#RegisterStorageBackend) before OPA runtime initialization.
 
 ### Example
 
@@ -379,7 +379,7 @@ package main
 
 import (
     "github.com/open-policy-agent/opa/cmd"
-    "github.com/open-policy-agent/opa/runtime"
+    "github.com/open-policy-agent/opa/v1/runtime"
 )
 
 func init() {
