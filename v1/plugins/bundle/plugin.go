@@ -24,6 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/download"
+	"github.com/open-policy-agent/opa/v1/hooks"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
@@ -635,15 +636,26 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 
 		var activateErr error
 
+		// Call pre-activation hooks so plugins can inspect the bundle manifest
+		// and register external sources before compilation.
+		p.manager.Hooks().Each(func(h hooks.Hook) {
+			if f, ok := h.(hooks.BundlePreActivateHook); ok {
+				if err := f.OnBundlePreActivate(ctx, name, b.Manifest); err != nil {
+					p.log(name).Warn("Pre-activation hook failed: %v", err)
+				}
+			}
+		})
+
 		opts := &bundle.ActivateOpts{
-			Ctx:           ctx,
-			Store:         p.manager.Store,
-			Txn:           txn,
-			TxnCtx:        params.Context,
-			Compiler:      compiler,
-			Metrics:       p.status[name].Metrics,
-			Bundles:       map[string]*bundle.Bundle{name: b},
-			ParserOptions: p.manager.ParserOptions(),
+			Ctx:             ctx,
+			Store:           p.manager.Store,
+			Txn:             txn,
+			TxnCtx:          params.Context,
+			Compiler:        compiler,
+			Metrics:         p.status[name].Metrics,
+			Bundles:         map[string]*bundle.Bundle{name: b},
+			ExternalSources: p.manager.GetExternalSources(),
+			ParserOptions:   p.manager.ParserOptions(),
 		}
 
 		if p.manager.Info != nil {

@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/config"
 	topdown_cache "github.com/open-policy-agent/opa/v1/topdown/cache"
 )
@@ -42,6 +43,13 @@ func New(hs ...Hook) Hooks {
 		h.m[hs[i]] = struct{}{}
 	}
 	return h
+}
+
+func (hs *Hooks) Append(h Hook) {
+	if hs.m == nil {
+		hs.m = make(map[Hook]struct{})
+	}
+	hs.m[h] = struct{}{}
 }
 
 func (hs Hooks) Each(fn func(Hook)) {
@@ -82,13 +90,21 @@ type InterQueryValueCacheHook interface {
 	OnInterQueryValueCache(context.Context, topdown_cache.InterQueryValueCache) error
 }
 
+// BundlePreActivateHook is called before a bundle is activated and its policies
+// are compiled. This allows hooks to inspect the bundle manifest (e.g. metadata)
+// and register external rule sources that will be available during compilation.
+type BundlePreActivateHook interface {
+	OnBundlePreActivate(ctx context.Context, bundleName string, manifest bundle.Manifest) error
+}
+
 func (hs Hooks) Validate() error {
 	for h := range hs.m {
 		switch h.(type) {
 		case InterQueryCacheHook,
 			InterQueryValueCacheHook,
 			ConfigHook,
-			ConfigDiscoveryHook: // OK
+			ConfigDiscoveryHook,
+			BundlePreActivateHook: // OK
 		default:
 			return fmt.Errorf("unknown hook type %T", h)
 		}

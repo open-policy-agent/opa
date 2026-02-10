@@ -19,6 +19,7 @@ const (
 	evalOpComprehensionCacheBuild = "eval_op_comprehension_cache_build"
 	evalOpComprehensionCacheHit   = "eval_op_comprehension_cache_hit"
 	evalOpComprehensionCacheMiss  = "eval_op_comprehension_cache_miss"
+	evalOpExternalRuleSource      = "eval_op_external_rule_source"
 	partialOpSaveUnify            = "partial_op_save_unify"
 	partialOpSaveSetContains      = "partial_op_save_set_contains"
 	partialOpSaveSetContainsRec   = "partial_op_save_set_contains_rec"
