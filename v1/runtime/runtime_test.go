@@ -2058,7 +2058,7 @@ func TestCustomStoreBuilder(t *testing.T) {
 
 func TestRegisteredStorageBackend(t *testing.T) {
 	// Use synctest.Test for deterministic concurrent execution and better test isolation
-	synctest.Test(t, func(t *testing.T) {
+	synctest.Test(t, func(st *testing.T) {
 		ctx := context.Background()
 
 		// Save the current registered backend to restore after test
@@ -2072,16 +2072,16 @@ func TestRegisteredStorageBackend(t *testing.T) {
 		// Register a custom storage backend
 		RegisterStorageBackend(func(_ context.Context, logger logging.Logger, registerer prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error) {
 			if logger == nil {
-				t.Fatal("logger empty")
+				st.Fatal("logger empty")
 			}
 			if registerer == nil {
-				t.Fatal("registerer empty")
+				st.Fatal("registerer empty")
 			}
 			if config == nil {
-				t.Fatal("config empty")
+				st.Fatal("config empty")
 			}
 			if id == "" {
-				t.Fatal("id empty")
+				st.Fatal("id empty")
 			}
 			return &fakeStore{inmem.New()}, nil
 		})
@@ -2093,28 +2093,28 @@ func TestRegisteredStorageBackend(t *testing.T) {
 
 		rt, err := NewRuntime(ctx, params)
 		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
+			st.Fatalf("Unexpected error: %v", err)
 		}
 
 		go rt.StartServer(ctx)
-		if !test.Eventually(t, 5*time.Second, func() bool {
+		if !test.Eventually(st, 5*time.Second, func() bool {
 			return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
 		}) {
-			t.Fatal("Timed out waiting for server to start")
+			st.Fatal("Timed out waiting for server to start")
 		}
 
 		host := rt.Addrs()[0]
 		r, err := http.NewRequest(http.MethodGet, "http://"+host+"/v1/data/foo/bar", nil)
 		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
+			st.Fatalf("Unexpected error: %s", err)
 		}
 
 		resp, err := http.DefaultClient.Do(r)
 		if err != nil {
-			t.Fatal("expected no error, got", err)
+			st.Fatal("expected no error, got", err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("status %d (want 200)", resp.StatusCode)
+			st.Fatalf("status %d (want 200)", resp.StatusCode)
 		}
 
 		defer resp.Body.Close()
@@ -2122,12 +2122,12 @@ func TestRegisteredStorageBackend(t *testing.T) {
 			Result map[string]any
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode response: %v", err)
+			st.Fatalf("decode response: %v", err)
 		}
 
 		// Verify we're using the custom storage backend (fakeStore)
 		if !reflect.DeepEqual(map[string]any{"fake": []any{"foo", "bar"}}, payload.Result) {
-			t.Errorf("unexpected result: %v", payload.Result)
+			st.Errorf("unexpected result: %v", payload.Result)
 		}
 	})
 }
