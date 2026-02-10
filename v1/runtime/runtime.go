@@ -65,6 +65,9 @@ import (
 var (
 	registeredPlugins    map[string]plugins.Factory
 	registeredPluginsMux sync.Mutex
+
+	registeredStorageBackend    StorageBackendBuilder
+	registeredStorageBackendMux sync.Mutex
 )
 
 const (
@@ -74,6 +77,12 @@ const (
 	defaultLaterUploadInterval = 6 * time.Hour
 )
 
+// StorageBackendBuilder defines a function that creates a storage.Store instance.
+// This is the signature used for registering custom storage backends via
+// RegisterStorageBackend. The function receives the same parameters as the
+// StoreBuilder field in Params, allowing custom backends to initialize properly.
+type StorageBackendBuilder func(ctx context.Context, logger logging.Logger, registerer prometheus_sdk.Registerer, config []byte, id string) (storage.Store, error)
+
 // RegisterPlugin registers a plugin factory with the runtime
 // package. When the runtime is created, the factories are used to parse
 // plugin configuration and instantiate plugins. If no configuration is
@@ -82,6 +91,15 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 	registeredPluginsMux.Lock()
 	defer registeredPluginsMux.Unlock()
 	registeredPlugins[name] = factory
+}
+
+// RegisterStorageBackend registers a custom storage backend builder.
+// If registered, it will be used instead of the default inmem storage.
+// Implement storage.Closer for resource cleanup during shutdown.
+func RegisterStorageBackend(builder StorageBackendBuilder) {
+	registeredStorageBackendMux.Lock()
+	defer registeredStorageBackendMux.Unlock()
+	registeredStorageBackend = builder
 }
 
 // Params stores the configuration for an OPA instance.
@@ -442,6 +460,13 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parse disk store configuration: %w", err)
 		}
+	}
+
+	// If no explicit StoreBuilder is set, check for a registered custom backend
+	if params.StoreBuilder == nil {
+		registeredStorageBackendMux.Lock()
+		params.StoreBuilder = registeredStorageBackend
+		registeredStorageBackendMux.Unlock()
 	}
 
 	switch {
@@ -983,6 +1008,16 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
 		}
 	}
+
+	// Close storage if it implements the storage.Closer interface
+	if closer, ok := rt.Store.(storage.Closer); ok {
+		if err := closer.Close(ctx); err != nil {
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to close storage gracefully.")
+			return err
+		}
+		rt.logger.Debug("Storage closed.")
+	}
+
 	return nil
 }
 
