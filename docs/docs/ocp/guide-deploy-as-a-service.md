@@ -31,7 +31,7 @@ operational aspects.
 
 ## Complete manifest
 
-The complete manifest can be found [here](https://github.com/open-policy-agent/opa-control-plane/blob/main/docs/k8s-manifests.yaml).
+The complete manifest can be found [in the opa-control-plane repository](https://github.com/open-policy-agent/opa-control-plane/blob/main/docs/k8s-manifests.yaml).
 
 The rest of this section will just highlight portions of the full manifests to explain the concepts.
 
@@ -171,7 +171,7 @@ env:
 
 ## Shared Datasource
 
-One of the powerful concepts in OCP is the ability to share policies and data across multiple bundles. To do this we create another [source](./concepts.md#sources) for this and require it in the bundle. We will set up a http datasouce to share, but you could just as easily do this for rego. Full datasource configuration can be found [here](./concepts.md#sources), but for our purposes we will call out to httpbin using a bearer token (other authn can be found [here](./concepts.md#secrets)):
+One of the powerful concepts in OCP is the ability to share policies and data across multiple bundles. To do this we create another [source](./concepts.md#sources) for this and require it in the bundle. We will set up an HTTP datasource to share, but you could just as easily do this for rego. Full datasource configuration can be found [in the Concepts documentation](./concepts.md#sources), but for our purposes we will call out to httpbin using a bearer token (other authn can be found [in the Secrets section](./concepts.md#secrets)):
 
 ```yaml
 sources:

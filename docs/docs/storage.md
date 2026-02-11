@@ -117,7 +117,7 @@ Also note the `counter_disk_*` counters in the metrics:
 - `counter_disk_read_bytes`: bytes retrieved
 
 Suboptimal partition settings can be spotted when the amount of
-keys and bytes retrieved for a query is unproportional to the
+keys and bytes retrieved for a query is disproportional to the
 actual data returned: the query likely had to retrieve a giant
 JSON object, and most of it was thrown away.
 
@@ -143,7 +143,7 @@ sizes.
 Note that this process will iterate over all database keys.
 It only happens on startup, when debug logging is enabled.
 
-### Fine-tuning Badger settings (superflags)
+### Fine-tuning Badger settings (super flags)
 
 While partitioning should be the first thing to look into to tune the memory usage and
 performance of the on-disk storage engine, this configurable gives you the means to
@@ -153,15 +153,14 @@ change many internal aspects of how Badger uses memory and disk storage.
 To be used with care!
 
 Any of the Badger settings used by OPA can be overridden using this feature.
-There is no validation happening for configurables set using this flag.
+There is no validation happening for configurable options set using this flag.
 
-When the embedded Badger version changes, these configurables could change,
-too.
+When the embedded Badger version changes, these options could change too.
 :::
 
-The configurables correspond to Badger options that can be set on [the library's Options struct](https://pkg.go.dev/github.com/dgraph-io/badger/v3#Options).
+The configurable options correspond to Badger options that can be set on [the library's Options struct](https://pkg.go.dev/github.com/dgraph-io/badger/v3#Options).
 
-The following configurables can _not_ be overridden:
+The following options can _not_ be overridden:
 
 - `dir`
 - `valuedir`

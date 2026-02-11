@@ -54,19 +54,24 @@ download_regal() {
   curl --silent -L -o regal.zip "$url"
 }
 
-if [[ ! -e regal.zip ]]; then
-  download_regal
+if [[ -v REGAL_LOCAL_PATH && -d "$REGAL_LOCAL_PATH" ]]; then
+  echo "Using local Regal directory: $REGAL_LOCAL_PATH"
+  regal_docs_src="$REGAL_LOCAL_PATH/docs"
 else
-  echo "Using existing regal.zip"
+  if [[ ! -e regal.zip ]]; then
+    download_regal
+  else
+    echo "Using existing regal.zip"
+  fi
+
+  tempdir=$(mktemp -d)
+
+  unzip regal.zip -d "$tempdir" 2>&1 > /dev/null
+
+  mv $tempdir/*/* $tempdir
+
+  regal_docs_src="$tempdir/docs"
 fi
-
-tempdir=$(mktemp -d)
-
-unzip regal.zip -d "$tempdir" 2>&1 > /dev/null
-
-mv $tempdir/*/* $tempdir
-
-regal_docs_src="$tempdir/docs"
 regal_docs_dest="projects/regal"
 
 rm -rf "$regal_docs_dest"

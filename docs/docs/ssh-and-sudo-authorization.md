@@ -30,7 +30,7 @@ Furthermore, we'll assume we have the following set of users and hosts:
 Authentication (verifying user identity) is outside the scope of OPA's
 responsibility so this tutorial relies on identities being statically
 defined. In real-world scenarios authentication can be delegated to SSH itself
-(authorized_keys) or other identity management systems.
+(`authorized_keys`) or other identity management systems.
 
 Let's get started.
 
@@ -41,7 +41,7 @@ with OPA. The dummy SSH hosts are just containers running sshd inside.
 
 ## Steps
 
-### 1. Bootstrap the tutorial environment using Docker Compose.
+### 1. Bootstrap the tutorial environment using Docker Compose
 
 First, create a `tutorial-docker-compose.yaml` file that runs OPA and the containers that
 represent our backend and frontend hosts.
@@ -114,7 +114,7 @@ This tutorial uses a special Docker image named `openpolicyagent/demo-pam` to si
 This image contains pre-created Linux accounts for our users, and the required PAM module is
 pre-configured inside the `sudo` and `sshd` files in `/etc/pam.d/`.
 
-### 2. Create a Bundle for the policies and data.
+### 2. Create a Bundle for the policies and data
 
 In another terminal, create the policies and data that OPA will use to control access to the hosts.
 
@@ -168,7 +168,7 @@ default allow := false
 
 # Allow access to any user that has the "admin" role.
 allow if {
-	data.roles.admin[_] == input.sysinfo.pam_username
+    data.roles.admin[_] == input.sysinfo.pam_username
 }
 
 # Allow access to any user who contributed to the code running on the host.
@@ -180,12 +180,12 @@ allow if {
 # It then compares all the contributors for that host against the username
 # that is asking for authorization.
 allow if {
-	hosts[pull_responses.files["/etc/host_identity.json"].host_id].contributors[_] == sysinfo.pam_username
+    hosts[pull_responses.files["/etc/host_identity.json"].host_id].contributors[_] == sysinfo.pam_username
 }
 
 # If the user is not authorized, then include an error message in the response.
 errors contains "Request denied by administrative policy" if {
-	not allow
+    not allow
 }
 ```
 
@@ -201,12 +201,12 @@ default allow := false
 
 # Allow access to any user that has the "admin" role.
 allow if {
-	data.roles.admin[_] == input.sysinfo.pam_username
+    data.roles.admin[_] == input.sysinfo.pam_username
 }
 
 # If the user is not authorized, then include an error message in the response.
 errors contains "Request denied by administrative policy" if {
-	not allow
+    not allow
 }
 ```
 
@@ -267,7 +267,7 @@ Now you should have the following file structure setup.
 │   │   └── data.json
 ```
 
-### 3. SSH and sudo as a user with the `admin` role.
+### 3. SSH and sudo as a user with the `admin` role
 
 First, let's try to access the hosts as the `ops` user. Recall, the `ops` user
 has been granted the `admin` role (via the `PUT /data/roles` request above) and
@@ -289,7 +289,7 @@ You can disable verbose logging by changing the `log_level` argument in the PAM
 configuration. For more details see
 [this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_opa/pam#configuration).
 
-### 4. SSH as a user without the `admin` role.
+### 4. SSH as a user without the `admin` role
 
 Let's try a user without the admin role. Recall, that a non-admin user can SSH
 into any host that they have _contributed to_.
@@ -313,7 +313,7 @@ ssh -p 2223 frontend-dev@localhost \
   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 ```
 
-### 5. Elevate a user's rights through policy.
+### 5. Elevate a user's rights through policy
 
 Suppose you have a ticketing system for elevation, where you generate tickets for users
 that need elevated rights, send the ticket to the user, and expire those tickets when
@@ -369,7 +369,7 @@ import input.sysinfo
 # Allow this user if the elevation ticket they provided matches our mock API
 # of an internal elevation system.
 allow if {
-	elevate.tickets[sysinfo.pam_username] == display_responses.ticket
+    elevate.tickets[sysinfo.pam_username] == display_responses.ticket
 }
 ```
 
@@ -394,7 +394,7 @@ This happens because the _display_ policy is shared by the PAM configurations of
 In production, it is more practical to use separate policy packages for each PAM configuration.
 
 We have not defined the SSH _authz_ policy to work with elevation, so you can enter any value
-into the prompt that comes up for for SSH.
+into the prompt that comes up for SSH.
 
 For `sudo`, enter the ticket number `1234` to get access.
 

@@ -4,6 +4,8 @@ sidebar_position: 1
 title: Java
 ---
 
+# Java and Rego Language Comparison
+
 <!-- markdownlint-disable MD044 -->
 
 import SideBySideLanguageComparison from "@site/src/components/SideBySideLanguageComparison";
@@ -11,8 +13,6 @@ import SideBySideLanguageComparison from "@site/src/components/SideBySideLanguag
 import { Ex1Title, Ex1Intro, Ex1Outro, Ex1Java, Ex1Rego } from './ex1.js';
 import { Ex2Title, Ex2Intro, Ex2Java, Ex2Rego } from './ex2.js';
 import { Ex3Title, Ex3Intro, Ex3Java, Ex3Rego } from './ex3.js';
-
-# Java and Rego Language Comparison
 
 Java is a general purpose programming language that is commonly used for
 building web services, APIs and enterprise business applications.

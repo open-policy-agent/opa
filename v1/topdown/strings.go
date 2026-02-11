@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -573,30 +572,29 @@ func builtinReplaceN(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	if err != nil {
 		return err
 	}
-	keys := patterns.Keys()
-	sort.Slice(keys, func(i, j int) bool { return ast.Compare(keys[i].Value, keys[j].Value) < 0 })
 
 	s, err := builtins.StringOperand(operands[1].Value, 2)
 	if err != nil {
 		return err
 	}
 
-	oldnewArr := make([]string, 0, len(keys)*2)
+	keys := util.SortedFunc(patterns.Keys(), ast.TermValueCompare)
+	pairs := make([]string, 0, len(keys)*2)
+
 	for _, k := range keys {
 		keyVal, ok := k.Value.(ast.String)
 		if !ok {
 			return builtins.NewOperandErr(1, "non-string key found in pattern object")
 		}
-		val := patterns.Get(k) // cannot be nil
-		strVal, ok := val.Value.(ast.String)
+		strVal, ok := patterns.Get(k).Value.(ast.String)
 		if !ok {
 			return builtins.NewOperandErr(1, "non-string value found in pattern object")
 		}
-		oldnewArr = append(oldnewArr, string(keyVal), string(strVal))
+		pairs = append(pairs, string(keyVal), string(strVal))
 	}
 
 	sink := newSink(ast.ReplaceN.Name, len(s), bctx.Cancel)
-	replacer := strings.NewReplacer(oldnewArr...)
+	replacer := strings.NewReplacer(pairs...)
 	if _, err := replacer.WriteString(sink, string(s)); err != nil {
 		return err
 	}

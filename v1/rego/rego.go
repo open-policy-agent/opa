@@ -27,7 +27,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/loader/filter"
 	"github.com/open-policy-agent/opa/v1/metrics"
-	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/resolver"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
@@ -666,8 +665,6 @@ type Rego struct {
 	enablePrintStatements       bool
 	distributedTracingOpts      tracing.Options
 	strict                      bool
-	pluginMgr                   *plugins.Manager
-	plugins                     []TargetPlugin
 	targetPrepState             TargetPluginEval
 	regoVersion                 ast.RegoVersion
 	compilerHook                func(*ast.Compiler)
@@ -1426,15 +1423,6 @@ func New(options ...func(r *Rego)) *Rego {
 
 	if r.generateJSON == nil {
 		r.generateJSON = generateJSON
-	}
-
-	if r.pluginMgr != nil {
-		for _, pluginName := range r.pluginMgr.Plugins() {
-			p := r.pluginMgr.Plugin(pluginName)
-			if p0, ok := p.(TargetPlugin); ok {
-				r.plugins = append(r.plugins, p0)
-			}
-		}
 	}
 
 	if t := r.targetPlugin(r.target); t != nil {
@@ -2241,7 +2229,7 @@ func (r *Rego) compileQuery(query ast.Body, imports []*ast.Import, _ metrics.Met
 		WithStrict(false)
 
 	for _, extra := range extras {
-		qc = qc.WithStageAfter(extra.after, extra.stage)
+		qc = qc.WithStageAfterID(extra.after, extra.stage)
 	}
 
 	compiled, err := qc.Compile(query)
@@ -2889,7 +2877,7 @@ func (m rawModule) ParseWithOpts(opts ast.ParserOptions) (*ast.Module, error) {
 }
 
 type extraStage struct {
-	after string
+	after ast.StageID
 	stage ast.QueryCompilerStageDefinition
 }
 

@@ -2792,7 +2792,7 @@ func stringPathToRef(s string) (ast.Ref, error) {
 		if err != nil {
 			r = append(r, ast.StringTerm(x))
 		} else {
-			r = append(r, ast.IntNumberTerm(i))
+			r = append(r, ast.InternedTerm(i))
 		}
 	}
 	return r, nil

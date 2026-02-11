@@ -516,9 +516,9 @@ package system
 import data.kubernetes.admission
 
 main := {
-	"apiVersion": "admission.k8s.io/v1",
-	"kind": "AdmissionReview",
-	"response": response,
+    "apiVersion": "admission.k8s.io/v1",
+    "kind": "AdmissionReview",
+    "response": response,
 }
 
 default uid := ""
@@ -526,12 +526,12 @@ default uid := ""
 uid := input.request.uid
 
 response := {
-	"allowed": false,
-	"uid": uid,
-	"status": {"message": reason},
+    "allowed": false,
+    "uid": uid,
+    "status": {"message": reason},
 } if {
-	reason := concat(", ", admission.deny)
-	reason != ""
+    reason := concat(", ", admission.deny)
+    reason != ""
 }
 
 else := {"allowed": true, "uid": uid}

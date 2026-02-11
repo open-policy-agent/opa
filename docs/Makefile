@@ -48,3 +48,15 @@ lint:
 .PHONY: lint-check
 lint-check:
 	npx eslint .
+
+.PHONY: markdownlint
+markdownlint:
+	npx markdownlint-cli2 --fix
+
+.PHONY: markdownlint-check
+markdownlint-check:
+	npx markdownlint-cli2
+
+.PHONY: spell-check
+spell-check:
+	vale --config=.vale.ini .

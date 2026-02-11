@@ -18,7 +18,7 @@ my_rule contains value if {
 }
 ```
 
-However, there some some different ways to use `contains` in a policy which are covered
+However, there are some different ways to use `contains` in a policy which are covered
 in the examples below.
 
 :::note

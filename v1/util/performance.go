@@ -161,7 +161,6 @@ func (sp *SlicePool[T]) Get(length int) *[]T {
 	clear(d)
 
 	*s = d
-
 	return s
 }
 
@@ -170,4 +169,10 @@ func (sp *SlicePool[T]) Put(s *[]T) {
 	if s != nil {
 		sp.pool.Put(s)
 	}
+}
+
+// SortedFunc is simply a shorthand for [slices.SortFunc] which also returns the sorted slice.
+func SortedFunc[T any, S ~[]T](s S, cmp func(a, b T) int) S {
+	slices.SortFunc(s, cmp)
+	return s
 }

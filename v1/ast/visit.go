@@ -41,12 +41,13 @@ type (
 
 	// VarVisitorParams contains settings for a VarVisitor.
 	VarVisitorParams struct {
-		SkipRefHead     bool
-		SkipRefCallHead bool
-		SkipObjectKeys  bool
-		SkipClosures    bool
-		SkipWithTarget  bool
-		SkipSets        bool
+		SkipRefHead         bool
+		SkipRefCallHead     bool
+		SkipObjectKeys      bool
+		SkipClosures        bool
+		SkipWithTarget      bool
+		SkipSets            bool
+		SkipTemplateStrings bool
 	}
 
 	// Visitor defines the interface for iterating AST elements. The Visit function
@@ -867,6 +868,11 @@ func (vis *VarVisitor) visit(v any) bool {
 			} else {
 				vis.Walk(v.Value)
 			}
+			return true
+		}
+	}
+	if vis.params.SkipTemplateStrings {
+		if _, ok := v.(*TemplateString); ok {
 			return true
 		}
 	}

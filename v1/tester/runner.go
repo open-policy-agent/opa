@@ -457,13 +457,13 @@ func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enab
 	}
 
 	// rewrite duplicate test_* rule names as we compile modules
-	r.compiler.WithStageAfter("RewriteRuleHeadRefs", ast.CompilerStageDefinition{
+	r.compiler.WithStageAfterID(ast.StageRewriteRuleHeadRefs, ast.CompilerStageDefinition{
 		Name:       "RewriteDuplicateTestNames",
 		MetricName: "rewrite_duplicate_test_names",
 		Stage:      rewriteDuplicateTestNames,
 	})
 
-	r.compiler.WithStageAfter("RewriteLocalVars", ast.CompilerStageDefinition{
+	r.compiler.WithStageAfterID(ast.StageRewriteLocalVars, ast.CompilerStageDefinition{
 		Name:       "InjectTestCaseFunc",
 		MetricName: "inject_test_case_func",
 		Stage:      injectTestCaseFunc,

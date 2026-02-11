@@ -3,7 +3,7 @@ sidebar_label: match error
 image: /img/opa-errors.png
 ---
 
-# rego_type_error: match error
+# `rego_type_error`: match error
 
 Just like the category suggests, this error is emitted by the _type checker_ during the compilation stage. This error
 is commonly triggered by comparing two values of different types, like a string and an integer (`"1" == 1`). In order
@@ -35,8 +35,8 @@ The error message reported will include the types compared in the match error:
 
 ```txt
 1 error occurred: policy.rego:5: rego_type_error: match error
-	left  : number
-	right : string
+    left  : number
+    right : string
 ```
 
 Some cases are more tricky however, and even comparison between two values of the same "simple" type can render a match
@@ -57,8 +57,8 @@ We're clearly comparing two objects, so should this really be a match error? The
 
 ```txt
 1 error occurred: policy.rego:8: rego_type_error: match error
-	left  : object<age: number, name: string>
-	right : object<name: string>
+    left  : object<age: number, name: string>
+    right : object<name: string>
 ```
 
 The reason for this is that while we may have objects on both sides, the type checker compares _recursively_. In doing

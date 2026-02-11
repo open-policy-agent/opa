@@ -649,11 +649,11 @@ package example.logical_or
 default shell_accessible := false
 
 shell_accessible if {
-	input.servers[_].protocols[_] == "telnet"
+    input.servers[_].protocols[_] == "telnet"
 }
 
 shell_accessible if {
-	input.servers[_].protocols[_] == "ssh"
+    input.servers[_].protocols[_] == "ssh"
 }
 ```
 
@@ -673,13 +673,13 @@ could be modified to generate a set of servers that expose `"telnet"` or
 package example.logical_or
 
 shell_accessible contains server.id if {
-	server := input.servers[_]
-	server.protocols[_] == "telnet"
+    server := input.servers[_]
+    server.protocols[_] == "telnet"
 }
 
 shell_accessible contains server.id if {
-	server := input.servers[_]
-	server.protocols[_] == "ssh"
+    server := input.servers[_]
+    server.protocols[_] == "ssh"
 }
 ```
 
@@ -1209,45 +1209,45 @@ evaluates policies and outputs the result:
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log"
-	"os"
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    "os"
 
-	"github.com/open-policy-agent/opa/v1/rego"
+    "github.com/open-policy-agent/opa/v1/rego"
 )
 
 func main() {
-	ctx := context.Background()
+    ctx := context.Background()
 
-	// Construct a Rego object that can be prepared or evaluated.
-	r := rego.New(
-		rego.Query(os.Args[2]),
-		rego.Load([]string{os.Args[1]}, nil))
+    // Construct a Rego object that can be prepared or evaluated.
+    r := rego.New(
+        rego.Query(os.Args[2]),
+        rego.Load([]string{os.Args[1]}, nil))
 
-	// Create a prepared query that can be evaluated.
-	query, err := r.PrepareForEval(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+    // Create a prepared query that can be evaluated.
+    query, err := r.PrepareForEval(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	// Load the input document from stdin.
-	var input interface{}
-	dec := json.NewDecoder(os.Stdin)
-	dec.UseNumber()
-	if err := dec.Decode(&input); err != nil {
-		log.Fatal(err)
-	}
+    // Load the input document from stdin.
+    var input interface{}
+    dec := json.NewDecoder(os.Stdin)
+    dec.UseNumber()
+    if err := dec.Decode(&input); err != nil {
+        log.Fatal(err)
+    }
 
-	// Execute the prepared query.
-	rs, err := query.Eval(ctx, rego.EvalInput(input))
-	if err != nil {
-		log.Fatal(err)
-	}
+    // Execute the prepared query.
+    rs, err := query.Eval(ctx, rego.EvalInput(input))
+    if err != nil {
+        log.Fatal(err)
+    }
 
     // Do something with the result.
-	fmt.Println(rs)
+    fmt.Println(rs)
 }
 ```
 

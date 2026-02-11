@@ -22,7 +22,7 @@ OPA runtime, see the [Adding Built-in Functions to the OPA Runtime](#adding-buil
 
 OPA supports built-in functions for simple operations like string manipulation
 and arithmetic as well as more complex operations like JWT verification and
-executing HTTP requests. If you need to to extend OPA with custom built-in
+executing HTTP requests. If you need to extend OPA with custom built-in
 functions for use cases or integrations that are not supported out-of-the-box
 you can supply the function definitions when you prepare queries.
 
@@ -45,23 +45,23 @@ process:
 
 ```golang
 r := rego.New(
-	rego.Query(`x = hello("bob")`),
-	rego.Function1(
-		&rego.Function{
-			Name: "hello",
-			Decl: types.NewFunction(types.Args(types.S), types.S),
-		},
-		func(_ rego.BuiltinContext, a *ast.Term) (*ast.Term, error) {
-			if str, ok := a.Value.(ast.String); ok {
-				return ast.StringTerm("hello, " + string(str)), nil
-			}
-			return nil, nil
-		}),
+    rego.Query(`x = hello("bob")`),
+    rego.Function1(
+        &rego.Function{
+            Name: "hello",
+            Decl: types.NewFunction(types.Args(types.S), types.S),
+        },
+        func(_ rego.BuiltinContext, a *ast.Term) (*ast.Term, error) {
+            if str, ok := a.Value.(ast.String); ok {
+                return ast.StringTerm("hello, " + string(str)), nil
+            }
+            return nil, nil
+        }),
 )
 
 query, err := r.PrepareForEval(ctx)
 if err != nil {
-	// handle error.
+    // handle error.
 }
 ```
 
@@ -70,7 +70,7 @@ At this point you can execute the `query`:
 ```golang
 rs, err := query.Eval(ctx)
 if err != nil {
-	// handle error.
+    // handle error.
 }
 
 // Do something with result.
@@ -100,18 +100,18 @@ function to fetch the data for specific repositories on-the-fly.
 
 ```golang
 r := rego.New(
-	rego.Query(`github.repo("open-policy-agent", "opa")`),
-	rego.Function2(
-		&rego.Function{
-			Name: "github.repo",
-			Decl: types.NewFunction(types.Args(types.S, types.S), types.A),
-			Memoize: true,
-			Nondeterministic: true,
-		},
-		func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
-			// see implementation below.
-		},
-	),
+    rego.Query(`github.repo("open-policy-agent", "opa")`),
+    rego.Function2(
+        &rego.Function{
+            Name: "github.repo",
+            Decl: types.NewFunction(types.Args(types.S, types.S), types.A),
+            Memoize: true,
+            Nondeterministic: true,
+        },
+        func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+            // see implementation below.
+        },
+    ),
 )
 ```
 
@@ -144,36 +144,36 @@ GitHub's API:
 
 ```golang
 func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
-	var org, repo string
+    var org, repo string
 
-	if err := ast.As(a.Value, &org); err != nil {
-		return nil, err
-	} else if err := ast.As(b.Value, &repo); err != nil {
-		return nil, err
-	}
+    if err := ast.As(a.Value, &org); err != nil {
+        return nil, err
+    } else if err := ast.As(b.Value, &repo); err != nil {
+        return nil, err
+    }
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%v/%v", org, repo), nil)
-	if err != nil {
-		return nil, err
-	}
+    req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%v/%v", org, repo), nil)
+    if err != nil {
+        return nil, err
+    }
 
-	resp, err := http.DefaultClient.Do(req.WithContext(bctx.Context))
-	if err != nil {
-		return nil, err
-	}
+    resp, err := http.DefaultClient.Do(req.WithContext(bctx.Context))
+    if err != nil {
+        return nil, err
+    }
 
-	defer resp.Body.Close()
+    defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(resp.Status)
-	}
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf(resp.Status)
+    }
 
-	v, err := ast.ValueFromReader(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+    v, err := ast.ValueFromReader(resp.Body)
+    if err != nil {
+        return nil, err
+    }
 
-	return ast.NewTerm(v), nil
+    return ast.NewTerm(v), nil
 }
 ```
 
@@ -224,58 +224,58 @@ that writes events to a stream (e.g., stdout/stderr).
 
 ```golang
 import (
-	"encoding/json"
+    "encoding/json"
 
-	"github.com/open-policy-agent/opa/plugins/logs"
+    "github.com/open-policy-agent/opa/plugins/logs"
 )
 
 const PluginName = "println_decision_logger"
 
 type Config struct {
-	Stderr bool `json:"stderr"` // false => stdout, true => stderr
+    Stderr bool `json:"stderr"` // false => stdout, true => stderr
 }
 
 type PrintlnLogger struct {
-	manager *plugins.Manager
-	mtx     sync.Mutex
-	config  Config
+    manager *plugins.Manager
+    mtx     sync.Mutex
+    config  Config
 }
 
 func (p *PrintlnLogger) Start(ctx context.Context) error {
-	p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateOK})
-	return nil
+    p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateOK})
+    return nil
 }
 
 func (p *PrintlnLogger) Stop(ctx context.Context) {
-	p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateNotReady})
+    p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateNotReady})
 }
 
 func (p *PrintlnLogger) Reconfigure(ctx context.Context, config interface{}) {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-	p.config = config.(Config)
+    p.mtx.Lock()
+    defer p.mtx.Unlock()
+    p.config = config.(Config)
 }
 
 
 // Log is called by the decision logger when a record (event) should be emitted. The logs.EventV1 fields
 // map 1:1 to those described in https://www.openpolicyagent.org/docs/latest/management-decision-logs
 func (p *PrintlnLogger) Log(ctx context.Context, event logs.EventV1) error {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-	w := os.Stdout
-	if p.config.Stderr {
-		w = os.Stderr
-	}
-	bs, err := json.Marshal(event)
-	if err != nil {
-		p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateErr})
-		return nil
-	}
-	_, err = fmt.Fprintln(w, string(bs))
-	if err != nil {
-		p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateErr})
-	}
-	return nil
+    p.mtx.Lock()
+    defer p.mtx.Unlock()
+    w := os.Stdout
+    if p.config.Stderr {
+        w = os.Stderr
+    }
+    bs, err := json.Marshal(event)
+    if err != nil {
+        p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateErr})
+        return nil
+    }
+    _, err = fmt.Fprintln(w, string(bs))
+    if err != nil {
+        p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateErr})
+    }
+    return nil
 }
 ```
 
@@ -283,25 +283,25 @@ Next, implement a factory function that instantiates your plugin:
 
 ```golang
 import (
-	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/util"
+    "github.com/open-policy-agent/opa/plugins"
+    "github.com/open-policy-agent/opa/util"
 )
 
 type Factory struct{}
 
 func (Factory) New(m *plugins.Manager, config interface{}) plugins.Plugin {
 
-	m.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateNotReady})
+    m.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateNotReady})
 
-	return &PrintlnLogger{
-		manager: m,
-		config:  config.(Config),
-	}
+    return &PrintlnLogger{
+        manager: m,
+        config:  config.(Config),
+    }
 }
 
 func (Factory) Validate(_ *plugins.Manager, config []byte) (interface{}, error) {
-	parsedConfig := Config{}
-	return parsedConfig, util.Unmarshal(config, &parsedConfig)
+    parsedConfig := Config{}
+    return parsedConfig, util.Unmarshal(config, &parsedConfig)
 }
 ```
 
@@ -310,17 +310,17 @@ latter starts OPA and does not return.
 
 ```golang
 import (
-	"github.com/open-policy-agent/opa/cmd"
-	"github.com/open-policy-agent/opa/runtime"
+    "github.com/open-policy-agent/opa/cmd"
+    "github.com/open-policy-agent/opa/runtime"
 )
 
 func main() {
-	runtime.RegisterPlugin(PluginName, Factory{})
+    runtime.RegisterPlugin(PluginName, Factory{})
 
-	if err := cmd.RootCommand.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+    if err := cmd.RootCommand.Execute(); err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
 }
 ```
 
@@ -358,13 +358,50 @@ If everything worked you will see the Go struct representation of the decision
 log event written to stdout.
 
 The source code for this example can be found
-[here](https://github.com/open-policy-agent/contrib/tree/main/decision_logger_plugin_example).
+[in the contrib repository](https://github.com/open-policy-agent/contrib/tree/main/decision_logger_plugin_example).
 
 :::info
 If there is a mask policy set (see [Decision Logger](./management-decision-logs)
 for details) the `Event` received by the demo plugin will potentially be different
 than the example documented.
 :::
+
+## Custom Storage Backends
+
+OPA's default in-memory storage can be replaced with custom implementations.
+
+Custom storage backends must implement the [`storage.Store`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/storage#Store) interface. Register your backend by calling [`v1/runtime.RegisterStorageBackend`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/runtime#RegisterStorageBackend) before OPA runtime initialization.
+
+### Example
+
+```go
+package main
+
+import (
+    "github.com/open-policy-agent/opa/cmd"
+    "github.com/open-policy-agent/opa/v1/runtime"
+)
+
+func init() {
+    runtime.RegisterStorageBackend(func(
+        ctx context.Context,
+        logger logging.Logger,
+        registerer prometheus.Registerer,
+        config []byte,
+        id string,
+    ) (storage.Store, error) {
+        return myCustomStore, nil
+    })
+}
+
+func main() {
+    if err := cmd.RootCommand.Execute(); err != nil {
+        os.Exit(1)
+    }
+}
+```
+
+If your storage needs resource cleanup (close connections, flush buffers, etc.), implement the [`storage.Closer`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/storage#Closer) interface. The `Close()` method will be called during graceful shutdown
 
 ## Setting the OPA Runtime Version
 
@@ -399,73 +436,73 @@ go build \
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log"
-	"net/http"
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    "net/http"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/types"
+    "github.com/open-policy-agent/opa/ast"
+    "github.com/open-policy-agent/opa/rego"
+    "github.com/open-policy-agent/opa/types"
 )
 
 func main() {
 
-	r := rego.New(
-		rego.Query(`github.repo("open-policy-agent", "opa")`),
-		rego.Function2(
-			&rego.Function{
-				Name:    "github.repo",
-				Decl:    types.NewFunction(types.Args(types.S, types.S), types.A),
-				Memoize: true,
-				Nondeterministic: true,
-			},
-			func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+    r := rego.New(
+        rego.Query(`github.repo("open-policy-agent", "opa")`),
+        rego.Function2(
+            &rego.Function{
+                Name:    "github.repo",
+                Decl:    types.NewFunction(types.Args(types.S, types.S), types.A),
+                Memoize: true,
+                Nondeterministic: true,
+            },
+            func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
 
-				var org, repo string
+                var org, repo string
 
-				if err := ast.As(a.Value, &org); err != nil {
-					return nil, err
-				} else if err := ast.As(b.Value, &repo); err != nil {
-					return nil, err
-				}
+                if err := ast.As(a.Value, &org); err != nil {
+                    return nil, err
+                } else if err := ast.As(b.Value, &repo); err != nil {
+                    return nil, err
+                }
 
-				req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%v/%v", org, repo), nil)
-				if err != nil {
-					return nil, err
-				}
+                req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%v/%v", org, repo), nil)
+                if err != nil {
+                    return nil, err
+                }
 
-				resp, err := http.DefaultClient.Do(req.WithContext(bctx.Context))
-				if err != nil {
-					return nil, err
-				}
+                resp, err := http.DefaultClient.Do(req.WithContext(bctx.Context))
+                if err != nil {
+                    return nil, err
+                }
 
-				defer resp.Body.Close()
+                defer resp.Body.Close()
 
-				if resp.StatusCode != http.StatusOK {
-					return nil, fmt.Errorf(resp.Status)
-				}
+                if resp.StatusCode != http.StatusOK {
+                    return nil, fmt.Errorf(resp.Status)
+                }
 
-				v, err := ast.ValueFromReader(resp.Body)
-				if err != nil {
-					return nil, err
-				}
+                v, err := ast.ValueFromReader(resp.Body)
+                if err != nil {
+                    return nil, err
+                }
 
-				return ast.NewTerm(v), nil
-			},
-		),
-	)
+                return ast.NewTerm(v), nil
+            },
+        ),
+    )
 
-	rs, err := r.Eval(context.Background())
-	if err != nil {
-		log.Fatal(err)
-	} else if len(rs) == 0 {
-		fmt.Println("undefined")
-	} else {
-		bs, _ := json.MarshalIndent(rs[0].Expressions[0].Value, "", "  ")
-		fmt.Println(string(bs))
-	}
+    rs, err := r.Eval(context.Background())
+    if err != nil {
+        log.Fatal(err)
+    } else if len(rs) == 0 {
+        fmt.Println("undefined")
+    } else {
+        bs, _ := json.MarshalIndent(rs[0].Expressions[0].Value, "", "  ")
+        fmt.Println(string(bs))
+    }
 }
 ```
 
@@ -475,64 +512,64 @@ func main() {
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"os"
+    "fmt"
+    "net/http"
+    "os"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/cmd"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/types"
+    "github.com/open-policy-agent/opa/ast"
+    "github.com/open-policy-agent/opa/cmd"
+    "github.com/open-policy-agent/opa/rego"
+    "github.com/open-policy-agent/opa/types"
 
 )
 
 func main() {
 
-	rego.RegisterBuiltin2(
-		&rego.Function{
-			Name:    "github.repo",
-			Decl:    types.NewFunction(types.Args(types.S, types.S), types.A),
-			Memoize: true,
-			Nondeterministic: true,
-		},
-		func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+    rego.RegisterBuiltin2(
+        &rego.Function{
+            Name:    "github.repo",
+            Decl:    types.NewFunction(types.Args(types.S, types.S), types.A),
+            Memoize: true,
+            Nondeterministic: true,
+        },
+        func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
 
-			var org, repo string
+            var org, repo string
 
-			if err := ast.As(a.Value, &org); err != nil {
-				return nil, err
-			} else if err := ast.As(b.Value, &repo); err != nil {
-				return nil, err
-			}
+            if err := ast.As(a.Value, &org); err != nil {
+                return nil, err
+            } else if err := ast.As(b.Value, &repo); err != nil {
+                return nil, err
+            }
 
-			req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%v/%v", org, repo), nil)
-			if err != nil {
-				return nil, err
-			}
+            req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%v/%v", org, repo), nil)
+            if err != nil {
+                return nil, err
+            }
 
-			resp, err := http.DefaultClient.Do(req.WithContext(bctx.Context))
-			if err != nil {
-				return nil, err
-			}
+            resp, err := http.DefaultClient.Do(req.WithContext(bctx.Context))
+            if err != nil {
+                return nil, err
+            }
 
-			defer resp.Body.Close()
+            defer resp.Body.Close()
 
-			if resp.StatusCode != http.StatusOK {
-				return nil, fmt.Errorf(resp.Status)
-			}
+            if resp.StatusCode != http.StatusOK {
+                return nil, fmt.Errorf(resp.Status)
+            }
 
-			v, err := ast.ValueFromReader(resp.Body)
-			if err != nil {
-				return nil, err
-			}
+            v, err := ast.ValueFromReader(resp.Body)
+            if err != nil {
+                return nil, err
+            }
 
-			return ast.NewTerm(v), nil
-		},
-	)
+            return ast.NewTerm(v), nil
+        },
+    )
 
-	if err := cmd.RootCommand.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+    if err := cmd.RootCommand.Execute(); err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
 }
 ```

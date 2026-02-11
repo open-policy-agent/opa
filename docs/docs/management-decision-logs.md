@@ -13,7 +13,7 @@ field in API calls that return policy decisions.
 
 See the [Configuration Reference](./configuration) for configuration details.
 
-### Decision Log Service API
+## Decision Log Service API
 
 OPA expects the service to expose an API endpoint that will receive decision logs.
 
@@ -64,8 +64,8 @@ Decision log updates contain the following fields:
 | ---------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `[_].labels`                       | `object`        | Set of key-value pairs that uniquely identify the OPA instance.                                                                                                                                                                                                                                                                                                                                         |
 | `[_].decision_id`                  | `string`        | Unique identifier generated for each decision for traceability.                                                                                                                                                                                                                                                                                                                                         |
-| `[_].trace_id`                     | `string`        | Unique identifier of a trace generated for each incoming request for traceability. This is a hex string representation compliant with the W3C trace-context specification. See more at https://www.w3.org/TR/trace-context/#trace-id.                                                                                                                                                                   |
-| `[_].span_id`                      | `string`        | Unique identifier of a span in a trace to assist traceability. This is a hex string representation compliant with the W3C trace-context specification. See more at https://www.w3.org/TR/trace-context/#parent-id.                                                                                                                                                                                      |
+| `[_].trace_id`                     | `string`        | Unique identifier of a trace generated for each incoming request for traceability. This is a hex string representation compliant with the W3C trace-context specification. See more at the [W3C trace-context specification](https://www.w3.org/TR/trace-context/#trace-id).                                                                                                                            |
+| `[_].span_id`                      | `string`        | Unique identifier of a span in a trace to assist traceability. This is a hex string representation compliant with the W3C trace-context specification. See more at the [W3C trace-context specification](https://www.w3.org/TR/trace-context/#parent-id).                                                                                                                                               |
 | `[_].bundles`                      | `object`        | Set of key-value pairs describing the bundles which contained policy used to produce the decision.                                                                                                                                                                                                                                                                                                      |
 | `[_].bundles[_].revision`          | `string`        | Revision of the bundle at the time of evaluation.                                                                                                                                                                                                                                                                                                                                                       |
 | `[_].path`                         | `string`        | Hierarchical policy decision path, e.g., `/http/example/authz/allow`. Receivers should tolerate slash-prefixed paths.                                                                                                                                                                                                                                                                                   |
@@ -110,7 +110,7 @@ builtins cache information. This best-effort approach ensures that OPA reports d
 and bounds how large decision log events can get. This size-bounding is necessary, because some non-deterministic builtins
 (such as `http.send`) can increase the decision log event size by a potentially unbounded amount.
 
-### Local Decision Logs
+## Local Decision Logs
 
 Local console logging of decisions can be enabled via the `console` config option.
 This does not require any remote server. Example of minimal config to enable:
@@ -123,7 +123,7 @@ decision_logs:
 This will dump all decisions to the console. See
 [Configuration Reference](./configuration) for more details.
 
-### Masking Sensitive Data
+## Masking Sensitive Data
 
 Policy queries may contain sensitive information in the `input` document that
 must be removed or modified before decision logs are uploaded to the remote API
@@ -154,9 +154,9 @@ resources, supply the following policy to OPA:
 package system.log
 
 mask contains "/input/password" if {
-	# OPA provides the entire decision log event as input to the masking policy.
-	# Refer to the original input document under input.input.
-	input.input.resource == "user"
+    # OPA provides the entire decision log event as input to the masking policy.
+    # Refer to the original input document under input.input.
+    input.input.resource == "user"
 }
 
 # To mask certain fields unconditionally, omit the rule body.
@@ -219,8 +219,8 @@ Optional Fields:
 package system.log
 
 mask contains {"op": "upsert", "path": "/input/password", "value": "**REDACTED**"} if {
-	# conditionally upsert password if it existed in the original event
-	input.input.password
+    # conditionally upsert password if it existed in the original event
+    input.input.password
 }
 ```
 
@@ -260,7 +260,7 @@ to track **remove** vs **upsert** mask operations.
 }
 ```
 
-### Drop Decision Logs
+## Drop Decision Logs
 
 Drop rules filters all decisions from logging where the rule evaluates to `true`.
 
@@ -270,8 +270,8 @@ This rule will drop all requests to the _allow_ rule in the _kafka_ package, tha
 package system.log
 
 drop if {
-	input.path == "kafka/allow"
-	input.result == true
+    input.path == "kafka/allow"
+    input.result == true
 }
 ```
 
@@ -282,8 +282,8 @@ Log only requests for _delete_ and _alter_ operations
 package system.log
 
 drop if {
-	input.path == "kafka/allow"
-	not input.input.action.operation in {"DELETE", "ALTER"}
+    input.path == "kafka/allow"
+    not input.input.action.operation in {"DELETE", "ALTER"}
 }
 ```
 
@@ -295,7 +295,7 @@ decision_logs:
   drop_decision: /system/log/drop
 ```
 
-### Rate Limiting Decision Logs
+## Rate Limiting Decision Logs
 
 There are scenarios where OPA may be uploading decisions faster than what the remote service is able to consume. Although
 OPA provides a user-specified buffer size limit in bytes, it may be difficult to determine the ideal buffer size that will

@@ -3,7 +3,7 @@ sidebar_label: conflicting rules {name} found
 image: /img/opa-errors.png
 ---
 
-# rego_type_error: conflicting rules `{name}` found
+# `rego_type_error`: conflicting rules `{name}` found
 
 This error happens when a rule is incrementally defined in a way that contradicts itself. This could for example happen
 when a rule is declared to be both single-value _and_ multi-value, or when a function is declared twice with a

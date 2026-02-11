@@ -22,7 +22,7 @@ This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/
 
 ## Steps
 
-### 1. Create a policy bundle.
+### 1. Create a policy bundle
 
 Create a policy that allows users to request their own salary as well as the salary of their direct subordinates.
 
@@ -43,16 +43,16 @@ default allow := false
 
 # Allow users to get their own salaries.
 allow if {
-	input.method == "GET"
-	input.path == ["finance", "salary", input.user]
+    input.method == "GET"
+    input.path == ["finance", "salary", input.user]
 }
 
 # Allow managers to get their subordinates' salaries.
 allow if {
-	some username
-	input.method == "GET"
-	input.path = ["finance", "salary", username]
-	subordinates[input.user][_] == username
+    some username
+    input.method == "GET"
+    input.path = ["finance", "salary", username]
+    subordinates[input.user][_] == username
 }
 ```
 
@@ -67,7 +67,7 @@ cd ..
 
 You should now see a policy bundle (`bundle.tar.gz`) in your working directory (`./bundles/bundle.tar.gz`).
 
-### 2. Bootstrap the tutorial environment using Docker Compose.
+### 2. Bootstrap the tutorial environment using Docker Compose
 
 Next, create a `docker-compose.yaml` file that runs OPA, a bundle server and the demo web server.
 
@@ -129,7 +129,7 @@ You might find it easier to build your OPA integration using one of the
 
 Every time the demo web server receives an HTTP request, it
 asks OPA to decide whether an HTTP API is authorized or not
-using a single RESTful API call. An example code is [here](https://github.com/open-policy-agent/contrib/blob/main/api_authz/docker/echo_server.py),
+using a single RESTful API call. An example code is [available in the contrib repository](https://github.com/open-policy-agent/contrib/blob/main/api_authz/docker/echo_server.py),
 but the crux of the (Python) code is shown below.
 
 ```python
@@ -156,7 +156,7 @@ else:
   # HTTP API denied
 ```
 
-### 3. Check that `alice` can see her own salary.
+### 3. Check that `alice` can see her own salary
 
 The following command will succeed.
 
@@ -195,7 +195,7 @@ result := data.httpapi.authz
 curl --user bob:password localhost:5000/finance/salary/alice
 ```
 
-### 5. Check that `bob` CANNOT see `charlie`'s salary.
+### 5. Check that `bob` CANNOT see `charlie`'s salary
 
 `bob` is not `charlie`'s manager, so the following command will fail.
 
@@ -203,7 +203,7 @@ curl --user bob:password localhost:5000/finance/salary/alice
 curl --user bob:password localhost:5000/finance/salary/charlie
 ```
 
-### 6. Change the policy.
+### 6. Change the policy
 
 Suppose the organization now includes an HR department. The organization wants
 members of HR to be able to see any salary. Let's extend the policy to handle
@@ -214,9 +214,9 @@ package httpapi.authz
 
 # Allow HR members to get anyone's salary.
 allow if {
-	input.method == "GET"
-	input.path = ["finance", "salary", _]
-	input.user == hr[_]
+    input.method == "GET"
+    input.path = ["finance", "salary", _]
+    input.user == hr[_]
 }
 
 # David is the only member of HR.
@@ -237,7 +237,7 @@ For the sake of the tutorial we included `manager_of` and `hr` data directly
 inside the policies. In real-world scenarios that information would be imported
 from external data sources.
 
-### 7. Check that the new policy works.
+### 7. Check that the new policy works
 
 Check that `david` can see anyone's salary.
 
@@ -248,7 +248,7 @@ curl --user david:password localhost:5000/finance/salary/charlie
 curl --user david:password localhost:5000/finance/salary/david
 ```
 
-### 8. (Optional) Use JSON Web Tokens to communicate policy data.
+### 8. (Optional) Use JSON Web Tokens to communicate policy data
 
 OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.decode`.
 To get a sense of one way the subordinate and HR data might be communicated in the
@@ -261,28 +261,28 @@ default allow := false
 
 # Allow users to get their own salaries.
 allow if {
-	some username
-	input.method == "GET"
-	input.path = ["finance", "salary", username]
-	token.payload.user == username
-	user_owns_token
+    some username
+    input.method == "GET"
+    input.path = ["finance", "salary", username]
+    token.payload.user == username
+    user_owns_token
 }
 
 # Allow managers to get their subordinate' salaries.
 allow if {
-	some username
-	input.method == "GET"
-	input.path = ["finance", "salary", username]
-	token.payload.subordinates[_] == username
-	user_owns_token
+    some username
+    input.method == "GET"
+    input.path = ["finance", "salary", username]
+    token.payload.subordinates[_] == username
+    user_owns_token
 }
 
 # Allow HR members to get anyone's salary.
 allow if {
-	input.method == "GET"
-	input.path = ["finance", "salary", _]
-	token.payload.hr == true
-	user_owns_token
+    input.method == "GET"
+    input.path = ["finance", "salary", _]
+    token.payload.hr == true
+    user_owns_token
 }
 
 # Ensure that the token was issued to the user supplying it.
@@ -290,7 +290,7 @@ user_owns_token if input.user == token.payload.azp
 
 # Helper to get the token payload.
 token := {"payload": payload} if {
-	[header, payload, signature] := io.jwt.decode(input.token)
+    [header, payload, signature] := io.jwt.decode(input.token)
 }
 ```
 

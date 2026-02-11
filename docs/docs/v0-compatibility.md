@@ -8,7 +8,7 @@ sidebar_position: 14
 The v1.0 release of OPA comes with functionality to run in a backwards
 compatible, v0.x mode. This is used by running OPA with the `--v0-compatible`
 flag or using the v0.x compatible options in Go integrations. When enabled, OPA
-instances and Go integrations will behave as they do in pre v1.0 releases.
+instances and Go integrations will behave as they do in OPA releases before v1.0.
 
 ### When to use v0.x compatibility mode
 
@@ -51,7 +51,7 @@ Note (*): the `check` and `fmt` commands also support the `--v0-v1` flag,
 which will check/format Rego modules as if compatible with the Rego syntax of
 _both_ the old 0.x OPA version and current OPA v1.0.
 
-Note (*): Pre v1.0 versions of OPA also support a comparable `--v1-compatible`
+Note (*): OPA versions before v1.0 also support a comparable `--v1-compatible`
 flag which can be used to produce and consume Rego v1 bundles. See
 [Upgrading to v1.0](./v0-upgrade) for more information on how to use this flag
 as part of an upgrade to OPA v1.0.
@@ -73,7 +73,7 @@ can be used like this:
 
 ```go
 m := ast.Module{
-	Package: regoCode,
+    Package: regoCode,
 }
 
 m.SetRegoVersion(ast.RegoV0)
@@ -102,9 +102,9 @@ the supplied Rego to be handled as v0.x syntax:
 ```go
 // Only to be used if the above are not suitable.
 r := rego.New(
-	rego.Query("data.foo.bar"),
-	rego.Module("policy.rego", regoCode),
-	rego.SetRegoVersion(ast.RegoV1), // <---
+    rego.Query("data.foo.bar"),
+    rego.Module("policy.rego", regoCode),
+    rego.SetRegoVersion(ast.RegoV1), // <---
 )
 ```
 
@@ -116,31 +116,31 @@ below imports the v0 package instead:
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
+    "context"
+    "encoding/json"
+    "fmt"
 
-	"github.com/open-policy-agent/opa/rego"
+    "github.com/open-policy-agent/opa/rego"
     // rather than the v1 import, which is:
-	// "github.com/open-policy-agent/opa/v1/rego"
+    // "github.com/open-policy-agent/opa/v1/rego"
 )
 
 func main() {
-	module := `package example
+    module := `package example
 messages[msg] {
-	msg := "foo"
+    msg := "foo"
 }
 `
 
-	r := v0rego.New(
-		rego.Query("data.example.messages"),
-		rego.Module("example.rego", module),
-	)
+    r := v0rego.New(
+        rego.Query("data.example.messages"),
+        rego.Module("example.rego", module),
+    )
 
-	rs, _ = rv0.Eval(context.TODO())
-	bs, _ = json.Marshal(rs)
+    rs, _ = rv0.Eval(context.TODO())
+    bs, _ = json.Marshal(rs)
 
-	fmt.Println(string(bs))
+    fmt.Println(string(bs))
 }
 ```
 
@@ -165,20 +165,20 @@ of a v0 import of the SDK package is required. For example:
 package main
 
 import (
-	"bytes"
-	"context"
-	"fmt"
+    "bytes"
+    "context"
+    "fmt"
 
-	"github.com/open-policy-agent/opa/sdk" // <-- import v0 sdk package
+    "github.com/open-policy-agent/opa/sdk" // <-- import v0 sdk package
 )
 
 func main() {
-	opa, _ := sdk.New(ctx, sdk.Options{
-		ID:     "opa-1",
-		Config: bytes.NewReader(config),
-	})
+    opa, _ := sdk.New(ctx, sdk.Options{
+        ID:     "opa-1",
+        Config: bytes.NewReader(config),
+    })
 
-	defer opa.Stop(ctx)
+    defer opa.Stop(ctx)
 
     // ...
 }

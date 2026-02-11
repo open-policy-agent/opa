@@ -63,9 +63,9 @@ func checkDocumentConflicts(node *TreeNode, exists func([]string) (bool, error),
 	if len(node.Values) > 0 {
 		s := strings.Join(path, "/")
 		if ok, err := exists(path); err != nil {
-			return Errors{NewError(CompileErr, node.Values[0].(*Rule).Loc(), "conflict check for data path %v: %v", s, err.Error())}
+			return Errors{NewError(CompileErr, node.Values[0].Loc(), "conflict check for data path %v: %v", s, err.Error())}
 		} else if ok {
-			return Errors{NewError(CompileErr, node.Values[0].(*Rule).Loc(), "conflicting rule for data path %v found", s)}
+			return Errors{NewError(CompileErr, node.Values[0].Loc(), "conflicting rule for data path %v found", s)}
 		}
 	}
 

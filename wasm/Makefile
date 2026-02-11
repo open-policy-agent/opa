@@ -1,15 +1,23 @@
 DOCKER := docker
 DOCKER_FLAGS := --rm -e DEBUG
 DEBUG ?= 0
+USE_DOCKER ?= 1
 
 ifeq ($(shell tty > /dev/null && echo 1 || echo 0), 1)
 DOCKER_FLAGS += -it
 endif
 
 DOCKER_WASM_BUILDER_IMAGE ?= openpolicyagent/opa-wasm-builder
-WASM_BUILDER_VERSION := 1.6
+WASM_BUILDER_VERSION := 1.7
 WASM_BUILDER_IMAGE := $(DOCKER_WASM_BUILDER_IMAGE):$(WASM_BUILDER_VERSION)
+WASM_TEST_NODE_VERSION := lts
 WASM_OBJ_DIR := _obj
+
+# Set compilers for local builds when not using Docker
+ifeq ($(USE_DOCKER), 0)
+CC ?= clang
+CXX ?= clang++
+endif
 
 CFLAGS += \
 	-MD \
@@ -19,7 +27,15 @@ CFLAGS += \
 	-I src/lib \
 	-I src/libmpdec \
 	-DCONFIG_32 \
-	-DANSI
+	-DANSI \
+	-mno-bulk-memory \
+	-mno-bulk-memory-opt \
+	-mno-multivalue \
+	-mno-reference-types \
+	-mno-nontrapping-fptoint \
+	-mno-sign-ext \
+	-mno-mutable-globals \
+	-mno-call-indirect-overlong
 
 CPPFLAGS += \
 	-std=c++17 \
@@ -29,13 +45,24 @@ CPPFLAGS += \
 	--target=wasm32-unknown-unknown-wasm \
 	-fno-exceptions \
 	-fno-rtti \
-	-I src/lib \
-	-I src/libc++ \
-	-I /usr/lib/llvm-13/include/c++/v1 \
-	-I /usr/lib/llvm-13/lib/clang/13.0.0/include \
+	-nostdinc++ \
+	-isystem src/libc++ \
+	-isystem /usr/lib/llvm-21/include/c++/v1 \
+	-isystem /usr/lib/llvm-21/lib/clang/21.1.7/include \
+	-isystem src/lib \
 	-I src/re2 \
 	-D_LIBCPP_HAS_NO_THREADS \
-	-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
+	-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION \
+	-D_LIBCPP_HAS_NO_LOCALIZATION \
+	-D_LIBCPP_NO_EXCEPTIONS \
+	-mno-bulk-memory \
+	-mno-bulk-memory-opt \
+	-mno-multivalue \
+	-mno-reference-types \
+	-mno-nontrapping-fptoint \
+	-mno-sign-ext \
+	-mno-mutable-globals \
+	-mno-call-indirect-overlong
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O1 -gdwarf -DDEBUG
@@ -58,7 +85,9 @@ builder: Dockerfile
 
 .PHONY: ensure-builder
 ensure-builder:
+ifeq ($(USE_DOCKER), 1)
 	@$(DOCKER) inspect $(WASM_BUILDER_IMAGE) > /dev/null || $(DOCKER) pull $(WASM_BUILDER_IMAGE) || $(MAKE) builder
+endif
 
 .PHONY: push-builder
 push-builder:
@@ -66,13 +95,22 @@ push-builder:
 
 .PHONY: build
 build:
+ifeq ($(USE_DOCKER), 1)
 	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src:Z $(WASM_BUILDER_IMAGE) \
 	  make --no-builtin-rules $(WASM_OBJ_DIR)/opa.wasm $(WASM_OBJ_DIR)/callgraph.csv
+else
+	@$(MAKE) --no-builtin-rules $(WASM_OBJ_DIR)/opa.wasm $(WASM_OBJ_DIR)/callgraph.csv
+endif
 
 .PHONY: test
 test:
+ifeq ($(USE_DOCKER), 1)
 	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src:Z $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa-test.wasm
-	@$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE -v $(CURDIR):/src:Z -w /src node:14 node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+	@$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE -v $(CURDIR):/src:Z -w /src node:$(WASM_TEST_NODE_VERSION) node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+else
+	@$(MAKE) $(WASM_OBJ_DIR)/opa-test.wasm
+	@node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+endif
 
 .PHONY: hack
 hack:

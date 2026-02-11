@@ -133,7 +133,7 @@ func (c *Compiler) removeUnusedCode() error {
 		}
 		caller, ok := c.funcs[callerName]
 		if !ok {
-			return fmt.Errorf("caller not found: %s (%s)", cg[i][0], callerName)
+			continue // without a caller, it should get removed anyways (right?)
 		}
 		callee, ok := c.funcs[calleeName]
 		if !ok {

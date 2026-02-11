@@ -658,7 +658,7 @@ As a rule, the HTTP API will **never return** a secret value, it only allows aut
 
 - `secret`: URL-encoded secret name
 
-** Validation **
+**Validation**
 
 - The secret may not be in use.
 

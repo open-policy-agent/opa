@@ -2355,7 +2355,7 @@ func TestTopDownPartialEval(t *testing.T) {
 						ast.CallTerm(
 							ast.NewTerm(ast.Equal.Ref()),
 							ast.NewTerm(ast.InputRootRef),
-							ast.IntNumberTerm(1),
+							ast.InternedTerm(1),
 						),
 					),
 				),
@@ -3925,8 +3925,8 @@ func TestTopDownPartialEval(t *testing.T) {
 				y := input.y
 			}`},
 			wantQueries: []string{`data.partial.test.p.q.r.s = x_term_0_0; x_term_0_0; x = "s"`},
-			wantSupport: []string{`package partial.test.p.q.r
-			s = __local0__1 if {
+			wantSupport: []string{`package partial.test
+			p.q.r.s = __local0__1 if {
 				__local0__1 = input.y
 			}`},
 		},

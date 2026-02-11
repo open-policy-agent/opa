@@ -4,6 +4,8 @@ sidebar_position: 4
 title: Go
 ---
 
+# Go and Rego Language Comparison
+
 <!-- markdownlint-disable MD044 -->
 
 import SideBySideLanguageComparison from "@site/src/components/SideBySideLanguageComparison";
@@ -11,8 +13,6 @@ import SideBySideLanguageComparison from "@site/src/components/SideBySideLanguag
 import { Ex1Title, Ex1Intro, Ex1Outro, Ex1Go, Ex1Rego } from './ex1.js';
 import { Ex2Title, Ex2Intro, Ex2Go, Ex2Rego } from './ex2.js';
 import { Ex3Title, Ex3Intro, Ex3Go, Ex3Rego } from './ex3.js';
-
-# Go and Rego Language Comparison
 
 Go is a statically typed, compiled programming language.
 It is commonly used in cloud native environments

@@ -28,7 +28,7 @@ overrides the discovered configuration.**
 
 See the [Configuration Reference](./configuration) for configuration details.
 
-### Discovery Service API
+## Discovery Service API
 
 OPA expects the service to expose an API endpoint that serves bundles.
 
@@ -72,7 +72,7 @@ services[discovery.service].url          discovery.resource
 > The `discovery.resource` field defaults to `bundles/<discovery.name>`. The default
 > is convenient if you want to serve discovery bundles and normal bundles from the same API
 > endpoint. If only one service is defined, there is no need to set `discovery.service`.
-
+>
 > The optional `discovery.signing` field can be used to specify the `keyid` and `scope` that should be used
 > for verifying the signature of the discovery bundle. See [this](#discovery-bundle-signature) section for details.
 
@@ -273,7 +273,7 @@ those changes are ignored. If the discovered configuration changes the discovery
 an error will be logged.
 If the discovered configuration changes the `labels` section, only labels that are additional compared to the bootstrap configuration are used, all other changes are ignored. If the discovery document changes its `labels` section over time, the effective set of labels is always the bootstrap configuration plus added labels from the latest discovery document.
 
-### Discovery Bundle Signature
+## Discovery Bundle Signature
 
 Like regular bundles, if the discovery bundle contains a `.signatures.json` file, OPA will verify the discovery
 bundle before activating it. The format of the `.signatures.json` file and the verification steps are same as that for
@@ -284,7 +284,28 @@ signature verification of a discovery bundle **CANNOT** be modified via discover
 > include the keys used to verify the non-discovery bundles. However, OPA does not enforce that recommendation. You may use
 > unsigned discovery bundles that themselves require non-discovery bundles to be signed.
 
-### Discovery Bundle Persistence
+To enable signature verification for discovery bundles, add the `signing` field to your discovery configuration and define the verification key:
+
+```yaml title="Bootstrap Config"
+discovery:
+  service: acmecorp
+  resource: /discovery.tar.gz
+  signing:
+    keyid: discovery_key
+    scope: read
+
+keys:
+  discovery_key: # Cannot come from discovery
+    algorithm: RS256
+    key: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+```
+
+Discovery bundle contents then provides keys for regular bundles - see [Bundle Signing](./management-bundles/#signing) for more details about signing configuration.
+
+## Discovery Bundle Persistence
 
 OPA can optionally persist the activated discovery bundle to disk for recovery purposes. To enable
 persistence, set the `discovery.persist` field to `true`. When bundle

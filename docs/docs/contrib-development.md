@@ -19,7 +19,7 @@ Requirements:
 - GitHub account (if you are contributing)
 - Go (please see the project's [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) file for the current version in use)
 - GNU Make
-- Python3, pip, yamllint (if linting YAML files manually)
+- Python3, pip, `yamllint` (if linting YAML files manually)
 
 ## Getting Started
 

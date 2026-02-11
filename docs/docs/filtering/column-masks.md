@@ -1,5 +1,5 @@
 ---
-title: Writing column masking policies
+title: Writing Column Masking Policies
 description: Writing valid data column masking policies
 sidebar_position: 4
 ---
@@ -10,7 +10,7 @@ Column masking rules in Rego are used to generate an object that specifies exact
 You will develop an intuition for what valid masking rules look like, and how to build default-deny and default-allow masking policies.
 :::
 
-### What is Column Masking?
+## What is Column Masking?
 
 For our data filtering use case, a row might be returned from the database that has a sensitive column present.
 We still want the application to be able to display everything it can to the user, but ideally hiding or modifying the sensitive values before display.

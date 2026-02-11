@@ -7,6 +7,7 @@
 #include "util/utf.h"
 
 #include <unordered_map>
+#include <vector>
 
 static const int MAX_CACHE_SIZE = 100;
 
@@ -123,7 +124,7 @@ opa_value *opa_regex_find_all_string_submatch(opa_value *pattern, opa_value *val
     std::string val(opa_cast_string(value)->v, opa_cast_string(value)->len);
     opa_array_t *result = opa_cast_array(opa_array());
     int nsubmatch = re->NumberOfCapturingGroups() + 1;
-    re2::StringPiece submatches[nsubmatch];
+    std::vector<re2::StringPiece> submatches(nsubmatch);
 
     // The following is effectively refactored RE2::GlobalReplace:
 
@@ -134,7 +135,7 @@ opa_value *opa_regex_find_all_string_submatch(opa_value *pattern, opa_value *val
     int pos = 0;
 
     while (p <= ep && (num_results == -1 || result->len < num_results)) {
-        if (!re->Match(val, static_cast<size_t>(p - beginpos), val.size(), re2::RE2::UNANCHORED, submatches, nsubmatch))
+        if (!re->Match(val, static_cast<size_t>(p - beginpos), val.size(), re2::RE2::UNANCHORED, submatches.data(), nsubmatch))
         {
             break;
         }

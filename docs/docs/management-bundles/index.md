@@ -24,7 +24,7 @@ see the section below.
 
 See the [Configuration Reference](./configuration) for configuration details.
 
-### Bundle build
+## Bundle build
 
 The CLI command [`opa build`](./cli/#build) gives you the capability to build your own bundles.
 
@@ -51,7 +51,7 @@ opa build --verification-key /path/to/public_key.pem --signing-key /path/to/priv
 
 For more information, see the [`opa build` command documentation.](./cli/#build)
 
-### Bundle Service API
+## Bundle Service API
 
 OPA expects the service to expose an API endpoint that serves bundles. The
 bundle API should allow clients to download bundles at an arbitrary URL. In
@@ -90,7 +90,17 @@ bundles:
     signing:
       keyid: my_global_key
       scope: read
+
+keys:
+  my_global_key:
+    algorithm: RS256
+    key: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
 ```
+
+See [Configuration - Keys](./configuration/#keys) for details on key configuration.
 
 Using this configuration, OPA will fetch bundles from
 `https://example.com/service/v1/somedir/bundle.tar.gz`.
@@ -129,7 +139,7 @@ for verifying the signature of the bundle. See [this](#signing) section for deta
 
 See the following section for details on the bundle file format.
 
-#### Caching
+### Caching
 
 Services implementing the Bundle Service API should set the HTTP `Etag` header
 in bundle responses to identify the revision of the bundle. OPA will include the
@@ -137,9 +147,9 @@ in bundle responses to identify the revision of the bundle. OPA will include the
 check the `If-None-Match` header and reply with HTTP `304 Not Modified` if the
 bundle has not changed since the last update.
 
-#### HTTP Long Polling
+### HTTP Long Polling
 
-With the periodic bundle downloading (ie. `short polling`) technique, OPA sends regular requests to the remote HTTP
+With the periodic bundle downloading (i.e. `short polling`) technique, OPA sends regular requests to the remote HTTP
 server to pull any available bundle. If there is no new bundle, the server responds with a `304 Not Modified` response.
 The polling frequency depends on the latency that the client can tolerate in
 retrieving updated information from the server. A drawback of this
@@ -177,7 +187,7 @@ With the above configuration, OPA sends a long poll request to the server with a
 supports `long polling`, OPA expects the server to set the `Content-Type` header to `application/vnd.openpolicyagent.bundles`.
 If the server does not support `long polling`, OPA will fallback to the regular periodic polling.
 
-### Bundle File Format
+## Bundle File Format
 
 Bundle files are gzipped tarballs (`.tar.gz`) that contain policies and/or
 data.
@@ -353,7 +363,7 @@ and number keys are converted to strings.
 supported.
 :::
 
-### Multiple Sources of Policy and Data
+## Multiple Sources of Policy and Data
 
 By default, when OPA is configured to download policy and data from a
 bundle service, the entire content of OPA's policy and data cache is
@@ -407,7 +417,7 @@ When OPA loads scoped bundles, it validates that:
 If bundle validation fails, OPA will report the validation error via
 the Status API.
 
-### Debugging Your Bundles
+## Debugging Your Bundles
 
 When you run OPA, you can provide bundle files over the command line. This
 allows you to manually check that your bundles include all of the files that
@@ -417,9 +427,9 @@ you intended and that they are structured correctly. For example:
 opa run bundle.tar.gz
 ```
 
-### Signing
+## Signing
 
-To ensure the integrity of policies (ie. the policies are coming from a trusted source), policy bundles may be
+To ensure the integrity of policies (i.e. the policies are coming from a trusted source), policy bundles may be
 digitally signed so that industry-standard cryptographic primitives can verify their authenticity.
 
 OPA supports digital signatures for policy bundles. Specifically, a signed bundle is a normal OPA bundle that includes
@@ -431,12 +441,10 @@ configured with out-of-band. Only if that verification succeeds does OPA activat
 continues using its existing bundle and reports an activation failure via the status API and error logging.
 
 :::warning
-⚠️ `opa run` performs bundle signature verification only when the `-b`/`--bundle` flag is given
-or when Bundle downloading is enabled. Sub-commands primarily used in development and debug environments
-(such as `opa eval`, `opa test`, etc.) DO NOT verify bundle signatures at this point in time.
+Bundle signature verification works differently depending on how bundles are loaded. Filesystem bundles (`--bundle` flag) use the `--verification-key` CLI flag pointing to a PEM file. Remote bundles define keys in the configuration file under the `keys` section. Sub-commands primarily used in pre-production (such as `opa eval`, `opa test`, etc.) do not verify bundle signatures at this point in time.
 :::
 
-#### Signature Format
+### Signature Format
 
 Recall that a [policy bundle](#bundle-file-format) is a gzipped tarball that contains policies and data. A signed bundle
 differs from a normal bundle in that it has a `.signatures.json` file as well.
@@ -502,16 +510,18 @@ or `opa sign --help` for more details.
 
 The following hashing algorithms are supported:
 
-    MD5
-    SHA-1
-    SHA-224
-    SHA-256
-    SHA-384
-    SHA-512
-    SHA-512-224
-    SHA-512-256
+```txt
+MD5
+SHA-1
+SHA-224
+SHA-256
+SHA-384
+SHA-512
+SHA-512-224
+SHA-512-25
+```
 
-To calculate the digest for unstructured files (ie. all files except JSON or YAML files), apply the hash
+To calculate the digest for unstructured files (i.e. all files except JSON or YAML files), apply the hash
 function to the byte stream of the file.
 
 For structured files, read the byte stream and parse into a JSON structure; then recursively order the fields of all
@@ -575,7 +585,7 @@ bundle.RegisterSigner("custom", &CustomSigner{})
 bundle.RegisterVerifier("custom", &CustomVerifier{})
 ```
 
-### Delta Bundles
+## Delta Bundles
 
 A regular _snapshot_ bundle represents the entirety of OPA’s policy and data cache. When a new _snapshot_ bundle is
 downloaded, OPA will erase and overwrite all the policy and data in its cache before activating the new bundle. We can
@@ -595,7 +605,7 @@ single `patch.json` file at the root of the bundle which includes a [JSON Patch]
 _Delta_ bundles currently support updates to data only and not policies.
 :::
 
-#### Delta Bundle File Format
+### Delta Bundle File Format
 
 OPA expects a _delta_ bundle to contain an optional `.manifest` file and a required `patch.json` file that specifies a list of one or more
 patch operations on the data. OPA will generate an error if a _delta_ bundle contains any policy, data or wasm binary files.
@@ -722,10 +732,10 @@ This document lists some of the more common HTTP servers suitable as bundle serv
 #### Setup Instructions
 
 1. Search for "S3" and on the "Buckets" page, click "Create bucket".
-2. Fill in the form according to your preferences (name, region, etc).
-3. Either choose "Block all public access" for internal systems, or unmark the checkbox for that to allow external (authenticated) requests.
-4. You can now upload your bundle to the bucket. If you try to download it right away you'll notice that by default you're unauthorized to do so.
-5. To allow anyone to read the bundle, click on it and select "Make public" from the "Object actions" dropdown menu. If not, proceed to configure authentication.
+1. Fill in the form according to your preferences (name, region, etc).
+1. Either choose "Block all public access" for internal systems, or unmark the checkbox for that to allow external (authenticated) requests.
+1. You can now upload your bundle to the bucket. If you try to download it right away you'll notice that by default you're unauthorized to do so.
+1. To allow anyone to read the bundle, click on it and select "Make public" from the "Object actions" dropdown menu. If not, proceed to configure authentication.
 
 #### Authentication
 
@@ -767,81 +777,84 @@ Both methods are going to need a policy for either the service account or the IA
 ##### Environment Credentials
 
 1. Go to the "IAM" section of the AWS console. Choose "Users" and "Create new user". Select a name for the user, and the "Programmatic access" option.
-2. On the following "Permissions" page, choose "Attach existing policies directly" and then press "Create policy". Select the JSON tab and paste a policy like the example shown above, replacing `my-example-opa-bucket` with the name of your bucket.
-3. Once the policy has been created, it can be assigned to the user. With the user having been created, make sure to note down the AWS access key ID and the AWS secret access key, as they will be the credentials used for authentication.
+1. On the following "Permissions" page, choose "Attach existing policies directly" and then press "Create policy". Select the JSON tab and paste a policy like the example shown above, replacing `my-example-opa-bucket` with the name of your bucket.
+1. Once the policy has been created, it can be assigned to the user. With the user having been created, make sure to note down the AWS access key ID and the AWS secret access key, as they will be the credentials used for authentication.
 
 ##### Metadata Credentials
 
 1. Go to the "IAM" section of the AWS console. Choose "Roles" and "Create role". For type, select "AWS service" and for use case, choose EC2, or wherever you'll be running OPA.
-2. On the following "Permissions" page, choose "Create policy". Select the JSON tab and paste a policy like the example shown above, replacing `my-example-opa-bucket` with the name of your bucket.
-3. Once the policy has been created, it can be assigned to the role.
-4. With the role created, go to the EC2 instance view. Select an instance where OPA will run and select "Actions" -> "Security" -> "Modify IAM role". Select the role created in previous steps.
+1. On the following "Permissions" page, choose "Create policy". Select the JSON tab and paste a policy like the example shown above, replacing `my-example-opa-bucket` with the name of your bucket.
+1. Once the policy has been created, it can be assigned to the role.
+1. With the role created, go to the EC2 instance view. Select an instance where OPA will run and select "Actions" -> "Security" -> "Modify IAM role". Select the role created in previous steps.
 
 ##### Web Identity Credentials
 
 Using EKS IAM Roles for Service Account (Web Identity) Credential.
 
-Below are steps to use OpenID connect provider and kubernetes.
+Below are steps to use OpenID connect provider and Kubernetes.
 
 1. Go to the "IAM" section of the AWS console.
-2. Click Add provider and select OpenID connect.
-3. For Provider URL enter the one belonging to your chosen kubernetes cluster.
-4. Click on Get thumbprint
-5. For the audience enter: sts.amazonaws.com
-6. Add the provider.
-7. Once the provider is added, copy the ARN for the identity provider. Here's an example ARN: `arn:aws:iam::<your AWS account ID>:oidc-provider/oidc.eks.ap-northeast-1.amazonaws.com/id/DFGHJKKJHGF34HFDFGHY44TRFDE4RGDF`
-8. Create an IAM role (eg: app_dev_role) with the policy created above and assign it to the kubernetes service account.
-9. Go to Trust relationships inside the created role and click Edit trust relationship and enter the following policy document.
+1. Click Add provider and select OpenID connect.
+1. For Provider URL enter the one belonging to your chosen Kubernetes cluster.
+1. Click on Get thumbprint
+1. For the audience enter: sts.amazonaws.com
+1. Add the provider.
+1. Once the provider is added, copy the ARN for the identity provider. Here's an example ARN: `arn:aws:iam::<your AWS account ID>:oidc-provider/oidc.eks.ap-northeast-1.amazonaws.com/id/DFGHJKKJHGF34HFDFGHY44TRFDE4RGDF`
+1. Create an IAM role (e.g., `app_dev_role`) with the policy created above and assign it to the Kubernetes service account.
+1. Go to Trust relationships inside the created role and click Edit trust relationship and enter the following policy document.
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "<the ARN of the Identity provider from step 7, e.g. arn:aws:iam::123456789012:oidc-provider/oidc.eks.ap-northeast-1.amazonaws.com/id/DFGHJKKJHGF34HFDFGHY44TRFDE4RGDF where 123456789012 is the account ID of your AWS account, and DFGHJK...4RGDF is the OpenID Connect URL's end>"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "<the OpenID connect URL, e.g. oidc.eks.ap-northeast-1.amazonaws.com/id/B7060B6E991747ADDDC61ADD4B7875CF>:sub": "system:serviceaccount:<kubernetes namespace, e.g. app-dev>:<the kubernetes serviceaccount name, eg: app-dev-service-account>"
-        }
-      }
-    }
-  ]
-}
-```
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Principal": {
+           "Federated": "<the ARN of the Identity provider from step 7, e.g. arn:aws:iam::123456789012:oidc-provider/oidc.eks.ap-northeast-1.amazonaws.com/id/DFGHJKKJHGF34HFDFGHY44TRFDE4RGDF where 123456789012 is the account ID of your AWS account, and DFGHJK...4RGDF is the OpenID Connect URL's end>"
+         },
+         "Action": "sts:AssumeRoleWithWebIdentity",
+         "Condition": {
+           "StringEquals": {
+             "<the OpenID connect URL, e.g. oidc.eks.ap-northeast-1.amazonaws.com/id/B7060B6E991747ADDDC61ADD4B7875CF>:sub": "system:serviceaccount:<Kubernetes namespace, e.g. app-dev>:<the Kubernetes serviceaccount name, eg: app-dev-service-account>"
+           }
+         }
+       }
+     ]
+   }
+   ```
 
-10. Create the kubernetes service account.
-    ```yaml
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      annotations:
-        eks.amazonaws.com/role-arn: <the ARN of the IAM role from your account, e.g. arn:aws:iam::<aws_account eg, 123456789012>:role/app_dev_role>
-      name: <service account name, e.g. app-dev-service-account>
-      namespace: <k8 namespace, e.g. app-dev>
-    automountServiceAccountToken: false
-    ```
-11. Configure your kubernetes resources to use this service account.
-    ```yaml
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      ******
-    spec:
-      ******
-      template:
-        *******
-        spec:
-          serviceAccountName: app-dev-service-account # <--- like this
-          automountServiceAccountToken: true
-          containers:
-          ******
-    ```
+1. Create the Kubernetes service account.
 
-You should now be able to access AWS services from your kubernetes cluster.
+   ```yaml
+   apiVersion: v1
+   kind: ServiceAccount
+   metadata:
+     annotations:
+       eks.amazonaws.com/role-arn: <the ARN of the IAM role from your account, e.g. arn:aws:iam::<aws_account eg, 123456789012>:role/app_dev_role>
+     name: <service account name, e.g. app-dev-service-account>
+     namespace: <k8 namespace, e.g. app-dev>
+   automountServiceAccountToken: false
+   ```
+
+1. Configure your Kubernetes resources to use this service account.
+
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     ******
+   spec:
+     ******
+     template:
+       *******
+       spec:
+         serviceAccountName: app-dev-service-account # <--- like this
+         automountServiceAccountToken: true
+         containers:
+         ******
+   ```
+
+You should now be able to access AWS services from your Kubernetes cluster.
 
 The above steps should add the following variable to the pod.
 
@@ -1106,7 +1119,7 @@ Note that for the time being, the [Shared Key or Shared Access Signature (SAS)](
 1. Go to Azure Active Directory.
 2. In the left menu, click "App Registrations" followed by "New Registration". Name your app (client) amd leave the other options be. Click "Register".
 3. Click "Certificates and Secrets". Either create a secret to be used for [OAuth2 Client Credentials](https://www.openpolicyagent.org/docs/latest/configuration/#oauth2-client-credentials) or upload a certificate for [OAuth2 Client Credentials JWT authentication](https://www.openpolicyagent.org/docs/latest/configuration/#oauth2-client-credentials-jwt-authentication).
-4. In the menu to the left, click "API permissions". Click "Add a permission". Choose "Azure Storage" and check the "user_impersonation" checkbox.
+4. In the menu to the left, click "API permissions". Click "Add a permission". Choose "Azure Storage" and check the `user_impersonation` checkbox.
 5. Click "Add admin consent for Default Directory". Answer Yes on the followup question.
 6. Navigate back to your storage account. Click "Access Control (IAM)". Click "Add role assignments".
 7. Select the "Storage Blob Data Contributor" role. Leave "Assign access to" as "User, group or service principal". Search and select the name of the app created in step 2.
@@ -1311,7 +1324,7 @@ One of the easiest method of managing your policy bundles is to store your code 
 
 In this example we are using the [ghcr.io](https://ghcr.io) OCI registry as the upstream repository and the OPA and ORAS CLI as our build and publishing tool.
 
-###### Starting from scratch
+##### Starting from scratch
 
 Let's set up a basic policy example structured as:
 

@@ -12,7 +12,7 @@ the changes Terraform is about to make before it makes them. Such policy based c
 - Enforcing organizational rules around the changes to infrastructure state
 
 Terraform is a popular integration case for OPA and there are already a number
-of popular tools for running policy on HCL and plan JSONs. Browse existing
+of popular tools for running policy on HCL and plan JSON. Browse existing
 <EcosystemFeatureLink feature="terraform"> tools using OPA and
 Terraform</EcosystemFeatureLink> in the OPA Ecosystem.
 
@@ -45,9 +45,7 @@ This tutorial requires
 [latest version of Terraform](https://developer.hashicorp.com/terraform), but
 it is untested. Contributions welcome!)
 
-# Getting Started
-
-## Steps
+## Getting Started
 
 ### 1. Create and save a Terraform plan
 
@@ -448,13 +446,13 @@ Here is the expected contents of `tfplan.json`.
 }
 ```
 
-The json plan output produced by terraform contains a lot of information. For this tutorial, we will be interested by:
+The JSON plan output produced by terraform contains a lot of information. For this tutorial, we will be interested by:
 
 - `.resource_changes`: array containing all the actions that terraform will apply on the infrastructure.
 - `.resource_changes[].type`: the type of resource (e.g. `aws_instance` , `aws_iam` ...)
 - `.resource_changes[].change.actions`: array of actions applied on the resource (`create`, `update`, `delete`...)
 
-For more information about the json plan representation, please check the [terraform documentation](https://www.terraform.io/docs/internals/json-format.html#plan-representation)
+For more information about the JSON plan representation, please check the [terraform documentation](https://www.terraform.io/docs/internals/json-format.html#plan-representation)
 
 ### 3. Write the OPA policy to check the plan
 
@@ -485,8 +483,8 @@ blast_radius := 30
 
 # weights assigned for each operation on each resource-type
 weights := {
-	"aws_autoscaling_group": {"delete": 100, "create": 10, "modify": 1},
-	"aws_instance": {"delete": 10, "create": 1, "modify": 1},
+    "aws_autoscaling_group": {"delete": 100, "create": 10, "modify": 1},
+    "aws_instance": {"delete": 10, "create": 1, "modify": 1},
 }
 
 # Consider exactly these resource types in calculations
@@ -500,27 +498,27 @@ resource_types := {"aws_autoscaling_group", "aws_instance", "aws_iam", "aws_laun
 default authz := false
 
 authz if {
-	score < blast_radius
-	not touches_iam
+    score < blast_radius
+    not touches_iam
 }
 
 # Compute the score for a Terraform plan as the weighted sum of deletions, creations, modifications
 score := s if {
-	all_resources := [x |
-		some resource_type, crud in weights
+    all_resources := [x |
+        some resource_type, crud in weights
 
-		del := crud.delete * num_deletes[resource_type]
-		new := crud.create * num_creates[resource_type]
-		mod := crud.modify * num_modifies[resource_type]
-		x := (del + new) + mod
-	]
-	s := sum(all_resources)
+        del := crud.delete * num_deletes[resource_type]
+        new := crud.create * num_creates[resource_type]
+        mod := crud.modify * num_modifies[resource_type]
+        x := (del + new) + mod
+    ]
+    s := sum(all_resources)
 }
 
 # Whether there is any change to IAM
 touches_iam if {
-	all_resources := resources.aws_iam
-	count(all_resources) > 0
+    all_resources := resources.aws_iam
+    count(all_resources) > 0
 }
 
 ####################
@@ -529,50 +527,50 @@ touches_iam if {
 
 # list of all resources of a given type
 resources[resource_type] := all_resources if {
-	some resource_type, _ in resource_types
+    some resource_type, _ in resource_types
 
-	all_resources := [name |
-		some name in tfplan.resource_changes
-		name.type == resource_type
-	]
+    all_resources := [name |
+        some name in tfplan.resource_changes
+        name.type == resource_type
+    ]
 }
 
 # number of creations of resources of a given type
 num_creates[resource_type] := num if {
-	some resource_type, _ in resource_types
+    some resource_type, _ in resource_types
 
-	all_resources := resources[resource_type]
-	creates := [res |
-		some res in all_resources
-		"create" in res.change.actions
-	]
-	num := count(creates)
+    all_resources := resources[resource_type]
+    creates := [res |
+        some res in all_resources
+        "create" in res.change.actions
+    ]
+    num := count(creates)
 }
 
 # number of deletions of resources of a given type
 num_deletes[resource_type] := num if {
-	some resource_type, _ in resource_types
+    some resource_type, _ in resource_types
 
-	all_resources := resources[resource_type]
+    all_resources := resources[resource_type]
 
-	deletions := [res |
-		some res in all_resources
-		"delete" in res.change.actions
-	]
-	num := count(deletions)
+    deletions := [res |
+        some res in all_resources
+        "delete" in res.change.actions
+    ]
+    num := count(deletions)
 }
 
 # number of modifications to resources of a given type
 num_modifies[resource_type] := num if {
-	some resource_type, _ in resource_types
+    some resource_type, _ in resource_types
 
-	all_resources := resources[resource_type]
+    all_resources := resources[resource_type]
 
-	modifies := [res |
-		some res in all_resources
-		"update" in res.change.actions
-	]
-	num := count(modifies)
+    modifies := [res |
+        some res in all_resources
+        "update" in res.change.actions
+    ]
+    num := count(modifies)
 }
 ```
 
@@ -698,7 +696,7 @@ In addition to loading policies from the local filesystem, `opa exec` can fetch 
 opa build policy/
 ```
 
-Next, serve the bundle via nginx:
+Next, serve the bundle via NGINX:
 
 ```bash
 docker run --rm --name bundle_server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest
@@ -730,9 +728,7 @@ Keep in mind that it's up to you to decide how to use OPA's Terraform tests and 
 
 If you'd like to explore an additional example that uses terraform modules please continue below.
 
-# Working with Modules
-
-## Module Steps
+## Working with Modules
 
 ### 1. Create and save Terraform module plan
 
@@ -798,7 +794,7 @@ terraform plan --out tfplan.binary
 
 ### 2. Convert the new Terraform plan into JSON
 
-Use the Terraform show command to produce the json representation of the terraform plan
+Use the Terraform show command to produce the JSON representation of the terraform plan
 
 ```shell
 terraform show -json tfplan.binary > tfplan2.json
@@ -810,7 +806,7 @@ The policy evaluates if a security group is valid based on the contents of it's 
 
 - Resources can be specified under the root module or in child modules
 - We want to evaluate against the combined group of these resources
-- This example is scoped to the planned changes section of the json representation
+- This example is scoped to the planned changes section of the JSON representation
 
 The policy uses the walk keyword to explore the json structure, and uses conditions to filter for the specific paths where resources would be found.
 
@@ -820,65 +816,65 @@ The policy uses the walk keyword to explore the json structure, and uses conditi
 package terraform.module
 
 deny contains msg if {
-	some r
-	desc := resources[r].values.description
-	contains(desc, "HTTP")
-	msg := sprintf("No security groups should be using HTTP. Resource in violation: %v", [r.address])
+    some r
+    desc := resources[r].values.description
+    contains(desc, "HTTP")
+    msg := sprintf("No security groups should be using HTTP. Resource in violation: %v", [r.address])
 }
 
 resources contains r if {
-	some path, value
+    some path, value
 
-	# Walk over the JSON tree and check if the node we are
-	# currently on is a module (either root or child) resources
-	# value.
-	walk(input.planned_values, [path, value])
+    # Walk over the JSON tree and check if the node we are
+    # currently on is a module (either root or child) resources
+    # value.
+    walk(input.planned_values, [path, value])
 
-	# Look for resources in the current value based on path
-	some r in module_resources(path, value)
+    # Look for resources in the current value based on path
+    some r in module_resources(path, value)
 }
 
 # Variant to match root_module resources
 module_resources(path, value) := value if {
-	# Expect something like:
-	#
-	#     {
-	#     	"root_module": {
-	#         	"resources": [...],
-	#             ...
-	#         }
-	#         ...
-	#     }
-	#
-	# Where the path is [..., "root_module", "resources"]
+    # Expect something like:
+    #
+    #     {
+    #         "root_module": {
+    #             "resources": [...],
+    #             ...
+    #         }
+    #         ...
+    #     }
+    #
+    # Where the path is [..., "root_module", "resources"]
 
-	reverse_index(path, 1) == "resources"
-	reverse_index(path, 2) == "root_module"
+    reverse_index(path, 1) == "resources"
+    reverse_index(path, 2) == "root_module"
 }
 
 # Variant to match child_modules resources
 module_resources(path, value) := value if {
-	# Expect something like:
-	#
-	#     {
-	#     	...
-	#         "child_modules": [
-	#         	{
-	#             	"resources": [...],
-	#                 ...
-	#             },
-	#             ...
-	#         ]
-	#         ...
-	#     }
-	#
-	# Where the path is [..., "child_modules", 0, "resources"]
-	# Note that there will always be an index int between `child_modules`
-	# and `resources`. We know that walk will only visit each one once,
-	# so we shouldn't need to keep track of what the index is.
+    # Expect something like:
+    #
+    #     {
+    #         ...
+    #         "child_modules": [
+    #             {
+    #                 "resources": [...],
+    #                 ...
+    #             },
+    #             ...
+    #         ]
+    #         ...
+    #     }
+    #
+    # Where the path is [..., "child_modules", 0, "resources"]
+    # Note that there will always be an index int between `child_modules`
+    # and `resources`. We know that walk will only visit each one once,
+    # so we shouldn't need to keep track of what the index is.
 
-	reverse_index(path, 1) == "resources"
-	reverse_index(path, 3) == "child_modules"
+    reverse_index(path, 1) == "resources"
+    reverse_index(path, 3) == "child_modules"
 }
 
 reverse_index(path, idx) := path[count(path) - idx]
@@ -920,7 +916,7 @@ Additional use cases might include:
 - Making sure naming standards for resources are followed
 - Security or operational requirements
 
-# Ecosystem Projects
+## Ecosystem Projects
 
 <EcosystemEmbed feature="terraform">
 As further reading, you might be interested to review the Terraform integrations

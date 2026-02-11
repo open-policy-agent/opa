@@ -970,21 +970,18 @@ func BenchmarkObjectGetFromBaseDoc(b *testing.B) {
 	}
 }
 
-// templatestring           216386      5524 ns/op   10074 B/op	     158 allocs/op
-// templatestring                       5219 ns/op    8337 B/op      152 allocs/op don't pass bctx
-// --
-// concat                   272054      4500 ns/op    6728 B/op	     123 allocs/op
-// sprintf                  280381      4421 ns/op    6365 B/op	     121 allocs/op
+// templatestring-16         	  234561	      5096 ns/op	    8257 B/op	     150 allocs/op
+// concat-16                 	  286130	      4265 ns/op	    6624 B/op	     118 allocs/op
+// sprintf-16                	  286662	      4206 ns/op	    6260 B/op	     116 allocs/op
 func BenchmarkTemplateStringVsConcatVsSprintf(b *testing.B) {
 	ctx := b.Context()
 	store := inmem.NewFromObject(map[string]any{})
 
 	modBase := `package test
 	
-	foo := "foo"
+	default foo := "foo"
 	bar := "bar"
 	baz := "baz"
-
 	`
 	tests := []struct {
 		name    string
@@ -1018,10 +1015,103 @@ func BenchmarkTemplateStringVsConcatVsSprintf(b *testing.B) {
 					if err != nil {
 						return err
 					}
-					result := rs[0][ast.Var("s")]
-					expected := ast.String("foo-bar-baz")
-					if !result.Value.(ast.String).Equal(expected) {
-						b.Fatalf("unexpected result: %v (expected: %v)", result, expected)
+					if got, exp := rs[0][ast.Var("s")], ast.String("foo-bar-baz"); !exp.Equal(got.Value) {
+						b.Fatalf("unexpected result: %v (expected: %v)", got, exp)
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				b.Fatal(err)
+			}
+		})
+	}
+}
+
+// interpolated-16         	  466576	      2579 ns/op	    5207 B/op	      89 allocs/op
+// concated-16             	  556719	      2074 ns/op	    4179 B/op	      70 allocs/op
+// sprinted-16             	  598346	      2027 ns/op	    3813 B/op	      68 allocs/op
+func BenchmarkTemplateStringVsConcatVsSprintfLocal(b *testing.B) {
+	ctx := b.Context()
+	store := inmem.NewFromObject(map[string]any{})
+
+	policy := `package test
+	
+	interpolated if {
+		[a, b, c] := ["a", "b", "c"]
+		$"{a}{b}{c}" == "abc"
+	}
+
+	concated if {
+		[a, b, c] := ["a", "b", "c"]
+		concat("", [a, b, c]) == "abc"
+	}
+
+	sprinted if {
+		[a, b, c] := ["a", "b", "c"]
+		sprintf("%s%s%s", [a, b, c]) == "abc"
+	}`
+
+	compiler := ast.MustCompileModules(map[string]string{"test.rego": policy})
+
+	for _, tc := range []string{"interpolated", "concated", "sprinted"} {
+		query := ast.MustParseBody("result = data.test." + tc)
+
+		b.Run(tc, func(b *testing.B) {
+			err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				q := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn)
+				for b.Loop() {
+					rs, err := q.Run(ctx)
+					if err != nil {
+						return err
+					}
+
+					if got, exp := rs[0][ast.Var("result")], ast.Boolean(true); !exp.Equal(got.Value) {
+						b.Fatalf("unexpected result: %v (expected: %v)", got, exp)
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				b.Fatal(err)
+			}
+		})
+	}
+}
+
+// interpolated-16         	  446936	      2684 ns/op	    5288 B/op	      91 allocs/op
+// sprinted-16             	  550533	      2178 ns/op	    3885 B/op	      70 allocs/op
+func BenchmarkTemplateStringVsSprintfNonStrings(b *testing.B) {
+	ctx := b.Context()
+	store := inmem.NewFromObject(map[string]any{"a": 1})
+
+	policy := `package test
+	
+	interpolated if {
+		[a, b, c] := [12345, {"foo": "bar"}, [1.2, null, false]]
+		$"{a}{b}{c}" == "12345{\"foo\": \"bar\"}[1.2, null, false]"
+	}
+
+	sprinted if {
+		[a, b, c] := [12345, {"foo": "bar"}, [1.2, null, false]]
+		sprintf("%v%v%v", [a, b, c]) == "12345{\"foo\": \"bar\"}[1.2, null, false]"
+	}`
+
+	compiler := ast.MustCompileModules(map[string]string{"test.rego": policy})
+
+	for _, tc := range []string{"interpolated", "sprinted"} {
+		query := ast.MustParseBody("result = data.test." + tc)
+
+		b.Run(tc, func(b *testing.B) {
+			err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				q := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn)
+				for b.Loop() {
+					rs, err := q.Run(ctx)
+					if err != nil {
+						return err
+					}
+					if got, exp := rs[0][ast.Var("result")], ast.Boolean(true); !exp.Equal(got.Value) {
+						b.Fatalf("unexpected result: %v (expected: %v)", got, exp)
 					}
 				}
 				return nil

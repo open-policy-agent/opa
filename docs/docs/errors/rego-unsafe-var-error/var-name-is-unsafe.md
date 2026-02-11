@@ -3,7 +3,7 @@ sidebar_label: var {name} is unsafe
 image: /img/opa-errors.png
 ---
 
-# rego_unsafe_var_error: var `{name}` is unsafe
+# `rego_unsafe_var_error`: var `{name}` is unsafe
 
 This is one of the most common errors reported by OPA. When a variable is "unsafe" it simply means that OPA wasn't able
 to determine where to find it. This is commonly caused by misspelling the name of the variable, or perhaps by
@@ -88,7 +88,7 @@ there too.
 If the variable name and definition are correct, the issue is likely that the
 definition of the rule has not been loaded into OPA. One thing to keep in mind
 is that all OPA commands that accept a file may just as well be provided a
-directory, which will be loaded recursively. This is is often the best way to
+directory, which will be loaded recursively. This is often the best way to
 ensure all the files you may depend on are loaded and available during
 compilation.
 

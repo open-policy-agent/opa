@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD041 -->
+
 Here we use the `every` keyword to validate that an example session has all the
 required feature flags for a request.
 

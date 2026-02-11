@@ -31,7 +31,7 @@ GraphQL feature use to form a plan before embarking on major migrations.
 
 ## Steps
 
-### 1. Define our GraphQL schema.
+### 1. Define our GraphQL schema
 
 Most modern GraphQL frameworks encourage starting with a schema, so we'll follow suit, and begin by defining the schema for this example.
 
@@ -55,7 +55,7 @@ These types are special because they define the entry points of _every_ GraphQL 
 
 For our example above, we've defined exactly one query entry point, the parameterized query `employeeByID(id: String!)`.
 
-### 2. Create a policy bundle.
+### 2. Create a policy bundle
 
 GraphQL APIs allow surprising flexibility in how queries can be constructed, which makes writing policies for them a bit more challenging than for a REST API, which usually has a more fixed structure.
 
@@ -83,64 +83,64 @@ query_ast := graphql.parse(input.query, input.schema)[0] # If validation fails, 
 default allow := false
 
 allow if {
-	employeeByIDQueries != {}
-	every query in employeeByIDQueries {
-		allowed_query(query)
-	}
+    employeeByIDQueries != {}
+    every query in employeeByIDQueries {
+        allowed_query(query)
+    }
 }
 
 # Allow users to see the salaries of their subordinates. (variable case)
 allowed_query(q) if {
-	selected_salary(q)
-	varname := variable_arg(q, "id")
-	input.variables[varname] in subordinates[input.user] # Do value lookup from the 'variables' object.
+    selected_salary(q)
+    varname := variable_arg(q, "id")
+    input.variables[varname] in subordinates[input.user] # Do value lookup from the 'variables' object.
 }
 
 # Allow users to see the salaries of their subordinates. (constant value case)
 allowed_query(q) if {
-	selected_salary(q)
-	username := constant_string_arg(q, "id")
-	username in subordinates[input.user]
+    selected_salary(q)
+    username := constant_string_arg(q, "id")
+    username in subordinates[input.user]
 }
 
 # Helper rules.
 
 # Allow users to get their own salaries. (variable case)
 allowed_query(q) if {
-	selected_salary(q)
-	varname := variable_arg(q, "id")
-	input.user == input.variables[varname] # Do value lookup from the 'variables' object.
+    selected_salary(q)
+    varname := variable_arg(q, "id")
+    input.user == input.variables[varname] # Do value lookup from the 'variables' object.
 }
 
 # Allow users to get their own salaries. (constant value case)
 allowed_query(q) if {
-	selected_salary(q)
-	username := constant_string_arg(q, "id")
-	input.user == username
+    selected_salary(q)
+    username := constant_string_arg(q, "id")
+    input.user == username
 }
 
 # Helper functions.
 
 # Build up an object with all queries of interest as values.
 employeeByIDQueries contains value if {
-	some value
-	walk(query_ast, [_, value])
-	value.Name == "employeeByID"
-	count(value.SelectionSet) > 0 # Ensure we latch onto an employeeByID query.
+    some value
+    walk(query_ast, [_, value])
+    value.Name == "employeeByID"
+    count(value.SelectionSet) > 0 # Ensure we latch onto an employeeByID query.
 }
 
 # Extract the string value of a constant value argument.
 constant_string_arg(value, argname) := arg.Value.Raw if {
-	some arg in value.Arguments
-	arg.Name == argname
-	arg.Value.Kind == 3
+    some arg in value.Arguments
+    arg.Name == argname
+    arg.Value.Kind == 3
 }
 
 # Extract the variable name for a variable argument.
 variable_arg(value, argname) := arg.Value.Raw if {
-	some arg in value.Arguments
-	arg.Name == argname
-	arg.Value.Kind == 0
+    some arg in value.Arguments
+    arg.Name == argname
+    arg.Value.Kind == 0
 }
 
 # Ensure we're dealing with a selection set that includes the "salary" field.
@@ -159,7 +159,7 @@ mv bundle.tar.gz ./bundles
 
 You should now see a policy bundle (`bundle.tar.gz`) in your working directory.
 
-### 3. Bootstrap the tutorial environment using Docker Compose.
+### 3. Bootstrap the tutorial environment using Docker Compose
 
 Next, create a `docker-compose.yaml` file that runs OPA, a bundle server and the demo GraphQL server.
 
@@ -211,9 +211,10 @@ docker-compose -f docker-compose.yaml up
 ```
 
 Every time the demo GraphQL server receives an HTTP request, it asks OPA to decide whether an GraphQL query is authorized or not using a single RESTful API call.
-An example codebase is [here][graphql-example-repo], but the crux of the (JavaScript, Apollo framework) code is shown below.
+An example codebase is [available on GitHub][graphql-example-repo], but the crux of the (JavaScript, Apollo framework) code is shown below.
 
 [graphql-example-repo]: https://github.com/StyraOSS/graphql-apollo-example
+[wikipedia-ast]: https://en.wikipedia.org/wiki/Abstract_syntax_tree
 
 ```javascript
 // we assume user is passed in as part of the request context.
@@ -241,7 +242,7 @@ await axios
   });
 ```
 
-### 4. Check that `alice` can see her own salary.
+### 4. Check that `alice` can see her own salary
 
 We'll define a quick shell function to make the following examples cleaner on the command line:
 
@@ -289,7 +290,7 @@ result := data.graphqlapi.authz
 gql-query bob:password "localhost:6000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
-### 5. Check that `bob` CANNOT see `charlie`'s salary.
+### 5. Check that `bob` CANNOT see `charlie`'s salary
 
 `bob` is not `charlie`'s manager, so the following command will fail.
 
@@ -297,7 +298,7 @@ gql-query bob:password "localhost:6000/" '{"query":"query { employeeByID(id: \"a
 gql-query bob:password "localhost:6000/" '{"query":"query { employeeByID(id: \"charlie\") { salary }}"}'
 ```
 
-### 6. Change the policy.
+### 6. Change the policy
 
 Suppose the organization now includes an HR department.
 The organization wants members of HR to be able to see any salary.
@@ -308,8 +309,8 @@ package graphqlapi.authz
 
 # Allow HR members to get anyone's salary.
 allowed_query(q) if {
-	selected_salary(q)
-	input.user == hr[_]
+    selected_salary(q)
+    input.user == hr[_]
 }
 
 # David is the only member of HR.
@@ -329,7 +330,7 @@ If you plan to make frequent policy changes you might want to adjust this value 
 For the sake of the tutorial we included `manager_of` and `hr` data directly inside the policies.
 In real-world scenarios that information would be imported from external data sources.
 
-### 7. Check that the new policy works.
+### 7. Check that the new policy works
 
 Check that `david` can see anyone's salary.
 
@@ -340,7 +341,7 @@ gql-query david:password "localhost:6000/" '{"query":"query { employeeByID(id: \
 gql-query david:password "localhost:6000/" '{"query":"query { employeeByID(id: \"david\") { salary }}"}'
 ```
 
-### 8. (Optional) Use JSON Web Tokens to communicate policy data.
+### 8. (Optional) Use JSON Web Tokens to communicate policy data
 
 OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.decode`.
 To get a sense of one way the subordinate and HR data might be communicated in the real world, let's try a similar exercise utilizing the JWT utilities of OPA.
@@ -354,60 +355,60 @@ query_ast := graphql.parse(input.query, input.schema)[0] # If validation fails, 
 
 # Allow users to see the salaries of their subordinates. (variable case)
 allowed_query(q) if {
-	selected_salary(q)
-	varname := variable_arg(q, "id")
-	input.variables[varname] in token.payload.subordinates # Do value lookup from the 'variables' object.
+    selected_salary(q)
+    varname := variable_arg(q, "id")
+    input.variables[varname] in token.payload.subordinates # Do value lookup from the 'variables' object.
 }
 
 # Allow users to see the salaries of their subordinates. (constant value case)
 allowed_query(q) if {
-	selected_salary(q)
-	username := constant_string_arg(q, "id")
-	username in token.payload.subordinates
+    selected_salary(q)
+    username := constant_string_arg(q, "id")
+    username in token.payload.subordinates
 }
 
 # Allow users to get their own salaries. (variable case)
 allowed_query(q) if {
-	selected_salary(q)
-	varname := variable_arg(q, "id")
-	token.payload.user == input.variables[varname] # Do value lookup from the 'variables' object.
+    selected_salary(q)
+    varname := variable_arg(q, "id")
+    token.payload.user == input.variables[varname] # Do value lookup from the 'variables' object.
 }
 
 # Allow users to get their own salaries. (constant value case)
 allowed_query(q) if {
-	selected_salary(q)
-	username := constant_string_arg(q, "id")
-	token.payload.user == username
+    selected_salary(q)
+    username := constant_string_arg(q, "id")
+    token.payload.user == username
 }
 
 # Allow HR members to get anyone's salary.
 allowed_query(q) if {
-	selected_salary(q)
-	token.payload.hr == true
+    selected_salary(q)
+    token.payload.hr == true
 }
 
 # Helper functions.
 
 # Build up a set with all queries of interest as values.
 employeeByIDQueries contains value if {
-	some value
-	walk(query_ast, [_, value])
-	value.Name == "employeeByID"
-	count(value.SelectionSet) > 0 # Ensure we latch onto an employeeByID query.
+    some value
+    walk(query_ast, [_, value])
+    value.Name == "employeeByID"
+    count(value.SelectionSet) > 0 # Ensure we latch onto an employeeByID query.
 }
 
 # Extract the string value of a constant value argument.
 constant_string_arg(value, argname) := arg.Value.Raw if {
-	some arg in value.Arguments
-	arg.Name == argname
-	arg.Value.Kind == 3
+    some arg in value.Arguments
+    arg.Name == argname
+    arg.Value.Kind == 3
 }
 
 # Extract the variable name for a variable argument.
 variable_arg(value, argname) := arg.Value.Raw if {
-	some arg in value.Arguments
-	arg.Name == argname
-	arg.Value.Kind == 0
+    some arg in value.Arguments
+    arg.Name == argname
+    arg.Value.Kind == 0
 }
 
 # Ensure we're dealing with a selection set that includes the "salary" field.
@@ -418,11 +419,11 @@ selected_salary(value) := value.SelectionSet[_].Name == "salary"
 default allow := false
 
 allow if {
-	employeeByIDQueries != {}
-	user_owns_token # Ensure we validate the JWT token.
-	every query in employeeByIDQueries {
-		allowed_query(query)
-	}
+    employeeByIDQueries != {}
+    user_owns_token # Ensure we validate the JWT token.
+    every query in employeeByIDQueries {
+        allowed_query(query)
+    }
 }
 
 # Helper rules ... (Same as example.rego)
@@ -437,7 +438,7 @@ user_owns_token if input.user == token.payload.azp
 
 # Helper to get the token payload.
 token := {"payload": payload} if {
-	[_, payload, _] := io.jwt.decode(input.token)
+    [_, payload, _] := io.jwt.decode(input.token)
 }
 ```
 

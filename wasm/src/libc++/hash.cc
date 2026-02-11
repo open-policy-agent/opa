@@ -149,8 +149,7 @@ const unsigned indices[] =
 // against.
 
 template <size_t _Sz = sizeof(size_t)>
-inline _LIBCPP_INLINE_VISIBILITY
-typename enable_if<_Sz == 4, void>::type
+inline typename enable_if<_Sz == 4, void>::type
 __check_for_overflow(size_t N)
 {
     if (N > 0xFFFFFFFB)
@@ -158,8 +157,7 @@ __check_for_overflow(size_t N)
 }
 
 template <size_t _Sz = sizeof(size_t)>
-inline _LIBCPP_INLINE_VISIBILITY
-typename enable_if<_Sz == 8, void>::type
+inline typename enable_if<_Sz == 8, void>::type
 __check_for_overflow(size_t N)
 {
     if (N > 0xFFFFFFFFFFFFFFC5ull)
@@ -557,5 +555,34 @@ next:
         n = L * k0 + indices[in];
     }
 }
+
+// Provide __hash_memory function for LLVM 21
+[[__gnu__::__pure__]] size_t __hash_memory(_LIBCPP_NOESCAPE const void* __data, size_t __len) noexcept {
+    const unsigned char* __p = static_cast<const unsigned char*>(__data);
+    size_t __hash = 2166136261U;  // FNV-1a 32-bit offset basis
+    for (size_t __i = 0; __i < __len; ++__i) {
+        __hash ^= __p[__i];
+        __hash *= 16777619U;  // FNV-1a 32-bit prime
+    }
+    return __hash;
+}
+
+// Provide a simple sort implementation for small int arrays
+template<typename _Compare, typename _RandomAccessIterator>
+void __sort(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp) {
+    // Simple bubble sort for small arrays
+    for (auto __i = __first; __i != __last; ++__i) {
+        for (auto __j = __i + 1; __j != __last; ++__j) {
+            if (*__j < *__i) {  // Direct comparison for int
+                auto __tmp = *__i;
+                *__i = *__j;
+                *__j = __tmp;
+            }
+        }
+    }
+}
+
+// Explicit instantiation for the needed signature
+template void __sort<__less<int, int>&, int*>(int*, int*, __less<int, int>&);
 
 _LIBCPP_END_NAMESPACE_STD
