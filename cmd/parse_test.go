@@ -1187,7 +1187,7 @@ func testParse(t *testing.T, files map[string]string, params *parseParams) (int,
 
 	var tempDirUsed string
 	test.WithTempFS(files, func(path string) {
-		var args []string
+		args := make([]string, 0, len(files))
 		for file := range files {
 			args = append(args, filepath.Join(path, file))
 		}

@@ -544,7 +544,7 @@ func prettyProfile(w io.Writer, profile []profiler.ExprStats) error {
 	tableProfile := generateTableProfile(w)
 
 	for _, rs := range profile {
-		line := []string{}
+		line := make([]string, 0, 5)
 		timeNs := time.Duration(rs.ExprTimeNs) * time.Nanosecond
 		timeNsStr := timeNs.String()
 		numEval := strconv.FormatInt(int64(rs.NumEval), 10)
@@ -695,13 +695,13 @@ func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLim
 	for varName, varValueInterface := range m.All() {
 		val, ok := varValueInterface.(map[string]any)
 		if !ok {
-			line := []string{}
+			line := make([]string, 0, 2)
 			varValue := checkStrLimit(fmt.Sprintf("%v", varValueInterface), prettyLimit)
 			line = append(line, varName, varValue)
 			lines = append(lines, line)
 		} else {
 			for k, v := range val {
-				line := []string{}
+				line := make([]string, 0, 2)
 				newVarName := fmt.Sprintf("%v_%v", varName, k)
 				value := checkStrLimit(fmt.Sprintf("%v", v), prettyLimit)
 				line = append(line, newVarName, value)
@@ -718,9 +718,10 @@ func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLim
 }
 
 func populateTableAggregatedMetrics(ms map[string]any, table *tablewriter.Table, prettyLimit int) (int, error) {
-	lines := [][]string{}
+	lines := make([][]string, 0, len(ms))
 	for name, vals := range ms {
-		line := []string{name}
+		line := make([]string, 0, 1+len(statKeys))
+		line = append(line, name)
 		vs := vals.(map[string]any)
 		for _, k := range statKeys {
 			line = append(line, checkStrLimit(fmt.Sprintf("%v", vs[k]), prettyLimit))

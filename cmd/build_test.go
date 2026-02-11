@@ -77,6 +77,7 @@ func TestBuildProducesBundle(t *testing.T) {
 }
 
 func TestBuildRespectsCapabilities(t *testing.T) {
+	//nolint:prealloc // test slice is extended dynamically, initial values are clearer as slice literal
 	tests := []struct {
 		note       string
 		caps       string
@@ -3276,7 +3277,7 @@ Warning: .manifest file found in %q but -b flag not specified. Manifest will be 
 				params.bundleMode = tc.bundleMode
 				params.stderr = &stderr
 
-				var args []string
+				args := make([]string, 0, len(tc.buildArgs))
 				for _, arg := range tc.buildArgs {
 					args = append(args, path.Join(root, arg))
 				}

@@ -518,7 +518,7 @@ func TestChunkEncoderAdaptive(t *testing.T) {
 func decodeChunks(t *testing.T, bs [][]byte) []EventV1 {
 	t.Helper()
 
-	var events []EventV1
+	events := make([]EventV1, 0, len(bs))
 	for _, chunk := range bs {
 		e, err := newChunkDecoder(chunk).decode()
 		if err != nil {

@@ -5615,7 +5615,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 
 	sort.Strings(expectedErrors)
 
-	result := []string{}
+	result := make([]string, 0, len(c.Errors))
 
 	for i := range c.Errors {
 		result = append(result, c.Errors[i].Message)
@@ -11544,7 +11544,7 @@ foorule = true if {
 }
 
 func compilerErrsToStringSlice(errors []*Error) []string {
-	result := []string{}
+	result := make([]string, 0, len(errors))
 	for _, e := range errors {
 		msg := strings.SplitN(e.Error(), ":", 3)[2]
 		result = append(result, strings.TrimSpace(msg))

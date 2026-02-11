@@ -27,7 +27,7 @@ func newTestTraversal(g map[int][]int) *testTraversal {
 }
 
 func (t *testTraversal) Edges(x T) []T {
-	r := []T{}
+	r := make([]T, 0, len(t.g[x.(int)]))
 	for _, v := range t.g[x.(int)] {
 		r = append(r, v)
 	}

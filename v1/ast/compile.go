@@ -974,7 +974,7 @@ func (c *Compiler) PassesTypeCheck(body Body) bool {
 
 // PassesTypeCheckRules determines whether the given rules passes type checking
 func (c *Compiler) PassesTypeCheckRules(rules []*Rule) Errors {
-	elems := []util.T{}
+	elems := make([]util.T, 0, len(rules))
 
 	for _, rule := range rules {
 		elems = append(elems, rule)
