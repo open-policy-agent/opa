@@ -20,9 +20,9 @@ import (
 
 type ExtendedTestCase struct {
 	cases.TestCase
-	EntryPoints    []string    `json:"entrypoints"`
-	Plan           interface{} `json:"plan"`
-	WantPlanResult interface{} `json:"want_plan_result"`
+	EntryPoints    []string   `json:"entrypoints"`
+	Plan           *ir.Policy `json:"plan"`
+	WantPlanResult any        `json:"want_plan_result"`
 }
 
 type ExtendedSet struct {
@@ -52,9 +52,9 @@ func (t *noopEvalPlugin) PrepareForEval(_ context.Context, policy *ir.Policy, _ 
 	return t, nil
 }
 
-// LoadExtended adds the IR plan to existing testdata for external IR languages to use for testing (e.g. opa-swift)
+// LoadIrExtendedTestCases adds the IR plan to existing testdata for external IR languages to use for testing (e.g. opa-swift)
 // accepts a path to an existing testdata folder (e.g. testdata/v1), reading each test and its cases
-func LoadExtended() ([]ExtendedSet, error) {
+func LoadIrExtendedTestCases() ([]ExtendedSet, error) {
 	// Used by the 'time/time caching' test
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.sleep",
