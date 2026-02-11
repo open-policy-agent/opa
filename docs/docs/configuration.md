@@ -795,7 +795,7 @@ Bundles are defined with a key that is the `name` of the bundle. This `name` is 
 server provenance, etc.
 
 Each bundle can be configured to verify a bundle signature using the `keyid` and `scope` fields. The `keyid` is the name of
-one of the keys listed under the [keys](#keys) entry.
+one of the keys listed under the [keys](#keys) entry. When using bundle services or discovery, verification keys must be in the configuration file. The `--verification-key` CLI flag only works with the `--bundle` flag for filesystem bundles - see [Bundle Signing](./management-bundles/#signing) for examples.
 
 Signature verification fails if the `bundles[_].signing` field is configured on a bundle but no `.signatures.json` file is
 included in the actual bundle gzipped tarball.

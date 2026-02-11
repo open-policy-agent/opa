@@ -284,6 +284,27 @@ signature verification of a discovery bundle **CANNOT** be modified via discover
 > include the keys used to verify the non-discovery bundles. However, OPA does not enforce that recommendation. You may use
 > unsigned discovery bundles that themselves require non-discovery bundles to be signed.
 
+To enable signature verification for discovery bundles, add the `signing` field to your discovery configuration and define the verification key:
+
+```yaml title="Bootstrap Config"
+discovery:
+  service: acmecorp
+  resource: /discovery.tar.gz
+  signing:
+    keyid: discovery_key
+    scope: read
+
+keys:
+  discovery_key: # Cannot come from discovery
+    algorithm: RS256
+    key: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+```
+
+Discovery bundle contents then provides keys for regular bundles - see [Bundle Signing](./management-bundles/#signing) for more details about signing configuration.
+
 ## Discovery Bundle Persistence
 
 OPA can optionally persist the activated discovery bundle to disk for recovery purposes. To enable
