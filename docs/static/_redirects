@@ -2,6 +2,9 @@
 # Redirects for our content
 # -----------------------------------------------------------------------------
 
+# added as edge case to the below splat redirect we use for the general case
+/docs/latest/ecosystem/ /ecosystem
+
 # while we have a lot of links to /docs/latest/ in the wild, we want to
 # redirect them to /docs/
 /docs/latest/*    /docs/:splat    301
