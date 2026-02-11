@@ -1946,7 +1946,7 @@ func compileModules(input []string) *ast.Compiler {
 
 func compileRules(imports []string, input []string, modules []string) (*ast.Compiler, error) {
 
-	is := []*ast.Import{}
+	is := make([]*ast.Import, 0, len(imports))
 	for _, i := range imports {
 		is = append(is, &ast.Import{
 			Path: ast.MustParseTerm(i),
@@ -1960,7 +1960,7 @@ func compileRules(imports []string, input []string, modules []string) (*ast.Comp
 		Imports: is,
 	}
 
-	rules := []*ast.Rule{}
+	rules := make([]*ast.Rule, 0, len(input))
 	for i := range input {
 		rules = append(rules, ast.MustParseRuleWithOpts(input[i], popts))
 		rules[i].Module = m
@@ -2096,7 +2096,7 @@ func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[s
 	options ...func(*Query) *Query) {
 	t.Helper()
 
-	imports := []string{}
+	imports := make([]string, 0, len(data))
 	for k := range data {
 		imports = append(imports, "data."+k)
 	}
@@ -2381,7 +2381,7 @@ func getTestNamespace() string {
 
 func dump(note string, modules map[string]*ast.Module, data any, docpath []string, input *ast.Term, exp any, requiresSort bool) {
 
-	moduleSet := []string{}
+	moduleSet := make([]string, 0, len(modules))
 	for _, module := range modules {
 		moduleSet = append(moduleSet, string(bytes.ReplaceAll(format.MustAst(module), []byte("\t"), []byte("  "))))
 	}

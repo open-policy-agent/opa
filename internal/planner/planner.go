@@ -2070,7 +2070,7 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 			}
 		}
 		if anyKeyNonGround {
-			var rules []*ast.Rule
+			rules := make([]*ast.Rule, 0, len(virtual.Children()))
 			for _, key := range virtual.Children() {
 				// TODO(sr): skip functions
 				rules = append(rules, virtual.Get(key).Rules()...)

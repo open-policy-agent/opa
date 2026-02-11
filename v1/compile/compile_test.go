@@ -3695,7 +3695,9 @@ type prettyBundle struct {
 }
 
 func (p prettyBundle) String() string {
-	buf := []string{fmt.Sprintf("%d module(s) (hiding data):", len(p.Modules)), ""}
+	buf := make([]string, 2, 2+len(p.Modules)*5)
+	buf[0] = fmt.Sprintf("%d module(s) (hiding data):", len(p.Modules))
+	buf[1] = ""
 
 	for _, mf := range p.Modules {
 		buf = append(buf,

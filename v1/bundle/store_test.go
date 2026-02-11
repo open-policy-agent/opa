@@ -3696,7 +3696,7 @@ func testWriteData(t *testing.T, tc testWriteModuleCase, legacy bool) {
 		// if supplied, pre-parse the module files
 
 		for _, b := range tc.bundles {
-			var parsedMods []ModuleFile
+			parsedMods := make([]ModuleFile, 0, len(b.Modules))
 			for _, mf := range b.Modules {
 				parsedMods = append(parsedMods, ModuleFile{
 					Path:   mf.Path,

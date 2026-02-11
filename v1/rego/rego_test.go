@@ -414,10 +414,10 @@ func assertPreparedEvalQueryEval(t *testing.T, pq PreparedEvalQuery, options []E
 
 func assertResultSet(t *testing.T, rs ResultSet, expected string) {
 	t.Helper()
-	result := []any{}
+	result := make([]any, 0, len(rs))
 
 	for i := range rs {
-		values := []any{}
+		values := make([]any, 0, len(rs[i].Expressions))
 		for j := range rs[i].Expressions {
 			values = append(values, rs[i].Expressions[j].Value)
 		}

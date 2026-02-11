@@ -62,7 +62,7 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 			t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
 		}
 
-		var builtinNames []string
+		builtinNames := make([]string, 0, len(info.Required.Builtins))
 		for _, bi := range info.Required.Builtins {
 			builtinNames = append(builtinNames, bi.Name)
 		}
@@ -250,7 +250,7 @@ func TestGenerateBundleInfoWithBundleTarGz(t *testing.T) {
 			t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
 		}
 
-		expectedWasmModules := []map[string]any{}
+		expectedWasmModules := make([]map[string]any, 0, 2)
 		expectedWasmModule1 := map[string]any{
 			"path":        "/example/policy.wasm",
 			"url":         filepath.Join(bundleFile, "example", "policy.wasm"),

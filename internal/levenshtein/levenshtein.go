@@ -16,7 +16,8 @@ func ClosestStrings(minDistance int, a string, candidates iter.Seq[string]) []st
 		levDist := levenshtein.ComputeDistance(a, c)
 		switch {
 		case levDist < minDistance:
-			closestStrings = []string{c}
+			closestStrings = make([]string, 1, 2)
+			closestStrings[0] = c
 			minDistance = levDist
 		case levDist == minDistance:
 			closestStrings = append(closestStrings, c)
