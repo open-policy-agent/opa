@@ -29,7 +29,7 @@ jobs:
       uses: open-policy-agent/setup-opa@87c881550699b0257d7b7aeb8c33019d70bae4a2 # v2.3.0
       with:
         version: latest
-        
+
     - name: Check for file changes
       id: changes
       run: |
@@ -408,7 +408,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-15]
-        version: ["1.24"]
+        version: ["1.25.7"]
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Download generated artifacts
