@@ -219,7 +219,7 @@ func (t *Array) toMap() map[string]any {
 
 func (t *Array) String() string {
 	prefix := "array"
-	buf := []string{}
+	buf := make([]string, 0, len(t.static))
 	for _, tpe := range t.static {
 		buf = append(buf, Sprint(tpe))
 	}

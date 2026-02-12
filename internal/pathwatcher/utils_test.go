@@ -37,7 +37,7 @@ func TestWatchPaths(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
-		result := []string{}
+		result := make([]string, 0, len(paths))
 		for _, p := range paths {
 			result = append(result, filepath.Clean(strings.TrimPrefix(p, rootDir)))
 		}

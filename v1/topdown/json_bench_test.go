@@ -366,7 +366,7 @@ func genRandom3LayerObjectJSONPatchListData(l1Keys, l2Keys, l3Keys, p int) ast.V
 		depth := rand.Intn(3) + 1 // (max - min) + min method of getting a random range.
 
 		// Random values for each path segment.
-		segments := []string{}
+		segments := make([]string, 0, 2*depth)
 		for j := range depth {
 			pathSegment := strconv.FormatInt(int64(rand.Intn(numKeys[j])), 10)
 			segments = append(segments, "/", pathSegment)

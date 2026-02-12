@@ -27,7 +27,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	modules := []*ast.Module{}
+	modules := make([]*ast.Module, 0, len(c.Modules))
 
 	for _, m := range c.Modules {
 		modules = append(modules, m)

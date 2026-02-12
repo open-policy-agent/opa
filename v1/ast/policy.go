@@ -989,7 +989,7 @@ func (head *Head) HasDynamicRef() bool {
 
 // Copy returns a deep copy of a.
 func (a Args) Copy() Args {
-	cpy := Args{}
+	cpy := make(Args, 0, len(a))
 	for _, t := range a {
 		cpy = append(cpy, t.Copy())
 	}

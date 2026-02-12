@@ -361,7 +361,7 @@ func TestAllOfSchemas(t *testing.T) {
 
 func TestParseSchemaUntypedField(t *testing.T) {
 	// Expected type is: object<foo: any>
-	staticProps := []*types.StaticProperty{}
+	staticProps := make([]*types.StaticProperty, 0, 1)
 	staticProps = append(staticProps, &types.StaticProperty{Key: "foo", Value: types.A})
 	expectedType := types.NewObject(staticProps, nil)
 	testParseSchema(t, untypedFieldObjectSchema, expectedType, nil)
@@ -375,7 +375,7 @@ func TestParseSchemaNoChildren(t *testing.T) {
 
 func TestParseSchemaArrayNoItems(t *testing.T) {
 	// Expected type is: object<b: array[any]>
-	staticProps := []*types.StaticProperty{}
+	staticProps := make([]*types.StaticProperty, 0, 1)
 	staticProps = append(staticProps, &types.StaticProperty{Key: "b", Value: types.NewArray(nil, types.A)})
 	expectedType := types.NewObject(staticProps, nil)
 	testParseSchema(t, arrayNoItemsSchema, expectedType, nil)
@@ -383,7 +383,7 @@ func TestParseSchemaArrayNoItems(t *testing.T) {
 
 func TestParseSchemaBooleanField(t *testing.T) {
 	// Expected type is: object<a: boolean>
-	staticProps := []*types.StaticProperty{}
+	staticProps := make([]*types.StaticProperty, 0, 1)
 	staticProps = append(staticProps, &types.StaticProperty{Key: "a", Value: types.B})
 	expectedType := types.NewObject(staticProps, nil)
 	testParseSchema(t, booleanSchema, expectedType, nil)

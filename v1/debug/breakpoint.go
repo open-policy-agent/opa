@@ -90,7 +90,11 @@ func (bc *breakpointCollection) all() breakpointList {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
 
-	var bps breakpointList
+	count := 0
+	for _, list := range bc.breakpoints {
+		count += len(list)
+	}
+	bps := make(breakpointList, 0, count)
 	for _, list := range bc.breakpoints {
 		bps = append(bps, list...)
 	}

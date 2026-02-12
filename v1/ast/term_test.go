@@ -755,7 +755,7 @@ func TestRefExtend(t *testing.T) {
 
 func TestRefConcat(t *testing.T) {
 	a := MustParseRef("foo.bar.baz")
-	terms := []*Term{}
+	terms := make([]*Term, 0, 2)
 	if !a.Concat(terms).Equal(a) {
 		t.Fatal("Expected no change")
 	}

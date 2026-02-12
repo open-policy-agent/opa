@@ -1,5 +1,4 @@
-//go:build !go1.18 || !darwin
-// +build !go1.18 !darwin
+//go:build !darwin
 
 package topdown
 

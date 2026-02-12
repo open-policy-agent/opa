@@ -1485,7 +1485,7 @@ func printHelpCommands(output io.Writer) {
 	all := append(extra[:], builtin[:]...)
 
 	// Compute max length of all command and topic names.
-	names := []string{}
+	names := make([]string, 0, len(all)+len(topics))
 
 	for _, x := range all {
 		names = append(names, x.syntax())

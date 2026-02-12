@@ -362,7 +362,8 @@ func TestDependencies(t *testing.T) {
 
 			// Test that we get the same result by analyzing all the
 			// rules separately.
-			var minRules, fullRules []ast.Ref
+			minRules := make([]ast.Ref, 0, len(mod.Rules))
+			fullRules := make([]ast.Ref, 0, len(mod.Rules))
 			for _, rule := range mod.Rules {
 				m, f := runDeps(t, rule)
 				minRules = append(minRules, m...)

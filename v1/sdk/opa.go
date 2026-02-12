@@ -167,6 +167,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		return err
 	}
 
+	//nolint:prealloc // option list has known initial values, extended with opa.managerOpts
 	opts := []func(*plugins.Manager){
 		plugins.Info(info),
 		plugins.Logger(opa.logger),
