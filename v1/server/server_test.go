@@ -100,7 +100,7 @@ func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
 
 	// The bundle hasn't been activated yet, expect the health check to fail
 	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	validateDiagnosticRequest(t, f, req, 500, `{"error":"one or more bundles are not activated"}`)
+	validateDiagnosticRequest(t, f, req, 500, `{"error":"the bundle plugin is not activated"}`)
 
 	// Set the bundle to be activated.
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
@@ -120,7 +120,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 
 	// The discovery bundle hasn't been activated yet, expect the health check to fail
 	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	validateDiagnosticRequest(t, f, req, 500, `{"error":"one or more bundles are not activated"}`)
+	validateDiagnosticRequest(t, f, req, 500, `{"error":"the discovery plugin is not activated"}`)
 
 	// Set the bundle to be not ready (plugin configured and created, but hasn't activated all bundles yet).
 	f.server.manager.UpdatePluginStatus("discovery", &plugins.Status{State: plugins.StateOK})
@@ -128,7 +128,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 
 	// The discovery bundle is OK, but the newly configured bundle hasn't been activated yet, expect the health check to fail
 	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	validateDiagnosticRequest(t, f, req, 500, `{"error":"one or more bundles are not activated"}`)
+	validateDiagnosticRequest(t, f, req, 500, `{"error":"the bundle plugin is not activated"}`)
 
 	// Set the bundle to be activated.
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
@@ -136,6 +136,13 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 	// The heath check should now respond as healthy
 	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
 	validateDiagnosticRequest(t, f, req, 200, `{}`)
+
+	// Set the bundle and discovery plugin as not ready
+	f.server.manager.UpdatePluginStatus("discovery", &plugins.Status{State: plugins.StateNotReady})
+	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateNotReady})
+
+	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
+	validateDiagnosticRequest(t, f, req, 500, `{"error":"the following plugins are not activated: discovery, bundle"}`)
 }
 
 func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
@@ -169,9 +176,10 @@ func TestBundlesReady(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		note   string
-		status map[string]*plugins.Status
-		ready  bool
+		note                  string
+		status                map[string]*plugins.Status
+		ready                 bool
+		expectedFailedBundles []string
 	}{
 		{
 			note:   "nil status",
@@ -188,7 +196,8 @@ func TestBundlesReady(t *testing.T) {
 			status: map[string]*plugins.Status{
 				"discovery": {State: plugins.StateNotReady},
 			},
-			ready: false,
+			ready:                 false,
+			expectedFailedBundles: []string{"discovery"},
 		},
 		{
 			note: "discovery ok - bundle missing",
@@ -202,7 +211,8 @@ func TestBundlesReady(t *testing.T) {
 			status: map[string]*plugins.Status{
 				"bundle": {State: plugins.StateNotReady},
 			},
-			ready: false,
+			ready:                 false,
+			expectedFailedBundles: []string{"bundle"},
 		},
 		{
 			note: "discovery missing - bundle ok",
@@ -217,7 +227,8 @@ func TestBundlesReady(t *testing.T) {
 				"discovery": {State: plugins.StateNotReady},
 				"bundle":    {State: plugins.StateNotReady},
 			},
-			ready: false,
+			ready:                 false,
+			expectedFailedBundles: []string{"discovery", "bundle"},
 		},
 		{
 			note: "discovery ok - bundle not ready",
@@ -225,7 +236,8 @@ func TestBundlesReady(t *testing.T) {
 				"discovery": {State: plugins.StateOK},
 				"bundle":    {State: plugins.StateNotReady},
 			},
-			ready: false,
+			ready:                 false,
+			expectedFailedBundles: []string{"bundle"},
 		},
 		{
 			note: "discovery not ready - bundle ok",
@@ -233,7 +245,8 @@ func TestBundlesReady(t *testing.T) {
 				"discovery": {State: plugins.StateNotReady},
 				"bundle":    {State: plugins.StateOK},
 			},
-			ready: false,
+			ready:                 false,
+			expectedFailedBundles: []string{"discovery"},
 		},
 		{
 			note: "discovery ok - bundle ok",
@@ -249,9 +262,12 @@ func TestBundlesReady(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			f := newFixture(t)
 
-			actual := f.server.bundlesReady(tc.status)
-			if actual != tc.ready {
-				t.Errorf("Expected %t got %t", tc.ready, actual)
+			failedBundles, ok := f.server.bundlesReady(tc.status)
+			if ok != tc.ready {
+				t.Errorf("Expected %t got %t", tc.ready, ok)
+			}
+			if !slices.Equal(tc.expectedFailedBundles, failedBundles) {
+				t.Errorf("Expected %v, got %v", tc.expectedFailedBundles, failedBundles)
 			}
 		})
 	}
@@ -532,7 +548,7 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 				"bundle": {State: plugins.StateNotReady},
 			},
 			exp:     500,
-			expBody: `{"error": "one or more bundles are not activated"}`,
+			expBody: `{"error": "the bundle plugin is not activated"}`,
 		},
 		{
 			note: "only bundle plugin configured - ok",
@@ -565,7 +581,7 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 				"p1":     {State: plugins.StateOK},
 			},
 			exp:     500,
-			expBody: `{"error": "one or more bundles are not activated"}`,
+			expBody: `{"error": "the bundle plugin is not activated"}`,
 		},
 		{
 			note: "both configured - custom plugin not ready",

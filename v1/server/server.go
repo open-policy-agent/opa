@@ -1247,24 +1247,28 @@ func (s *Server) canEval(ctx context.Context) bool {
 	return false
 }
 
-func (*Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
+func (*Server) bundlesReady(pluginStatuses map[string]*plugins.Status) (failedBundles []string, ready bool) {
 	// Look for a discovery plugin first, if it exists and isn't ready
 	// then don't bother with the others.
 	// Note: use "discovery" instead of `discovery.Name` to avoid import
 	// cycle problems..
 	dpStatus, ok := pluginStatuses["discovery"]
 	if ok && dpStatus != nil && (dpStatus.State != plugins.StateOK) {
-		return false
+		failedBundles = append(failedBundles, "discovery")
 	}
 
 	// The bundle plugin won't return "OK" until the first activation
 	// of each configured bundle.
 	bpStatus, ok := pluginStatuses[bundlePlugin.Name]
 	if ok && bpStatus != nil && (bpStatus.State != plugins.StateOK) {
-		return false
+		failedBundles = append(failedBundles, bundlePlugin.Name)
 	}
 
-	return true
+	if len(failedBundles) == 0 {
+		ready = true
+	}
+
+	return
 }
 
 func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
@@ -1289,10 +1293,16 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	// Ensure that bundles (if configured, and requested to be included in the result)
 	// have been activated successfully. This will include discovery bundles as well as
 	// normal bundles that are configured.
-	if includeBundleStatus && !s.bundlesReady(pluginStatuses) {
-		// For backwards compatibility we don't return a payload with statuses for the bundle endpoint
-		writeHealthResponse(w, errors.New("one or more bundles are not activated"))
-		return
+	if includeBundleStatus {
+		if failedBundles, ok := s.bundlesReady(pluginStatuses); !ok {
+			// For backwards compatibility we don't return a payload with statuses for the bundle endpoint
+			if len(failedBundles) == 1 {
+				writeHealthResponse(w, fmt.Errorf("the %s plugin is not activated", strings.Join(failedBundles, ", ")))
+			} else {
+				writeHealthResponse(w, fmt.Errorf("the following plugins are not activated: %s", strings.Join(failedBundles, ", ")))
+			}
+			return
+		}
 	}
 
 	if includePluginStatus {
