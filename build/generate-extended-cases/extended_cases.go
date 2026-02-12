@@ -131,9 +131,6 @@ func LoadIrExtendedTestCases() ([]ExtendedSet, error) {
 
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
 
-	return results, nil
+	return results, err
 }
