@@ -1,0 +1,115 @@
+name: Update Regal Docs
+on:
+  workflow_dispatch: {}   # Allow for manual triggers
+  schedule:
+    - cron: '0 6 * * *'   # Daily at 6:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  update-regal-docs:
+    name: Update Regal Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          token: ${{ secrets.GH_PUSH_TOKEN }}
+
+      - name: Get latest Regal release
+        id: latest
+        env:
+          GH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
+        run: |
+          LATEST_VERSION=$(gh api repos/open-policy-agent/regal/releases/latest --jq '.tag_name')
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Latest Regal version: $LATEST_VERSION"
+
+      - name: Get current version
+        id: current
+        run: |
+          CURRENT_VERSION=$(jq -r '.regal' docs/imported.json)
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current Regal version: $CURRENT_VERSION"
+
+      - name: Check if update needed
+        id: check
+        run: |
+          if [ "${{ steps.latest.outputs.version }}" = "${{ steps.current.outputs.version }}" ]; then
+            echo "Already at latest version, no update needed"
+            echo "needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Update needed: ${{ steps.current.outputs.version }} -> ${{ steps.latest.outputs.version }}"
+            echo "needed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if branch already exists
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          BRANCH_NAME="update-regal-${{ steps.latest.outputs.version }}"
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+            echo "::error::Branch '$BRANCH_NAME' already exists. A PR for this version may already be open."
+            exit 1
+          fi
+          echo "Branch '$BRANCH_NAME' does not exist, proceeding with update"
+
+      - name: Update imported.json
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          jq --arg version "${{ steps.latest.outputs.version }}" '.regal = $version' docs/imported.json > docs/imported.json.tmp
+          mv docs/imported.json.tmp docs/imported.json
+
+      - name: Run import script
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          cd docs
+          VERSION=${{ steps.latest.outputs.version }} ./bin/import-regal-docs.sh
+
+      - name: Check for changes
+        if: steps.check.outputs.needed == 'true'
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes detected after import"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure git
+        if: steps.check.outputs.needed == 'true' && steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "opa-docs-bot"
+          git config user.email "opa-docs-bot@openpolicyagent.org"
+
+      - name: Create branch and commit
+        if: steps.check.outputs.needed == 'true' && steps.changes.outputs.has_changes == 'true'
+        run: |
+          BRANCH_NAME="update-regal-${{ steps.latest.outputs.version }}"
+          git checkout -b "$BRANCH_NAME"
+          git add -A
+          git commit -s -m "docs: Update Regal docs to ${{ steps.latest.outputs.version }}"
+
+      - name: Push branch
+        if: steps.check.outputs.needed == 'true' && steps.changes.outputs.has_changes == 'true'
+        run: |
+          BRANCH_NAME="update-regal-${{ steps.latest.outputs.version }}"
+          git push origin "$BRANCH_NAME"
+
+      - name: Create pull request
+        if: steps.check.outputs.needed == 'true' && steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
+        run: |
+          VERSION="${{ steps.latest.outputs.version }}"
+          gh pr create \
+            --title "docs: Update Regal docs to $VERSION" \
+            --body "$(cat <<EOF
+          This PR updates the Regal documentation to $VERSION.
+
+          /cc @charlieegan3 @anderseknert
+          EOF
+          )" \
+            --reviewer charlieegan3,anderseknert
