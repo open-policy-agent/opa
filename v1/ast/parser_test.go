@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
+	"unsafe"
 
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
 )
@@ -8959,4 +8961,45 @@ func removeCapabilityFeature(caps *Capabilities, feat string) *Capabilities {
 	}
 	caps.Features = feats
 	return caps
+}
+
+func TestLocationFileNameInterning(t *testing.T) {
+	policy := `package test
+
+	arr := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+	
+	set := {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}`
+
+	// Ensure string is not a compile-time constant but built at runtime.
+	filename := "interned" + strconv.Itoa(1) + ".rego"
+
+	m, err := ParseModule(filename, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure that all (identical) filename's point to the same string data in memory
+	terms := m.Rules[0].Head.Value.Value.(*Array).elems
+	sdptr := unsafe.StringData(terms[0].Location.File)
+
+	for _, term := range terms[1:] {
+		if term.Location == nil || term.Location.File != "interned1.rego" {
+			t.Fatal("expected non-nil location with filename 'interned1.rego'")
+		}
+
+		if unsafe.StringData(term.Location.File) != sdptr {
+			t.Fatal("expected filename string to be interned")
+		}
+	}
+
+	terms = m.Rules[1].Head.Value.Value.(*set).keys
+	for _, term := range terms {
+		if term.Location == nil || term.Location.File != "interned1.rego" {
+			t.Fatal("expected non-nil location with filename 'interned1.rego'")
+		}
+
+		if unsafe.StringData(term.Location.File) != sdptr {
+			t.Fatal("expected filename string to be interned")
+		}
+	}
 }
