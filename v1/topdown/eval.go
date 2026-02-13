@@ -222,12 +222,14 @@ func (e *eval) closure(query ast.Body, cpy *eval) {
 	cpy.findOne = false
 }
 
-func (e *eval) child(query ast.Body, cpy *eval) {
+// childWithBindingSizeHint creates a child evaluator with bindings pre-sized for the expected number of variables.
+// This reduces memory waste when evaluating functions or rules with known argument counts.
+func (e *eval) childWithBindingSizeHint(query ast.Body, cpy *eval, sizeHint int) {
 	*cpy = *e
 	cpy.index = 0
 	cpy.query = query
 	cpy.queryID = cpy.queryIDFact.Next()
-	cpy.bindings = newBindings(cpy.queryID, e.instr)
+	cpy.bindings = newBindingsWithSize(cpy.queryID, e.instr, sizeHint)
 	cpy.parent = e
 	cpy.findOne = false
 }
@@ -1366,7 +1368,7 @@ func (e *eval) buildComprehensionCacheArray(x *ast.ArrayComprehension, keys []*a
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.child(x.Body, child)
+	e.childWithBindingSizeHint(x.Body, child, ast.EstimateBodyBindingCount(x.Body))
 	node := newComprehensionCacheElem()
 	return node, child.Run(func(child *eval) error {
 		values := make([]*ast.Term, len(keys))
@@ -1388,7 +1390,7 @@ func (e *eval) buildComprehensionCacheSet(x *ast.SetComprehension, keys []*ast.T
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.child(x.Body, child)
+	e.childWithBindingSizeHint(x.Body, child, ast.EstimateBodyBindingCount(x.Body))
 	node := newComprehensionCacheElem()
 	return node, child.Run(func(child *eval) error {
 		values := make([]*ast.Term, len(keys))
@@ -1411,7 +1413,7 @@ func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.child(x.Body, child)
+	e.childWithBindingSizeHint(x.Body, child, ast.EstimateBodyBindingCount(x.Body))
 	node := newComprehensionCacheElem()
 	return node, child.Run(func(child *eval) error {
 		values := make([]*ast.Term, len(keys))
@@ -2272,7 +2274,11 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.T
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.child(rule.Body, child)
+	// Optimization: pre-size bindings based on function argument count to reduce memory waste.
+	// Function argument count is known at compile time and most functions have < 10 arguments.
+	// This avoids allocating the default 16-slot array when only 2-3 bindings are needed.
+	sizeHint := len(args)
+	e.e.childWithBindingSizeHint(rule.Body, child, sizeHint)
 	child.findOne = findOne
 
 	var result *ast.Term
@@ -2362,7 +2368,7 @@ func (e *evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.child(rule.Body, child)
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.traceEnter(rule)
 
 	e.e.saveStack.PushQuery(nil)
@@ -2900,7 +2906,7 @@ func (e evalVirtualPartial) evalAllRulesNoCache(rules []*ast.Rule) (*ast.Term, e
 	defer evalPool.Put(child)
 
 	for _, rule := range rules {
-		e.e.child(rule.Body, child)
+		e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 		child.traceEnter(rule)
 		err := child.eval(func(*eval) error {
 			child.traceExit(rule)
@@ -2936,7 +2942,7 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.child(rule.Body, child)
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 
 	child.traceEnter(rule)
 	var defined bool
@@ -3031,7 +3037,7 @@ func (e evalVirtualPartial) evalOneRulePostUnify(iter unifyIterator, rule *ast.R
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.child(rule.Body, child)
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 
 	child.traceEnter(rule)
 	var defined bool
@@ -3118,7 +3124,7 @@ func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, _ ast.Ref) (b
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.child(rule.Body, child)
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.traceEnter(rule)
 
 	e.e.saveStack.PushQuery(nil)
@@ -3608,7 +3614,7 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.child(rule.Body, child)
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.findOne = findOne
 	child.traceEnter(rule)
 	var result *ast.Term
@@ -3647,7 +3653,7 @@ func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 	defer evalPool.Put(child)
 
 	for _, rule := range e.ir.Rules {
-		e.e.child(rule.Body, child)
+		e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 		child.traceEnter(rule)
 
 		err := child.eval(func(child *eval) error {
@@ -3723,7 +3729,7 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, packagePath 
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.child(rule.Body, child)
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.traceEnter(rule)
 
 	e.e.saveStack.PushQuery(nil)
