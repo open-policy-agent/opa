@@ -234,15 +234,6 @@ func (e *eval) childWithBindingSizeHint(query ast.Body, cpy *eval, sizeHint int)
 	cpy.findOne = false
 }
 
-// estimateBodyBindingCount returns estimated bindings count for a rule body.
-func estimateBodyBindingCount(body ast.Body) int {
-	if len(body) == 0 {
-		return 0
-	}
-	estimate := min(len(body), maxLinearScan)
-	return estimate
-}
-
 func (e *eval) next(iter evalIterator) error {
 	e.index++
 	err := e.evalExpr(iter)
@@ -2377,7 +2368,7 @@ func (e *evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.childWithBindingSizeHint(rule.Body, child, estimateBodyBindingCount(rule.Body))
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.traceEnter(rule)
 
 	e.e.saveStack.PushQuery(nil)
@@ -2915,7 +2906,7 @@ func (e evalVirtualPartial) evalAllRulesNoCache(rules []*ast.Rule) (*ast.Term, e
 	defer evalPool.Put(child)
 
 	for _, rule := range rules {
-		e.e.childWithBindingSizeHint(rule.Body, child, estimateBodyBindingCount(rule.Body))
+		e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 		child.traceEnter(rule)
 		err := child.eval(func(*eval) error {
 			child.traceExit(rule)
@@ -2951,7 +2942,7 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.childWithBindingSizeHint(rule.Body, child, estimateBodyBindingCount(rule.Body))
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 
 	child.traceEnter(rule)
 	var defined bool
@@ -3046,7 +3037,7 @@ func (e evalVirtualPartial) evalOneRulePostUnify(iter unifyIterator, rule *ast.R
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.childWithBindingSizeHint(rule.Body, child, estimateBodyBindingCount(rule.Body))
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 
 	child.traceEnter(rule)
 	var defined bool
@@ -3133,7 +3124,7 @@ func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, _ ast.Ref) (b
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.childWithBindingSizeHint(rule.Body, child, estimateBodyBindingCount(rule.Body))
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.traceEnter(rule)
 
 	e.e.saveStack.PushQuery(nil)
@@ -3623,7 +3614,7 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.childWithBindingSizeHint(rule.Body, child, estimateBodyBindingCount(rule.Body))
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.findOne = findOne
 	child.traceEnter(rule)
 	var result *ast.Term
@@ -3662,7 +3653,7 @@ func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 	defer evalPool.Put(child)
 
 	for _, rule := range e.ir.Rules {
-		e.e.childWithBindingSizeHint(rule.Body, child, estimateBodyBindingCount(rule.Body))
+		e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 		child.traceEnter(rule)
 
 		err := child.eval(func(child *eval) error {
@@ -3738,7 +3729,7 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, packagePath 
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.e.childWithBindingSizeHint(rule.Body, child, estimateBodyBindingCount(rule.Body))
+	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.traceEnter(rule)
 
 	e.e.saveStack.PushQuery(nil)
