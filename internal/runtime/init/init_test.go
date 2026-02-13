@@ -432,7 +432,7 @@ func TestWalkPaths(t *testing.T) {
 
 	test.WithTempFS(files, func(rootDir string) {
 
-		paths := []string{}
+		paths := make([]string, 0, 2)
 		paths = append(paths, filepath.Join(rootDir, "bundle1"), filepath.Join(rootDir, "bundle2"))
 
 		// bundle mode

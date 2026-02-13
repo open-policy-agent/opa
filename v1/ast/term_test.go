@@ -755,7 +755,7 @@ func TestRefExtend(t *testing.T) {
 
 func TestRefConcat(t *testing.T) {
 	a := MustParseRef("foo.bar.baz")
-	terms := []*Term{}
+	terms := make([]*Term, 0, 2)
 	if !a.Concat(terms).Equal(a) {
 		t.Fatal("Expected no change")
 	}
@@ -1860,8 +1860,8 @@ func TestArrayCopyNonGround(t *testing.T) {
 			wantSame: false,
 		},
 		{
-			name: "empty array",
-			array: NewArray(),
+			name:     "empty array",
+			array:    NewArray(),
 			wantSame: true, // Empty array is ground
 		},
 	}
@@ -1920,7 +1920,7 @@ func TestArrayCopyNonGround(t *testing.T) {
 						result.elems[i].SetLocation(&Location{Text: []byte("modified")})
 						// Original should not be affected
 						if tt.array.elems[i].Location != nil &&
-						   bytes.Equal(tt.array.elems[i].Location.Text, []byte("modified")) {
+							bytes.Equal(tt.array.elems[i].Location.Text, []byte("modified")) {
 							t.Errorf("Modifying copy affected original at index %d", i)
 						}
 						break

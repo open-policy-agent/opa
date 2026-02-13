@@ -20,6 +20,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
 
+var unverified = ast.ArrayTerm(ast.InternedTerm(false), ast.InternedEmptyObject, ast.InternedEmptyObject)
+
 // Parses a GraphQL schema, and returns the GraphQL AST for the schema.
 func parseSchema(schema string) (*gqlast.SchemaDocument, error) {
 	// NOTE(philipc): We don't include the "built-in schema defs" from the
@@ -293,12 +295,6 @@ func builtinGraphQLParseAndVerify(_ BuiltinContext, operands []*ast.Term, iter f
 	var queryDoc *gqlast.QueryDocument
 	var schemaDoc *gqlast.SchemaDocument
 	var err error
-
-	unverified := ast.ArrayTerm(
-		ast.InternedTerm(false),
-		ast.NewTerm(ast.NewObject()),
-		ast.NewTerm(ast.NewObject()),
-	)
 
 	// Parse/translate query if it's a string/object.
 	switch x := operands[0].Value.(type) {

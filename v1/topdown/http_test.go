@@ -51,7 +51,7 @@ type Person struct {
 func TestHTTPGetRequest(t *testing.T) {
 	t.Parallel()
 
-	var people []Person
+	people := make([]Person, 0, 1)
 
 	// test data
 	people = append(people, Person{ID: "1", Firstname: "John"})
@@ -71,7 +71,7 @@ func TestHTTPGetRequest(t *testing.T) {
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	var body []any
+	body := make([]any, 0, 1)
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
@@ -122,7 +122,7 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 		"status_code": http.StatusOK,
 	}
 
-	var body []any
+	body := make([]any, 0, 1)
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
@@ -558,7 +558,7 @@ func TestHTTPDeleteRequest(t *testing.T) {
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	var body []any
+	body := make([]any, 0, 1)
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
@@ -3555,7 +3555,7 @@ var httpSendHelperRules = []string{
 func TestSocketHTTPGetRequest(t *testing.T) {
 	t.Parallel()
 
-	var people []Person
+	people := make([]Person, 0, 1)
 
 	// test data
 	people = append(people, Person{ID: "1", Firstname: "John"})
@@ -3598,7 +3598,7 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	var body []any
+	body := make([]any, 0, 1)
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body

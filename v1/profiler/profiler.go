@@ -57,7 +57,7 @@ func (p *Profiler) ReportByFile() Report {
 	report := Report{Files: map[string]*FileReport{}}
 
 	for file, hits := range p.hits {
-		stats := []ExprStats{}
+		stats := make([]ExprStats, 0, len(hits))
 		for row, stat := range hits {
 			if entry, ok := p.hitsByExprIndex[file][row]; ok {
 				stat.NumGenExpr = len(entry)

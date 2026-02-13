@@ -90,7 +90,17 @@ bundles:
     signing:
       keyid: my_global_key
       scope: read
+
+keys:
+  my_global_key:
+    algorithm: RS256
+    key: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
 ```
+
+See [Configuration - Keys](./configuration/#keys) for details on key configuration.
 
 Using this configuration, OPA will fetch bundles from
 `https://example.com/service/v1/somedir/bundle.tar.gz`.
@@ -431,9 +441,7 @@ configured with out-of-band. Only if that verification succeeds does OPA activat
 continues using its existing bundle and reports an activation failure via the status API and error logging.
 
 :::warning
-⚠️ `opa run` performs bundle signature verification only when the `-b`/`--bundle` flag is given
-or when Bundle downloading is enabled. Sub-commands primarily used in development and debug environments
-(such as `opa eval`, `opa test`, etc.) DO NOT verify bundle signatures at this point in time.
+Bundle signature verification works differently depending on how bundles are loaded. Filesystem bundles (`--bundle` flag) use the `--verification-key` CLI flag pointing to a PEM file. Remote bundles define keys in the configuration file under the `keys` section. Sub-commands primarily used in pre-production (such as `opa eval`, `opa test`, etc.) do not verify bundle signatures at this point in time.
 :::
 
 ### Signature Format

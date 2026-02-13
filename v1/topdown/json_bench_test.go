@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -23,15 +24,12 @@ func BenchmarkJSONRemoveArray(b *testing.B) {
 	for _, n := range sizes {
 		b.Run(fmt.Sprintf("size=%d", n), func(b *testing.B) {
 			// Create an object wrapping the array: {"a": [0, 1, ...]}
-			terms := make([]*ast.Term, n)
-			for i := range n {
-				terms[i] = ast.IntNumberTerm(i)
-			}
+			terms := slices.Collect(ast.InternedIntRange(0, n))
 			arr := ast.NewArray(terms...)
-			obj := ast.NewObject([2]*ast.Term{ast.StringTerm("a"), ast.NewTerm(arr)})
+			obj := ast.NewObject([2]*ast.Term{ast.InternedTerm("a"), ast.NewTerm(arr)})
 
 			// Remove something inside the array to force traversal
-			paths := ast.NewSet(ast.StringTerm("a/nonexistent"))
+			paths := ast.NewSet(ast.InternedTerm("a/nonexistent"))
 
 			operands := []*ast.Term{
 				ast.NewTerm(obj),
@@ -61,11 +59,11 @@ func BenchmarkJSONFilterArray(b *testing.B) {
 	for _, n := range sizes {
 		b.Run(fmt.Sprintf("size=%d", n), func(b *testing.B) {
 			// Create an object with n keys
-			obj := ast.NewObject()
+			obj := ast.NewObjectWithCapacity(n)
 			pathSlice := make([]*ast.Term, n)
 			for i := range n {
 				k := ast.StringTerm(fmt.Sprintf("k%d", i))
-				obj.Insert(k, ast.IntNumberTerm(i))
+				obj.Insert(k, ast.InternedTerm(i))
 				pathSlice[i] = k
 			}
 			// Filter all keys: json.filter(obj, ["k0", "k1", ...])
@@ -100,10 +98,7 @@ func BenchmarkJSONFilterArrayIndices(b *testing.B) {
 	for _, n := range sizes {
 		b.Run(fmt.Sprintf("size=%d", n), func(b *testing.B) {
 			// Create an object wrapping an array: {"a": [0, 1, ...]}
-			terms := make([]*ast.Term, n)
-			for i := range n {
-				terms[i] = ast.IntNumberTerm(i)
-			}
+			terms := slices.Collect(ast.InternedIntRange(0, n))
 			arr := ast.NewArray(terms...)
 			obj := ast.NewObject([2]*ast.Term{ast.StringTerm("a"), ast.NewTerm(arr)})
 
@@ -142,73 +137,43 @@ func BenchmarkJSONFilterArrayIndices(b *testing.B) {
 }
 
 func BenchmarkJSONPatchAddShallowScalar(b *testing.B) {
-	ctx := b.Context()
-
 	sizes := []int{10, 100, 1000, 10000}
 
-	// Object case
-	for _, n := range sizes {
-		source := genTestObject(n)
-		for _, m := range sizes {
-			testName := fmt.Sprintf("object-%d-%d", n, m)
-			// Build dataset right before use:
-			plArrayObj := make([]*ast.Term, 0, m*2)
-			// add ops
-			for i := range m {
-				plArrayObj = append(plArrayObj, genTestJSONPatchObject("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.IntNumberTerm(i+n)))
-			}
-			patchList := ast.NewArray(plArrayObj...)
+	m := slices.Max(sizes)
+	objArrPatches, setPatches := make([]*ast.Term, 0, m), make([]*ast.Term, 0, m)
 
-			b.ResetTimer()
-			b.Run(testName, func(b *testing.B) {
-				runJSONPatchBenchmarkTest(ctx, b, source, patchList)
-			})
-		}
+	for i := range m {
+		path := ast.StringTerm(fmt.Sprintf("/%d", i))
+		value := ast.InternedTerm(i)
+
+		objArrPatches = append(objArrPatches, createPatch("add", path, nil, value))
+		setPatches = append(setPatches, createPatch("add", ast.ArrayTerm(value), nil, value))
 	}
 
-	// Array case
 	for _, n := range sizes {
-		source := genTestArray(n)
-		for _, m := range sizes {
-			testName := fmt.Sprintf("array-%d-%d", n, m)
-			// Build dataset right before use:
-			plArrayObj := make([]*ast.Term, 0, m*2)
-			// add ops
-			for i := range m {
-				plArrayObj = append(plArrayObj, genTestJSONPatchObject("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.IntNumberTerm(i+n)))
-			}
-			patchList := ast.NewArray(plArrayObj...)
-
-			b.ResetTimer()
-			b.Run(testName, func(b *testing.B) {
-				runJSONPatchBenchmarkTest(ctx, b, source, patchList)
-			})
-		}
+		b.Run(fmt.Sprintf("object-%d", n), func(b *testing.B) {
+			runJSONPatchBenchmarkTest(b, genTestObject(n), ast.NewArray(objArrPatches[:n]...))
+		})
 	}
-	// Set case
-	for _, n := range sizes {
-		source := genTestSet(n)
-		for _, m := range sizes {
-			testName := fmt.Sprintf("set-%d-%d", n, m)
-			// Build dataset right before use:
-			plSet := make([]*ast.Term, 0, m*2)
-			// add ops
-			for i := range m {
-				plSet = append(plSet, genTestJSONPatchObject("add", ast.ArrayTerm(ast.IntNumberTerm(i+n)), nil, ast.IntNumberTerm(i+n)))
-			}
-			patchList := ast.NewArray(plSet...)
 
-			b.ResetTimer()
-			b.Run(testName, func(b *testing.B) {
-				runJSONPatchBenchmarkTest(ctx, b, source, patchList)
-			})
-		}
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("array-%d", n), func(b *testing.B) {
+			runJSONPatchBenchmarkTest(b,
+				ast.NewArray(slices.Collect(ast.InternedIntRange(0, n))...),
+				ast.NewArray(objArrPatches[:n]...))
+		})
+	}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("set-%d", n), func(b *testing.B) {
+			runJSONPatchBenchmarkTest(b,
+				ast.NewSet(slices.Collect(ast.InternedIntRange(0, n))...),
+				ast.NewArray(setPatches[:n]...))
+		})
 	}
 }
 
 func BenchmarkJSONPatchAddShallowComposite(b *testing.B) {
-	ctx := b.Context()
-
 	sizes := []int{10, 100, 1000, 10000}
 
 	// Object case
@@ -220,60 +185,58 @@ func BenchmarkJSONPatchAddShallowComposite(b *testing.B) {
 			plArrayObj := make([]*ast.Term, 0, m*2)
 			// add ops
 			for i := range m {
-				plArrayObj = append(plArrayObj, genTestJSONPatchObject("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.ArrayTerm(ast.IntNumberTerm(i+n))))
+				plArrayObj = append(plArrayObj, createPatch("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.ArrayTerm(ast.IntNumberTerm(i+n))))
 			}
 			patchList := ast.NewArray(plArrayObj...)
 
 			b.ResetTimer()
 			b.Run(testName, func(b *testing.B) {
-				runJSONPatchBenchmarkTest(ctx, b, source, patchList)
+				runJSONPatchBenchmarkTest(b, source, patchList)
 			})
 		}
 	}
 
 	// Array case
 	for _, n := range sizes {
-		source := genTestArray(n)
+		source := ast.NewArray(slices.Collect(ast.InternedIntRange(0, n))...)
 		for _, m := range sizes {
 			testName := fmt.Sprintf("array-%d-%d", n, m)
 			// Build dataset right before use:
 			plArrayObj := make([]*ast.Term, 0, m*2)
 			// add ops
 			for i := range m {
-				plArrayObj = append(plArrayObj, genTestJSONPatchObject("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.ArrayTerm(ast.IntNumberTerm(i+n))))
+				plArrayObj = append(plArrayObj, createPatch("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.ArrayTerm(ast.IntNumberTerm(i+n))))
 			}
 			patchList := ast.NewArray(plArrayObj...)
 
 			b.ResetTimer()
 			b.Run(testName, func(b *testing.B) {
-				runJSONPatchBenchmarkTest(ctx, b, source, patchList)
+				runJSONPatchBenchmarkTest(b, source, patchList)
 			})
 		}
 	}
 	// Set case
 	for _, n := range sizes {
-		source := genTestSet(n)
+		source := ast.NewSet(slices.Collect(ast.InternedIntRange(0, n))...)
 		for _, m := range sizes {
 			testName := fmt.Sprintf("set-%d-%d", n, m)
 			// Build dataset right before use:
 			plSet := make([]*ast.Term, 0, m*2)
 			// add ops
 			for i := range m {
-				plSet = append(plSet, genTestJSONPatchObject("add", ast.ArrayTerm(ast.ArrayTerm(ast.IntNumberTerm(i+n))), nil, ast.ArrayTerm(ast.IntNumberTerm(i+n))))
+				plSet = append(plSet, createPatch("add", ast.ArrayTerm(ast.ArrayTerm(ast.IntNumberTerm(i+n))), nil, ast.ArrayTerm(ast.IntNumberTerm(i+n))))
 			}
 			patchList := ast.NewArray(plSet...)
 
 			b.ResetTimer()
 			b.Run(testName, func(b *testing.B) {
-				runJSONPatchBenchmarkTest(ctx, b, source, patchList)
+				runJSONPatchBenchmarkTest(b, source, patchList)
 			})
 		}
 	}
 }
 
 func BenchmarkJSONPatchAddRemove(b *testing.B) {
-	ctx := b.Context()
-
 	sizes := []int{10, 100, 1000, 10000}
 
 	// Object case
@@ -285,104 +248,88 @@ func BenchmarkJSONPatchAddRemove(b *testing.B) {
 			plArrayObj := make([]*ast.Term, 0, m*2)
 			// add ops
 			for i := range m {
-				plArrayObj = append(plArrayObj, genTestJSONPatchObject("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.IntNumberTerm(i+n)))
+				plArrayObj = append(plArrayObj, createPatch("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.IntNumberTerm(i+n)))
 			}
 			// remove ops
 			for i := m - 1; i >= 0; i-- {
-				plArrayObj = append(plArrayObj, genTestJSONPatchObject("remove", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, nil))
+				plArrayObj = append(plArrayObj, createPatch("remove", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, nil))
 			}
 			patchList := ast.NewArray(plArrayObj...)
 
 			b.ResetTimer()
 			b.Run(testName, func(b *testing.B) {
-				runJSONPatchBenchmarkTest(ctx, b, source, patchList)
+				runJSONPatchBenchmarkTest(b, source, patchList)
 			})
 		}
 	}
 
 	// Array case
 	for _, n := range sizes {
-		source := genTestArray(n)
+		source := ast.NewArray(slices.Collect(ast.InternedIntRange(0, n))...)
 		for _, m := range sizes {
 			testName := fmt.Sprintf("array-%d-%d", n, m)
 			// Build dataset right before use:
 			plArrayObj := make([]*ast.Term, 0, m*2)
 			// add ops
 			for i := range m {
-				plArrayObj = append(plArrayObj, genTestJSONPatchObject("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.IntNumberTerm(i+n)))
+				plArrayObj = append(plArrayObj, createPatch("add", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, ast.IntNumberTerm(i+n)))
 			}
 			// remove ops
 			for i := m - 1; i >= 0; i-- {
-				plArrayObj = append(plArrayObj, genTestJSONPatchObject("remove", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, nil))
+				plArrayObj = append(plArrayObj, createPatch("remove", ast.StringTerm("/"+strconv.FormatInt(int64(i+n), 10)), nil, nil))
 			}
 			patchList := ast.NewArray(plArrayObj...)
 
 			b.ResetTimer()
 			b.Run(testName, func(b *testing.B) {
-				runJSONPatchBenchmarkTest(ctx, b, source, patchList)
+				runJSONPatchBenchmarkTest(b, source, patchList)
 			})
 		}
 	}
 
 	// Set case
 	for _, n := range sizes {
-		source := genTestSet(n)
+		source := ast.NewSet(slices.Collect(ast.InternedIntRange(0, n))...)
 		for _, m := range sizes {
 			testName := fmt.Sprintf("set-%d-%d", n, m)
 			// Build dataset right before use:
 			plSet := make([]*ast.Term, 0, m*2)
 			// add ops
 			for i := range m {
-				plSet = append(plSet, genTestJSONPatchObject("add", ast.ArrayTerm(ast.IntNumberTerm(i+n)), nil, ast.IntNumberTerm(i+n)))
+				plSet = append(plSet, createPatch("add", ast.ArrayTerm(ast.IntNumberTerm(i+n)), nil, ast.IntNumberTerm(i+n)))
 			}
 			// remove ops
 			for i := m - 1; i >= 0; i-- {
-				plSet = append(plSet, genTestJSONPatchObject("remove", ast.ArrayTerm(ast.IntNumberTerm(i+n)), nil, nil))
+				plSet = append(plSet, createPatch("remove", ast.ArrayTerm(ast.IntNumberTerm(i+n)), nil, nil))
 			}
 			patchList := ast.NewArray(plSet...)
 
 			b.ResetTimer()
 			b.Run(testName, func(b *testing.B) {
-				runJSONPatchBenchmarkTest(ctx, b, source, patchList)
+				runJSONPatchBenchmarkTest(b, source, patchList)
 			})
 		}
 	}
 }
 
-func genTestJSONPatchObject(op string, path, from, value *ast.Term) *ast.Term {
+func createPatch(op string, path, from, value *ast.Term) *ast.Term {
 	patchObj := ast.NewObject(
-		[2]*ast.Term{ast.StringTerm("op"), ast.StringTerm(op)},
-		[2]*ast.Term{ast.StringTerm("path"), path},
+		[2]*ast.Term{ast.InternedTerm("op"), ast.InternedTerm(op)},
+		[2]*ast.Term{ast.InternedTerm("path"), path},
 	)
 	if from != nil {
-		patchObj.Insert(ast.StringTerm("from"), from)
+		patchObj.Insert(ast.InternedTerm("from"), from)
 	}
 	if value != nil {
-		patchObj.Insert(ast.StringTerm("value"), value)
+		patchObj.Insert(ast.InternedTerm("value"), value)
 	}
 	return ast.NewTerm(patchObj)
 }
 
 func genTestObject(width int) ast.Value {
-	out := ast.NewObject()
+	out := ast.NewObjectWithCapacity(width)
 	for i := range width {
-		out.Insert(ast.IntNumberTerm(i), ast.IntNumberTerm(i))
-	}
-	return out
-}
-
-func genTestArray(width int) ast.Value {
-	out := ast.NewArray()
-	for i := range width {
-		out = out.Append(ast.IntNumberTerm(i))
-	}
-	return out
-}
-
-func genTestSet(width int) ast.Value {
-	out := ast.NewSet()
-	for i := range width {
-		out.Add(ast.IntNumberTerm(i))
+		out.Insert(ast.InternedTerm(i), ast.InternedTerm(i))
 	}
 	return out
 }
@@ -396,11 +343,11 @@ func gen3LayerObject(l1Keys, l2Keys, l3Keys int) ast.Value {
 		for j := range l2Keys {
 			l3Obj := ast.NewObject()
 			for k := range l3Keys {
-				l3Obj.Insert(ast.StringTerm(strconv.Itoa(k)), ast.InternedTerm(true))
+				l3Obj.Insert(ast.InternedTerm(strconv.Itoa(k)), ast.InternedTerm(true))
 			}
-			l2Obj.Insert(ast.StringTerm(strconv.Itoa(j)), ast.NewTerm(l3Obj))
+			l2Obj.Insert(ast.InternedTerm(strconv.Itoa(j)), ast.NewTerm(l3Obj))
 		}
-		obj.Insert(ast.StringTerm(strconv.Itoa(i)), ast.NewTerm(l2Obj))
+		obj.Insert(ast.InternedTerm(strconv.Itoa(i)), ast.NewTerm(l2Obj))
 	}
 	return obj
 }
@@ -412,20 +359,20 @@ func genRandom3LayerObjectJSONPatchListData(l1Keys, l2Keys, l3Keys, p int) ast.V
 	numKeys := []int{l1Keys, l2Keys, l3Keys}
 	for i := range p {
 		patchObj := ast.NewObject(
-			[2]*ast.Term{ast.StringTerm("op"), ast.StringTerm("replace")},
-			[2]*ast.Term{ast.StringTerm("value"), ast.IntNumberTerm(2)},
+			[2]*ast.Term{ast.InternedTerm("op"), ast.InternedTerm("replace")},
+			[2]*ast.Term{ast.InternedTerm("value"), ast.InternedTerm(2)},
 		)
 		// Random path depth.
 		depth := rand.Intn(3) + 1 // (max - min) + min method of getting a random range.
 
 		// Random values for each path segment.
-		segments := []string{}
+		segments := make([]string, 0, 2*depth)
 		for j := range depth {
 			pathSegment := strconv.FormatInt(int64(rand.Intn(numKeys[j])), 10)
 			segments = append(segments, "/", pathSegment)
 		}
 		path := strings.Join(segments, "")
-		patchObj.Insert(ast.StringTerm("path"), ast.StringTerm(path))
+		patchObj.Insert(ast.InternedTerm("path"), ast.InternedTerm(path))
 		patchList[i] = ast.NewTerm(patchObj)
 	}
 	return ast.NewArray(patchList...)
@@ -496,8 +443,6 @@ func BenchmarkJSONPatchReplace(b *testing.B) {
 }
 
 func BenchmarkJSONPatchPathologicalNestedAddChainObject(b *testing.B) {
-	ctx := b.Context()
-
 	sizes := []int{10, 100, 500, 1000, 5000, 10000}
 	// Pre-generate the test datasets/patches.
 	testdata := map[string]ast.Value{}
@@ -521,14 +466,12 @@ func BenchmarkJSONPatchPathologicalNestedAddChainObject(b *testing.B) {
 	for _, n := range sizes {
 		testName := strconv.Itoa(n)
 		b.Run(testName, func(b *testing.B) {
-			runJSONPatchBenchmarkTest(ctx, b, ast.NewObject(), testdata[testName])
+			runJSONPatchBenchmarkTest(b, ast.NewObject(), testdata[testName])
 		})
 	}
 }
 
 func BenchmarkJSONPatchPathologicalNestedAddChainArray(b *testing.B) {
-	ctx := b.Context()
-
 	sizes := []int{10, 100, 500, 1000, 5000, 10000}
 	// Pre-generate the test datasets/patches.
 	testdata := map[string]ast.Value{}
@@ -552,7 +495,7 @@ func BenchmarkJSONPatchPathologicalNestedAddChainArray(b *testing.B) {
 	for _, n := range sizes {
 		testName := strconv.Itoa(n)
 		b.Run(testName, func(b *testing.B) {
-			runJSONPatchBenchmarkTest(ctx, b, ast.NewArray(), testdata[testName])
+			runJSONPatchBenchmarkTest(b, ast.NewArray(), testdata[testName])
 		})
 	}
 }
@@ -560,7 +503,6 @@ func BenchmarkJSONPatchPathologicalNestedAddChainArray(b *testing.B) {
 // This one is tricky, because sets used content-based addressing.
 // That means our sets for the path have to be recursively constructed!
 func BenchmarkJSONPatchPathologicalNestedAddChainSet(b *testing.B) {
-	ctx := b.Context()
 	sizes := []int{10, 100, 500, 1000}
 
 	// Pre-generate the test datasets/patches.
@@ -595,40 +537,31 @@ func BenchmarkJSONPatchPathologicalNestedAddChainSet(b *testing.B) {
 	for _, n := range sizes {
 		testName := strconv.Itoa(n)
 		b.Run(testName, func(b *testing.B) {
-			runJSONPatchBenchmarkTest(ctx, b, ast.NewSet(ast.StringTerm("a")), testdata[testName])
+			runJSONPatchBenchmarkTest(b, ast.NewSet(ast.StringTerm("a")), testdata[testName])
 		})
 	}
 }
 
-func runJSONPatchBenchmarkTest(ctx context.Context, b *testing.B, source ast.Value, patches ast.Value) {
-	store := inmem.NewFromObject(map[string]any{
-		"source":  source,
-		"patches": patches,
-	})
+func runJSONPatchBenchmarkTest(b *testing.B, source ast.Value, patches ast.Value) {
+	store := inmem.NewFromObject(map[string]any{"source": source, "patches": patches})
 
-	module := `package test
-
-			result := json.patch(data.source, data.patches)`
-
+	module := "package test\n\nresult := json.patch(data.source, data.patches)"
 	query := ast.MustParseBody("data.test.result")
-	compiler := ast.MustCompileModules(map[string]string{
-		"test.rego": module,
+	compiler := ast.MustCompileModules(map[string]string{"test.rego": module})
+
+	err := storage.Txn(b.Context(), store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		q := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn)
+
+		for b.Loop() {
+			if _, err := q.Run(b.Context()); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 
-	for b.Loop() {
-		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-			_, err := NewQuery(query).
-				WithCompiler(compiler).
-				WithStore(store).
-				WithTransaction(txn).
-				Run(ctx)
-
-			return err
-		})
-
-		if err != nil {
-			b.Fatal(err)
-		}
+	if err != nil {
+		b.Fatal(err)
 	}
-
 }

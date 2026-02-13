@@ -24,6 +24,17 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+// maxBindingsEstimate is the cap for binding count estimates in comprehensions.
+// This value aligns with maxLinearScan in topdown/bindings.go.
+const maxBindingsEstimate = 16
+
+// EstimateBodyBindingCount returns an estimate of the number of bindings needed
+// for evaluating a comprehension body. It uses the body length as a heuristic,
+// capped at maxBindingsEstimate.
+func EstimateBodyBindingCount(body Body) (estimate int) {
+	return min(len(body), maxBindingsEstimate)
+}
+
 var (
 	NullValue Value = Null{}
 
@@ -669,8 +680,9 @@ func NumberTerm(n json.Number) *Term {
 }
 
 // IntNumberTerm creates a new Term with an integer Number value.
+// For values between -1 and 512, returns a cached Term to reduce allocations.
 func IntNumberTerm(i int) *Term {
-	return &Term{Value: newIntNumberValue(i)}
+	return internedIntNumberTerm(i)
 }
 
 // UIntNumberTerm creates a new Term with an unsigned integer Number value.

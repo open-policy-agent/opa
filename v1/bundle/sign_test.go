@@ -28,7 +28,7 @@ func TestGenerateSignedToken(t *testing.T) {
 		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 	}
 
-	input := []FileInfo{}
+	input := make([]FileInfo, 0, len(files))
 
 	expDigests := make([]string, len(files))
 	expDigests[0] = "a005c38a509dc2d5a7407b9494efb2ad"
@@ -77,7 +77,7 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
 	}
 
-	input := []FileInfo{}
+	input := make([]FileInfo, 0, len(files))
 
 	expDigests := make([]string, len(files))
 	expDigests[0] = "a005c38a509dc2d5a7407b9494efb2ad"
@@ -148,7 +148,7 @@ func TestGeneratePayload(t *testing.T) {
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},
 	}
 
-	input := []FileInfo{}
+	input := make([]FileInfo, 0, 1)
 
 	file := FileInfo{
 		Name:      files[0][0],

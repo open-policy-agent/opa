@@ -388,12 +388,10 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 		note  string
 		rules []string
 	}
-	var tests []test
-
-	tests = append(tests, test{
+	tests := []test{{
 		params.note,
 		[]string{fmt.Sprintf(`p = x { io.jwt.encode_sign_raw(%s, %s, %s, x) }`, params.input1, params.input2, params.input3)},
-	})
+	}}
 
 	tc := tests[0]
 

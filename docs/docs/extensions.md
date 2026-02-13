@@ -366,6 +366,43 @@ for details) the `Event` received by the demo plugin will potentially be differe
 than the example documented.
 :::
 
+## Custom Storage Backends
+
+OPA's default in-memory storage can be replaced with custom implementations.
+
+Custom storage backends must implement the [`storage.Store`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/storage#Store) interface. Register your backend by calling [`v1/runtime.RegisterStorageBackend`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/runtime#RegisterStorageBackend) before OPA runtime initialization.
+
+### Example
+
+```go
+package main
+
+import (
+    "github.com/open-policy-agent/opa/cmd"
+    "github.com/open-policy-agent/opa/v1/runtime"
+)
+
+func init() {
+    runtime.RegisterStorageBackend(func(
+        ctx context.Context,
+        logger logging.Logger,
+        registerer prometheus.Registerer,
+        config []byte,
+        id string,
+    ) (storage.Store, error) {
+        return myCustomStore, nil
+    })
+}
+
+func main() {
+    if err := cmd.RootCommand.Execute(); err != nil {
+        os.Exit(1)
+    }
+}
+```
+
+If your storage needs resource cleanup (close connections, flush buffers, etc.), implement the [`storage.Closer`](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/storage#Closer) interface. The `Close()` method will be called during graceful shutdown
+
 ## Setting the OPA Runtime Version
 
 The OPA runtime version is set statically at build-time. The following global variables

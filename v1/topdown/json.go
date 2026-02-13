@@ -17,8 +17,7 @@ import (
 
 func builtinJSONRemove(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Expect an object and a string or array/set of strings
-	_, err := builtins.ObjectOperand(operands[0].Value, 1)
-	if err != nil {
+	if _, err := builtins.ObjectOperand(operands[0].Value, 1); err != nil {
 		return err
 	}
 
@@ -110,7 +109,7 @@ func jsonRemove(a *ast.Term, b *ast.Term) (*ast.Term, error) {
 				newArraySlice = append(newArraySlice, diffValue)
 			}
 		}
-		return ast.NewTerm(ast.NewArray(newArraySlice...)), nil
+		return ast.ArrayTerm(newArraySlice...), nil
 	default:
 		return nil, fmt.Errorf("invalid value type %T", a)
 	}
@@ -139,11 +138,10 @@ func builtinJSONFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 	return iter(ast.NewTerm(r))
 }
 
-func getJSONPaths(operand ast.Value) ([]ast.Ref, error) {
-	var paths []ast.Ref
-
+func getJSONPaths(operand ast.Value) (paths []ast.Ref, err error) {
 	switch v := operand.(type) {
 	case *ast.Array:
+		paths = make([]ast.Ref, 0, v.Len())
 		for i := range v.Len() {
 			filter, err := parsePath(v.Elem(i))
 			if err != nil {
@@ -152,16 +150,13 @@ func getJSONPaths(operand ast.Value) ([]ast.Ref, error) {
 			paths = append(paths, filter)
 		}
 	case ast.Set:
-		err := v.Iter(func(f *ast.Term) error {
-			filter, err := parsePath(f)
+		paths = make([]ast.Ref, 0, v.Len())
+		for _, item := range v.Slice() {
+			filter, err := parsePath(item)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			paths = append(paths, filter)
-			return nil
-		})
-		if err != nil {
-			return nil, err
 		}
 	default:
 		return nil, builtins.NewOperandTypeErr(2, v, "set", "array")
@@ -170,6 +165,7 @@ func getJSONPaths(operand ast.Value) ([]ast.Ref, error) {
 	return paths, nil
 }
 
+// parsePath parses a JSON pointer path or array of path segments into an ast.Ref.
 func parsePath(path *ast.Term) (ast.Ref, error) {
 	// paths can either be a `/` separated json path or
 	// an array or set of values
@@ -177,19 +173,32 @@ func parsePath(path *ast.Term) (ast.Ref, error) {
 	switch p := path.Value.(type) {
 	case ast.String:
 		if p == "" {
-			return ast.Ref{}, nil
+			return ast.InternedEmptyRefValue.(ast.Ref), nil
 		}
-		parts := strings.Split(strings.TrimLeft(string(p), "/"), "/")
-		for _, part := range parts {
-			part = strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
-			pathSegments = append(pathSegments, ast.StringTerm(part))
+
+		s := strings.TrimLeft(string(p), "/")
+		n := strings.Count(s, "/") + 1
+
+		pathSegments = make(ast.Ref, 0, n)
+
+		part, remaining, found := strings.Cut(s, "/")
+		unescaped := strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
+		pathSegments = append(pathSegments, ast.InternedTerm(unescaped))
+
+		for found {
+			part, remaining, found = strings.Cut(remaining, "/")
+			unescaped := strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
+			pathSegments = append(pathSegments, ast.InternedTerm(unescaped))
 		}
 	case *ast.Array:
-		p.Foreach(func(term *ast.Term) {
-			pathSegments = append(pathSegments, term)
-		})
+		pathSegments = make(ast.Ref, 0, p.Len())
+		for i := range p.Len() {
+			pathSegments = append(pathSegments, p.Elem(i))
+		}
 	default:
-		return nil, builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got %v", ast.ValueName(p))
+		return nil, builtins.NewOperandErr(2,
+			"must be one of {set, array} containing string paths or array of path segments but got "+ast.ValueName(p),
+		)
 	}
 
 	return pathSegments, nil
@@ -200,7 +209,7 @@ func pathsToObject(paths []ast.Ref) ast.Object {
 
 	for _, path := range paths {
 		node := root
-		var done bool
+		done := false
 
 		// If the path is an empty JSON path, skip all further processing.
 		if len(path) == 0 {
@@ -209,7 +218,6 @@ func pathsToObject(paths []ast.Ref) ast.Object {
 
 		// Otherwise, we should have 1+ path segments to work with.
 		for i := 0; i < len(path)-1 && !done; i++ {
-
 			k := path[i]
 			child := node.Get(k)
 
@@ -238,106 +246,67 @@ func pathsToObject(paths []ast.Ref) ast.Object {
 	return root
 }
 
-type jsonPatch struct {
-	op    string
-	path  *ast.Term
-	from  *ast.Term
-	value *ast.Term
-}
-
-func getPatch(o ast.Object) (jsonPatch, error) {
-	validOps := map[string]struct{}{"add": {}, "remove": {}, "replace": {}, "move": {}, "copy": {}, "test": {}}
-	var out jsonPatch
-	var ok bool
-	getAttribute := func(attr string) (*ast.Term, error) {
-		if term := o.Get(ast.StringTerm(attr)); term != nil {
-			return term, nil
-		}
-
-		return nil, fmt.Errorf("missing '%s' attribute", attr)
-	}
-
-	opTerm, err := getAttribute("op")
-	if err != nil {
-		return out, err
-	}
-	op, ok := opTerm.Value.(ast.String)
-	if !ok {
-		return out, errors.New("attribute 'op' must be a string")
-	}
-	out.op = string(op)
-	if _, found := validOps[out.op]; !found {
-		out.op = ""
-		return out, fmt.Errorf("unrecognized op '%s'", string(op))
-	}
-
-	pathTerm, err := getAttribute("path")
-	if err != nil {
-		return out, err
-	}
-	out.path = pathTerm
-
-	// Only fetch the "from" parameter for move/copy ops.
-	switch out.op {
-	case "move", "copy":
-		fromTerm, err := getAttribute("from")
-		if err != nil {
-			return out, err
-		}
-		out.from = fromTerm
-	}
-
-	// Only fetch the "value" parameter for add/replace/test ops.
-	switch out.op {
-	case "add", "replace", "test":
-		valueTerm, err := getAttribute("value")
-		if err != nil {
-			return out, err
-		}
-		out.value = valueTerm
-	}
-
-	return out, nil
-}
-
 func applyPatches(source *ast.Term, operations *ast.Array) (*ast.Term, error) {
-	et := edittree.NewEditTree(source)
+	et := edittree.EditTreeFromPool(source)
+	defer edittree.Dispose(et)
+
 	for i := range operations.Len() {
 		object, ok := operations.Elem(i).Value.(ast.Object)
 		if !ok {
 			return nil, errors.New("must be an array of JSON-Patch objects, but at least one element is not an object")
 		}
-		patch, err := getPatch(object)
-		if err != nil {
-			return nil, err
+
+		// Validate
+		if object.Get(ast.InternedTerm("path")) == nil {
+			return nil, errors.New("missing required attribute 'path'")
 		}
-		path, err := parsePath(patch.path)
+
+		opTerm := object.Get(ast.InternedTerm("op"))
+		if opTerm == nil {
+			return nil, errors.New("missing required attribute 'op'")
+		}
+
+		opStr, ok := opTerm.Value.(ast.String)
+		if !ok {
+			return nil, errors.New("attribute 'op' must be a string but found: " + ast.ValueName(opTerm.Value))
+		}
+
+		path, err := parsePath(object.Get(ast.InternedTerm("path")))
 		if err != nil {
 			return nil, err
 		}
 
-		switch patch.op {
+		switch string(opStr) {
 		case "add":
-			_, err = et.InsertAtPath(path, patch.value)
-			if err != nil {
+			value := object.Get(ast.InternedTerm("value"))
+			if value == nil {
+				return nil, errors.New("missing required attribute 'value'")
+			}
+			if _, err = et.InsertAtPath(path, value); err != nil {
 				return nil, err
 			}
 		case "remove":
-			_, err = et.DeleteAtPath(path)
-			if err != nil {
+			if _, err = et.DeleteAtPath(path); err != nil {
 				return nil, err
 			}
 		case "replace":
-			_, err = et.DeleteAtPath(path)
-			if err != nil {
+			if _, err = et.DeleteAtPath(path); err != nil {
 				return nil, err
 			}
-			_, err = et.InsertAtPath(path, patch.value)
-			if err != nil {
+			value := object.Get(ast.InternedTerm("value"))
+			if value == nil {
+				return nil, errors.New("missing required attribute 'value'")
+			}
+			if _, err = et.InsertAtPath(path, value); err != nil {
 				return nil, err
 			}
 		case "move":
-			from, err := parsePath(patch.from)
+			fromValue := object.Get(ast.InternedTerm("from"))
+			if fromValue == nil {
+				return nil, errors.New("missing required attribute 'from'")
+			}
+
+			from, err := parsePath(fromValue)
 			if err != nil {
 				return nil, err
 			}
@@ -345,16 +314,18 @@ func applyPatches(source *ast.Term, operations *ast.Array) (*ast.Term, error) {
 			if err != nil {
 				return nil, err
 			}
-			_, err = et.DeleteAtPath(from)
-			if err != nil {
+			if _, err = et.DeleteAtPath(from); err != nil {
 				return nil, err
 			}
-			_, err = et.InsertAtPath(path, chunk)
-			if err != nil {
+			if _, err = et.InsertAtPath(path, chunk); err != nil {
 				return nil, err
 			}
 		case "copy":
-			from, err := parsePath(patch.from)
+			fromValue := object.Get(ast.InternedTerm("from"))
+			if fromValue == nil {
+				return nil, errors.New("missing required attribute 'from'")
+			}
+			from, err := parsePath(fromValue)
 			if err != nil {
 				return nil, err
 			}
@@ -362,8 +333,7 @@ func applyPatches(source *ast.Term, operations *ast.Array) (*ast.Term, error) {
 			if err != nil {
 				return nil, err
 			}
-			_, err = et.InsertAtPath(path, chunk)
-			if err != nil {
+			if _, err = et.InsertAtPath(path, chunk); err != nil {
 				return nil, err
 			}
 		case "test":
@@ -371,34 +341,41 @@ func applyPatches(source *ast.Term, operations *ast.Array) (*ast.Term, error) {
 			if err != nil {
 				return nil, err
 			}
-			if !chunk.Equal(patch.value) {
-				return nil, fmt.Errorf("value from EditTree != patch value.\n\nExpected: %v\n\nFound: %v", patch.value, chunk)
+			value := object.Get(ast.InternedTerm("value"))
+			if value == nil {
+				return nil, errors.New("missing required attribute 'value'")
 			}
+			if !chunk.Equal(value) {
+				return nil, fmt.Errorf("value from EditTree != patch value.\n\nExpected: %v\n\nFound: %v", value, chunk)
+			}
+		default:
+			return nil, fmt.Errorf("unrecognized op: '%s'", string(opStr))
 		}
 	}
-	final := et.Render()
-	// TODO: Nil check here?
-	return final, nil
+
+	return et.Render(), nil
 }
 
 func builtinJSONPatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// JSON patch supports arrays, objects as well as values as the target.
-	target := ast.NewTerm(operands[0].Value)
-
 	// Expect an array of operations.
 	operations, err := builtins.ArrayOperand(operands[1].Value, 2)
 	if err != nil {
 		return err
 	}
 
-	patched, err := applyPatches(target, operations)
+	// JSON patch supports arrays, objects as well as values as the target.
+	patched, err := applyPatches(operands[0], operations)
 	if err != nil {
-		return nil
+		return err
 	}
 	return iter(patched)
 }
 
 func init() {
+	for _, key := range []string{"op", "path", "from", "value", "add", "remove", "replace", "move", "copy", "test"} {
+		ast.InternStringTerm(key)
+	}
+
 	RegisterBuiltinFunc(ast.JSONFilter.Name, builtinJSONFilter)
 	RegisterBuiltinFunc(ast.JSONRemove.Name, builtinJSONRemove)
 	RegisterBuiltinFunc(ast.JSONPatch.Name, builtinJSONPatch)

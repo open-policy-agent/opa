@@ -726,7 +726,7 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var results []*tester.Result
+		results := make([]*tester.Result, 0, 10)
 
 		for r := range ch {
 			results = append(results, r)

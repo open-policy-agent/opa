@@ -4,7 +4,7 @@
 //
 // NOTE: Different go runtime metrics in pretty much
 // every Go version. Let's only test these on latest.
-//go:build go1.25
+//go:build go1.26
 
 package prometheus
 
@@ -91,6 +91,11 @@ func TestJSONSerialization(t *testing.T) {
 			"go_gc_scan_heap_bytes",
 			"go_gc_scan_stack_bytes",
 			"go_gc_scan_total_bytes",
+			"go_sched_goroutines_not_in_go_goroutines",
+			"go_sched_goroutines_running_goroutines",
+			"go_sched_threads_total_threads",
+			"go_sched_goroutines_waiting_goroutines",
+			"go_sched_goroutines_runnable_goroutines",
 		},
 		"COUNTER": {
 			"go_gc_cycles_automatic_gc_cycles_total",
@@ -163,6 +168,13 @@ func TestJSONSerialization(t *testing.T) {
 			"go_godebug_non_default_behavior_tlssha1_events_total",           // here and above, added with 1.25.1
 			"go_godebug_non_default_behavior_httpcookiemaxnum_events_total",  // go 1.25.2
 			"go_godebug_non_default_behavior_urlmaxqueryparams_events_total", // go 1.25.6
+			"go_godebug_non_default_behavior_cryptocustomrand_events_total",  // added in 1.25.7
+			"go_godebug_non_default_behavior_urlstrictcolons_events_total",   // added in 1.25.7
+			"go_gc_cleanups_queued_cleanups_total",
+			"go_gc_cleanups_executed_cleanups_total",
+			"go_gc_finalizers_queued_finalizers_total",
+			"go_gc_finalizers_executed_finalizers_total",
+			"go_sched_goroutines_created_goroutines_total",
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",
