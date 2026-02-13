@@ -1,3 +1,7 @@
+// Copyright 2026 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package topdown
 
 import (
@@ -236,13 +240,13 @@ result := {x: z | x := [1, 2, 3][_]; y := x * 2; z := y + 1}`,
 				ast.WalkTerms(r, func(term *ast.Term) bool {
 					switch c := term.Value.(type) {
 					case *ast.ArrayComprehension:
-						count = c.EstimateBindingCount()
+						count = ast.EstimateBodyBindingCount(c.Body)
 						return true
 					case *ast.SetComprehension:
-						count = c.EstimateBindingCount()
+						count = ast.EstimateBodyBindingCount(c.Body)
 						return true
 					case *ast.ObjectComprehension:
-						count = c.EstimateBindingCount()
+						count = ast.EstimateBodyBindingCount(c.Body)
 						return true
 					}
 					return false

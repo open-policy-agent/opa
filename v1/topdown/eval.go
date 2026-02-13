@@ -1377,7 +1377,7 @@ func (e *eval) buildComprehensionCacheArray(x *ast.ArrayComprehension, keys []*a
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.childWithBindingSizeHint(x.Body, child, x.EstimateBindingCount())
+	e.childWithBindingSizeHint(x.Body, child, ast.EstimateBodyBindingCount(x.Body))
 	node := newComprehensionCacheElem()
 	return node, child.Run(func(child *eval) error {
 		values := make([]*ast.Term, len(keys))
@@ -1399,7 +1399,7 @@ func (e *eval) buildComprehensionCacheSet(x *ast.SetComprehension, keys []*ast.T
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.childWithBindingSizeHint(x.Body, child, x.EstimateBindingCount())
+	e.childWithBindingSizeHint(x.Body, child, ast.EstimateBodyBindingCount(x.Body))
 	node := newComprehensionCacheElem()
 	return node, child.Run(func(child *eval) error {
 		values := make([]*ast.Term, len(keys))
@@ -1422,7 +1422,7 @@ func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.childWithBindingSizeHint(x.Body, child, x.EstimateBindingCount())
+	e.childWithBindingSizeHint(x.Body, child, ast.EstimateBodyBindingCount(x.Body))
 	node := newComprehensionCacheElem()
 	return node, child.Run(func(child *eval) error {
 		values := make([]*ast.Term, len(keys))

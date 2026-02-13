@@ -28,6 +28,13 @@ import (
 // This value aligns with maxLinearScan in topdown/bindings.go.
 const maxBindingsEstimate = 16
 
+// EstimateBodyBindingCount returns an estimate of the number of bindings needed
+// for evaluating a comprehension body. It uses the body length as a heuristic,
+// capped at maxBindingsEstimate.
+func EstimateBodyBindingCount(body Body) (estimate int) {
+	return min(len(body), maxBindingsEstimate)
+}
+
 var (
 	NullValue Value = Null{}
 
@@ -2736,17 +2743,6 @@ func (ac *ArrayComprehension) IsGround() bool {
 	return ac.Term.IsGround() && ac.Body.IsGround()
 }
 
-// EstimateBindingCount returns the estimated number of bindings needed for evaluation.
-func (ac *ArrayComprehension) EstimateBindingCount() int {
-	if len(ac.Body) == 0 {
-		return 0
-	}
-	// Heuristic: most comprehensions have 1-3 variables per expression
-	// Use body length as approximation, capped at maxBindingsEstimate
-	estimate := min(len(ac.Body), maxBindingsEstimate)
-	return estimate
-}
-
 func (ac *ArrayComprehension) String() string {
 	buf, _ := ac.AppendText(make([]byte, 0, ac.StringLength()))
 	return util.ByteSliceToString(buf)
@@ -2808,15 +2804,6 @@ func (oc *ObjectComprehension) IsGround() bool {
 	return oc.Key.IsGround() && oc.Value.IsGround() && oc.Body.IsGround()
 }
 
-// EstimateBindingCount returns the estimated number of bindings needed for evaluation.
-func (oc *ObjectComprehension) EstimateBindingCount() int {
-	if len(oc.Body) == 0 {
-		return 0
-	}
-	estimate := min(len(oc.Body), maxBindingsEstimate)
-	return estimate
-}
-
 func (oc *ObjectComprehension) String() string {
 	buf, _ := oc.AppendText(make([]byte, 0, oc.StringLength()))
 	return util.ByteSliceToString(buf)
@@ -2873,15 +2860,6 @@ func (sc *SetComprehension) Hash() int {
 // IsGround returns true if the Term and Body are ground.
 func (sc *SetComprehension) IsGround() bool {
 	return sc.Term.IsGround() && sc.Body.IsGround()
-}
-
-// EstimateBindingCount returns the estimated number of bindings needed for evaluation.
-func (sc *SetComprehension) EstimateBindingCount() int {
-	if len(sc.Body) == 0 {
-		return 0
-	}
-	estimate := min(len(sc.Body), maxBindingsEstimate)
-	return estimate
 }
 
 func (sc *SetComprehension) String() string {
