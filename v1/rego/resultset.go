@@ -79,12 +79,24 @@ func (ev *ExpressionValue) String() string {
 // return `true` for a query like `data.authz.allow = x`, which always has result
 // set element with value true, but could also have a binding `x: false`.
 func (rs ResultSet) Allowed() bool {
+	x, _ := ResultValue[bool](rs)
+	return x
+}
+
+// ResultValue is a helper function that'll return a value of type T if all of
+// these conditions hold:
+// - the result set only has one element
+// - there is only one expression in the result set's only element
+// - that expression has type T
+// - there are no bindings.
+func ResultValue[T any](rs ResultSet) (T, bool) {
+	var zero T
 	if len(rs) == 1 && len(rs[0].Bindings) == 0 {
 		if exprs := rs[0].Expressions; len(exprs) == 1 {
-			if b, ok := exprs[0].Value.(bool); ok {
-				return b
+			if v, ok := exprs[0].Value.(T); ok {
+				return v, true
 			}
 		}
 	}
-	return false
+	return zero, false
 }
