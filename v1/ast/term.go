@@ -1459,20 +1459,17 @@ func (arr *Array) Copy() *Array {
 	}
 }
 
-// CopyNonGround returns a new array with deep copies of the non-ground elements
-// and shallow copies of the ground elements. This is a much cheaper operation
-// than Copy for arrays with predominantly ground elements.
+// CopyNonGround returns a new array with a new backing slice, but with deep copies
+// only for non-ground elements. Ground elements are shared (not deep copied) since
+// they are immutable. The array container itself is always copied to prevent mutations
+// like append from affecting the original array.
 func (arr *Array) CopyNonGround() *Array {
 	if arr == nil {
 		return nil
 	}
 
-	// If the entire array is ground, we can return it as-is since ground
-	// values are immutable
-	if arr.IsGround() {
-		return arr
-	}
-
+	// Always create a new slice to prevent mutations from affecting the original,
+	// but only deep copy non-ground elements
 	newElems := make([]*Term, len(arr.elems))
 	for i, elem := range arr.elems {
 		if elem.IsGround() {
@@ -1774,20 +1771,17 @@ func (s *set) Copy() Set {
 	return cpy
 }
 
-// CopyNonGround returns a new set with deep copies of the non-ground elements
-// and shallow copies of the ground elements. This is a much cheaper operation
-// than Copy for sets with predominantly ground elements.
+// CopyNonGround returns a new set with new internal maps and slices, but with deep
+// copies only for non-ground elements. Ground elements are shared (not deep copied)
+// since they are immutable. The set container itself is always copied to prevent
+// mutations like Add/Remove from affecting the original set.
 func (s *set) CopyNonGround() Set {
 	if s == nil {
 		return nil
 	}
 
-	// If the entire set is ground, we can return it as-is since ground
-	// values are immutable
-	if s.IsGround() {
-		return s
-	}
-
+	// Always create new internal structures to prevent mutations from affecting
+	// the original, but only deep copy non-ground elements
 	cpy := &set{
 		hash:      s.hash,
 		ground:    s.ground,
@@ -2441,20 +2435,17 @@ func (obj *object) Copy() Object {
 	return cpy
 }
 
-// CopyNonGround returns a new object with deep copies of the non-ground keys/values
-// and shallow copies of the ground keys/values. This is a much cheaper operation
-// than Copy for objects with predominantly ground elements.
+// CopyNonGround returns a new object with new internal structures, but with deep
+// copies only for non-ground keys/values. Ground keys/values are shared (not deep
+// copied) since they are immutable. The object container itself is always copied to
+// prevent mutations like Insert/Remove from affecting the original object.
 func (obj *object) CopyNonGround() Object {
 	if obj == nil {
 		return nil
 	}
 
-	// If the entire object is ground, we can return it as-is since ground
-	// values are immutable
-	if obj.IsGround() {
-		return obj
-	}
-
+	// Always create new internal structures to prevent mutations from affecting
+	// the original, but only deep copy non-ground keys/values
 	cpy := newobject(obj.Len())
 
 	// Copy each key-value pair, using shallow copy for ground terms
