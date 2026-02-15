@@ -1468,6 +1468,11 @@ func (arr *Array) CopyNonGround() *Array {
 		return nil
 	}
 
+	// Fast path: empty arrays can safely reuse the interned singleton
+	if len(arr.elems) == 0 {
+		return InternedEmptyArrayValue.(*Array)
+	}
+
 	// Always create a new slice to prevent mutations from affecting the original,
 	// but only deep copy non-ground elements
 	newElems := make([]*Term, len(arr.elems))
@@ -1778,6 +1783,11 @@ func (s *set) Copy() Set {
 func (s *set) CopyNonGround() Set {
 	if s == nil {
 		return nil
+	}
+
+	// Fast path: empty sets can safely reuse the interned singleton
+	if len(s.elems) == 0 {
+		return InternedEmptySetValue.(Set)
 	}
 
 	// Always create new internal structures to prevent mutations from affecting
