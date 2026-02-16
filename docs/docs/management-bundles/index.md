@@ -30,6 +30,20 @@ The CLI command [`opa build`](./cli/#build) gives you the capability to build yo
 
 Here is a basic example on how to build a bundle from a folder called `foo`. The bundle will be named by default `bundle.tar.gz`.
 
+```rego title="example.rego"
+package authz
+
+allow if {
+    input.path == ["users"]
+    input.method == "POST"
+}
+
+allow if {
+    input.path == ["users", input.user_id]
+    input.method == "GET"
+}
+```
+
 ```console
 $ ls foo/
 example.rego
@@ -37,10 +51,11 @@ example.rego
 $ opa build -b foo/
 ```
 
-More, you can optimize the bundle by specifying the `--optimize` or `-O` flag.
+More, you can optimize the bundle by specifying the `--optimize` or `-O` flag. This does require defining an entrypoint.
+You can provide an entrypoint using the CLI flag `--entrypoint` or as a Metadata annotation.
 
 ```console
-opa build -b foo/ --optimize=1
+opa build -b foo/ --optimize=1 --entrypoint authz/allow
 ```
 
 Finally, you can also sign your bundle with `opa build`.
