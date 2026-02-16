@@ -108,8 +108,6 @@ jobs:
             --title "docs: Update Regal docs to $VERSION" \
             --body "$(cat <<EOF
           This PR updates the Regal documentation to $VERSION.
-
-          /cc @charlieegan3 @anderseknert
           EOF
           )" \
             --reviewer charlieegan3,anderseknert
