@@ -20,7 +20,7 @@
     "@mermaid-js/layout-elk": "^0.1.9",
     "eslint": "^9.39.2",
     "glob": "^11.0.3",
-    "markdownlint-cli2": "^0.20.0",
+    "markdownlint-cli2": "^0.21.0",
     "md-front-matter": "^1.0.4",
     "raw-loader": "^4.0.2",
     "react-markdown": "^10.1.0",
