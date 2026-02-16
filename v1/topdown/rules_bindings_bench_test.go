@@ -6,7 +6,6 @@ package topdown
 
 import (
 	"context"
-	"runtime"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -108,10 +107,7 @@ allow if {
 				"active":     true,
 			}
 
-			var m1, m2 runtime.MemStats
-			runtime.GC()
-			runtime.ReadMemStats(&m1)
-
+			b.ReportAllocs()
 			b.ResetTimer()
 
 			for b.Loop() {
@@ -125,17 +121,6 @@ allow if {
 					b.Fatalf("Query failed: %v", err)
 				}
 			}
-
-			b.StopTimer()
-
-			runtime.GC()
-			runtime.ReadMemStats(&m2)
-
-			allocPerOp := (m2.TotalAlloc - m1.TotalAlloc) / uint64(b.N)
-			mallocsPerOp := (m2.Mallocs - m1.Mallocs) / uint64(b.N)
-
-			b.ReportMetric(float64(allocPerOp), "B/op")
-			b.ReportMetric(float64(mallocsPerOp), "allocs/op")
 		})
 	}
 }
@@ -211,10 +196,7 @@ result if {
 				},
 			}
 
-			var m1, m2 runtime.MemStats
-			runtime.GC()
-			runtime.ReadMemStats(&m1)
-
+			b.ReportAllocs()
 			b.ResetTimer()
 
 			for b.Loop() {
@@ -228,17 +210,6 @@ result if {
 					b.Fatalf("Query failed: %v", err)
 				}
 			}
-
-			b.StopTimer()
-
-			runtime.GC()
-			runtime.ReadMemStats(&m2)
-
-			allocPerOp := (m2.TotalAlloc - m1.TotalAlloc) / uint64(b.N)
-			mallocsPerOp := (m2.Mallocs - m1.Mallocs) / uint64(b.N)
-
-			b.ReportMetric(float64(allocPerOp), "B/op")
-			b.ReportMetric(float64(mallocsPerOp), "allocs/op")
 		})
 	}
 }
@@ -332,10 +303,7 @@ analyze_access if {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			var m1, m2 runtime.MemStats
-			runtime.GC()
-			runtime.ReadMemStats(&m1)
-
+			b.ReportAllocs()
 			b.ResetTimer()
 
 			for b.Loop() {
@@ -349,17 +317,6 @@ analyze_access if {
 					b.Fatalf("Query failed: %v", err)
 				}
 			}
-
-			b.StopTimer()
-
-			runtime.GC()
-			runtime.ReadMemStats(&m2)
-
-			allocPerOp := (m2.TotalAlloc - m1.TotalAlloc) / uint64(b.N)
-			mallocsPerOp := (m2.Mallocs - m1.Mallocs) / uint64(b.N)
-
-			b.ReportMetric(float64(allocPerOp), "B/op")
-			b.ReportMetric(float64(mallocsPerOp), "allocs/op")
 		})
 	}
 }
