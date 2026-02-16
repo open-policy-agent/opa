@@ -52,7 +52,8 @@ $ opa build -b foo/
 ```
 
 More, you can optimize the bundle by specifying the `--optimize` or `-O` flag. This does require defining an entrypoint.
-You can provide an entrypoint using the CLI flag `--entrypoint` or as a Metadata annotation.
+You can provide an entrypoint using the CLI flag `--entrypoint` or as
+a [Metadata annotation](https://www.openpolicyagent.org/docs/policy-language#metadata).
 
 ```console
 opa build -b foo/ --optimize=1 --entrypoint authz/allow
