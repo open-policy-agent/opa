@@ -6,7 +6,6 @@ package topdown
 
 import (
 	"context"
-	"runtime"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -83,10 +82,7 @@ result := {x: z | x := arr[_]; y := x * 2; z := y + 1}`,
 			store := inmem.New()
 			ctx := context.Background()
 
-			var m1, m2 runtime.MemStats
-			runtime.GC()
-			runtime.ReadMemStats(&m1)
-
+			b.ReportAllocs()
 			b.ResetTimer()
 
 			for b.Loop() {
@@ -99,17 +95,6 @@ result := {x: z | x := arr[_]; y := x * 2; z := y + 1}`,
 					b.Fatalf("Query failed: %v", err)
 				}
 			}
-
-			b.StopTimer()
-
-			runtime.GC()
-			runtime.ReadMemStats(&m2)
-
-			allocPerOp := (m2.TotalAlloc - m1.TotalAlloc) / uint64(b.N)
-			mallocsPerOp := (m2.Mallocs - m1.Mallocs) / uint64(b.N)
-
-			b.ReportMetric(float64(allocPerOp), "B/op")
-			b.ReportMetric(float64(mallocsPerOp), "allocs/op")
 		})
 	}
 }
@@ -160,10 +145,7 @@ result := [z | x := arr[_]; y := [a | a := arr[_]; a > x][_]; z := x + y]`,
 			store := inmem.New()
 			ctx := context.Background()
 
-			var m1, m2 runtime.MemStats
-			runtime.GC()
-			runtime.ReadMemStats(&m1)
-
+			b.ReportAllocs()
 			b.ResetTimer()
 
 			for b.Loop() {
@@ -176,17 +158,6 @@ result := [z | x := arr[_]; y := [a | a := arr[_]; a > x][_]; z := x + y]`,
 					b.Fatalf("Query failed: %v", err)
 				}
 			}
-
-			b.StopTimer()
-
-			runtime.GC()
-			runtime.ReadMemStats(&m2)
-
-			allocPerOp := (m2.TotalAlloc - m1.TotalAlloc) / uint64(b.N)
-			mallocsPerOp := (m2.Mallocs - m1.Mallocs) / uint64(b.N)
-
-			b.ReportMetric(float64(allocPerOp), "B/op")
-			b.ReportMetric(float64(mallocsPerOp), "allocs/op")
 		})
 	}
 }

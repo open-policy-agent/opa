@@ -96,7 +96,7 @@ func BenchmarkFunctionArgumentCounts(b *testing.B) {
 			for i := range argCount {
 				callArgs[i] = strconv.Itoa(i)
 			}
-			query := ast.MustParseBody(fmt.Sprintf(`test.f(%s)`, strings.Join(callArgs, ", ")))
+			query := ast.MustParseBody(fmt.Sprintf(`data.test.f(%s)`, strings.Join(callArgs, ", ")))
 
 			b.ReportAllocs()
 			b.ResetTimer()
