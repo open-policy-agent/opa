@@ -1546,7 +1546,7 @@ and "MiB" are equivalent).`,
 		),
 		types.Named("y", types.N).Description("the parsed number"),
 	),
-	CanSkipBctx: true,
+	CanSkipBctx: false,
 }
 
 //

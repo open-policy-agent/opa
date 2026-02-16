@@ -45,64 +45,84 @@ var (
 	errBytesValueIncludesSpaces = parseNumBytesError("spaces not allowed in resource strings")
 )
 
-func builtinNumBytes(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	var m big.Float
+func builtinNumBytes(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	result := make(chan ast.Number, 1)
+	errorCh := make(chan error, 1)
 
-	raw, err := builtins.StringOperand(operands[0].Value, 1)
-	if err != nil {
+	go func() {
+		var m big.Float
+
+		raw, err := builtins.StringOperand(operands[0].Value, 1)
+		if err != nil {
+			errorCh <- err
+			return
+		}
+
+		s := formatString(raw)
+
+		if strings.Contains(s, " ") {
+			errorCh <- errBytesValueIncludesSpaces
+			return
+		}
+
+		num, unit := extractNumAndUnit(s)
+		if num == "" {
+			errorCh <- errBytesValueNoAmount
+			return
+		}
+
+		switch unit {
+		case "":
+			m.SetUint64(none)
+		case "kb", "k":
+			m.SetUint64(kb)
+		case "kib", "ki":
+			m.SetUint64(ki)
+		case "mb", "m":
+			m.SetUint64(mb)
+		case "mib", "mi":
+			m.SetUint64(mi)
+		case "gb", "g":
+			m.SetUint64(gb)
+		case "gib", "gi":
+			m.SetUint64(gi)
+		case "tb", "t":
+			m.SetUint64(tb)
+		case "tib", "ti":
+			m.SetUint64(ti)
+		case "pb", "p":
+			m.SetUint64(pb)
+		case "pib", "pi":
+			m.SetUint64(pi)
+		case "eb", "e":
+			m.SetUint64(eb)
+		case "eib", "ei":
+			m.SetUint64(ei)
+		default:
+			errorCh <- errBytesUnitNotRecognized(unit)
+			return
+		}
+
+		numFloat, ok := new(big.Float).SetString(num)
+		if !ok {
+			errorCh <- errBytesValueNumConv
+			return
+		}
+
+		var total big.Int
+		numFloat.Mul(numFloat, &m).Int(&total)
+
+		result <- builtins.IntToNumber(&total)
+	}()
+
+	select {
+	case r := <-result:
+		return iter(ast.NewTerm(r))
+	case err := <-errorCh:
 		return err
+	case <-ctx.Context.Done():
+		return ctx.Context.Err()
 	}
-
-	s := formatString(raw)
-
-	if strings.Contains(s, " ") {
-		return errBytesValueIncludesSpaces
-	}
-
-	num, unit := extractNumAndUnit(s)
-	if num == "" {
-		return errBytesValueNoAmount
-	}
-
-	switch unit {
-	case "":
-		m.SetUint64(none)
-	case "kb", "k":
-		m.SetUint64(kb)
-	case "kib", "ki":
-		m.SetUint64(ki)
-	case "mb", "m":
-		m.SetUint64(mb)
-	case "mib", "mi":
-		m.SetUint64(mi)
-	case "gb", "g":
-		m.SetUint64(gb)
-	case "gib", "gi":
-		m.SetUint64(gi)
-	case "tb", "t":
-		m.SetUint64(tb)
-	case "tib", "ti":
-		m.SetUint64(ti)
-	case "pb", "p":
-		m.SetUint64(pb)
-	case "pib", "pi":
-		m.SetUint64(pi)
-	case "eb", "e":
-		m.SetUint64(eb)
-	case "eib", "ei":
-		m.SetUint64(ei)
-	default:
-		return errBytesUnitNotRecognized(unit)
-	}
-
-	numFloat, ok := new(big.Float).SetString(num)
-	if !ok {
-		return errBytesValueNumConv
-	}
-
-	var total big.Int
-	numFloat.Mul(numFloat, &m).Int(&total)
-	return iter(ast.NewTerm(builtins.IntToNumber(&total)))
 }
 
 // Makes the string lower case and removes quotation marks
