@@ -138,11 +138,11 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 			dirty = true
 			r.println(r.fmtBenchmark(tr))
 		} else if r.Verbose || !tr.Pass() {
-			if tr.Location != nil && tr.Location.File != lastFile {
-				if lastFile != "" {
+			if tr.Location != nil {
+				if lastFile != "" && lastFile != tr.Location.File {
 					r.println("")
 				}
-				_, _ = fmt.Fprintf(r.Output, "%s:\n", tr.Location.File)
+				_, _ = fmt.Fprintf(r.Output, "%s:%d:\n", tr.Location.File, tr.Location.Row)
 				lastFile = tr.Location.File
 			}
 
