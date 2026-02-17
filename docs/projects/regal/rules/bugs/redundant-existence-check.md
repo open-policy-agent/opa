@@ -4,7 +4,7 @@
 
 **Category**: Bugs
 
-**Automatically fixable**: [Yes](https://www.openpolicyagent.org/projects/regal/fixing)
+**Automatically fixable**: [Yes](/regal/fixing)
 
 **Avoid**
 ```rego
