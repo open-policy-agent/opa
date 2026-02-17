@@ -50,6 +50,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -59,6 +60,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  2,
 			},
 		},
 		{
@@ -68,6 +70,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy2.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -77,6 +80,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 			Trace:   nil,
 			Location: &ast.Location{
 				File: "policy2.rego",
+				Row:  2,
 			},
 		},
 		{
@@ -85,6 +89,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 			Output:  []byte("fake print output\n"),
 			Location: &ast.Location{
 				File: "policy3.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -93,6 +98,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy4.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -117,6 +123,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 			},
 			Location: &ast.Location{
 				File: "policy5.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -156,6 +163,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 			},
 			Location: &ast.Location{
 				File: "policy5.rego",
+				Row:  2,
 			},
 		},
 	}
@@ -191,29 +199,32 @@ data.foo.qux.test_cases_nested: FAIL (0s)
 
 SUMMARY
 --------------------------------------------------------------------------------
-policy1.rego:
+policy1.rego:1:
 data.foo.bar.test_baz: PASS (0s)
+policy1.rego:2:
 data.foo.bar.test_qux: ERROR (0s)
   some err
 
-policy2.rego:
+policy2.rego:1:
 data.foo.bar.test_corge: FAIL (0s)
+policy2.rego:2:
 data.foo.bar.todo_test_qux: SKIPPED
 
-policy3.rego:
+policy3.rego:1:
 data.foo.bar.test_contains_print: PASS (0s)
 
   fake print output
 
 
-policy4.rego:
+policy4.rego:1:
 data.foo.baz.p.q.r.test_quz: PASS (0s)
 
-policy5.rego:
+policy5.rego:1:
 data.foo.qux.test_cases: FAIL (0s)
   bar: FAIL
   baz: PASS
   foo: PASS
+policy5.rego:2:
 data.foo.qux.test_cases_nested: FAIL (0s)
   one: PASS
     bar: PASS
@@ -247,6 +258,7 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -256,6 +268,7 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  2,
 			},
 		},
 		{
@@ -287,6 +300,7 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 				}),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  3,
 			},
 		},
 		{
@@ -296,6 +310,7 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 			Trace:   nil,
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  4,
 			},
 		},
 		{
@@ -304,6 +319,7 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 			Output:  []byte("fake print output\n"),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  5,
 			},
 		},
 		{
@@ -313,6 +329,7 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 			Output:  []byte("fake print output2\n"),
 			Location: &ast.Location{
 				File: "policy2.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -322,6 +339,7 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy3.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -384,6 +402,7 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 			},
 			Location: &ast.Location{
 				File: "policy5.rego",
+				Row:  1,
 			},
 		},
 	}
@@ -430,22 +449,24 @@ data.foo.qux.test_cases_nested: FAIL (0s)
 
 SUMMARY
 --------------------------------------------------------------------------------
-policy1.rego:
+policy1.rego:2:
 data.foo.bar.test_qux: ERROR (0s)
   some err
+policy1.rego:3:
 data.foo.bar.test_corge: FAIL (0s)
+policy1.rego:4:
 data.foo.bar.todo_test_qux: SKIPPED
 
-policy2.rego:
+policy2.rego:1:
 data.foo.bar.test_contains_print_fail: FAIL (0s)
 
   fake print output2
 
 
-policy3.rego:
+policy3.rego:1:
 data.foo.baz.p.q.r.test_quz: FAIL (0s)
 
-policy5.rego:
+policy5.rego:1:
 data.foo.qux.test_cases_nested: FAIL (0s)
   two: FAIL
     foo: FAIL
@@ -473,6 +494,7 @@ func TestPrettyReporter(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -482,6 +504,7 @@ func TestPrettyReporter(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  2,
 			},
 		},
 		{
@@ -491,6 +514,7 @@ func TestPrettyReporter(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  3,
 			},
 		},
 		{
@@ -500,6 +524,7 @@ func TestPrettyReporter(t *testing.T) {
 			Trace:   nil,
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  4,
 			},
 		},
 		{
@@ -508,6 +533,7 @@ func TestPrettyReporter(t *testing.T) {
 			Output:  []byte("fake print output\n"),
 			Location: &ast.Location{
 				File: "policy1.rego",
+				Row:  5,
 			},
 		},
 		{
@@ -517,6 +543,7 @@ func TestPrettyReporter(t *testing.T) {
 			Output:  []byte("fake print output2\n"),
 			Location: &ast.Location{
 				File: "policy2.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -526,6 +553,7 @@ func TestPrettyReporter(t *testing.T) {
 			Trace:   getFakeTraceEvents(),
 			Location: &ast.Location{
 				File: "policy3.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -550,6 +578,7 @@ func TestPrettyReporter(t *testing.T) {
 			},
 			Location: &ast.Location{
 				File: "policy4.rego",
+				Row:  1,
 			},
 		},
 		{
@@ -589,6 +618,7 @@ func TestPrettyReporter(t *testing.T) {
 			},
 			Location: &ast.Location{
 				File: "policy4.rego",
+				Row:  2,
 			},
 		},
 	}
@@ -602,24 +632,27 @@ func TestPrettyReporter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exp := `policy1.rego:
+	exp := `policy1.rego:2:
 data.foo.bar.test_qux: ERROR (0s)
   some err
+policy1.rego:3:
 data.foo.bar.test_corge: FAIL (0s)
+policy1.rego:4:
 data.foo.bar.todo_test_qux: SKIPPED
 
-policy2.rego:
+policy2.rego:1:
 data.foo.bar.test_contains_print_fail: FAIL (0s)
 
   fake print output2
 
 
-policy3.rego:
+policy3.rego:1:
 data.foo.baz.p.q.r.test_quz: FAIL (0s)
 
-policy4.rego:
+policy4.rego:1:
 data.foo.qux.test_cases: FAIL (0s)
   bar: FAIL
+policy4.rego:2:
 data.foo.qux.test_cases_nested: FAIL (0s)
   two: FAIL
     foo: FAIL
