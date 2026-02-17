@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/metrics"
+	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/storage"
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -39,7 +39,8 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 				"test/bar.rego": mods[1],
 				"test/baz.rego": mods[2],
 			})
-			info, err := runtime.Term(runtime.Params{})
+
+			runtimeInfo, err := info.New()
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -48,7 +49,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 				Query(query),
 				Compiler(compiler),
 				Store(store),
-				Runtime(info),
+				Runtime(runtimeInfo),
 			).PrepareForEval(ctx)
 
 			if err != nil {

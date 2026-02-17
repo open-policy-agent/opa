@@ -2,8 +2,9 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package runtime contains utilities to return runtime information on the OPA instance.
-package runtime
+// Package params provides utilities to create runtime context information for
+// OPA instances.
+package info
 
 import (
 	"os"
@@ -14,22 +15,24 @@ import (
 	"github.com/open-policy-agent/opa/v1/version"
 )
 
-// Params controls the types of runtime information to return.
-type Params struct {
+// Options controls the types of runtime context information to return.
+type Options struct {
 	Config                 []byte
 	IsAuthorizationEnabled bool
 	SkipKnownSchemaCheck   bool
 }
 
-// Term returns the runtime information as an ast.Term object.
-func Term(params Params) (*ast.Term, error) {
+func New() (*ast.Term, error) {
+	return NewWithOptions(Options{})
+}
 
+// NewWithOptions returns the runtime context information as an ast.Term object.
+func NewWithOptions(opts Options) (*ast.Term, error) {
 	obj := ast.NewObject()
 
-	if params.Config != nil {
-
+	if opts.Config != nil {
 		var x any
-		if err := util.Unmarshal(params.Config, &x); err != nil {
+		if err := util.Unmarshal(opts.Config, &x); err != nil {
 			return nil, err
 		}
 
@@ -55,8 +58,8 @@ func Term(params Params) (*ast.Term, error) {
 	obj.Insert(ast.InternedTerm("env"), ast.NewTerm(env))
 	obj.Insert(ast.InternedTerm("version"), ast.StringTerm(version.Version))
 	obj.Insert(ast.InternedTerm("commit"), ast.StringTerm(version.Vcs))
-	obj.Insert(ast.InternedTerm("authorization_enabled"), ast.InternedTerm(params.IsAuthorizationEnabled))
-	obj.Insert(ast.InternedTerm("skip_known_schema_check"), ast.InternedTerm(params.SkipKnownSchemaCheck))
+	obj.Insert(ast.InternedTerm("authorization_enabled"), ast.InternedTerm(opts.IsAuthorizationEnabled))
+	obj.Insert(ast.InternedTerm("skip_known_schema_check"), ast.InternedTerm(opts.SkipKnownSchemaCheck))
 
 	return ast.NewTerm(obj), nil
 }
