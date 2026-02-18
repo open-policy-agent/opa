@@ -50,6 +50,55 @@ several flags that are particularly useful for CI/CD scenarios:
 
 These flags help ensure your CI/CD pipelines respond appropriately to policy evaluation results and integrate smoothly with other tools in your pipeline.
 
+## Guardrail Pattern: Stable Input Contract + Deny Reasons
+
+For CI/CD guardrails, a useful pattern is to define:
+
+1. A stable input shape (for example `changed_files`, `attestations`, and
+   `metadata`), and
+2. A policy that returns a set of deny messages.
+
+This makes policies easier to compose and easier to debug in pipeline logs.
+
+```rego title="policy.rego"
+package cicd.guardrails
+
+import rego.v1
+
+required_attestations := {"prompt", "eval"}
+
+deny contains msg if {
+  some f in input.changed_files
+  startswith(f, "prompts/")
+  missing := required_attestations - {a | some a in input.attestations}
+  count(missing) > 0
+  msg := sprintf("missing required attestations for prompt changes: %v", [sort(missing)])
+}
+
+deny contains "unapproved plaintext payload detected" if {
+  some a in input.attestations
+  a == "plaintext_explicit"
+  not input.metadata.allow_plaintext
+}
+```
+
+```json title="input.json"
+{
+  "changed_files": ["prompts/system.txt"],
+  "attestations": ["prompt"],
+  "metadata": {
+    "allow_plaintext": false
+  }
+}
+```
+
+```bash title="pipeline command"
+opa eval -d policy.rego -i input.json --fail-defined 'data.cicd.guardrails.deny'
+```
+
+If the query is defined, OPA returns exit code `1` (because of
+`--fail-defined`), and your pipeline can fail with actionable deny messages.
+
 ## GitHub Actions Integration
 
 For GitHub users, the easiest way to get started is using the official OPA setup
