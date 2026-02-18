@@ -87,6 +87,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 
 	i.kind = rules[0].Head.RuleKind()
 	indices := newrefindices(i.isVirtual)
+	values := make(map[Var]Value)
 
 	// build indices for each rule.
 	for idx := range rules {
@@ -106,8 +107,9 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 				}
 			}
 			if !skip {
+				clear(values)
 				for i := range rule.Body {
-					indices.Update(rule, rule.Body[i])
+					indices.Update(rule, rule.Body[i], values)
 				}
 			}
 			return false
@@ -292,7 +294,7 @@ var anyValue = Var("__any__")
 // Update attempts to update the refindices for the given expression in the
 // given rule. If the expression cannot be indexed the update does not affect
 // the indices.
-func (i *refindices) Update(rule *Rule, expr *Expr) {
+func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 
 	if len(expr.With) > 0 {
 		// NOTE(tsandall): In the future, we may need to consider expressions
@@ -314,7 +316,7 @@ func (i *refindices) Update(rule *Rule, expr *Expr) {
 			// function with a undefined argument, there's no point to recording
 			// "needs to be anything" for function args
 			if ref, ok := ts.Value.(Ref); ok { // "naked ref"
-				i.updateEq(rule, ref, anyValue)
+				i.updateEq(rule, ref, anyValue, nil)
 			}
 		}
 	}
@@ -322,20 +324,28 @@ func (i *refindices) Update(rule *Rule, expr *Expr) {
 	a, b := expr.Operand(0), expr.Operand(1)
 	switch {
 	case op.Equal(equalityRef):
-		i.updateEq(rule, a.Value, b.Value)
+		i.updateEq(rule, a.Value, b.Value, values)
 
 	case op.Equal(equalRef) && len(expr.Operands()) == 2:
 		// NOTE(tsandall): if equal() is called with more than two arguments the
 		// output value is being captured in which case the indexer cannot
 		// exclude the rule if the equal() call would return false (because the
 		// false value must still be produced.)
-		i.updateEq(rule, a.Value, b.Value)
+		i.updateEq(rule, a.Value, b.Value, values)
 
 	case op.Equal(globMatchRef) && len(expr.Operands()) == 3:
 		// NOTE(sr): Same as with equal() above -- 4 operands means the output
 		// of `glob.match` is captured and the rule can thus not be excluded.
 		i.updateGlobMatch(rule, expr)
 	}
+}
+
+func (i *refindices) isValidIndexRef(ref Ref) bool {
+	// NB(sr): the ordering is intentional, cheapest-first
+	return RootDocumentNames.Contains(ref[0]) &&
+		!ref.IsNested() &&
+		ref.IsGround() &&
+		!i.isVirtual(ref)
 }
 
 // Sorted returns a sorted list of references that the indices were built from.
@@ -384,16 +394,12 @@ func (i *refindices) Mapper(rule *Rule, ref Ref) *valueMapper {
 	return nil
 }
 
-func (i *refindices) updateEq(rule *Rule, a, b Value) {
+func (i *refindices) updateEq(rule *Rule, a, b Value, values map[Var]Value) {
 	args := rule.Head.Args
-	if idx, ok := eqOperandsToRefAndValue(i.isVirtual, args, a, b); ok {
-		i.insert(rule, idx)
+	if i.eqOperandsToRefAndValue(rule, args, a, b, values) {
 		return
 	}
-	if idx, ok := eqOperandsToRefAndValue(i.isVirtual, args, b, a); ok {
-		i.insert(rule, idx)
-		return
-	}
+	i.eqOperandsToRefAndValue(rule, args, b, a, values)
 }
 
 func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
@@ -817,31 +823,52 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 // for the argument number. So for `f(x, y) { x = 10; y = 12 }`, we'll
 // bind `args[0]` and `args[1]` to this rule when called for (x=10) and
 // (y=12) respectively.
-func eqOperandsToRefAndValue(isVirtual func(Ref) bool, args []*Term, a, b Value) (*refindex, bool) {
+func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Value, values map[Var]Value) bool {
 	switch v := a.(type) {
 	case Var:
-		for i, arg := range args {
-			if arg.Value.Compare(a) == 0 {
-				if bval, ok := indexValue(b); ok {
-					return &refindex{Ref: Ref{FunctionArgRootDocument, InternedTerm(i)}, Value: bval}, true
+		var ref Ref
+		for _, other := range i.rules[rule] {
+			if ov, ok := other.Value.(Var); ok && ov.Equal(v) {
+				ref = other.Ref // if we pulled the ref out of i.rules, we don't need to check validity again
+				break
+			}
+		}
+		if ref == nil {
+			for i := range args {
+				if args[i].Value.Compare(a) == 0 {
+					ref = Ref{FunctionArgRootDocument, InternedTerm(i)}
+					break
 				}
 			}
 		}
+
+		bval, ok := indexValue(b)
+		if !ok {
+			return false
+		}
+		if ref != nil {
+			i.insert(rule, &refindex{Ref: ref, Value: bval})
+			return true
+		}
+
+		// a is a var, but we have not been able to resolve it to a ref, save for later
+		values[v] = bval
+
 	case Ref:
-		if !RootDocumentNames.Contains(v[0]) {
-			return nil, false
-		}
-		if isVirtual(v) {
-			return nil, false
-		}
-		if v.IsNested() || !v.IsGround() {
-			return nil, false
+		if !i.isValidIndexRef(v) {
+			return false
 		}
 		if bval, ok := indexValue(b); ok {
-			return &refindex{Ref: v, Value: bval}, true
+			if bvar, ok := bval.(Var); ok {
+				if resolvedVal, ok := values[bvar]; ok {
+					bval = resolvedVal
+				}
+			}
+			i.insert(rule, &refindex{Ref: v, Value: bval})
+			return true
 		}
 	}
-	return nil, false
+	return false
 }
 
 func indexValue(b Value) (Value, bool) {

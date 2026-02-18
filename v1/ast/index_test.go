@@ -739,6 +739,78 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		// 	input:      `{"k": 1, "v": 2}`,
 		// 	expectedRS: RuleSet([]*Rule{refMod.Rules[3]}),
 		// },
+		{
+			note: "var assignments: var = ref; var = value",
+			module: module(`package test
+			p if {
+				x = input.foo
+				x = "bar"
+			}`),
+			ruleset: "p",
+			input:   `{"foo": "bar"}`,
+			expectedRS: []string{
+				`p if { x = input.foo; x = "bar" }`,
+			},
+		},
+		{
+			note: "var assignments: var = ref; var = value (no match)",
+			module: module(`package test
+			p if {
+				z = input.foo
+				z = "bar"
+			}`),
+			ruleset:    "p",
+			input:      `{"foo": "baz"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "var assignments: var = value; var = ref (reverse order)",
+			module: module(`package test
+			p if {
+				y = "bar"
+				y = input.foo
+			}`),
+			ruleset: "p",
+			input:   `{"foo": "bar"}`,
+			expectedRS: []string{
+				`p if { y = "bar"; y = input.foo }`,
+			},
+		},
+		{
+			note: "var assignments: var = value; var = ref (reverse order, no match)",
+			module: module(`package test
+			p if {
+				y = "bar"
+				y = input.foo
+			}`),
+			ruleset:    "p",
+			input:      `{"foo": "baz"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "var assignments: value = var; ref = var",
+			module: module(`package test
+			p if {
+				"bar" = x
+				input.foo = x
+			}`),
+			ruleset: "p",
+			input:   `{"foo": "bar"}`,
+			expectedRS: []string{
+				`p if { "bar" = x; input.foo = x }`,
+			},
+		},
+		{
+			note: "var assignments: value = var; ref = var (no match)",
+			module: module(`package test
+			p if {
+				"bar" = x
+				input.foo = x
+			}`),
+			ruleset:    "p",
+			input:      `{"foo": "baz"}`,
+			expectedRS: []string{},
+		},
 	}
 
 	for _, tc := range tests {
