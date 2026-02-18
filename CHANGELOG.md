@@ -5,6 +5,11 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.13.2
+
+This release updates the version of Go used to build the OPA binaries and images to 1.25.7.
+That version of the Go standard library contains a fix for [GO-2026-4337](https://pkg.go.dev/vuln/GO-2026-4337).
+
 ## 1.13.1
 
 This bug fix release addresses an issue found in the new `array.flatten` built-in function
