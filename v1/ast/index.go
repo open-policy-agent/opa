@@ -68,6 +68,7 @@ var (
 	globMatchRef        = GlobMatch.Ref()
 	internalPrintRef    = InternalPrint.Ref()
 	internalTestCaseRef = InternalTestCase.Ref()
+	internalMemberRef   = Member.Ref()
 
 	skipIndexing = NewSet(NewTerm(internalPrintRef), NewTerm(internalTestCaseRef))
 )
@@ -126,7 +127,44 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			node := i.root
 			if indices.Indexed(rule) {
 				for _, ref := range indices.Sorted() {
-					node = node.Insert(ref, indices.Value(rule, ref), indices.Mapper(rule, ref))
+					var values []*refindex
+					for _, ri := range indices.rules[rule] {
+						if ri.Ref.Equal(ref) {
+							values = append(values, ri)
+						}
+					}
+					if len(values) == 0 {
+						node = node.Insert(ref, nil, nil)
+					} else if len(values) == 1 {
+						node = node.Insert(ref, values[0].Value, values[0].Mapper)
+					} else {
+						var hasVar bool
+						for i := range values {
+							if _, isVar := values[i].Value.(Var); isVar {
+								hasVar = true
+								break
+							}
+						}
+
+						if hasVar {
+							child := node.Insert(ref, anyValue, values[0].Mapper)
+							for i := range values {
+								if values[i].Mapper != nil {
+									node.next.addMapper(values[i].Mapper)
+								}
+							}
+							node = child
+						} else {
+							child := node.Insert(ref, values[0].Value, values[0].Mapper)
+							for i := 1; i < len(values); i++ { // skip values
+								if values[i].Mapper != nil {
+									node.next.addMapper(values[i].Mapper)
+								}
+								node.next.scalars.Put(values[i].Value, child)
+							}
+							node = child
+						}
+					}
 				}
 			}
 			// Insert rule into trie with (insertion order, priority order)
@@ -337,6 +375,10 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 		// NOTE(sr): Same as with equal() above -- 4 operands means the output
 		// of `glob.match` is captured and the rule can thus not be excluded.
 		i.updateGlobMatch(rule, expr)
+
+	case op.Equal(internalMemberRef) && len(expr.Operands()) == 2:
+		// NOTE(sr): Again, 3 operands means captured output (like above).
+		i.updateMember(rule, expr)
 	}
 }
 
@@ -448,14 +490,62 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 	}
 }
 
+func (i *refindices) updateMember(rule *Rule, expr *Expr) {
+	args := rule.Head.Args
+	lhs, rhs := expr.Operand(0), expr.Operand(1)
+
+	lvar, ok := lhs.Value.(Var)
+	if !ok {
+		return
+	}
+
+	rcol, ok := rhs.Value.(interface {
+		IsGround() bool
+		Iter(func(*Term) error) error
+	})
+	if !ok || !rcol.IsGround() {
+		return
+	}
+
+	var ref Ref
+	for _, other := range i.rules[rule] {
+		if ov, ok := other.Value.(Var); ok && ov.Equal(lvar) {
+			ref = other.Ref
+		}
+	}
+	if ref == nil {
+		for j, arg := range args {
+			if arg.Equal(lhs) {
+				ref = Ref{FunctionArgRootDocument, InternedTerm(j)}
+			}
+		}
+	}
+
+	if ref != nil {
+		_ = rcol.Iter(func(t *Term) error {
+			i.insert(rule, &refindex{Ref: ref, Value: t.Value})
+			return nil
+		})
+	}
+}
+
 func (i *refindices) insert(rule *Rule, index *refindex) {
 	count, _ := i.frequency.Get(index.Ref)
 	i.frequency.Put(index.Ref, count+1)
 
+	_, indexValueIsVar := index.Value.(Var)
+
 	for pos, other := range i.rules[rule] {
 		if other.Ref.Equal(index.Ref) {
-			i.rules[rule][pos] = index
-			return
+
+			if ValueEqual(other.Value, index.Value) {
+				return
+			}
+			_, otherValueIsVar := other.Value.(Var)
+			if !indexValueIsVar && otherValueIsVar {
+				i.rules[rule][pos] = index
+				return
+			}
 		}
 	}
 
