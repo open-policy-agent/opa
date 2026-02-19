@@ -398,7 +398,7 @@ literal         = ( some-decl | expr | "not" expr ) { with-modifier }
 with-modifier   = "with" term "as" term
 some-decl       = "some" term { "," term } { "in" expr }
 expr            = term | expr-call | expr-infix | expr-every | expr-parens | unary-expr
-expr-call       = var [ "." var ] "(" [ expr { "," expr } ] ")"
+expr-call       = term "(" [ expr { "," expr } ] ")"
 expr-infix      = expr infix-operator expr
 expr-every      = "every" var { "," var } "in" ( term | expr-call | expr-infix ) "{" query "}"
 expr-parens     = "(" expr ")"
@@ -415,7 +415,7 @@ bin-operator    = "&" | "|"
 assign-operator = ":=" | "="
 ref             = ( var | array | object | set | array-compr | object-compr | set-compr | expr-call ) { ref-arg }
 ref-arg         = ref-arg-dot | ref-arg-brack
-ref-arg-brack   = "[" ( scalar | var | array | object | set | "_" ) "]"
+ref-arg-brack   = "[" ( term | expr-call | expr-infix | "_" ) "]"
 ref-arg-dot     = "." var
 var             = ( ALPHA | "_" ) { ALPHA | DIGIT | "_" }
 scalar          = string | NUMBER | TRUE | FALSE | NULL
