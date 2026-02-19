@@ -620,42 +620,79 @@ type trieNode struct {
 }
 
 func (node *trieNode) String() string {
-	var flags []string
-	flags = append(flags, fmt.Sprintf("self:%p", node))
+	var sb strings.Builder
+	node.format(&sb, 0)
+	return sb.String()
+}
+
+func (node *trieNode) format(sb *strings.Builder, depth int) {
+	indent := strings.Repeat("  ", depth)
+
 	if len(node.ref) > 0 {
-		flags = append(flags, node.ref.String())
+		sb.WriteString(indent)
+		sb.WriteString(node.ref.String())
+	} else if depth == 0 {
+		sb.WriteString("root")
 	}
-	if node.next != nil {
-		flags = append(flags, fmt.Sprintf("next:%p", node.next))
-	}
-	if node.any != nil {
-		flags = append(flags, fmt.Sprintf("any:%p", node.any))
-	}
-	if node.undefined != nil {
-		flags = append(flags, fmt.Sprintf("undefined:%p", node.undefined))
-	}
-	if node.array != nil {
-		flags = append(flags, fmt.Sprintf("array:%p", node.array))
-	}
-	if node.scalars.Len() > 0 {
-		buf := make([]string, 0, node.scalars.Len())
-		node.scalars.Iter(func(key Value, val *trieNode) bool {
-			buf = append(buf, fmt.Sprintf("scalar(%v):%p", key, val))
-			return false
-		})
-		sort.Strings(buf)
-		flags = append(flags, strings.Join(buf, " "))
-	}
+
 	if len(node.rules) > 0 {
-		flags = append(flags, fmt.Sprintf("%d rule(s)", len(node.rules)))
+		fmt.Fprintf(sb, " [%d rule(s)]", len(node.rules))
 	}
 	if len(node.mappers) > 0 {
-		flags = append(flags, fmt.Sprintf("%d mapper(s)", len(node.mappers)))
+		fmt.Fprintf(sb, " [%d mapper(s)]", len(node.mappers))
 	}
 	if node.value != nil {
-		flags = append(flags, "value exists")
+		fmt.Fprintf(sb, " value=%v", node.value)
 	}
-	return strings.Join(flags, " ")
+	if node.multiple {
+		sb.WriteString(" [multiple]")
+	}
+	sb.WriteString("\n")
+
+	if node.undefined != nil {
+		sb.WriteString(indent)
+		sb.WriteString("  undefined:\n")
+		node.undefined.format(sb, depth+2)
+	}
+
+	if node.any != nil {
+		sb.WriteString(indent)
+		sb.WriteString("  any:\n")
+		node.any.format(sb, depth+2)
+	}
+
+	if node.scalars.Len() > 0 {
+		scalars := make([]Value, 0, node.scalars.Len())
+		nodes := make([]*trieNode, 0, node.scalars.Len())
+		node.scalars.Iter(func(key Value, val *trieNode) bool {
+			scalars = append(scalars, key)
+			nodes = append(nodes, val)
+			return false
+		})
+		sort.Slice(scalars, func(a, b int) bool {
+			return scalars[a].Compare(scalars[b]) < 0
+		})
+		for i := range scalars {
+			sb.WriteString(indent)
+			fmt.Fprintf(sb, "  %v:\n", scalars[i])
+			for j := range nodes {
+				if ValueEqual(scalars[i], scalars[j]) {
+					nodes[j].format(sb, depth+2)
+					break
+				}
+			}
+		}
+	}
+
+	if node.array != nil {
+		sb.WriteString(indent)
+		sb.WriteString("  array:\n")
+		node.array.format(sb, depth+2)
+	}
+
+	if node.next != nil {
+		node.next.format(sb, depth)
+	}
 }
 
 func (node *trieNode) append(prio [2]int, rule *Rule) {
