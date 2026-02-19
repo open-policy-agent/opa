@@ -457,21 +457,8 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 		// 3rd operand was a reference that has been rewritten and bound to a
 		// variable earlier in the query OR a function argument variable.
 		match := expr.Operand(2)
-		if _, ok := match.Value.(Var); ok {
-			var ref Ref
-			for _, other := range i.rules[rule] {
-				if ov, ok := other.Value.(Var); ok && ov.Equal(match.Value) {
-					ref = other.Ref
-				}
-			}
-			if ref == nil {
-				for j, arg := range args {
-					if arg.Equal(match) {
-						ref = Ref{FunctionArgRootDocument, InternedTerm(j)}
-					}
-				}
-			}
-			if ref != nil {
+		if v, ok := match.Value.(Var); ok {
+			if ref := resolveVarToRef(i.rules[rule], args, v); ref != nil {
 				i.insert(rule, &refindex{
 					Ref:   ref,
 					Value: arr.Value,
@@ -507,26 +494,27 @@ func (i *refindices) updateMember(rule *Rule, expr *Expr) {
 		return
 	}
 
-	var ref Ref
-	for _, other := range i.rules[rule] {
-		if ov, ok := other.Value.(Var); ok && ov.Equal(lvar) {
-			ref = other.Ref
-		}
-	}
-	if ref == nil {
-		for j, arg := range args {
-			if arg.Equal(lhs) {
-				ref = Ref{FunctionArgRootDocument, InternedTerm(j)}
-			}
-		}
-	}
-
-	if ref != nil {
+	if ref := resolveVarToRef(i.rules[rule], args, lvar); ref != nil {
 		_ = rcol.Iter(func(t *Term) error {
 			i.insert(rule, &refindex{Ref: ref, Value: t.Value})
 			return nil
 		})
 	}
+}
+
+func resolveVarToRef(ri []*refindex, args []*Term, v Var) Ref {
+	for _, other := range ri {
+		if ov, ok := other.Value.(Var); ok && ov.Equal(v) {
+			return other.Ref
+		}
+	}
+	for j, arg := range args {
+		if arg.Value.Compare(v) == 0 {
+			return Ref{FunctionArgRootDocument, InternedTerm(j)}
+		}
+	}
+
+	return nil
 }
 
 func (i *refindices) insert(rule *Rule, index *refindex) {
@@ -953,27 +941,11 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Value, values map[Var]Value) bool {
 	switch v := a.(type) {
 	case Var:
-		var ref Ref
-		for _, other := range i.rules[rule] {
-			if ov, ok := other.Value.(Var); ok && ov.Equal(v) {
-				ref = other.Ref // if we pulled the ref out of i.rules, we don't need to check validity again
-				break
-			}
-		}
-		if ref == nil {
-			for i := range args {
-				if args[i].Value.Compare(a) == 0 {
-					ref = Ref{FunctionArgRootDocument, InternedTerm(i)}
-					break
-				}
-			}
-		}
-
 		bval, ok := indexValue(b)
 		if !ok {
 			return false
 		}
-		if ref != nil {
+		if ref := resolveVarToRef(i.rules[rule], args, v); ref != nil {
 			i.insert(rule, &refindex{Ref: ref, Value: bval})
 			return true
 		}
