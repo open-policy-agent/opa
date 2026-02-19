@@ -735,8 +735,11 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	}
 
 	for i := range node.mappers {
-		if err := node.traverseValue(resolver, tr, node.mappers[i].MapValue(v)); err != nil {
-			return err
+		mapped := node.mappers[i].MapValue(v)
+		if !ValueEqual(mapped, v) {
+			if err := node.traverseValue(resolver, tr, mapped); err != nil {
+				return err
+			}
 		}
 	}
 
