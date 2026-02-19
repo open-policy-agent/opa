@@ -811,6 +811,59 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:      `{"foo": "baz"}`,
 			expectedRS: []string{},
 		},
+		{
+			note: "internal.member_2: rhs = value (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`), // this is `p if input.role in {"admin", "foo"}` sent through the compiler
+			ruleset:    "p",
+			input:      `{"role": "bar"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: rhs = value",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "foo"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
+		},
+		{
+			note: "internal.member_2: rhs = value (other match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
+		},
+		{
+			note: "functions: member_2 in function, arg not matching",
+			module: module(`package test
+			member2_f(a) if a in {"a", "b"}`),
+			ruleset:    "member2_f",
+			args:       []Value{String("c")},
+			expectedRS: []string{},
+		},
+		{
+			note: "functions: member_2 in function, arg matching",
+			module: module(`package test
+			member2_f(a) if a in {"a", "b"}`),
+			ruleset: "member2_f",
+			args:    []Value{String("a")},
+			expectedRS: []string{
+				`member2_f(a) = true if { a in {"a", "b"} }`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
