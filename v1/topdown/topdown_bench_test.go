@@ -530,9 +530,12 @@ func generatePartialEvalBenchmarkInput(numRoles int) *ast.Term {
 	return ast.MustParseTerm(buf.String())
 }
 
-func BenchmarkWalk(b *testing.B) {
+// BenchmarkWalk/100-16         	  319608	      3388 ns/op	    7862 B/op	      66 allocs/op
+// BenchmarkWalk/1000-16        	   49064	     25721 ns/op	   53824 B/op	    1043 allocs/op
+// BenchmarkWalk/2000-16        	   16743	     72156 ns/op	  114898 B/op	    3043 allocs/op
+// BenchmarkWalk/3000-16        	   10000	    115028 ns/op	  175968 B/op	    5043 allocs/op
 
-	ctx := b.Context()
+func BenchmarkWalk(b *testing.B) {
 	sizes := []int{100, 1000, 2000, 3000}
 
 	for _, n := range sizes {
@@ -540,27 +543,27 @@ func BenchmarkWalk(b *testing.B) {
 			data := genWalkBenchmarkData(n)
 			store := inmem.NewFromObject(data)
 			compiler := ast.NewCompiler()
-			query := ast.MustParseBody(fmt.Sprintf(`walk(data, [["arr", %v], x])`, n-1))
+			query := ast.MustParseBody(fmt.Sprintf(`walk(data, [["arr", %d], x])`, n-1))
 			compiledQuery, err := compiler.QueryCompiler().Compile(query)
 			if err != nil {
 				b.Fatal(err)
 			}
-			b.ResetTimer()
-			for b.Loop() {
-				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-					q := NewQuery(compiledQuery).
-						WithStore(store).
-						WithCompiler(compiler).
-						WithTransaction(txn)
-					rs, err := q.Run(ctx)
+			err = storage.Txn(b.Context(), store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				q := NewQuery(compiledQuery).
+					WithStore(store).
+					WithCompiler(compiler).
+					WithTransaction(txn)
+
+				for b.Loop() {
+					rs, err := q.Run(b.Context())
 					if err != nil || len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.IntNumberTerm(n-1)) {
 						b.Fatal("Unexpected result:", rs, "err:", err)
 					}
-					return nil
-				})
-				if err != nil {
-					b.Fatal(err)
 				}
+				return nil
+			})
+			if err != nil {
+				b.Fatal(err)
 			}
 		})
 	}
