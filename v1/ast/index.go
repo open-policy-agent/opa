@@ -186,6 +186,7 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 		tr.ordering = tr.ordering[:0]
 		tr.multiple = false
 		tr.exist = nil
+		clear(tr.visited)
 
 		ttrPool.Put(tr)
 	}()
@@ -752,6 +753,11 @@ func (node *trieNode) Traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	if node == nil {
 		return nil
 	}
+
+	if _, ok := tr.visited[node]; ok {
+		return nil
+	}
+	tr.visited[node] = struct{}{}
 
 	tr.Add(node)
 
