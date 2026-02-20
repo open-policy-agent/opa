@@ -586,28 +586,24 @@ func newTrieNodeImpl() *trieNode {
 }
 
 func (node *trieNode) Do(walker trieWalker) {
+	if node == nil {
+		return
+	}
 	next := walker.Do(node)
 	if next == nil {
 		return
 	}
-	if node.any != nil {
-		node.any.Do(next)
-	}
-	if node.undefined != nil {
-		node.undefined.Do(next)
-	}
+
+	node.any.Do(next)
+	node.undefined.Do(next)
 
 	node.scalars.Iter(func(_ Value, child *trieNode) bool {
 		child.Do(next)
 		return false
 	})
 
-	if node.array != nil {
-		node.array.Do(next)
-	}
-	if node.next != nil {
-		node.next.Do(next)
-	}
+	node.array.Do(next)
+	node.next.Do(next)
 }
 
 func (node *trieNode) Insert(ref Ref, value Value, mapper *valueMapper) *trieNode {
@@ -699,7 +695,6 @@ func (node *trieNode) insertArray(arr *Array) *trieNode {
 }
 
 func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) error {
-
 	if node == nil {
 		return nil
 	}
@@ -712,25 +707,22 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
-	if node.undefined != nil {
-		err = node.undefined.Traverse(resolver, tr)
-		if err != nil {
-			return err
-		}
+	err = node.undefined.Traverse(resolver, tr)
+	if err != nil {
+		return err
 	}
 
 	if v == nil {
 		return nil
 	}
 
-	if node.any != nil {
-		err = node.any.Traverse(resolver, tr)
-		if err != nil {
-			return err
-		}
+	err = node.any.Traverse(resolver, tr)
+	if err != nil {
+		return err
 	}
 
-	if err := node.traverseValue(resolver, tr, v); err != nil {
+	err = node.traverseValue(resolver, tr, v)
+	if err != nil {
 		return err
 	}
 
@@ -750,9 +742,6 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 
 	switch value := value.(type) {
 	case *Array:
-		if node.array == nil {
-			return nil
-		}
 		return node.array.traverseArray(resolver, tr, value)
 
 	case Null, Boolean, Number, String:
@@ -767,16 +756,17 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 }
 
 func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalResult, arr *Array) error {
+	if node == nil {
+		return nil
+	}
 
 	if arr.Len() == 0 {
 		return node.Traverse(resolver, tr)
 	}
 
-	if node.any != nil {
-		err := node.any.traverseArray(resolver, tr, arr.Slice(1, -1))
-		if err != nil {
-			return err
-		}
+	err := node.any.traverseArray(resolver, tr, arr.Slice(1, -1))
+	if err != nil {
+		return err
 	}
 
 	head := arr.Elem(0).Value
@@ -787,10 +777,7 @@ func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalRes
 
 	switch head := head.(type) {
 	case Null, Boolean, Number, String:
-		child, ok := node.scalars.Get(head)
-		if !ok {
-			return nil
-		}
+		child, _ := node.scalars.Get(head)
 		return child.traverseArray(resolver, tr, arr.Slice(1, -1))
 	}
 
@@ -798,7 +785,6 @@ func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalRes
 }
 
 func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
-
 	if node == nil {
 		return nil
 	}
