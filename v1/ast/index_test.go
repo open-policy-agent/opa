@@ -847,6 +847,29 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
 		},
 		{
+			note: "internal.member_2: lhs = value (2 out of 3)",
+			module: module(`package test
+			p if {
+				x = "a"
+				x in input.foo
+			}
+			p if {
+				x = "b"
+				x in input.foo
+			}
+			p if {
+				x = "c"
+				x in input.foo
+			}
+			`),
+			ruleset: "p",
+			input:   `{"foo": {"a", "b"}}`,
+			expectedRS: []string{
+				`p if { x = "a"; x in input.foo }`,
+				`p if { x = "b"; x in input.foo }`,
+			},
+		},
+		{
 			note: "internal.member_2: rhs = value (2 out of 3)",
 			module: module(`package test
 			p if {

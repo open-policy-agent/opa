@@ -384,7 +384,7 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 
 	case op.Equal(internalMemberRef) && len(expr.Operands()) == 2:
 		// NOTE(sr): Again, 3 operands means captured output (like above).
-		i.updateMember(rule, expr)
+		i.updateMember(rule, expr, values)
 	}
 }
 
@@ -483,53 +483,94 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 	}
 }
 
-func (i *refindices) updateMember(rule *Rule, expr *Expr) {
+func (i *refindices) updateMember(rule *Rule, expr *Expr, values map[Var]Value) {
 	args := rule.Head.Args
 	lhs, rhs := expr.Operand(0), expr.Operand(1)
 
 	lvar, ok := lhs.Value.(Var)
-	if !ok { // e.g. "admin" in input.roles
-		var rref Ref
-		switch r := rhs.Value.(type) {
-		case Ref:
-			rref = r
-		case Var:
-			rref = resolveVarToRef(i.rules[rule], args, r)
-		}
-		if rref == nil || !i.isValidIndexRef(rref) {
-			return
-		}
-		lval, ok := indexValue(lhs.Value)
-		if !ok {
-			return
-		}
-		i.insert(rule, &refindex{Ref: rref, Value: lval})
+	if !ok { // `scalar in var` case (var is ref)
+		i.updateMemberScalarInRef(rule, args, lhs, rhs)
 		return
 	}
 
-	// e.g. input.role in {"admin", "owner"}
 	ref := resolveVarToRef(i.rules[rule], args, lvar)
-	if ref == nil {
+	if ref == nil { // `var0 in var1` case (var0 may be scalar, var1 ref)
+		i.updateMemberValueInRef(rule, args, lvar, rhs, values)
 		return
 	}
+
+	i.updateMemberRefInValue(rule, ref, rhs) // `ref in value`
+}
+
+func (i *refindices) updateMemberScalarInRef(rule *Rule, args []*Term, lhs, rhs *Term) {
+	rref := i.resolveAndValidateRef(rule, args, rhs)
+	if rref == nil {
+		return
+	}
+
+	lval, ok := indexValue(lhs.Value)
+	if !ok {
+		return
+	}
+
+	i.insert(rule, &refindex{Ref: rref, Value: lval})
+}
+
+func (i *refindices) updateMemberValueInRef(rule *Rule, args []*Term, lvar Var, rhs *Term, values map[Var]Value) {
+	val, ok := values[lvar]
+	if !ok {
+		return
+	}
+
+	rref := i.resolveAndValidateRef(rule, args, rhs)
+	if rref == nil {
+		return
+	}
+
+	i.insert(rule, &refindex{Ref: rref, Value: val})
+}
+
+func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term) {
+	// TODO(sr): check values, add test case
 	if !rhs.IsGround() {
 		return
 	}
-	addChild := func(t *Term) error {
-		i.insert(rule, &refindex{Ref: ref, Value: t.Value})
-		return nil
-	}
+
 	switch rcol := rhs.Value.(type) {
 	case *Array:
-		_ = rcol.Iter(addChild)
-
+		_ = rcol.Iter(func(t *Term) error {
+			i.insert(rule, &refindex{Ref: ref, Value: t.Value})
+			return nil
+		})
 	case Set:
-		_ = rcol.Iter(addChild)
+		_ = rcol.Iter(func(t *Term) error {
+			i.insert(rule, &refindex{Ref: ref, Value: t.Value})
+			return nil
+		})
 	case Object:
 		_ = rcol.Iter(func(_, v *Term) error {
-			return addChild(v)
+			i.insert(rule, &refindex{Ref: ref, Value: v.Value})
+			return nil
 		})
 	}
+}
+
+func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term) Ref {
+	var ref Ref
+	switch v := term.Value.(type) {
+	case Ref:
+		ref = v
+	case Var:
+		ref = resolveVarToRef(i.rules[rule], args, v)
+	default:
+		return nil
+	}
+
+	if ref == nil || !i.isValidIndexRef(ref) {
+		return nil
+	}
+
+	return ref
 }
 
 func resolveVarToRef(ri []*refindex, args []*Term, v Var) Ref {
