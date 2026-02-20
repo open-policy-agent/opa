@@ -486,22 +486,46 @@ func (i *refindices) updateMember(rule *Rule, expr *Expr) {
 	lhs, rhs := expr.Operand(0), expr.Operand(1)
 
 	lvar, ok := lhs.Value.(Var)
-	if !ok {
+	if !ok { // e.g. "admin" in input.roles
+		var rref Ref
+		switch r := rhs.Value.(type) {
+		case Ref:
+			rref = r
+		case Var:
+			rref = resolveVarToRef(i.rules[rule], args, r)
+		}
+		if rref == nil || !i.isValidIndexRef(rref) {
+			return
+		}
+		lval, ok := indexValue(lhs.Value)
+		if !ok {
+			return
+		}
+		i.insert(rule, &refindex{Ref: rref, Value: lval})
 		return
 	}
 
-	rcol, ok := rhs.Value.(interface {
-		IsGround() bool
-		Iter(func(*Term) error) error
-	})
-	if !ok || !rcol.IsGround() {
+	// e.g. input.role in {"admin", "owner"}
+	ref := resolveVarToRef(i.rules[rule], args, lvar)
+	if ref == nil {
 		return
 	}
+	if !rhs.IsGround() {
+		return
+	}
+	addChild := func(t *Term) error {
+		i.insert(rule, &refindex{Ref: ref, Value: t.Value})
+		return nil
+	}
+	switch rcol := rhs.Value.(type) {
+	case *Array:
+		_ = rcol.Iter(addChild)
 
-	if ref := resolveVarToRef(i.rules[rule], args, lvar); ref != nil {
-		_ = rcol.Iter(func(t *Term) error {
-			i.insert(rule, &refindex{Ref: ref, Value: t.Value})
-			return nil
+	case Set:
+		_ = rcol.Iter(addChild)
+	case Object:
+		_ = rcol.Iter(func(_, v *Term) error {
+			return addChild(v)
 		})
 	}
 }
@@ -797,8 +821,19 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
 
 	switch value := value.(type) {
-	case *Array:
-		return node.array.traverseArray(resolver, tr, value)
+	case *Array, Set, Object:
+		if node.array != nil {
+			if arr, ok := value.(*Array); ok {
+				return node.array.traverseArray(resolver, tr, arr)
+			}
+			return nil
+		}
+
+		if node.scalars.Len() > 0 {
+			return node.traverseCollectionMembership(resolver, tr, value)
+		}
+
+		return nil
 
 	case Null, Boolean, Number, String:
 		child, ok := node.scalars.Get(value)
@@ -806,6 +841,29 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 			return nil
 		}
 		return child.Traverse(resolver, tr)
+	}
+
+	return nil
+}
+
+func (node *trieNode) traverseCollectionMembership(resolver ValueResolver, tr *trieTraversalResult, collection Value) error {
+	checkMember := func(t *Term) error {
+		if IsScalar(t.Value) {
+			child, _ := node.scalars.Get(t.Value)
+			return child.Traverse(resolver, tr)
+		}
+		return nil
+	}
+
+	switch col := collection.(type) {
+	case *Array:
+		return col.Iter(checkMember)
+	case Set:
+		return col.Iter(checkMember)
+	case Object:
+		return col.Iter(func(_, v *Term) error {
+			return checkMember(v)
+		})
 	}
 
 	return nil
