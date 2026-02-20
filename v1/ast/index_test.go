@@ -847,6 +847,28 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
 		},
 		{
+			note: "internal.member_2: rhs = value (2 out of 3)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"a", "b", "c"})
+			}
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"x", "b", "z"})
+			}
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"x", "y", "z"})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "b"}`,
+			expectedRS: []string{
+				`p if {	__local0__ = input.role; internal.member_2(__local0__, {"a", "b", "c"}) }`,
+				`p if {	__local0__ = input.role; internal.member_2(__local0__, {"x", "b", "z"}) }`,
+			},
+		},
+		{
 			note: "internal.member_2: unknown value triggers traverseUnknown (duplicate prevention)",
 			module: module(`package test
 			p if {
