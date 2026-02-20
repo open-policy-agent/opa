@@ -154,14 +154,16 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 							}
 							node = child
 						} else {
-							child := node.Insert(ref, values[0].Value, values[0].Mapper)
-							for i := 1; i < len(values); i++ {
-								if values[i].Mapper != nil {
-									node.next.addMapper(values[i].Mapper)
-								}
-								node.next.scalars.Put(values[i].Value, child)
+							// When a rule has multiple scalar values (e.g., internal.member_2 with a set),
+							// each value should have its own child node, and the rule is appended to each.
+							// This creates separate paths for each value so different rules with overlapping
+							// values don't interfere with each other.
+							for _, val := range values {
+								child := node.Insert(ref, val.Value, val.Mapper)
+								child.append([...]int{idx, prio}, rule)
 							}
-							node = child
+							prio++
+							return false
 						}
 					}
 				}
@@ -609,7 +611,12 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 		if !ok {
 			tr.ordering = append(tr.ordering, root)
 		}
-		tr.unordered[root] = append(nodes, node)
+		// Deduplicate: check if a ruleNode with this priority already exists
+		if !slices.ContainsFunc(nodes, func(existing *ruleNode) bool {
+			return existing.prio == node.prio
+		}) {
+			tr.unordered[root] = append(nodes, node)
+		}
 	}
 	if t.multiple {
 		tr.multiple = true
