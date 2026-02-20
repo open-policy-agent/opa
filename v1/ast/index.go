@@ -156,7 +156,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 							node = child
 						} else {
 							child := node.Insert(ref, values[0].Value, values[0].Mapper)
-							for i := 1; i < len(values); i++ { // skip values
+							for i := 1; i < len(values); i++ {
 								if values[i].Mapper != nil {
 									node.next.addMapper(values[i].Mapper)
 								}
@@ -295,6 +295,10 @@ type ruleWalker struct {
 
 func (r *ruleWalker) Do(x any) trieWalker {
 	tn := x.(*trieNode)
+	if _, ok := r.result.visited[tn]; ok {
+		return nil
+	}
+	r.result.visited[tn] = struct{}{}
 	r.result.Add(tn)
 	return r
 }
@@ -558,6 +562,7 @@ type trieTraversalResult struct {
 	ordering  []int
 	exist     *Term
 	multiple  bool
+	visited   map[*trieNode]struct{}
 }
 
 var ttrPool = sync.Pool{
@@ -569,6 +574,7 @@ var ttrPool = sync.Pool{
 func newTrieTraversalResult() *trieTraversalResult {
 	return &trieTraversalResult{
 		unordered: map[int][]*ruleNode{},
+		visited:   map[*trieNode]struct{}{},
 	}
 }
 

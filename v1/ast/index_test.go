@@ -1148,6 +1148,39 @@ func TestGetAllRules(t *testing.T) {
 	}
 }
 
+func TestGetAllRulesInternalMember2(t *testing.T) {
+	module := module(`
+	package test
+
+	p if {
+		x = input.fruit
+		x in {"apple", "pear"}
+	}
+	`)
+
+	index := newBaseDocEqIndex(func(Ref) bool { return false })
+
+	ok := index.Build(module.Rules)
+	if !ok {
+		t.Fatalf("Expected index build to succeed")
+	}
+
+	result, err := index.AllRules(testResolver{input: MustParseTerm(`{}`)})
+	if err != nil {
+		t.Fatalf("Unexpected error during index lookup: %v", err)
+	}
+
+	expectedRules := NewRuleSet(module.Rules[0])
+
+	if !NewRuleSet(result.Rules...).Equal(expectedRules) {
+		t.Fatalf("Expected rules to be %v but got: %v", expectedRules, result.Rules)
+	}
+
+	if len(result.Else) > 0 {
+		t.Fatalf("Expected no else rules but got: %v", result.Else)
+	}
+}
+
 func TestSkipIndexing(t *testing.T) {
 
 	module := module(`package test
