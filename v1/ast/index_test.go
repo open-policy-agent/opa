@@ -927,6 +927,56 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{},
 		},
 		{
+			note: "internal.member_2: var with array value in rhs (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = ["admin", "user"]
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = ["admin", "user"]; internal.member_2(__local0__, __local1__) }`},
+		},
+		{
+			note: "internal.member_2: var with array value in rhs (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = ["admin", "user"]
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset:    "p",
+			input:      `{"role": "guest"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: var with set value in rhs (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = {"admin", "user"}
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = {"admin", "user"}; internal.member_2(__local0__, __local1__) }`},
+		},
+		{
+			note: "internal.member_2: var with set value in rhs (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = {"admin", "user"}
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset:    "p",
+			input:      `{"role": "guest"}`,
+			expectedRS: []string{},
+		},
+		{
 			note: "functions: member_2 in function, arg not matching",
 			module: module(`package test
 			member2_f(a) if a in {"a", "b"}`),
@@ -962,6 +1012,31 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			p if {
 				__local0__ = input.roles
 				internal.member_2("guest", __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - var in collection (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.roles
+				__local1__ = "admin"
+				internal.member_2(__local1__, __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.roles; __local1__ = "admin"; internal.member_2(__local1__, __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - var in collection (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.roles
+				__local1__ = "guest"
+				internal.member_2(__local1__, __local0__)
 			}`),
 			ruleset:    "p",
 			input:      `{"roles": ["admin", "user"]}`,

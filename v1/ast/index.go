@@ -442,12 +442,12 @@ func (i *refindices) Mapper(rule *Rule, ref Ref) *valueMapper {
 	return nil
 }
 
-func (i *refindices) updateEq(rule *Rule, a, b Value, values map[Var]Value) {
+func (i *refindices) updateEq(rule *Rule, a, b Value, constants map[Var]Value) {
 	args := rule.Head.Args
-	if i.eqOperandsToRefAndValue(rule, args, a, b, values) {
+	if i.eqOperandsToRefAndValue(rule, args, a, b, constants) {
 		return
 	}
-	i.eqOperandsToRefAndValue(rule, args, b, a, values)
+	i.eqOperandsToRefAndValue(rule, args, b, a, constants)
 }
 
 func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
@@ -483,74 +483,62 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 	}
 }
 
-func (i *refindices) updateMember(rule *Rule, expr *Expr, values map[Var]Value) {
+func (i *refindices) updateMember(rule *Rule, expr *Expr, constants map[Var]Value) {
 	args := rule.Head.Args
 	lhs, rhs := expr.Operand(0), expr.Operand(1)
 
 	lvar, ok := lhs.Value.(Var)
-	if !ok { // `scalar in var` case (var is ref)
-		i.updateMemberScalarInRef(rule, args, lhs, rhs)
-		return
+	if ok {
+		lref := resolveVarToRef(i.rules[rule], args, lvar)
+		if lref != nil {
+			i.updateMemberRefInValue(rule, lref, rhs, constants) // `ref in value`
+			return
+		}
 	}
 
-	ref := resolveVarToRef(i.rules[rule], args, lvar)
-	if ref == nil { // `var0 in var1` case (var0 may be scalar, var1 ref)
-		i.updateMemberValueInRef(rule, args, lvar, rhs, values)
-		return
-	}
-
-	i.updateMemberRefInValue(rule, ref, rhs) // `ref in value`
+	// `var0 in var1` case (var0 may be constant, var1 ref)
+	i.updateMemberValueInRef(rule, args, lhs.Value, rhs, constants)
 }
 
-func (i *refindices) updateMemberScalarInRef(rule *Rule, args []*Term, lhs, rhs *Term) {
-	rref := i.resolveAndValidateRef(rule, args, rhs)
-	if rref == nil {
+func (i *refindices) updateMemberValueInRef(rule *Rule, args []*Term, lval Value, rhs *Term, constants map[Var]Value) {
+	if lvar, ok := lval.(Var); ok {
+		val, ok := constants[lvar]
+		if ok {
+			lval = val
+		}
+	} else if !IsScalar(lval) {
 		return
 	}
 
-	lval, ok := indexValue(lhs.Value)
-	if !ok {
+	rref := i.resolveAndValidateRef(rule, args, rhs)
+	if rref == nil {
 		return
 	}
 
 	i.insert(rule, &refindex{Ref: rref, Value: lval})
 }
 
-func (i *refindices) updateMemberValueInRef(rule *Rule, args []*Term, lvar Var, rhs *Term, values map[Var]Value) {
-	val, ok := values[lvar]
-	if !ok {
-		return
+func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, constants map[Var]Value) {
+	rval := rhs.Value
+	if rvar, ok := rval.(Var); ok { // rhs is var, try to resolve
+		if resolved, ok := constants[rvar]; ok {
+			rval = resolved
+		}
 	}
 
-	rref := i.resolveAndValidateRef(rule, args, rhs)
-	if rref == nil {
-		return
+	addRef := func(t *Term) error {
+		i.insert(rule, &refindex{Ref: ref, Value: t.Value})
+		return nil
 	}
 
-	i.insert(rule, &refindex{Ref: rref, Value: val})
-}
-
-func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term) {
-	// TODO(sr): check values, add test case
-	if !rhs.IsGround() {
-		return
-	}
-
-	switch rcol := rhs.Value.(type) {
+	switch rcol := rval.(type) {
 	case *Array:
-		_ = rcol.Iter(func(t *Term) error {
-			i.insert(rule, &refindex{Ref: ref, Value: t.Value})
-			return nil
-		})
+		_ = rcol.Iter(addRef)
 	case Set:
-		_ = rcol.Iter(func(t *Term) error {
-			i.insert(rule, &refindex{Ref: ref, Value: t.Value})
-			return nil
-		})
+		_ = rcol.Iter(addRef)
 	case Object:
 		_ = rcol.Iter(func(_, v *Term) error {
-			i.insert(rule, &refindex{Ref: ref, Value: v.Value})
-			return nil
+			return addRef(v)
 		})
 	}
 }
@@ -573,6 +561,27 @@ func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term)
 	return ref
 }
 
+// resolveVarToRef checks the previously prepared `*refindex` slice for
+// occurrences of the var `v`. Since we store `ref = var` expressions for
+// "any" lookups (i.e. "return the rule if ref is anything"), we can
+// resolve vars to refs in these simple cases:
+//
+//	__local2__ = input.foo
+//	__local2__ = <something>
+//
+// This what builtin calls involving refs are rewritten to, so it is used
+// for var -> ref lookup when buiding the RI for glob.match or `v in col`.
+//
+// For convenience, we also resolve function arg vars here.
+//
+// NB: This also covers explicit var assignments, like `role := input.rule`,
+// but it is no help with chains of assignments, like
+//
+//	x := input.role
+//	y := x
+//	<something with x>
+//
+// as we're not capturing `var = var` expressions in the index.
 func resolveVarToRef(ri []*refindex, args []*Term, v Var) Ref {
 	for _, other := range ri {
 		if ov, ok := other.Value.(Var); ok && ov.Equal(v) {
@@ -979,9 +988,14 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 // for the argument number. So for `f(x, y) { x = 10; y = 12 }`, we'll
 // bind `args[0]` and `args[1]` to this rule when called for (x=10) and
 // (y=12) respectively.
-func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Value, values map[Var]Value) bool {
+func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Value, constants map[Var]Value) bool {
 	switch v := a.(type) {
 	case Var:
+		// a is a var, but we have not been able to resolve it to a ref, save for later
+		if IsConstant(b) {
+			constants[v] = b
+		}
+
 		bval, ok := indexValue(b)
 		if !ok {
 			return false
@@ -991,22 +1005,23 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 			return true
 		}
 
-		// a is a var, but we have not been able to resolve it to a ref, save for later
-		values[v] = bval
-
 	case Ref:
 		if !i.isValidIndexRef(v) {
 			return false
 		}
-		if bval, ok := indexValue(b); ok {
-			if bvar, ok := bval.(Var); ok {
-				if resolvedVal, ok := values[bvar]; ok {
-					bval = resolvedVal
-				}
+
+		if bvar, ok := b.(Var); ok { // cheaper lookup first: constants
+			if resolved, ok := constants[bvar]; ok {
+				b = resolved
 			}
-			i.insert(rule, &refindex{Ref: v, Value: bval})
-			return true
+		} else if bval, ok := indexValue(b); ok {
+			b = bval
+		} else {
+			return false
 		}
+
+		i.insert(rule, &refindex{Ref: v, Value: b})
+		return true
 	}
 	return false
 }
