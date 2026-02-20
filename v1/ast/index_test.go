@@ -926,6 +926,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				t.Fatalf("Expected index build to succeed")
 			}
 
+			t.Log(index.root.mermaid())
 			var unknownRefs Set
 
 			if len(tc.unknowns) > 0 {
