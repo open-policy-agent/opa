@@ -502,6 +502,152 @@ func BenchmarkObjectCopy(b *testing.B) {
 	}
 }
 
+func BenchmarkArrayCopyNonGround(b *testing.B) {
+	b.Run("fully ground array", func(b *testing.B) {
+		arr := NewArray(
+			InternedTerm(1),
+			InternedTerm(2),
+			InternedTerm(3),
+			InternedTerm(4),
+			InternedTerm(5),
+		)
+		b.Run("Copy", func(b *testing.B) {
+			for b.Loop() {
+				_ = arr.Copy()
+			}
+		})
+		b.Run("CopyNonGround", func(b *testing.B) {
+			for b.Loop() {
+				_ = arr.CopyNonGround()
+			}
+		})
+	})
+
+	b.Run("mixed ground and non-ground", func(b *testing.B) {
+		arr := NewArray(
+			InternedTerm(1),
+			VarTerm("x"),
+			InternedTerm(3),
+			VarTerm("y"),
+			InternedTerm(5),
+		)
+		b.Run("Copy", func(b *testing.B) {
+			for b.Loop() {
+				_ = arr.Copy()
+			}
+		})
+		b.Run("CopyNonGround", func(b *testing.B) {
+			for b.Loop() {
+				_ = arr.CopyNonGround()
+			}
+		})
+	})
+
+	b.Run("mostly ground array (80%)", func(b *testing.B) {
+		arr := NewArray(
+			InternedTerm(1),
+			InternedTerm(2),
+			InternedTerm(3),
+			InternedTerm(4),
+			VarTerm("x"),
+		)
+		b.Run("Copy", func(b *testing.B) {
+			for b.Loop() {
+				_ = arr.Copy()
+			}
+		})
+		b.Run("CopyNonGround", func(b *testing.B) {
+			for b.Loop() {
+				_ = arr.CopyNonGround()
+			}
+		})
+	})
+}
+
+func BenchmarkSetCopyNonGround(b *testing.B) {
+	b.Run("fully ground set", func(b *testing.B) {
+		s := NewSet(
+			InternedTerm(1),
+			InternedTerm(2),
+			InternedTerm(3),
+			InternedTerm(4),
+			InternedTerm(5),
+		)
+		b.Run("Copy", func(b *testing.B) {
+			for b.Loop() {
+				_ = s.Copy()
+			}
+		})
+		b.Run("CopyNonGround", func(b *testing.B) {
+			for b.Loop() {
+				_ = s.(*set).CopyNonGround()
+			}
+		})
+	})
+
+	b.Run("mixed ground and non-ground", func(b *testing.B) {
+		s := NewSet(
+			InternedTerm(1),
+			VarTerm("x"),
+			InternedTerm(3),
+			VarTerm("y"),
+			InternedTerm(5),
+		)
+		b.Run("Copy", func(b *testing.B) {
+			for b.Loop() {
+				_ = s.Copy()
+			}
+		})
+		b.Run("CopyNonGround", func(b *testing.B) {
+			for b.Loop() {
+				_ = s.(*set).CopyNonGround()
+			}
+		})
+	})
+}
+
+func BenchmarkObjectCopyNonGround(b *testing.B) {
+	b.Run("fully ground object", func(b *testing.B) {
+		o := NewObject(
+			Item(InternedTerm("a"), InternedTerm(1)),
+			Item(InternedTerm("b"), InternedTerm(2)),
+			Item(InternedTerm("c"), InternedTerm(3)),
+			Item(InternedTerm("d"), InternedTerm(4)),
+			Item(InternedTerm("e"), InternedTerm(5)),
+		)
+		b.Run("Copy", func(b *testing.B) {
+			for b.Loop() {
+				_ = o.Copy()
+			}
+		})
+		b.Run("CopyNonGround", func(b *testing.B) {
+			for b.Loop() {
+				_ = o.(*object).CopyNonGround()
+			}
+		})
+	})
+
+	b.Run("mixed ground and non-ground", func(b *testing.B) {
+		o := NewObject(
+			Item(InternedTerm("a"), InternedTerm(1)),
+			Item(InternedTerm("b"), VarTerm("x")),
+			Item(InternedTerm("c"), InternedTerm(3)),
+			Item(VarTerm("d"), InternedTerm(4)),
+			Item(InternedTerm("e"), VarTerm("y")),
+		)
+		b.Run("Copy", func(b *testing.B) {
+			for b.Loop() {
+				_ = o.Copy()
+			}
+		})
+		b.Run("CopyNonGround", func(b *testing.B) {
+			for b.Loop() {
+				_ = o.(*object).CopyNonGround()
+			}
+		})
+	})
+}
+
 func BenchmarkTermHashing(b *testing.B) {
 	sizes := []int{10, 100, 1000}
 	for _, n := range sizes {

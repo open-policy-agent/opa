@@ -1086,6 +1086,14 @@ func (body Body) Copy() Body {
 	return cpy
 }
 
+func (body Body) CopyNonGround() Body {
+	cpy := make(Body, len(body))
+	for i := range body {
+		cpy[i] = body[i].CopyNonGround()
+	}
+	return cpy
+}
+
 // Contains returns true if this body contains the given expression.
 func (body Body) Contains(x *Expr) bool {
 	return slices.ContainsFunc(body, x.Equal)
@@ -1296,6 +1304,37 @@ func (expr *Expr) Copy() *Expr {
 	}
 
 	return cpy
+}
+
+// CopyNonGround returns a copy of expr with optimized copying for ground terms.
+func (expr *Expr) CopyNonGround() *Expr {
+	cpy := *expr
+
+	// Copy With modifiers using CopyNonGround
+	if expr.With != nil {
+		cpy.With = make([]*With, len(expr.With))
+		for i := range expr.With {
+			cpy.With[i] = expr.With[i].CopyNonGround()
+		}
+	}
+
+	// Copy Terms based on type
+	switch ts := expr.Terms.(type) {
+	case *SomeDecl:
+		cpy.Terms = ts.CopyNonGround()
+	case []*Term:
+		cpy.Terms = termSliceCopyNonGround(ts)
+	case *Term:
+		if ts.IsGround() {
+			cpy.Terms = ts
+		} else {
+			cpy.Terms = ts.CopyNonGround()
+		}
+	case *Every:
+		cpy.Terms = ts.CopyNonGround()
+	}
+
+	return &cpy
 }
 
 // Hash returns the hash code of the Expr.
@@ -1572,6 +1611,12 @@ func (d *SomeDecl) Copy() *SomeDecl {
 	return &cpy
 }
 
+func (d *SomeDecl) CopyNonGround() *SomeDecl {
+	cpy := *d
+	cpy.Symbols = termSliceCopyNonGround(d.Symbols)
+	return &cpy
+}
+
 // Compare returns an integer indicating whether d is less than, equal to, or
 // greater than other.
 func (d *SomeDecl) Compare(other *SomeDecl) int {
@@ -1626,6 +1671,28 @@ func (q *Every) Copy() *Every {
 	cpy.Value = q.Value.Copy()
 	cpy.Domain = q.Domain.Copy()
 	cpy.Body = q.Body.Copy()
+	return &cpy
+}
+
+func (q *Every) CopyNonGround() *Every {
+	cpy := *q
+	if q.Key.IsGround() {
+		cpy.Key = q.Key
+	} else {
+		cpy.Key = q.Key.CopyNonGround()
+	}
+	if q.Value.IsGround() {
+		cpy.Value = q.Value
+	} else {
+		cpy.Value = q.Value.CopyNonGround()
+	}
+	if q.Domain.IsGround() {
+		cpy.Domain = q.Domain
+	} else {
+		cpy.Domain = q.Domain.CopyNonGround()
+	}
+	// Body.CopyNonGround() will be implemented next
+	cpy.Body = q.Body.CopyNonGround()
 	return &cpy
 }
 
@@ -1702,6 +1769,21 @@ func (w *With) Copy() *With {
 	cpy := *w
 	cpy.Value = w.Value.Copy()
 	cpy.Target = w.Target.Copy()
+	return &cpy
+}
+
+func (w *With) CopyNonGround() *With {
+	cpy := *w
+	if w.Value.IsGround() {
+		cpy.Value = w.Value
+	} else {
+		cpy.Value = w.Value.CopyNonGround()
+	}
+	if w.Target.IsGround() {
+		cpy.Target = w.Target
+	} else {
+		cpy.Target = w.Target.CopyNonGround()
+	}
 	return &cpy
 }
 

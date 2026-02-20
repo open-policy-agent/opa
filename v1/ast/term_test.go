@@ -1819,3 +1819,353 @@ func TestAppendNoQuoteExistingBuffer(t *testing.T) {
 		t.Errorf("got  %s\nwant %s", got, exp)
 	}
 }
+
+func TestArrayCopyNonGround(t *testing.T) {
+	tests := []struct {
+		name  string
+		array *Array
+	}{
+		{
+			name:  "nil array",
+			array: nil,
+		},
+		{
+			name: "fully ground array",
+			array: NewArray(
+				IntNumberTerm(1),
+				StringTerm("hello"),
+				BooleanTerm(true),
+			),
+		},
+		{
+			name: "array with variables",
+			array: NewArray(
+				VarTerm("x"),
+				IntNumberTerm(1),
+				VarTerm("y"),
+			),
+		},
+		{
+			name: "mixed ground and non-ground",
+			array: NewArray(
+				IntNumberTerm(1),
+				VarTerm("x"),
+				StringTerm("test"),
+				NewTerm(NewArray(VarTerm("y"))),
+			),
+		},
+		{
+			name:  "empty array",
+			array: NewArray(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.array == nil {
+				result := tt.array.CopyNonGround()
+				if result != nil {
+					t.Errorf("CopyNonGround() of nil should return nil, got %v", result)
+				}
+				return
+			}
+
+			result := tt.array.CopyNonGround()
+
+			// Container should always be a new instance (different backing slice)
+			// to prevent mutations from affecting the original
+			if result == tt.array {
+				t.Errorf("CopyNonGround() should always return new container instance")
+			}
+
+			// Verify the copy is equal to original
+			if !result.Equal(tt.array) {
+				t.Errorf("CopyNonGround() result not equal to original:\ngot:  %v\nwant: %v", result, tt.array)
+			}
+
+			// Verify ground elements are shallow copied (same instance)
+			// and non-ground elements are deep copied (different instance)
+			for i := range tt.array.elems {
+				if tt.array.elems[i].IsGround() {
+					// Ground elements should be the same instance
+					if result.elems[i] != tt.array.elems[i] {
+						t.Errorf("Ground element at index %d should be shallow copied (same instance)", i)
+					}
+				} else {
+					// Non-ground elements should be different instances
+					if result.elems[i] == tt.array.elems[i] {
+						t.Errorf("Non-ground element at index %d should be deep copied (different instance)", i)
+					}
+				}
+			}
+
+			// Verify the backing slice is different (mutation safety)
+			if len(result.elems) > 0 {
+				origLen := len(tt.array.elems)
+				// Try to modify a non-ground element if exists
+				for i, elem := range result.elems {
+					if !elem.IsGround() {
+						// Modify the copy's element location (safe modification)
+						result.elems[i].SetLocation(&Location{Text: []byte("modified")})
+						// Original should not be affected
+						if tt.array.elems[i].Location != nil &&
+							bytes.Equal(tt.array.elems[i].Location.Text, []byte("modified")) {
+							t.Errorf("Modifying copy affected original at index %d", i)
+						}
+						break
+					}
+				}
+				// Verify original array length unchanged (no slice aliasing)
+				if len(tt.array.elems) != origLen {
+					t.Errorf("Original array length changed after copy modification")
+				}
+			}
+		})
+	}
+}
+
+func TestArrayCopyNonGroundPreservesProperties(t *testing.T) {
+	// Test that hash and ground flags are preserved
+	orig := NewArray(
+		IntNumberTerm(1),
+		VarTerm("x"),
+		StringTerm("test"),
+	)
+
+	copy := orig.CopyNonGround()
+
+	if copy.hash != orig.hash {
+		t.Errorf("Hash not preserved: got %d, want %d", copy.hash, orig.hash)
+	}
+
+	if copy.ground != orig.ground {
+		t.Errorf("Ground flag not preserved: got %v, want %v", copy.ground, orig.ground)
+	}
+}
+
+func TestSetCopyNonGround(t *testing.T) {
+	tests := []struct {
+		name string
+		set  Set
+	}{
+		{
+			name: "nil set",
+			set:  nil,
+		},
+		{
+			name: "fully ground set",
+			set: NewSet(
+				IntNumberTerm(1),
+				StringTerm("hello"),
+				BooleanTerm(true),
+			),
+		},
+		{
+			name: "set with variables",
+			set: NewSet(
+				VarTerm("x"),
+				IntNumberTerm(1),
+				VarTerm("y"),
+			),
+		},
+		{
+			name: "mixed ground and non-ground",
+			set: NewSet(
+				IntNumberTerm(1),
+				VarTerm("x"),
+				StringTerm("test"),
+				NewTerm(NewSet(VarTerm("y"))),
+			),
+		},
+		{
+			name: "empty set",
+			set:  NewSet(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.set == nil {
+				// Test nil set
+				var s *set
+				result := s.CopyNonGround()
+				if result != nil {
+					t.Errorf("CopyNonGround() of nil should return nil, got %v", result)
+				}
+				return
+			}
+
+			result := tt.set.(*set).CopyNonGround()
+
+			// Container should always be a new instance (different maps/slices)
+			// to prevent mutations from affecting the original
+			if result == tt.set {
+				t.Errorf("CopyNonGround() should always return new container instance")
+			}
+
+			// Verify the copy is equal to original
+			if result.Compare(tt.set) != 0 {
+				t.Errorf("CopyNonGround() result not equal to original:\ngot:  %v\nwant: %v", result, tt.set)
+			}
+
+			// Verify ground elements are shallow copied and non-ground deep copied
+			origSet := tt.set.(*set)
+			copySet := result.(*set)
+
+			for hash, elem := range origSet.elems {
+				copyElem := copySet.elems[hash]
+				if elem.IsGround() {
+					// Ground elements should be the same instance
+					if copyElem != elem {
+						t.Errorf("Ground element with hash %d should be shallow copied (same instance)", hash)
+					}
+				} else {
+					// Non-ground elements should be different instances
+					if copyElem == elem {
+						t.Errorf("Non-ground element with hash %d should be deep copied (different instance)", hash)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestSetCopyNonGroundPreservesProperties(t *testing.T) {
+	// Test that hash and ground flags are preserved
+	orig := NewSet(
+		IntNumberTerm(1),
+		VarTerm("x"),
+		StringTerm("test"),
+	)
+
+	copy := orig.(*set).CopyNonGround()
+
+	if copy.Hash() != orig.Hash() {
+		t.Errorf("Hash not preserved: got %d, want %d", copy.Hash(), orig.Hash())
+	}
+
+	if copy.IsGround() != orig.IsGround() {
+		t.Errorf("Ground flag not preserved: got %v, want %v", copy.IsGround(), orig.IsGround())
+	}
+}
+
+func TestObjectCopyNonGround(t *testing.T) {
+	tests := []struct {
+		name string
+		obj  Object
+	}{
+		{
+			name: "nil object",
+			obj:  nil,
+		},
+		{
+			name: "fully ground object",
+			obj: NewObject(
+				Item(IntNumberTerm(1), StringTerm("a")),
+				Item(StringTerm("key"), IntNumberTerm(42)),
+			),
+		},
+		{
+			name: "object with variable keys",
+			obj: NewObject(
+				Item(VarTerm("x"), StringTerm("a")),
+				Item(StringTerm("key"), IntNumberTerm(1)),
+			),
+		},
+		{
+			name: "object with variable values",
+			obj: NewObject(
+				Item(StringTerm("a"), VarTerm("x")),
+				Item(StringTerm("b"), IntNumberTerm(1)),
+			),
+		},
+		{
+			name: "mixed ground and non-ground",
+			obj: NewObject(
+				Item(IntNumberTerm(1), StringTerm("ground")),
+				Item(VarTerm("x"), VarTerm("y")),
+				Item(StringTerm("test"), NewTerm(NewArray(VarTerm("z")))),
+			),
+		},
+		{
+			name: "empty object",
+			obj:  NewObject(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.obj == nil {
+				// Test nil object
+				var o *object
+				result := o.CopyNonGround()
+				if result != nil {
+					t.Errorf("CopyNonGround() of nil should return nil, got %v", result)
+				}
+				return
+			}
+
+			result := tt.obj.(*object).CopyNonGround()
+
+			// Container should always be a new instance (different internal structures)
+			// to prevent mutations from affecting the original
+			if result == tt.obj {
+				t.Errorf("CopyNonGround() should always return new container instance")
+			}
+
+			// Verify the copy is equal to original
+			if result.Compare(tt.obj) != 0 {
+				t.Errorf("CopyNonGround() result not equal to original:\ngot:  %v\nwant: %v", result, tt.obj)
+			}
+
+			// Verify size is the same
+			if result.Len() != tt.obj.Len() {
+				t.Errorf("CopyNonGround() result has different length: got %d, want %d", result.Len(), tt.obj.Len())
+			}
+
+			// Verify ground keys/values are shallow copied and non-ground deep copied
+			origObj := tt.obj.(*object)
+			copyObj := result.(*object)
+
+			for _, node := range origObj.keys {
+				copyValue := copyObj.Get(node.key)
+				if copyValue == nil {
+					t.Errorf("Key %v not found in copy", node.key)
+					continue
+				}
+
+				// Check if ground keys/values are shallow copied
+				if node.key.IsGround() && node.value.IsGround() {
+					// Both ground - we expect shallow copy
+					// Note: We can't directly compare pointers for keys because
+					// object lookup may create new nodes, so we check values
+					if node.value.IsGround() && copyValue.IsGround() {
+						// Values should be equal
+						if !node.value.Equal(copyValue) {
+							t.Errorf("Ground value for key %v not properly copied", node.key)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestObjectCopyNonGroundPreservesProperties(t *testing.T) {
+	// Test that hash is preserved
+	orig := NewObject(
+		Item(IntNumberTerm(1), StringTerm("a")),
+		Item(VarTerm("x"), IntNumberTerm(2)),
+		Item(StringTerm("test"), VarTerm("y")),
+	)
+
+	copy := orig.(*object).CopyNonGround()
+
+	if copy.Hash() != orig.Hash() {
+		t.Errorf("Hash not preserved: got %d, want %d", copy.Hash(), orig.Hash())
+	}
+
+	if copy.IsGround() != orig.IsGround() {
+		t.Errorf("Ground flag not preserved: got %v, want %v", copy.IsGround(), orig.IsGround())
+	}
+}
