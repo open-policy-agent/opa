@@ -847,6 +847,18 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
 		},
 		{
+			note: "internal.member_2: unknown value triggers traverseUnknown (duplicate prevention)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`),
+			ruleset:  "p",
+			unknowns: []string{`input.role`},
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
+		},
+		{
 			note: "functions: member_2 in function, arg not matching",
 			module: module(`package test
 			member2_f(a) if a in {"a", "b"}`),
@@ -942,6 +954,10 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				t.Fatalf("Unexpected default rule %v", result.Default)
 			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {
 				t.Fatalf("Expected default rule %v but got: %v", tc.expectedDR, result.Default)
+			}
+
+			if result.Else != nil {
+				t.Fatalf("unexpected result.Else: %v", result.Else)
 			}
 		})
 	}
