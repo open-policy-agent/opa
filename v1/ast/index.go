@@ -5,7 +5,6 @@
 package ast
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -612,82 +611,6 @@ type trieNode struct {
 	rules     []*ruleNode
 	value     *Term
 	multiple  bool
-}
-
-func (node *trieNode) String() string {
-	var sb strings.Builder
-	node.format(&sb, 0)
-	return sb.String()
-}
-
-func (node *trieNode) format(sb *strings.Builder, depth int) {
-	indent := strings.Repeat("  ", depth)
-
-	if len(node.ref) > 0 {
-		sb.WriteString(indent)
-		sb.WriteString(node.ref.String())
-	} else if depth == 0 {
-		sb.WriteString("root")
-	}
-
-	if len(node.rules) > 0 {
-		fmt.Fprintf(sb, " [%d rule(s)]", len(node.rules))
-	}
-	if len(node.mappers) > 0 {
-		fmt.Fprintf(sb, " [%d mapper(s)]", len(node.mappers))
-	}
-	if node.value != nil {
-		fmt.Fprintf(sb, " value=%v", node.value)
-	}
-	if node.multiple {
-		sb.WriteString(" [multiple]")
-	}
-	sb.WriteString("\n")
-
-	if node.undefined != nil {
-		sb.WriteString(indent)
-		sb.WriteString("  undefined:\n")
-		node.undefined.format(sb, depth+2)
-	}
-
-	if node.any != nil {
-		sb.WriteString(indent)
-		sb.WriteString("  any:\n")
-		node.any.format(sb, depth+2)
-	}
-
-	if node.scalars.Len() > 0 {
-		scalars := make([]Value, 0, node.scalars.Len())
-		nodes := make([]*trieNode, 0, node.scalars.Len())
-		node.scalars.Iter(func(key Value, val *trieNode) bool {
-			scalars = append(scalars, key)
-			nodes = append(nodes, val)
-			return false
-		})
-		sort.Slice(scalars, func(a, b int) bool {
-			return scalars[a].Compare(scalars[b]) < 0
-		})
-		for i := range scalars {
-			sb.WriteString(indent)
-			fmt.Fprintf(sb, "  %v:\n", scalars[i])
-			for j := range nodes {
-				if ValueEqual(scalars[i], scalars[j]) {
-					nodes[j].format(sb, depth+2)
-					break
-				}
-			}
-		}
-	}
-
-	if node.array != nil {
-		sb.WriteString(indent)
-		sb.WriteString("  array:\n")
-		node.array.format(sb, depth+2)
-	}
-
-	if node.next != nil {
-		node.next.format(sb, depth)
-	}
 }
 
 func (node *trieNode) append(prio [2]int, rule *Rule) {
