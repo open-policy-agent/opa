@@ -859,6 +859,29 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
 		},
 		{
+			note: "internal.member_2: object values in rhs (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"k1": "admin", "k2": "user"})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, {"k1": "admin", "k2": "user"}) }`},
+		},
+		{
+			note: "internal.member_2: object values in rhs (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"k1": "admin", "k2": "user"})
+			}`),
+			ruleset:    "p",
+			input:      `{"role": "guest"}`,
+			expectedRS: []string{},
+		},
+		{
 			note: "functions: member_2 in function, arg not matching",
 			module: module(`package test
 			member2_f(a) if a in {"a", "b"}`),
@@ -875,6 +898,110 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{
 				`member2_f(a) = true if { a in {"a", "b"} }`,
 			},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in collection (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.roles
+				internal.member_2("admin", __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.roles; internal.member_2("admin", __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in collection (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.roles
+				internal.member_2("guest", __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in set (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.items
+				internal.member_2("b", __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"items": {"a", "b", "c"}}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.items; internal.member_2("b", __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in set (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.items
+				internal.member_2("z", __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"items": {"a", "b", "c"}}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - number in array (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.nums
+				internal.member_2(2, __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"nums": [1, 2, 3]}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.nums; internal.member_2(2, __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - number in array (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.nums
+				internal.member_2(99, __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"nums": [1, 2, 3]}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in object values (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.obj
+				internal.member_2("bar", __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"obj": {"a": "foo", "b": "bar"}}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.obj; internal.member_2("bar", __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in object values (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.obj
+				internal.member_2("baz", __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"obj": {"a": "foo", "b": "bar"}}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - non-scalar not indexed",
+			module: module(`package test
+			p if {
+				__local0__ = input.items
+				internal.member_2({"foo": "bar"}, __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"items": [{"foo": "buz"}]}`, // not a match!
+			expectedRS: []string{
+				`p if { __local0__ = input.items; internal.member_2({"foo": "bar"}, __local0__) }`},
 		},
 	}
 
