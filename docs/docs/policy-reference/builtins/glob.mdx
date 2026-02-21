@@ -77,3 +77,11 @@ The following table shows examples of how `glob.match` works:
 | `output := glob.match("{cat,bat,[fr]at}", [], "bat")`            | `true`   | A glob with pattern-alternatives matchers.    |
 | `output := glob.match("{cat,bat,[fr]at}", [], "rat")`            | `true`   | A glob with pattern-alternatives matchers.    |
 | `output := glob.match("{cat,bat,[fr]at}", [], "at")`             | `false`  | A glob with pattern-alternatives matchers.    |
+
+## Performance Metrics
+
+When `?metrics=true` is specified in API requests, `glob.match` operations expose the following per-query metrics:
+
+| Metric | Description |
+| ------ | ----------- |
+| `counter_rego_builtin_glob_interquery_value_cache_hits` | Number of compiled glob patterns served from the inter-query value cache. Only present when [inter-query value caching](/docs/configuration/#caching) is enabled and a previously compiled pattern is reused |
