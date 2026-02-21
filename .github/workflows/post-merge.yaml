@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           token: ${{ secrets.GH_PUSH_TOKEN }} # required to push to protected branch below
+          persist-credentials: true
 
       - name: Generate
         run: make clean generate docs-generate-cli-docs
@@ -78,6 +79,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Unit Test Golang
         run: make ci-go-test-coverage
@@ -93,6 +96,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          persist-credentials: false
 
       - name: Git Describe
         run: git describe --tags
@@ -137,6 +141,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          persist-credentials: false
 
       - name: Git Describe
         run: git describe --tags
@@ -170,6 +175,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Test
         run: make ci-release-test
@@ -204,6 +211,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Build and Push opa-wasm-builder
         env:
@@ -220,5 +229,7 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Run Smoke Test
         run: make -C docs smoke-test

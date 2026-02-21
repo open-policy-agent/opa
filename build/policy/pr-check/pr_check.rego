@@ -34,6 +34,11 @@ wasm_change_prefixes := [
 	"v1/ir",
 ]
 
+yaml_change_suffixes := [
+	".yaml",
+	".yml",
+]
+
 rego_and_wasm_change_root_files := ["Makefile"]
 
 docs_root_files := [
@@ -91,4 +96,9 @@ changes["rego"] if {
 } else if {
 	some changed_file in input
 	changed_file.filename in rego_and_wasm_change_root_files
+}
+
+changes["yaml"] if {
+	some changed_file in input
+	strings.any_suffix_match(changed_file.filename, yaml_change_suffixes)
 }
