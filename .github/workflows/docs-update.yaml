@@ -16,6 +16,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           token: ${{ secrets.GH_PUSH_TOKEN }}
+          persist-credentials: false
 
       - name: Get latest Regal release
         id: latest
@@ -36,35 +37,44 @@ jobs:
       - name: Check if update needed
         id: check
         run: |
-          if [ "${{ steps.latest.outputs.version }}" = "${{ steps.current.outputs.version }}" ]; then
+          if [ "${STEPS_LATEST_OUTPUTS_VERSION}" = "${STEPS_CURRENT_OUTPUTS_VERSION}" ]; then
             echo "Already at latest version, no update needed"
             echo "needed=false" >> $GITHUB_OUTPUT
           else
-            echo "Update needed: ${{ steps.current.outputs.version }} -> ${{ steps.latest.outputs.version }}"
+            echo "Update needed: ${STEPS_CURRENT_OUTPUTS_VERSION} -> ${STEPS_LATEST_OUTPUTS_VERSION}"
             echo "needed=true" >> $GITHUB_OUTPUT
           fi
+        env:
+          STEPS_LATEST_OUTPUTS_VERSION: ${{ steps.latest.outputs.version }}
+          STEPS_CURRENT_OUTPUTS_VERSION: ${{ steps.current.outputs.version }}
 
       - name: Check if branch already exists
         if: steps.check.outputs.needed == 'true'
         run: |
-          BRANCH_NAME="update-regal-${{ steps.latest.outputs.version }}"
+          BRANCH_NAME="update-regal-${STEPS_LATEST_OUTPUTS_VERSION}"
           if git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
             echo "::error::Branch '$BRANCH_NAME' already exists. A PR for this version may already be open."
             exit 1
           fi
           echo "Branch '$BRANCH_NAME' does not exist, proceeding with update"
+        env:
+          STEPS_LATEST_OUTPUTS_VERSION: ${{ steps.latest.outputs.version }}
 
       - name: Update imported.json
         if: steps.check.outputs.needed == 'true'
         run: |
-          jq --arg version "${{ steps.latest.outputs.version }}" '.regal = $version' docs/imported.json > docs/imported.json.tmp
+          jq --arg version "${STEPS_LATEST_OUTPUTS_VERSION}" '.regal = $version' docs/imported.json > docs/imported.json.tmp
           mv docs/imported.json.tmp docs/imported.json
+        env:
+          STEPS_LATEST_OUTPUTS_VERSION: ${{ steps.latest.outputs.version }}
 
       - name: Run import script
         if: steps.check.outputs.needed == 'true'
         run: |
           cd docs
-          VERSION=${{ steps.latest.outputs.version }} ./bin/import-regal-docs.sh
+          VERSION=${STEPS_LATEST_OUTPUTS_VERSION} ./bin/import-regal-docs.sh
+        env:
+          STEPS_LATEST_OUTPUTS_VERSION: ${{ steps.latest.outputs.version }}
 
       - name: Check for changes
         if: steps.check.outputs.needed == 'true'
@@ -87,23 +97,28 @@ jobs:
       - name: Create branch and commit
         if: steps.check.outputs.needed == 'true' && steps.changes.outputs.has_changes == 'true'
         run: |
-          BRANCH_NAME="update-regal-${{ steps.latest.outputs.version }}"
+          BRANCH_NAME="update-regal-${STEPS_LATEST_OUTPUTS_VERSION}"
           git checkout -b "$BRANCH_NAME"
           git add -A
-          git commit -s -m "docs: Update Regal docs to ${{ steps.latest.outputs.version }}"
+          git commit -s -m "docs: Update Regal docs to ${STEPS_LATEST_OUTPUTS_VERSION}"
+        env:
+          STEPS_LATEST_OUTPUTS_VERSION: ${{ steps.latest.outputs.version }}
 
       - name: Push branch
         if: steps.check.outputs.needed == 'true' && steps.changes.outputs.has_changes == 'true'
         run: |
-          BRANCH_NAME="update-regal-${{ steps.latest.outputs.version }}"
+          BRANCH_NAME="update-regal-${STEPS_LATEST_OUTPUTS_VERSION}"
           git push origin "$BRANCH_NAME"
+        env:
+          STEPS_LATEST_OUTPUTS_VERSION: ${{ steps.latest.outputs.version }}
 
       - name: Create pull request
         if: steps.check.outputs.needed == 'true' && steps.changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
+          STEPS_LATEST_OUTPUTS_VERSION: ${{ steps.latest.outputs.version }}
         run: |
-          VERSION="${{ steps.latest.outputs.version }}"
+          VERSION="${STEPS_LATEST_OUTPUTS_VERSION}"
           gh pr create \
             --title "docs: Update Regal docs to $VERSION" \
             --body "$(cat <<EOF

@@ -1,4 +1,7 @@
 name: Post Tag
+# Note: Because this workflow builds and publishes release
+# artifacts, we intentionally disable caching to prevent
+# cache poisoning attacks during the builds.
 
 on:
   push:
@@ -16,7 +19,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          token: ${{ secrets.GH_PUSH_TOKEN }}
+          persist-credentials: false
 
       - name: Generate
         run: make clean generate
@@ -31,6 +34,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          persist-credentials: false
 
       - id: go_version
         name: Read go version
@@ -39,9 +43,11 @@ jobs:
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
+          cache: false
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
           version: '0.15.2'
+          use-cache: false
 
       - name: Git Describe
         run: git describe --tags
@@ -73,6 +79,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          persist-credentials: false
 
       - name: Git Describe
         run: git describe --tags
@@ -85,6 +92,7 @@ jobs:
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
+          cache: false
 
       - name: Build Darwin
         run: |
@@ -99,7 +107,7 @@ jobs:
           name: binaries-darwin
           path: _release
 
-  build:
+  publish-release:
     name: Push Latest Release
     needs: [release-build, release-build-darwin]
     runs-on: ubuntu-24.04
@@ -108,6 +116,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set TAG_NAME in Environment
         # Subsequent jobs will be have the computed tag name
