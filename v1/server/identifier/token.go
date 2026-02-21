@@ -22,11 +22,13 @@ var bearerTokenRegexp = regexp.MustCompile(`^Bearer\s+(\S+)$`)
 func (h *TokenBased) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	value := r.Header.Get("Authorization")
-	if len(value) > 0 {
-		match := bearerTokenRegexp.FindStringSubmatch(value)
-		if len(match) > 0 {
-			r = SetIdentity(r, match[1])
-		}
+	if len(value) == 0 || len(value) > 8192 {
+		h.inner.ServeHTTP(w, r)
+		return
+	}
+	match := bearerTokenRegexp.FindStringSubmatch(value)
+	if len(match) > 0 {
+		r = SetIdentity(r, match[1])
 	}
 
 	h.inner.ServeHTTP(w, r)
