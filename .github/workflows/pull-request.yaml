@@ -21,6 +21,7 @@ jobs:
       wasm: ${{ steps.changes.outputs.wasm }}
       docs: ${{ steps.changes.outputs.docs }}
       rego: ${{ steps.changes.outputs.rego }}
+      yaml: ${{ steps.changes.outputs.yaml }}
     steps:
     - name: Check out repository code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -42,17 +43,18 @@ jobs:
         echo "wasm=true" >> $GITHUB_OUTPUT
         echo "docs=true" >> $GITHUB_OUTPUT
         echo "rego=true" >> $GITHUB_OUTPUT
+        echo "yaml=true" >> $GITHUB_OUTPUT
 
         if ! curl -s -o changed_files.json -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files"; then
           echo "Error: Failed to fetch changed files from GitHub API"
-          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true)"
+          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true, yaml=true)"
           exit 0
         fi
 
         if [ ! -s changed_files.json ]; then
           echo "Warning: No changed files found"
-          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true)"
+          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true, yaml=true)"
           exit 0
         fi
 
@@ -69,17 +71,20 @@ jobs:
         wasm_result=$(jq -r '.changes.wasm // false' opa_result.json)
         docs_result=$(jq -r '.changes.docs // false' opa_result.json)
         rego_result=$(jq -r '.changes.rego // false' opa_result.json)
+        yaml_result=$(jq -r '.changes.rego // false' opa_result.json)
 
         echo "go=${go_result}" >> $GITHUB_OUTPUT
         echo "wasm=${wasm_result}" >> $GITHUB_OUTPUT
         echo "docs=${docs_result}" >> $GITHUB_OUTPUT
         echo "rego=${rego_result}" >> $GITHUB_OUTPUT
+        echo "yaml=${yaml_result}" >> $GITHUB_OUTPUT
 
         echo "Final outputs:"
         echo "  go=${go_result}"
         echo "  wasm=${wasm_result}"
         echo "  docs=${docs_result}"
         echo "  rego=${rego_result}"
+        echo "  yaml=${yaml_result}"
 
   # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
@@ -241,7 +246,7 @@ jobs:
     name: YAML Lint
     runs-on: ubuntu-24.04
     needs: check-changes
-    if: ${{ needs.check-changes.outputs.go == 'true' }}
+    if: ${{ needs.check-changes.outputs.yaml == 'true' }}
     steps:
     - name: Check out code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -253,6 +258,19 @@ jobs:
       timeout-minutes: 30
       env:
         YAML_LINT_FORMAT: github
+
+  gh-actions-lint:
+    name: Github Actions Lint
+    runs-on: ubuntu-24.04
+    if: ${{ needs.check-changes.outputs.yaml == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@0dce2577a4760a2749d8cfb7a84b7d5585ebcb7d # v0.5.0
 
   wasm:
     name: WASM
