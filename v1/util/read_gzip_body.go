@@ -42,7 +42,7 @@ func ReadMaybeCompressedBody(r *http.Request) ([]byte, error) {
 			return nil, err
 		}
 
-		decompressed := bytes.NewBuffer(make([]byte, 0, len(content)))
+		decompressed := bytes.NewBuffer(make([]byte, 0, min(len(content), 8192)))
 		limitReader := io.LimitReader(gzReader, gzipMaxLength+1)
 		if _, err := decompressed.ReadFrom(limitReader); err != nil {
 			return nil, err
