@@ -41,6 +41,12 @@ example_docs_and_go_root_changelist := [
 	{"filename": "capabilities.json"},
 ]
 
+example_gh_actions_changelist := [
+	{"filename": "wasm/Makefile"},
+	{"filename": "v1/rego/testdata/ast.json"},
+	{"filename": ".github/workflows/pull-request.yaml"},
+]
+
 test_run_docs_check_expect if {
 	pr_check.changes.docs with input as example_docs_changelist
 }
@@ -61,6 +67,10 @@ test_run_rego_tests_expect if {
 	pr_check.changes.rego with input as example_rego_changelist
 }
 
+test_run_yaml_tests_expect if {
+	pr_check.changes.yaml with input as example_gh_actions_changelist
+}
+
 test_run_docs_not_go_tests_expect if {
 	pr_check.changes.docs with input as example_docs_exception_changelist
 	not pr_check.changes.go with input as example_docs_exception_changelist
@@ -75,10 +85,12 @@ test_run_some_not_others_expect if {
 	not pr_check.changes.docs with input as mixed_bag_changelist
 	pr_check.changes.go with input as mixed_bag_changelist
 	pr_check.changes.wasm with input as mixed_bag_changelist
+	not pr_check.changes.yaml with input as mixed_bag_changelist
 }
 
 test_run_all_tests_expect if {
 	pr_check.changes.docs with input as example_all_checks_root_changelist
 	pr_check.changes.go with input as example_all_checks_root_changelist
 	pr_check.changes.wasm with input as example_all_checks_root_changelist
+	not pr_check.changes.yaml with input as example_all_checks_root_changelist
 }
