@@ -144,10 +144,6 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 
 	// Because we want to fallback to ds.KeyID when we can't find the
 	// keyID, we need to parse the payload here already.
-	//
-	// (lestrrat) Whoa, you're going to trust the payload before you
-	// verify the signature? Even if it's for backwrds compatibility,
-	// Is this OK?
 	decoder := base64.RawURLEncoding
 	payload := make([]byte, decoder.DecodedLen(len(payloadb64)))
 	if _, err := decoder.Decode(payload, payloadb64); err != nil {
