@@ -818,6 +818,10 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {
 				t.Fatalf("Expected default rule %v but got: %v", tc.expectedDR, result.Default)
 			}
+
+			if result.Else != nil {
+				t.Fatalf("unexpected else rule(s): %v", result.Else)
+			}
 		})
 	}
 
