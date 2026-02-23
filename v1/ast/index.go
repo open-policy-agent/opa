@@ -187,7 +187,6 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 		tr.ordering = tr.ordering[:0]
 		tr.multiple = false
 		tr.exist = nil
-		clear(tr.visited)
 
 		ttrPool.Put(tr)
 	}()
@@ -297,10 +296,6 @@ type ruleWalker struct {
 
 func (r *ruleWalker) Do(x any) trieWalker {
 	tn := x.(*trieNode)
-	if _, ok := r.result.visited[tn]; ok {
-		return nil
-	}
-	r.result.visited[tn] = struct{}{}
 	r.result.Add(tn)
 	return r
 }
@@ -638,7 +633,6 @@ type trieTraversalResult struct {
 	ordering  []int
 	exist     *Term
 	multiple  bool
-	visited   map[*trieNode]struct{}
 }
 
 var ttrPool = sync.Pool{
@@ -650,7 +644,6 @@ var ttrPool = sync.Pool{
 func newTrieTraversalResult() *trieTraversalResult {
 	return &trieTraversalResult{
 		unordered: map[int][]*ruleNode{},
-		visited:   map[*trieNode]struct{}{},
 	}
 }
 
@@ -757,11 +750,6 @@ func (node *trieNode) Traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	if node == nil {
 		return nil
 	}
-
-	if _, ok := tr.visited[node]; ok {
-		return nil
-	}
-	tr.visited[node] = struct{}{}
 
 	tr.Add(node)
 
