@@ -18,7 +18,7 @@ cases:
         p := strings.split_n("a.b", ".", 5)
     want_result:
       - x: ["a", "b"]
-  - note: "strings/split_n: negative limit splits all"
+  - note: "strings/split_n: negative limit takes last n from right"
     query: data.test.p = x
     modules:
       - |
@@ -26,7 +26,25 @@ cases:
 
         p := strings.split_n("a.b.c", ".", -1)
     want_result:
-      - x: ["a", "b", "c"]
+      - x: ["c"]
+  - note: "strings/split_n: negative limit takes last 2 from right"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a;b;c;d", ";", -2)
+    want_result:
+      - x: ["c", "d"]
+  - note: "strings/split_n: negative limit exceeds splits returns all"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a.b", ".", -5)
+    want_result:
+      - x: ["a", "b"]
   - note: "strings/split_n: zero limit returns nil"
     query: data.test.p = x
     modules:

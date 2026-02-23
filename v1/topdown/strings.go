@@ -555,7 +555,20 @@ func builtinSplitN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	}
 
 	text, delim := string(s), string(d)
-	elems := strings.SplitN(text, delim, n)
+
+	var elems []string
+	if n < 0 {
+		// Negative n: split all, then take the last |n| elements.
+		all := strings.Split(text, delim)
+		if -n >= len(all) {
+			elems = all
+		} else {
+			elems = all[len(all)+n:]
+		}
+	} else {
+		elems = strings.SplitN(text, delim, n)
+	}
+
 	arr := make([]*ast.Term, len(elems))
 	for i := range elems {
 		arr[i] = ast.InternedTerm(elems[i])
