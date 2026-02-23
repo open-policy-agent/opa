@@ -360,17 +360,19 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 		}
 	}
 
-	a, b := expr.Operand(0), expr.Operand(1)
-	switch {
-	case op.Equal(equalityRef):
-		i.updateEq(rule, a.Value, b.Value, values)
-
-	case op.Equal(equalRef) && len(expr.Operands()) == 2:
+	equalish := op.Equal(equalityRef) || // unification, no 3-operands version exists
 		// NOTE(tsandall): if equal() is called with more than two arguments the
 		// output value is being captured in which case the indexer cannot
 		// exclude the rule if the equal() call would return false (because the
 		// false value must still be produced.)
-		i.updateEq(rule, a.Value, b.Value, values)
+		(op.Equal(equalRef) && len(expr.Operands()) == 2)
+
+	a, b := expr.Operand(0), expr.Operand(1)
+	switch {
+	case equalish:
+		if !i.updateEqWildcardRef(rule, a.Value, b.Value, values) {
+			i.updateEq(rule, a.Value, b.Value, values)
+		}
 
 	case op.Equal(globMatchRef) && len(expr.Operands()) == 3:
 		// NOTE(sr): Same as with equal() above -- 4 operands means the output
@@ -439,10 +441,44 @@ func (i *refindices) Mapper(rule *Rule, ref Ref) *valueMapper {
 
 func (i *refindices) updateEq(rule *Rule, a, b Value, constants map[Var]Value) {
 	args := rule.Head.Args
-	if i.eqOperandsToRefAndValue(rule, args, a, b, constants) {
-		return
+	if !i.eqOperandsToRefAndValue(rule, args, a, b, constants) {
+		i.eqOperandsToRefAndValue(rule, args, b, a, constants)
 	}
-	i.eqOperandsToRefAndValue(rule, args, b, a, constants)
+}
+
+func (i *refindices) updateEqWildcardRef(rule *Rule, a, b Value, constants map[Var]Value) bool {
+	return i.tryIndexWildcardRef(rule, a, b, constants) ||
+		i.tryIndexWildcardRef(rule, b, a, constants)
+}
+
+func (i *refindices) tryIndexWildcardRef(rule *Rule, a, b Value, constants map[Var]Value) bool {
+	ref, ok := a.(Ref)
+	if !ok {
+		return false
+	}
+
+	groundPrefix := ref.GroundPrefix()
+	if len(groundPrefix) != len(ref)-1 || !i.isValidIndexRef(groundPrefix) {
+		return false
+	}
+
+	resolvedValue := b
+	if bvar, ok := b.(Var); ok {
+		if resolved, ok := constants[bvar]; ok {
+			resolvedValue = resolved
+		}
+	} else if val, ok := indexValue(b); ok {
+		resolvedValue = val
+	} else {
+		return false
+	}
+
+	if !IsScalar(resolvedValue) {
+		return false
+	}
+
+	i.insert(rule, &refindex{Ref: groundPrefix, Value: resolvedValue})
+	return true
 }
 
 func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {

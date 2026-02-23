@@ -164,7 +164,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		x = [1,2,3]
 		x[0] = 1
 	} {
-		input.x[_] = 1
+		input.x[_] = 1 # can be indexed since 1.14.0
 	} {
 		input.x[input.y] = 1
 	} {
@@ -431,10 +431,13 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: mod.RuleSet(Var("filtering")),
 		},
 		{
-			note:       "non-indexable rules",
-			ruleset:    "filtering",
-			input:      `{}`,
-			expectedRS: mod.RuleSet(Var("filtering")).Diff(NewRuleSet(MustParseRuleWithOpts(`filtering if { input.x = 1 }`, opts))),
+			note:    "non-indexable rules",
+			ruleset: "filtering",
+			input:   `{}`,
+			expectedRS: mod.RuleSet(Var("filtering")).Diff(NewRuleSet(
+				MustParseRuleWithOpts(`filtering if { input.x = 1 }`, opts),
+				MustParseRuleWithOpts(`filtering if { input.x[_] = 1 }`, opts),
+			)),
 		},
 		{
 			note:       "unknown: all",
@@ -1122,6 +1125,47 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:   `{"items": [{"foo": "buz"}]}`, // not a match!
 			expectedRS: []string{
 				`p if { __local0__ = input.items; internal.member_2({"foo": "bar"}, __local0__) }`},
+		},
+		{
+			note: "wildcard ref equality: input.roles[_] == \"admin\" indexed like \"admin\" in input.roles (match)",
+			module: module(`package test
+			p if {
+				input.roles[_] == "admin"
+			}
+			p if {
+				"admin" in input.roles
+			}`),
+			ruleset: "p",
+			input:   `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{
+				`p if { equal(input.roles[_], "admin") }`,
+				`p if { internal.member_2("admin", input.roles) }`,
+			},
+		},
+		{
+			note: "wildcard ref equality: input.roles[_] == \"admin\" indexed like \"admin\" in input.roles (no match)",
+			module: module(`package test
+			p if {
+				input.roles[_] == "admin"
+			}
+			p if {
+				"admin" in input.roles
+			}`),
+			ruleset:    "p",
+			input:      `{"roles": ["user", "guest"]}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "wildcard ref equality: reverse order value == ref[_] (match)",
+			module: module(`package test
+			p if {
+				"admin" == input.roles[_]
+			}`),
+			ruleset: "p",
+			input:   `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{
+				`p if { equal("admin", input.roles[_]) }`,
+			},
 		},
 	}
 
