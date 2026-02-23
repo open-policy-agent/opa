@@ -206,6 +206,8 @@ var Upper = v1.Upper
 
 var Split = v1.Split
 
+var SplitN = v1.SplitN
+
 var Replace = v1.Replace
 
 var ReplaceN = v1.ReplaceN
