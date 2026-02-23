@@ -11,12 +11,12 @@
   "description": "",
   "dependencies": {
     "@open-policy-agent/ucast-prisma": "^0.1.6",
-    "@prisma/adapter-pg": "^7.3.0",
-    "@prisma/client": "^7.3.0",
+    "@prisma/adapter-pg": "^7.4.0",
+    "@prisma/client": "^7.4.0",
     "pg": "^8.18.0"
   },
   "devDependencies": {
-    "prisma": "^7.3.0"
+    "prisma": "^7.4.0"
   },
   "overrides": {
     "hono": "^4.11.4"
