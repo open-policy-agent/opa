@@ -29,6 +29,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -970,7 +971,7 @@ func TestDoWithDisableKeepAlives(t *testing.T) {
 
 	ctx := t.Context()
 
-	var connCount int
+	var connCount atomic.Int64
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -979,7 +980,7 @@ func TestDoWithDisableKeepAlives(t *testing.T) {
 	// Track new connections established by intercepting the server's ConnState.
 	ts.Config.ConnState = func(_ net.Conn, state http.ConnState) {
 		if state == http.StateNew {
-			connCount++
+			connCount.Add(1)
 		}
 	}
 
@@ -1002,8 +1003,8 @@ func TestDoWithDisableKeepAlives(t *testing.T) {
 	}
 
 	// With keep-alives disabled each request must open a new connection.
-	if connCount != 3 {
-		t.Fatalf("Expected 3 new connections (one per request) but got %d", connCount)
+	if got := connCount.Load(); got != 3 {
+		t.Fatalf("Expected 3 new connections (one per request) but got %d", got)
 	}
 }
 
