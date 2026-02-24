@@ -972,17 +972,19 @@ func TestDoWithDisableKeepAlives(t *testing.T) {
 	ctx := t.Context()
 
 	var connCount atomic.Int64
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer ts.Close()
 
-	// Track new connections established by intercepting the server's ConnState.
+	// Set ConnState before starting the server to avoid a data race between
+	// the server goroutine reading ConnState and this goroutine writing it.
 	ts.Config.ConnState = func(_ net.Conn, state http.ConnState) {
 		if state == http.StateNew {
 			connCount.Add(1)
 		}
 	}
+	ts.Start()
+	defer ts.Close()
 
 	config := fmt.Sprintf(`{
 				"name": "foo",
