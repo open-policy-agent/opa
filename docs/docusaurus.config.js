@@ -4,6 +4,7 @@ const darkCodeTheme = themes.dracula;
 const semver = require("semver");
 import fs from "fs/promises";
 const path = require("path");
+const yaml = require("js-yaml");
 
 import { loadPages } from "./src/lib/ecosystem/loadPages.js";
 import { loadEvents } from "./src/lib/events/loadEvents.js";
@@ -569,7 +570,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-      async function regalData(_context, _options) {
+      async function regalRulesData() {
         return {
           name: "regal",
 
@@ -625,6 +626,24 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
                 });
               }),
             );
+          },
+        };
+      },
+
+      async function glossaryData(context) {
+        return {
+          name: "glossary-data",
+
+          async loadContent() {
+            const glossaryPath = path.join(context.siteDir, "glossary.yaml");
+            const fileContent = await fs.readFile(glossaryPath, "utf-8");
+            const glossary = yaml.load(fileContent);
+
+            return { glossary };
+          },
+
+          async contentLoaded({ content, actions }) {
+            await actions.createData("glossary.json", JSON.stringify(content.glossary, null, 2));
           },
         };
       },
