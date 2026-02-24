@@ -3667,6 +3667,27 @@ func getOptimizer(modules map[string]string, data string, entries []string, root
 	return o
 }
 
+// https://github.com/open-policy-agent/opa/issues/8369
+func TestCompilerOptimizationWithLazyObject(t *testing.T) {
+	files := map[string]string{
+		"data.json": `{ "foo": { "bar": { } } }`,
+	}
+
+	test.WithTestFS(files, true, func(root string, fsys fs.FS) {
+		compiler := New().
+			WithRegoVersion(ast.RegoV1).
+			WithFS(fsys).
+			WithPaths(root).
+			WithOptimizationLevel(1).
+			WithEntrypoints("foo/bar")
+
+		err := compiler.Build(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func getModuleFiles(src map[string]string, includeRaw bool, popts ast.ParserOptions) []bundle.ModuleFile {
 
 	keys := util.KeysSorted(src)

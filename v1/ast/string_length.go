@@ -99,6 +99,10 @@ func (o *object) StringLength() (n int) {
 	return n // surrounding {} but also minus last ", "
 }
 
+func (l *lazyObj) StringLength() int {
+	return l.force().(*object).StringLength()
+}
+
 func (ts *TemplateString) StringLength() (n int) {
 	for _, p := range ts.Parts {
 		switch x := p.(type) {
