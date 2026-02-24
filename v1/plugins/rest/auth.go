@@ -83,6 +83,13 @@ func DefaultTLSConfig(c Config) (*tls.Config, error) {
 
 // DefaultRoundTripperClient is a reasonable set of defaults for HTTP auth plugins
 func DefaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
+	return DefaultRoundTripperClientWithOpts(t, timeout, false)
+}
+
+// DefaultRoundTripperClientWithOpts creates an http.Client with configurable options.
+// Use disableKeepAlives to disable HTTP keep-alive connections, which can reduce
+// idle connection accumulation when frequently polling remote servers.
+func DefaultRoundTripperClientWithOpts(t *tls.Config, timeout int64, disableKeepAlives bool) *http.Client {
 	// Ensure we use a http.Transport with proper settings: the zero values are not
 	// a good choice, as they cause leaking connections:
 	// https://github.com/golang/go/issues/19620
@@ -91,6 +98,7 @@ func DefaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.ResponseHeaderTimeout = time.Duration(timeout) * time.Second
 	tr.TLSClientConfig = t
+	tr.DisableKeepAlives = disableKeepAlives
 
 	c := *http.DefaultClient
 	c.Transport = tr
@@ -105,7 +113,7 @@ func (*defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClientWithOpts(t, *c.ResponseHeaderTimeoutSeconds, c.DisableKeepAlives), nil
 }
 
 func (*defaultAuthPlugin) Prepare(*http.Request) error {
@@ -152,7 +160,7 @@ func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		ap.encode = true
 	}
 
-	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClientWithOpts(t, *c.ResponseHeaderTimeoutSeconds, c.DisableKeepAlives), nil
 }
 
 func (ap *bearerAuthPlugin) Prepare(req *http.Request) error {
@@ -624,7 +632,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		}
 	}
 
-	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClientWithOpts(t, *c.ResponseHeaderTimeoutSeconds, c.DisableKeepAlives), nil
 }
 
 func (ap *oauth2ClientCredentialsAuthPlugin) createTokenReqBody(ctx context.Context) (url.Values, error) {
@@ -1027,7 +1035,7 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		return nil, err
 	}
 
-	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClientWithOpts(t, *c.ResponseHeaderTimeoutSeconds, c.DisableKeepAlives), nil
 }
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {
@@ -1163,7 +1171,7 @@ func (ap *azureSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		return nil, err
 	}
 
-	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClientWithOpts(t, *c.ResponseHeaderTimeoutSeconds, c.DisableKeepAlives), nil
 }
 
 func (ap *azureSigningAuthPlugin) validateAndSetDefaults() error {

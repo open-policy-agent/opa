@@ -52,7 +52,14 @@ type Config struct {
 	Headers                      map[string]string `json:"headers"`
 	AllowInsecureTLS             bool              `json:"allow_insecure_tls,omitempty"`
 	ResponseHeaderTimeoutSeconds *int64            `json:"response_header_timeout_seconds,omitempty"`
-	TLS                          *serverTLSConfig  `json:"tls,omitempty"`
+	// DisableKeepAlives disables HTTP keep-alive connections for this client.
+	// When set to true, every request will open a new TCP connection and
+	// the connection will be closed after the response is received.
+	// This can be useful when OPA is used in environments where the number of
+	// idle connections needs to be minimized, e.g. when frequently polling
+	// bundle servers causes a large number of idle connections to accumulate.
+	DisableKeepAlives bool             `json:"disable_keep_alives,omitempty"`
+	TLS               *serverTLSConfig `json:"tls,omitempty"`
 	Credentials                  struct {
 		Bearer               *bearerAuthPlugin                  `json:"bearer,omitempty"`
 		OAuth2               *oauth2ClientCredentialsAuthPlugin `json:"oauth2,omitempty"`
