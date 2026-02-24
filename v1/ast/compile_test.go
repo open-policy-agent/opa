@@ -1819,27 +1819,78 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 func TestCompilerCheckSafetyVarLoc(t *testing.T) {
 
-	_, err := CompileModules(map[string]string{"test.rego": `package test
+	tests := []struct {
+		module       string
+		expectedErrs []struct {
+			message  string
+			location int
+		}
+	}{
+		{
+			module: `package test
 import rego.v1
 
 p if {
 	not x
 	x > y
-}`})
+}`,
+			expectedErrs: []struct {
+				message  string
+				location int
+			}{
+				{
+					"var x is unsafe",
+					5,
+				},
+				{
+					"var y is unsafe",
+					6,
+				},
+			},
+		},
+		{
+			module: `package play
 
-	if err == nil {
-		t.Fatal("expected error")
+obj := {
+    "foo": "bar",
+    "baz": qux,
+}
+`,
+			expectedErrs: []struct {
+				message  string
+				location int
+			}{
+				{
+					"var qux is unsafe",
+					5,
+				},
+			},
+		},
 	}
 
-	errs := err.(Errors)
+	for _, tc := range tests {
+		t.Run(tc.module, func(t *testing.T) {
+			_, err := CompileModules(map[string]string{"test.rego": tc.module})
 
-	if !strings.Contains(errs[0].Message, "var x is unsafe") || errs[0].Location.Row != 5 {
-		t.Fatal("expected error on row 5 but got:", err)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+
+			var errs Errors
+			errors.As(err, &errs)
+
+			if len(errs) != len(tc.expectedErrs) {
+				t.Fatalf("expected %d errors, got %d", len(tc.expectedErrs), len(errs))
+			}
+
+			for i := range errs {
+				if !strings.Contains(errs[i].Message, tc.expectedErrs[i].message) || errs[i].Location.Row != tc.expectedErrs[i].location {
+					t.Fatalf("expected error on row %d but got: %s", tc.expectedErrs[i].location, errs[i])
+				}
+			}
+		})
 	}
 
-	if !strings.Contains(errs[1].Message, "var y is unsafe") || errs[1].Location.Row != 6 {
-		t.Fatal("expected y is unsafe on row 6 but got:", err)
-	}
 }
 
 func TestCompilerCheckSafetyFunctionAndContainsKeyword(t *testing.T) {

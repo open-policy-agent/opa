@@ -12,7 +12,7 @@ import (
 )
 
 // VarSet represents a set of variables.
-type VarSet map[Var]struct{}
+type VarSet map[Var]struct{ *Location }
 
 // NewVarSet returns a new VarSet containing the specified variables.
 func NewVarSet(vs ...Var) VarSet {
@@ -30,7 +30,16 @@ func NewVarSetOfSize(size int) VarSet {
 
 // Add updates the set to include the variable "v".
 func (s VarSet) Add(v Var) {
-	s[v] = struct{}{}
+	if _, ok := s[v]; !ok {
+		s[v] = struct{ *Location }{}
+	}
+}
+
+func (s VarSet) AddLocation(v Var, l *Location) {
+	if entry, ok := s[v]; ok {
+		entry.Location = l
+		s[v] = entry
+	}
 }
 
 // Contains returns true if the set contains the variable "v".
@@ -54,6 +63,7 @@ func (s VarSet) Diff(vs VarSet) VarSet {
 	for v := range s {
 		if !vs.Contains(v) {
 			r.Add(v)
+			r.AddLocation(v, s[v].Location)
 		}
 	}
 	return r
