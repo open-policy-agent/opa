@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
-	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/config"
@@ -33,6 +32,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
+	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/disk"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
@@ -570,11 +570,11 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 	manager := getTestManager()
 	defer manager.Stop(ctx)
 
-	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
+	runtimeInfo, err := info.NewWithOptions(info.Options{Config: nil, IsAuthorizationEnabled: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	manager.Info = info
+	manager.Info = runtimeInfo
 
 	plugin := New(&Config{}, manager)
 
@@ -684,11 +684,11 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 	}
 
 	// disable authorization to ensure bundle activates with bad authz policy
-	info, err = runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: false})
+	runtimeInfo, err = info.NewWithOptions(info.Options{Config: nil, IsAuthorizationEnabled: false})
 	if err != nil {
 		t.Fatal(err)
 	}
-	plugin.manager.Info = info
+	plugin.manager.Info = runtimeInfo
 
 	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
 	if err != nil {
@@ -702,11 +702,11 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 	}
 
 	// enable authorization but skip type checking of known input schemas
-	info, err = runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true, SkipKnownSchemaCheck: true})
+	runtimeInfo, err = info.NewWithOptions(info.Options{Config: nil, IsAuthorizationEnabled: true, SkipKnownSchemaCheck: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	plugin.manager.Info = info
+	plugin.manager.Info = runtimeInfo
 
 	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
 	if err != nil {
@@ -736,11 +736,11 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 		t.Fatal(err)
 	}
 
-	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
+	runtimeInfo, err := info.NewWithOptions(info.Options{Config: nil, IsAuthorizationEnabled: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	manager.Info = info
+	manager.Info = runtimeInfo
 
 	plugin := New(&Config{}, manager)
 

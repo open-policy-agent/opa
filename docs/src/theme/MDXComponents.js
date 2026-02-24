@@ -8,6 +8,7 @@ import CardGrid from "@site/src/components/CardGrid";
 import EcosystemEmbed from "@site/src/components/EcosystemEmbed";
 import EcosystemFeatureLink from "@site/src/components/EcosystemFeatureLink";
 import EvergreenCodeBlock from "@site/src/components/EvergreenCodeBlock";
+import GlossaryTooltip from "@site/src/components/GlossaryTooltip";
 import InlineEditable from "@site/src/components/InlineEditable";
 import ParamCodeBlock from "@site/src/components/ParamCodeBlock";
 import ParamContext from "@site/src/components/ParamContext";
@@ -29,6 +30,7 @@ export default {
   EcosystemEmbed,
   EcosystemFeatureLink,
   EvergreenCodeBlock,
+  GlossaryTooltip,
   InlineEditable,
   ParamContext,
   ParamCodeBlock,

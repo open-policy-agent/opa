@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/ref"
-	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
@@ -27,6 +26,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
 	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/server"
 	"github.com/open-policy-agent/opa/v1/server/types"
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -162,14 +162,14 @@ func (opa *OPA) Configure(ctx context.Context, opts ConfigOptions) error {
 }
 
 func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, block bool) error {
-	info, err := runtime.Term(runtime.Params{Config: opa.config})
+	runtimeInfo, err := info.NewWithOptions(info.Options{Config: opa.config})
 	if err != nil {
 		return err
 	}
 
 	//nolint:prealloc // option list has known initial values, extended with opa.managerOpts
 	opts := []func(*plugins.Manager){
-		plugins.Info(info),
+		plugins.Info(runtimeInfo),
 		plugins.Logger(opa.logger),
 		plugins.ConsoleLogger(opa.console),
 		plugins.WithParserOptions(ast.ParserOptions{RegoVersion: opa.regoVersion}),
