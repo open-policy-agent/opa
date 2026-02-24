@@ -946,6 +946,67 @@ func TestNewWithResponseHeaderTimeout(t *testing.T) {
 	}
 }
 
+func TestNewWithDisableKeepAlives(t *testing.T) {
+	t.Parallel()
+
+	input := `{
+				"name": "foo",
+				"url": "http://localhost",
+				"disable_keep_alives": true
+			}`
+
+	client, err := New([]byte(input), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatal("Unexpected error")
+	}
+
+	if !client.config.DisableKeepAlives {
+		t.Fatal("Expected disable_keep_alives to be true but got false")
+	}
+}
+
+func TestDoWithDisableKeepAlives(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	var connCount int
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	// Track new connections established by intercepting the server's ConnState.
+	ts.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			connCount++
+		}
+	}
+
+	config := fmt.Sprintf(`{
+				"name": "foo",
+				"url": %q,
+				"disable_keep_alives": true
+			}`, ts.URL)
+	client, err := New([]byte(config), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	for range 3 {
+		resp, err := client.Do(ctx, "GET", "/")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		resp.Body.Close()
+	}
+
+	// With keep-alives disabled each request must open a new connection.
+	if connCount != 3 {
+		t.Fatalf("Expected 3 new connections (one per request) but got %d", connCount)
+	}
+}
+
 func TestDoWithResponseHeaderTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("too slow for testing.Short")

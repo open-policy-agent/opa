@@ -62,9 +62,10 @@ type Config struct {
 		AzureManagedIdentity *azureManagedIdentitiesAuthPlugin  `json:"azure_managed_identity,omitempty"`
 		Plugin               *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
-	Type   string `json:"type,omitempty"`
-	keys   map[string]*keys.Config
-	logger logging.Logger
+	Type              string `json:"type,omitempty"`
+	DisableKeepAlives bool   `json:"disable_keep_alives,omitempty"`
+	keys              map[string]*keys.Config
+	logger            logging.Logger
 }
 
 // Equal returns true if this client config is equal to the other.
@@ -273,6 +274,12 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	httpClient, err := c.config.authHTTPClient(c.authPluginLookup)
 	if err != nil {
 		return nil, err
+	}
+
+	if c.config.DisableKeepAlives {
+		if tr, ok := httpClient.Transport.(*http.Transport); ok {
+			tr.DisableKeepAlives = true
+		}
 	}
 
 	if len(c.distributedTacingOpts) > 0 {
