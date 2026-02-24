@@ -980,9 +980,11 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 			m.opaReportNotifyCh <- struct{}{}
 		}
 
+		m.mtx.Lock()
 		for _, f := range m.registeredTriggers {
 			f(txn)
 		}
+		m.mtx.Unlock()
 	}
 
 	// Similar to the compiler, look for a set of resolvers on the transaction
