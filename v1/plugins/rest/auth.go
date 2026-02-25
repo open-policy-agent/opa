@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
@@ -763,24 +764,27 @@ func (ap *oauth2ClientCredentialsAuthPlugin) Prepare(req *http.Request) error {
 
 // clientTLSAuthPlugin represents authentication via client certificate on a TLS connection
 type clientTLSAuthPlugin struct {
-	Cert                 string `json:"cert"`
-	PrivateKey           string `json:"private_key"`
-	PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
-	CACert               string `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
-	SystemCARequired     bool   `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
+	Cert                 string        `json:"cert"`
+	PrivateKey           string        `json:"private_key"`
+	PrivateKeyPassphrase string        `json:"private_key_passphrase,omitempty"`
+	CACert               string        `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
+	SystemCARequired     bool          `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
+	CertRefreshDuration  time.Duration `json:"cert_refresh_duration,omitempty"`
+
+	mu         sync.RWMutex
+	cachedCert *tls.Certificate
+	nextReload time.Time
 }
 
-func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
-	tlsConfig, err := DefaultTLSConfig(c)
-	if err != nil {
-		return nil, err
-	}
-
-	if ap.Cert == "" {
-		return nil, errors.New("client certificate is needed when client TLS is enabled")
-	}
-	if ap.PrivateKey == "" {
-		return nil, errors.New("private key is needed when client TLS is enabled")
+func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
+	if ap.CertRefreshDuration > 0 {
+		ap.mu.RLock()
+		if ap.cachedCert != nil && time.Now().Before(ap.nextReload) {
+			cert := ap.cachedCert
+			ap.mu.RUnlock()
+			return cert, nil
+		}
+		ap.mu.RUnlock()
 	}
 
 	var keyPEMBlock []byte
@@ -800,25 +804,25 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 			return nil, errors.New("client certificate passphrase is needed, because the certificate is password encrypted")
 		}
 		// nolint: staticcheck // We don't want to forbid users from using this encryption.
-		block, err := x509.DecryptPEMBlock(block, []byte(ap.PrivateKeyPassphrase))
+		decryptedBlock, err := x509.DecryptPEMBlock(block, []byte(ap.PrivateKeyPassphrase))
 		if err != nil {
 			return nil, err
 		}
-		key, err := x509.ParsePKCS8PrivateKey(block)
+		key, err := x509.ParsePKCS8PrivateKey(decryptedBlock)
 		if err != nil {
-			key, err = x509.ParsePKCS1PrivateKey(block)
+			key, err = x509.ParsePKCS1PrivateKey(decryptedBlock)
 			if err != nil {
 				return nil, fmt.Errorf("private key should be a PEM or plain PKCS1 or PKCS8; parse error: %v", err)
 			}
 		}
-		rsa, ok := key.(*rsa.PrivateKey)
+		rsaKey, ok := key.(*rsa.PrivateKey)
 		if !ok {
 			return nil, errors.New("private key is invalid")
 		}
 		keyPEMBlock = pem.EncodeToMemory(
 			&pem.Block{
 				Type:  "RSA PRIVATE KEY",
-				Bytes: x509.MarshalPKCS1PrivateKey(rsa),
+				Bytes: x509.MarshalPKCS1PrivateKey(rsaKey),
 			},
 		)
 	} else {
@@ -834,7 +838,41 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	tlsConfig.Certificates = []tls.Certificate{cert}
+
+	if ap.CertRefreshDuration > 0 {
+		ap.mu.Lock()
+		ap.cachedCert = &cert
+		ap.nextReload = time.Now().Add(ap.CertRefreshDuration)
+		ap.mu.Unlock()
+	}
+
+	return &cert, nil
+}
+
+func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
+	tlsConfig, err := DefaultTLSConfig(c)
+	if err != nil {
+		return nil, err
+	}
+
+	if ap.Cert == "" {
+		return nil, errors.New("client certificate is needed when client TLS is enabled")
+	}
+	if ap.PrivateKey == "" {
+		return nil, errors.New("private key is needed when client TLS is enabled")
+	}
+
+	if ap.CertRefreshDuration > 0 {
+		tlsConfig.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return ap.loadCertificate()
+		}
+	} else {
+		cert, err := ap.loadCertificate()
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{*cert}
+	}
 
 	var client *http.Client
 
@@ -871,7 +909,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	return client, nil
 }
 
-func (*clientTLSAuthPlugin) Prepare(_ *http.Request) error {
+func (*clientTLSAuthPlugin) Prepare(*http.Request) error {
 	return nil
 }
 
