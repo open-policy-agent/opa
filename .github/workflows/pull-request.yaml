@@ -71,7 +71,7 @@ jobs:
         wasm_result=$(jq -r '.changes.wasm // false' opa_result.json)
         docs_result=$(jq -r '.changes.docs // false' opa_result.json)
         rego_result=$(jq -r '.changes.rego // false' opa_result.json)
-        yaml_result=$(jq -r '.changes.rego // false' opa_result.json)
+        yaml_result=$(jq -r '.changes.yaml // false' opa_result.json)
 
         echo "go=${go_result}" >> $GITHUB_OUTPUT
         echo "wasm=${wasm_result}" >> $GITHUB_OUTPUT
