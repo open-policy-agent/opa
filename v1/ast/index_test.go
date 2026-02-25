@@ -955,6 +955,59 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{},
 		},
 		{
+			note: "internal.member_2: var with empty array in rhs (one other match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = []
+				internal.member_2(__local0__, __local1__)
+			}
+			p if {
+				__local0__ = input.role
+				__local1__ = ["admin", "guest"]
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "guest"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = []; internal.member_2(__local0__, __local1__) }`,
+				`p if { __local0__ = input.role; __local1__ = ["admin", "guest"]; internal.member_2(__local0__, __local1__) }`,
+			},
+		},
+		{
+			note: "internal.member_2: var with empty array in rhs (no index)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = []
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "guest"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = []; internal.member_2(__local0__, __local1__) }`,
+			},
+		},
+		{
+			note: "internal.member_2: var with empty array in rhs (one other is mismatch)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = []
+				internal.member_2(__local0__, __local1__)
+			}
+			p if {
+				__local0__ = input.role
+				__local1__ = ["admin", "guest"]
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "user"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = []; internal.member_2(__local0__, __local1__) }`,
+			},
+		},
+		{
 			note: "internal.member_2: var with set value in rhs (match)",
 			module: module(`package test
 			p if {
