@@ -64,6 +64,8 @@ type Value interface {
 	Hash() int                    // Returns hash code of the value.
 	IsGround() bool               // IsGround returns true if this value is not a variable or contains no variables.
 	String() string               // String returns a human readable string representation of the value.
+
+	StringLengther // All Values must be able to report their string length during optimization.
 }
 
 // InterfaceToValue converts a native Go value x to a Value.
