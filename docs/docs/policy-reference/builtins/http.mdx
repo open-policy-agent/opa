@@ -113,3 +113,13 @@ The table below shows examples of calling `http.send`:
 | Files containing TLS material                 | `http.send({"method": "get", "url": "https://127.0.0.1:65331", "tls_ca_cert_file": "testdata/ca.pem", "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"})`     |
 | Environment variables containing TLS material | `http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})` |
 | Unix Socket URL Format                        | `http.send({"method": "get", "url": "unix://localhost/?socket=%F2path%F2file.socket"})`                                                                                                                           |
+
+## Performance Metrics
+
+When `?metrics=true` is specified in API requests, `http.send` operations expose the following per-query metrics:
+
+| Metric | Description |
+| ------ | ----------- |
+| `timer_rego_builtin_http_send_ns` | Total time spent in `http.send` calls during query evaluation |
+| `counter_rego_builtin_http_send_interquery_cache_hits` | Number of inter-query cache hits for `http.send` requests. Only appears when [inter-query caching is enabled](/docs/configuration/#caching) in OPA's configuration and the `http.send` request configuration has `cache` or `force_cache` set to `true` |
+| `counter_rego_builtin_http_send_network_requests` | Number of actual network requests made, excluding cached responses |
