@@ -78,20 +78,21 @@ type serverTLSConfig struct {
 
 // clientTLSAuthPlugin represents authentication via client certificate on a TLS connection
 type clientTLSAuthPlugin struct {
-	Cert                 string        `json:"cert"`
-	PrivateKey           string        `json:"private_key"`
-	PrivateKeyPassphrase string        `json:"private_key_passphrase,omitempty"`
-	CACert               string        `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
-	SystemCARequired     bool          `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
-	CertRefreshDuration  time.Duration `json:"cert_refresh_duration,omitempty"`
+	Cert                       string `json:"cert"`
+	PrivateKey                 string `json:"private_key"`
+	PrivateKeyPassphrase       string `json:"private_key_passphrase,omitempty"`
+	CACert                     string `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
+	SystemCARequired           bool   `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
+	CertRefreshDurationSeconds *int64 `json:"cert_refresh_duration_seconds,omitempty"`
 
-	mu         sync.RWMutex
-	cachedCert *tls.Certificate
-	nextReload time.Time
+	certRefreshDuration time.Duration
+	mu                  sync.RWMutex
+	cachedCert          *tls.Certificate
+	nextReload          time.Time
 }
 
 func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
-	if ap.CertRefreshDuration > 0 {
+	if ap.certRefreshDuration > 0 {
 		ap.mu.RLock()
 		if ap.cachedCert != nil && time.Now().Before(ap.nextReload) {
 			cert := ap.cachedCert
@@ -153,10 +154,10 @@ func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
 		return nil, err
 	}
 
-	if ap.CertRefreshDuration > 0 {
+	if ap.certRefreshDuration > 0 {
 		ap.mu.Lock()
 		ap.cachedCert = &cert
-		ap.nextReload = time.Now().Add(ap.CertRefreshDuration)
+		ap.nextReload = time.Now().Add(ap.certRefreshDuration)
 		ap.mu.Unlock()
 	}
 
@@ -164,6 +165,10 @@ func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
 }
 
 func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
+	if ap.CertRefreshDurationSeconds != nil && *ap.CertRefreshDurationSeconds > 0 {
+		ap.certRefreshDuration = time.Duration(*ap.CertRefreshDurationSeconds) * time.Second
+	}
+
 	tlsConfig, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
@@ -176,7 +181,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		return nil, errors.New("private key is needed when client TLS is enabled")
 	}
 
-	if ap.CertRefreshDuration > 0 {
+	if ap.certRefreshDuration > 0 {
 		tlsConfig.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 			return ap.loadCertificate()
 		}
