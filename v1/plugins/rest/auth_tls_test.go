@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net/http"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
 )
 
@@ -80,11 +82,11 @@ func TestClientTLSAuthPlugin_CertificateRotation(t *testing.T) {
 
 		generateTestCertificate(t, certPath, keyPath, 1)
 
-		refreshDuration := 5 * time.Minute
+		refreshDurationSeconds := int64(5 * 60)
 		plugin := &clientTLSAuthPlugin{
-			Cert:                certPath,
-			PrivateKey:          keyPath,
-			CertRefreshDuration: refreshDuration,
+			Cert:                       certPath,
+			PrivateKey:                 keyPath,
+			CertRefreshDurationSeconds: &refreshDurationSeconds,
 		}
 
 		config := Config{
@@ -162,4 +164,187 @@ func TestClientTLSAuthPlugin_CertificateRotation(t *testing.T) {
 			t.Error("certificate was not rotated after refresh duration")
 		}
 	})
+}
+
+func TestClientTLSAuthPlugin_ConfigParsing(t *testing.T) {
+	tmpDir := t.TempDir()
+	certPath := filepath.Join(tmpDir, "cert.pem")
+	keyPath := filepath.Join(tmpDir, "key.pem")
+
+	generateTestCertificate(t, certPath, keyPath, 1)
+
+	tests := []struct {
+		name                      string
+		buildConfig               func(cert, key, ca string) string
+		expectSystemCARequired    bool
+		expectCertRefreshDuration time.Duration
+		expectError               bool
+	}{
+		{
+			name: "system_ca_required true",
+			buildConfig: func(cert, key, ca string) string {
+				return fmt.Sprintf(`{
+					"name": "test",
+					"url": "https://example.com",
+					"credentials": {
+						"client_tls": {
+							"cert": %q,
+							"private_key": %q,
+							"system_ca_required": true
+						}
+					}
+				}`, cert, key)
+			},
+			expectSystemCARequired: true,
+		},
+		{
+			name: "system_ca_required false",
+			buildConfig: func(cert, key, ca string) string {
+				return fmt.Sprintf(`{
+					"name": "test",
+					"url": "https://example.com",
+					"credentials": {
+						"client_tls": {
+							"cert": %q,
+							"private_key": %q,
+							"system_ca_required": false
+						}
+					}
+				}`, cert, key)
+			},
+			expectSystemCARequired: false,
+		},
+		{
+			name: "cert_refresh_duration_seconds set (5 minutes)",
+			buildConfig: func(cert, key, ca string) string {
+				return fmt.Sprintf(`{
+					"name": "test",
+					"url": "https://example.com",
+					"credentials": {
+						"client_tls": {
+							"cert": %q,
+							"private_key": %q,
+							"cert_refresh_duration_seconds": %d
+						}
+					}
+				}`, cert, key, int64(5*60))
+			},
+			expectSystemCARequired:    false,
+			expectCertRefreshDuration: time.Minute * 5,
+		},
+		{
+			name: "both system_ca_required and cert_refresh_duration_seconds",
+			buildConfig: func(cert, key, ca string) string {
+				return fmt.Sprintf(`{
+					"name": "test",
+					"url": "https://example.com",
+					"credentials": {
+						"client_tls": {
+							"cert": %q,
+							"private_key": %q,
+							"system_ca_required": true,
+							"cert_refresh_duration_seconds": %d
+						}
+					}
+				}`, cert, key, int64(10*60+30))
+			},
+			expectSystemCARequired:    true,
+			expectCertRefreshDuration: 10*time.Minute + 30*time.Second,
+		},
+		{
+			name: "cert_refresh_duration_seconds omitted",
+			buildConfig: func(cert, key, ca string) string {
+				return fmt.Sprintf(`{
+					"name": "test",
+					"url": "https://example.com",
+					"credentials": {
+						"client_tls": {
+							"cert": %q,
+							"private_key": %q
+						}
+					}
+				}`, cert, key)
+			},
+			expectSystemCARequired:    false,
+			expectCertRefreshDuration: time.Duration(0),
+		},
+		{
+			name: "cert_refresh_duration_seconds with hours (2h)",
+			buildConfig: func(cert, key, ca string) string {
+				return fmt.Sprintf(`{
+					"name": "test",
+					"url": "https://example.com",
+					"credentials": {
+						"client_tls": {
+							"cert": %q,
+							"private_key": %q,
+							"cert_refresh_duration_seconds": %d
+						}
+					}
+				}`, cert, key, int64(2*60*60))
+			},
+			expectSystemCARequired:    false,
+			expectCertRefreshDuration: 2 * time.Hour,
+		},
+		{
+			name: "deprecated ca_cert field with system_ca_required",
+			buildConfig: func(cert, key, ca string) string {
+				return fmt.Sprintf(`{
+					"name": "test",
+					"url": "https://example.com",
+					"credentials": {
+						"client_tls": {
+							"cert": %q,
+							"private_key": %q,
+							"ca_cert": %q,
+							"system_ca_required": true
+						}
+					}
+				}`, cert, key, ca)
+			},
+			expectSystemCARequired: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			config := tc.buildConfig(certPath, keyPath, certPath)
+
+			client, err := New([]byte(config), map[string]*keys.Config{})
+			if tc.expectError {
+				if err == nil {
+					t.Fatal("expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if client.config.Credentials.ClientTLS == nil {
+				t.Fatal("ClientTLS credentials not parsed")
+			}
+
+			if client.config.Credentials.ClientTLS.SystemCARequired != tc.expectSystemCARequired {
+				t.Errorf("SystemCARequired = %v, want %v",
+					client.config.Credentials.ClientTLS.SystemCARequired,
+					tc.expectSystemCARequired)
+			}
+
+			if tc.expectCertRefreshDuration == 0 {
+				if client.config.Credentials.ClientTLS.CertRefreshDurationSeconds != nil {
+					t.Errorf("CertRefreshDurationSeconds = %v, want nil",
+						client.config.Credentials.ClientTLS.CertRefreshDurationSeconds)
+				}
+			} else {
+				if client.config.Credentials.ClientTLS.CertRefreshDurationSeconds == nil {
+					t.Errorf("CertRefreshDurationSeconds = nil, want %v", tc.expectCertRefreshDuration)
+				} else if time.Duration(*client.config.Credentials.ClientTLS.CertRefreshDurationSeconds)*time.Second != tc.expectCertRefreshDuration {
+					t.Errorf("CertRefreshDurationSeconds = %v, want %v",
+						*client.config.Credentials.ClientTLS.CertRefreshDurationSeconds,
+						tc.expectCertRefreshDuration)
+				}
+			}
+		})
+	}
 }
