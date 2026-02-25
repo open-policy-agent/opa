@@ -299,7 +299,7 @@ func BenchmarkPolicyComplexityTargets(b *testing.B) {
 
 				b.ResetTimer()
 				for range b.N {
-					rs, err := pq.Eval(ctx)
+					rs, err := pq.Eval(ctx, EvalRuleIndexing(false))
 					if err != nil {
 						b.Fatal(err)
 					}
