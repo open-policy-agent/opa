@@ -733,10 +733,10 @@ type Plugin struct {
     manager  *plugins.Manager
     config   Config
     stop     chan chan struct{}
-    reconfig chan interface{}
+    reconfig chan any
 }
 
-func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (interface{}, error) {
+func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (any, error) {
     var parsedConfig Config
     if err := util.Unmarshal(config, &parsedConfig); err != nil {
         return nil, err
@@ -744,12 +744,12 @@ func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (inter
     return &parsedConfig, nil
 }
 
-func (p *PluginFactory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
+func (p *PluginFactory) New(manager *plugins.Manager, config any) plugins.Plugin {
     return &Plugin{
         config:   *config.(*Config),
         manager:  manager,
         stop:     make(chan chan struct{}),
-        reconfig: make(chan interface{}),
+        reconfig: make(chan any),
     }
 }
 
@@ -766,7 +766,7 @@ func (p *Plugin) Stop(ctx context.Context) {
     return
 }
 
-func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
+func (p *Plugin) Reconfigure(ctx context.Context, config any) {
     p.reconfig <- config
     return
 }
