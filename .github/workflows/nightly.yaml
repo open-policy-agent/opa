@@ -60,7 +60,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
-        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
           webhook-type: incoming-webhook
@@ -86,7 +88,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
-        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
           webhook-type: incoming-webhook
@@ -122,7 +126,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
-        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
           webhook-type: incoming-webhook
@@ -156,7 +162,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
-        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
           webhook-type: incoming-webhook
@@ -186,7 +194,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
-        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
           webhook-type: incoming-webhook
@@ -235,7 +245,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
-        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
           webhook-type: incoming-webhook
