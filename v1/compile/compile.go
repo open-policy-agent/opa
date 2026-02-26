@@ -781,6 +781,66 @@ func findAnnotationsForTerm(term *ast.Term, annotationRefs []*ast.AnnotationsRef
 	return result
 }
 
+// pruneAnnotationsAndComments filters out annotations and their associated comments based on a predicate.
+// It returns the kept annotations and kept comments.
+func pruneAnnotationsAndComments(
+	module *ast.Module,
+	shouldDiscard func(*ast.Annotations) bool,
+) ([]*ast.Annotations, []*ast.Comment) {
+	var keepAnnotations []*ast.Annotations
+	var discardedAnnotations []*ast.Annotations
+
+	for _, annotation := range module.Annotations {
+		if shouldDiscard(annotation) {
+			discardedAnnotations = append(discardedAnnotations, annotation)
+		} else {
+			keepAnnotations = append(keepAnnotations, annotation)
+		}
+	}
+
+	var keepComments []*ast.Comment
+	for _, comment := range module.Comments {
+		// Preserve comments that are part of kept annotations
+		if slices.ContainsFunc(keepAnnotations, func(annotation *ast.Annotations) bool {
+			return comment.Location.Row >= annotation.Location.Row &&
+				comment.Location.Row <= annotation.EndLoc().Row
+		}) {
+			keepComments = append(keepComments, comment)
+			continue
+		}
+
+		// Check if comment should be discarded with a discarded annotation
+		discardComment := false
+		for _, annotation := range discardedAnnotations {
+			annotStartRow := annotation.Location.Row
+			annotEndRow := annotation.EndLoc().Row
+
+			// Find the row where the target rule starts
+			var ruleStartRow int
+			targetPath := annotation.GetTargetPath()
+			for _, rule := range module.Rules {
+				if rule.Path().Equal(targetPath) {
+					ruleStartRow = rule.Location.Row
+					break
+				}
+			}
+
+			// Discard comments within annotation range OR immediately before (within 2 rows)
+			if (comment.Location.Row >= annotStartRow && comment.Location.Row <= annotEndRow) ||
+				(ruleStartRow > 0 && comment.Location.Row < annotStartRow && comment.Location.Row >= annotStartRow-2) {
+				discardComment = true
+				break
+			}
+		}
+
+		if !discardComment {
+			keepComments = append(keepComments, comment)
+		}
+	}
+
+	return keepAnnotations, keepComments
+}
+
 // pruneBundleEntrypoints will modify modules in the provided bundle to remove
 // rules matching the entrypoints along with injecting import statements to
 // preserve their ability to compile.
@@ -816,35 +876,10 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 				}
 			}
 
-			// Drop any Annotations for rules matching the entrypoint path
-			var annotations []*ast.Annotations
-			var prunedAnnotations []*ast.Annotations
-			for _, annotation := range mf.Parsed.Annotations {
-				p := annotation.GetTargetPath()
-				// We prune annotations of dropped rules, but not packages, as the Rego file is always retained
-				if p.Equal(entrypoint.Value) && !mf.Parsed.Package.Path.Equal(entrypoint.Value) {
-					prunedAnnotations = append(prunedAnnotations, annotation)
-				} else {
-					annotations = append(annotations, annotation)
-				}
-			}
-
-			// Drop comments associated with pruned annotations
-			var comments []*ast.Comment
-			for _, comment := range mf.Parsed.Comments {
-				pruned := false
-				for _, annotation := range prunedAnnotations {
-					if comment.Location.Row >= annotation.Location.Row &&
-						comment.Location.Row <= annotation.EndLoc().Row {
-						pruned = true
-						break
-					}
-				}
-
-				if !pruned {
-					comments = append(comments, comment)
-				}
-			}
+			// Prune annotations and comments for entrypoint rules
+			annotations, comments := pruneAnnotationsAndComments(mf.Parsed, func(annotation *ast.Annotations) bool {
+				return annotation.GetTargetPath().Equal(entrypoint.Value)
+			})
 
 			// If any rules or annotations were dropped update the module accordingly
 			if len(rules) != len(mf.Parsed.Rules) || len(comments) != len(mf.Parsed.Comments) {
@@ -1215,7 +1250,23 @@ func (*optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 		}
 
 		if len(keep) > 0 {
+			// Prune annotations and comments for discarded rules
+			keepAnnotations, keepComments := pruneAnnotationsAndComments(a[i].Parsed, func(annotation *ast.Annotations) bool {
+				p := annotation.GetTargetPath()
+				for j := 0; j < discarded.Len(); j++ {
+					discardedRef := discarded.Slice()[j].Value.(ast.Ref)
+					if p.Equal(discardedRef) {
+						return true
+					}
+				}
+				return false
+			})
+
 			a[i].Parsed.Rules = keep
+			a[i].Parsed.Annotations = keepAnnotations
+			a[i].Parsed.Comments = keepComments
+			// Remove the original raw source, we're editing the AST
+			// directly, so it won't be in sync anymore.
 			a[i].Raw = nil
 			b = append(b, a[i])
 		}
