@@ -9,6 +9,7 @@ This release contains a mix of new features, performance improvements, and bugfi
 
 - Support for `--h2c` with unix domain socket for `opa run`
 - Improved rule indexing of variable assignments and `x in {...}` expressions
+- Documented metrics for `http.send`, `regex`, and `glob` built-ins
 - Fixes published in the v1.13.1 and v1.13.2 releases
 
 ### Improved rule indexing of variable assignments and `x in {...}` expressions ([#1841](https://github.com/open-policy-agent/opa/issues/1841))
@@ -65,7 +66,7 @@ Authored by @srenatus reported by @nischalsheth
 
 - docs: Add examples to `glob.match` built-in documentation ([#8252](https://github.com/open-policy-agent/opa/issues/8209)) authored by @sibasispadhi reported by @anderseknert
 - docs: Add workflow to auto update Regal docs ([#8318](https://github.com/open-policy-agent/opa/pull/8318)) authored by @charlieegan3
-- docs: Document metrics for `http.send`, `regex`, and `glob` builtins ([#6730](https://github.com/open-policy-agent/opa/issues/6730)) authored by @anivar reported by @rudrakhp
+- docs: Document metrics for `http.send`, `regex`, and `glob` built-ins ([#6730](https://github.com/open-policy-agent/opa/issues/6730)) authored by @anivar reported by @rudrakhp
 - docs: Fix `json.patch` target description ([#8271](https://github.com/open-policy-agent/opa/pull/8271)) authored by @anderseknert
 - docs: Update broken links ([#8285](https://github.com/open-policy-agent/opa/pull/8285)) authored by @charlieegan3
 - docs: Update bundle signing docs to clarify key config ([#8307](https://github.com/open-policy-agent/opa/pull/8307)) authored by @charlieegan3
