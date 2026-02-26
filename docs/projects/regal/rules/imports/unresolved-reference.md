@@ -22,6 +22,7 @@ _data_ files. If no reference is found, the rule will flag it as unresolved.
 ## Configuration Options
 
 This linter rule provides the following configuration options:
+
 ```yaml
 rules:
   imports:
@@ -43,3 +44,4 @@ rules:
 - OPA Docs: [Imports](https://www.openpolicyagent.org/docs/policy-language/#imports)
 - OPA Docs: [Collaboration Using Import](https://www.openpolicyagent.org/docs/faq/#collaboration-using-import)
 - OPA Issues: [Missing import should create error](https://github.com/open-policy-agent/opa/issues/491)
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/imports/unresolved-reference/unresolved_reference.rego)

@@ -5,6 +5,7 @@
 **Category**: Bugs
 
 **Avoid**
+
 ```rego
 package policy
 
@@ -62,3 +63,4 @@ rules:
 
 - OPA Docs: [time.now_ns](https://www.openpolicyagent.org/docs/policy-reference/#builtin-time-timenow_ns)
 - OPA Docs: [Policy Performance](https://www.openpolicyagent.org/docs/policy-performance)
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/bugs/time-now-ns-twice/time_now_ns_twice.rego)

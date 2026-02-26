@@ -86,3 +86,6 @@ Regal includes capabilities files for the following engines:
 | ------ | --------------------------------------------------------------- | -------------------- |
 | `opa`  | [OPA website](https://www.openpolicyagent.org/)                 | Open Policy Agent    |
 | `eopa` | [Enterprise OPA website](https://www.styra.com/enterprise-opa/) | Styra Enterprise OPA |
+| `rq`   | [rq website](https://git.sr.ht/~charles/rq)                     | Rego Query (`rq`)    |
+
+**`rq` support note**: `rq` scripts must include `package` statements to be compatible with Regal.

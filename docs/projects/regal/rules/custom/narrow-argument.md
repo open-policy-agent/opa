@@ -5,6 +5,7 @@
 **Category**: Custom
 
 **Avoid**
+
 ```rego
 package policy
 
@@ -13,6 +14,7 @@ valid_user(user) if endswith(user.email, "acmecorp.org")
 ```
 
 **Prefer**
+
 ```rego
 package policy
 
@@ -153,7 +155,7 @@ If the `user.phone` attribute doesn't exist, evaluation will never reach the nex
 Before narrowing arguments, always consider the impact of undefined values, negation and how functions are evaluated.
 And make sure to not rewrite any function that isn't extensively covered by unit tests! With that said, there are often
 ways to deal with undefined attributes even when passing narrower argument types. In the example above, we could for
-example rewrite `is_unreachable` to `is_reachable`, and then use `not` to negate *that* to answer if the user is
+example rewrite `is_unreachable` to `is_reachable`, and then use `not` to negate _that_ to answer if the user is
 impossible to reach.
 
 Find what works best for you, and use the `exclude-args` configuration option (see below) to exclude arg names that you
@@ -179,3 +181,7 @@ rules:
         - config
         - user
 ```
+
+## Related Resources
+
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/custom/narrow-argument/narrow_argument.rego)
