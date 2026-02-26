@@ -3531,6 +3531,170 @@ func TestOptimizerOutput(t *testing.T) {
 	}
 }
 
+func TestCompilerOptimizationMultipleAnnotationEntrypoints(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package pkg
+
+# METADATA
+# entrypoint: true
+allow if {
+	is_admin
+	has_permission(input.action)
+}
+
+# METADATA
+# entrypoint: true
+deny if {
+	input.user == "guest"
+	input.action == "delete"
+}
+
+is_admin if input.user == "admin"
+valid_actions := ["read", "write", "delete"]
+has_permission(action) if action in valid_actions
+`,
+	}
+
+	tests := []struct {
+		name            string
+		optimizationLvl int
+		expectOptimized bool
+	}{
+		{
+			name:            "optimization level 0",
+			optimizationLvl: 0,
+			expectOptimized: false,
+		},
+		{
+			name:            "optimization level 1",
+			optimizationLvl: 1,
+			expectOptimized: true,
+		},
+		{
+			name:            "optimization level 2",
+			optimizationLvl: 2,
+			expectOptimized: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			test.WithTestFS(files, true, func(root string, fsys fs.FS) {
+				compiler := New().
+					WithFS(fsys).
+					WithPaths(root).
+					WithOptimizationLevel(tc.optimizationLvl).
+					WithRegoAnnotationEntrypoints(true)
+				err := compiler.Build(t.Context())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				allowCount := 0
+				denyCount := 0
+
+				for _, mf := range compiler.bundle.Modules {
+					if !strings.HasPrefix(mf.Path, "optimized/") {
+						continue
+					}
+
+					for _, rule := range mf.Parsed.Rules {
+						ruleName := rule.Head.Name.String()
+						switch ruleName {
+						case "allow":
+							allowCount++
+						case "deny":
+							denyCount++
+						}
+					}
+				}
+
+				if tc.expectOptimized {
+					if allowCount == 0 {
+						t.Error("expected to find 'allow' rule in optimized modules (bug: first entrypoint was discarded)")
+					}
+					if denyCount == 0 {
+						t.Error("expected to find 'deny' rule in optimized modules")
+					}
+				} else {
+					if allowCount > 0 || denyCount > 0 {
+						t.Errorf("expected no optimized rules for optimization level 0, but found allow=%d, deny=%d", allowCount, denyCount)
+					}
+				}
+
+				// Check what the original "test.rego" remnants look like at different optimization levels
+				var originalModule *bundle.ModuleFile
+				for i := range compiler.bundle.Modules {
+					if compiler.bundle.Modules[i].Path == "test.rego" {
+						originalModule = &compiler.bundle.Modules[i]
+						break
+					}
+				}
+
+				if originalModule == nil {
+					t.Fatal("expected to find original 'test.rego' in bundle")
+				}
+
+				// The behavior differs between optimization levels
+				var expectedOriginal string
+				switch tc.optimizationLvl {
+				case 0: // At level 0, all rules remain unchanged
+					expectedOriginal = `package pkg
+
+# METADATA
+# entrypoint: true
+allow if {
+	is_admin
+	has_permission(input.action)
+}
+
+# METADATA
+# entrypoint: true
+deny if {
+	input.user == "guest"
+	input.action == "delete"
+}
+
+is_admin if input.user == "admin"
+valid_actions := ["read", "write", "delete"]
+has_permission(action) if action in valid_actions
+`
+				case 1: // At level 1, entrypoint rules removed, is_admin and has_permission inlined
+					expectedOriginal = `package pkg
+
+# METADATA
+# entrypoint: true
+
+# METADATA
+# entrypoint: true
+
+valid_actions := ["read", "write", "delete"]
+`
+				case 2: // At level 2, entrypoint rules removed, support rules preserved
+					expectedOriginal = `package pkg
+
+# METADATA
+# entrypoint: true
+
+# METADATA
+# entrypoint: true
+
+is_admin if input.user == "admin"
+valid_actions := ["read", "write", "delete"]
+has_permission(action) if action in valid_actions
+`
+				}
+
+				actualOriginal := string(originalModule.Raw)
+				if actualOriginal != expectedOriginal {
+					t.Errorf("original module mismatch at level %d:\n\nexpected:\n%s\n\ngot:\n%s",
+						tc.optimizationLvl, expectedOriginal, actualOriginal)
+				}
+			})
+		})
+	}
+}
+
 func TestOptimizerError(t *testing.T) {
 	tests := []struct {
 		note        string
