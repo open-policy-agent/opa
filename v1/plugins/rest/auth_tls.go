@@ -78,29 +78,39 @@ type serverTLSConfig struct {
 
 // clientTLSAuthPlugin represents authentication via client certificate on a TLS connection
 type clientTLSAuthPlugin struct {
-	Cert                       string `json:"cert"`
-	PrivateKey                 string `json:"private_key"`
-	PrivateKeyPassphrase       string `json:"private_key_passphrase,omitempty"`
-	CACert                     string `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
-	SystemCARequired           bool   `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
-	CertRefreshDurationSeconds *int64 `json:"cert_refresh_duration_seconds,omitempty"`
+	Cert                 string `json:"cert"`
+	PrivateKey           string `json:"private_key"`
+	PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
+	CACert               string `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
+	SystemCARequired     bool   `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
 
-	certRefreshDuration time.Duration
-	mu                  sync.RWMutex
-	cachedCert          *tls.Certificate
-	nextReload          time.Time
+	mu              sync.RWMutex
+	cachedCert      *tls.Certificate
+	certFileModTime time.Time
+	keyFileModTime  time.Time
 }
 
 func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
-	if ap.certRefreshDuration > 0 {
-		ap.mu.RLock()
-		if ap.cachedCert != nil && time.Now().Before(ap.nextReload) {
-			cert := ap.cachedCert
-			ap.mu.RUnlock()
-			return cert, nil
-		}
-		ap.mu.RUnlock()
+	certInfo, err := os.Stat(ap.Cert)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat client certificate file: %w", err)
 	}
+
+	keyInfo, err := os.Stat(ap.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat client key file: %w", err)
+	}
+
+	certModTime := certInfo.ModTime()
+	keyModTime := keyInfo.ModTime()
+
+	ap.mu.RLock()
+	if ap.cachedCert != nil && ap.certFileModTime.Equal(certModTime) && ap.keyFileModTime.Equal(keyModTime) {
+		cert := ap.cachedCert
+		ap.mu.RUnlock()
+		return cert, nil
+	}
+	ap.mu.RUnlock()
 
 	var keyPEMBlock []byte
 	data, err := os.ReadFile(ap.PrivateKey)
@@ -154,21 +164,16 @@ func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
 		return nil, err
 	}
 
-	if ap.certRefreshDuration > 0 {
-		ap.mu.Lock()
-		ap.cachedCert = &cert
-		ap.nextReload = time.Now().Add(ap.certRefreshDuration)
-		ap.mu.Unlock()
-	}
+	ap.mu.Lock()
+	ap.cachedCert = &cert
+	ap.certFileModTime = certModTime
+	ap.keyFileModTime = keyModTime
+	ap.mu.Unlock()
 
 	return &cert, nil
 }
 
 func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
-	if ap.CertRefreshDurationSeconds != nil && *ap.CertRefreshDurationSeconds > 0 {
-		ap.certRefreshDuration = time.Duration(*ap.CertRefreshDurationSeconds) * time.Second
-	}
-
 	tlsConfig, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
@@ -181,16 +186,8 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		return nil, errors.New("private key is needed when client TLS is enabled")
 	}
 
-	if ap.certRefreshDuration > 0 {
-		tlsConfig.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			return ap.loadCertificate()
-		}
-	} else {
-		cert, err := ap.loadCertificate()
-		if err != nil {
-			return nil, err
-		}
-		tlsConfig.Certificates = []tls.Certificate{*cert}
+	tlsConfig.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+		return ap.loadCertificate()
 	}
 
 	var client *http.Client
