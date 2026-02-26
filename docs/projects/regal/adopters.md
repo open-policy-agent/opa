@@ -60,6 +60,8 @@ The following package managers include Regal in their repositories, either nativ
 - [mise](https://mise.jdx.dev/) via its [aqua](https://aquaproj.github.io/) backend and [aqua's regal definition](https://github.com/aquaproj/aqua-registry/tree/main/pkgs/open-policy-agent/regal)
 - [pkgsrc](https://www.pkgsrc.se/) and the [regal](https://pkgsrc.se/devel/regal) package
 - [Nix](https://nixos.org/): [regal](https://search.nixos.org/packages?channel=24.05&show=regal&from=0&size=50&sort=relevance&type=packages&query=regal)
+- [Arch Linux](https://archlinux.org/): [opa-regal](https://aur.archlinux.org/packages/opa-regal) (AUR)
+- [Alpine Linux](https://alpinelinux.org/): [regal](https://pkgs.alpinelinux.org/package/edge/testing/x86_64/regal)
 - [mason.vim](https://github.com/williamboman/mason.nvim): [regal](https://github.com/mason-org/mason-registry/blob/main/packages/regal/package.yaml)
 
 ## Companies and Organizations

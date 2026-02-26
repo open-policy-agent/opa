@@ -62,3 +62,4 @@ rules:
 ## Related Resources
 
 - OPA Docs: [CLI Reference `opa fmt`](https://www.openpolicyagent.org/docs/cli/#opa-fmt)
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/style/opa-fmt/opa_fmt.rego)

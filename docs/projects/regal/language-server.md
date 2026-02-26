@@ -190,6 +190,11 @@ to search each parent directory up until the workspace root directory. It is rec
 your `.gitignore` file so that you can work freely with evaluation in any directory without having your input
 accidentally committed.
 
+If your evaluation depends on a `data.json` file, please make sure to have
+`.manifest` files to mark your bundles, or
+[configure roots](https://www.openpolicyagent.org/projects/regal/configuration/project-roots)
+in Regal's config.
+
 #### Editor support
 
 The Evaluation code lens is supported in any language server client that supports the running of code lenses. The

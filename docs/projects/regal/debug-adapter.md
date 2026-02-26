@@ -11,7 +11,8 @@ sidebar_label: Debugging Rego
 
 In addition to being a [language server](https://www.openpolicyagent.org/projects/regal/language-server),
 Regal can act as a
-[Debug Adapter](https://microsoft.github.io/debug-adapter-protocol/).
+[Debug Adapter](https://microsoft.github.io/debug-adapter-protocol/) for
+supported clients.
 A Debug Adapter is a long running program that can communicate with a debugger
 client, such as Visual Studio Code's debugger, to provide live, step-by-step,
 debugging capabilities for a language.
@@ -21,19 +22,19 @@ debugging capabilities for a language.
   alt="Animation showing the a debugging session in VS Code"/>
 _A debugging session in VS Code_
 
-:::info
-In order to use the Debug Adapter, you must be using
-[Regal v0.27.0](https://github.com/open-policy-agent/regal/releases/v0.27.0) or greater,
-as well as a compatible client. See [Editor Support](https://www.openpolicyagent.org/projects/regal/editor-support) for
-more details.
-:::
-
 ## Getting Started
 
 See the documentation in the Editor Support page for supported clients:
 
 * [Visual Studio Code](https://www.openpolicyagent.org/projects/regal/editor-support#visual-studio-code)
 * [Neovim](https://www.openpolicyagent.org/projects/regal/editor-support#neovim)
+
+:::info
+If your evaluation depends on a `data.json` file, please make sure to have
+`.manifest` files to mark your bundles, or
+[configure roots](https://www.openpolicyagent.org/projects/regal/configuration/project-roots)
+in Regal's config.
+:::
 
 ## Features
 
