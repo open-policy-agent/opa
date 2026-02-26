@@ -81,6 +81,7 @@ Authored by @srenatus reported by @nischalsheth
 
 ### Miscellaneous
 
+- maintainers: Moving nilekhc to emeritus, and renew maintainer terms ([#8276](https://github.com/open-policy-agent/opa/pull/8276)) authored by @JaydipGabani
 - ast: Add public method to extend the compliance test cases with IR plans ([#7556](https://github.com/open-policy-agent/opa/issues/7556)) authored by @sspaink reported by @shomron
 - ast: Tiny nitpicky cleanup ([#8309](https://github.com/open-policy-agent/opa/pull/8309)) authored by @srenatus
 - chore: Clean up bundle storage tests ([#8267](https://github.com/open-policy-agent/opa/pull/8267)) authored by @anderseknert
@@ -88,7 +89,6 @@ Authored by @srenatus reported by @nischalsheth
 - ci: Bump golangci-lint (v2.9.0), fix issues ([#8314](https://github.com/open-policy-agent/opa/pull/8314)) authored by @srenatus
 - ci: Harden and update all GH Actions workflows ([#8356](https://github.com/open-policy-agent/opa/pull/8356), [#8377](https://github.com/open-policy-agent/opa/pull/8377), [#8368](https://github.com/open-policy-agent/opa/pull/8368) authored by @philipaconrad and @srenatus
 - go: Cleanup old build flags ([#8314](https://github.com/open-policy-agent/opa/pull/8314)) authored by @srenatus
-- maintainers: Moving nilekhc to emeritus, and renew maintainer terms ([#8276](https://github.com/open-policy-agent/opa/pull/8276)) authored by @JaydipGabani
 - rego: Remove superfluous package import of plugins ([#6754](https://github.com/open-policy-agent/opa/issues/6754)) authored by @srenatus reported by @oxisto
 - tests: Extract runtime Info to new package ([#8362](https://github.com/open-policy-agent/opa/pull/8362)) authored by @charlieegan3
 - tests: Fix `BenchmarkFunctionArgumentCounts` query ([#8327](https://github.com/open-policy-agent/opa/pull/8327)) authored by @alex60217101990
