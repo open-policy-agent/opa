@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/keys"
@@ -77,95 +76,87 @@ func generateTestCertificate(t *testing.T, certPath, keyPath string, serialNumbe
 }
 
 func TestClientTLSAuthPlugin_CertificateRotation(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		tmpDir := t.TempDir()
-		certPath := filepath.Join(tmpDir, "cert.pem")
-		keyPath := filepath.Join(tmpDir, "key.pem")
+	tmpDir := t.TempDir()
+	certPath := filepath.Join(tmpDir, "cert.pem")
+	keyPath := filepath.Join(tmpDir, "key.pem")
 
-		generateTestCertificate(t, certPath, keyPath, 1)
+	generateTestCertificate(t, certPath, keyPath, 1)
 
-		refreshDurationSeconds := int64(5 * 60)
-		plugin := &clientTLSAuthPlugin{
-			Cert:                       certPath,
-			PrivateKey:                 keyPath,
-			CertRefreshDurationSeconds: &refreshDurationSeconds,
-		}
+	plugin := &clientTLSAuthPlugin{
+		Cert:       certPath,
+		PrivateKey: keyPath,
+	}
 
-		config := Config{
-			URL:                          "https://example.com",
-			ResponseHeaderTimeoutSeconds: &[]int64{10}[0], // NB(sr): new(0) when go.mod says 1.26
-			logger:                       logging.New(),
-		}
+	config := Config{
+		URL:                          "https://example.com",
+		ResponseHeaderTimeoutSeconds: &[]int64{10}[0],
+		logger:                       logging.New(),
+	}
 
-		client, err := plugin.NewClient(config)
-		if err != nil {
-			t.Fatalf("NewClient() failed: %v", err)
-		}
+	client, err := plugin.NewClient(config)
+	if err != nil {
+		t.Fatalf("NewClient() failed: %v", err)
+	}
 
-		transport, ok := client.Transport.(*http.Transport)
-		if !ok {
-			t.Fatal("client transport is not *http.Transport")
-		}
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatal("client transport is not *http.Transport")
+	}
 
-		if transport.TLSClientConfig.GetClientCertificate == nil {
-			t.Fatal("client transport is has no GetClientCertificate")
-		}
-		cert1, err := transport.TLSClientConfig.GetClientCertificate(&tls.CertificateRequestInfo{})
-		if err != nil {
-			t.Fatalf("first GetClientCertificate failed: %v", err)
-		}
+	if transport.TLSClientConfig.GetClientCertificate == nil {
+		t.Fatal("client transport has no GetClientCertificate")
+	}
+	cert1, err := transport.TLSClientConfig.GetClientCertificate(&tls.CertificateRequestInfo{})
+	if err != nil {
+		t.Fatalf("first GetClientCertificate failed: %v", err)
+	}
 
-		if len(cert1.Certificate) == 0 {
-			t.Fatal("first certificate is empty")
-		}
+	if len(cert1.Certificate) == 0 {
+		t.Fatal("first certificate is empty")
+	}
 
-		parsedCert1, err := x509.ParseCertificate(cert1.Certificate[0])
-		if err != nil {
-			t.Fatalf("failed to parse first certificate: %v", err)
-		}
+	parsedCert1, err := x509.ParseCertificate(cert1.Certificate[0])
+	if err != nil {
+		t.Fatalf("failed to parse first certificate: %v", err)
+	}
 
-		if parsedCert1.SerialNumber.Int64() != 1 {
-			t.Errorf("first certificate serial number = %d, want 1", parsedCert1.SerialNumber.Int64())
-		}
+	if parsedCert1.SerialNumber.Int64() != 1 {
+		t.Errorf("first certificate serial number = %d, want 1", parsedCert1.SerialNumber.Int64())
+	}
 
-		time.Sleep(3 * time.Minute)
+	cert2, err := transport.TLSClientConfig.GetClientCertificate(&tls.CertificateRequestInfo{})
+	if err != nil {
+		t.Fatalf("second GetClientCertificate failed: %v", err)
+	}
 
-		cert2, err := transport.TLSClientConfig.GetClientCertificate(&tls.CertificateRequestInfo{})
-		if err != nil {
-			t.Fatalf("second GetClientCertificate failed: %v", err)
-		}
+	parsedCert2, err := x509.ParseCertificate(cert2.Certificate[0])
+	if err != nil {
+		t.Fatalf("failed to parse second certificate: %v", err)
+	}
 
-		parsedCert2, err := x509.ParseCertificate(cert2.Certificate[0])
-		if err != nil {
-			t.Fatalf("failed to parse second certificate: %v", err)
-		}
+	if parsedCert2.SerialNumber.Int64() != 1 {
+		t.Errorf("second certificate serial number = %d, want 1 (should be cached)", parsedCert2.SerialNumber.Int64())
+	}
 
-		if parsedCert2.SerialNumber.Int64() != 1 {
-			t.Errorf("second certificate serial number = %d, want 1 (should be cached)", parsedCert2.SerialNumber.Int64())
-		}
+	generateTestCertificate(t, certPath, keyPath, 2)
 
-		generateTestCertificate(t, certPath, keyPath, 2)
+	cert3, err := transport.TLSClientConfig.GetClientCertificate(&tls.CertificateRequestInfo{})
+	if err != nil {
+		t.Fatalf("third GetClientCertificate failed: %v", err)
+	}
 
-		time.Sleep(3 * time.Minute)
+	parsedCert3, err := x509.ParseCertificate(cert3.Certificate[0])
+	if err != nil {
+		t.Fatalf("failed to parse third certificate: %v", err)
+	}
 
-		cert3, err := transport.TLSClientConfig.GetClientCertificate(&tls.CertificateRequestInfo{})
-		if err != nil {
-			t.Fatalf("third GetClientCertificate failed: %v", err)
-		}
+	if parsedCert3.SerialNumber.Int64() != 2 {
+		t.Errorf("third certificate serial number = %d, want 2 (should be reloaded)", parsedCert3.SerialNumber.Int64())
+	}
 
-		parsedCert3, err := x509.ParseCertificate(cert3.Certificate[0])
-		if err != nil {
-			t.Fatalf("failed to parse third certificate: %v", err)
-		}
-
-		if parsedCert3.SerialNumber.Int64() != 2 {
-			t.Errorf("third certificate serial number = %d, want 2 (should be reloaded)", parsedCert3.SerialNumber.Int64())
-		}
-
-		if parsedCert1.SerialNumber.Cmp(parsedCert3.SerialNumber) == 0 {
-			t.Error("certificate was not rotated after refresh duration")
-		}
-	})
+	if parsedCert1.SerialNumber.Cmp(parsedCert3.SerialNumber) == 0 {
+		t.Error("certificate was not rotated after file change")
+	}
 }
 
 func TestClientTLSAuthPlugin_ConfigParsing(t *testing.T) {
@@ -176,11 +167,10 @@ func TestClientTLSAuthPlugin_ConfigParsing(t *testing.T) {
 	generateTestCertificate(t, certPath, keyPath, 1)
 
 	tests := []struct {
-		name                      string
-		buildConfig               func(cert, key, ca string) string
-		expectSystemCARequired    bool
-		expectCertRefreshDuration time.Duration
-		expectError               bool
+		name                   string
+		buildConfig            func(cert, key, ca string) string
+		expectSystemCARequired bool
+		expectError            bool
 	}{
 		{
 			name: "system_ca_required true",
@@ -215,78 +205,6 @@ func TestClientTLSAuthPlugin_ConfigParsing(t *testing.T) {
 				}`, cert, key)
 			},
 			expectSystemCARequired: false,
-		},
-		{
-			name: "cert_refresh_duration_seconds set (5 minutes)",
-			buildConfig: func(cert, key, ca string) string {
-				return fmt.Sprintf(`{
-					"name": "test",
-					"url": "https://example.com",
-					"credentials": {
-						"client_tls": {
-							"cert": %q,
-							"private_key": %q,
-							"cert_refresh_duration_seconds": %d
-						}
-					}
-				}`, cert, key, int64(5*60))
-			},
-			expectSystemCARequired:    false,
-			expectCertRefreshDuration: time.Minute * 5,
-		},
-		{
-			name: "both system_ca_required and cert_refresh_duration_seconds",
-			buildConfig: func(cert, key, ca string) string {
-				return fmt.Sprintf(`{
-					"name": "test",
-					"url": "https://example.com",
-					"credentials": {
-						"client_tls": {
-							"cert": %q,
-							"private_key": %q,
-							"system_ca_required": true,
-							"cert_refresh_duration_seconds": %d
-						}
-					}
-				}`, cert, key, int64(10*60+30))
-			},
-			expectSystemCARequired:    true,
-			expectCertRefreshDuration: 10*time.Minute + 30*time.Second,
-		},
-		{
-			name: "cert_refresh_duration_seconds omitted",
-			buildConfig: func(cert, key, ca string) string {
-				return fmt.Sprintf(`{
-					"name": "test",
-					"url": "https://example.com",
-					"credentials": {
-						"client_tls": {
-							"cert": %q,
-							"private_key": %q
-						}
-					}
-				}`, cert, key)
-			},
-			expectSystemCARequired:    false,
-			expectCertRefreshDuration: time.Duration(0),
-		},
-		{
-			name: "cert_refresh_duration_seconds with hours (2h)",
-			buildConfig: func(cert, key, ca string) string {
-				return fmt.Sprintf(`{
-					"name": "test",
-					"url": "https://example.com",
-					"credentials": {
-						"client_tls": {
-							"cert": %q,
-							"private_key": %q,
-							"cert_refresh_duration_seconds": %d
-						}
-					}
-				}`, cert, key, int64(2*60*60))
-			},
-			expectSystemCARequired:    false,
-			expectCertRefreshDuration: 2 * time.Hour,
 		},
 		{
 			name: "deprecated ca_cert field with system_ca_required",
@@ -331,21 +249,6 @@ func TestClientTLSAuthPlugin_ConfigParsing(t *testing.T) {
 				t.Errorf("SystemCARequired = %v, want %v",
 					client.config.Credentials.ClientTLS.SystemCARequired,
 					tc.expectSystemCARequired)
-			}
-
-			if tc.expectCertRefreshDuration == 0 {
-				if client.config.Credentials.ClientTLS.CertRefreshDurationSeconds != nil {
-					t.Errorf("CertRefreshDurationSeconds = %v, want nil",
-						client.config.Credentials.ClientTLS.CertRefreshDurationSeconds)
-				}
-			} else {
-				if client.config.Credentials.ClientTLS.CertRefreshDurationSeconds == nil {
-					t.Errorf("CertRefreshDurationSeconds = nil, want %v", tc.expectCertRefreshDuration)
-				} else if time.Duration(*client.config.Credentials.ClientTLS.CertRefreshDurationSeconds)*time.Second != tc.expectCertRefreshDuration {
-					t.Errorf("CertRefreshDurationSeconds = %v, want %v",
-						*client.config.Credentials.ClientTLS.CertRefreshDurationSeconds,
-						tc.expectCertRefreshDuration)
-				}
 			}
 		})
 	}
