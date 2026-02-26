@@ -9,7 +9,6 @@ This release contains a mix of new features, performance improvements, and bugfi
 
 - Support for `--h2c` with unix domain socket for `opa run`
 - Improved rule indexing of variable assignments and `x in {...}` expressions
-- Documented metrics for `http.send`, `regex`, and `glob` built-ins
 - Fixes published in the v1.13.1 and v1.13.2 releases
 
 ### Improved rule indexing of variable assignments and `x in {...}` expressions ([#1841](https://github.com/open-policy-agent/opa/issues/1841))
