@@ -3,7 +3,88 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.14.0
+
+### Fixes
+
+- Fix issue in array.flatten handling of single item arrays (#8273) ([#8272](https://github.com/open-policy-agent/opa/issues/8272)) authored by @anderseknert
+- ast: make rule index track var assignments and `x in {...}` (#8341) ([#1841](https://github.com/open-policy-agent/opa/issues/1841)) authored by @srenatus reported by @nischalsheth
+- docs: Document metrics for http.send, regex, and glob builtins (#8103) ([#6730](https://github.com/open-policy-agent/opa/issues/6730)) authored by @anivar reported by @rudrakhp
+- perf(topdown): optimize bindings allocation with dynamic pre-sizing (#8233) ([#7266](https://github.com/open-policy-agent/opa/issues/7266)) authored by @alex60217101990
+- rego: remove superfluous package import of plugins ([#6754](https://github.com/open-policy-agent/opa/issues/6754)) authored by @srenatus reported by @oxisto
+- run: support `--h2c` with unix domain socket (UDS) ([#8282](https://github.com/open-policy-agent/opa/issues/8282)) authored by @srenatus reported by @theJC
+- runtime: add custom storage backend registration API (#8303) ([#8277](https://github.com/open-policy-agent/opa/issues/8277)) authored by @alex60217101990 reported by @alex60217101990
+
+### Miscellaneous
+
+- Add config option to disable named inter-query built-in cache (#8287) (authored by @sspaink)
+- Add line number next to test file in pretty format (authored by @sspaink)
+- Add public method to extend the compliance test cases with IR plans (#8313) (authored by @sspaink)
+- Implement new GlossaryTooltip component (#8367) (authored by @charlieegan3)
+- Integrate patch and notes for v1.13.1 (#8275) (authored by @sspaink)
+- Integrate release 1.13.2 (authored by @srenatus)
+- Maintainers: moving nilekhc to emeritus, and renew maintainer terms (#8276) (authored by @JaydipGabani)
+- Prepare v1.14.0 development (authored by @johanfylling)
+- Preserve original package name with special characters in optimized builds (#8296) (authored by @sspaink)
+- Return correct location of unsafe var in object (#8371) (authored by @sspaink)
+- Update OTel dependency to 1.40.0 (authored by @charlieegan3)
+- Update bundle signing docs to clarify key config (#8307) (authored by @charlieegan3)
+- Update faulty example using bundle optimize (#8331) (authored by @sspaink)
+- Various minor eval performance tweaks (#8290) (authored by @anderseknert)
+- ast: Ensure term values implement string lengther (#8374) (authored by @charlieegan3)
+- ast: add index else == nil test, fix it (#8348) (authored by @srenatus)
+- ast: add scaffolding to introspect and skip compiler stages (#8304) (authored by @srenatus)
+- ast: fix double-fix for refs["with-a"].dash as package (authored by @srenatus)
+- ast: put rule indices into rule tree, change Values to []*Rule (authored by @srenatus)
+- ast: tiny nitpicky cleanup (#8309) (authored by @srenatus)
+- ast: use StageID in WithStageAfterID, also for QueryCompiler (follow-up) (#8306) (authored by @srenatus)
+- build(deps): bump @isaacs/brace-expansion from 5.0.0 to 5.0.1 in /docs (#8291) (authored by @dependabot[bot])
+- build(deps): bump filippo.io/edwards25519 from 1.1.0 to 1.1.1 in /e2e (authored by @dependabot[bot])
+- build(deps): bump github.com/lib/pq (authored by @dependabot[bot])
+- build(deps): bump lodash-es and mermaid in /docs (authored by @dependabot[bot])
+- build(deps): bump markdown-it and markdownlint-cli2 in /docs (#8329) (authored by @dependabot[bot])
+- build(deps): bump qs from 6.14.1 to 6.14.2 in /docs (authored by @dependabot[bot])
+- build(deps): bump the dependencies group across 2 directories with 7 updates (authored by @dependabot[bot])
+- build(deps): bump the e2e-prisma group (authored by @dependabot[bot])
+- build(deps): bump the e2e-prisma group (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 5 updates (authored by @dependabot[bot])
+- build(deps): bump the go-opentelemetry-io group across 1 directory with 4 updates (authored by @dependabot[bot])
+- build(deps): bump webpack from 5.99.5 to 5.105.0 in /docs (#8297) (authored by @dependabot[bot])
+- build: bump go 1.25.6 -> 1.25.7 (authored by @srenatus)
+- build: bump golang 1.25.7 -> 1.26.0 (authored by @srenatus)
+- chore: Remove unnecessary comment from bundle JWT verification impl (#8354) (authored by @johanfylling)
+- ci: Fix check-changes job skipping over YAML changes. (#8377) (authored by @philipaconrad)
+- ci: Harden and update all GH Actions workflows. (authored by @philipaconrad)
+- ci: bump golangci-lint (v2.9.0), fix issues (authored by @srenatus)
+- compile: Add StringLength to lazy object (#8370) (authored by @charlieegan3)
+- compiler: Smarter template string rewriting (#8310) (authored by @anderseknert)
+- compiler: replace `true` expr when appending to empty body (#8299) (authored by @anderseknert)
+- dev: Clean up bundle storage tests (#8267) (authored by @anderseknert)
+- docs/website: Add formatting and linting checks (#8288) (authored by @charlieegan3)
+- docs/website: Markdown linting and spell checking for documentation (#8292) (authored by @charlieegan3)
+- docs: Add examples to glob.match built in documentation (#8252) (authored by @sibasispadhi)
+- docs: Add workflow to auto update Regal docs (#8318) (authored by @charlieegan3)
+- docs: Update broken links (#8285) (authored by @charlieegan3)
+- docs: fix json.patch target description (#8271) (authored by @anderseknert)
+- docs: update `interface{}` -> `any` in golang snippets (#8373) (authored by @srenatus)
+- fix race accessing registeredTriggers (#8365) (authored by @szuecs)
+- go: cleanup old build flags (authored by @srenatus)
+- parser: Add test to verify filename interning in Location (authored by @anderseknert)
+- perf: Allocate less in array unification (#8351) (authored by @anderseknert)
+- perf: `json.patch` + interning improvements (#8289) (authored by @anderseknert)
+- rego: add ResultValue[T]() helper method (authored by @srenatus)
+- rego: disable rule indexing for benchmark (authored by @srenatus)
+- test: Extract runtime Info to new package (#8362) (authored by @charlieegan3)
+- topdown: fix BenchmarkFunctionArgumentCounts query (#8327) (authored by @alex60217101990)
+- wasm: Update generated binaries (authored by @)
+- wasm: updates (LLVM+tools) (#8295) (authored by @srenatus)
+- website: Add a new kubecon event page (#8311) (authored by @charlieegan3)
+- website: Allow Regal import to use local dir (#8312) (authored by @charlieegan3)
+- website: Redirect /docs/latest/ecosystem (authored by @charlieegan3)
+- workflows/benchmark: persist credentials, we need them for pushing (authored by @srenatus)
+- workflows: add nightly vuln checks for released versions/images (authored by @srenatus)
+- workflows: bump trivy-action (0.34.0, trivy 0.69.1) (authored by @srenatus)
+- workflows: skip docs/ in release-vulnerability-check (authored by @srenatus)
 
 ## 1.13.2
 
