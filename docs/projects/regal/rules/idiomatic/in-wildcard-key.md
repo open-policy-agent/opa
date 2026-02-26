@@ -5,6 +5,7 @@
 **Category**: Idiomatic
 
 **Avoid**
+
 ```rego
 package policy
 
@@ -17,6 +18,7 @@ allow if {
 ```
 
 **Prefer**
+
 ```rego
 package policy
 
@@ -49,8 +51,9 @@ some _, value in object
 
 Can simply be replaced by:
 
-````rego
+```rego
 some value in object
+```
 
 ## Configuration Options
 
@@ -62,4 +65,8 @@ rules:
     in-wildcard-key:
       # one of "error", "warning", "ignore"
       level: error
-````
+```
+
+## Related Resources
+
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/idiomatic/in-wildcard-key/in_wildcard_key.rego)

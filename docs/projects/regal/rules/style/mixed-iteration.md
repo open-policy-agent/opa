@@ -5,6 +5,7 @@
 **Category**: Style
 
 **Avoid**
+
 ```rego
 package policy
 
@@ -17,6 +18,7 @@ allow if {
 ```
 
 **Prefer**
+
 ```rego
 package policy
 
@@ -69,3 +71,4 @@ rules:
 
 - Regal Docs: [prefer-some-in-iteration](https://www.openpolicyagent.org/projects/regal/rules/style/prefer-some-in-iteration)
 - OPA Docs: [Membership and iteration](https://www.openpolicyagent.org/docs/policy-language/#membership-and-iteration-in)
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/style/mixed-iteration/mixed_iteration.rego)

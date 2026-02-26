@@ -5,6 +5,7 @@
 **Category**: Idiomatic
 
 **Avoid**
+
 ```rego
 package policy
 
@@ -16,6 +17,7 @@ keys := {k | some k; input.object[k]}
 ```
 
 **Prefer**
+
 ```rego
 package policy
 
@@ -43,3 +45,4 @@ rules:
 ## Related Resources
 
 - OPA Docs: [object.keys](https://www.openpolicyagent.org/docs/policy-reference/#builtin-object-objectkeys)
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/idiomatic/use-object-keys/use_object_keys.rego)
