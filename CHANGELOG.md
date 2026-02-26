@@ -11,6 +11,26 @@ This release contains a mix of new features, performance improvements, and bugfi
 - Improved rule indexing of variable assignments and `x in {...}` expressions
 - Fixes published in the v1.13.1 and v1.13.2 releases
 
+### Improved rule indexing of variable assignments and `x in {...}` expressions ([#1841](https://github.com/open-policy-agent/opa/issues/1841))
+
+With this change, the rule indexer will index expressions like:
+
+```rego
+allow if input.role in {"admin", "user"}
+```
+
+On lookup, the rule body will only be returned if `input.role` is either one of `"admin"` or `"user"`.
+
+The reverse case is also indexed:
+
+```rego
+allow if "admin" in input.roles
+```
+
+in which the searched collection is `unknown`.
+
+Authored by @srenatus reported by @nischalsheth
+
 ### Runtime, SDK, Tooling
 
 - cmd,run: Support `--h2c` with unix domain socket (UDS) ([#8282](https://github.com/open-policy-agent/opa/issues/8282)) authored by @srenatus reported by @theJC
@@ -26,7 +46,7 @@ This release contains a mix of new features, performance improvements, and bugfi
 - ast: Add scaffolding to introspect and skip compiler stages (#8304) (authored by @srenatus)
 - ast: Ensure term values implement `ast.StringLengther` ([#8374](https://github.com/open-policy-agent/opa/pull/8374)) authored by @charlieegan3
 - ast: Fix double-fix for refs["with-a"].dash as package ([#8286](https://github.com/open-policy-agent/opa/pull/8286)) authored by @srenatus
-- ast: Make rule index track var assignments and `x in {...}` ([#1841](https://github.com/open-policy-agent/opa/issues/1841)) authored by @srenatus reported by @nischalsheth
+
 - ast: Optimized template-expression handling of values known to be defined ([#8310](https://github.com/open-policy-agent/opa/pull/8310)) authored by @anderseknert
 - ast: Put rule indices into rule tree, change Values to `[]*Rule` ([#8298](https://github.com/open-policy-agent/opa/pull/8298)) authored by @srenatus
 - ast: Replace `true` expr when appending to empty body ([#8299](https://github.com/open-policy-agent/opa/pull/8299)) authored by @anderseknert
