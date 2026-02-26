@@ -7,8 +7,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
-- Support for `--h2c` with unix domain socket for `opa run`
 - Improved rule indexing of variable assignments and `x in {...}` expressions
+- Support for `--h2c` with unix domain socket for `opa run`
 - A new glossary tooltip for technical terms in the docs
 - Fixes published in the v1.13.1 and v1.13.2 releases
 
