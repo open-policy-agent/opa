@@ -853,8 +853,22 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 			for _, comment := range mf.Parsed.Comments {
 				pruned := false
 				for _, annotation := range prunedAnnotations {
-					if comment.Location.Row >= annotation.Location.Row &&
-						comment.Location.Row <= annotation.EndLoc().Row {
+					annotStartRow := annotation.Location.Row
+					annotEndRow := annotation.EndLoc().Row
+
+					// Find the row where the rule starts to determine the full range
+					var ruleStartRow int
+					for _, rule := range mf.Parsed.Rules {
+						if rule.Path().Equal(entrypoint.Value) {
+							ruleStartRow = rule.Location.Row
+							break
+						}
+					}
+
+					// Remove comments within annotation range OR comments immediately before the annotation
+					// that aren't separated by a blank line (these are typically descriptive comments for the rule)
+					if (comment.Location.Row >= annotStartRow && comment.Location.Row <= annotEndRow) ||
+						(ruleStartRow > 0 && comment.Location.Row < annotStartRow && comment.Location.Row >= annotStartRow-2) {
 						pruned = true
 						break
 					}
@@ -1260,8 +1274,24 @@ func (*optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 			for _, comment := range a[i].Parsed.Comments {
 				discardComment := false
 				for _, annotation := range discardedAnnotations {
-					if comment.Location.Row >= annotation.Location.Row &&
-						comment.Location.Row <= annotation.EndLoc().Row {
+					annotStartRow := annotation.Location.Row
+					annotEndRow := annotation.EndLoc().Row
+
+					// Find the row where the target rule starts
+					var ruleStartRow int
+					for _, rule := range a[i].Parsed.Rules {
+						rulePath := rule.Path()
+						p := annotation.GetTargetPath()
+						if p.Equal(rulePath) {
+							ruleStartRow = rule.Location.Row
+							break
+						}
+					}
+
+					// Remove comments within annotation range OR comments immediately before the annotation
+					// that aren't separated by a blank line (these are typically descriptive comments for the rule)
+					if (comment.Location.Row >= annotStartRow && comment.Location.Row <= annotEndRow) ||
+						(ruleStartRow > 0 && comment.Location.Row < annotStartRow && comment.Location.Row >= annotStartRow-2) {
 						discardComment = true
 						break
 					}

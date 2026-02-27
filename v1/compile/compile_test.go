@@ -3645,14 +3645,10 @@ has_permission(action) if action in valid_actions
 				case 1: // At level 1, entrypoint rules removed, is_admin and has_permission inlined
 					expectedOriginal = `package pkg
 
-# best allow rule ever (this comment survives)
-
 valid_actions := ["read", "write", "delete"]
 `
 				case 2: // At level 2, entrypoint rules removed, support rules preserved
 					expectedOriginal = `package pkg
-
-# best allow rule ever (this comment survives)
 
 is_admin if input.user == "admin"
 valid_actions := ["read", "write", "delete"]
