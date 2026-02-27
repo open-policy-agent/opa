@@ -118,6 +118,7 @@ type Server struct {
 	addrs                       []string
 	diagAddrs                   []string
 	h2cEnabled                  bool
+	h2cMaxConcurrentStreams     uint32
 	authentication              AuthenticationScheme
 	authorization               AuthorizationScheme
 	cert                        *tls.Certificate
@@ -374,6 +375,13 @@ func (s *Server) WithPprofEnabled(pprofEnabled bool) *Server {
 // WithH2CEnabled sets whether h2c ("HTTP/2 cleartext") is enabled for the http listener
 func (s *Server) WithH2CEnabled(enabled bool) *Server {
 	s.h2cEnabled = enabled
+	return s
+}
+
+// WithH2CMaxConcurrentStreams sets the maximum number of concurrent HTTP/2
+// streams per connection when h2c is enabled. A value of 0 uses the library default.
+func (s *Server) WithH2CMaxConcurrentStreams(n uint32) *Server {
+	s.h2cMaxConcurrentStreams = n
 	return s
 }
 
@@ -652,7 +660,7 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 
 func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 	if s.h2cEnabled {
-		h2s := &http2.Server{}
+		h2s := &http2.Server{MaxConcurrentStreams: s.h2cMaxConcurrentStreams}
 		h = h2c.NewHandler(h, h2s)
 	}
 	h1s := http.Server{
@@ -727,7 +735,7 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 	}
 
 	if s.h2cEnabled {
-		h2s := &http2.Server{}
+		h2s := &http2.Server{MaxConcurrentStreams: s.h2cMaxConcurrentStreams}
 		h = h2c.NewHandler(h, h2s)
 	}
 	domainSocketServer := http.Server{Handler: h}

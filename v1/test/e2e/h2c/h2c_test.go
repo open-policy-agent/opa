@@ -125,6 +125,95 @@ func TestH2CUnixDomainSocket(t *testing.T) {
 	})
 }
 
+// TestH2CMaxConcurrentStreams verifies that the server starts correctly and
+// serves HTTP/2 requests when H2CMaxConcurrentStreams is configured. It does
+// not verify that the stream limit is enforced; that would require negotiating
+// concurrent streams and inspecting the HTTP/2 SETTINGS frame.
+func TestH2CMaxConcurrentStreams(t *testing.T) {
+	socketPath := fmt.Sprintf("/tmp/opa-h2c-max-streams-test-%d.sock", os.Getpid())
+	socketAddr := "unix://" + socketPath
+	t.Cleanup(func() {
+		_ = os.Remove(socketPath)
+	})
+
+	testServerParams := e2e.NewAPIServerTestParams()
+	testServerParams.Addrs = &[]string{"localhost:0", socketAddr}
+	testServerParams.H2CEnabled = true
+	testServerParams.H2CMaxConcurrentStreams = 512
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	rt, err := e2e.NewTestRuntimeWithOpts(e2e.TestRuntimeOpts{}, testServerParams)
+	if err != nil {
+		t.Fatalf("failed to create test runtime: %s", err)
+	}
+
+	go func() {
+		if err := rt.Runtime.Serve(ctx); err != nil {
+			t.Logf("server stopped: %s", err)
+		}
+	}()
+
+	if err := rt.WaitForServerStatus(runtime.ServerInitialized); err != nil {
+		t.Fatalf("server failed to start: %s", err)
+	}
+
+	t.Run("TCPListener", func(t *testing.T) {
+		addrs := rt.Runtime.Addrs()
+		if len(addrs) == 0 {
+			t.Fatal("no TCP addresses available")
+		}
+
+		client := http.Client{
+			Transport: &http2.Transport{
+				AllowHTTP: true,
+				DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
+					return net.Dial(network, addr)
+				},
+			},
+		}
+
+		u := "http://" + addrs[0] + "/health"
+		resp, err := client.Get(u)
+		if err != nil {
+			t.Fatalf("failed to GET %s: %s", u, err)
+		}
+		defer resp.Body.Close()
+
+		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
+			t.Errorf("resp status: expected %d, got %d", expected, actual)
+		}
+		if expected, actual := 2, resp.ProtoMajor; expected != actual {
+			t.Errorf("resp.ProtoMajor: expected %d, got %d", expected, actual)
+		}
+	})
+
+	t.Run("UnixSocketListener", func(t *testing.T) {
+		client := http.Client{
+			Transport: &http2.Transport{
+				AllowHTTP: true,
+				DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
+					return net.Dial("unix", socketPath)
+				},
+			},
+		}
+
+		resp, err := client.Get("http://localhost/health")
+		if err != nil {
+			t.Fatalf("failed to GET /health: %s", err)
+		}
+		defer resp.Body.Close()
+
+		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
+			t.Errorf("resp status: expected %d, got %d", expected, actual)
+		}
+		if expected, actual := 2, resp.ProtoMajor; expected != actual {
+			t.Errorf("resp.ProtoMajor: expected %d, got %d", expected, actual)
+		}
+	})
+}
+
 func TestH2CDisabledUnixDomainSocket(t *testing.T) {
 	socketPath := fmt.Sprintf("/tmp/opa-no-h2c-test-%d.sock", os.Getpid())
 	socketAddr := "unix://" + socketPath

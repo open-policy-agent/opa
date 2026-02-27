@@ -7022,3 +7022,26 @@ data.baz.qux`,
 		})
 	}
 }
+
+func TestWithH2CMaxConcurrentStreams(t *testing.T) {
+	s := New()
+
+	if got := s.h2cMaxConcurrentStreams; got != 0 {
+		t.Fatalf("expected default h2cMaxConcurrentStreams to be 0, got %d", got)
+	}
+
+	s.WithH2CMaxConcurrentStreams(512)
+
+	if got, want := s.h2cMaxConcurrentStreams, uint32(512); got != want {
+		t.Errorf("h2cMaxConcurrentStreams: got %d, want %d", got, want)
+	}
+
+	// Zero is explicitly meaningful: it tells the runtime to use the library
+	// default, and is the sentinel the runtime's config-file precedence logic
+	// keys off of.
+	s.WithH2CMaxConcurrentStreams(0)
+
+	if got := s.h2cMaxConcurrentStreams; got != 0 {
+		t.Errorf("expected h2cMaxConcurrentStreams to be 0 after reset, got %d", got)
+	}
+}

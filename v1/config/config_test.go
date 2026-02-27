@@ -438,6 +438,23 @@ bar:
 	}
 }
 
+func TestServerConfigH2CMaxConcurrentStreams(t *testing.T) {
+	raw := []byte(`{"server": {"h2c_max_concurrent_streams": 1000}}`)
+	config, err := ParseConfig(raw, "test-id")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if config.Server == nil {
+		t.Fatal("expected server config to be non-nil")
+	}
+	if config.Server.H2CMaxConcurrentStreams == nil {
+		t.Fatal("expected H2CMaxConcurrentStreams to be non-nil")
+	}
+	if got, want := *config.Server.H2CMaxConcurrentStreams, uint32(1000); got != want {
+		t.Errorf("H2CMaxConcurrentStreams: got %d, want %d", got, want)
+	}
+}
+
 func TestConfigClone(t *testing.T) {
 	// test nil config
 	var nilConfig *Config

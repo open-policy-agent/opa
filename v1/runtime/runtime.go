@@ -119,6 +119,10 @@ type Params struct {
 	// HTTP listeners.
 	H2CEnabled bool
 
+	// H2CMaxConcurrentStreams sets the maximum concurrent HTTP/2 streams per
+	// connection when H2C is enabled. Zero uses the library default.
+	H2CMaxConcurrentStreams uint32
+
 	// Authentication is the type of authentication scheme to use.
 	Authentication server.AuthenticationScheme
 
@@ -414,6 +418,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
+	parsedConfig, err := opa_config.ParseConfig(config, params.ID)
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+
 	var versionChecker versioncheck.Checker
 	if params.EnableVersionCheck {
 		var err error
@@ -448,11 +457,15 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		params.Router = http.NewServeMux()
 	}
 
-	metricsConfig, parseConfigErr := extractMetricsConfig(config, params)
+	metricsConfig, parseConfigErr := extractMetricsConfig(parsedConfig)
 	if parseConfigErr != nil {
 		return nil, parseConfigErr
 	}
 	metrics := prometheus.New(metrics.New(), errorLogger(logger), metricsConfig.Prom.HTTPRequestDurationSeconds.Buckets)
+
+	if params.H2CMaxConcurrentStreams == 0 && parsedConfig.Server != nil && parsedConfig.Server.H2CMaxConcurrentStreams != nil {
+		params.H2CMaxConcurrentStreams = *parsedConfig.Server.H2CMaxConcurrentStreams
+	}
 
 	var store storage.Store
 	if params.DiskStorage == nil {
@@ -566,16 +579,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	return rt, nil
 }
 
-// extractMetricsConfig returns the configuration for server metrics and parsing errors if any
-func extractMetricsConfig(config []byte, params Params) (*metrics_config.Config, error) {
-	opaParsedConfig, opaParsedConfigErr := opa_config.ParseConfig(config, params.ID)
-	if opaParsedConfigErr != nil {
-		return nil, opaParsedConfigErr
-	}
-
+// extractMetricsConfig returns the configuration for server metrics.
+func extractMetricsConfig(parsedConfig *opa_config.Config) (*metrics_config.Config, error) {
 	var serverMetricsData []byte
-	if opaParsedConfig.Server != nil {
-		serverMetricsData = opaParsedConfig.Server.Metrics
+	if parsedConfig.Server != nil {
+		serverMetricsData = parsedConfig.Server.Metrics
 	}
 
 	configBuilder := metrics_config.NewConfigBuilder()
@@ -670,6 +678,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithPprofEnabled(rt.Params.PprofEnabled).
 		WithAddresses(*rt.Params.Addrs).
 		WithH2CEnabled(rt.Params.H2CEnabled).
+		WithH2CMaxConcurrentStreams(rt.Params.H2CMaxConcurrentStreams).
 		// always use the initial values for the certificate and ca pool, reloading behavior is configured below
 		WithCertificate(rt.Params.Certificate).
 		WithCertPool(rt.Params.CertPool).
