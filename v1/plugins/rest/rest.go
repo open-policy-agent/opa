@@ -16,6 +16,7 @@ import (
 	"net/http/httputil"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/v1/keys"
@@ -112,6 +113,14 @@ func (c *Config) AuthPlugin(lookup AuthPluginLookupFunc) (HTTPAuthPlugin, error)
 	return candidate, nil
 }
 
+// clientCache holds the cached HTTP client and related state with thread-safe initialization
+type clientCache struct {
+	mu         sync.Mutex
+	httpClient *http.Client
+	authPlugin HTTPAuthPlugin
+	initErr    error
+}
+
 // Client implements an HTTP/REST client for communicating with remote
 // services.
 type Client struct {
@@ -123,6 +132,7 @@ type Client struct {
 	logger                logging.Logger
 	loggerFields          map[string]any
 	distributedTacingOpts tracing.Options
+	cache                 *clientCache
 }
 
 // Name returns an option that overrides the service name on the client.
@@ -174,6 +184,7 @@ func New(config []byte, keys map[string]*keys.Config, opts ...func(*Client)) (Cl
 
 	client := Client{
 		config: parsedConfig,
+		cache:  &clientCache{},
 	}
 
 	for _, f := range opts {
@@ -187,6 +198,36 @@ func New(config []byte, keys map[string]*keys.Config, opts ...func(*Client)) (Cl
 	client.config.logger = client.logger
 
 	return client, nil
+}
+
+func (c *Client) ensureHTTPClient() error {
+	c.cache.mu.Lock()
+	defer c.cache.mu.Unlock()
+
+	if c.cache.httpClient != nil && c.cache.authPlugin != nil {
+		return c.cache.initErr
+	}
+
+	plugin, err := c.config.AuthPlugin(c.authPluginLookup)
+	if err != nil {
+		c.cache.initErr = err
+		return err
+	}
+
+	hc, err := plugin.NewClient(c.config)
+	if err != nil {
+		c.cache.initErr = err
+		return err
+	}
+
+	if len(c.distributedTacingOpts) > 0 {
+		hc.Transport = tracing.NewTransport(hc.Transport, c.distributedTacingOpts)
+	}
+
+	c.cache.httpClient = hc
+	c.cache.authPlugin = plugin
+	c.cache.initErr = nil
+	return nil
 }
 
 // AuthPluginLookup returns the lookup function to find a custom registered
@@ -208,6 +249,7 @@ func (c Client) Config() *Config {
 // SetResponseHeaderTimeout sets the "ResponseHeaderTimeout" in the http client's Transport
 func (c Client) SetResponseHeaderTimeout(timeout *int64) Client {
 	c.config.ResponseHeaderTimeoutSeconds = timeout
+	c.cache = &clientCache{}
 	return c
 }
 
@@ -253,18 +295,8 @@ func (c Client) WithBytes(body []byte) Client {
 // Do executes a request using the client.
 func (c Client) Do(ctx context.Context, method, path string) (*http.Response, error) {
 
-	plugin, err := c.config.AuthPlugin(c.authPluginLookup)
-	if err != nil {
+	if err := c.ensureHTTPClient(); err != nil {
 		return nil, err
-	}
-
-	hc, err := plugin.NewClient(c.config)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(c.distributedTacingOpts) > 0 {
-		hc.Transport = tracing.NewTransport(hc.Transport, c.distributedTacingOpts)
 	}
 
 	path = strings.Trim(path, "/")
@@ -296,7 +328,12 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		req.Header.Add(key, value)
 	}
 
-	if err := plugin.Prepare(req); err != nil {
+	c.cache.mu.Lock()
+	authPlugin := c.cache.authPlugin
+	httpClient := c.cache.httpClient
+	c.cache.mu.Unlock()
+
+	if err := authPlugin.Prepare(req); err != nil {
 		return nil, err
 	}
 
@@ -310,7 +347,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		c.logger.WithFields(c.loggerFields).Debug("Sending request.")
 	}
 
-	resp, err := hc.Do(req)
+	resp, err := httpClient.Do(req)
 
 	if resp != nil && c.logger.GetLevel() >= logging.Debug {
 		// Only log for debug purposes. If an error occurred, the caller should handle
