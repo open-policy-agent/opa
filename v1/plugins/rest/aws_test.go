@@ -1204,7 +1204,7 @@ func TestAssumeRoleCredentialServiceUsingWrongSigningProvider(t *testing.T) {
 	assertErr("a AWS signing plugin must be specified when AssumeRole credential provider is enabled", err, t)
 
 	// wrong path: unsupported AWS signing plugin
-	cs.AWSSigningPlugin = &awsSigningAuthPlugin{AWSWebIdentityCredentials: &awsWebIdentityCredentialService{}}
+	cs.AWSSigningPlugin = &awsSigningAuthPlugin{AWSSSOCredentials: &awsSSOCredentialsService{}}
 	err = cs.populateFromEnv()
 	assertErr("unsupported AWS signing plugin with AssumeRole credential provider", err, t)
 }
@@ -1430,6 +1430,104 @@ func TestAssumeRoleCredentialServiceUsingMetadataCredentialsProvider(t *testing.
 	cs.expiration = time.Now()
 	creds, _ = cs.credentials(t.Context())
 	assertEq(creds.AccessKey, ts.accessKey, t)
+}
+
+func TestAssumeRoleCredentialServiceUsingWebIdentityCredentialsProvider(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-west-1")
+
+	testAccessKey := "ASgeIAIOSFODNN7EXAMPLE"
+	tsWeb := stsTestServer{
+		t:                         t,
+		accessKey:                 testAccessKey,
+		assumeRoleWithWebIdentity: true,
+	}
+	tsWeb.start()
+	defer tsWeb.stop()
+
+	ts := stsTestServer{
+		t:                         t,
+		accessKey:                 testAccessKey,
+		assumeRoleWithWebIdentity: false,
+	}
+	ts.start()
+	defer ts.stop()
+
+	files := map[string]string{
+		"good_token_file": "good-token",
+		"bad_token_file":  "bad-token",
+	}
+
+	test.WithTempFS(files, func(path string) {
+		goodTokenFile := filepath.Join(path, "good_token_file")
+		badTokenFile := filepath.Join(path, "bad_token_file")
+
+		cs := awsAssumeRoleCredentialService{
+			stsURL: ts.server.URL,
+			logger: logging.Get(),
+			AWSSigningPlugin: &awsSigningAuthPlugin{AWSWebIdentityCredentials: &awsWebIdentityCredentialService{
+				stsURL:  tsWeb.server.URL,
+				logger:  logging.Get(),
+				RoleArn: "signing-role:arn",
+			}},
+		}
+
+		// wrong path: no AWS_WEB_IDENTITY_TOKEN_FILE set
+		err := cs.populateFromEnv()
+		assertErr("no AWS_WEB_IDENTITY_TOKEN_FILE set in environment or configuration", err, t)
+
+		t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile)
+
+		// wrong path: no AWS IAM Role ARN set in environment or config
+		err = cs.populateFromEnv()
+		assertErr("no AWS_ROLE_ARN set in environment or configuration", err, t)
+
+		t.Setenv("AWS_ROLE_ARN", "role:arn")
+
+		// happy path: set AWS IAM Role ARN as env var
+		err = cs.populateFromEnv()
+		if err != nil {
+			t.Fatalf("Error while getting env vars: %s", err)
+		}
+
+		// happy path: set AWS IAM Role ARN in config
+		os.Unsetenv("AWS_ROLE_ARN")
+		cs.RoleArn = "role:arn"
+
+		err = cs.populateFromEnv()
+		if err != nil {
+			t.Fatalf("Error while getting env vars: %s", err)
+		}
+
+		// wrong path: refresh and get credentials but inner web identity token is rejected
+		cs.AWSSigningPlugin.AWSWebIdentityCredentials.WebIdentityTokenFile = badTokenFile
+		_, err = cs.credentials(t.Context())
+		assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
+
+		// restore good token file
+		cs.AWSSigningPlugin.AWSWebIdentityCredentials.WebIdentityTokenFile = goodTokenFile
+
+		// happy path: refresh and get credentials
+		creds, _ := cs.credentials(t.Context())
+		assertEq(creds.AccessKey, testAccessKey, t)
+
+		// happy path: refresh with session and get credentials
+		cs.expiration = time.Now()
+		cs.SessionName = "TEST_SESSION"
+		creds, _ = cs.credentials(t.Context())
+		assertEq(creds.AccessKey, testAccessKey, t)
+
+		// happy path: don't refresh as credentials not expired so STS not called
+		// verify existing credentials haven't changed
+		ts.accessKey = "OTHERKEY"
+		creds, _ = cs.credentials(t.Context())
+		assertEq(creds.AccessKey, testAccessKey, t)
+
+		// happy path: refresh expired credentials
+		// verify new credentials are set
+		cs.expiration = time.Now()
+		creds, _ = cs.credentials(t.Context())
+		assertEq(creds.AccessKey, ts.accessKey, t)
+	})
 }
 
 func TestStsPath(t *testing.T) {
