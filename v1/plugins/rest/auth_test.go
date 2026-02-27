@@ -217,7 +217,7 @@ func TestAssumeRoleWithUnsupportedSigningProvider(t *testing.T) {
 		"credentials": {
 			"s3_signing": {
 				"service": "s3",
-				"assume_role_credentials": {"aws_signing": {"web_identity_credentials": {}}}
+				"assume_role_credentials": {"aws_signing": {"sso_credentials": {}}}
 			}
 		}
 	}`
