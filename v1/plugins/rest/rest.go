@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"net/http/httputil"
 	"reflect"
@@ -111,22 +110,6 @@ func (c *Config) AuthPlugin(lookup AuthPluginLookupFunc) (HTTPAuthPlugin, error)
 		return &defaultAuthPlugin{}, nil
 	}
 	return candidate, nil
-}
-
-func (c *Config) authHTTPClient(lookup AuthPluginLookupFunc) (*http.Client, error) {
-	plugin, err := c.AuthPlugin(lookup)
-	if err != nil {
-		return nil, err
-	}
-	return plugin.NewClient(*c)
-}
-
-func (c *Config) authPrepare(req *http.Request, lookup AuthPluginLookupFunc) error {
-	plugin, err := c.AuthPlugin(lookup)
-	if err != nil {
-		return err
-	}
-	return plugin.Prepare(req)
 }
 
 // Client implements an HTTP/REST client for communicating with remote
@@ -270,13 +253,18 @@ func (c Client) WithBytes(body []byte) Client {
 // Do executes a request using the client.
 func (c Client) Do(ctx context.Context, method, path string) (*http.Response, error) {
 
-	httpClient, err := c.config.authHTTPClient(c.authPluginLookup)
+	plugin, err := c.config.AuthPlugin(c.authPluginLookup)
+	if err != nil {
+		return nil, err
+	}
+
+	hc, err := plugin.NewClient(c.config)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(c.distributedTacingOpts) > 0 {
-		httpClient.Transport = tracing.NewTransport(httpClient.Transport, c.distributedTacingOpts)
+		hc.Transport = tracing.NewTransport(hc.Transport, c.distributedTacingOpts)
 	}
 
 	path = strings.Trim(path, "/")
@@ -299,21 +287,16 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		return nil, err
 	}
 
-	headers := map[string]string{
-		"User-Agent": version.UserAgent,
+	// NB(sr): Set() overwrites existing headers with the same key
+	req.Header.Set("User-Agent", version.UserAgent)
+	for key, value := range c.config.Headers { // Copy custom headers from config.
+		req.Header.Set(key, value)
 	}
-
-	// Copy custom headers from config.
-	maps.Copy(headers, c.config.Headers)
-
-	// Overwrite with headers set directly on client.
-	maps.Copy(headers, c.headers)
-
-	for key, value := range headers {
+	for key, value := range c.headers { // Overwrite with headers set directly on client.
 		req.Header.Add(key, value)
 	}
 
-	if err = c.config.authPrepare(req, c.authPluginLookup); err != nil {
+	if err := plugin.Prepare(req); err != nil {
 		return nil, err
 	}
 
@@ -327,7 +310,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		c.logger.WithFields(c.loggerFields).Debug("Sending request.")
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := hc.Do(req)
 
 	if resp != nil && c.logger.GetLevel() >= logging.Debug {
 		// Only log for debug purposes. If an error occurred, the caller should handle
@@ -354,13 +337,9 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 }
 
 func withMaskedHeaders(headers http.Header) http.Header {
-	masked := make(http.Header)
-	for k, v := range headers {
-		if _, ok := maskedHeaderKeys[k]; ok {
-			masked.Set(k, "REDACTED")
-		} else {
-			masked[k] = v
-		}
+	masked := headers.Clone()
+	for k := range maskedHeaderKeys {
+		masked.Set(k, "REDACTED") // Set() replaces existing headers
 	}
 	return masked
 }
