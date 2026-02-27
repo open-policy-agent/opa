@@ -1,0 +1,101 @@
+---
+cases:
+  - note: "strings/split_n: basic split with limit"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a.b.c.d", ".", 2)
+    want_result:
+      - x: ["a", "b.c.d"]
+  - note: "strings/split_n: limit greater than splits"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a.b", ".", 5)
+    want_result:
+      - x: ["a", "b"]
+  - note: "strings/split_n: negative limit takes last n from right"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a.b.c", ".", -1)
+    want_result:
+      - x: ["c"]
+  - note: "strings/split_n: negative limit takes last 2 from right"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a;b;c;d", ";", -2)
+    want_result:
+      - x: ["c", "d"]
+  - note: "strings/split_n: negative limit exceeds splits returns all"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a.b", ".", -5)
+    want_result:
+      - x: ["a", "b"]
+  - note: "strings/split_n: zero limit returns nil"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a.b.c", ".", 0)
+    want_result:
+      - x: []
+  - note: "strings/split_n: limit of 1 returns whole string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a.b.c", ".", 1)
+    want_result:
+      - x: ["a.b.c"]
+  - note: "strings/split_n: no delimiter found"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("abc", ".", 2)
+    want_result:
+      - x: ["abc"]
+  - note: "strings/split_n: empty string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("", ".", 2)
+    want_result:
+      - x: [""]
+  - note: "strings/split_n: empty delimiter"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("abc", "", 2)
+    want_result:
+      - x: ["a", "bc"]
+  - note: "strings/split_n: multi-char delimiter"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.split_n("a::b::c::d", "::", 3)
+    want_result:
+      - x: ["a", "b", "c::d"]
