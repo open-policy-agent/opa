@@ -3535,6 +3535,7 @@ func TestCompilerOptimizationMultipleAnnotationEntrypoints(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package pkg
 
+# best allow rule ever
 # METADATA
 # entrypoint: true
 allow if {
@@ -3542,6 +3543,7 @@ allow if {
 	has_permission(input.action)
 }
 
+# nice deny rule
 # METADATA
 # entrypoint: true
 deny if {
@@ -3639,45 +3641,18 @@ has_permission(action) if action in valid_actions
 				var expectedOriginal string
 				switch tc.optimizationLvl {
 				case 0: // At level 0, all rules remain unchanged
-					expectedOriginal = `package pkg
-
-# METADATA
-# entrypoint: true
-allow if {
-	is_admin
-	has_permission(input.action)
-}
-
-# METADATA
-# entrypoint: true
-deny if {
-	input.user == "guest"
-	input.action == "delete"
-}
-
-is_admin if input.user == "admin"
-valid_actions := ["read", "write", "delete"]
-has_permission(action) if action in valid_actions
-`
+					expectedOriginal = files["test.rego"]
 				case 1: // At level 1, entrypoint rules removed, is_admin and has_permission inlined
 					expectedOriginal = `package pkg
 
-# METADATA
-# entrypoint: true
-
-# METADATA
-# entrypoint: true
+# best allow rule ever (this comment survives)
 
 valid_actions := ["read", "write", "delete"]
 `
 				case 2: // At level 2, entrypoint rules removed, support rules preserved
 					expectedOriginal = `package pkg
 
-# METADATA
-# entrypoint: true
-
-# METADATA
-# entrypoint: true
+# best allow rule ever (this comment survives)
 
 is_admin if input.user == "admin"
 valid_actions := ["read", "write", "delete"]

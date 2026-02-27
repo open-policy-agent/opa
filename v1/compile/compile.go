@@ -793,6 +793,23 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 		for i := range len(b.Modules) {
 			mf := &b.Modules[i]
 
+			// First, identify which annotations are associated with rules that will be removed
+			// We need to do this BEFORE removing the rules so we can correctly identify the annotations
+			var prunedAnnotations []*ast.Annotations
+			for _, rule := range mf.Parsed.Rules {
+				rulePath := rule.Path()
+				if rulePath.Equal(entrypoint.Value) {
+					// This rule will be removed, find its annotations
+					for _, annotation := range mf.Parsed.Annotations {
+						p := annotation.GetTargetPath()
+						// Prune annotations of dropped rules, but not package-level annotations
+						if p.Equal(entrypoint.Value) && !mf.Parsed.Package.Path.Equal(entrypoint.Value) {
+							prunedAnnotations = append(prunedAnnotations, annotation)
+						}
+					}
+				}
+			}
+
 			// Drop any rules that match the entrypoint path.
 			var rules []*ast.Rule
 			for _, rule := range mf.Parsed.Rules {
@@ -816,15 +833,17 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 				}
 			}
 
-			// Drop any Annotations for rules matching the entrypoint path
+			// Drop the identified annotations
 			var annotations []*ast.Annotations
-			var prunedAnnotations []*ast.Annotations
 			for _, annotation := range mf.Parsed.Annotations {
-				p := annotation.GetTargetPath()
-				// We prune annotations of dropped rules, but not packages, as the Rego file is always retained
-				if p.Equal(entrypoint.Value) && !mf.Parsed.Package.Path.Equal(entrypoint.Value) {
-					prunedAnnotations = append(prunedAnnotations, annotation)
-				} else {
+				shouldPrune := false
+				for _, prunedAnnotation := range prunedAnnotations {
+					if annotation == prunedAnnotation {
+						shouldPrune = true
+						break
+					}
+				}
+				if !shouldPrune {
 					annotations = append(annotations, annotation)
 				}
 			}
@@ -1215,7 +1234,46 @@ func (*optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 		}
 
 		if len(keep) > 0 {
+			// Clean up annotations and comments for discarded rules
+			var keepAnnotations []*ast.Annotations
+			var discardedAnnotations []*ast.Annotations
+
+			for _, annotation := range a[i].Parsed.Annotations {
+				p := annotation.GetTargetPath()
+				shouldDiscard := false
+				// Check if this annotation's target was discarded
+				for j := 0; j < discarded.Len(); j++ {
+					discardedRef := discarded.Slice()[j].Value.(ast.Ref)
+					if p.Equal(discardedRef) && !a[i].Parsed.Package.Path.Equal(discardedRef) {
+						shouldDiscard = true
+						discardedAnnotations = append(discardedAnnotations, annotation)
+						break
+					}
+				}
+				if !shouldDiscard {
+					keepAnnotations = append(keepAnnotations, annotation)
+				}
+			}
+
+			// Clean up comments associated with discarded annotations
+			var keepComments []*ast.Comment
+			for _, comment := range a[i].Parsed.Comments {
+				discardComment := false
+				for _, annotation := range discardedAnnotations {
+					if comment.Location.Row >= annotation.Location.Row &&
+						comment.Location.Row <= annotation.EndLoc().Row {
+						discardComment = true
+						break
+					}
+				}
+				if !discardComment {
+					keepComments = append(keepComments, comment)
+				}
+			}
+
 			a[i].Parsed.Rules = keep
+			a[i].Parsed.Annotations = keepAnnotations
+			a[i].Parsed.Comments = keepComments
 			a[i].Raw = nil
 			b = append(b, a[i])
 		}
