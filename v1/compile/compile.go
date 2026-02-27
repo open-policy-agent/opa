@@ -1246,24 +1246,38 @@ func (*optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 			for _, annotation := range a[i].Parsed.Annotations {
 				p := annotation.GetTargetPath()
 				shouldDiscard := false
-				// Check if this annotation's target was discarded
+
+				// Check if this annotation's target matches a discarded rule
 				for j := 0; j < discarded.Len(); j++ {
 					discardedRef := discarded.Slice()[j].Value.(ast.Ref)
-					if p.Equal(discardedRef) && !a[i].Parsed.Package.Path.Equal(discardedRef) {
+					if p.Equal(discardedRef) {
 						shouldDiscard = true
 						discardedAnnotations = append(discardedAnnotations, annotation)
 						break
 					}
 				}
+
 				if !shouldDiscard {
 					keepAnnotations = append(keepAnnotations, annotation)
 				}
 			}
 
 			// Clean up comments associated with discarded annotations
+			// First, identify comment ranges for kept annotations so we don't accidentally remove them
 			var keepComments []*ast.Comment
 			for _, comment := range a[i].Parsed.Comments {
 				discardComment := false
+
+				// Check if comment is part of a KEPT annotation (should be preserved)
+				if slices.ContainsFunc(keepAnnotations, func(annotation *ast.Annotations) bool {
+					return comment.Location.Row >= annotation.Location.Row &&
+						comment.Location.Row <= annotation.EndLoc().Row
+				}) {
+					keepComments = append(keepComments, comment)
+					continue
+				}
+
+				// Otherwise, check if it's part of a discarded annotation
 				for _, annotation := range discardedAnnotations {
 					annotStartRow := annotation.Location.Row
 					annotEndRow := annotation.EndLoc().Row

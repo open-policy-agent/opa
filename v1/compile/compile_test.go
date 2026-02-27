@@ -3551,6 +3551,10 @@ deny if {
 	input.action == "delete"
 }
 
+# METADATA
+# description: this rule should keep its MD
+other if input.other
+
 is_admin if input.user == "admin"
 valid_actions := ["read", "write", "delete"]
 has_permission(action) if action in valid_actions
@@ -3613,10 +3617,18 @@ has_permission(action) if action in valid_actions
 				case 1: // At level 1, entrypoint rules removed, is_admin and has_permission inlined
 					expectedOriginal = `package pkg
 
+# METADATA
+# description: this rule should keep its MD
+other if input.other
+
 valid_actions := ["read", "write", "delete"]
 `
 				case 2: // At level 2, entrypoint rules removed, support rules preserved
 					expectedOriginal = `package pkg
+
+# METADATA
+# description: this rule should keep its MD
+other if input.other
 
 is_admin if input.user == "admin"
 valid_actions := ["read", "write", "delete"]
