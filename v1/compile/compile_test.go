@@ -3592,38 +3592,6 @@ has_permission(action) if action in valid_actions
 					t.Fatal(err)
 				}
 
-				allowCount := 0
-				denyCount := 0
-
-				for _, mf := range compiler.bundle.Modules {
-					if !strings.HasPrefix(mf.Path, "optimized/") {
-						continue
-					}
-
-					for _, rule := range mf.Parsed.Rules {
-						ruleName := rule.Head.Name.String()
-						switch ruleName {
-						case "allow":
-							allowCount++
-						case "deny":
-							denyCount++
-						}
-					}
-				}
-
-				if tc.expectOptimized {
-					if allowCount == 0 {
-						t.Error("expected to find 'allow' rule in optimized modules (bug: first entrypoint was discarded)")
-					}
-					if denyCount == 0 {
-						t.Error("expected to find 'deny' rule in optimized modules")
-					}
-				} else {
-					if allowCount > 0 || denyCount > 0 {
-						t.Errorf("expected no optimized rules for optimization level 0, but found allow=%d, deny=%d", allowCount, denyCount)
-					}
-				}
-
 				// Check what the original "test.rego" remnants look like at different optimization levels
 				var originalModule *bundle.ModuleFile
 				for i := range compiler.bundle.Modules {

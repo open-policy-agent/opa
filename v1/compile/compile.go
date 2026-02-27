@@ -801,9 +801,7 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 				if rulePath.Equal(entrypoint.Value) {
 					// This rule will be removed, find its annotations
 					for _, annotation := range mf.Parsed.Annotations {
-						p := annotation.GetTargetPath()
-						// Prune annotations of dropped rules, but not package-level annotations
-						if p.Equal(entrypoint.Value) && !mf.Parsed.Package.Path.Equal(entrypoint.Value) {
+						if annotation.GetTargetPath().Equal(entrypoint.Value) {
 							prunedAnnotations = append(prunedAnnotations, annotation)
 						}
 					}
@@ -836,14 +834,7 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 			// Drop the identified annotations
 			var annotations []*ast.Annotations
 			for _, annotation := range mf.Parsed.Annotations {
-				shouldPrune := false
-				for _, prunedAnnotation := range prunedAnnotations {
-					if annotation == prunedAnnotation {
-						shouldPrune = true
-						break
-					}
-				}
-				if !shouldPrune {
+				if !slices.Contains(prunedAnnotations, annotation) {
 					annotations = append(annotations, annotation)
 				}
 			}
