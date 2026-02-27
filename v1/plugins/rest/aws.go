@@ -704,6 +704,7 @@ func (cs *awsAssumeRoleCredentialService) populateFromEnv() error {
 	case cs.AWSSigningPlugin.AWSEnvironmentCredentials != nil:
 	case cs.AWSSigningPlugin.AWSProfileCredentials != nil:
 	case cs.AWSSigningPlugin.AWSMetadataCredentials != nil:
+	case cs.AWSSigningPlugin.AWSWebIdentityCredentials != nil:
 	default:
 		return errors.New("unsupported AWS signing plugin with AssumeRole credential provider")
 	}
@@ -713,6 +714,25 @@ func (cs *awsAssumeRoleCredentialService) populateFromEnv() error {
 			if cs.AWSSigningPlugin.AWSMetadataCredentials.RegionName = os.Getenv(awsRegionEnvVar); cs.AWSSigningPlugin.AWSMetadataCredentials.RegionName == "" {
 				return errors.New("no " + awsRegionEnvVar + " set in environment or configuration")
 			}
+		}
+	}
+
+	if cs.AWSSigningPlugin.AWSWebIdentityCredentials != nil {
+		if cs.AWSSigningPlugin.AWSWebIdentityCredentials.RegionName == "" {
+			if cs.AWSSigningPlugin.AWSWebIdentityCredentials.RegionName = os.Getenv(awsRegionEnvVar); cs.AWSSigningPlugin.AWSWebIdentityCredentials.RegionName == "" {
+				return errors.New("no " + awsRegionEnvVar + " set in environment or configuration")
+			}
+		}
+		if cs.AWSSigningPlugin.AWSWebIdentityCredentials.WebIdentityTokenFile == "" {
+			if cs.AWSSigningPlugin.AWSWebIdentityCredentials.WebIdentityTokenFile = os.Getenv(awsWebIdentityTokenFileEnvVar); cs.AWSSigningPlugin.AWSWebIdentityCredentials.WebIdentityTokenFile == "" {
+				return errors.New("no " + awsWebIdentityTokenFileEnvVar + " set in environment or configuration")
+			}
+		}
+		if cs.AWSSigningPlugin.AWSWebIdentityCredentials.RoleArn == "" {
+			return errors.New("RoleArn must be set in configuration for AWS Web Identity signing plugin")
+		}
+		if cs.AWSSigningPlugin.AWSWebIdentityCredentials.Domain == "" {
+			cs.AWSSigningPlugin.AWSWebIdentityCredentials.Domain = os.Getenv(awsDomainEnvVar)
 		}
 	}
 
@@ -748,6 +768,11 @@ func (cs *awsAssumeRoleCredentialService) signingCredentials(ctx context.Context
 	if cs.AWSSigningPlugin.AWSProfileCredentials != nil {
 		cs.AWSSigningPlugin.AWSProfileCredentials.logger = cs.logger
 		return cs.AWSSigningPlugin.AWSProfileCredentials.credentials(ctx)
+	}
+
+	if cs.AWSSigningPlugin.AWSWebIdentityCredentials != nil {
+		cs.AWSSigningPlugin.AWSWebIdentityCredentials.logger = cs.logger
+		return cs.AWSSigningPlugin.AWSWebIdentityCredentials.credentials(ctx)
 	}
 
 	cs.AWSSigningPlugin.AWSMetadataCredentials.logger = cs.logger
@@ -794,6 +819,10 @@ func (cs *awsAssumeRoleCredentialService) refreshFromService(ctx context.Context
 		"Version":         []string{"2011-06-15"},
 	}
 	stsRequestURL, _ := url.Parse(cs.stsPath())
+	// AWS STS requires the path to be "/" for requests
+	if stsRequestURL.Path == "" {
+		stsRequestURL.Path = "/"
+	}
 
 	// construct an HTTP client with a reasonably short timeout
 	client := &http.Client{Timeout: time.Second * 10}
@@ -846,8 +875,8 @@ func (cs *awsAssumeRoleCredentialService) credentials(ctx context.Context) (aws.
 
 // awsWebIdentityCredentialService represents an STS WebIdentity credential services
 type awsWebIdentityCredentialService struct {
-	RoleArn              string
-	WebIdentityTokenFile string
+	RoleArn              string `json:"iam_role_arn"`
+	WebIdentityTokenFile string `json:"web_identity_token_file"`
 	RegionName           string `json:"aws_region"`
 	SessionName          string `json:"session_name"`
 	Domain               string `json:"aws_domain"`
