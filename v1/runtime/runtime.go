@@ -37,7 +37,6 @@ import (
 	"github.com/open-policy-agent/opa/internal/pathwatcher"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/ref"
-	"github.com/open-policy-agent/opa/internal/runtime"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/internal/versioncheck"
@@ -53,6 +52,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	metrics_config "github.com/open-policy-agent/opa/v1/plugins/server/metrics"
 	"github.com/open-policy-agent/opa/v1/repl"
+	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/server"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/disk"
@@ -441,7 +441,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	isAuthorizationEnabled := params.Authorization != server.AuthorizationOff
 
-	info, err := runtime.Term(runtime.Params{Config: config, IsAuthorizationEnabled: isAuthorizationEnabled, SkipKnownSchemaCheck: params.SkipKnownSchemaCheck})
+	runtimeInfo, err := info.NewWithOptions(info.Options{Config: config, IsAuthorizationEnabled: isAuthorizationEnabled, SkipKnownSchemaCheck: params.SkipKnownSchemaCheck})
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +512,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	manager, err := plugins.New(config,
 		params.ID,
 		store,
-		plugins.Info(info),
+		plugins.Info(runtimeInfo),
 		plugins.InitBundles(loaded.Bundles),
 		plugins.InitFiles(loaded.Files),
 		plugins.MaxErrors(params.ErrorLimit),

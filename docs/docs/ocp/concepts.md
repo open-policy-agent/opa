@@ -547,7 +547,7 @@ directories with \-c/–config. The flag can point at individual files or
 directories. If a directory is provided, OCP will load the contents of the
 directory and all subdirectories (recursively) and merge them.
 
-By default, OCP will merge object keys and override scalar values. Files are
+By default, OCP will merge object keys and override <GlossaryTooltip term="scalar-values">scalar values</GlossaryTooltip>. Files are
 loaded in lexical order and the last file to set a scalar or list value wins. If
 the –merge-conflict-fail argument is specified, then scalar and list values are
 never overridden and an error will be returned if two files set the same field

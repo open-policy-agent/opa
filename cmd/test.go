@@ -24,12 +24,12 @@ import (
 
 	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/cmd/internal/env"
-	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/compile"
 	"github.com/open-policy-agent/opa/v1/cover"
 	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/tester"
@@ -380,7 +380,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		WithUseTypeCheckAnnotations(true).
 		WithRewriteTestRules(testParams.varValues)
 
-	info, err := runtime.Term(runtime.Params{})
+	runtimeInfo, err := info.New()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -416,7 +416,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		CapturePrintOutput(true).
 		EnableTracing(testParams.verbose || testParams.varValues).
 		SetCoverageQueryTracer(coverTracer).
-		SetRuntime(info).
+		SetRuntime(runtimeInfo).
 		SetModules(modules).
 		SetBundles(bundles).
 		SetTimeout(timeout).

@@ -878,6 +878,7 @@ func (vis *VarVisitor) visit(v any) bool {
 	}
 	if v, ok := v.(Var); ok {
 		vis.Add(v)
+		return true
 	}
 	return false
 }
@@ -941,6 +942,9 @@ func (vis *VarVisitor) Walk(x any) {
 		vis.Walk(x.Value.Value)
 	case *Term:
 		vis.Walk(x.Value)
+		if vVar, ok := x.Value.(Var); ok {
+			vis.vars.AddLocation(vVar, x.Location)
+		}
 	case Ref:
 		for i := range x {
 			vis.Walk(x[i].Value)
@@ -1007,6 +1011,9 @@ func (vis *VarVisitor) WalkRef(ref Ref) {
 	}
 	for _, term := range ref {
 		vis.Walk(term.Value)
+		if vVar, ok := term.Value.(Var); ok {
+			vis.vars.AddLocation(vVar, term.Location)
+		}
 	}
 }
 

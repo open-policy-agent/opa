@@ -1545,7 +1545,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 							v = w
 						}
 						if !v.IsGenerated() {
-							if !c.err(NewError(UnsafeVarErr, r.Loc(), "var %v is unsafe", v)) {
+							if !c.err(NewError(UnsafeVarErr, vars[v].Location, "var %v is unsafe", v)) {
 								return true
 							}
 						}
@@ -4431,9 +4431,9 @@ type unsafeVars map[*Expr]VarSet
 
 func (vs unsafeVars) Add(e *Expr, v Var) {
 	if u, ok := vs[e]; ok {
-		u[v] = struct{}{}
+		u[v] = struct{ *Location }{}
 	} else {
-		vs[e] = VarSet{v: struct{}{}}
+		vs[e] = VarSet{v: struct{ *Location }{}}
 	}
 }
 

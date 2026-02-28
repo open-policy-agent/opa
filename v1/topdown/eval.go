@@ -32,6 +32,13 @@ type queryIDFactory struct {
 	curr uint64
 }
 
+type biunifyArraysRecParams struct {
+	a, b   *ast.Array
+	b1, b2 *bindings
+	iter   unifyIterator
+	idx    int
+}
+
 // Note: The first call to Next() returns 0.
 func (f *queryIDFactory) Next() uint64 {
 	curr := f.curr
@@ -147,10 +154,11 @@ func (ep *evbp) Get() *evalBuiltin {
 }
 
 var (
-	evalPool     = util.NewSyncPool[eval]()
-	deecPool     = util.NewSyncPool[deferredEarlyExitContainer]()
-	resolverPool = util.NewSyncPool[evalResolver]()
-	evalFuncPool = &evfp{
+	evalPool      = util.NewSyncPool[eval]()
+	deecPool      = util.NewSyncPool[deferredEarlyExitContainer]()
+	resolverPool  = util.NewSyncPool[evalResolver]()
+	arraysRecPool = util.NewSyncPool[biunifyArraysRecParams]()
+	evalFuncPool  = &evfp{
 		pool: sync.Pool{
 			New: func() any {
 				return &evalFunc{}
@@ -1088,7 +1096,12 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 			return e.biunifyValues(a, b, b1, b2, iter)
 		case *ast.Array:
 			if vA.Len() == vB.Len() {
-				return e.biunifyArraysRec(vA, vB, b1, b2, iter, 0)
+				params := arraysRecPool.Get()
+				params.a, params.b = vA, vB
+				params.b1, params.b2 = b1, b2
+				params.iter = iter
+				params.idx = 0
+				return e.biunifyArraysRec(params)
 			}
 		}
 	case ast.Object:
@@ -1104,12 +1117,15 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 	return nil
 }
 
-func (e *eval) biunifyArraysRec(a, b *ast.Array, b1, b2 *bindings, iter unifyIterator, idx int) error {
-	if idx == a.Len() {
-		return iter()
+func (e *eval) biunifyArraysRec(params *biunifyArraysRecParams) error {
+	if params.idx == params.a.Len() {
+		err := params.iter()
+		arraysRecPool.Put(params)
+		return err
 	}
-	return e.biunify(a.Elem(idx), b.Elem(idx), b1, b2, func() error {
-		return e.biunifyArraysRec(a, b, b1, b2, iter, idx+1)
+	return e.biunify(params.a.Elem(params.idx), params.b.Elem(params.idx), params.b1, params.b2, func() error {
+		params.idx++
+		return e.biunifyArraysRec(params)
 	})
 }
 

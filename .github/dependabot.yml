@@ -15,6 +15,8 @@ updates:
           - "*"
         exclude-patterns:
           - "go.opentelemetry.io/*"
+    cooldown:
+      default-days: 7
   - package-ecosystem: npm
     directory: /e2e/api/compile/prisma
     schedule:
@@ -23,6 +25,8 @@ updates:
       e2e/prisma:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -31,3 +35,5 @@ updates:
       gha-dependencies:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7

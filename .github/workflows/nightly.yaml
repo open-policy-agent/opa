@@ -14,18 +14,24 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Test with Race Detector
         run: CGO_ENABLED=1 make ci-go-race-detector
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3.19.0
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
-          status: ${{ job.status }}
-          fields: repo,workflow
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+            }
 
   native-fuzzer:
     name: Go Fuzzer (native)
@@ -33,6 +39,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - id: go_version
         name: Read go version
@@ -51,13 +59,17 @@ jobs:
         run: find ast/testdata/fuzz ! -name '*.stmt' ! -type d -print -exec cat {} \;
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3.19.0
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
-          status: ${{ job.status }}
-          fields: repo,workflow
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+            }
 
   go-perf:
     name: Go Perf
@@ -65,6 +77,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Benchmark Test Golang
         run: make ci-go-perf
@@ -73,13 +87,17 @@ jobs:
           DOCKER_RUNNING: 0
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3.19.0
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
-          status: ${{ job.status }}
-          fields: repo,workflow
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+            }
 
   trivy-scan-image:
     name: Trivy security scan image
@@ -87,6 +105,8 @@ jobs:
     steps:
       - name: Checkout code # needed for .trivyignore file
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - run: "docker pull openpolicyagent/opa:edge-static"
 
@@ -105,13 +125,17 @@ jobs:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3.19.0
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
-          status: ${{ job.status }}
-          fields: repo,workflow
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+            }
 
   trivy-scan-repo:
     name: Trivy security scan repo
@@ -119,6 +143,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # Equivalent to:
       # $ trivy fs .
@@ -135,19 +161,25 @@ jobs:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3.19.0
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
-          status: ${{ job.status }}
-          fields: repo,workflow
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+            }
 
   govulncheck:
     name: Go vulnerability check
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - id: go_version
         name: Read go version
         run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
@@ -161,13 +193,17 @@ jobs:
       - run: govulncheck ./...
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3.19.0
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
-          status: ${{ job.status }}
-          fields: repo,workflow
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+            }
 
   go-get-test:
     name: Go Get Smoke Test
@@ -175,6 +211,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - id: go_version
         name: Read go version
@@ -206,10 +244,14 @@ jobs:
         timeout-minutes: 10
 
       - name: Slack Notification
-        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3.19.0
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
         with:
-          status: ${{ job.status }}
-          fields: repo,workflow
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+            }

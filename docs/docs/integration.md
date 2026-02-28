@@ -27,13 +27,13 @@ OPA supports different ways to evaluate policies.
 - The [REST API](./rest-api) returns decisions as JSON over HTTP.
   - Also see the [Language SDKs](/ecosystem#languages) for working with the REST API in different languages.
 - The [Go API (GoDoc)](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/rego) returns
-  decisions as simple Go types (`bool`, `string`, `map[string]interface{}`,
+  decisions as simple Go types (`bool`, `string`, `map[string]any`,
   etc.)
 - [WebAssembly](./wasm) compiles Rego policies into Wasm instructions so they can be embedded and evaluated by any WebAssembly runtime
 - Custom compilers and evaluators may be written to parse evaluation plans in the low-level
   [Intermediate Representation](./ir) format, which can be emitted by the `opa build` command
 - The [SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/v1/sdk) provides high-level APIs for obtaining the output
-  of query evaluation as simple Go types (`bool`, `string`, `map[string]interface{}`, etc.)
+  of query evaluation as simple Go types (`bool`, `string`, `map[string]any`, etc.)
 
 ### Integrating with the REST API
 
@@ -254,7 +254,7 @@ func main() {
     defer opa.Stop(ctx)
 
     // get the named policy decision for the specified input
-    if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/authz/allow", Input: map[string]interface{}{"open": "sesame"}}); err != nil {
+    if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/authz/allow", Input: map[string]any{"open": "sesame"}}); err != nil {
         // handle error.
     } else if decision, ok := result.Result.(bool); !ok || !decision {
         // handle error.
@@ -402,12 +402,12 @@ Using the `query` returned by `rego.Rego#PrepareForEval` call the `Eval`
 function to evaluate the policy:
 
 ```go
-input := map[string]interface{}{
+input := map[string]any{
     "method": "GET",
-    "path": []interface{}{"salary", "bob"},
-    "subject": map[string]interface{}{
+    "path": []any{"salary", "bob"},
+    "subject": map[string]any{
         "user": "bob",
-        "groups": []interface{}{"sales", "marketing"},
+        "groups": []any{"sales", "marketing"},
     },
 }
 

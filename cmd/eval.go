@@ -21,7 +21,6 @@ import (
 	"github.com/open-policy-agent/opa/cmd/internal/env"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
-	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/bundle"
@@ -31,6 +30,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/profiler"
 	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -565,14 +565,14 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		query = args[0]
 	}
 
-	info, err := runtime.Term(runtime.Params{})
+	runtimeInfo, err := info.New()
 	if err != nil {
 		return nil, err
 	}
 
 	regoArgs := []func(*rego.Rego){
 		rego.Query(query),
-		rego.Runtime(info),
+		rego.Runtime(runtimeInfo),
 		rego.SetRegoVersion(params.regoVersion()),
 		rego.StoreReadAST(params.ReadAstValuesFromStore),
 		rego.SkipBundleVerification(true),
