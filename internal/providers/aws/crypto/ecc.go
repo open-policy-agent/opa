@@ -65,6 +65,10 @@ func ECDSAKeyFromPoint(curve elliptic.Curve, d *big.Int) *ecdsa.PrivateKey {
 	return privKey
 }
 
+// mathIntToBytes writes val as a big-endian, fixed-length byte slice into out,
+// zero-padding on the left when val.Bytes() is shorter than out. This satisfies
+// the uncompressed SEC 1 encoding (0x04 || X || Y) expected by crypto/ecdh's
+// NewPublicKey: https://pkg.go.dev/crypto/ecdh#Curve.NewPublicKey
 func mathIntToBytes(val *big.Int, out []byte) {
 	valBytes := val.Bytes()
 	copy(out[len(out)-len(valBytes):], valBytes)
