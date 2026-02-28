@@ -2179,3 +2179,48 @@ allow if {
 		t.Errorf("got %v (%[1]T), want %v (%[2]T)", act, exp)
 	}
 }
+
+func TestRuntimeH2CMaxConcurrentStreamsFromConfig(t *testing.T) {
+	// When H2CMaxConcurrentStreams is not set on params (zero), the value from
+	// the config file should be applied.
+	fs := map[string]string{
+		"/config.yaml": `{"server": {"h2c_max_concurrent_streams": 500}}`,
+	}
+
+	test.WithTempFS(fs, func(testDirRoot string) {
+		params := NewParams()
+		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
+
+		rt, err := NewRuntime(t.Context(), params)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if got, want := rt.Params.H2CMaxConcurrentStreams, uint32(500); got != want {
+			t.Errorf("H2CMaxConcurrentStreams: got %d, want %d", got, want)
+		}
+	})
+}
+
+func TestRuntimeH2CMaxConcurrentStreamsParamWins(t *testing.T) {
+	// When H2CMaxConcurrentStreams is explicitly set on params, it takes
+	// precedence over the config file value.
+	fs := map[string]string{
+		"/config.yaml": `{"server": {"h2c_max_concurrent_streams": 500}}`,
+	}
+
+	test.WithTempFS(fs, func(testDirRoot string) {
+		params := NewParams()
+		params.ConfigFile = filepath.Join(testDirRoot, "config.yaml")
+		params.H2CMaxConcurrentStreams = 200
+
+		rt, err := NewRuntime(t.Context(), params)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if got, want := rt.Params.H2CMaxConcurrentStreams, uint32(200); got != want {
+			t.Errorf("H2CMaxConcurrentStreams: got %d, want %d", got, want)
+		}
+	})
+}
