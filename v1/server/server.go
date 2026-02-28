@@ -379,7 +379,7 @@ func (s *Server) WithH2CEnabled(enabled bool) *Server {
 }
 
 // WithH2CMaxConcurrentStreams sets the maximum number of concurrent HTTP/2
-// streams per connection when h2c is enabled. A value of 0 uses the library default.
+// streams per connection when h2c is enabled. A value of 0 uses the golang.org/x/net/http2 default (250).
 func (s *Server) WithH2CMaxConcurrentStreams(n uint32) *Server {
 	s.h2cMaxConcurrentStreams = n
 	return s

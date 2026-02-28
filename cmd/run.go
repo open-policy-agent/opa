@@ -227,7 +227,7 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	cmdParams.rt.DiagnosticAddrs = runCommand.Flags().StringSlice("diagnostic-addr", []string{}, "set read-only diagnostic listening address of the server for /health and /metric APIs (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
 	cmdParams.rt.UnixSocketPerm = runCommand.Flags().String("unix-socket-perm", "755", "specify the permissions for the Unix domain socket if used to listen for incoming connections")
 	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
-	runCommand.Flags().Uint32Var(&cmdParams.rt.H2CMaxConcurrentStreams, "h2c-max-concurrent-streams", 0, "set maximum concurrent HTTP/2 streams per connection when H2C is enabled (0 uses the library default)")
+	runCommand.Flags().Uint32Var(&cmdParams.rt.H2CMaxConcurrentStreams, "h2c-max-concurrent-streams", 0, "set maximum concurrent HTTP/2 streams per connection when H2C is enabled (default: 250, per golang.org/x/net/http2)")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
 	addV0CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V0Compatible, false)

@@ -120,7 +120,7 @@ type Params struct {
 	H2CEnabled bool
 
 	// H2CMaxConcurrentStreams sets the maximum concurrent HTTP/2 streams per
-	// connection when H2C is enabled. Zero uses the library default.
+	// connection when H2C is enabled. Zero uses the golang.org/x/net/http2 default (250).
 	H2CMaxConcurrentStreams uint32
 
 	// Authentication is the type of authentication scheme to use.
