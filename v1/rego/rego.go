@@ -42,10 +42,7 @@ import (
 const (
 	defaultPartialNamespace = "partial"
 	wasmVarPrefix           = "^"
-)
 
-// nolint:varcheck
-const (
 	targetWasm = "wasm"
 	targetRego = "rego"
 )
@@ -1371,6 +1368,7 @@ func New(options ...func(r *Rego)) *Rego {
 	callHook := r.compiler == nil // call hook only if we created the compiler here
 
 	if r.compiler == nil {
+		//nolint:staticcheck
 		r.compiler = ast.NewCompiler().
 			WithUnsafeBuiltins(r.unsafeBuiltins).
 			WithBuiltins(r.builtinDecls).
@@ -2496,7 +2494,7 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 			Module: module,
 		}
 		module.Rules[i] = rule
-		if checkPartialResultForRecursiveRefs(body, rule.Path()) {
+		if checkPartialResultForRecursiveRefs(body, module.Package.Path.Extend(rule.Head.Reference.GroundPrefix())) {
 			return PartialResult{}, Errors{errPartialEvaluationNotEffective}
 		}
 	}
@@ -2687,7 +2685,7 @@ func (r *Rego) rewriteQueryToCaptureValue(_ ast.QueryCompiler, query ast.Body) (
 			expr.Terms = ast.Equality.Expr(terms, capture).Terms
 			r.capture[expr] = capture.Value.(ast.Var)
 		case []*ast.Term:
-			tpe := r.compiler.TypeEnv.Get(terms[0])
+			tpe := r.compiler.TypeEnv.GetByValue(terms[0].Value)
 			if !types.Void(tpe) && types.Arity(tpe) == len(terms)-1 {
 				capture = r.generateTermVar()
 				expr.Terms = append(terms, capture)

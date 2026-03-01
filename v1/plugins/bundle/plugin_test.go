@@ -4311,7 +4311,8 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 	// simulate HTTP 200 response from downloader
 	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: b})
 
-	if plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastSuccessfulRequest || plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastRequest {
+	if !plugin.status[bundleName].LastSuccessfulDownload.Equal(plugin.status[bundleName].LastSuccessfulRequest) ||
+		!plugin.status[bundleName].LastSuccessfulDownload.Equal(plugin.status[bundleName].LastRequest) {
 		t.Fatal("expected last successful request to be same as download and request")
 	}
 
@@ -4321,21 +4322,24 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 	// simulate HTTP 304 response from downloader.
 	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: nil})
 
-	if plugin.status[bundleName].LastSuccessfulDownload == plugin.status[bundleName].LastSuccessfulRequest || plugin.status[bundleName].LastSuccessfulDownload == plugin.status[bundleName].LastRequest {
+	if plugin.status[bundleName].LastSuccessfulDownload.Equal(plugin.status[bundleName].LastSuccessfulRequest) ||
+		plugin.status[bundleName].LastSuccessfulDownload.Equal(plugin.status[bundleName].LastRequest) {
 		t.Fatal("expected last successful request to differ from download and request")
 	}
 
 	// simulate HTTP 200 response from downloader
 	_ = plugin.oneShot(ctx, bundleName, download.Update{Bundle: b})
 
-	if plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastSuccessfulRequest || plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastRequest {
+	if !plugin.status[bundleName].LastSuccessfulDownload.Equal(plugin.status[bundleName].LastSuccessfulRequest) ||
+		!plugin.status[bundleName].LastSuccessfulDownload.Equal(plugin.status[bundleName].LastRequest) {
 		t.Fatal("expected last successful request to be same as download and request")
 	}
 
 	// simulate error response from downloader
 	_ = plugin.oneShot(ctx, bundleName, download.Update{Error: errors.New("xxx")})
 
-	if plugin.status[bundleName].LastSuccessfulDownload != plugin.status[bundleName].LastSuccessfulRequest || plugin.status[bundleName].LastSuccessfulDownload == plugin.status[bundleName].LastRequest {
+	if !plugin.status[bundleName].LastSuccessfulDownload.Equal(plugin.status[bundleName].LastSuccessfulRequest) ||
+		plugin.status[bundleName].LastSuccessfulDownload.Equal(plugin.status[bundleName].LastRequest) {
 		t.Fatal("expected last successful request to be same as download but different from request")
 	}
 }

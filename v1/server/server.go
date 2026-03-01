@@ -1033,7 +1033,7 @@ func getRevisions(ctx context.Context, store storage.Store, txn storage.Transact
 	br.Revisions = map[string]string{}
 
 	// Check if we still have a legacy bundle manifest in the store
-	br.LegacyRevision, err = bundle.LegacyReadRevisionFromStore(ctx, store, txn)
+	br.LegacyRevision, err = bundle.LegacyReadRevisionFromStore(ctx, store, txn) //nolint:staticcheck
 	if err != nil && !storage.IsNotFound(err) {
 		return br, err
 	}
@@ -1269,7 +1269,7 @@ func (*Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
 
 func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, true) ||
+	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, true) || //nolint:staticcheck
 		getBoolParam(r.URL, types.ParamBundlesActivationV1, true)
 	includePluginStatus := getBoolParam(r.URL, types.ParamPluginsV1, true)
 	excludePlugin := getStringSliceParam(r.URL, types.ParamExcludePluginV1)
@@ -1388,7 +1388,11 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 
 func writeHealthResponse(w http.ResponseWriter, err error) {
 	if err != nil {
-		writer.JSON(w, http.StatusInternalServerError, types.HealthResponseV1{Error: err.Error()}, false)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		if err := json.NewEncoder(w).Encode(types.HealthResponseV1{Error: err.Error()}); err != nil {
+			writer.ErrorAuto(w, err)
+		}
 		return
 	}
 

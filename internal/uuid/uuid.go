@@ -86,7 +86,7 @@ func byteDecimalToHexMAC(bytes []byte, sep string) string {
 	hexs.Grow((l * 3) - 1) // 1 byte -> 2 hexes + 1 separator (if one char)
 
 	for i, b := range bytes {
-		hexs.WriteString(fmt.Sprintf("%02x", b))
+		fmt.Fprintf(&hexs, "%02x", b)
 		if i < l-1 {
 			hexs.WriteString(sep)
 		}

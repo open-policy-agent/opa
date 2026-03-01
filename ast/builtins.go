@@ -29,7 +29,7 @@ var BuiltinMap = v1.BuiltinMap
 // Deprecated: Builtins can now be directly annotated with the
 // Nondeterministic property, and when set to true, will be ignored
 // for partial evaluation.
-var IgnoreDuringPartialEval = v1.IgnoreDuringPartialEval
+var IgnoreDuringPartialEval = v1.IgnoreDuringPartialEval //nolint:staticcheck
 
 /**
  * Unification

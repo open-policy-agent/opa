@@ -6,9 +6,9 @@
 package cover
 
 import (
-	"bytes"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -254,28 +254,29 @@ type CoverageThresholdError struct {
 }
 
 func (e *CoverageThresholdError) Error() string {
-	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf(
+	sb := &strings.Builder{}
+	fmt.Fprintf(sb,
 		"Code coverage threshold not met: got %.2f instead of %.2f",
 		e.Coverage,
-		e.Threshold))
+		e.Threshold,
+	)
 
 	if e.Report != nil && len(e.Report.Files) > 0 {
-		buffer.WriteString("\nLines not covered:")
+		sb.WriteString("\nLines not covered:")
 
 		for _, file := range util.KeysSorted(e.Report.Files) {
 			report := e.Report.Files[file]
 			for _, r := range report.NotCovered {
 				if r.Start.Row == r.End.Row {
-					buffer.WriteString(fmt.Sprintf("\n\t%s:%d", file, r.Start.Row))
+					fmt.Fprintf(sb, "\n\t%s:%d", file, r.Start.Row)
 				} else {
-					buffer.WriteString(fmt.Sprintf("\n\t%s:%d-%d", file, r.Start.Row, r.End.Row))
+					fmt.Fprintf(sb, "\n\t%s:%d-%d", file, r.Start.Row, r.End.Row)
 				}
 			}
 		}
 	}
 
-	return buffer.String()
+	return sb.String()
 }
 
 func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {

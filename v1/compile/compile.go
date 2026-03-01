@@ -607,7 +607,7 @@ func (c *Compiler) compilePlan(context.Context) error {
 
 		extras := ast.NewSet()
 		for rule := range deps {
-			extras.Add(ast.NewTerm(rule.Path()))
+			extras.Add(ast.NewTerm(rule.Module.Package.Path.Extend(rule.Head.Ref().GroundPrefix())))
 		}
 
 		sorted := extras.Sorted()
@@ -796,7 +796,7 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 			// Drop any rules that match the entrypoint path.
 			var rules []*ast.Rule
 			for _, rule := range mf.Parsed.Rules {
-				rulePath := rule.Path()
+				rulePath := rule.Module.Package.Path.Extend(rule.Head.Ref().GroundPrefix())
 				if !rulePath.Equal(entrypoint.Value) {
 					rules = append(rules, rule)
 				} else {
