@@ -18,7 +18,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"time"
 
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	"github.com/open-policy-agent/opa/internal/ref"
@@ -591,7 +590,7 @@ func (p *Plugin) checkPluginReadiness() {
 	if !p.ready {
 		readyNow := true // optimistically
 		for _, status := range p.status {
-			if len(status.Errors) > 0 || (status.LastSuccessfulActivation == time.Time{}) {
+			if len(status.Errors) > 0 || status.LastSuccessfulActivation.IsZero() {
 				readyNow = false // Not ready yet, check again on next bundle activation.
 				break
 			}
@@ -664,7 +663,7 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle, is
 		if isMultiBundle {
 			activateErr = bundle.Activate(opts)
 		} else {
-			activateErr = bundle.ActivateLegacy(opts)
+			activateErr = bundle.ActivateLegacy(opts) //nolint:staticcheck
 		}
 
 		plugins.SetCompilerOnContext(params.Context, compiler)

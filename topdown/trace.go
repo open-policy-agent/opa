@@ -65,7 +65,7 @@ type Event = v1.Event
 // Tracer defines the interface for tracing in the top-down evaluation engine.
 //
 // Deprecated: Use QueryTracer instead.
-type Tracer = v1.Tracer
+type Tracer = v1.Tracer //nolint:staticcheck
 
 // QueryTracer defines the interface for tracing in the top-down evaluation engine.
 // The implementation can provide additional configuration to modify the tracing

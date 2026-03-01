@@ -511,7 +511,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithRouter(params.Router),
 		plugins.WithPrometheusRegister(metrics),
 		plugins.WithTracerProvider(tracerProvider),
-		plugins.WithEnableTelemetry(params.EnableVersionCheck),
+		plugins.WithEnableVersionCheck(params.EnableVersionCheck),
 		plugins.WithParserOptions(params.parserOptions()),
 		plugins.WithDistributedTracingOpts(params.DistributedTracingOpts),
 		plugins.WithBundleActivatorPlugin(params.BundleActivatorPlugin),

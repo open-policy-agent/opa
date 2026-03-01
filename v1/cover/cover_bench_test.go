@@ -53,7 +53,7 @@ func BenchmarkCoverBigLocalVar(b *testing.B) {
 }
 
 func generateModule(numVars int, dataSize int) string {
-	sb := strings.Builder{}
+	sb := &strings.Builder{}
 	sb.WriteString(`package test
 
 p if {
@@ -61,12 +61,12 @@ p if {
 	v := x[i]
 `)
 	for i := range numVars {
-		sb.WriteString(fmt.Sprintf("\tv%d := x[i+%d]\n", i, i))
+		fmt.Fprintf(sb, "\tv%d := x[i+%d]\n", i, i)
 	}
 	sb.WriteString("\tfalse\n}\n")
 	sb.WriteString("\na := [\n")
 	for i := range dataSize {
-		sb.WriteString(fmt.Sprintf("\t%d,\n", i))
+		fmt.Fprintf(sb, "\t%d,\n", i)
 	}
 	sb.WriteString("]\n")
 	return sb.String()
