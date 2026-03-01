@@ -6,6 +6,7 @@
 package profiler
 
 import (
+	"slices"
 	"sort"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/topdown"
 )
+
+var unknownLocation = ast.NewLocation([]byte("???"), "", 0, 0)
 
 // Profiler computes and reports on the time spent on expressions.
 type Profiler struct {
@@ -149,11 +152,7 @@ func (p *Profiler) Trace(event *topdown.Event) {
 // TraceEvent updates the coverage state.
 func (p *Profiler) TraceEvent(event topdown.Event) {
 	switch event.Op {
-	case topdown.EvalOp:
-		if expr, ok := event.Node.(*ast.Expr); ok && expr != nil {
-			p.processExpr(expr, event.Op)
-		}
-	case topdown.RedoOp:
+	case topdown.EvalOp, topdown.RedoOp:
 		if expr, ok := event.Node.(*ast.Expr); ok && expr != nil {
 			p.processExpr(expr, event.Op)
 		}
@@ -163,7 +162,7 @@ func (p *Profiler) TraceEvent(event topdown.Event) {
 func (p *Profiler) processExpr(expr *ast.Expr, eventType topdown.Op) {
 	if expr.Location == nil {
 		// add fake location to group expressions without a location
-		expr.Location = ast.NewLocation([]byte("???"), "", 0, 0)
+		expr.Location = unknownLocation
 	}
 
 	// set the active timer on the first expression
@@ -224,10 +223,12 @@ func (p *Profiler) processLastExpr() {
 func (p *Profiler) calculateHitsByExprIndex() {
 	file := p.prevExpr.location.File
 	hitsUnique, ok := p.hitsByExprIndex[file]
-
 	if !ok {
-		hitsUnique = map[int]map[int]ExprStats{}
-		hitsUnique[p.prevExpr.location.Row] = map[int]ExprStats{p.prevExpr.index: getProfilerStats(p.prevExpr, p.activeTimer)}
+		hitsUnique = map[int]map[int]ExprStats{
+			p.prevExpr.location.Row: {
+				p.prevExpr.index: getProfilerStats(p.prevExpr, p.activeTimer),
+			},
+		}
 		p.hitsByExprIndex[file] = hitsUnique
 	} else {
 		row := p.prevExpr.location.Row
@@ -323,8 +324,8 @@ func AggregateProfiles(profiles ...[]ExprStats) []ExprStatsAggregated {
 }
 
 func sortStatsByRow(ps []ExprStats) {
-	sort.Slice(ps, func(i, j int) bool {
-		return ps[i].Location.Row < ps[j].Location.Row
+	slices.SortFunc(ps, func(stat1, stat2 ExprStats) int {
+		return stat1.Location.Row - stat2.Location.Row
 	})
 }
 

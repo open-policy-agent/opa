@@ -35,8 +35,12 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown"
 )
 
-// DefaultProfileSortOrder is the default ordering unless something is specified in the CLI
-var DefaultProfileSortOrder = []string{"total_time_ns", "num_eval", "num_redo", "file", "line"}
+var (
+	// DefaultProfileSortOrder is the default ordering unless something is specified in the CLI
+	DefaultProfileSortOrder = []string{"total_time_ns", "num_eval", "num_redo", "file", "line"}
+
+	statKeys = []string{"min", "max", "mean", "90%", "99%"}
+)
 
 // DepAnalysisOutput contains the result of dependency analysis to be presented.
 type DepAnalysisOutput struct {
@@ -534,8 +538,6 @@ func prettyMetrics(w io.Writer, m metrics.Metrics, limit int) error {
 	}
 	return nil
 }
-
-var statKeys = []string{"min", "max", "mean", "90%", "99%"}
 
 func prettyAggregatedMetrics(w io.Writer, ms map[string]any, limit int) error {
 	keys := make([]string, 1, 1+len(statKeys))
