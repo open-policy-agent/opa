@@ -377,6 +377,42 @@ func (term *Term) Copy() *Term {
 	return &cpy
 }
 
+// CopyNonGround returns a copy of term with deep copies only for non-ground
+// composite values (Array, Set, Object, Ref). Ground elements within composites
+// are shared (not deep copied) since they are immutable.
+func (term *Term) CopyNonGround() *Term {
+	if term == nil {
+		return nil
+	}
+
+	cpy := *term
+
+	switch v := term.Value.(type) {
+	case Null, Boolean, Number, String, Var:
+		cpy.Value = v
+	case Ref:
+		cpy.Value = v.CopyNonGround()
+	case *Array:
+		cpy.Value = v.CopyNonGround()
+	case Set:
+		cpy.Value = v.CopyNonGround()
+	case *object:
+		cpy.Value = v.CopyNonGround()
+	case *ArrayComprehension:
+		cpy.Value = v.CopyNonGround()
+	case *ObjectComprehension:
+		cpy.Value = v.CopyNonGround()
+	case *SetComprehension:
+		cpy.Value = v.CopyNonGround()
+	case *TemplateString:
+		cpy.Value = v.CopyNonGround()
+	case Call:
+		cpy.Value = v.CopyNonGround()
+	}
+
+	return &cpy
+}
+
 // Equal returns true if this term equals the other term. Equality is
 // defined for each kind of term, and does not compare the Location.
 func (term *Term) Equal(other *Term) bool {
@@ -864,6 +900,23 @@ func (ts *TemplateString) Copy() *TemplateString {
 			cpy.Parts[i] = v.Copy()
 		case *Term:
 			cpy.Parts[i] = v.Copy()
+		}
+	}
+	return cpy
+}
+
+func (ts *TemplateString) CopyNonGround() *TemplateString {
+	cpy := &TemplateString{MultiLine: ts.MultiLine, Parts: make([]Node, len(ts.Parts))}
+	for i, p := range ts.Parts {
+		switch v := p.(type) {
+		case *Expr:
+			cpy.Parts[i] = v.CopyNonGround()
+		case *Term:
+			if v.IsGround() {
+				cpy.Parts[i] = v
+			} else {
+				cpy.Parts[i] = v.CopyNonGround()
+			}
 		}
 	}
 	return cpy
@@ -1461,6 +1514,39 @@ func (arr *Array) Copy() *Array {
 	}
 }
 
+// CopyNonGround returns a new array with a new backing slice, but with deep copies
+// only for non-ground elements. Ground elements are shared (not deep copied) since
+// they are immutable. The array container itself is always copied to prevent mutations
+// like append from affecting the original array.
+func (arr *Array) CopyNonGround() *Array {
+	if arr == nil {
+		return nil
+	}
+
+	// Fast path: empty arrays can safely reuse the interned singleton
+	if len(arr.elems) == 0 {
+		return InternedEmptyArrayValue.(*Array)
+	}
+
+	// Always create a new slice to prevent mutations from affecting the original,
+	// but only deep copy non-ground elements
+	newElems := make([]*Term, len(arr.elems))
+	for i, elem := range arr.elems {
+		if elem.IsGround() {
+			newElems[i] = elem // Shallow copy for ground terms
+		} else {
+			newElems[i] = elem.Copy() // Deep copy for non-ground terms
+		}
+	}
+
+	return &Array{
+		elems:  newElems,
+		hashs:  arr.hashs, // Can reuse hashes - they don't change
+		hash:   arr.hash,
+		ground: arr.ground,
+	}
+}
+
 // Equal returns true if arr is equal to other.
 func (arr *Array) Equal(other Value) bool {
 	if arr == other {
@@ -1665,6 +1751,7 @@ type Set interface {
 	Value
 	Len() int
 	Copy() Set
+	CopyNonGround() Set
 	Diff(Set) Set
 	Intersect(Set) Set
 	Union(Set) Set
@@ -1740,6 +1827,44 @@ func (s *set) Copy() Set {
 	for hash := range s.elems {
 		cpy.elems[hash] = s.elems[hash].Copy()
 		cpy.keys = append(cpy.keys, cpy.elems[hash])
+	}
+
+	return cpy
+}
+
+// CopyNonGround returns a new set with new internal maps and slices, but with deep
+// copies only for non-ground elements. Ground elements are shared (not deep copied)
+// since they are immutable. The set container itself is always copied to prevent
+// mutations like Add/Remove from affecting the original set.
+func (s *set) CopyNonGround() Set {
+	if s == nil {
+		return nil
+	}
+
+	// Fast path: empty sets can safely reuse the interned singleton
+	if len(s.elems) == 0 {
+		return InternedEmptySetValue.(Set)
+	}
+
+	// Always create new internal structures to prevent mutations from affecting
+	// the original, but only deep copy non-ground elements
+	cpy := &set{
+		hash:      s.hash,
+		ground:    s.ground,
+		sortGuard: sync.Once{},
+		elems:     make(map[int]*Term, len(s.elems)),
+		keys:      make([]*Term, len(s.keys)),
+	}
+
+	i := 0
+	for hash, elem := range s.elems {
+		if elem.IsGround() {
+			cpy.elems[hash] = elem // Shallow copy for ground terms
+		} else {
+			cpy.elems[hash] = elem.Copy() // Deep copy for non-ground terms
+		}
+		cpy.keys[i] = cpy.elems[hash]
+		i++
 	}
 
 	return cpy
@@ -1991,6 +2116,7 @@ type Object interface {
 	Len() int
 	Get(*Term) *Term
 	Copy() Object
+	CopyNonGround() Object
 	Insert(*Term, *Term)
 	Iter(func(*Term, *Term) error) error
 	Until(func(*Term, *Term) bool) bool
@@ -2058,6 +2184,10 @@ func (l *lazyObj) Compare(other Value) int {
 }
 
 func (l *lazyObj) Copy() Object {
+	return l
+}
+
+func (l *lazyObj) CopyNonGround() Object {
 	return l
 }
 
@@ -2368,6 +2498,44 @@ func (obj *object) Copy() Object {
 		return k.Copy(), v.Copy(), nil
 	})
 	cpy.(*object).hash = obj.hash
+	return cpy
+}
+
+// CopyNonGround returns a new object with new internal structures, but with deep
+// copies only for non-ground keys/values. Ground keys/values are shared (not deep
+// copied) since they are immutable. The object container itself is always copied to
+// prevent mutations like Insert/Remove from affecting the original object.
+func (obj *object) CopyNonGround() Object {
+	if obj == nil {
+		return nil
+	}
+
+	// Always create new internal structures to prevent mutations from affecting
+	// the original, but only deep copy non-ground keys/values
+	cpy := newobject(obj.Len())
+
+	// Copy each key-value pair, using shallow copy for ground terms
+	for _, node := range obj.keys {
+		var k, v *Term
+
+		// Copy key
+		if node.key.IsGround() {
+			k = node.key // Shallow copy
+		} else {
+			k = node.key.Copy() // Deep copy
+		}
+
+		// Copy value
+		if node.value.IsGround() {
+			v = node.value // Shallow copy
+		} else {
+			v = node.value.Copy() // Deep copy
+		}
+
+		cpy.insert(k, v, false)
+	}
+
+	cpy.hash = obj.hash
 	return cpy
 }
 
@@ -2716,6 +2884,18 @@ func (ac *ArrayComprehension) Copy() *ArrayComprehension {
 	return &cpy
 }
 
+// CopyNonGround returns a copy of ac with optimized copying for ground terms.
+func (ac *ArrayComprehension) CopyNonGround() *ArrayComprehension {
+	cpy := *ac
+	cpy.Body = ac.Body.CopyNonGround()
+	if ac.Term.IsGround() {
+		cpy.Term = ac.Term
+	} else {
+		cpy.Term = ac.Term.CopyNonGround()
+	}
+	return &cpy
+}
+
 // Equal returns true if ac is equal to other.
 func (ac *ArrayComprehension) Equal(other Value) bool {
 	return Compare(ac, other) == 0
@@ -2777,6 +2957,23 @@ func (oc *ObjectComprehension) Copy() *ObjectComprehension {
 	return &cpy
 }
 
+// CopyNonGround returns a copy of oc with optimized copying for ground terms.
+func (oc *ObjectComprehension) CopyNonGround() *ObjectComprehension {
+	cpy := *oc
+	cpy.Body = oc.Body.CopyNonGround()
+	if oc.Key.IsGround() {
+		cpy.Key = oc.Key
+	} else {
+		cpy.Key = oc.Key.CopyNonGround()
+	}
+	if oc.Value.IsGround() {
+		cpy.Value = oc.Value
+	} else {
+		cpy.Value = oc.Value.CopyNonGround()
+	}
+	return &cpy
+}
+
 // Equal returns true if oc is equal to other.
 func (oc *ObjectComprehension) Equal(other Value) bool {
 	return Compare(oc, other) == 0
@@ -2835,6 +3032,18 @@ func (sc *SetComprehension) Copy() *SetComprehension {
 	return &cpy
 }
 
+// CopyNonGround returns a copy of sc with optimized copying for ground terms.
+func (sc *SetComprehension) CopyNonGround() *SetComprehension {
+	cpy := *sc
+	cpy.Body = sc.Body.CopyNonGround()
+	if sc.Term.IsGround() {
+		cpy.Term = sc.Term
+	} else {
+		cpy.Term = sc.Term.CopyNonGround()
+	}
+	return &cpy
+}
+
 // Equal returns true if sc is equal to other.
 func (sc *SetComprehension) Equal(other Value) bool {
 	return Compare(sc, other) == 0
@@ -2881,6 +3090,11 @@ func CallTerm(terms ...*Term) *Term {
 // Copy returns a deep copy of c.
 func (c Call) Copy() Call {
 	return termSliceCopy(c)
+}
+
+// CopyNonGround returns a copy of c with shallow copies for ground terms.
+func (c Call) CopyNonGround() Call {
+	return termSliceCopyNonGround(c)
 }
 
 // Compare compares c to other, return <0, 0, or >0 if it is less than, equal to,
@@ -2935,6 +3149,18 @@ func termSliceCopy(a []*Term) []*Term {
 	cpy := make([]*Term, len(a))
 	for i := range a {
 		cpy[i] = a[i].Copy()
+	}
+	return cpy
+}
+
+func termSliceCopyNonGround(a []*Term) []*Term {
+	cpy := make([]*Term, len(a))
+	for i := range a {
+		if a[i].IsGround() {
+			cpy[i] = a[i] // Shallow copy for ground terms
+		} else {
+			cpy[i] = a[i].CopyNonGround() // Optimized copy for non-ground
+		}
 	}
 	return cpy
 }
