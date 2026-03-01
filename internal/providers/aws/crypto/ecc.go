@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/hmac"
@@ -27,18 +28,50 @@ func ECDSAKey(curve elliptic.Curve, d []byte) *ecdsa.PrivateKey {
 // ECDSAKeyFromPoint takes the given elliptic curve and point and returns the
 // private and public keypair
 func ECDSAKeyFromPoint(curve elliptic.Curve, d *big.Int) *ecdsa.PrivateKey {
-	pX, pY := curve.ScalarBaseMult(d.Bytes())
+	dBytes := make([]byte, (curve.Params().BitSize+7)/8)
+	d.FillBytes(dBytes)
 
 	privKey := &ecdsa.PrivateKey{
 		PublicKey: ecdsa.PublicKey{
 			Curve: curve,
-			X:     pX,
-			Y:     pY,
 		},
 		D: d,
 	}
 
+	var pubBytes []byte
+	switch curve {
+	case elliptic.P256():
+		if ecdhPriv, err := ecdh.P256().NewPrivateKey(dBytes); err == nil {
+			pubBytes = ecdhPriv.PublicKey().Bytes()
+		}
+	case elliptic.P384():
+		if ecdhPriv, err := ecdh.P384().NewPrivateKey(dBytes); err == nil {
+			pubBytes = ecdhPriv.PublicKey().Bytes()
+		}
+	case elliptic.P521():
+		if ecdhPriv, err := ecdh.P521().NewPrivateKey(dBytes); err == nil {
+			pubBytes = ecdhPriv.PublicKey().Bytes()
+		}
+	}
+
+	if len(pubBytes) > 0 {
+		byteLen := (curve.Params().BitSize + 7) / 8
+		privKey.X = new(big.Int).SetBytes(pubBytes[1 : 1+byteLen])
+		privKey.Y = new(big.Int).SetBytes(pubBytes[1+byteLen:])
+	} else {
+		panic(fmt.Sprintf("unsupported curve or invalid private key: %v", curve))
+	}
+
 	return privKey
+}
+
+// mathIntToBytes writes val as a big-endian, fixed-length byte slice into out,
+// zero-padding on the left when val.Bytes() is shorter than out. This satisfies
+// the uncompressed SEC 1 encoding (0x04 || X || Y) expected by crypto/ecdh's
+// NewPublicKey: https://pkg.go.dev/crypto/ecdh#Curve.NewPublicKey
+func mathIntToBytes(val *big.Int, out []byte) {
+	valBytes := val.Bytes()
+	copy(out[len(out)-len(valBytes):], valBytes)
 }
 
 // ECDSAPublicKey takes the provide curve and (x, y) coordinates and returns
@@ -47,7 +80,25 @@ func ECDSAPublicKey(curve elliptic.Curve, x, y []byte) (*ecdsa.PublicKey, error)
 	xPoint := (&big.Int{}).SetBytes(x)
 	yPoint := (&big.Int{}).SetBytes(y)
 
-	if !curve.IsOnCurve(xPoint, yPoint) {
+	byteLen := (curve.Params().BitSize + 7) / 8
+	buf := make([]byte, 1+2*byteLen)
+	buf[0] = 4 // uncompressed point
+	mathIntToBytes(xPoint, buf[1:1+byteLen])
+	mathIntToBytes(yPoint, buf[1+byteLen:])
+
+	var err error
+	switch curve {
+	case elliptic.P256():
+		_, err = ecdh.P256().NewPublicKey(buf)
+	case elliptic.P384():
+		_, err = ecdh.P384().NewPublicKey(buf)
+	case elliptic.P521():
+		_, err = ecdh.P521().NewPublicKey(buf)
+	default:
+		err = fmt.Errorf("unsupported curve for ECDSA: %v", curve)
+	}
+
+	if err != nil {
 		return nil, fmt.Errorf("point(%v, %v) is not on the given curve", xPoint.String(), yPoint.String())
 	}
 
