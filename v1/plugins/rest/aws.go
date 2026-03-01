@@ -704,6 +704,7 @@ func (cs *awsAssumeRoleCredentialService) populateFromEnv() error {
 	case cs.AWSSigningPlugin.AWSEnvironmentCredentials != nil:
 	case cs.AWSSigningPlugin.AWSProfileCredentials != nil:
 	case cs.AWSSigningPlugin.AWSMetadataCredentials != nil:
+	case cs.AWSSigningPlugin.AWSWebIdentityCredentials != nil:
 	default:
 		return errors.New("unsupported AWS signing plugin with AssumeRole credential provider")
 	}
@@ -714,6 +715,23 @@ func (cs *awsAssumeRoleCredentialService) populateFromEnv() error {
 				return errors.New("no " + awsRegionEnvVar + " set in environment or configuration")
 			}
 		}
+	}
+
+	if cs.AWSSigningPlugin.AWSWebIdentityCredentials != nil {
+		if cs.AWSSigningPlugin.AWSWebIdentityCredentials.RegionName == "" {
+			if cs.AWSSigningPlugin.AWSWebIdentityCredentials.RegionName = os.Getenv(awsRegionEnvVar); cs.AWSSigningPlugin.AWSWebIdentityCredentials.RegionName == "" {
+				return errors.New("no " + awsRegionEnvVar + " set in environment or configuration")
+			}
+		}
+		if cs.AWSSigningPlugin.AWSWebIdentityCredentials.WebIdentityTokenFile == "" {
+			if cs.AWSSigningPlugin.AWSWebIdentityCredentials.WebIdentityTokenFile = os.Getenv(awsWebIdentityTokenFileEnvVar); cs.AWSSigningPlugin.AWSWebIdentityCredentials.WebIdentityTokenFile == "" {
+				return errors.New("no " + awsWebIdentityTokenFileEnvVar + " set in environment or configuration")
+			}
+		}
+		if cs.AWSSigningPlugin.AWSWebIdentityCredentials.RoleArn == "" {
+			return errors.New("RoleArn must be set in configuration for AWS Web Identity signing plugin")
+		}
+
 	}
 
 	if cs.AWSSigningPlugin.AWSSignatureVersion == "" {
@@ -748,6 +766,11 @@ func (cs *awsAssumeRoleCredentialService) signingCredentials(ctx context.Context
 	if cs.AWSSigningPlugin.AWSProfileCredentials != nil {
 		cs.AWSSigningPlugin.AWSProfileCredentials.logger = cs.logger
 		return cs.AWSSigningPlugin.AWSProfileCredentials.credentials(ctx)
+	}
+
+	if cs.AWSSigningPlugin.AWSWebIdentityCredentials != nil {
+		cs.AWSSigningPlugin.AWSWebIdentityCredentials.logger = cs.logger
+		return cs.AWSSigningPlugin.AWSWebIdentityCredentials.credentials(ctx)
 	}
 
 	cs.AWSSigningPlugin.AWSMetadataCredentials.logger = cs.logger

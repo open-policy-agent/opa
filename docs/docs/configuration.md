@@ -481,7 +481,7 @@ via [AssumeRole](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeR
 :::info
 For using `services[_].credentials.s3_signing.assume_role_credentials`, a method for setting the AWS credentials has to be specified in the `services[_].credentials.s3_signing.assume_role_credentials.aws_signing`.
 The value of `services[_].credentials.s3_signing.assume_role_credentials.aws_signing.service` is set to `sts`. Several methods of obtaining the necessary credentials are available; exactly one must be specified,
-see description for `services[_].credentials.s3_signing`. Currently supported methods are `services[_].credentials.s3_signing.environment_credentials`, `services[_].credentials.s3_signing.profile_credentials` and
+see description for `services[_].credentials.s3_signing`. Currently supported methods are `services[_].credentials.s3_signing.environment_credentials`, `services[_].credentials.s3_signing.profile_credentials`, `services[_].credentials.s3_signing.web_identity_credentials` and
 `services[_].credentials.s3_signing.metadata_credentials`. OPA will follow this _internally defined_ order of precedence when multiple credential providers are specified.
 :::
 
