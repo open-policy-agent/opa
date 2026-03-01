@@ -3,6 +3,8 @@ package ast
 import (
 	"encoding"
 	"fmt"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func (m *Module) AppendText(buf []byte) ([]byte, error) {
@@ -321,4 +323,20 @@ func (d *SomeDecl) AppendText(buf []byte) ([]byte, error) {
 
 func (c *Comment) AppendText(buf []byte) ([]byte, error) {
 	return append(append(buf, '#'), c.Text...), nil
+}
+
+// RulePath returns the string representation of the rule's path, i.e. its package path followed by the rule head ref.
+func RulePath(r *Rule) string {
+	if r == nil {
+		return "<nil rule>"
+	}
+	if r.Module == nil {
+		return "<rule " + r.Head.Reference.String() + " without module>"
+	}
+	buf := make([]byte, 0, r.Module.Package.Path.StringLength()+r.Head.Ref().StringLength()+1)
+	buf, _ = r.Module.Package.Path.AppendText(buf)
+	buf = append(buf, '.')
+	buf, _ = r.Head.Ref().AppendText(buf)
+
+	return util.ByteSliceToString(buf)
 }

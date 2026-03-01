@@ -8250,7 +8250,7 @@ func generateDeeplyNestedArray(depth int) string {
 func generateDeeplyNestedObject(depth int) string {
 	var sb strings.Builder
 	for i := range depth {
-		sb.WriteString(fmt.Sprintf(`{"key%d": `, i))
+		fmt.Fprintf(&sb, `{"key%d": `, i)
 	}
 	sb.WriteString("1")
 	for range depth {
