@@ -787,53 +787,14 @@ func pruneAnnotationsAndComments(
 	module *ast.Module,
 	shouldDiscard func(*ast.Annotations) bool,
 ) ([]*ast.Annotations, []*ast.Comment) {
-	var keepAnnotations []*ast.Annotations
-	var discardedAnnotations []*ast.Annotations
-
-	for _, annotation := range module.Annotations {
-		if shouldDiscard(annotation) {
-			discardedAnnotations = append(discardedAnnotations, annotation)
-		} else {
-			keepAnnotations = append(keepAnnotations, annotation)
-		}
-	}
+	keepAnnotations := slices.DeleteFunc(slices.Clone(module.Annotations), shouldDiscard)
 
 	var keepComments []*ast.Comment
 	for _, comment := range module.Comments {
-		// Preserve comments that are part of kept annotations
-		if slices.ContainsFunc(keepAnnotations, func(annotation *ast.Annotations) bool {
-			return comment.Location.Row >= annotation.Location.Row &&
-				comment.Location.Row <= annotation.EndLoc().Row
+		if slices.ContainsFunc(keepAnnotations, func(a *ast.Annotations) bool {
+			return comment.Location.Row >= a.Location.Row &&
+				comment.Location.Row <= a.EndLoc().Row
 		}) {
-			keepComments = append(keepComments, comment)
-			continue
-		}
-
-		// Check if comment should be discarded with a discarded annotation
-		discardComment := false
-		for _, annotation := range discardedAnnotations {
-			annotStartRow := annotation.Location.Row
-			annotEndRow := annotation.EndLoc().Row
-
-			// Find the row where the target rule starts
-			var ruleStartRow int
-			targetPath := annotation.GetTargetPath()
-			for _, rule := range module.Rules {
-				if rule.Path().Equal(targetPath) {
-					ruleStartRow = rule.Location.Row
-					break
-				}
-			}
-
-			// Discard comments within annotation range OR immediately before (within 2 rows)
-			if (comment.Location.Row >= annotStartRow && comment.Location.Row <= annotEndRow) ||
-				(ruleStartRow > 0 && comment.Location.Row < annotStartRow && comment.Location.Row >= annotStartRow-2) {
-				discardComment = true
-				break
-			}
-		}
-
-		if !discardComment {
 			keepComments = append(keepComments, comment)
 		}
 	}
@@ -1250,16 +1211,8 @@ func (*optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 		}
 
 		if len(keep) > 0 {
-			// Prune annotations and comments for discarded rules
 			keepAnnotations, keepComments := pruneAnnotationsAndComments(a[i].Parsed, func(annotation *ast.Annotations) bool {
-				p := annotation.GetTargetPath()
-				for j := 0; j < discarded.Len(); j++ {
-					discardedRef := discarded.Slice()[j].Value.(ast.Ref)
-					if p.Equal(discardedRef) {
-						return true
-					}
-				}
-				return false
+				return discarded.Contains(ast.NewTerm(annotation.GetTargetPath()))
 			})
 
 			a[i].Parsed.Rules = keep
