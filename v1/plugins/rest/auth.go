@@ -655,7 +655,10 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 		r.Header.Add(k, v)
 	}
 
-	client := DefaultRoundTripperClient(&tls.Config{InsecureSkipVerify: ap.tlsSkipVerify}, 10)
+	client := DefaultRoundTripperClient(&tls.Config{
+		MinVersion:         defaultMinTLSVersion,
+		InsecureSkipVerify: ap.tlsSkipVerify,
+	}, 10)
 	response, err := client.Do(r)
 	if err != nil {
 		return nil, err

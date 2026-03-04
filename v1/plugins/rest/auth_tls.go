@@ -20,9 +20,15 @@ import (
 	"time"
 )
 
+const (
+	defaultMinTLSVersion = tls.VersionTLS12
+)
+
 // DefaultTLSConfig defines standard TLS configurations based on the Config
 func DefaultTLSConfig(c Config) (*tls.Config, error) {
-	t := &tls.Config{}
+	t := &tls.Config{
+		MinVersion: defaultMinTLSVersion,
+	}
 	url, err := url.Parse(c.URL)
 	if err != nil {
 		return nil, err
