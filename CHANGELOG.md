@@ -14,6 +14,7 @@ The `HTTPAuthPlugin.NewClient()` method is now called once per `Client` instance
 - plugins/rest: Configurable re-read interval for TLS client certificates via `cert_reread_interval_seconds` field.
    Defaults to re-reading on every request for backwards compatibility.
    The implementation also uses content hashing to detect changes and avoid re-parsing unchanged TLS certificates and keys.
+- plugins/rest: All TLS configurations now inherit the minimum version and TLS ciphersuites as configured for the server.
 
 ## 1.14.1
 

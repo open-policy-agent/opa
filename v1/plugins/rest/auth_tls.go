@@ -18,17 +18,20 @@ import (
 	"os"
 	"sync"
 	"time"
-)
 
-const (
-	defaultMinTLSVersion = tls.VersionTLS12
+	"github.com/open-policy-agent/opa/v1/config"
 )
 
 // DefaultTLSConfig defines standard TLS configurations based on the Config
 func DefaultTLSConfig(c Config) (*tls.Config, error) {
 	t := &tls.Config{
-		MinVersion: defaultMinTLSVersion,
+		MinVersion: cmp.Or(c.minTLSVersion, uint16(config.DefaultMinTLSVersion)),
 	}
+
+	if c.cipherSuites != nil {
+		t.CipherSuites = *c.cipherSuites
+	}
+
 	url, err := url.Parse(c.URL)
 	if err != nil {
 		return nil, err

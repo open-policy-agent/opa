@@ -218,6 +218,8 @@ type Manager struct {
 	bootstrapConfigLabels        map[string]string
 	hooks                        hooks.Hooks
 	enableVersionCheck           bool
+	minTLSVersion                uint16
+	cipherSuites                 *[]uint16
 	versionChecker               versioncheck.Checker
 	opaReportNotifyCh            chan struct{}
 	stop                         chan chan struct{}
@@ -457,6 +459,20 @@ func WithVersionChecker(checker versioncheck.Checker) func(*Manager) {
 func WithBundleActivatorPlugin(bundleActivatorPlugin string) func(*Manager) {
 	return func(m *Manager) {
 		m.bundleActivatorPlugin = bundleActivatorPlugin
+	}
+}
+
+// WithMinTLSVersion sets the minimum TLS version for REST client connections
+func WithMinTLSVersion(v uint16) func(*Manager) {
+	return func(m *Manager) {
+		m.minTLSVersion = v
+	}
+}
+
+// WithCipherSuites sets the cipher suites for REST client connections
+func WithCipherSuites(cs *[]uint16) func(*Manager) {
+	return func(m *Manager) {
+		m.cipherSuites = cs
 	}
 }
 
@@ -842,6 +858,8 @@ func (m *Manager) DefaultServiceOpts(config *config.Config) cfg.ServiceOptions {
 		Logger:                m.logger,
 		Keys:                  m.keys,
 		DistributedTacingOpts: m.distributedTacingOpts,
+		MinTLSVersion:         m.minTLSVersion,
+		CipherSuites:          m.cipherSuites,
 	}
 }
 

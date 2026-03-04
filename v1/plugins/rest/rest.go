@@ -67,9 +67,11 @@ type Config struct {
 		AzureManagedIdentity *azureManagedIdentitiesAuthPlugin  `json:"azure_managed_identity,omitempty"`
 		Plugin               *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
-	Type   string `json:"type,omitempty"`
-	keys   map[string]*keys.Config
-	logger logging.Logger
+	Type          string `json:"type,omitempty"`
+	keys          map[string]*keys.Config
+	logger        logging.Logger
+	minTLSVersion uint16
+	cipherSuites  *[]uint16
 }
 
 // Equal returns true if this client config is equal to the other.
@@ -168,6 +170,20 @@ func Logger(l logging.Logger) func(*Client) {
 func DistributedTracingOpts(tr tracing.Options) func(*Client) {
 	return func(c *Client) {
 		c.distributedTacingOpts = tr
+	}
+}
+
+// MinTLSVersion sets the minimum TLS version for the client
+func MinTLSVersion(v uint16) func(*Client) {
+	return func(c *Client) {
+		c.config.minTLSVersion = v
+	}
+}
+
+// CipherSuites sets the cipher suites for the client
+func CipherSuites(cs *[]uint16) func(*Client) {
+	return func(c *Client) {
+		c.config.cipherSuites = cs
 	}
 }
 

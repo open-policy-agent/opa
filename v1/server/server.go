@@ -34,6 +34,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/json/patch"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/hooks"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -80,8 +81,6 @@ const (
 )
 
 const (
-	defaultMinTLSVersion = tls.VersionTLS12
-
 	// Set of handlers for use in the "handler" dimension of the duration metric.
 	PromHandlerV0Data     = "v0/data"
 	PromHandlerV1Data     = "v1/data"
@@ -416,7 +415,7 @@ func (s *Server) WithMinTLSVersion(minTLSVersion uint16) *Server {
 	if slices.Contains(supportedTLSVersions, minTLSVersion) {
 		s.minTLSVersion = minTLSVersion
 	} else {
-		s.minTLSVersion = defaultMinTLSVersion
+		s.minTLSVersion = config.DefaultMinTLSVersion
 	}
 	return s
 }
@@ -691,7 +690,7 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 			if s.minTLSVersion != 0 {
 				cfg.MinVersion = s.minTLSVersion
 			} else {
-				cfg.MinVersion = defaultMinTLSVersion
+				cfg.MinVersion = config.DefaultMinTLSVersion
 			}
 
 			if s.cipherSuites != nil {
