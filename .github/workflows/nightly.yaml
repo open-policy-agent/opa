@@ -30,7 +30,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   native-fuzzer:
@@ -68,7 +68,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   go-perf:
@@ -96,7 +96,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   trivy-scan-image:
@@ -134,7 +134,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   trivy-scan-repo:
@@ -170,7 +170,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   govulncheck:
@@ -202,7 +202,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   go-get-test:
@@ -253,5 +253,5 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
