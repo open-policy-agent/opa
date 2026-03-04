@@ -40,8 +40,13 @@ var maskedHeaderKeys = map[string]struct{}{
 
 // An HTTPAuthPlugin represents a mechanism to construct and configure HTTP authentication for a REST service
 type HTTPAuthPlugin interface {
-	// implementations can assume NewClient will be called before Prepare
+	// NewClient is called once per Client instance and the result is cached.
+	// Implementations MUST NOT perform per-request operations here.
+	// All per-request authentication logic MUST be in Prepare().
 	NewClient(Config) (*http.Client, error)
+
+	// Prepare is called before every HTTP request.
+	// Implementations should perform per-request authentication here.
 	Prepare(*http.Request) error
 }
 
