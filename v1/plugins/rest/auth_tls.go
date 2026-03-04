@@ -7,6 +7,7 @@ package rest
 import (
 	"cmp"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -79,34 +80,52 @@ type serverTLSConfig struct {
 
 // clientTLSAuthPlugin represents authentication via client certificate on a TLS connection
 type clientTLSAuthPlugin struct {
-	Cert                 string `json:"cert"`
-	PrivateKey           string `json:"private_key"`
-	PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
-	CACert               string `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
-	SystemCARequired     bool   `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
+	Cert                      string `json:"cert"`
+	PrivateKey                string `json:"private_key"`
+	PrivateKeyPassphrase      string `json:"private_key_passphrase,omitempty"`
+	CACert                    string `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
+	SystemCARequired          bool   `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
+	CertRereadIntervalSeconds *int64 `json:"cert_reread_interval_seconds,omitempty"`
 
-	mu              sync.RWMutex
-	cachedCert      *tls.Certificate
-	certFileModTime time.Time
-	keyFileModTime  time.Time
+	mu           sync.RWMutex
+	cachedCert   *tls.Certificate
+	certFileHash [32]byte
+	keyFileHash  [32]byte
+	lastLoadTime time.Time
 }
 
 func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
-	certInfo, err := os.Stat(ap.Cert)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat client certificate file: %w", err)
+	rereadIntervalSeconds := int64(0)
+	if ap.CertRereadIntervalSeconds != nil {
+		rereadIntervalSeconds = *ap.CertRereadIntervalSeconds
 	}
-
-	keyInfo, err := os.Stat(ap.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat client key file: %w", err)
-	}
-
-	certModTime := certInfo.ModTime()
-	keyModTime := keyInfo.ModTime()
 
 	ap.mu.RLock()
-	if ap.cachedCert != nil && ap.certFileModTime.Equal(certModTime) && ap.keyFileModTime.Equal(keyModTime) {
+	if ap.cachedCert != nil && rereadIntervalSeconds > 0 {
+		timeSinceLastLoad := time.Since(ap.lastLoadTime).Seconds()
+		if timeSinceLastLoad < float64(rereadIntervalSeconds) {
+			cert := ap.cachedCert
+			ap.mu.RUnlock()
+			return cert, nil
+		}
+	}
+	ap.mu.RUnlock()
+
+	certPEMBlock, err := os.ReadFile(ap.Cert)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read client certificate file: %w", err)
+	}
+
+	keyData, err := os.ReadFile(ap.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read client key file: %w", err)
+	}
+
+	certHash := sha256.Sum256(certPEMBlock)
+	keyHash := sha256.Sum256(keyData)
+
+	ap.mu.RLock()
+	if ap.cachedCert != nil && ap.certFileHash == certHash && ap.keyFileHash == keyHash {
 		cert := ap.cachedCert
 		ap.mu.RUnlock()
 		return cert, nil
@@ -114,12 +133,7 @@ func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
 	ap.mu.RUnlock()
 
 	var keyPEMBlock []byte
-	data, err := os.ReadFile(ap.PrivateKey)
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode(data)
+	block, _ := pem.Decode(keyData)
 	if block == nil {
 		return nil, errors.New("PEM data could not be found")
 	}
@@ -152,12 +166,7 @@ func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
 			},
 		)
 	} else {
-		keyPEMBlock = data
-	}
-
-	certPEMBlock, err := os.ReadFile(ap.Cert)
-	if err != nil {
-		return nil, err
+		keyPEMBlock = keyData
 	}
 
 	cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
@@ -167,8 +176,9 @@ func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
 
 	ap.mu.Lock()
 	ap.cachedCert = &cert
-	ap.certFileModTime = certModTime
-	ap.keyFileModTime = keyModTime
+	ap.certFileHash = certHash
+	ap.keyFileHash = keyHash
+	ap.lastLoadTime = time.Now()
 	ap.mu.Unlock()
 
 	return &cert, nil
