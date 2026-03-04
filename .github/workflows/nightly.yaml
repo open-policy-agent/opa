@@ -30,7 +30,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   native-fuzzer:
@@ -68,7 +68,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   go-perf:
@@ -96,7 +96,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   trivy-scan-image:
@@ -113,7 +113,7 @@ jobs:
       # Equivalent to:
       # $ trivy image openpolicyagent/opa:edge-static
       - name: Run Trivy scan on image
-        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # 0.34.1
         with:
           image-ref: 'openpolicyagent/opa:edge-static'
           format: table
@@ -134,7 +134,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   trivy-scan-repo:
@@ -149,7 +149,7 @@ jobs:
       # Equivalent to:
       # $ trivy fs .
       - name: Run Trivy scan on repo
-        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # 0.34.1
         with:
           scan-type: fs
           format: table
@@ -170,7 +170,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   govulncheck:
@@ -202,7 +202,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
 
   go-get-test:
@@ -253,5 +253,5 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Workflow `${{ github.workflow }}` in `${{ github.repository }}` failed with status: ${{ job.status }}"
+              "text": "Nightly check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
             }
