@@ -4,6 +4,7 @@ package aws
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -115,7 +116,18 @@ func deriveKeyFromAccessKeyPair(accessKey, secretKey string) (*ecdsa.PrivateKey,
 	priv := new(ecdsa.PrivateKey)
 	priv.PublicKey.Curve = p256
 	priv.D = d
-	priv.PublicKey.X, priv.PublicKey.Y = p256.ScalarBaseMult(d.Bytes())
+
+	dBytes := make([]byte, 32)
+	d.FillBytes(dBytes)
+
+	ecdhPriv, err := ecdh.P256().NewPrivateKey(dBytes)
+	if err != nil {
+		return nil, err
+	}
+	pubBytes := ecdhPriv.PublicKey().Bytes()
+
+	priv.PublicKey.X = new(big.Int).SetBytes(pubBytes[1:33])
+	priv.PublicKey.Y = new(big.Int).SetBytes(pubBytes[33:])
 
 	return priv, nil
 }
