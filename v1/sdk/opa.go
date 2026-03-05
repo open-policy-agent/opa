@@ -243,20 +243,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 
 	manager.Register(discovery.Name, d)
 
-	if err := manager.Start(ctx); err != nil {
-		return err
-	}
-
-	if block {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ready:
-		}
-	}
-
 	opa.mtx.Lock()
-	defer opa.mtx.Unlock()
 
 	// NOTE(tsandall): there is no return value from Stop() and it could block
 	// on async operations (e.g., decision log uploading) so defer the call to
@@ -276,6 +263,20 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 	opa.state.interQueryBuiltinCache = cache.NewInterQueryCacheWithContext(ctx, manager.InterQueryBuiltinCacheConfig())
 	opa.state.interQueryBuiltinValueCache = cache.NewInterQueryValueCache(ctx, manager.InterQueryBuiltinCacheConfig())
 	opa.config = bs
+
+	opa.mtx.Unlock()
+
+	if err := manager.Start(ctx); err != nil {
+		return err
+	}
+
+	if block {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ready:
+		}
+	}
 
 	return nil
 }
