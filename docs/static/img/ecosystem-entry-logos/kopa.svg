@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <rect x="56" y="56" width="400" height="400" rx="72" fill="#111827" stroke="#22c55e" stroke-width="12"/>
+  <path d="M160 176h56l40 64 40-64h56l-68 104 72 112h-56l-44-70-44 70h-56l72-112z" fill="#e5e7eb"/>
+  <text x="256" y="444" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" fill="#22c55e">KOPA</text>
+</svg>
