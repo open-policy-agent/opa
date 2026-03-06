@@ -12,13 +12,13 @@ import v1 "github.com/open-policy-agent/opa/v1/ast"
 // visited.
 //
 // Deprecated: use GenericVisitor or another visitor implementation
-type Visitor = v1.Visitor
+type Visitor = v1.Visitor //nolint:staticcheck
 
 // BeforeAndAfterVisitor wraps Visitor to provide hooks for being called before
 // and after the AST has been visited.
 //
 // Deprecated: use GenericVisitor or another visitor implementation
-type BeforeAndAfterVisitor = v1.BeforeAndAfterVisitor
+type BeforeAndAfterVisitor = v1.BeforeAndAfterVisitor //nolint:staticcheck
 
 // Walk iterates the AST by calling the Visit function on the Visitor
 // v for x before recursing.

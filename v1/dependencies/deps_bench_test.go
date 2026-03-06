@@ -59,24 +59,25 @@ func BenchmarkVirtual(b *testing.B) {
 // makePolicy constructs a policy with ruleCount number of rules.
 // Each rule will depend on as many other rules as possible without creating circular dependencies.
 func makePolicy(ruleCount int) string {
-	var b strings.Builder
-	b.WriteString("package test\n\n")
+	sb := &strings.Builder{}
 
-	b.WriteString("main if {\n")
+	sb.WriteString("package test\n\n")
+
+	sb.WriteString("main if {\n")
 	for i := range ruleCount {
-		b.WriteString(fmt.Sprintf("  p_%d\n", i))
+		fmt.Fprintf(sb, "  p_%d\n", i)
 	}
-	b.WriteString("}\n\n")
+	sb.WriteString("}\n\n")
 
 	for i := range ruleCount {
-		b.WriteString(fmt.Sprintf("p_%d if {\n", i))
+		fmt.Fprintf(sb, "p_%d if {\n", i)
 		for j := i + 1; j < ruleCount; j++ {
-			b.WriteString(fmt.Sprintf("  p_%d\n", j))
+			fmt.Fprintf(sb, "  p_%d\n", j)
 		}
-		b.WriteString("  input.x == 1\n")
-		b.WriteString("  input.y == 2\n")
-		b.WriteString("  input.z == 3\n")
-		b.WriteString("}\n")
+		sb.WriteString("  input.x == 1\n")
+		sb.WriteString("  input.y == 2\n")
+		sb.WriteString("  input.z == 3\n")
+		sb.WriteString("}\n")
 	}
-	return b.String()
+	return sb.String()
 }

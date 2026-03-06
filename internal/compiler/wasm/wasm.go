@@ -32,7 +32,6 @@ const (
 	opaWasmABIMinorVersionVar = "opa_wasm_abi_minor_version"
 )
 
-// nolint: varcheck
 const (
 	opaTypeNull int32 = iota + 1
 	opaTypeBoolean

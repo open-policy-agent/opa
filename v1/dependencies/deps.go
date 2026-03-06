@@ -147,19 +147,13 @@ func virtual(compiler *ast.Compiler, x any, virtualRefs *dependencies) error {
 	}
 
 	for _, r := range refs {
-		r = r.ConstantPrefix()
-		if rules := compiler.GetRules(r); len(rules) > 0 {
-			for _, rule := range rules {
-				if virtualRefs.visited(rule) {
-					continue
-				}
+		for _, rule := range compiler.GetRules(r.ConstantPrefix()) {
+			if !virtualRefs.visited(rule) {
 				virtualRefs.visit(rule)
-				err := virtual(compiler, rule, virtualRefs)
-				if err != nil {
+				if err := virtual(compiler, rule, virtualRefs); err != nil {
 					panic("not reached")
 				}
-
-				virtualRefs.add(rule.Path())
+				virtualRefs.add(rule.Module.Package.Path.Extend(rule.Head.Ref().GroundPrefix()))
 			}
 		}
 	}

@@ -3143,7 +3143,8 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload != disco.status.LastRequest {
+	if !disco.status.LastSuccessfulDownload.Equal(disco.status.LastSuccessfulRequest) ||
+		!disco.status.LastSuccessfulDownload.Equal(disco.status.LastRequest) {
 		t.Fatal("expected last successful request to be same as download and request")
 	}
 
@@ -3158,7 +3159,8 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if disco.status.LastSuccessfulDownload == disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload == disco.status.LastRequest {
+	if disco.status.LastSuccessfulDownload.Equal(disco.status.LastSuccessfulRequest) ||
+		disco.status.LastSuccessfulDownload.Equal(disco.status.LastRequest) {
 		t.Fatal("expected last successful download to differ from request and last request")
 	}
 
@@ -3172,7 +3174,8 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload != disco.status.LastRequest {
+	if !disco.status.LastSuccessfulDownload.Equal(disco.status.LastSuccessfulRequest) ||
+		!disco.status.LastSuccessfulDownload.Equal(disco.status.LastRequest) {
 		t.Fatal("expected last successful request to be same as download and request")
 	}
 
@@ -3186,7 +3189,8 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload == disco.status.LastRequest {
+	if !disco.status.LastSuccessfulDownload.Equal(disco.status.LastSuccessfulRequest) ||
+		disco.status.LastSuccessfulDownload.Equal(disco.status.LastRequest) {
 		t.Fatal("expected last successful request to be same as download but different from request")
 	}
 }

@@ -67,7 +67,24 @@ linters:
           disabled: true
         - name: unused-receiver
           disabled: false
+    staticcheck:
+      checks:
+        # https://staticcheck.dev/docs/checks/#<check-id> for more details on these rules
+        [
+          "all",
+          "-ST1000",
+          "-ST1003",
+          "-ST1016",
+          "-ST1020",
+          "-ST1021",
+          "-ST1022",
+          "-QF1001",
+          "-QF1002",
+          "-QF1003",
+          "-QF1008",
+        ]
   exclusions:
+    warn-unused: true
     generated: lax
     presets:
       - comments
@@ -77,159 +94,14 @@ linters:
     rules:
       - linters:
           - staticcheck
-        path: ast/
-        text: SA1019
+        text: This package is intended for older projects transitioning from OPA v0.x
+        path-except: v1/
       - linters:
           - staticcheck
-        path: bundle/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: capabilities/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: compile/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: config/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: cover/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: debug/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: dependencies/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: download/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: format/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: hooks/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: ir/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: keys/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: loader/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: logging/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: metrics/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: plugins/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: profiler/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: refactor/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: repl/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: rego/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: resolver/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: runtime/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: schemas/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: sdk/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: server/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: storage/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: tester/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: topdown/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: tracing/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: types/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: util/
-        text: SA1019
-      - linters:
-          - staticcheck
-        path: version/
-        text: SA1019
-      - linters:
-          - staticcheck
-        text: QF1001
-      - linters:
-          - staticcheck
-        text: QF1002
-      - linters:
-          - staticcheck
-        text: QF1003
-      - linters:
-          - staticcheck
-        text: QF1008
-      - linters:
-          - staticcheck
-        text: QF1009
-      - linters:
-          - staticcheck
-        text: QF1012
+        text: SA1019 # Using a deprecated function, variable, constant or field
+        path: _test\.go
     paths:
       - internal/gojsonschema
-      - third_party$
-      - builtin$
-      - examples$
 issues:
   # don't hide issues in CI runs because they are the same type
   max-same-issues: 0
@@ -239,8 +111,3 @@ formatters:
     - goimports
   exclusions:
     generated: lax
-    paths:
-      - internal/gojsonschema
-      - third_party$
-      - builtin$
-      - examples$

@@ -405,7 +405,7 @@ func (r *REPL) complete(line string) []string {
 	// add virtual docs defined in repl
 	for _, mod := range r.modules {
 		for _, rule := range mod.Rules {
-			path := rule.Path().String()
+			path := ast.RulePath(rule)
 			if strings.HasPrefix(path, line) {
 				set[path] = struct{}{}
 			}
@@ -421,8 +421,7 @@ func (r *REPL) complete(line string) []string {
 	// add virtual docs defined by policies
 	for _, mod := range mods {
 		for _, rule := range mod.Rules {
-			path := rule.Path().String()
-			if strings.HasPrefix(path, line) {
+			if path := ast.RulePath(rule); strings.HasPrefix(path, line) {
 				set[path] = struct{}{}
 			}
 		}
@@ -1305,7 +1304,7 @@ func (r *REPL) printTypes(_ context.Context, typeEnv *ast.TypeEnv, body ast.Body
 	vis.Walk(body)
 
 	for v := range vis.Vars() {
-		fmt.Fprintf(r.output, "# %v: %v\n", v, typeEnv.Get(v))
+		fmt.Fprintf(r.output, "# %v: %v\n", v, typeEnv.GetByValue(v))
 	}
 }
 

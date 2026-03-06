@@ -639,7 +639,7 @@ func getPluginSet(
 	// Parse and validate bundle/logs/status configurations.
 
 	// If `bundle` was configured use that, otherwise try the new `bundles` option
-	bundleConfig, err := bundle.ParseConfig(config.Bundle, serviceNames)
+	bundleConfig, err := bundle.ParseConfig(config.Bundle, serviceNames) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
@@ -760,7 +760,7 @@ func registerBundleStatusUpdates(m *plugins.Manager) {
 	// Depending on how the plugin was configured we will want to use different listeners
 	// for backwards compatibility.
 	if !bp.Config().IsMultiBundle() {
-		bp.Register(pluginlistener(status.Name), sp.UpdateBundleStatus)
+		bp.Register(pluginlistener(status.Name), sp.UpdateBundleStatus) //nolint:staticcheck
 	} else {
 		bp.RegisterBulkListener(pluginlistener(status.Name), sp.BulkUpdateBundleStatus)
 	}
