@@ -60,11 +60,30 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/disk"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
+	"github.com/open-policy-agent/opa/v1/topdown"
+	astTypes "github.com/open-policy-agent/opa/v1/types"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 	"github.com/open-policy-agent/opa/v1/version"
 	prom "github.com/prometheus/client_golang/prometheus"
 )
+
+func init() {
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: "test.set_outgoing",
+		Decl: astTypes.NewFunction(nil, astTypes.B),
+	})
+
+	topdown.RegisterBuiltinFunc(
+		"test.set_outgoing",
+		func(bctx topdown.BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
+			if bctx.OutgoingMetadata != nil {
+				bctx.OutgoingMetadata["version"] = "1.0"
+			}
+			return iter(ast.BooleanTerm(true))
+		},
+	)
+}
 
 type tr struct {
 	method string
@@ -4553,6 +4572,102 @@ func TestDecisionLogging(t *testing.T) {
 	}
 }
 
+func TestDecisionLogRequestMetadata(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+
+	var logged *Info
+
+	f.server = f.server.WithDecisionIDFactory(func() string {
+		return "test-id"
+	}).WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
+		logged = info
+		return nil
+	})
+
+	if err := f.v1("PUT", "/policies/test", "package test\np = true", http.StatusOK, "{}"); err != nil {
+		t.Fatal(err)
+	}
+
+	body := `{"input": {"user": "alice"}, "com.example.opa/metadata": {"trace_id": "abc-123"}}`
+	if err := f.v1("POST", "/data/test/p", body, http.StatusOK, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if logged == nil {
+		t.Fatal("expected decision log entry")
+	}
+
+	if logged.Custom == nil {
+		t.Fatal("expected Custom in decision log")
+	}
+
+	incoming, ok := logged.Custom["incoming_metadata"].(map[string]any)
+	if !ok {
+		t.Fatal("expected incoming_metadata in Custom")
+	}
+
+	md, ok := incoming["com.example.opa/metadata"].(map[string]any)
+	if !ok {
+		t.Fatal("expected com.example.opa/metadata in incoming_metadata")
+	}
+
+	if md["trace_id"] != "abc-123" {
+		t.Fatalf("expected trace_id='abc-123', got %v", md["trace_id"])
+	}
+
+	if _, ok := incoming["input"]; ok {
+		t.Fatal("'input' should not appear in incoming_metadata")
+	}
+
+	if _, ok := logged.Custom["outgoing_metadata"]; ok {
+		t.Fatal("outgoing_metadata should be absent when nothing populates it")
+	}
+}
+
+func TestDecisionLogOutgoingMetadata(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+
+	var logged *Info
+
+	f.server = f.server.WithDecisionIDFactory(func() string {
+		return "test-id"
+	}).WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
+		logged = info
+		return nil
+	})
+
+	policy := "package test\nimport rego.v1\np if { test.set_outgoing() }"
+	if err := f.v1("PUT", "/policies/test", policy, http.StatusOK, "{}"); err != nil {
+		t.Fatal(err)
+	}
+
+	body := `{"input": {"user": "alice"}, "com.example.opa/metadata": {"trace_id": "abc-123"}}`
+	if err := f.v1("POST", "/data/test/p", body, http.StatusOK, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if logged == nil {
+		t.Fatal("expected decision log entry")
+	}
+
+	if logged.Custom == nil {
+		t.Fatal("expected Custom in decision log")
+	}
+
+	outgoing, ok := logged.Custom["outgoing_metadata"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected outgoing_metadata in Custom, got %v", logged.Custom)
+	}
+
+	if outgoing["version"] != "1.0" {
+		t.Fatalf("expected version='1.0' in outgoing_metadata, got %v", outgoing["version"])
+	}
+}
+
 func TestDecisionLogErrorMessage(t *testing.T) {
 	t.Parallel()
 
@@ -5101,7 +5216,7 @@ func TestServerUsesAuthorizerParsedBody(t *testing.T) {
 	})
 
 	// Check that v1 reader function behaves correctly.
-	inp, goInp, err := readInputPostV1(req.WithContext(ctx))
+	inp, goInp, _, err := readInputPostV1(req.WithContext(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -5132,6 +5247,45 @@ func TestServerUsesAuthorizerParsedBody(t *testing.T) {
 
 	if exp.Value.Compare(ast.MustInterfaceToValue(*goInp)) != 0 {
 		t.Fatalf("expected %v but got %v", exp, *goInp)
+	}
+}
+
+func TestReadInputPostV1Metadata(t *testing.T) {
+	t.Parallel()
+
+	body := `{"input": {"user": "alice"}, "com.example.opa/metadata": {"trace_id": "abc-123"}}`
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:8182/v1/data/test", bytes.NewBufferString(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inp, goInp, metadata, err := readInputPostV1(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if inp == nil {
+		t.Fatal("expected parsed input")
+	}
+	if goInp == nil {
+		t.Fatal("expected go input")
+	}
+
+	if metadata == nil {
+		t.Fatal("expected metadata fields")
+	}
+
+	md, ok := metadata["com.example.opa/metadata"].(map[string]any)
+	if !ok {
+		t.Fatal("expected com.example.opa/metadata in metadata")
+	}
+
+	if md["trace_id"] != "abc-123" {
+		t.Fatalf("expected trace_id='abc-123', got %v", md["trace_id"])
+	}
+
+	if _, ok := metadata["input"]; ok {
+		t.Fatal("'input' should not appear in metadata")
 	}
 }
 

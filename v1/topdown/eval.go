@@ -124,6 +124,8 @@ type eval struct {
 	findOne                     bool
 	strictObjects               bool
 	defined                     bool
+	incomingMetadata            map[string]any
+	outgoingMetadata            map[string]any
 }
 
 type (
@@ -1050,6 +1052,8 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 			DistributedTracingOpts:      e.tracingOpts,
 			Capabilities:                capabilities,
 			RoundTripper:                e.roundTripper,
+			IncomingMetadata:            e.incomingMetadata,
+			OutgoingMetadata:            e.outgoingMetadata,
 		}
 	}
 

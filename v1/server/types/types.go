@@ -142,6 +142,78 @@ type ProvenanceBundleV1 struct {
 // DataRequestV1 models the request message for Data API POST operations.
 type DataRequestV1 struct {
 	Input *any `json:"input"`
+
+	// Metadata holds any additional top-level fields not defined in this struct.
+	// These fields are preserved during JSON unmarshaling, allowing wrapping
+	// projects to pass through custom key/value pairs.
+	//
+	// Future OPA versions may introduce new top-level keys. To avoid conflicts,
+	// use a unique namespaced key, e.g. "com.example.opa/metadata": { ... }.
+	Metadata map[string]any `json:"-"`
+}
+
+func (r *DataRequestV1) UnmarshalJSON(data []byte) error {
+	type Alias DataRequestV1
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(r),
+	}
+
+	var raw map[string]json.RawMessage
+	if err := util.UnmarshalJSON(data, &raw); err != nil {
+		return err
+	}
+
+	if err := util.UnmarshalJSON(data, aux); err != nil {
+		return err
+	}
+
+	r.Metadata = make(map[string]any)
+	for key, val := range raw {
+		if key != "input" {
+			var v any
+			if err := util.UnmarshalJSON(val, &v); err != nil {
+				return err
+			}
+			r.Metadata[key] = v
+		}
+	}
+
+	if len(r.Metadata) == 0 {
+		r.Metadata = nil
+	}
+
+	return nil
+}
+
+func (r DataRequestV1) MarshalJSON() ([]byte, error) {
+	type Alias DataRequestV1
+	aux := struct {
+		*Alias
+	}{
+		Alias: (*Alias)(&r),
+	}
+
+	data, err := json.Marshal(aux)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(r.Metadata) == 0 {
+		return data, nil
+	}
+
+	var base map[string]any
+	if err := json.Unmarshal(data, &base); err != nil {
+		return nil, err
+	}
+
+	for key, val := range r.Metadata {
+		base[key] = val
+	}
+
+	return json.Marshal(base)
 }
 
 // DataResponseV1 models the response message for Data API read operations.
@@ -152,6 +224,99 @@ type DataResponseV1 struct {
 	Metrics     MetricsV1     `json:"metrics,omitempty"`
 	Result      *any          `json:"result,omitempty"`
 	Warning     *Warning      `json:"warning,omitempty"`
+
+	// Metadata holds any additional top-level fields not defined in this struct.
+	// These fields are preserved during JSON marshaling/unmarshaling, allowing
+	// wrapping projects to pass through custom key/value pairs.
+	//
+	// Future OPA versions may introduce new top-level keys. To avoid conflicts,
+	// use a unique namespaced key, e.g. "com.example.opa/metadata": { ... }.
+	Metadata map[string]any `json:"-"`
+}
+
+func (r *DataResponseV1) UnmarshalJSON(data []byte) error {
+	type Alias DataResponseV1
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(r),
+	}
+
+	var raw map[string]json.RawMessage
+	if err := util.UnmarshalJSON(data, &raw); err != nil {
+		return err
+	}
+
+	if err := util.UnmarshalJSON(data, aux); err != nil {
+		return err
+	}
+
+	knownFields := map[string]bool{
+		"decision_id": true,
+		"provenance":  true,
+		"explanation": true,
+		"metrics":     true,
+		"result":      true,
+		"warning":     true,
+	}
+
+	r.Metadata = make(map[string]any)
+	for key, val := range raw {
+		if !knownFields[key] {
+			var v any
+			if err := util.UnmarshalJSON(val, &v); err != nil {
+				return err
+			}
+			r.Metadata[key] = v
+		}
+	}
+
+	if len(r.Metadata) == 0 {
+		r.Metadata = nil
+	}
+
+	return nil
+}
+
+func (r DataResponseV1) MarshalJSON() ([]byte, error) {
+	type Alias DataResponseV1
+	aux := struct {
+		*Alias
+	}{
+		Alias: (*Alias)(&r),
+	}
+
+	data, err := json.Marshal(aux)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(r.Metadata) == 0 {
+		return data, nil
+	}
+
+	// Reserved field names that must not be overridden by metadata.
+	reservedFields := map[string]bool{
+		"decision_id": true,
+		"provenance":  true,
+		"explanation": true,
+		"metrics":     true,
+		"result":      true,
+		"warning":     true,
+	}
+
+	var base map[string]any
+	if err := json.Unmarshal(data, &base); err != nil {
+		return nil, err
+	}
+
+	for key, val := range r.Metadata {
+		if !reservedFields[key] {
+			base[key] = val
+		}
+	}
+
+	return json.Marshal(base)
 }
 
 // Warning models DataResponse warnings

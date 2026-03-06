@@ -1732,10 +1732,25 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Start()
 
-	input, goInput, err := readInputPostV1(r)
+	input, goInput, reqMetadata, err := readInputPostV1(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
+	}
+
+	respMetadata := map[string]any{}
+	customLog := func() map[string]any {
+		if len(reqMetadata) == 0 && len(respMetadata) == 0 {
+			return nil
+		}
+		c := make(map[string]any, 2)
+		if len(reqMetadata) > 0 {
+			c["incoming_metadata"] = reqMetadata
+		}
+		if len(respMetadata) > 0 {
+			c["outgoing_metadata"] = respMetadata
+		}
+		return c
 	}
 
 	m.Timer(metrics.RegoInputParse).Stop()
@@ -1803,14 +1818,14 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 		rego, err := s.makeRego(ctx, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
 		if err != nil {
-			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil)
+			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, customLog())
 			writer.ErrorAuto(w, err)
 			return
 		}
 
 		pq, err := rego.PrepareForEval(ctx)
 		if err != nil {
-			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil)
+			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, customLog())
 			writer.ErrorAuto(w, err)
 			return
 		}
@@ -1818,7 +1833,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		s.preparedEvalQueries.Insert(pqID, preparedQuery)
 	}
 
-	rs, err := preparedQuery.Eval(ctx,
+	evalOpts := []rego.EvalOption{
 		rego.EvalTransaction(txn),
 		rego.EvalParsedInput(input),
 		rego.EvalMetrics(m),
@@ -1827,19 +1842,30 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalInstrument(includeInstrumentation),
 		rego.EvalNDBuiltinCache(ndbCache),
-	)
+		rego.EvalOutgoingMetadata(respMetadata),
+	}
+
+	if reqMetadata != nil {
+		evalOpts = append(evalOpts, rego.EvalIncomingMetadata(reqMetadata))
+	}
+
+	rs, err := preparedQuery.Eval(ctx, evalOpts...)
 
 	m.Timer(metrics.ServerHandler).Stop()
 
 	// Handle results.
 	if err != nil {
-		_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil)
+		_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, customLog())
 		writer.ErrorAuto(w, err)
 		return
 	}
 
 	result := types.DataResponseV1{
 		DecisionID: decisionID,
+	}
+
+	if len(respMetadata) > 0 {
+		result.Metadata = respMetadata
 	}
 
 	if input == nil {
@@ -1862,7 +1888,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if err = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m, nil); err != nil {
+		if err = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m, customLog()); err != nil {
 			writer.ErrorAuto(w, err)
 			return
 		}
@@ -1876,7 +1902,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, nil); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, customLog()); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -2913,16 +2939,16 @@ func readInputGetV1(str string) (ast.Value, *any, error) {
 	return v, &input, err
 }
 
-func readInputPostV1(r *http.Request) (ast.Value, *any, error) {
+func readInputPostV1(r *http.Request) (ast.Value, *any, map[string]any, error) {
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
 		if obj, ok := parsed.(map[string]any); ok {
 			if input, ok := obj["input"]; ok {
 				v, err := ast.InterfaceToValue(input)
-				return v, &input, err
+				return v, &input, nil, err
 			}
 		}
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	var request types.DataRequestV1
@@ -2930,7 +2956,7 @@ func readInputPostV1(r *http.Request) (ast.Value, *any, error) {
 	// decompress the input if sent as zip
 	bodyBytes, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
+		return nil, nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
 
 	ct := r.Header.Get("Content-Type")
@@ -2939,22 +2965,22 @@ func readInputPostV1(r *http.Request) (ast.Value, *any, error) {
 	if strings.Contains(ct, "yaml") {
 		if len(bodyBytes) > 0 {
 			if err = util.Unmarshal(bodyBytes, &request); err != nil {
-				return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
+				return nil, nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
 		}
 	} else {
 		dec := util.NewJSONDecoder(bytes.NewBuffer(bodyBytes))
 		if err := dec.Decode(&request); err != nil && err != io.EOF {
-			return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
+			return nil, nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
 	}
 
 	if request.Input == nil {
-		return nil, nil, nil
+		return nil, nil, request.Metadata, nil
 	}
 
 	v, err := ast.InterfaceToValue(*request.Input)
-	return v, request.Input, err
+	return v, request.Input, request.Metadata, err
 }
 
 type compileRequest struct {

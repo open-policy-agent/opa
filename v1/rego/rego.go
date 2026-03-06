@@ -125,6 +125,8 @@ type EvalContext struct {
 	baseCache                   topdown.BaseCache
 	tracing                     tracing.Options
 	externalCancel              topdown.Cancel // Note(philip): If non-nil, the cancellation is handled outside of this package.
+	incomingMetadata            map[string]any
+	outgoingMetadata            map[string]any
 }
 
 func (e *EvalContext) RawInput() *any {
@@ -405,6 +407,23 @@ func EvalNondeterministicBuiltins(yes bool) EvalOption {
 func EvalExternalCancel(ec topdown.Cancel) EvalOption {
 	return func(e *EvalContext) {
 		e.externalCancel = ec
+	}
+}
+
+// EvalIncomingMetadata sets arbitrary metadata from the caller that can be
+// passed through to the evaluation. This allows wrapping projects to attach
+// custom metadata to queries.
+func EvalIncomingMetadata(m map[string]any) EvalOption {
+	return func(e *EvalContext) {
+		e.incomingMetadata = m
+	}
+}
+
+// EvalOutgoingMetadata sets a map that wrapping projects can populate during
+// evaluation to include additional fields in the API response.
+func EvalOutgoingMetadata(m map[string]any) EvalOption {
+	return func(e *EvalContext) {
+		e.outgoingMetadata = m
 	}
 }
 
@@ -2271,7 +2290,9 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithPrintHook(ectx.printHook).
 		WithDistributedTracingOpts(r.distributedTracingOpts).
 		WithVirtualCache(ectx.virtualCache).
-		WithBaseCache(ectx.baseCache)
+		WithBaseCache(ectx.baseCache).
+		WithIncomingMetadata(ectx.incomingMetadata).
+		WithOutgoingMetadata(ectx.outgoingMetadata)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2565,7 +2586,9 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithInterQueryBuiltinValueCache(ectx.interQueryBuiltinValueCache).
 		WithStrictBuiltinErrors(ectx.strictBuiltinErrors).
 		WithSeed(ectx.seed).
-		WithPrintHook(ectx.printHook)
+		WithPrintHook(ectx.printHook).
+		WithIncomingMetadata(ectx.incomingMetadata).
+		WithOutgoingMetadata(ectx.outgoingMetadata)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

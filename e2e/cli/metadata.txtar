@@ -1,0 +1,34 @@
+# Verify that request metadata flows into decision logs and does NOT leak
+# into the API response. In vanilla OPA (no custom builtins that write to
+# OutgoingMetadata), the response must contain only the standard fields.
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --set decision_logs.console=true ./policy/example.rego &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+
+# POST with namespaced metadata alongside input (recommended pattern).
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"user": "alice"}, "com.example.opa/metadata": {"trace_id": "req-42"}}' http://localhost/v1/data/example/allow
+jq stdout '.result == true'
+! jq stdout '.["com.example.opa/metadata"]'
+
+# POST without any metadata — baseline.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"user": "bob"}}' http://localhost/v1/data/example/allow
+jq stdout '.result == true'
+
+kill -INT opa
+wait opa
+
+# Decision log for the first request must contain incoming_metadata.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .custom.incoming_metadata["com.example.opa/metadata"].trace_id == "req-42")] | length == 1'
+
+# Decision log for the first request must NOT have outgoing_metadata (vanilla OPA).
+! jq -s stderr '[.[] | select(.msg == "Decision Log" and .custom.outgoing_metadata)] | length > 0'
+
+# Decision log for the second request (no metadata) must not have a custom field.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "example/allow" and (.custom | not))] | length == 1'
+
+-- policy/example.rego --
+package example
+
+default allow := false
+
+allow if input.user != ""

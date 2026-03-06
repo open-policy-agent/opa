@@ -876,6 +876,10 @@ The path separator is used to access values inside object and array documents. T
 
 The request body contains an object that specifies a value for [The input Document](./philosophy/#the-opa-document-model).
 
+Any additional top-level keys in the request body beyond `input` are treated as
+request metadata. See [Request/Response Metadata](#requestresponse-metadata)
+below.
+
 #### Request Headers
 
 - **[Content-Type](#content-type)**: `application/json` or `application/yaml`
@@ -979,6 +983,75 @@ HTTP/1.1 200 OK
 
 ```json
 {}
+```
+
+#### Request/Response Metadata
+
+The Data API POST request body may contain additional top-level keys beyond
+`input`. These are captured as **incoming metadata** and made available to
+custom builtins via `BuiltinContext.IncomingMetadata` during evaluation. Incoming
+metadata is included in [decision log](./management-decision-logs) events under
+the `custom.incoming_metadata` field.
+
+Custom builtins registered by wrapping projects can also produce **outgoing
+metadata** by writing to `BuiltinContext.OutgoingMetadata` during evaluation.
+If any outgoing metadata is produced, it appears as additional top-level fields
+in the API response and is included in decision log events under
+`custom.outgoing_metadata`.
+
+In vanilla OPA, no builtins write outgoing metadata, so responses are unchanged.
+
+:::caution
+Future OPA versions may introduce new top-level keys in the request and response
+bodies. To avoid conflicts, use a unique namespaced key for metadata, e.g.
+`"com.example.opa/metadata"`.
+:::
+
+##### Example Request
+
+```http
+POST /v1/data/example/allow HTTP/1.1
+Content-Type: application/json
+```
+
+```json
+{
+  "input": {
+    "user": "alice"
+  },
+  "com.example.opa/metadata": {
+    "corp-id": "acme-42"
+  }
+}
+```
+
+##### Example Response
+
+If a custom builtin writes outgoing metadata during evaluation, the response
+includes those fields alongside the standard ones:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "decision_id": "04789f85-de5a-477b-8aa5-6d59d7742135",
+  "result": true,
+  "com.example.opa/response": {
+    "version": "v3"
+  }
+}
+```
+
+Without any outgoing metadata, the response contains only the standard fields:
+
+```json
+{
+  "decision_id": "04789f85-de5a-477b-8aa5-6d59d7742135",
+  "result": true
+}
 ```
 
 ### Get a Document (Webhook)
