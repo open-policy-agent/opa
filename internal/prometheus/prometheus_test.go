@@ -175,6 +175,7 @@ func TestJSONSerialization(t *testing.T) {
 			"go_gc_finalizers_queued_finalizers_total",
 			"go_gc_finalizers_executed_finalizers_total",
 			"go_sched_goroutines_created_goroutines_total",
+			"go_godebug_non_default_behavior_htmlmetacontenturlescape_events_total", // added in 1.26.1
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",
