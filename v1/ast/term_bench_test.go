@@ -502,6 +502,40 @@ func BenchmarkObjectCopy(b *testing.B) {
 	}
 }
 
+func BenchmarkArrayCopy(b *testing.B) {
+	sizes := []int{5, 50, 500}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			arr := NewArray()
+			for i := range n {
+				arr = arr.Append(IntNumberTerm(i))
+			}
+			b.ResetTimer()
+			for b.Loop() {
+				_ = arr.Copy()
+			}
+		})
+	}
+}
+
+func BenchmarkRefCopy(b *testing.B) {
+	sizes := []int{5, 10, 20}
+	for _, n := range sizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			parts := make([]*Term, n)
+			parts[0] = VarTerm("data")
+			for i := range n {
+				parts[i] = StringTerm("part" + strconv.Itoa(i))
+			}
+			ref := Ref(parts)
+			b.ResetTimer()
+			for b.Loop() {
+				_ = ref.Copy()
+			}
+		})
+	}
+}
+
 func BenchmarkRefCopyNonGround(b *testing.B) {
 	b.Run("fully_ground", func(b *testing.B) {
 		ref := MustParseRef("data.foo.bar.baz.qux")

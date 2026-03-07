@@ -1086,7 +1086,6 @@ func (body Body) Copy() Body {
 	return cpy
 }
 
-
 // Contains returns true if this body contains the given expression.
 func (body Body) Contains(x *Expr) bool {
 	return slices.ContainsFunc(body, x.Equal)

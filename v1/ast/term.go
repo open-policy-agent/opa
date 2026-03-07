@@ -2364,10 +2364,11 @@ func (obj *object) IsGround() bool {
 
 // Copy returns a deep copy of obj.
 func (obj *object) Copy() Object {
-	cpy, _ := obj.Map(func(k, v *Term) (*Term, *Term, error) {
-		return k.Copy(), v.Copy(), nil
-	})
-	cpy.(*object).hash = obj.hash
+	cpy := newobject(len(obj.keys))
+	for _, elem := range obj.keys {
+		cpy.insert(elem.key.Copy(), elem.value.Copy(), false)
+	}
+	cpy.hash = obj.hash
 	return cpy
 }
 
@@ -2931,10 +2932,45 @@ func (c Call) String() string {
 	return util.ByteSliceToString(buf)
 }
 
+// deepCopyTermValue deep copies the Value of term in-place.
+// Scalar values (Null, Boolean, Number, String, Var) are already
+// copied by struct assignment, so only container types need work.
+func deepCopyTermValue(term *Term) {
+	switch v := term.Value.(type) {
+	case Null, Boolean, Number, String, Var:
+		// Already copied by *term = *src struct assignment.
+	case Ref:
+		term.Value = v.Copy()
+	case *Array:
+		term.Value = v.Copy()
+	case Set:
+		term.Value = v.Copy()
+	case *object:
+		term.Value = v.Copy()
+	case *ArrayComprehension:
+		term.Value = v.Copy()
+	case *ObjectComprehension:
+		term.Value = v.Copy()
+	case *SetComprehension:
+		term.Value = v.Copy()
+	case *TemplateString:
+		term.Value = v.Copy()
+	case Call:
+		term.Value = v.Copy()
+	}
+}
+
 func termSliceCopy(a []*Term) []*Term {
-	cpy := make([]*Term, len(a))
-	for i := range a {
-		cpy[i] = a[i].Copy()
+	n := len(a)
+	if n == 0 {
+		return make([]*Term, 0)
+	}
+	// Batch allocate all Term structs in a single contiguous slice (2 allocs
+	// instead of N+1) using the same pattern as util.NewPtrSlice.
+	cpy := util.NewPtrSlice[Term](n)
+	for i := range n {
+		*cpy[i] = *a[i]           // copy Term struct (Value + Location)
+		deepCopyTermValue(cpy[i]) // deep copy container Values in-place
 	}
 	return cpy
 }
