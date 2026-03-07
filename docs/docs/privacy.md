@@ -19,7 +19,7 @@ For the `opa version` command, this feature can be enabled by specifying the
 OPA checks the latest release version by querying the GitHub
 API at `https://api.github.com`. The environment variable
 `OPA_VERSION_CHECK_SERVICE_URL` can be used to configure an alternative service
-URL.
+URL. It can be set to `false` to disable version checking entirely.
 
 Sample HTTP request from OPA to the GitHub API:
 
