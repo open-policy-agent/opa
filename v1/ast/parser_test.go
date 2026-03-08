@@ -15,6 +15,7 @@ import (
 	"testing"
 	"unsafe"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
 )
 
@@ -2907,7 +2908,7 @@ func TestImport(t *testing.T) {
 func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "future", "import future", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
-	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [contains every if in]")
+	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [contains every if in not]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "`future` imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
 
@@ -9001,5 +9002,89 @@ func TestLocationFileNameInterning(t *testing.T) {
 		if unsafe.StringData(term.Location.File) != sdptr {
 			t.Fatal("expected filename string to be interned")
 		}
+	}
+}
+
+func TestNotImport(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		exp    *Module
+	}{
+		{
+			note: "no import",
+			module: `package test
+				p if {
+					not 1 + 1 == 3
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							&Expr{
+								Terms: []*Term{
+									NewTerm(Equal.Ref()),
+									CallTerm(NewTerm(Plus.Ref()), NumberTerm("1"), NumberTerm("1")),
+									NumberTerm("3"),
+								},
+								Negated: true,
+							},
+						),
+					},
+				},
+			},
+		},
+		{
+			note: "import",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not 1 + 1 == 3
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Imports: MustParseImports("import future.keywords.not"),
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							NewExpr(
+								NotTerm(
+									Equal.Expr(
+										CallTerm(NewTerm(Plus.Ref()), NumberTerm("1"), NumberTerm("1")),
+										NumberTerm("3"),
+									),
+								),
+							),
+						),
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mod, err := ParseModule("", tc.module)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if diff := cmp.Diff(tc.exp, mod); diff != "" {
+				t.Errorf("Unexpected result (-want, +got):\n%s", diff)
+			}
+		})
 	}
 }

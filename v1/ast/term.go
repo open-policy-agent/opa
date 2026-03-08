@@ -562,6 +562,51 @@ func IsScalar(v Value) bool {
 	return false
 }
 
+type Not struct {
+	Body Body `json:"body"`
+}
+
+func NotTerm(exprs ...*Expr) *Term {
+	return NewTerm(&Not{
+		Body: NewBody(exprs...),
+	})
+}
+
+func (not *Not) Equal(other Value) bool {
+	switch other.(type) {
+	case Null:
+		return true
+	default:
+		return false
+	}
+}
+
+func (not *Not) Compare(other Value) int {
+	if _, ok := other.(Null); ok {
+		return 0
+	}
+	return -1
+}
+
+func (not *Not) Find(path Ref) (Value, error) {
+	if len(path) == 0 {
+		return NullValue, nil
+	}
+	return nil, errFindNotFound
+}
+
+func (not *Not) Hash() int {
+	return 1 + not.Body.Hash()
+}
+
+func (not *Not) IsGround() bool {
+	return not.Body.IsGround()
+}
+
+func (not *Not) String() string {
+	return "not {" + not.Body.String() + "}"
+}
+
 // Null represents the null value defined by JSON.
 type Null struct{}
 

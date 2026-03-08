@@ -1,0 +1,55 @@
+---
+cases:
+  - note: "negation/not-body: negated call with vars, call evaluates"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+        
+        import future.keywords.not
+        
+        default p := false
+
+        p if {
+            not input.x + input.y == input.z
+        }
+    input:
+      x: 1
+      "y": 2
+      z: 3
+    want_result:
+      - x: false
+  - note: "negation/not-body: negated call with vars, call fails"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+        
+        import future.keywords.not
+        
+        default p := false
+
+        p if {
+            not input.x + input.y == input.z
+        }
+    input:
+      x: 1
+      "y": 2
+      z: 0
+    want_result:
+      - x: true
+  - note: "negation/not-body: negated call with vars, undefined operands"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+        
+        import future.keywords.not
+        
+        default p := false
+
+        p if {
+            not input.x + input.y == input.z
+        }
+    want_result:
+      - x: true

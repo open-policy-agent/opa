@@ -639,6 +639,10 @@ func (e *eval) evalNot(iter evalIterator) error {
 	return nil
 }
 
+func (e *eval) evalNotBody(iter evalIterator) error {
+	return nil
+}
+
 func (e *eval) evalWith(iter evalIterator) error {
 
 	expr := e.query[e.index]

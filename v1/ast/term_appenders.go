@@ -264,3 +264,12 @@ func (oc *ObjectComprehension) AppendText(buf []byte) ([]byte, error) {
 	}
 	return append(buf, '}'), nil
 }
+
+func (not *Not) AppendText(buf []byte) ([]byte, error) {
+	buf = append(buf, "not {"...)
+	var err error
+	if buf, err = not.Body.AppendText(buf); err != nil {
+		return nil, err
+	}
+	return append(buf, '}'), nil
+}

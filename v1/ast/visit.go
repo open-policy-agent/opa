@@ -463,6 +463,8 @@ func (tv *typeVisitor[T]) walk(x any, visit func(x T) bool) {
 		for i := range x.Parts {
 			tv.walk(x.Parts[i], visit)
 		}
+	case *Not:
+		tv.walk(x.Body, visit)
 	}
 }
 
@@ -600,6 +602,8 @@ func (vis *GenericVisitor) Walk(x any) {
 		for i := range x.Parts {
 			vis.Walk(x.Parts[i])
 		}
+	case *Not:
+		vis.Walk(x.Body)
 	}
 }
 
@@ -807,7 +811,7 @@ func (vis *VarVisitor) visit(v any) bool {
 	}
 	if vis.params.SkipClosures {
 		switch v := v.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *TemplateString:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *TemplateString, *Not:
 			return true
 		case *Expr:
 			if ev, ok := v.Terms.(*Every); ok {
@@ -992,6 +996,8 @@ func (vis *VarVisitor) Walk(x any) {
 		for i := range x.Parts {
 			vis.Walk(x.Parts[i])
 		}
+	case *Not:
+		vis.Walk(x.Body)
 	}
 }
 

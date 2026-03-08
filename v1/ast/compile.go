@@ -5419,6 +5419,8 @@ func rewriteDynamicsInTerm(original *Expr, f *equalityFactory, term *Term, resul
 		v.Body = rewriteDynamics(f, v.Body)
 	case *ObjectComprehension:
 		v.Body = rewriteDynamics(f, v.Body)
+	case *Not:
+		v.Body = rewriteDynamics(f, v.Body)
 	default:
 		result, term = rewriteDynamicsOne(original, f, term, result)
 	}
@@ -5665,6 +5667,8 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 		v.Key = key
 		support, value := expandExprTerm(gen, v.Value)
 		v.Value = value
+		v.Body = rewriteExprTermsInBody(gen, appendToBody(v.Body, support...))
+	case *Not:
 		v.Body = rewriteExprTermsInBody(gen, appendToBody(v.Body, support...))
 	}
 	return

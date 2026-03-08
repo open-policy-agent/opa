@@ -10699,7 +10699,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 				import future.keywords
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
-			keywords: []string{"contains", "every", "if", "in"},
+			keywords: []string{"contains", "every", "if", "in", "not"},
 		},
 		{
 			note: "future.keywords wildcard, v1 module",
@@ -10710,6 +10710,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			features: []string{"rego_v1"},
+			keywords: []string{"not"},
 		},
 		{
 			note: "future.keywords wildcard, default rego-version module (v1)",
@@ -10719,6 +10720,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 				import future.keywords
 			`,
 			features: []string{"rego_v1"},
+			keywords: []string{"not"},
 		},
 		{
 			note: "future.keywords specific, v0 module",
@@ -12951,5 +12953,56 @@ func TestCompilerCopiesTemplateStrings(t *testing.T) {
 
 	if !mod.Equal(cpy) {
 		t.Fatalf("expected module to be unchanged after compilation")
+	}
+}
+
+func TestCompilerNotImport(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+	}{
+		{
+			note: "no import",
+			module: `package test
+				p if {
+					not input.x + input.y == input.z
+				}
+			`,
+		},
+		{
+			note: "negated call",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not 1 + 1 == 3
+				}
+			`,
+		},
+		{
+			note: "negated call with vars",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not input.x + input.y == input.z
+				}
+			`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mods := map[string]*Module{"mod.rego": MustParseModule(tc.module)}
+
+			c := NewCompiler()
+			c.Compile(mods)
+
+			for n, m := range c.Modules {
+				t.Logf("compiled module %s:\n\n%v\n\n%s", n, m, mermaidGraph(m))
+			}
+
+			if c.Failed() {
+				t.Fatalf("unexpected compile failure: %v", c.Errors)
+			}
+		})
 	}
 }

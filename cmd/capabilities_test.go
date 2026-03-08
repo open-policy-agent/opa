@@ -93,6 +93,9 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureKeywordsInRefs,
 				ast.FeatureTemplateStrings,
 			},
+			expFutureKeywords: []string{
+				"not",
+			},
 		},
 		{
 			note:         "current --v0-compatible",
@@ -109,6 +112,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				"every",
 				"contains",
 				"if",
+				"not",
 			},
 		},
 	}
