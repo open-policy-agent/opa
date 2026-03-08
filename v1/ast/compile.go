@@ -2647,6 +2647,8 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 				case *Every:
 					safe.Update(x.KeyValueVars())
 					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+				case *Not:
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
 				}
 				if modrec {
 					modified = true
@@ -2735,6 +2737,8 @@ func erasePrintCalls(node any) bool {
 		case *ObjectComprehension:
 			modrec, x.Body = erasePrintCallsInBody(x.Body)
 		case *Every:
+			modrec, x.Body = erasePrintCallsInBody(x.Body)
+		case *Not:
 			modrec, x.Body = erasePrintCallsInBody(x.Body)
 		}
 		if modrec {
@@ -3025,6 +3029,8 @@ func rewriteRegoMetadataCalls(metadataChainVar *Var, metadataRuleVar *Var, body 
 		case *ObjectComprehension:
 			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		case *Every:
+			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+		case *Not:
 			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		}
 		return true
@@ -4600,6 +4606,8 @@ func newBodySafetyTransformer(builtins map[string]*Builtin, arity func(Ref) int)
 }
 
 func (xform *bodySafetyTransformer) Visit(x any) bool {
+	// FIXME: Also for *Not?
+
 	if xform.gv == nil {
 		xform.gv = NewGenericVisitor(xform.Visit)
 	}
@@ -4638,6 +4646,9 @@ func (xform *bodySafetyTransformer) Visit(x any) bool {
 		if ev, ok := term.Terms.(*Every); ok {
 			xform.globals.Update(ev.KeyValueVars())
 			ev.Body = xform.reorderComprehensionSafety(NewVarSet(), ev.Body)
+			return true
+		} else if n, ok := term.Terms.(*Not); ok {
+			n.Body = xform.reorderComprehensionSafety(NewVarSet(), n.Body)
 			return true
 		}
 	}
@@ -4760,6 +4771,8 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet, output VarS
 		return outputVarsForExprCall(expr, ar, safe, terms, vis, output)
 	case *Every:
 		return outputVarsForTerms(terms.Domain, safe, output)
+	case *Not:
+		return VarSet{}
 	default:
 		panic("illegal expression")
 	}
@@ -5059,6 +5072,10 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 			Body:   resolveRefsInBody(globals, ignore, ts.Body),
 		}
 		ignore.Pop()
+	case *Not:
+		cpy.Terms = &Not{
+			Body: resolveRefsInBody(globals, ignore, ts.Body),
+		}
 	}
 	for _, w := range cpy.With {
 		w.Target = resolveRefsInTerm(globals, ignore, w.Target)
@@ -5365,6 +5382,8 @@ func rewriteDynamics(f *equalityFactory, body Body) Body {
 			result = rewriteDynamicsCallExpr(f, expr, result)
 		case expr.IsEvery():
 			result = rewriteDynamicsEveryExpr(f, expr, result)
+		case expr.IsNot():
+			result = rewriteDynamicsNotExpr(f, expr, result)
 		default:
 			result = rewriteDynamicsTermExpr(f, expr, result)
 		}
@@ -5396,6 +5415,13 @@ func rewriteDynamicsEveryExpr(f *equalityFactory, expr *Expr, result Body) Body 
 	ev := expr.Terms.(*Every)
 	result, ev.Domain = rewriteDynamicsOne(expr, f, ev.Domain, result)
 	ev.Body = rewriteDynamics(f, ev.Body)
+	result.Append(expr)
+	return result
+}
+
+func rewriteDynamicsNotExpr(f *equalityFactory, expr *Expr, result Body) Body {
+	n := expr.Terms.(*Not)
+	n.Body = rewriteDynamics(f, n.Body)
 	result.Append(expr)
 	return result
 }
@@ -5607,6 +5633,9 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 
 		terms.Body = rewriteExprTermsInBody(gen, terms.Body)
 		result = append(result, extras...)
+		result = append(result, expr)
+	case *Not:
+		terms.Body = rewriteExprTermsInBody(gen, terms.Body)
 		result = append(result, expr)
 	}
 	return

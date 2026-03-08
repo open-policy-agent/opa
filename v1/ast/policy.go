@@ -1150,7 +1150,7 @@ func (body Body) Vars(params VarVisitorParams) VarSet {
 // NewExpr returns a new Expr object.
 func NewExpr(terms any) *Expr {
 	switch terms.(type) {
-	case *SomeDecl, *Every, *Term, []*Term: // ok
+	case *SomeDecl, *Every, *Not, *Term, []*Term: // ok
 	default:
 		panic("unreachable")
 	}
@@ -1353,6 +1353,12 @@ func (expr *Expr) IsCall() bool {
 // IsEvery returns true if this expression is an 'every' expression.
 func (expr *Expr) IsEvery() bool {
 	_, ok := expr.Terms.(*Every)
+	return ok
+}
+
+// IsNot returns true if this expression is a 'not' expression.
+func (expr *Expr) IsNot() bool {
+	_, ok := expr.Terms.(*Not)
 	return ok
 }
 

@@ -562,6 +562,7 @@ func IsScalar(v Value) bool {
 	return false
 }
 
+// FIXME: turn into a Node instead, like Every?
 type Not struct {
 	Body Body `json:"body"`
 }

@@ -186,18 +186,7 @@ func mermaidFormatHead(head *Head, b *mermaidBuilder) string {
 }
 
 func mermaidFormatExpr(expr *Expr, index int, b *mermaidBuilder) string {
-	//label := fmt.Sprintf("Expr[%d]", index)
-	//if expr.Negated {
-	//	label = "not " + label
-	//}
-
 	label := expr.String()
-	//var label string
-	//if expr.Location != nil {
-	//	label = expr.Location.String()
-	//} else {
-	//	label = expr.String()
-	//}
 
 	id := b.node("hex", label)
 
@@ -223,6 +212,9 @@ func mermaidFormatExpr(expr *Expr, index int, b *mermaidBuilder) string {
 	case *Every:
 		everyID := mermaidFormatEvery(terms, b)
 		b.edge(id, everyID)
+	case *Not:
+		notID := terms.mermaidFormat(b)
+		b.edge(id, notID)
 	}
 
 	for _, w := range expr.With {

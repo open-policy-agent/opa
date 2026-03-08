@@ -528,6 +528,19 @@ func (e *eval) evalStep(iter evalIterator) error {
 				return err
 			})
 
+		case *ast.Not:
+			eval := evalNot{
+				Not:  terms,
+				e:    e,
+				expr: expr,
+			}
+			err = eval.eval(func() error {
+				defined = true
+				err := iter(e)
+				e.traceRedo(expr)
+				return err
+			})
+
 		default: // guard-rail for adding extra (Expr).Terms types
 			return fmt.Errorf("got %T terms: %[1]v", terms)
 		}
@@ -574,6 +587,16 @@ func (e *eval) evalStep(iter evalIterator) error {
 			Every: terms,
 			e:     e,
 			expr:  expr,
+		}
+		err = eval.eval(func() error {
+			return iter(e)
+		})
+
+	case *ast.Not:
+		eval := evalNot{
+			Not:  terms,
+			e:    e,
+			expr: expr,
 		}
 		err = eval.eval(func() error {
 			return iter(e)
@@ -636,10 +659,6 @@ func (e *eval) evalNot(iter evalIterator) error {
 	child.defined = false
 
 	e.traceFail(expr)
-	return nil
-}
-
-func (e *eval) evalNotBody(iter evalIterator) error {
 	return nil
 }
 
@@ -4114,6 +4133,51 @@ func (e *evalEvery) plug(expr *ast.Expr) *ast.Expr {
 	cpy.Terms = every
 	return cpy
 }
+
+type evalNot struct {
+	*ast.Not
+	e    *eval
+	expr *ast.Expr
+}
+
+func (e evalNot) eval(iter unifyIterator) error {
+	// unknowns in domain or body: save the expression, PE its body
+	// partial() check to avoid e.Body -> Node boxing allocation
+	//if e.e.partial() && e.e.unknown(e.Body, e.e.bindings) {
+	//	return e.save(iter)
+	//}
+
+	child := evalPool.Get()
+	defer evalPool.Put(child)
+
+	e.e.closure(e.Body, child)
+
+	if e.e.traceEnabled {
+		child.traceEnter(e.Body)
+	}
+
+	if err := child.eval(func(*eval) error {
+		if e.e.traceEnabled {
+			child.traceExit(e.Body)
+			child.traceRedo(e.Body)
+		}
+		child.defined = true
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if !child.defined {
+		return iter()
+	}
+
+	return nil
+}
+
+//func (e *evalNot) save(iter unifyIterator) error {
+//	return e.e.saveExpr(e.plug(e.expr), e.e.bindings, iter)
+//}
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
 	if e.queryCompiler != nil {

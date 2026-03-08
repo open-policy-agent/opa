@@ -161,7 +161,7 @@ func walk(v Visitor, x any) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every:
+		case *Term, *SomeDecl, *Every, *Not:
 			Walk(w, ts)
 		case []*Term:
 			for i := range ts {
@@ -236,7 +236,7 @@ func WalkVars(x any, f func(Var) bool) {
 func WalkClosures(x any, f func(any) bool) {
 	vis := NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every, *Not:
 			return f(x)
 		}
 		return false
@@ -396,7 +396,7 @@ func (tv *typeVisitor[T]) walk(x any, visit func(x T) bool) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every:
+		case *Term, *SomeDecl, *Every, *Not:
 			tv.walk(ts, visit)
 		case []*Term:
 			for i := range ts {
@@ -535,7 +535,7 @@ func (vis *GenericVisitor) Walk(x any) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every:
+		case *Term, *SomeDecl, *Every, *Not:
 			vis.Walk(ts)
 		case []*Term:
 			for i := range ts {
@@ -672,7 +672,7 @@ func (vis *BeforeAfterVisitor) Walk(x any) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every:
+		case *Term, *SomeDecl, *Every, *Not:
 			vis.Walk(ts)
 		case []*Term:
 			for i := range ts {
@@ -931,7 +931,7 @@ func (vis *VarVisitor) Walk(x any) {
 		vis.WalkArgs(x)
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every:
+		case *Term, *SomeDecl, *Every, *Not:
 			vis.Walk(ts)
 		case []*Term:
 			for i := range ts {
