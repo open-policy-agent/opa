@@ -905,9 +905,10 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 	case *Array, Set, Object:
 		if node.array != nil {
 			if arr, ok := value.(*Array); ok {
-				return node.array.traverseArray(resolver, tr, arr)
+				if err := node.array.traverseArray(resolver, tr, arr); err != nil {
+					return err
+				}
 			}
-			return nil
 		}
 
 		if node.scalars.Len() > 0 {
