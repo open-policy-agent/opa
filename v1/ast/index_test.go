@@ -164,7 +164,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		x = [1,2,3]
 		x[0] = 1
 	} {
-		input.x[_] = 1
+		input.x[_] = 1 # can be indexed since 1.14.0
 	} {
 		input.x[input.y] = 1
 	} {
@@ -431,10 +431,13 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: mod.RuleSet(Var("filtering")),
 		},
 		{
-			note:       "non-indexable rules",
-			ruleset:    "filtering",
-			input:      `{}`,
-			expectedRS: mod.RuleSet(Var("filtering")).Diff(NewRuleSet(MustParseRuleWithOpts(`filtering if { input.x = 1 }`, opts))),
+			note:    "non-indexable rules",
+			ruleset: "filtering",
+			input:   `{}`,
+			expectedRS: mod.RuleSet(Var("filtering")).Diff(NewRuleSet(
+				MustParseRuleWithOpts(`filtering if { input.x = 1 }`, opts),
+				MustParseRuleWithOpts(`filtering if { input.x[_] = 1 }`, opts),
+			)),
 		},
 		{
 			note:       "unknown: all",
@@ -739,6 +742,484 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		// 	input:      `{"k": 1, "v": 2}`,
 		// 	expectedRS: RuleSet([]*Rule{refMod.Rules[3]}),
 		// },
+		{
+			note: "var assignments: var = ref; var = value",
+			module: module(`package test
+			p if {
+				x = input.foo
+				x = "bar"
+			}`),
+			ruleset: "p",
+			input:   `{"foo": "bar"}`,
+			expectedRS: []string{
+				`p if { x = input.foo; x = "bar" }`,
+			},
+		},
+		{
+			note: "var assignments: var = ref; var = value (no match)",
+			module: module(`package test
+			p if {
+				z = input.foo
+				z = "bar"
+			}`),
+			ruleset:    "p",
+			input:      `{"foo": "baz"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "var assignments: var = value; var = ref (reverse order)",
+			module: module(`package test
+			p if {
+				y = "bar"
+				y = input.foo
+			}`),
+			ruleset: "p",
+			input:   `{"foo": "bar"}`,
+			expectedRS: []string{
+				`p if { y = "bar"; y = input.foo }`,
+			},
+		},
+		{
+			note: "var assignments: var = value; var = ref (reverse order, no match)",
+			module: module(`package test
+			p if {
+				y = "bar"
+				y = input.foo
+			}`),
+			ruleset:    "p",
+			input:      `{"foo": "baz"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "var assignments: value = var; ref = var",
+			module: module(`package test
+			p if {
+				"bar" = x
+				input.foo = x
+			}`),
+			ruleset: "p",
+			input:   `{"foo": "bar"}`,
+			expectedRS: []string{
+				`p if { "bar" = x; input.foo = x }`,
+			},
+		},
+		{
+			note: "var assignments: value = var; ref = var (no match)",
+			module: module(`package test
+			p if {
+				"bar" = x
+				input.foo = x
+			}`),
+			ruleset:    "p",
+			input:      `{"foo": "baz"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: rhs = value (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`), // this is `p if input.role in {"admin", "foo"}` sent through the compiler
+			ruleset:    "p",
+			input:      `{"role": "bar"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: rhs = value",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "foo"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
+		},
+		{
+			note: "internal.member_2: rhs = value (other match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
+		},
+		{
+			note: "internal.member_2: lhs = value (2 out of 3)",
+			module: module(`package test
+			p if {
+				x = "a"
+				x in input.foo
+			}
+			p if {
+				x = "b"
+				x in input.foo
+			}
+			p if {
+				x = "c"
+				x in input.foo
+			}
+			`),
+			ruleset: "p",
+			input:   `{"foo": {"a", "b"}}`,
+			expectedRS: []string{
+				`p if { x = "a"; x in input.foo }`,
+				`p if { x = "b"; x in input.foo }`,
+			},
+		},
+		{
+			note: "internal.member_2: rhs = value (2 out of 3)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"a", "b", "c"})
+			}
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"x", "b", "z"})
+			}
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"x", "y", "z"})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "b"}`,
+			expectedRS: []string{
+				`p if {	__local0__ = input.role; internal.member_2(__local0__, {"a", "b", "c"}) }`,
+				`p if {	__local0__ = input.role; internal.member_2(__local0__, {"x", "b", "z"}) }`,
+			},
+		},
+		{
+			note: "internal.member_2: unknown value triggers traverseUnknown (duplicate prevention)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`),
+			ruleset:  "p",
+			unknowns: []string{`input.role`},
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, {"admin", "foo"}) }`},
+		},
+		{
+			note: "internal.member_2: object values in rhs (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"k1": "admin", "k2": "user"})
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, {"k1": "admin", "k2": "user"}) }`},
+		},
+		{
+			note: "internal.member_2: object values in rhs (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, {"k1": "admin", "k2": "user"})
+			}`),
+			ruleset:    "p",
+			input:      `{"role": "guest"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: var with array value in rhs (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = ["admin", "user"]
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = ["admin", "user"]; internal.member_2(__local0__, __local1__) }`},
+		},
+		{
+			note: "internal.member_2: var with array value in rhs (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = ["admin", "user"]
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset:    "p",
+			input:      `{"role": "guest"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: var with empty array in rhs (one other match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = []
+				internal.member_2(__local0__, __local1__)
+			}
+			p if {
+				__local0__ = input.role
+				__local1__ = ["admin", "guest"]
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "guest"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = []; internal.member_2(__local0__, __local1__) }`,
+				`p if { __local0__ = input.role; __local1__ = ["admin", "guest"]; internal.member_2(__local0__, __local1__) }`,
+			},
+		},
+		{
+			note: "internal.member_2: var with empty array in rhs (no index)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = []
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "guest"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = []; internal.member_2(__local0__, __local1__) }`,
+			},
+		},
+		{
+			note: "internal.member_2: var with empty array in rhs (one other is mismatch)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = []
+				internal.member_2(__local0__, __local1__)
+			}
+			p if {
+				__local0__ = input.role
+				__local1__ = ["admin", "guest"]
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "user"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = []; internal.member_2(__local0__, __local1__) }`,
+			},
+		},
+		{
+			note: "internal.member_2: var with set value in rhs (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = {"admin", "user"}
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; __local1__ = {"admin", "user"}; internal.member_2(__local0__, __local1__) }`},
+		},
+		{
+			note: "internal.member_2: var with set value in rhs (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = {"admin", "user"}
+				internal.member_2(__local0__, __local1__)
+			}`),
+			ruleset:    "p",
+			input:      `{"role": "guest"}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "functions: member_2 in function, arg not matching",
+			module: module(`package test
+			member2_f(a) if a in {"a", "b"}`),
+			ruleset:    "member2_f",
+			args:       []Value{String("c")},
+			expectedRS: []string{},
+		},
+		{
+			note: "functions: member_2 in function, arg matching",
+			module: module(`package test
+			member2_f(a) if a in {"a", "b"}`),
+			ruleset: "member2_f",
+			args:    []Value{String("a")},
+			expectedRS: []string{
+				`member2_f(a) = true if { a in {"a", "b"} }`,
+			},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in collection (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.roles
+				internal.member_2("admin", __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.roles; internal.member_2("admin", __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in collection (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.roles
+				internal.member_2("guest", __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - var in collection (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.roles
+				__local1__ = "admin"
+				internal.member_2(__local1__, __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.roles; __local1__ = "admin"; internal.member_2(__local1__, __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - var in collection (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.roles
+				__local1__ = "guest"
+				internal.member_2(__local1__, __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in set (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.items
+				internal.member_2("b", __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"items": {"a", "b", "c"}}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.items; internal.member_2("b", __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in set (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.items
+				internal.member_2("z", __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"items": {"a", "b", "c"}}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - number in array (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.nums
+				internal.member_2(2, __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"nums": [1, 2, 3]}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.nums; internal.member_2(2, __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - number in array (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.nums
+				internal.member_2(99, __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"nums": [1, 2, 3]}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in object values (match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.obj
+				internal.member_2("bar", __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"obj": {"a": "foo", "b": "bar"}}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.obj; internal.member_2("bar", __local0__) }`},
+		},
+		{
+			note: "internal.member_2: reverse - scalar in object values (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.obj
+				internal.member_2("baz", __local0__)
+			}`),
+			ruleset:    "p",
+			input:      `{"obj": {"a": "foo", "b": "bar"}}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "internal.member_2: reverse - non-scalar not indexed",
+			module: module(`package test
+			p if {
+				__local0__ = input.items
+				internal.member_2({"foo": "bar"}, __local0__)
+			}`),
+			ruleset: "p",
+			input:   `{"items": [{"foo": "buz"}]}`, // not a match!
+			expectedRS: []string{
+				`p if { __local0__ = input.items; internal.member_2({"foo": "bar"}, __local0__) }`},
+		},
+		{
+			note: "wildcard ref equality: input.roles[_] == \"admin\" indexed like \"admin\" in input.roles (match)",
+			module: module(`package test
+			p if {
+				input.roles[_] == "admin"
+			}
+			p if {
+				"admin" in input.roles
+			}`),
+			ruleset: "p",
+			input:   `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{
+				`p if { equal(input.roles[_], "admin") }`,
+				`p if { internal.member_2("admin", input.roles) }`,
+			},
+		},
+		{
+			note: "wildcard ref equality: input.roles[_] == \"admin\" indexed like \"admin\" in input.roles (no match)",
+			module: module(`package test
+			p if {
+				input.roles[_] == "admin"
+			}
+			p if {
+				"admin" in input.roles
+			}`),
+			ruleset:    "p",
+			input:      `{"roles": ["user", "guest"]}`,
+			expectedRS: []string{},
+		},
+		{
+			note: "wildcard ref equality: reverse order value == ref[_] (match)",
+			module: module(`package test
+			p if {
+				"admin" == input.roles[_]
+			}`),
+			ruleset: "p",
+			input:   `{"roles": ["admin", "user"]}`,
+			expectedRS: []string{
+				`p if { equal("admin", input.roles[_]) }`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -789,6 +1270,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				t.Fatalf("Expected index build to succeed")
 			}
 
+			t.Log(index.root.mermaid())
 			var unknownRefs Set
 
 			if len(tc.unknowns) > 0 {
@@ -1020,6 +1502,39 @@ func TestGetAllRules(t *testing.T) {
 
 	if !NewRuleSet(result.Else[r1]...).Equal(expectedElse[r1]) {
 		t.Fatalf("Expected else to be %v but got: %v", result.Else[r1], expectedElse[r1])
+	}
+}
+
+func TestGetAllRulesInternalMember2(t *testing.T) {
+	module := module(`
+	package test
+
+	p if {
+		x = input.fruit
+		x in {"apple", "pear"}
+	}
+	`)
+
+	index := newBaseDocEqIndex(func(Ref) bool { return false })
+
+	ok := index.Build(module.Rules)
+	if !ok {
+		t.Fatalf("Expected index build to succeed")
+	}
+
+	result, err := index.AllRules(testResolver{input: MustParseTerm(`{}`)})
+	if err != nil {
+		t.Fatalf("Unexpected error during index lookup: %v", err)
+	}
+
+	expectedRules := NewRuleSet(module.Rules[0])
+
+	if !NewRuleSet(result.Rules...).Equal(expectedRules) {
+		t.Fatalf("Expected rules to be %v but got: %v", expectedRules, result.Rules)
+	}
+
+	if len(result.Else) > 0 {
+		t.Fatalf("Expected no else rules but got: %v", result.Else)
 	}
 }
 
