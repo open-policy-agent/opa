@@ -32,7 +32,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/tchap/go-patricia/v2 v2.3.3
-	github.com/vektah/gqlparser/v2 v2.5.31
+	github.com/vektah/gqlparser/v2 v2.5.32
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
 	github.com/yashtewari/glob-intersection v0.2.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.65.0
@@ -44,10 +44,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.40.0
 	go.uber.org/automaxprocs v1.6.0
 	go.yaml.in/yaml/v3 v3.0.4
-	golang.org/x/net v0.50.0
-	golang.org/x/sync v0.19.0
+	golang.org/x/net v0.51.0
+	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.34.0
-	golang.org/x/time v0.14.0
+	golang.org/x/time v0.15.0
 	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
