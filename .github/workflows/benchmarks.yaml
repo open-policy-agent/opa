@@ -81,7 +81,7 @@ jobs:
         name: Read go version
         run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
         working-directory: opa
-      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
           cache-dependency-path: opa/go.sum
@@ -111,7 +111,7 @@ jobs:
           ref: benchmarks
           persist-credentials: true
       - name: Install Node
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 24
       - name: update notebook
