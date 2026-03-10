@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"time"
 
 	"sigs.k8s.io/yaml"
@@ -90,20 +91,30 @@ func CapabilitiesFilter(c *ast.Capabilities) Filters {
 
 func LoadIrExtendedTestCasesFiltered(filters ...Filters) ([]ExtendedSet, error) {
 	// Used by the 'time/time caching' test
-	ast.RegisterBuiltin(&ast.Builtin{
+	sleep := &ast.Builtin{
 		Name: "test.sleep",
 		Decl: types.NewFunction(
 			types.Args(types.S),
 			types.NewNull(),
 		),
-	})
+	}
+	if !slices.Contains(ast.Builtins, sleep) {
+		ast.RegisterBuiltin(&ast.Builtin{
+			Name: "test.sleep",
+			Decl: types.NewFunction(
+				types.Args(types.S),
+				types.NewNull(),
+			),
+		})
 
-	topdown.RegisterBuiltinFunc("test.sleep", func(_ topdown.BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-		d, _ := time.ParseDuration(string(operands[0].Value.(ast.String)))
-		time.Sleep(d)
-		return iter(ast.NullTerm())
-	})
+		topdown.RegisterBuiltinFunc("test.sleep", func(_ topdown.BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+			d, _ := time.ParseDuration(string(operands[0].Value.(ast.String)))
+			time.Sleep(d)
+			return iter(ast.NullTerm())
+		})
+	}
 
+	rego.ResetTargetPlugins()
 	evalPlugin := &noopEvalPlugin{}
 	rego.RegisterPlugin(pluginName, evalPlugin)
 
