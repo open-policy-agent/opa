@@ -1729,17 +1729,26 @@ type set struct {
 
 // Copy returns a deep copy of s.
 func (s *set) Copy() Set {
+	n := len(s.keys)
 	cpy := &set{
 		hash:      s.hash,
 		ground:    s.ground,
 		sortGuard: sync.Once{},
-		elems:     make(map[int]*Term, len(s.elems)),
-		keys:      make([]*Term, 0, len(s.keys)),
+		elems:     make(map[int]*Term, n),
+		keys:      make([]*Term, n),
 	}
 
-	for hash := range s.elems {
-		cpy.elems[hash] = s.elems[hash].Copy()
-		cpy.keys = append(cpy.keys, cpy.elems[hash])
+	if n > 0 {
+		// Batch-allocate all Term structs in a single contiguous block.
+		buf := make([]Term, n)
+		i := 0
+		for hash, elem := range s.elems {
+			buf[i] = *elem
+			deepCopyTermValue(&buf[i])
+			cpy.elems[hash] = &buf[i]
+			cpy.keys[i] = &buf[i]
+			i++
+		}
 	}
 
 	return cpy
@@ -2364,11 +2373,41 @@ func (obj *object) IsGround() bool {
 
 // Copy returns a deep copy of obj.
 func (obj *object) Copy() Object {
-	cpy := newobject(len(obj.keys))
-	for _, elem := range obj.keys {
-		cpy.insert(elem.key.Copy(), elem.value.Copy(), false)
+	n := len(obj.keys)
+	cpy := &object{
+		elems:     make(map[int]*objectElem, n),
+		sortGuard: sync.Once{},
+		hash:      obj.hash,
+		ground:    obj.ground,
 	}
-	cpy.hash = obj.hash
+
+	if n == 0 {
+		return cpy
+	}
+
+	// Batch-allocate all objectElems, keys, and values in contiguous blocks
+	// (3 allocations instead of 3N).
+	elems := make([]objectElem, n)
+	keys := make([]Term, n)
+	vals := make([]Term, n)
+	cpy.keys = make([]*objectElem, n)
+
+	for i, srcElem := range obj.keys {
+		keys[i] = *srcElem.key
+		deepCopyTermValue(&keys[i])
+		vals[i] = *srcElem.value
+		deepCopyTermValue(&vals[i])
+
+		elems[i] = objectElem{key: &keys[i], value: &vals[i]}
+		cpy.keys[i] = &elems[i]
+
+		hash := keys[i].Hash()
+		if head, ok := cpy.elems[hash]; ok {
+			elems[i].next = head
+		}
+		cpy.elems[hash] = &elems[i]
+	}
+
 	return cpy
 }
 
