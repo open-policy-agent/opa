@@ -41,3 +41,9 @@ func RegisterPlugin(name string, p TargetPlugin) {
 	}
 	targetPlugins[name] = p
 }
+
+func ResetTargetPlugins() {
+	pluginMtx.Lock()
+	defer pluginMtx.Unlock()
+	targetPlugins = map[string]TargetPlugin{}
+}
