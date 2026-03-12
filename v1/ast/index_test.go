@@ -1220,6 +1220,27 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				`p if { equal("admin", input.roles[_]) }`,
 			},
 		},
+		{
+			note: "array pattern and scalar membership on same ref (regression test for revert in v1.14.1)",
+			module: module(`package test
+			allow if {
+				__local2__ = input.parsed_path
+				count(__local2__, __local0__)
+				minus(__local0__, 1, __local1__)
+				input.parsed_path[__local1__] = "access-approvers"
+			}
+
+			allow if {
+				# previously, the presence of this rule would mess up the RI lookup results -- even
+				# though it had nothing to do with the matching rule
+				input.parsed_path = ["some", "other", "endpoint", "unrelated-policy", _]
+			}`),
+			ruleset: "allow",
+			input:   `{"parsed_path": ["some", "other", "endpoint", "xyz", "access-approvers"]}`,
+			expectedRS: []string{
+				`allow if { __local2__ = input.parsed_path; count(__local2__, __local0__); minus(__local0__, 1, __local1__); input.parsed_path[__local1__] = "access-approvers" }`,
+			},
+		},
 	}
 
 	for _, tc := range tests {

@@ -318,7 +318,6 @@ func (e *eval) traceUnify(a, b *ast.Term) {
 }
 
 func (e *eval) traceEvent(op Op, x ast.Node, msg string, target *ast.Ref) {
-
 	if !e.traceEnabled {
 		return
 	}
@@ -3374,15 +3373,26 @@ func (vcKeyScope) IsGround() bool {
 }
 
 func (q vcKeyScope) String() string {
-	buf := make([]string, 0, len(q.Ref))
+	buf, _ := q.AppendText(make([]byte, 0, 2+q.StringLength()))
+	return util.ByteSliceToString(buf)
+}
+
+func (q vcKeyScope) AppendText(buf []byte) ([]byte, error) {
+	buf = append(buf, '<')
 	for _, t := range q.Ref {
 		if _, ok := t.Value.(ast.Var); ok {
-			buf = append(buf, "_")
+			buf = append(buf, '_')
 		} else {
-			buf = append(buf, t.String())
+			var err error
+			if buf, err = t.AppendText(buf); err != nil {
+				return nil, err
+			}
 		}
+		buf = append(buf, ',')
 	}
-	return fmt.Sprintf("<%s>", strings.Join(buf, ","))
+	buf[len(buf)-1] = '>'
+
+	return buf, nil
 }
 
 // reduce removes vars from the tail of the ref.
@@ -3633,6 +3643,7 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 	e.e.childWithBindingSizeHint(rule.Body, child, ast.EstimateBodyBindingCount(rule.Body))
 	child.findOne = findOne
 	child.traceEnter(rule)
+
 	var result *ast.Term
 	err := child.eval(func(child *eval) error {
 		child.traceExit(rule)
@@ -3651,8 +3662,7 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 		e.e.virtualCache.Put(e.plugged[:e.pos+1], result)
 
 		term, termbindings := child.bindings.apply(rule.Head.Value)
-		err := e.evalTerm(iter, term, termbindings)
-		if err != nil {
+		if err := e.evalTerm(iter, term, termbindings); err != nil {
 			return err
 		}
 
@@ -3676,8 +3686,7 @@ func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 			child.traceExit(rule)
 			term, termbindings := child.bindings.apply(rule.Head.Value)
 
-			err := e.evalTerm(iter, term, termbindings)
-			if err != nil {
+			if err := e.evalTerm(iter, term, termbindings); err != nil {
 				return err
 			}
 
@@ -4329,7 +4338,7 @@ func isFunction(env *ast.TypeEnv, ref any) bool {
 	default:
 		panic("expected ast.Value or *ast.Term")
 	}
-	_, ok := env.Get(r).(*types.Function)
+	_, ok := env.GetByRef(r).(*types.Function)
 	return ok
 }
 

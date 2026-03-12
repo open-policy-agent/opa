@@ -411,7 +411,7 @@ func formatEvent(event *Event, depth int) string {
 
 	var details any
 	if node, ok := event.Node.(*ast.Rule); ok {
-		details = node.Path()
+		details = ast.RulePath(node)
 	} else if event.Ref != nil {
 		details = event.Ref
 	} else {

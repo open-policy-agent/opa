@@ -170,15 +170,24 @@ func (r *Result) String() string {
 }
 
 func (r *Result) string(subResults bool) string {
-	if r.Skip {
-		return fmt.Sprintf("%v.%v: %v", r.Package, r.Name, r.outcome())
-	}
 	var buf bytes.Buffer
 
-	buf.WriteString(fmt.Sprintf("%v.%v: %v (%v)", r.Package, r.Name, r.outcome(), r.Duration))
+	buf.WriteString(r.Package)
+	buf.WriteByte('.')
+	buf.WriteString(r.Name)
+	buf.WriteString(": ")
+	buf.WriteString(r.outcome())
+
+	if r.Skip {
+		return buf.String()
+	}
+
+	buf.WriteString(" (")
+	buf.WriteString(r.Duration.String())
+	buf.WriteByte(')')
 
 	if subResults {
-		buf.WriteString("\n")
+		buf.WriteByte('\n')
 		buf.WriteString(r.SubResults.String())
 	}
 
@@ -199,7 +208,7 @@ func (r *Result) outcome() string {
 }
 
 func (sr *SubResult) String() string {
-	return fmt.Sprintf("%v: %v", sr.Name, sr.outcome())
+	return sr.Name + ": " + sr.outcome()
 }
 
 func (sr *SubResult) outcome() string {
@@ -236,10 +245,9 @@ func (srm SubResultMap) String() string {
 func (srm SubResultMap) string(indent string) string {
 	var buf bytes.Buffer
 	for fullName, sr := range srm.Iter {
-		buf.WriteString(fmt.Sprintf("%s%s\n",
-			strings.Repeat(indent, len(fullName)-1),
-			sr.String(),
-		))
+		buf.WriteString(strings.Repeat(indent, len(fullName)-1))
+		buf.WriteString(sr.String())
+		buf.WriteByte('\n')
 	}
 	return buf.String()
 }
@@ -868,11 +876,12 @@ func moveExpr(body ast.Body, from int, to int) (ast.Body, bool) {
 // use rule.Head.Ref()
 func ruleName(h *ast.Head) (string, ast.Ref) {
 	var n string
-	var ref ast.Ref
 
-	for _, term := range h.Ref().GroundPrefix() {
-		ref = ref.Append(term)
-		switch v := term.Value.(type) {
+	rgp := h.Ref().GroundPrefix()
+	i := 0
+
+	for i = range rgp {
+		switch v := rgp[i].Value.(type) {
 		case ast.Var:
 			n = string(v)
 		case ast.String:
@@ -880,13 +889,12 @@ func ruleName(h *ast.Head) (string, ast.Ref) {
 		default:
 			n = ""
 		}
-
 		if strings.HasPrefix(n, TestPrefix) || strings.HasPrefix(n, SkipTestPrefix) {
 			break
 		}
 	}
 
-	return n, ref
+	return n, rgp[:i+1]
 }
 
 func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
@@ -1067,7 +1075,6 @@ func subResult(n string, v any) *SubResult {
 
 func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule, options BenchmarkOptions) (*Result, bool) {
 	_, rf := ruleName(rule.Head)
-
 	tr := &Result{
 		Location: rule.Loc(),
 		Package:  mod.Package.Path.String(),
@@ -1079,12 +1086,11 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 	t0 := time.Now()
 
 	br := testing.Benchmark(func(b *testing.B) {
-
 		pq, err := rego.New(
 			rego.Store(r.store),
 			rego.Transaction(txn),
 			rego.Compiler(r.compiler),
-			rego.Query(rule.Path().String()),
+			rego.Query(rule.Module.Package.Path.Extend(rule.Head.Ref().GroundPrefix()).String()),
 			rego.Runtime(r.runtime),
 			rego.Target(r.target),
 		).PrepareForEval(ctx)
