@@ -28,6 +28,8 @@ type ServerConfig struct {
 
 	Encoding json.RawMessage `json:"encoding,omitempty"`
 	Decoding json.RawMessage `json:"decoding,omitempty"`
+
+	H2CMaxConcurrentStreams *uint32 `json:"h2c_max_concurrent_streams,omitempty"`
 }
 
 // Clone creates a deep copy of ServerConfig.
@@ -49,6 +51,10 @@ func (s *ServerConfig) Clone() *ServerConfig {
 	if s.Metrics != nil {
 		clone.Metrics = make(json.RawMessage, len(s.Metrics))
 		copy(clone.Metrics, s.Metrics)
+	}
+	if s.H2CMaxConcurrentStreams != nil {
+		v := *s.H2CMaxConcurrentStreams
+		clone.H2CMaxConcurrentStreams = &v
 	}
 
 	return clone

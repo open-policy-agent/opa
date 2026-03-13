@@ -85,6 +85,11 @@ func populateDefaultTypes(t *testing.T, fieldType reflect.Type, fieldValue refle
 			fieldValue.Set(reflect.ValueOf(&newBool))
 
 			return true
+		case reflect.Uint32:
+			testUint32 := uint32(300 + index) // unique value per field
+			fieldValue.Set(reflect.ValueOf(&testUint32))
+
+			return true
 		}
 
 	case reflect.Bool:
