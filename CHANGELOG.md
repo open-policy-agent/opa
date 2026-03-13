@@ -5,6 +5,17 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Custom HTTPAuthPlugin behavior change
+
+The `HTTPAuthPlugin.NewClient()` method is now called once per `Client` instance and cached rather than being called for every request. Custom plugins that performed per-request operations in `NewClient()` (such as request counters, per-request transport wrapping, or logging/metrics side effects) will now only execute those operations once. All per-request authentication logic must be moved from `NewClient()` to `Prepare()`. All plugins included in OPA have been updated and are unaffected by this change.
+
+### Runtime, SDK, Tooling
+
+- plugins/rest: Configurable re-read interval for TLS client certificates via `cert_reread_interval_seconds` field.
+   Defaults to re-reading on every request for backwards compatibility.
+   The implementation also uses content hashing to detect changes and avoid re-parsing unchanged TLS certificates and keys.
+- plugins/rest: All TLS configurations now inherit the minimum version and TLS ciphersuites as configured for the server.
+
 ## 1.14.1
 
 This is a patch release collecting two bug fixes and various dependency updates for Golang standard library and common package vulnerabilities.

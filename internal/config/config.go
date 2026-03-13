@@ -29,6 +29,8 @@ type ServiceOptions struct {
 	Keys                  map[string]*keys.Config
 	Logger                logging.Logger
 	DistributedTacingOpts tracing.Options
+	MinTLSVersion         uint16
+	CipherSuites          *[]uint16
 }
 
 // ParseServicesConfig returns a set of named service clients. The service
@@ -41,10 +43,16 @@ func ParseServicesConfig(opts ServiceOptions) (map[string]rest.Client, error) {
 
 	var arr []json.RawMessage
 	var obj map[string]json.RawMessage
+	clientOpts := []func(*rest.Client){
+		rest.AuthPluginLookup(opts.AuthPlugin),
+		rest.Logger(opts.Logger),
+		rest.DistributedTracingOpts(opts.DistributedTacingOpts),
+		rest.MinTLSVersion(opts.MinTLSVersion),
+		rest.CipherSuites(opts.CipherSuites)}
 
 	if err := util.Unmarshal(opts.Raw, &arr); err == nil {
 		for _, s := range arr {
-			client, err := rest.New(s, opts.Keys, rest.AuthPluginLookup(opts.AuthPlugin), rest.Logger(opts.Logger), rest.DistributedTracingOpts(opts.DistributedTacingOpts))
+			client, err := rest.New(s, opts.Keys, clientOpts...)
 			if err != nil {
 				return nil, err
 			}
@@ -52,7 +60,7 @@ func ParseServicesConfig(opts ServiceOptions) (map[string]rest.Client, error) {
 		}
 	} else if util.Unmarshal(opts.Raw, &obj) == nil {
 		for k := range obj {
-			client, err := rest.New(obj[k], opts.Keys, rest.Name(k), rest.AuthPluginLookup(opts.AuthPlugin), rest.Logger(opts.Logger), rest.DistributedTracingOpts(opts.DistributedTacingOpts))
+			client, err := rest.New(obj[k], opts.Keys, append(clientOpts, rest.Name(k))...)
 			if err != nil {
 				return nil, err
 			}
