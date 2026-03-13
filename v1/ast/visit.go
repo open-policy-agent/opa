@@ -48,6 +48,7 @@ type (
 		SkipWithTarget      bool
 		SkipSets            bool
 		SkipTemplateStrings bool
+		customVisit         func(vis *VarVisitor, v any) bool
 	}
 
 	// Visitor defines the interface for iterating AST elements. The Visit function
@@ -890,6 +891,12 @@ func (vis *VarVisitor) visit(v any) bool {
 // Walk iterates the AST by calling the function f on the [VarVisitor] before recursing.
 // Contrary to the deprecated [Walk] function, this does not require allocating the visitor from heap.
 func (vis *VarVisitor) Walk(x any) {
+	if vis.params.customVisit != nil {
+		if vis.params.customVisit(vis, x) {
+			return
+		}
+	}
+
 	if vis.visit(x) {
 		return
 	}

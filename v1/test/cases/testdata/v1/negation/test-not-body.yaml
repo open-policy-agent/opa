@@ -1,13 +1,13 @@
 ---
 cases:
-  - note: "negation/not-body: negated call with vars, call evaluates"
+  - note: "negation/not-body: negated call with vars, call succeeds"
     query: data.negation.p = x
     modules:
       - |
         package negation
-        
+
         import future.keywords.not
-        
+
         default p := false
 
         p if {
@@ -24,9 +24,9 @@ cases:
     modules:
       - |
         package negation
-        
+
         import future.keywords.not
-        
+
         default p := false
 
         p if {
@@ -43,13 +43,84 @@ cases:
     modules:
       - |
         package negation
-        
+
         import future.keywords.not
-        
+
         default p := false
 
         p if {
             not input.x + input.y == input.z
         }
+    want_result:
+      - x: true
+  - note: "negation/not-body: negated call with vars, inside comprehension, call succeeds"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p := [x | x := "foo"; not f(input.x)]
+
+        f(_) := true
+    input:
+      x: true
+    want_result:
+      - x: []
+  - note: "negation/not-body: negated call with vars, inside comprehension, undefined operands"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p := [x | x := "foo"; not f(input.x)]
+        
+        f(_) := true
+    want_result:
+      - x: ["foo"]
+  - note: "negation/not-body: negated call with vars, inside every, call succeeds"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+        
+        default p := false
+
+        p if {
+          every x in input.x {
+            not f(x, input.y)
+          }
+        }
+
+        f(_, _) := true
+    input:
+      x: [1, 2]
+      "y": 3
+    want_result:
+      - x: false
+  - note: "negation/not-body: negated call with vars, inside every, undefined operands"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+        
+        default p := false
+
+        p if {
+          every x in input.x {
+            not f(x, input.y)
+          }
+        }
+
+        f(_, _) := true
+    input:
+      x: [1, 2]
     want_result:
       - x: true

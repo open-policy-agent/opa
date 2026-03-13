@@ -1516,6 +1516,7 @@ func (c *Compiler) checkBodySafety(safe VarSet, b Body) Body {
 // SafetyCheckVisitorParams defines the AST visitor parameters to use for collecting
 // variables during the safety check. This has to be exported because it's relied on
 // by the copy propagation implementation in topdown.
+// TODO: deprecate?
 var SafetyCheckVisitorParams = VarVisitorParams{
 	SkipRefCallHead: true,
 	SkipClosures:    true,
@@ -2480,6 +2481,7 @@ func rewriteTemplateString(tsr *templateStringRewriter, safe VarSet, loc *Locati
 	if len(ts.Parts) == 0 {
 		terms = append(terms, NewTerm(InternedEmptyStringValue).SetLocation(loc))
 	} else {
+		// Note: we don't care about not exprs here
 		vis := ClearOrNewVarVisitor(nil).WithParams(SafetyCheckVisitorParams)
 		for _, p := range ts.Parts {
 			switch p := p.(type) {
@@ -2518,6 +2520,7 @@ func rewriteTemplateString(tsr *templateStringRewriter, safe VarSet, loc *Locati
 					continue
 				}
 
+				// Note: we don't care about not exprs here
 				vis = ClearOrNewVarVisitor(vis).WithParams(SafetyCheckVisitorParams)
 				vis.Walk(t)
 				vars := vis.Vars()
@@ -2691,6 +2694,7 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 		}
 
 		for j := range args {
+			// Note: we don't care about not exprs here
 			vis = vis.Clear().WithParams(SafetyCheckVisitorParams)
 			vis.Walk(args[j])
 			vars := vis.Vars()
@@ -4498,7 +4502,7 @@ func (vs unsafeVars) Slice() (result []unsafePair) {
 // If the body cannot be reordered to ensure safety, the second return value
 // contains a mapping of expressions to unsafe variables in those expressions.
 func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
-	vis := varVisitorPool.Get().WithParams(SafetyCheckVisitorParams)
+	vis := varVisitorPool.Get().WithParams(safetyCheckVisitorParams(arity))
 	vis.WalkBody(body)
 
 	defer varVisitorPool.Put(vis)
@@ -4508,7 +4512,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	unsafe := make(unsafeVars, len(bodyVars)-len(safe))
 
 	for _, e := range body {
-		vis = vis.Clear().WithParams(SafetyCheckVisitorParams)
+		vis = vis.Clear().WithParams(safetyCheckVisitorParams(arity))
 		vis.Walk(e)
 		for v := range vis.Vars() {
 			if _, ok := safe[v]; !ok {
@@ -4544,6 +4548,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 				if uv.Equal(ovs) { // special case "closure-self"
 					continue
 				}
+				// The expression is closing over variables not yet present in reordered body
 				unsafe.Set(e, uv)
 			}
 
@@ -4576,7 +4581,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 
 	for i, e := range reordered {
 		if i > 0 {
-			vis = vis.Clear().WithParams(SafetyCheckVisitorParams)
+			vis = vis.Clear().WithParams(safetyCheckVisitorParams(arity))
 			vis.Walk(reordered[i-1])
 			g.Update(vis.Vars())
 		}
@@ -4587,6 +4592,102 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	}
 
 	return reordered, unsafe
+}
+
+func safetyCheckVisitorParams(arity func(Ref) int) VarVisitorParams {
+	params := SafetyCheckVisitorParams
+	params.customVisit = func(vis *VarVisitor, v any) bool {
+		return unsafeNotVars(arity, vis, v)
+	}
+	return params
+}
+
+type ExprByVar map[Var][]*Expr
+
+func (m ExprByVar) add(v Var, e *Expr) {
+	if u, ok := m[v]; ok {
+		m[v] = append(u, e)
+	} else {
+		m[v] = []*Expr{e}
+	}
+}
+
+// unsafeNotVars
+// all vars in a not-body that aren't also assigned in that body are considered unsafe.
+func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
+	// TODO: if there's only one expression in the not-body, do as before and report all vars (?)
+	// TODO: cleanup. Can we do less walking?
+
+	if n, ok := v.(*Not); ok {
+		exprByVar := ExprByVar{}
+		for _, e := range n.Body {
+			vis2 := varVisitorPool.Get().WithParams(safetyCheckVisitorParams(arity))
+			vis2.Walk(e)
+			for v := range vis2.Vars() {
+				exprByVar.add(v, e)
+			}
+		}
+
+		assignedVars := ExprByVar{}
+
+		WalkExprs(n.Body, func(expr *Expr) bool {
+			if terms, ok := expr.Terms.([]*Term); ok {
+				if expr.IsEquality() {
+					vs := outputVarsForExprEq(expr, VarSet{}, VarSet{})
+					for v := range vs {
+						assignedVars.add(v, expr)
+					}
+					return false
+				}
+
+				operator, ok := terms[0].Value.(Ref)
+				if !ok {
+					return false
+				}
+
+				ar := arity(operator)
+				if ar < 0 {
+					return false
+				}
+
+				numInputTerms := ar + 1
+				if numInputTerms >= len(terms) {
+					return false
+				}
+
+				vis2 := varVisitorPool.Get().WithParams(VarVisitorParams{
+					SkipClosures:   true,
+					SkipSets:       true,
+					SkipObjectKeys: true,
+					SkipRefHead:    true,
+				})
+				vis2.WalkArgs(terms[numInputTerms:])
+				vs := vis2.vars
+				for v := range vs {
+					assignedVars.add(v, expr)
+				}
+
+				varVisitorPool.Put(vis2)
+			}
+			return false
+		})
+
+		vis2 := varVisitorPool.Get().WithParams(safetyCheckVisitorParams(arity))
+		vis2.Walk(n.Body)
+
+		for v := range vis2.vars {
+			// Assigned vars must be used by another expression to be considered safe.
+			if _, ok := assignedVars[v]; !ok {
+				vis.Add(v)
+			} else if exprs, ok := exprByVar[v]; ok && len(exprs) == 1 {
+				vis.Add(v)
+			}
+		}
+
+		return true
+	}
+
+	return false
 }
 
 type bodySafetyTransformer struct {
@@ -4606,8 +4707,6 @@ func newBodySafetyTransformer(builtins map[string]*Builtin, arity func(Ref) int)
 }
 
 func (xform *bodySafetyTransformer) Visit(x any) bool {
-	// FIXME: Also for *Not?
-
 	if xform.gv == nil {
 		xform.gv = NewGenericVisitor(xform.Visit)
 	}
@@ -4643,12 +4742,14 @@ func (xform *bodySafetyTransformer) Visit(x any) bool {
 			return true
 		}
 	case *Expr:
-		if ev, ok := term.Terms.(*Every); ok {
-			xform.globals.Update(ev.KeyValueVars())
-			ev.Body = xform.reorderComprehensionSafety(NewVarSet(), ev.Body)
+		switch x := term.Terms.(type) {
+		case *Every:
+			xform.globals.Update(x.KeyValueVars())
+			x.Body = xform.reorderComprehensionSafety(NewVarSet(), x.Body)
 			return true
-		} else if n, ok := term.Terms.(*Not); ok {
-			n.Body = xform.reorderComprehensionSafety(NewVarSet(), n.Body)
+		case *Not:
+			x.Body = xform.reorderComprehensionSafety(NewVarSet(), x.Body)
+			//xform.reorderNotSafety(x)
 			return true
 		}
 	}
@@ -4656,7 +4757,7 @@ func (xform *bodySafetyTransformer) Visit(x any) bool {
 }
 
 func (xform *bodySafetyTransformer) reorderComprehensionSafety(tv VarSet, body Body) Body {
-	bv := body.Vars(SafetyCheckVisitorParams)
+	bv := body.Vars(safetyCheckVisitorParams(xform.arity))
 	bv.Update(xform.globals)
 
 	if tv.DiffCount(bv) > 0 {
@@ -4735,11 +4836,13 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet, output VarS
 	}
 
 	if len(expr.With) > 0 {
+		// Note: we don't care about not exprs here
 		vis = ClearOrNewVarVisitor(vis).WithParams(SafetyCheckVisitorParams)
 	}
 
 	// With modifier inputs must be safe.
 	for _, with := range expr.With {
+		// Note: we don't care about not exprs here
 		vis = vis.Clear().WithParams(SafetyCheckVisitorParams)
 		vis.Walk(with)
 		if vis.Vars().DiffCount(safe) > 0 {
@@ -5698,6 +5801,7 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 		v.Value = value
 		v.Body = rewriteExprTermsInBody(gen, appendToBody(v.Body, support...))
 	case *Not:
+		// Note: not strictly needed as long as 'not' can only be a term node, and not a term value
 		v.Body = rewriteExprTermsInBody(gen, appendToBody(v.Body, support...))
 	}
 	return
@@ -6188,6 +6292,7 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
 	vis := NewGenericVisitor(func(x any) bool {
 		var stop bool
+		// Note: we don't include *Not nodes here, as such bodies are allowed to contain assignments; e.g. 'not {x := input.x; f(x)}'
 		switch x := x.(type) {
 		case *Term:
 			stop, errs = rewriteDeclaredVarsInTerm(g, stack, x, errs, strict)

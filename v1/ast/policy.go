@@ -1362,6 +1362,11 @@ func (expr *Expr) IsNot() bool {
 	return ok
 }
 
+// IsNegated returns true if Negated or IsNot() returns true for this expression
+func (expr *Expr) IsNegated() bool {
+	return expr.Negated || expr.IsNot()
+}
+
 // IsSome returns true if this expression is a 'some' expression.
 func (expr *Expr) IsSome() bool {
 	_, ok := expr.Terms.(*SomeDecl)

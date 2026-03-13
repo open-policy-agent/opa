@@ -4270,6 +4270,7 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 				// in the future, we can handle more cases.
 				return false
 			}
+			// TODO: also check expr.Terms.(*ast.Not)?
 			if !expr.Negated {
 				// Positive expressions containing variables cannot be trivially negated
 				// because they become unsafe (e.g., "x = 1" negated is "not x = 1" making x

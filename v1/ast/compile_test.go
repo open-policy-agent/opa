@@ -12956,22 +12956,24 @@ func TestCompilerCopiesTemplateStrings(t *testing.T) {
 	}
 }
 
+// TODO: Add AST assertions
 func TestCompilerNotImport(t *testing.T) {
 	tests := []struct {
-		note   string
-		module string
+		note    string
+		module  string
+		expErrs Errors
 	}{
 		{
 			note: "no import",
-			module: `package test
+			module: `package negation
 				p if {
 					not input.x + input.y == input.z
 				}
 			`,
 		},
 		{
-			note: "negated call",
-			module: `package test
+			note: "negated call, equal",
+			module: `package negation
 				import future.keywords.not
 				p if {
 					not 1 + 1 == 3
@@ -12979,14 +12981,174 @@ func TestCompilerNotImport(t *testing.T) {
 			`,
 		},
 		{
+			note: "negated call, unification",
+			module: `package negation
+				import future.keywords.not
+				p if {
+					not 1 + 1 = 3
+				}
+			`,
+		},
+		{
 			note: "negated call with vars",
-			module: `package test
+			module: `package negation
 				import future.keywords.not
 				p if {
 					not input.x + input.y == input.z
 				}
 			`,
 		},
+		{
+			note: "negated call with vars, inside comprehension",
+			module: `package negation
+				import future.keywords.not
+				
+				p := [x | x := "foo"; not f(input.x)]
+				
+				f(_) := true
+			`,
+		},
+		{
+			note: "negated call with vars, inside every",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					every x in input.x {
+						not f(x, input.y)
+					}
+				}
+				
+				f(_, _) := true
+			`,
+		},
+		{
+			note: "negated assignment",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not a := 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+			},
+		},
+		{
+			note: "negated equality, unsafe var",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not a == 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+			},
+		},
+		{
+			note: "negated unification, unsafe var",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not a = 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+			},
+		},
+		{
+			note: "negated enumeration, unsafe var (wildcard)",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not input.a[_]
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var _ is unsafe",
+				},
+			},
+		},
+		{
+			note: "negated safe var",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					a = 1
+					not a + 2 = 3
+				}
+			`,
+		},
+		{
+			note: "negated unsafe var",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not a + 2 = 3
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+			},
+		},
+
+		// TODO: not-body parsing required
+		//{
+		//	note: "negated indirection",
+		//	module: `package negation
+		//		import future.keywords.not
+		//
+		//		p if {
+		//			not {
+		//				a = 1
+		//				b = a
+		//				a + 1 = 2
+		//			}
+		//		}
+		//	`,
+		//},
+		//{
+		//	note: "negated indirection, unsafe var",
+		//	module: `package negation
+		//		import future.keywords.not
+		//
+		//		p if {
+		//			not {
+		//				a = x
+		//				b = a
+		//				a + 1 = 2
+		//			}
+		//		}
+		//	`,
+		//	expErrs: Errors{
+		//		&Error{
+		//			Code:    CompileErr,
+		//			Message: "var a is unsafe",
+		//		},
+		//	},
+		//},
 	}
 
 	for _, tc := range tests {
@@ -13000,8 +13162,12 @@ func TestCompilerNotImport(t *testing.T) {
 				t.Logf("compiled module %s:\n\n%v\n\n%s", n, m, mermaidGraph(m))
 			}
 
-			if c.Failed() {
-				t.Fatalf("unexpected compile failure: %v", c.Errors)
+			if len(tc.expErrs) > 0 {
+				assertErrors(t, c.Errors, tc.expErrs, false)
+			} else if len(c.Errors) > 0 {
+				if c.Failed() {
+					t.Fatalf("unexpected compile errors: %v", c.Errors)
+				}
 			}
 		})
 	}

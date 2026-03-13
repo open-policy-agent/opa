@@ -1,4 +1,4 @@
-// Copyright 2025 The OPA Authors.  All rights reserved.
+// Copyright 2026 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 )
+
+// TODO: move/rename?
 
 // mermaidFormatter is implemented by AST nodes that can render themselves as a
 // Mermaid flowchart fragment. Each call writes node and edge declarations to b
@@ -349,20 +351,20 @@ func mermaidFormatObject(o Object, b *mermaidBuilder) string {
 // --- Comprehensions ---
 
 func (ac *ArrayComprehension) mermaidFormat(b *mermaidBuilder) string {
-	id := b.node("stadium", "[_ | ...]")
+	id := b.node("stadium", "Array Comprehension")
 	termID := ac.Term.mermaidFormat(b)
 	b.edgeLabeled(id, termID, "term")
 	bodyID := b.node("rect", "Body")
 	b.edge(id, bodyID)
 	for i, expr := range ac.Body {
 		exprID := mermaidFormatExpr(expr, i, b)
-		b.edge(bodyID, exprID)
+		b.edgeLabeled(bodyID, exprID, fmt.Sprintf("%d", i))
 	}
 	return id
 }
 
 func (oc *ObjectComprehension) mermaidFormat(b *mermaidBuilder) string {
-	id := b.node("stadium", "{_:_ | ...}")
+	id := b.node("stadium", "Object Comprehension")
 	kID := oc.Key.mermaidFormat(b)
 	b.edgeLabeled(id, kID, "key")
 	vID := oc.Value.mermaidFormat(b)
@@ -371,20 +373,20 @@ func (oc *ObjectComprehension) mermaidFormat(b *mermaidBuilder) string {
 	b.edge(id, bodyID)
 	for i, expr := range oc.Body {
 		exprID := mermaidFormatExpr(expr, i, b)
-		b.edge(bodyID, exprID)
+		b.edgeLabeled(bodyID, exprID, fmt.Sprintf("%d", i))
 	}
 	return id
 }
 
 func (sc *SetComprehension) mermaidFormat(b *mermaidBuilder) string {
-	id := b.node("stadium", "{_ | ...}")
+	id := b.node("stadium", "Set Comprehension")
 	termID := sc.Term.mermaidFormat(b)
 	b.edgeLabeled(id, termID, "term")
 	bodyID := b.node("rect", "Body")
 	b.edge(id, bodyID)
 	for i, expr := range sc.Body {
 		exprID := mermaidFormatExpr(expr, i, b)
-		b.edge(bodyID, exprID)
+		b.edgeLabeled(bodyID, exprID, fmt.Sprintf("%d", i))
 	}
 	return id
 }
