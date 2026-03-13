@@ -1173,10 +1173,10 @@ func (ref Ref) Copy() Ref {
 	return termSliceCopy(ref)
 }
 
-// CopyNonGround returns a new ref with deep copies of the non-ground parts and shallow
-// copies of the ground parts. This is a *much* cheaper operation than Copy for operations
-// that only intend to modify (e.g. plug) the non-ground parts. The head element of the ref
-// is always shallow copied.
+// CopyNonGround returns a new ref with shallow copies of ground parts and deep
+// copies of non-ground parts. The head element is always shallow copied. This is
+// cheaper than Copy for operations that only modify non-ground parts (e.g. plugging)
+// or metadata (e.g. Location).
 func (ref Ref) CopyNonGround() Ref {
 	cpy := make(Ref, len(ref))
 	cpy[0] = ref[0]
@@ -1729,17 +1729,26 @@ type set struct {
 
 // Copy returns a deep copy of s.
 func (s *set) Copy() Set {
+	n := len(s.keys)
 	cpy := &set{
 		hash:      s.hash,
 		ground:    s.ground,
 		sortGuard: sync.Once{},
-		elems:     make(map[int]*Term, len(s.elems)),
-		keys:      make([]*Term, 0, len(s.keys)),
+		elems:     make(map[int]*Term, n),
+		keys:      make([]*Term, n),
 	}
 
-	for hash := range s.elems {
-		cpy.elems[hash] = s.elems[hash].Copy()
-		cpy.keys = append(cpy.keys, cpy.elems[hash])
+	if n > 0 {
+		// Batch-allocate all Term structs in a single contiguous block.
+		buf := make([]Term, n)
+		i := 0
+		for hash, elem := range s.elems {
+			buf[i] = *elem
+			deepCopyTermValue(&buf[i])
+			cpy.elems[hash] = &buf[i]
+			cpy.keys[i] = &buf[i]
+			i++
+		}
 	}
 
 	return cpy
@@ -2364,10 +2373,41 @@ func (obj *object) IsGround() bool {
 
 // Copy returns a deep copy of obj.
 func (obj *object) Copy() Object {
-	cpy, _ := obj.Map(func(k, v *Term) (*Term, *Term, error) {
-		return k.Copy(), v.Copy(), nil
-	})
-	cpy.(*object).hash = obj.hash
+	n := len(obj.keys)
+	cpy := &object{
+		elems:     make(map[int]*objectElem, n),
+		sortGuard: sync.Once{},
+		hash:      obj.hash,
+		ground:    obj.ground,
+	}
+
+	if n == 0 {
+		return cpy
+	}
+
+	// Batch-allocate all objectElems, keys, and values in contiguous blocks
+	// (3 allocations instead of 3N).
+	elems := make([]objectElem, n)
+	keys := make([]Term, n)
+	vals := make([]Term, n)
+	cpy.keys = make([]*objectElem, n)
+
+	for i, srcElem := range obj.keys {
+		keys[i] = *srcElem.key
+		deepCopyTermValue(&keys[i])
+		vals[i] = *srcElem.value
+		deepCopyTermValue(&vals[i])
+
+		elems[i] = objectElem{key: &keys[i], value: &vals[i]}
+		cpy.keys[i] = &elems[i]
+
+		hash := keys[i].Hash()
+		if head, ok := cpy.elems[hash]; ok {
+			elems[i].next = head
+		}
+		cpy.elems[hash] = &elems[i]
+	}
+
 	return cpy
 }
 
@@ -2931,10 +2971,45 @@ func (c Call) String() string {
 	return util.ByteSliceToString(buf)
 }
 
+// deepCopyTermValue deep copies the Value of term in-place.
+// Scalar values (Null, Boolean, Number, String, Var) are already
+// copied by struct assignment, so only container types need work.
+func deepCopyTermValue(term *Term) {
+	switch v := term.Value.(type) {
+	case Null, Boolean, Number, String, Var:
+		// Already copied by *term = *src struct assignment.
+	case Ref:
+		term.Value = v.Copy()
+	case *Array:
+		term.Value = v.Copy()
+	case Set:
+		term.Value = v.Copy()
+	case *object:
+		term.Value = v.Copy()
+	case *ArrayComprehension:
+		term.Value = v.Copy()
+	case *ObjectComprehension:
+		term.Value = v.Copy()
+	case *SetComprehension:
+		term.Value = v.Copy()
+	case *TemplateString:
+		term.Value = v.Copy()
+	case Call:
+		term.Value = v.Copy()
+	}
+}
+
 func termSliceCopy(a []*Term) []*Term {
-	cpy := make([]*Term, len(a))
-	for i := range a {
-		cpy[i] = a[i].Copy()
+	n := len(a)
+	if n == 0 {
+		return make([]*Term, 0)
+	}
+	// Batch allocate all Term structs in a single contiguous slice (2 allocs
+	// instead of N+1) using the same pattern as util.NewPtrSlice.
+	cpy := util.NewPtrSlice[Term](n)
+	for i := range n {
+		*cpy[i] = *a[i]           // copy Term struct (Value + Location)
+		deepCopyTermValue(cpy[i]) // deep copy container Values in-place
 	}
 	return cpy
 }
