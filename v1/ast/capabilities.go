@@ -277,6 +277,10 @@ func (c *Capabilities) ContainsBuiltin(name string) bool {
 	})
 }
 
+func (c *Capabilities) ContainsFutureKeyword(kw string) bool {
+	return slices.Contains(c.FutureKeywords, kw)
+}
+
 // addBuiltinSorted inserts a built-in into c in sorted order. An existing built-in with the same name
 // will be overwritten.
 func (c *Capabilities) addBuiltinSorted(bi *Builtin) {

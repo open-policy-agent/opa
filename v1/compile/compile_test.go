@@ -3494,7 +3494,7 @@ func TestOptimizerOutput(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
-			popts := ast.ParserOptions{AllFutureKeywords: true}
+			popts := ast.ParserOptions{}
 			o := getOptimizer(tc.modules, tc.data, tc.entrypoints, tc.roots, tc.namespace, popts)
 			original := o.bundle.Copy()
 			err := o.Do(t.Context())

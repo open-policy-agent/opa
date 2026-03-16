@@ -4614,6 +4614,7 @@ func (m ExprByVar) add(v Var, e *Expr) {
 
 // unsafeNotVars
 // all vars in a not-body that aren't also assigned in that body are considered unsafe.
+// Assigned var must also be used in som other body expr. (Note: maybe not necessary for one-expr bodies, as we then can just report all vars)
 func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
 	// TODO: if there's only one expression in the not-body, do as before and report all vars (?)
 	// TODO: cleanup. Can we do less walking?

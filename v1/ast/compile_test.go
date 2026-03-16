@@ -1782,19 +1782,16 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			sort.Strings(expected)
 
 			// Compile test module.
-			popts := ParserOptions{
-				AllFutureKeywords:  true,
-				unreleasedKeywords: true,
-			}
+
 			c := NewCompiler()
 			c.Modules = map[string]*Module{
-				"newMod": MustParseModuleWithOpts(fmt.Sprintf(`
+				"newMod": MustParseModule(fmt.Sprintf(`
 
 				%v
 
 				%v
 
-				`, moduleBegin, tc.moduleContent), popts),
+				`, moduleBegin, tc.moduleContent)),
 			}
 
 			compileStages(c, StageCheckSafetyRuleBodies)
@@ -10558,7 +10555,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 			dbg := bytes.Buffer{}
 			m := metrics.New()
 			compiler := NewCompiler().WithMetrics(m).WithDebug(&dbg)
-			mod, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true})
+			mod, err := ParseModule("test.rego", tc.module)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -11477,10 +11474,9 @@ func assertNotFailed(t *testing.T, c *Compiler) {
 func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 
 	parsed := map[string]*Module{}
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 
 	for id, input := range mods {
-		mod, err := ParseModuleWithOpts(id, input, popts)
+		mod, err := ParseModule(id, input)
 		if err != nil {
 			panic(err)
 		}
@@ -12516,7 +12512,7 @@ func modules(ms ...string) []*Module {
 
 // FIXME(v1-test-refactor): In OPA 1.0, a call to here can be replaced with a call to MustParseModule.
 func module(raw string, opts ...func(ParserOptions) ParserOptions) *Module {
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	popts := ParserOptions{}
 
 	for _, opt := range opts {
 		popts = opt(popts)
@@ -13039,6 +13035,22 @@ func TestCompilerNotImport(t *testing.T) {
 			},
 		},
 		{
+			note: "negated assignment, call",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not a := 1 + 2
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+			},
+		},
+		{
 			note: "negated equality, unsafe var",
 			module: `package negation
 				import future.keywords.not
@@ -13061,6 +13073,22 @@ func TestCompilerNotImport(t *testing.T) {
 				
 				p if {
 					not a = 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+			},
+		},
+		{
+			note: "negated unification, unsafe var, call",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not a = 1 + 2
 				}
 			`,
 			expErrs: Errors{

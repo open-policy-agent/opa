@@ -435,9 +435,25 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 
 	selected := map[string]tokens.Token{}
-	if p.po.AllFutureKeywords || p.po.EffectiveRegoVersion() == RegoV1 {
+	if p.po.AllFutureKeywords {
 		maps.Copy(selected, allowedFutureKeywords)
 	} else {
+		if p.po.EffectiveRegoVersion() == RegoV1 {
+			for kw := range futureKeywordsV0 {
+				tok, ok := allowedFutureKeywords[kw]
+				if !ok {
+					return nil, nil, Errors{
+						&Error{
+							Code:     ParseErr,
+							Message:  fmt.Sprintf("unknown future keyword: %v", kw),
+							Location: nil,
+						},
+					}
+				}
+				selected[kw] = tok
+			}
+		}
+
 		for _, kw := range p.po.FutureKeywords {
 			tok, ok := allowedFutureKeywords[kw]
 			if !ok {
@@ -452,10 +468,15 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			selected[kw] = tok
 		}
 	}
+
+	if _, ok := selected["not"]; ok {
+		p.notBodies = true
+	}
+
 	p.s.s = p.s.s.WithKeywords(selected)
 
 	if p.po.EffectiveRegoVersion() == RegoV1 {
-		for kw, tok := range allowedFutureKeywords {
+		for kw, tok := range futureKeywordsV0 {
 			p.s.s.AddKeyword(kw, tok)
 		}
 	}
