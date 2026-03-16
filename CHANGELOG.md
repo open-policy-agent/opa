@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.14.2
+
+This patch release re-introduces the rule indexer improvements described in 1.14.0 after the bug has been fixed on main.
+
+### Changes
+
+- Revert "Revert "ast: make rule index track var assignments and `x in {...}` (#8341)" (#8410)"
+- ast: fix overlapping array and scalar pattern in rule index
+
 ## 1.14.1
 
 This is a patch release collecting two bug fixes and various dependency updates for Golang standard library and common package vulnerabilities.
