@@ -1,3 +1,10 @@
 # Exception Format is <test name>: <reason>
 "data/toplevel integer": "https://github.com/open-policy-agent/opa/issues/3711"
 "data/nested integer": "https://github.com/open-policy-agent/opa/issues/3711"
+"negation/not-body: negated call with vars, call succeeds": "No planner support"
+"negation/not-body: negated call with vars, call fails": "No planner support"
+"negation/not-body: negated call with vars, undefined operands": "No planner support"
+"negation/not-body: negated call with vars, inside comprehension, call succeeds": "No planner support"
+"negation/not-body: negated call with vars, inside comprehension, undefined operands": "No planner support"
+"negation/not-body: negated call with vars, inside every, call succeeds": "No planner support"
+"negation/not-body: negated call with vars, inside every, undefined operands": "No planner support"
