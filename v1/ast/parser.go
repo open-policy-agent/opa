@@ -1318,7 +1318,7 @@ func (p *Parser) parseLiteralExpr(negated bool) *Expr {
 		}
 
 		if negated && p.notBodies {
-			expr = NewExpr(&Not{NewBody(expr)})
+			expr = NewExpr(&Not{Body: NewBody(expr), Location: p.s.Loc()})
 		} else {
 			expr.Negated = negated
 		}

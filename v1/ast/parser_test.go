@@ -9062,7 +9062,7 @@ func TestNotImport(t *testing.T) {
 						Body: NewBody(
 							NewExpr(
 								&Not{
-									NewBody(Equal.Expr(
+									Body: NewBody(Equal.Expr(
 										CallTerm(NewTerm(Plus.Ref()), NumberTerm("1"), NumberTerm("1")),
 										NumberTerm("3"),
 									)),

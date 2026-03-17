@@ -562,9 +562,10 @@ func IsScalar(v Value) bool {
 	return false
 }
 
-// FIXME: turn into a Node instead, like Every?
+// Not is both a Term and a Node
 type Not struct {
-	Body Body `json:"body"`
+	Body     Body      `json:"body"`
+	Location *Location `json:"location,omitempty"` // TODO: set location in parser
 }
 
 func NotTerm(exprs ...*Expr) *Term {
@@ -573,39 +574,57 @@ func NotTerm(exprs ...*Expr) *Term {
 	})
 }
 
-func (not *Not) Equal(other Value) bool {
-	switch other.(type) {
-	case Null:
-		return true
+func NotExpr(exprs ...*Expr) *Expr {
+	return NewExpr(&Not{
+		Body: NewBody(exprs...),
+	})
+}
+
+// Copy returns a deep copy of n.
+func (n *Not) Copy() *Not {
+	cpy := *n
+	cpy.Body = n.Body.Copy()
+	return &cpy
+}
+
+func (n *Not) Loc() *Location {
+	return n.Location
+}
+
+func (n *Not) SetLoc(l *Location) {
+	n.Location = l
+}
+
+func (n *Not) Equal(other Value) bool {
+	return n.Compare(other) == 0
+}
+
+func (n *Not) Compare(other Value) int {
+	switch o := other.(type) {
+	case *Not:
+		return n.Body.Compare(o.Body)
 	default:
-		return false
+		return -1
 	}
 }
 
-func (not *Not) Compare(other Value) int {
-	if _, ok := other.(Null); ok {
-		return 0
-	}
-	return -1
-}
-
-func (not *Not) Find(path Ref) (Value, error) {
+func (n *Not) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return NullValue, nil
 	}
 	return nil, errFindNotFound
 }
 
-func (not *Not) Hash() int {
-	return 1 + not.Body.Hash()
+func (n *Not) Hash() int {
+	return 1 + n.Body.Hash()
 }
 
-func (not *Not) IsGround() bool {
-	return not.Body.IsGround()
+func (n *Not) IsGround() bool {
+	return n.Body.IsGround()
 }
 
-func (not *Not) String() string {
-	return "not {" + not.Body.String() + "}"
+func (n *Not) String() string {
+	return "not {" + n.Body.String() + "}"
 }
 
 // Null represents the null value defined by JSON.

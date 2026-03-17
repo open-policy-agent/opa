@@ -1246,6 +1246,10 @@ func (expr *Expr) Compare(other *Expr) int {
 		if cmp := Compare(t, other.Terms.(*Every)); cmp != 0 {
 			return cmp
 		}
+	case *Not:
+		if cmp := Compare(t, other.Terms.(*Not)); cmp != 0 {
+			return cmp
+		}
 	}
 
 	return withSliceCompare(expr.With, other.With)
@@ -1261,6 +1265,8 @@ func (expr *Expr) sortOrder() int {
 		return 2
 	case *Every:
 		return 3
+	case *Not:
+		return 4
 	}
 	return -1
 }
@@ -1785,6 +1791,8 @@ func Copy(x any) any {
 	case *SomeDecl:
 		return x.Copy()
 	case *Every:
+		return x.Copy()
+	case *Not:
 		return x.Copy()
 	case *Term:
 		return x.Copy()
