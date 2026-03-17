@@ -8,3 +8,4 @@
 "negation/not-body: negated call with vars, inside comprehension, undefined operands": "No planner support"
 "negation/not-body: negated call with vars, inside every, call succeeds": "No planner support"
 "negation/not-body: negated call with vars, inside every, undefined operands": "No planner support"
+"negation/not-body: negated and non-negated unification on same var, calls, rearranged": "No planner support"

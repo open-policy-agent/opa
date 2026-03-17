@@ -17,6 +17,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/types"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -12952,11 +12953,12 @@ func TestCompilerCopiesTemplateStrings(t *testing.T) {
 	}
 }
 
-// TODO: Add AST assertions
+// TODO: Update AST assertions to use parsed expected module (parser update required)
 func TestCompilerNotImport(t *testing.T) {
 	tests := []struct {
 		note    string
 		module  string
+		expMod  *Module
 		expErrs Errors
 	}{
 		{
@@ -12966,6 +12968,30 @@ func TestCompilerNotImport(t *testing.T) {
 					not input.x + input.y == input.z
 				}
 			`,
+			expMod: &Module{
+				Package: MustParsePackage("package negation"),
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							&Expr{
+								Terms: []*Term{
+									NewTerm(Equal.Ref()),
+									CallTerm(NewTerm(Plus.Ref()),
+										RefTerm(VarTerm("input"), StringTerm("x")),
+										RefTerm(VarTerm("input"), StringTerm("y"))),
+									RefTerm(VarTerm("input"), StringTerm("z")),
+								},
+								Negated: true,
+							},
+						),
+					},
+				},
+			},
 		},
 		{
 			note: "negated call, equal",
@@ -12975,6 +13001,31 @@ func TestCompilerNotImport(t *testing.T) {
 					not 1 + 1 == 3
 				}
 			`,
+			expMod: &Module{
+				Package: MustParsePackage("package negation"),
+				Imports: MustParseImports("import future.keywords.not"),
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							NewExpr(
+								&Not{
+									NewBody(Equal.Expr(
+										CallTerm(NewTerm(Plus.Ref()),
+											RefTerm(VarTerm("input"), StringTerm("x")),
+											RefTerm(VarTerm("input"), StringTerm("y"))),
+										RefTerm(VarTerm("input"), StringTerm("z")),
+									)),
+								},
+							),
+						),
+					},
+				},
+			},
 		},
 		{
 			note: "negated call, unification",
@@ -12986,7 +13037,7 @@ func TestCompilerNotImport(t *testing.T) {
 			`,
 		},
 		{
-			note: "negated call with vars",
+			note: "negated call with refs (local var expansion)",
 			module: `package negation
 				import future.keywords.not
 				p if {
@@ -13041,6 +13092,22 @@ func TestCompilerNotImport(t *testing.T) {
 				
 				p if {
 					not a := 1 + 2
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+			},
+		},
+		{
+			note: "negated assignment, call, output var",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not plus(1, 2, a)
 				}
 			`,
 			expErrs: Errors{
@@ -13126,6 +13193,17 @@ func TestCompilerNotImport(t *testing.T) {
 			`,
 		},
 		{
+			note: "negated safe var, rearranged",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not a + 2 = 3
+					a = 1
+				}
+			`,
+		},
+		{
 			note: "negated unsafe var",
 			module: `package negation
 				import future.keywords.not
@@ -13142,6 +13220,98 @@ func TestCompilerNotImport(t *testing.T) {
 			},
 		},
 
+		{
+			note: "negated and non-negated unification on same var",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					a = 2
+					not a = 1
+				}
+			`,
+		},
+		{
+			note: "negated and non-negated unification on same var, rearranged",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not a = 1
+					a = 2
+				}
+			`,
+		},
+		{
+			note: "negated and non-negated unification on same var, calls, rearranged",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					a = f(2)
+					not a = f(1)
+				}
+				
+				f(x) := x
+			`,
+		},
+
+		{
+			note: "nested negation (comprehension)",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not [v |
+						v := 1
+						not v = 2
+					]
+				}`,
+		},
+		{
+			note: "nested negation (comprehension), outer closure var reference",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					v := 1
+					not [42 |
+						not v = 2
+					]
+				}`,
+		},
+		{
+			note: "nested negation (comprehension), unsafe var reference",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not [42 |
+						not v = 2
+					]
+				}`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var v is unsafe",
+				},
+			},
+		},
+		{
+			note: "nested negation (comprehension), inner var override",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+				v := 1
+				not [42 |
+					v := 2
+					not v = 1
+				]
+			}`,
+		},
+		// TODO: Add purely nested negations (requires body parsing)
+
 		// TODO: not-body parsing required
 		//{
 		//	note: "negated indirection",
@@ -13151,6 +13321,20 @@ func TestCompilerNotImport(t *testing.T) {
 		//		p if {
 		//			not {
 		//				a = 1
+		//				b = a
+		//				a + 1 = 2
+		//			}
+		//		}
+		//	`,
+		//},
+		//	note: "negated indirection, safe var",
+		//	module: `package negation
+		//		import future.keywords.not
+		//
+		//		p if {
+		//			x := 1
+		//			not {
+		//				a = x
 		//				b = a
 		//				a + 1 = 2
 		//			}
@@ -13181,14 +13365,10 @@ func TestCompilerNotImport(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			mods := map[string]*Module{"mod.rego": MustParseModule(tc.module)}
+			mod := MustParseModule(tc.module)
 
 			c := NewCompiler()
-			c.Compile(mods)
-
-			for n, m := range c.Modules {
-				t.Logf("compiled module %s:\n\n%v\n\n%s", n, m, mermaidGraph(m))
-			}
+			c.Compile(map[string]*Module{"mod.rego": mod})
 
 			if len(tc.expErrs) > 0 {
 				assertErrors(t, c.Errors, tc.expErrs, false)
@@ -13196,6 +13376,16 @@ func TestCompilerNotImport(t *testing.T) {
 				if c.Failed() {
 					t.Fatalf("unexpected compile errors: %v", c.Errors)
 				}
+			}
+
+			if tc.expMod != nil {
+				if diff := cmp.Diff(tc.expMod, mod); diff != "" {
+					t.Errorf("unexpected module (-want, +got):\n%s", diff)
+				}
+			}
+
+			for n, m := range c.Modules {
+				t.Logf("compiled module %s:\n\n%v\n\n%s", n, m, mermaidGraph(m))
 			}
 		})
 	}

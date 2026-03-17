@@ -124,3 +124,20 @@ cases:
       x: [1, 2]
     want_result:
       - x: true
+  - note: "negation/not-body: negated and non-negated unification on same var, calls, rearranged"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+        
+        import future.keywords.not
+        
+        p := a if {
+          not a = f(1)
+          a = f(2)
+        }
+          
+        f(x) := x
+
+    want_result:
+      - x: 2
