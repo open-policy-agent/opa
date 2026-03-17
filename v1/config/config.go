@@ -6,6 +6,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +21,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/version"
+)
+
+const (
+	// DefaultMinTLSVersion is the minimum TLS version used by OPA server and REST clients
+	DefaultMinTLSVersion = tls.VersionTLS12
 )
 
 // ServerConfig represents the different server configuration options.

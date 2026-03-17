@@ -516,6 +516,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithDistributedTracingOpts(params.DistributedTracingOpts),
 		plugins.WithBundleActivatorPlugin(params.BundleActivatorPlugin),
 		plugins.WithHooks(params.Hooks),
+		plugins.WithMinTLSVersion(params.MinTLSVersion),
+		plugins.WithCipherSuites(params.CipherSuites),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
