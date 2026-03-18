@@ -147,6 +147,11 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 	switch co.regoVersion {
 	case RegoV0, RegoV0CompatV1:
 		for kw := range allFutureKeywords {
+			// TODO: drop once future.keywords.not is enabled by default
+			if kw == "not" {
+				continue
+			}
+
 			f.FutureKeywords = append(f.FutureKeywords, kw)
 		}
 
@@ -159,6 +164,11 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 		}
 	default:
 		for kw := range futureKeywords {
+			// TODO: drop once future.keywords.not is enabled by default
+			if kw == "not" {
+				continue
+			}
+
 			f.FutureKeywords = append(f.FutureKeywords, kw)
 		}
 

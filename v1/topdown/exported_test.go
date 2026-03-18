@@ -141,6 +141,10 @@ func testRun(t *testing.T, tc cases.TestCase, opts ...testOpt) {
 		modules[fmt.Sprintf("test-%d.rego", i)] = module
 	}
 
+	// TODO: drop once future.keywords.not is enabled by default
+	tos.parserOptions.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(tos.parserOptions.RegoVersion))
+	tos.parserOptions.Capabilities.FutureKeywords = append(tos.parserOptions.Capabilities.FutureKeywords, "not")
+
 	compiler := ast.MustCompileModulesWithOpts(modules, ast.CompileOpts{
 		ParserOptions: tos.parserOptions,
 	})

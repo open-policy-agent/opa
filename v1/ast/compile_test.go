@@ -12953,7 +12953,7 @@ func TestCompilerCopiesTemplateStrings(t *testing.T) {
 	}
 }
 
-// TODO: Update AST assertions to use parsed expected module (parser update required)
+// TODO: For readability, update AST assertions to use parsed expected module (parser update required)
 func TestCompilerNotImport(t *testing.T) {
 	tests := []struct {
 		note    string
@@ -13705,7 +13705,10 @@ func TestCompilerNotImport(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
-			c.Compile(map[string]*Module{"mod.rego": MustParseModule(tc.module)})
+			c.Compile(map[string]*Module{"mod.rego": MustParseModuleWithOpts(tc.module,
+				ParserOptions{
+					Capabilities: CapabilitiesForThisVersion().withFutureKeyword("not"),
+				})})
 
 			if len(tc.expErrs) > 0 {
 				assertErrors(t, c.Errors, tc.expErrs, false)
@@ -13726,4 +13729,10 @@ func TestCompilerNotImport(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TODO: drop once future.keywords.not is enabled by default
+func (c *Capabilities) withFutureKeyword(kw string) *Capabilities {
+	c.FutureKeywords = append(c.FutureKeywords, kw)
+	return c
 }

@@ -94,7 +94,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureTemplateStrings,
 			},
 			expFutureKeywords: []string{
-				"not",
+				//"not", // TODO: enable once future.keywords.not is enabled by default
 			},
 		},
 		{
@@ -112,7 +112,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				"every",
 				"contains",
 				"if",
-				"not",
+				//"not", // TODO: enable once future.keywords.not is enabled by default
 			},
 		},
 	}
