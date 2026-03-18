@@ -4134,6 +4134,7 @@ func (e *evalEvery) plug(expr *ast.Expr) *ast.Expr {
 	return cpy
 }
 
+// TODO: Add PE support
 type evalNot struct {
 	*ast.Not
 	e    *eval
@@ -4141,12 +4142,6 @@ type evalNot struct {
 }
 
 func (e evalNot) eval(iter unifyIterator) error {
-	// unknowns in domain or body: save the expression, PE its body
-	// partial() check to avoid e.Body -> Node boxing allocation
-	//if e.e.partial() && e.e.unknown(e.Body, e.e.bindings) {
-	//	return e.save(iter)
-	//}
-
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
@@ -4174,10 +4169,6 @@ func (e evalNot) eval(iter unifyIterator) error {
 
 	return nil
 }
-
-//func (e *evalNot) save(iter unifyIterator) error {
-//	return e.e.saveExpr(e.plug(e.expr), e.e.bindings, iter)
-//}
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
 	if e.queryCompiler != nil {

@@ -4616,19 +4616,33 @@ func (m ExprByVar) add(v Var, e *Expr) {
 // all vars in a not-body that aren't also assigned in that body are considered unsafe.
 // Assigned var must also be used in som other body expr. (Note: maybe not necessary for one-expr bodies, as we then can just report all vars)
 func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
-	// TODO: if there's only one expression in the not-body, do as before and report all vars (?)
-	// TODO: cleanup. Can we do less walking?
+	// FIXME: Can we do less walking here?
 
 	if n, ok := v.(*Not); ok {
+		internalVis := varVisitorPool.Get()
+		defer varVisitorPool.Put(internalVis)
+
+		// 1. Find all visible vars in body and record associated expression(s)
 		exprByVar := ExprByVar{}
+
 		for _, e := range n.Body {
-			vis2 := varVisitorPool.Get().WithParams(safetyCheckVisitorParams(arity))
-			vis2.Walk(e)
-			for v := range vis2.Vars() {
+			internalVis.Clear().WithParams(safetyCheckVisitorParams(arity))
+			internalVis.Walk(e)
+
+			for v := range internalVis.Vars() {
 				exprByVar.add(v, e)
 			}
 		}
 
+		// If there's only one expression in the not-body, simply report all vars found
+		if len(n.Body) == 1 {
+			for v := range exprByVar {
+				vis.Add(v)
+			}
+			return true
+		}
+
+		// 2. Find all variable assignments (unification, call output)
 		assignedVars := ExprByVar{}
 
 		WalkExprs(n.Body, func(expr *Expr) bool {
@@ -4656,31 +4670,30 @@ func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
 					return false
 				}
 
-				vis2 := varVisitorPool.Get().WithParams(VarVisitorParams{
+				internalVis.Clear().WithParams(VarVisitorParams{
 					SkipClosures:   true,
 					SkipSets:       true,
 					SkipObjectKeys: true,
 					SkipRefHead:    true,
 				})
-				vis2.WalkArgs(terms[numInputTerms:])
-				vs := vis2.vars
-				for v := range vs {
+				internalVis.WalkArgs(terms[numInputTerms:])
+				for v := range internalVis.Vars() {
 					assignedVars.add(v, expr)
 				}
-
-				varVisitorPool.Put(vis2)
 			}
 			return false
 		})
 
-		vis2 := varVisitorPool.Get().WithParams(safetyCheckVisitorParams(arity))
-		vis2.Walk(n.Body)
+		// 3. Record all vars in the not-body that aren't also assigned
 
-		for v := range vis2.vars {
-			// Assigned vars must be used by another expression to be considered safe.
+		internalVis.Clear().WithParams(safetyCheckVisitorParams(arity))
+		internalVis.Walk(n.Body)
+
+		for v := range internalVis.Vars() {
 			if _, ok := assignedVars[v]; !ok {
 				vis.Add(v)
 			} else if exprs, ok := exprByVar[v]; ok && len(exprs) == 1 {
+				// Assigned vars must be used by another expression to be considered safe.
 				vis.Add(v)
 			}
 		}
@@ -4832,7 +4845,7 @@ func OutputVarsFromExpr(c *Compiler, expr *Expr, safe VarSet) VarSet {
 
 func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet, output VarSet, vis *VarVisitor) VarSet {
 	// Negated expressions must be safe.
-	if expr.Negated {
+	if expr.IsNegated() {
 		return VarSet{}
 	}
 
@@ -4875,8 +4888,6 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet, output VarS
 		return outputVarsForExprCall(expr, ar, safe, terms, vis, output)
 	case *Every:
 		return outputVarsForTerms(terms.Domain, safe, output)
-	case *Not:
-		return VarSet{}
 	default:
 		panic("illegal expression")
 	}
