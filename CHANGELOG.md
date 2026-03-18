@@ -5,6 +5,30 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Custom HTTPAuthPlugin behavior change
+
+The `HTTPAuthPlugin.NewClient()` method is now called once per `Client` instance and cached rather than being called for every request. Custom plugins that performed per-request operations in `NewClient()` (such as request counters, per-request transport wrapping, or logging/metrics side effects) will now only execute those operations once. All per-request authentication logic must be moved from `NewClient()` to `Prepare()`. All plugins included in OPA have been updated and are unaffected by this change.
+
+### Runtime, SDK, Tooling
+
+- plugins/rest: Configurable re-read interval for TLS client certificates via `cert_reread_interval_seconds` field.
+   Defaults to re-reading on every request for backwards compatibility.
+   The implementation also uses content hashing to detect changes and avoid re-parsing unchanged TLS certificates and keys.
+- plugins/rest: All TLS configurations now inherit the minimum version and TLS ciphersuites as configured for the server.
+
+## 1.14.1
+
+This is a patch release collecting two bug fixes and various dependency updates for Golang standard library and common package vulnerabilities.
+
+These bug fixes include a revert of the rule indexer tweaks shipped in 1.14.0, which had caused unexpected lookup failures for some users. (We expect to properly fix the issue in 1.15.0, but for now, a revert is the quicker choice.)
+
+### Changes
+
+- Fix intermittent plugins manager  deadlock on opa.configure (#8407)
+- Revert "ast: make rule index track var assignments and `x in {...}` (#8341)" (#8410)
+- build: bump deps (go.mod from main)
+- build: bump go 1.26.1 (#8409)
+
 ## 1.14.0
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"slices"
 	"os"
 	"time"
 
@@ -53,6 +54,7 @@ type ExtendedTestCase struct {
 	EntryPoints    []string   `json:"entrypoints"`
 	Plan           *ir.Policy `json:"plan"`
 	WantPlanResult any        `json:"want_plan_result"`
+	Ignore         bool       `json:"ignore"`
 }
 
 type ExtendedSet struct {
@@ -85,23 +87,66 @@ func (t *noopEvalPlugin) PrepareForEval(_ context.Context, policy *ir.Policy, _ 
 // LoadIrExtendedTestCases adds the IR plan to existing testdata for external IR languages to use for testing (e.g. opa-swift)
 // accepts a path to an existing testdata folder (e.g. testdata/v1), reading each test and its cases
 func LoadIrExtendedTestCases() ([]ExtendedSet, error) {
+	return LoadIrExtendedTestCasesFiltered()
+}
+
+// Filters are functions that will return true if a test case should be filtered out
+type Filters func(*ExtendedTestCase) bool
+
+// CapabilitiesFilter will filter out any test cases not using a defined capability
+func CapabilitiesFilter(c *ast.Capabilities) Filters {
+	builtins := map[*ir.BuiltinFunc]struct{}{}
+	for _, b := range c.Builtins {
+		builtins[&ir.BuiltinFunc{Name: b.Name, Decl: b.Decl}] = struct{}{}
+	}
+
+	return func(r *ExtendedTestCase) bool {
+		if len(builtins) == 0 {
+			return true
+		}
+		if len(builtins) > len(r.Plan.Static.BuiltinFuncs) {
+			return true
+		}
+
+		for _, b := range r.Plan.Static.BuiltinFuncs {
+			// if the test case contains a builtin not in the capabilities file, reject it
+			if _, ok := builtins[b]; !ok {
+				return true
+			}
+		}
+
+		return false
+	}
+}
+
+func LoadIrExtendedTestCasesFiltered(filters ...Filters) ([]ExtendedSet, error) {
 	setup()
 
 	// Used by the 'time/time caching' test
-	ast.RegisterBuiltin(&ast.Builtin{
+	sleep := &ast.Builtin{
 		Name: "test.sleep",
 		Decl: types.NewFunction(
 			types.Args(types.S),
 			types.NewNull(),
 		),
-	})
+	}
+	if !slices.Contains(ast.Builtins, sleep) {
+		ast.RegisterBuiltin(&ast.Builtin{
+			Name: "test.sleep",
+			Decl: types.NewFunction(
+				types.Args(types.S),
+				types.NewNull(),
+			),
+		})
 
-	topdown.RegisterBuiltinFunc("test.sleep", func(_ topdown.BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-		d, _ := time.ParseDuration(string(operands[0].Value.(ast.String)))
-		time.Sleep(d)
-		return iter(ast.NullTerm())
-	})
+		topdown.RegisterBuiltinFunc("test.sleep", func(_ topdown.BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+			d, _ := time.ParseDuration(string(operands[0].Value.(ast.String)))
+			time.Sleep(d)
+			return iter(ast.NullTerm())
+		})
+	}
 
+	rego.ResetTargetPlugins()
 	evalPlugin := &noopEvalPlugin{}
 	rego.RegisterPlugin(pluginName, evalPlugin)
 
@@ -161,6 +206,13 @@ func LoadIrExtendedTestCases() ([]ExtendedSet, error) {
 			tc.Plan = evalPlugin.prepared
 			tc.EntryPoints = []string{evalPlugin.prepared.Plans.Plans[0].Name}
 			tc.WantPlanResult = tc.WantResult
+
+			for _, filter := range filters {
+				if filter(tc) {
+					tc.Ignore = true
+					break
+				}
+			}
 
 			results = append(results, x)
 		}
