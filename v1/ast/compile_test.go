@@ -13652,54 +13652,54 @@ func TestCompilerNotImport(t *testing.T) {
 		// TODO: Add purely nested negations (requires body parsing)
 
 		// TODO: not-body parsing required
-		//{
-		//	note: "negated indirection",
-		//	module: `package negation
-		//		import future.keywords.not
+		// {
+		// 	note: "negated indirection",
+		// 	module: `package negation
+		// 		import future.keywords.not
 		//
-		//		p if {
-		//			not {
-		//				a = 1
-		//				b = a
-		//				a + 1 = 2
-		//			}
-		//		}
-		//	`,
-		//},
-		//	note: "negated indirection, safe var",
-		//	module: `package negation
-		//		import future.keywords.not
+		// 		p if {
+		// 			not {
+		// 				a = 1
+		// 				b = a
+		// 				a + 1 = 2
+		// 			}
+		// 		}
+		// 	`,
+		// },
+		// 	note: "negated indirection, safe var",
+		// 	module: `package negation
+		// 		import future.keywords.not
 		//
-		//		p if {
-		//			x := 1
-		//			not {
-		//				a = x
-		//				b = a
-		//				a + 1 = 2
-		//			}
-		//		}
-		//	`,
-		//},
-		//{
-		//	note: "negated indirection, unsafe var",
-		//	module: `package negation
-		//		import future.keywords.not
+		// 		p if {
+		// 			x := 1
+		// 			not {
+		// 				a = x
+		// 				b = a
+		// 				a + 1 = 2
+		// 			}
+		// 		}
+		// 	`,
+		// },
+		// {
+		// 	note: "negated indirection, unsafe var",
+		// 	module: `package negation
+		// 		import future.keywords.not
 		//
-		//		p if {
-		//			not {
-		//				a = x
-		//				b = a
-		//				a + 1 = 2
-		//			}
-		//		}
-		//	`,
-		//	expErrs: Errors{
-		//		&Error{
-		//			Code:    CompileErr,
-		//			Message: "var a is unsafe",
-		//		},
-		//	},
-		//},
+		// 		p if {
+		// 			not {
+		// 				a = x
+		// 				b = a
+		// 				a + 1 = 2
+		// 			}
+		// 		}
+		// 	`,
+		// 	expErrs: Errors{
+		// 		&Error{
+		// 			Code:    CompileErr,
+		// 			Message: "var a is unsafe",
+		// 		},
+		// 	},
+		// },
 	}
 
 	for _, tc := range tests {

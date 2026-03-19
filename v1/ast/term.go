@@ -610,7 +610,7 @@ func (n *Not) Compare(other Value) int {
 
 func (n *Not) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
-		return NullValue, nil
+		return n, nil
 	}
 	return nil, errFindNotFound
 }
@@ -624,6 +624,7 @@ func (n *Not) IsGround() bool {
 }
 
 func (n *Not) String() string {
+	// TODO: Do best-effort unroll/interpolation of not-body to create one-liner expression if possible
 	return "not {" + n.Body.String() + "}"
 }
 

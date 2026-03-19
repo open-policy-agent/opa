@@ -4763,7 +4763,6 @@ func (xform *bodySafetyTransformer) Visit(x any) bool {
 			return true
 		case *Not:
 			x.Body = xform.reorderComprehensionSafety(NewVarSet(), x.Body)
-			//xform.reorderNotSafety(x)
 			return true
 		}
 	}

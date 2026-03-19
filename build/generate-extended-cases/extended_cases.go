@@ -6,8 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"slices"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/util"

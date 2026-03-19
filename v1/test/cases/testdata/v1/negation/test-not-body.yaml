@@ -77,7 +77,7 @@ cases:
         import future.keywords.not
 
         p := [x | x := "foo"; not f(input.x)]
-        
+
         f(_) := true
     want_result:
       - x: ["foo"]
@@ -88,7 +88,7 @@ cases:
         package negation
 
         import future.keywords.not
-        
+
         default p := false
 
         p if {
@@ -110,7 +110,7 @@ cases:
         package negation
 
         import future.keywords.not
-        
+
         default p := false
 
         p if {
@@ -129,14 +129,14 @@ cases:
     modules:
       - |
         package negation
-        
+
         import future.keywords.not
-        
+
         p := a if {
           not a = f(1)
           a = f(2)
         }
-          
+
         f(x) := x
 
     want_result:

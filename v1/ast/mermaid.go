@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -152,7 +153,7 @@ func (rule *Rule) mermaidFormat(b *mermaidBuilder) string {
 		b.edge(id, bodyID)
 		for i, expr := range rule.Body {
 			exprID := mermaidFormatExpr(expr, i, b)
-			b.edgeLabeled(bodyID, exprID, fmt.Sprintf("%d", i))
+			b.edgeLabeled(bodyID, exprID, strconv.Itoa(i))
 		}
 	}
 
@@ -260,7 +261,7 @@ func (not *Not) mermaidFormat(b *mermaidBuilder) string {
 	id := b.node("stadium", "not")
 	for i, expr := range not.Body {
 		exprID := mermaidFormatExpr(expr, i, b)
-		b.edgeLabeled(id, exprID, fmt.Sprintf("%d", i))
+		b.edgeLabeled(id, exprID, strconv.Itoa(i))
 	}
 	return id
 }
@@ -358,7 +359,7 @@ func (ac *ArrayComprehension) mermaidFormat(b *mermaidBuilder) string {
 	b.edge(id, bodyID)
 	for i, expr := range ac.Body {
 		exprID := mermaidFormatExpr(expr, i, b)
-		b.edgeLabeled(bodyID, exprID, fmt.Sprintf("%d", i))
+		b.edgeLabeled(bodyID, exprID, strconv.Itoa(i))
 	}
 	return id
 }
@@ -373,7 +374,7 @@ func (oc *ObjectComprehension) mermaidFormat(b *mermaidBuilder) string {
 	b.edge(id, bodyID)
 	for i, expr := range oc.Body {
 		exprID := mermaidFormatExpr(expr, i, b)
-		b.edgeLabeled(bodyID, exprID, fmt.Sprintf("%d", i))
+		b.edgeLabeled(bodyID, exprID, strconv.Itoa(i))
 	}
 	return id
 }
@@ -386,7 +387,7 @@ func (sc *SetComprehension) mermaidFormat(b *mermaidBuilder) string {
 	b.edge(id, bodyID)
 	for i, expr := range sc.Body {
 		exprID := mermaidFormatExpr(expr, i, b)
-		b.edgeLabeled(bodyID, exprID, fmt.Sprintf("%d", i))
+		b.edgeLabeled(bodyID, exprID, strconv.Itoa(i))
 	}
 	return id
 }
