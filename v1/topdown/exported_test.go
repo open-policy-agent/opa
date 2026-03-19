@@ -25,14 +25,14 @@ func TestRego(t *testing.T) {
 		t.Run("v0/"+tc.Note, func(t *testing.T) {
 			t.Parallel()
 
-			testRun(t, tc, ast.RegoV0)
+			testRun(t, tc, regoVersion(ast.RegoV0))
 		})
 	}
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases {
 		t.Run("v1/"+tc.Note, func(t *testing.T) {
 			t.Parallel()
 
-			testRun(t, tc, ast.RegoV1)
+			testRun(t, tc, regoVersion(ast.RegoV1))
 		})
 	}
 }
@@ -44,7 +44,7 @@ func TestOPARego(t *testing.T) {
 		t.Run(tc.Note, func(t *testing.T) {
 			t.Parallel()
 
-			testRun(t, tc, ast.RegoV0)
+			testRun(t, tc, regoVersion(ast.RegoV0))
 		})
 	}
 }
@@ -56,26 +56,80 @@ func TestRegoWithNDBCache(t *testing.T) {
 		t.Run("v0/"+tc.Note, func(t *testing.T) {
 			t.Parallel()
 
-			testRun(t, tc, ast.RegoV0, func(q *Query) *Query {
+			testRun(t, tc, regoVersion(ast.RegoV0), query(func(q *Query) *Query {
 				return q.WithNDBuiltinCache(builtins.NDBCache{})
-			})
+			}))
 		})
 	}
 	for _, tc := range cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases {
 		t.Run("v1/"+tc.Note, func(t *testing.T) {
 			t.Parallel()
 
-			testRun(t, tc, ast.RegoV1, func(q *Query) *Query {
+			testRun(t, tc, regoVersion(ast.RegoV1), query(func(q *Query) *Query {
 				return q.WithNDBuiltinCache(builtins.NDBCache{})
-			})
+			}))
 		})
 	}
 }
 
-type opt func(*Query) *Query
+func TestRegoWithNotBody(t *testing.T) {
+	t.Parallel()
 
-func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts ...opt) {
+	for _, tc := range cases.MustLoad("../test/cases/testdata/v0").Sorted().Cases {
+		t.Run("v0/"+tc.Note, func(t *testing.T) {
+			t.Parallel()
+
+			testRun(t, tc, parserOptions(ast.ParserOptions{
+				RegoVersion:    ast.RegoV0,
+				FutureKeywords: []string{"not"},
+			}))
+		})
+	}
+	for _, tc := range cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases {
+		t.Run("v1/"+tc.Note, func(t *testing.T) {
+			t.Parallel()
+
+			testRun(t, tc, parserOptions(ast.ParserOptions{
+				RegoVersion:    ast.RegoV1,
+				FutureKeywords: []string{"not"},
+			}))
+		})
+	}
+}
+
+type testOpts struct {
+	queryOpts     []func(*Query) *Query
+	parserOptions ast.ParserOptions
+}
+
+type testOpt func(*testOpts)
+
+func query(q func(*Query) *Query) testOpt {
+	return func(o *testOpts) {
+		o.queryOpts = append(o.queryOpts, q)
+	}
+}
+
+func parserOptions(po ast.ParserOptions) testOpt {
+	return func(o *testOpts) {
+		o.parserOptions = po
+	}
+}
+
+func regoVersion(v ast.RegoVersion) testOpt {
+	return func(o *testOpts) {
+		o.parserOptions.RegoVersion = v
+	}
+}
+
+func testRun(t *testing.T, tc cases.TestCase, opts ...testOpt) {
 	t.Helper()
+
+	tos := &testOpts{}
+	for _, o := range opts {
+		o(tos)
+	}
+
 	for k, v := range tc.Env {
 		t.Setenv(k, v)
 	}
@@ -87,10 +141,12 @@ func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts 
 		modules[fmt.Sprintf("test-%d.rego", i)] = module
 	}
 
+	// TODO: drop once future.keywords.not is enabled by default
+	tos.parserOptions.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(tos.parserOptions.RegoVersion))
+	tos.parserOptions.Capabilities.FutureKeywords = append(tos.parserOptions.Capabilities.FutureKeywords, "not")
+
 	compiler := ast.MustCompileModulesWithOpts(modules, ast.CompileOpts{
-		ParserOptions: ast.ParserOptions{
-			RegoVersion: regoVersion,
-		},
+		ParserOptions: tos.parserOptions,
 	})
 	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(tc.Query))
 
@@ -127,7 +183,7 @@ func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts 
 		WithTracer(buf).
 		WithCancel(cncl)
 
-	for _, o := range opts {
+	for _, o := range tos.queryOpts {
 		q = o(q)
 	}
 

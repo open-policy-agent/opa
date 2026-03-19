@@ -1150,7 +1150,7 @@ func (body Body) Vars(params VarVisitorParams) VarSet {
 // NewExpr returns a new Expr object.
 func NewExpr(terms any) *Expr {
 	switch terms.(type) {
-	case *SomeDecl, *Every, *Term, []*Term: // ok
+	case *SomeDecl, *Every, *Not, *Term, []*Term: // ok
 	default:
 		panic("unreachable")
 	}
@@ -1246,6 +1246,10 @@ func (expr *Expr) Compare(other *Expr) int {
 		if cmp := Compare(t, other.Terms.(*Every)); cmp != 0 {
 			return cmp
 		}
+	case *Not:
+		if cmp := Compare(t, other.Terms.(*Not)); cmp != 0 {
+			return cmp
+		}
 	}
 
 	return withSliceCompare(expr.With, other.With)
@@ -1261,6 +1265,8 @@ func (expr *Expr) sortOrder() int {
 		return 2
 	case *Every:
 		return 3
+	case *Not:
+		return 4
 	}
 	return -1
 }
@@ -1354,6 +1360,17 @@ func (expr *Expr) IsCall() bool {
 func (expr *Expr) IsEvery() bool {
 	_, ok := expr.Terms.(*Every)
 	return ok
+}
+
+// IsNot returns true if this expression is a 'not' expression.
+func (expr *Expr) IsNot() bool {
+	_, ok := expr.Terms.(*Not)
+	return ok
+}
+
+// IsNegated returns true if Negated or IsNot() returns true for this expression
+func (expr *Expr) IsNegated() bool {
+	return expr.Negated || expr.IsNot()
 }
 
 // IsSome returns true if this expression is a 'some' expression.
@@ -1774,6 +1791,8 @@ func Copy(x any) any {
 	case *SomeDecl:
 		return x.Copy()
 	case *Every:
+		return x.Copy()
+	case *Not:
 		return x.Copy()
 	case *Term:
 		return x.Copy()

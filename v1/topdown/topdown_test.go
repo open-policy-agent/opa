@@ -1953,7 +1953,7 @@ func compileRules(imports []string, input []string, modules []string) (*ast.Comp
 		})
 	}
 
-	popts := ast.ParserOptions{AllFutureKeywords: true}
+	popts := ast.ParserOptions{}
 
 	m := &ast.Module{
 		Package: ast.MustParsePackage("package generated"),

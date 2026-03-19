@@ -528,6 +528,19 @@ func (e *eval) evalStep(iter evalIterator) error {
 				return err
 			})
 
+		case *ast.Not:
+			eval := evalNot{
+				Not:  terms,
+				e:    e,
+				expr: expr,
+			}
+			err = eval.eval(func() error {
+				defined = true
+				err := iter(e)
+				e.traceRedo(expr)
+				return err
+			})
+
 		default: // guard-rail for adding extra (Expr).Terms types
 			return fmt.Errorf("got %T terms: %[1]v", terms)
 		}
@@ -574,6 +587,16 @@ func (e *eval) evalStep(iter evalIterator) error {
 			Every: terms,
 			e:     e,
 			expr:  expr,
+		}
+		err = eval.eval(func() error {
+			return iter(e)
+		})
+
+	case *ast.Not:
+		eval := evalNot{
+			Not:  terms,
+			e:    e,
+			expr: expr,
 		}
 		err = eval.eval(func() error {
 			return iter(e)
@@ -4111,6 +4134,42 @@ func (e *evalEvery) plug(expr *ast.Expr) *ast.Expr {
 	return cpy
 }
 
+// TODO: Add PE support
+type evalNot struct {
+	*ast.Not
+	e    *eval
+	expr *ast.Expr
+}
+
+func (e evalNot) eval(iter unifyIterator) error {
+	child := evalPool.Get()
+	defer evalPool.Put(child)
+
+	e.e.closure(e.Body, child)
+
+	if e.e.traceEnabled {
+		child.traceEnter(e.Body)
+	}
+
+	if err := child.eval(func(*eval) error {
+		if e.e.traceEnabled {
+			child.traceExit(e.Body)
+			child.traceRedo(e.Body)
+		}
+		child.defined = true
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if !child.defined {
+		return iter()
+	}
+
+	return nil
+}
+
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
 	if e.queryCompiler != nil {
 		return e.queryCompiler.ComprehensionIndex(term)
@@ -4202,6 +4261,7 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 				// in the future, we can handle more cases.
 				return false
 			}
+			// TODO: also check expr.Terms.(*ast.Not)?
 			if !expr.Negated {
 				// Positive expressions containing variables cannot be trivially negated
 				// because they become unsafe (e.g., "x = 1" negated is "not x = 1" making x

@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io/fs"
+	"os"
 	"slices"
 	"time"
 
+	"github.com/open-policy-agent/opa/v1/util"
 	"sigs.k8s.io/yaml"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -19,6 +22,33 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/types"
 )
+
+var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to load a list of test names to exclude")
+
+var exceptions map[string]string
+
+func setup() {
+	exceptions = map[string]string{}
+
+	bs, err := os.ReadFile(*exceptionsFile)
+	if err != nil {
+		fmt.Println("Unable to load exceptions file: " + err.Error())
+		os.Exit(1)
+	}
+	err = util.Unmarshal(bs, &exceptions)
+	if err != nil {
+		fmt.Println("Unable to parse exceptions file: " + err.Error())
+		os.Exit(1)
+	}
+}
+
+func shouldSkip(tc cases.TestCase) bool {
+	if _, ok := exceptions[tc.Note]; ok {
+		return true
+	}
+
+	return false
+}
 
 type ExtendedTestCase struct {
 	cases.TestCase
@@ -91,6 +121,8 @@ func CapabilitiesFilter(c *ast.Capabilities) Filters {
 }
 
 func LoadIrExtendedTestCasesFiltered(filters ...Filters) ([]ExtendedSet, error) {
+	setup()
+
 	// Used by the 'time/time caching' test
 	sleep := &ast.Builtin{
 		Name: "test.sleep",
@@ -145,6 +177,11 @@ func LoadIrExtendedTestCasesFiltered(filters ...Filters) ([]ExtendedSet, error) 
 		}
 
 		for _, tc := range x.Cases {
+
+			if shouldSkip(tc.TestCase) {
+				continue
+			}
+
 			opts := []func(*rego.Rego){
 				rego.Target(pluginName),
 				rego.Query(tc.Query),
