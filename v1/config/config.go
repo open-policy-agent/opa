@@ -34,6 +34,8 @@ type ServerConfig struct {
 
 	Encoding json.RawMessage `json:"encoding,omitempty"`
 	Decoding json.RawMessage `json:"decoding,omitempty"`
+
+	LoggerPlugin *string `json:"logger_plugin,omitempty"`
 }
 
 // Clone creates a deep copy of ServerConfig.
