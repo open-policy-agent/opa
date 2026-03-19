@@ -565,7 +565,7 @@ func IsScalar(v Value) bool {
 // Not is both a Term and a Node
 type Not struct {
 	Body     Body      `json:"body"`
-	Location *Location `json:"location,omitempty"` // TODO: set location in parser
+	Location *Location `json:"location,omitempty"`
 }
 
 func NotTerm(exprs ...*Expr) *Term {
