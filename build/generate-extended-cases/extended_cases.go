@@ -2,6 +2,7 @@ package cases
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -167,7 +168,11 @@ func LoadIrExtendedTestCasesFiltered(filters ...Filters) ([]ExtendedSet, error) 
 		}
 
 		var x ExtendedSet
-		if err := yaml.Unmarshal(f, &x); err != nil {
+		useNumber := yaml.JSONOpt(func(d *json.Decoder) *json.Decoder {
+			d.UseNumber()
+			return d
+		})
+		if err := yaml.Unmarshal(f, &x, useNumber); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
 		}
 
