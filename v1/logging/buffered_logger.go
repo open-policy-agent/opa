@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"sync"
@@ -148,6 +149,19 @@ func (b *BufferedLogger) WithFields(fields map[string]any) Logger {
 	}
 }
 
+// WithContext returns a new logger with context.
+func (b *BufferedLogger) WithContext(ctx context.Context) Logger {
+	if ctx == nil {
+		return b
+	}
+
+	if target := b.target.Load(); target != nil {
+		return (*target).WithContext(ctx)
+	}
+
+	return b
+}
+
 // GetLevel returns the current log level.
 func (b *BufferedLogger) GetLevel() Level {
 	if target := b.target.Load(); target != nil {
@@ -256,6 +270,13 @@ func (b *bufferedLoggerWithFields) WithFields(fields map[string]any) Logger {
 		parent: b.parent,
 		fields: merged,
 	}
+}
+
+func (b *bufferedLoggerWithFields) WithContext(ctx context.Context) Logger {
+	if ctx == nil {
+		return b
+	}
+	return b
 }
 
 func (b *bufferedLoggerWithFields) GetLevel() Level {

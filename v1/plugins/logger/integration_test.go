@@ -58,6 +58,10 @@ func (t *testLogger) WithFields(fields map[string]any) logging.Logger {
 	}
 }
 
+func (t *testLogger) WithContext(context.Context) logging.Logger {
+	return t
+}
+
 func (t *testLogger) GetLevel() logging.Level {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -130,6 +134,10 @@ func (t *testLoggerWithFields) WithFields(fields map[string]any) logging.Logger 
 		parent: t.parent,
 		fields: merged,
 	}
+}
+
+func (t *testLoggerWithFields) WithContext(context.Context) logging.Logger {
+	return t
 }
 
 func (t *testLoggerWithFields) GetLevel() logging.Level {

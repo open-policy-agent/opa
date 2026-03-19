@@ -31,6 +31,7 @@ type Logger interface {
 	Warn(fmt string, a ...any)
 
 	WithFields(map[string]any) Logger
+	WithContext(context.Context) Logger
 
 	GetLevel() Level
 	SetLevel(Level)
@@ -75,6 +76,13 @@ func (l *StandardLogger) WithFields(fields map[string]any) Logger {
 	maps.Copy(cp.fields, l.fields)
 	maps.Copy(cp.fields, fields)
 	return &cp
+}
+
+// WithContext returns a logger with trace information extracted from the context.
+// Currently returns the logger as-is. Logger plugins can override this to extract
+// trace/span IDs or other context-specific information.
+func (l *StandardLogger) WithContext(context.Context) Logger {
+	return l
 }
 
 // getFields returns additional fields of this logger
@@ -177,6 +185,11 @@ func (l *NoOpLogger) WithFields(fields map[string]any) Logger {
 	cp := *l
 	cp.fields = fields
 	return &cp
+}
+
+// WithContext returns the logger unchanged (no-op).
+func (l *NoOpLogger) WithContext(context.Context) Logger {
+	return l
 }
 
 // Debug noop
