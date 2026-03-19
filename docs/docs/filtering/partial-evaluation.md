@@ -35,9 +35,7 @@ In this walkthrough, we'll go through the policy in the same way the evaluator d
 
 ```json
 {
-  "user": {
-    "name": "dana"
-  },
+  "user": "dana",
   "budget": "low"
 }
 ```
