@@ -1,6 +1,8 @@
 package logging
 
 import (
+	"context"
+	"fmt"
 	"testing"
 )
 
@@ -170,6 +172,10 @@ func (c *captureLogger) Error(format string, args ...any) {
 }
 
 func (c *captureLogger) WithFields(fields map[string]any) Logger {
+	return c
+}
+
+func (c *captureLogger) WithContext(context.Context) Logger {
 	return c
 }
 
