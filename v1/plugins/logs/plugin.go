@@ -466,18 +466,20 @@ type buffer interface {
 
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
-	manager      *plugins.Manager
-	config       Config
-	reconfigMtx  sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
-	b            buffer
-	statusMtx    sync.Mutex
-	stop         chan chan struct{}
-	reconfig     chan reconfigure
-	preparedMask prepareOnce
-	preparedDrop prepareOnce
-	metrics      metrics.Metrics
-	logger       logging.Logger
-	status       *lstat.Status
+	manager       *plugins.Manager
+	config        Config
+	reconfigMtx   sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
+	b             buffer
+	statusMtx     sync.Mutex
+	stop          chan chan struct{}
+	reconfig      chan reconfigure
+	preparedMask  prepareOnce
+	preparedDrop  prepareOnce
+	metrics       metrics.Metrics
+	logger        logging.Logger
+	status        *lstat.Status
+	cachedSlogger *slog.Logger
+	sloggerMtx    sync.RWMutex
 }
 
 type prepareOnce struct {
@@ -796,11 +798,10 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		case Logger:
 			return l.Log(ctx, event)
 		case logplugin.LoggerPlugin:
-			handler := l.Logger()
-			if handler == nil {
-				return fmt.Errorf("plugin %q returned nil logger", *p.config.Plugin)
+			logger, err := p.getSlogLogger(l)
+			if err != nil {
+				return err
 			}
-			logger := slog.New(handler)
 			logger.LogAttrs(ctx, slog.LevelInfo, "Decision Log", eventToAttrs(event)...)
 			return nil
 		}
@@ -811,6 +812,37 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	return nil
 }
 
+func (p *Plugin) getSlogLogger(l logplugin.LoggerPlugin) (*slog.Logger, error) {
+	p.sloggerMtx.RLock()
+	if p.cachedSlogger != nil {
+		logger := p.cachedSlogger
+		p.sloggerMtx.RUnlock()
+		return logger, nil
+	}
+	p.sloggerMtx.RUnlock()
+
+	p.sloggerMtx.Lock()
+	defer p.sloggerMtx.Unlock()
+
+	if p.cachedSlogger != nil {
+		return p.cachedSlogger, nil
+	}
+
+	handler := l.Logger()
+	if handler == nil {
+		return nil, fmt.Errorf("plugin %q returned nil logger", *p.config.Plugin)
+	}
+
+	p.cachedSlogger = slog.New(handler)
+	return p.cachedSlogger, nil
+}
+
+func (p *Plugin) clearSlogCache() {
+	p.sloggerMtx.Lock()
+	p.cachedSlogger = nil
+	p.sloggerMtx.Unlock()
+}
+
 // Reconfigure notifies the plugin with a new configuration.
 func (p *Plugin) Reconfigure(_ context.Context, config any) {
 
@@ -819,6 +851,7 @@ func (p *Plugin) Reconfigure(_ context.Context, config any) {
 
 	p.preparedMask.drop()
 	p.preparedDrop.drop()
+	p.clearSlogCache()
 
 	<-done
 	go p.loop()
