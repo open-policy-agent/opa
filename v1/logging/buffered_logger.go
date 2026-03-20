@@ -37,12 +37,6 @@ func NewBufferedLogger(maxEntries int) *BufferedLogger {
 	}
 }
 
-func (b *BufferedLogger) shouldLog(level Level) bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return level <= b.currentLevel
-}
-
 func (b *BufferedLogger) addToBuffer(level Level, format string, args []any, fields map[string]any) {
 	message := format
 	if len(args) > 0 {
@@ -85,30 +79,18 @@ func (_ *BufferedLogger) logToTarget(target Logger, entry logEntry) {
 }
 
 func (b *BufferedLogger) Debug(format string, args ...any) {
-	if !b.shouldLog(Debug) {
-		return
-	}
 	b.addToBuffer(Debug, format, args, nil)
 }
 
 func (b *BufferedLogger) Info(format string, args ...any) {
-	if !b.shouldLog(Info) {
-		return
-	}
 	b.addToBuffer(Info, format, args, nil)
 }
 
 func (b *BufferedLogger) Warn(format string, args ...any) {
-	if !b.shouldLog(Warn) {
-		return
-	}
 	b.addToBuffer(Warn, format, args, nil)
 }
 
 func (b *BufferedLogger) Error(format string, args ...any) {
-	if !b.shouldLog(Error) {
-		return
-	}
 	b.addToBuffer(Error, format, args, nil)
 }
 
@@ -121,10 +103,7 @@ func (b *BufferedLogger) WithFields(fields map[string]any) Logger {
 }
 
 // WithContext returns a new logger with context.
-func (b *BufferedLogger) WithContext(ctx context.Context) Logger {
-	if ctx == nil {
-		return b
-	}
+func (b *BufferedLogger) WithContext(context.Context) Logger {
 	return b
 }
 
@@ -167,30 +146,18 @@ type bufferedLoggerWithFields struct {
 }
 
 func (b *bufferedLoggerWithFields) Debug(format string, args ...any) {
-	if !b.parent.shouldLog(Debug) {
-		return
-	}
 	b.parent.addToBuffer(Debug, format, args, b.fields)
 }
 
 func (b *bufferedLoggerWithFields) Info(format string, args ...any) {
-	if !b.parent.shouldLog(Info) {
-		return
-	}
 	b.parent.addToBuffer(Info, format, args, b.fields)
 }
 
 func (b *bufferedLoggerWithFields) Warn(format string, args ...any) {
-	if !b.parent.shouldLog(Warn) {
-		return
-	}
 	b.parent.addToBuffer(Warn, format, args, b.fields)
 }
 
 func (b *bufferedLoggerWithFields) Error(format string, args ...any) {
-	if !b.parent.shouldLog(Error) {
-		return
-	}
 	b.parent.addToBuffer(Error, format, args, b.fields)
 }
 
@@ -204,10 +171,7 @@ func (b *bufferedLoggerWithFields) WithFields(fields map[string]any) Logger {
 	}
 }
 
-func (b *bufferedLoggerWithFields) WithContext(ctx context.Context) Logger {
-	if ctx == nil {
-		return b
-	}
+func (b *bufferedLoggerWithFields) WithContext(context.Context) Logger {
 	return b
 }
 
