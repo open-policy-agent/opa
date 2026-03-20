@@ -674,7 +674,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		}
 
 		// Flush buffered logs to target and switch to it
-		buffered.SetTarget(targetLogger)
+		buffered.Flush(targetLogger)
 		rt.logger = targetLogger
 	}
 

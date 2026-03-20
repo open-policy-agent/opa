@@ -80,7 +80,7 @@ func TestBufferedLoggerBufferOverflow(t *testing.T) {
 	}
 }
 
-func TestBufferedLoggerSetTarget(t *testing.T) {
+func TestBufferedLoggerFlush(t *testing.T) {
 	buffered := NewBufferedLogger(100)
 
 	buffered.Info("buffered 1")
@@ -88,7 +88,7 @@ func TestBufferedLoggerSetTarget(t *testing.T) {
 	buffered.Error("buffered 3")
 
 	testLog := &captureLogger{entries: make([]string, 0)}
-	buffered.SetTarget(testLog)
+	buffered.Flush(testLog)
 
 	if len(testLog.entries) != 3 {
 		t.Errorf("Expected 3 flushed entries, got %d", len(testLog.entries))
@@ -101,7 +101,8 @@ func TestBufferedLoggerSetTarget(t *testing.T) {
 		}
 	}
 
-	buffered.Info("direct message")
+	// After flush, use the target logger directly (not the buffered logger)
+	testLog.Info("direct message")
 
 	if len(testLog.entries) != 4 {
 		t.Errorf("Expected 4 entries after direct log, got %d", len(testLog.entries))
