@@ -7,9 +7,9 @@ package logs
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/url"
 	"reflect"
@@ -23,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
+	logplugin "github.com/open-policy-agent/opa/v1/plugins/logger"
 	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/plugins/status"
@@ -31,6 +32,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+const DecisionLogType = "openpolicyagent.org/decision_logs"
 
 // Logger defines the interface for decision logging plugins.
 type Logger interface {
@@ -463,18 +466,20 @@ type buffer interface {
 
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
-	manager      *plugins.Manager
-	config       Config
-	reconfigMtx  sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
-	b            buffer
-	statusMtx    sync.Mutex
-	stop         chan chan struct{}
-	reconfig     chan reconfigure
-	preparedMask prepareOnce
-	preparedDrop prepareOnce
-	metrics      metrics.Metrics
-	logger       logging.Logger
-	status       *lstat.Status
+	manager       *plugins.Manager
+	config        Config
+	reconfigMtx   sync.RWMutex // reconfigMtx blocks reads/writes on buffer reconfiguration
+	b             buffer
+	statusMtx     sync.Mutex
+	stop          chan chan struct{}
+	reconfig      chan reconfigure
+	preparedMask  prepareOnce
+	preparedDrop  prepareOnce
+	metrics       metrics.Metrics
+	logger        logging.Logger
+	status        *lstat.Status
+	cachedSlogger *slog.Logger
+	sloggerMtx    sync.RWMutex
 }
 
 type prepareOnce struct {
@@ -784,14 +789,58 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if p.config.Plugin != nil {
-		proxy, ok := p.manager.Plugin(*p.config.Plugin).(Logger)
-		if !ok {
-			return errors.New("plugin does not implement Logger interface")
+		plugin := p.manager.Plugin(*p.config.Plugin)
+		if plugin == nil {
+			return fmt.Errorf("plugin %q not found", *p.config.Plugin)
 		}
-		return proxy.Log(ctx, event)
+
+		switch l := plugin.(type) {
+		case Logger:
+			return l.Log(ctx, event)
+		case logplugin.LoggerPlugin:
+			logger, err := p.getSlogLogger(l)
+			if err != nil {
+				return err
+			}
+			logger.LogAttrs(ctx, slog.LevelInfo, "Decision Log", p.eventToAttrs(event)...)
+			return nil
+		}
+
+		return fmt.Errorf("plugin %q does not implement Logger or LoggerPlugin interface", *p.config.Plugin)
 	}
 
 	return nil
+}
+
+func (p *Plugin) getSlogLogger(l logplugin.LoggerPlugin) (*slog.Logger, error) {
+	p.sloggerMtx.RLock()
+	if p.cachedSlogger != nil {
+		logger := p.cachedSlogger
+		p.sloggerMtx.RUnlock()
+		return logger, nil
+	}
+	p.sloggerMtx.RUnlock()
+
+	p.sloggerMtx.Lock()
+	defer p.sloggerMtx.Unlock()
+
+	if p.cachedSlogger != nil {
+		return p.cachedSlogger, nil
+	}
+
+	handler := l.Logger()
+	if handler == nil {
+		return nil, fmt.Errorf("plugin %q returned nil logger", *p.config.Plugin)
+	}
+
+	p.cachedSlogger = slog.New(handler)
+	return p.cachedSlogger, nil
+}
+
+func (p *Plugin) clearSlogCache() {
+	p.sloggerMtx.Lock()
+	p.cachedSlogger = nil
+	p.sloggerMtx.Unlock()
 }
 
 // Reconfigure notifies the plugin with a new configuration.
@@ -802,6 +851,7 @@ func (p *Plugin) Reconfigure(_ context.Context, config any) {
 
 	p.preparedMask.drop()
 	p.preparedDrop.drop()
+	p.clearSlogCache()
 
 	<-done
 	go p.loop()
@@ -1103,19 +1153,141 @@ func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, dat
 }
 
 func (p *Plugin) logEvent(event EventV1) error {
-	eventBuf, err := json.Marshal(&event)
-	if err != nil {
-		return err
-	}
-	fields := map[string]any{}
-	err = util.UnmarshalJSON(eventBuf, &fields)
-	if err != nil {
-		return err
-	}
-	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]any{
-		"type": "openpolicyagent.org/decision_logs",
-	}).Info("Decision Log")
+	fields := p.eventToFields(event)
+	p.manager.ConsoleLogger().WithFields(fields).Info("Decision Log")
 	return nil
+}
+
+func addAttrIfNonZeroString(attrs *[]slog.Attr, key string, value string) {
+	if value != "" {
+		*attrs = append(*attrs, slog.String(key, value))
+	}
+}
+
+func addAttrIfNonZero[T comparable](attrs *[]slog.Attr, key string, value T) {
+	var zero T
+	if value != zero {
+		*attrs = append(*attrs, slog.Any(key, value))
+	}
+}
+
+func addAttrIfNotNil[T any](attrs *[]slog.Attr, key string, value *T) {
+	if value != nil {
+		*attrs = append(*attrs, slog.Any(key, *value))
+	}
+}
+
+func addAttrIfHasLen[M ~map[K]V, K comparable, V any](attrs *[]slog.Attr, key string, value M) {
+	if len(value) > 0 {
+		*attrs = append(*attrs, slog.Any(key, value))
+	}
+}
+
+func addAttrIfSliceNotEmpty[T any](attrs *[]slog.Attr, key string, value []T) {
+	if len(value) > 0 {
+		*attrs = append(*attrs, slog.Any(key, value))
+	}
+}
+
+func (p *Plugin) eventToAttrs(event EventV1) []slog.Attr {
+	attrs := make([]slog.Attr, 0, 24)
+	attrs = append(attrs, slog.String("type", DecisionLogType))
+	attrs = append(attrs, slog.Time("timestamp", event.Timestamp))
+	attrs = append(attrs, slog.String("decision_id", event.DecisionID))
+	addAttrIfNonZeroString(&attrs, "batch_decision_id", event.BatchDecisionID)
+	addAttrIfNonZeroString(&attrs, "trace_id", event.TraceID)
+	addAttrIfNonZeroString(&attrs, "span_id", event.SpanID)
+	addAttrIfHasLen(&attrs, "labels", event.Labels)
+	addAttrIfNonZeroString(&attrs, "revision", event.Revision)
+	addAttrIfHasLen(&attrs, "bundles", event.Bundles)
+	addAttrIfNonZeroString(&attrs, "path", event.Path)
+	addAttrIfNonZeroString(&attrs, "query", event.Query)
+	addAttrIfNotNil(&attrs, "input", event.Input)
+	addAttrIfNotNil(&attrs, "result", event.Result)
+	addAttrIfHasLen(&attrs, "intermediate_results", event.IntermediateResults)
+	addAttrIfNotNil(&attrs, "mapped_result", event.MappedResult)
+	addAttrIfNotNil(&attrs, "nd_builtin_cache", event.NDBuiltinCache)
+	addAttrIfSliceNotEmpty(&attrs, "erased", event.Erased)
+	addAttrIfSliceNotEmpty(&attrs, "masked", event.Masked)
+
+	if event.Error != nil {
+		attrs = append(attrs, slog.String("error", event.Error.Error()))
+	}
+
+	addAttrIfNonZeroString(&attrs, "requested_by", event.RequestedBy)
+	addAttrIfHasLen(&attrs, "metrics", event.Metrics)
+	addAttrIfNonZero(&attrs, "req_id", event.RequestID)
+
+	if event.RequestContext != nil {
+		attrs = append(attrs, slog.Any("request_context", event.RequestContext))
+	}
+
+	addAttrIfHasLen(&attrs, "custom", event.Custom)
+
+	return attrs
+}
+
+func addIfNonZero[T comparable](fields map[string]any, key string, value T) {
+	var zero T
+	if value != zero {
+		fields[key] = value
+	}
+}
+
+func addIfNotNil[T any](fields map[string]any, key string, value *T) {
+	if value != nil {
+		fields[key] = *value
+	}
+}
+
+func addIfHasLen[M ~map[K]V, K comparable, V any](fields map[string]any, key string, value M) {
+	if len(value) > 0 {
+		fields[key] = value
+	}
+}
+
+func addIfSliceNotEmpty[T any](fields map[string]any, key string, value []T) {
+	if len(value) > 0 {
+		fields[key] = value
+	}
+}
+
+func (p *Plugin) eventToFields(event EventV1) map[string]any {
+	fields := make(map[string]any)
+	fields["type"] = DecisionLogType
+	fields["timestamp"] = event.Timestamp
+	fields["decision_id"] = event.DecisionID
+	addIfNonZero(fields, "batch_decision_id", event.BatchDecisionID)
+	addIfNonZero(fields, "trace_id", event.TraceID)
+	addIfNonZero(fields, "span_id", event.SpanID)
+	addIfHasLen(fields, "labels", event.Labels)
+	addIfNonZero(fields, "revision", event.Revision)
+	addIfHasLen(fields, "bundles", event.Bundles)
+	addIfNonZero(fields, "path", event.Path)
+	addIfNonZero(fields, "query", event.Query)
+	addIfNotNil(fields, "input", event.Input)
+	addIfNotNil(fields, "result", event.Result)
+	addIfHasLen(fields, "intermediate_results", event.IntermediateResults)
+	addIfNotNil(fields, "mapped_result", event.MappedResult)
+	addIfNotNil(fields, "nd_builtin_cache", event.NDBuiltinCache)
+	addIfSliceNotEmpty(fields, "erased", event.Erased)
+	addIfSliceNotEmpty(fields, "masked", event.Masked)
+
+	if event.Error != nil {
+		fields["error"] = event.Error.Error()
+	}
+
+	addIfNonZero(fields, "requested_by", event.RequestedBy)
+	addIfHasLen(fields, "metrics", event.Metrics)
+	addIfNonZero(fields, "req_id", event.RequestID)
+
+	if event.RequestContext != nil {
+		fields["request_context"] = event.RequestContext
+	}
+
+	addIfHasLen(fields, "custom", event.Custom)
+
+	return fields
 }
 
 func (p *Plugin) setStatus(err error) {

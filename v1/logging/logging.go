@@ -2,9 +2,12 @@ package logging
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"net/http"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -31,6 +34,7 @@ type Logger interface {
 	Warn(fmt string, a ...any)
 
 	WithFields(map[string]any) Logger
+	WithContext(context.Context) Logger
 
 	GetLevel() Level
 	SetLevel(Level)
@@ -75,6 +79,13 @@ func (l *StandardLogger) WithFields(fields map[string]any) Logger {
 	maps.Copy(cp.fields, l.fields)
 	maps.Copy(cp.fields, fields)
 	return &cp
+}
+
+// WithContext returns a logger with trace information extracted from the context.
+// Currently returns the logger as-is. Logger plugins can override this to extract
+// trace/span IDs or other context-specific information.
+func (l *StandardLogger) WithContext(context.Context) Logger {
+	return l
 }
 
 // getFields returns additional fields of this logger
@@ -179,6 +190,11 @@ func (l *NoOpLogger) WithFields(fields map[string]any) Logger {
 	return &cp
 }
 
+// WithContext returns the logger unchanged (no-op).
+func (l *NoOpLogger) WithContext(context.Context) Logger {
+	return l
+}
+
 // Debug noop
 func (*NoOpLogger) Debug(string, ...any) {}
 
@@ -271,4 +287,176 @@ func WithBatchDecisionID(parent context.Context, id string) context.Context {
 func BatchDecisionIDFromContext(ctx context.Context) (string, bool) {
 	s, ok := ctx.Value(batchDecisionCtxKey).(string)
 	return s, ok
+}
+
+// SlogHandler adapts a Logger to slog.Handler interface
+type SlogHandler struct {
+	logger Logger
+}
+
+// NewSlogHandler creates an slog.Handler from a Logger
+func NewSlogHandler(logger Logger) slog.Handler {
+	return &SlogHandler{logger: logger}
+}
+
+func (h *SlogHandler) Enabled(_ context.Context, level slog.Level) bool {
+	loggerLevel := h.logger.GetLevel()
+	switch level {
+	case slog.LevelDebug:
+		return loggerLevel >= Debug
+	case slog.LevelInfo:
+		return loggerLevel >= Info
+	case slog.LevelWarn:
+		return loggerLevel >= Warn
+	case slog.LevelError:
+		return loggerLevel >= Error
+	default:
+		return true
+	}
+}
+
+func (h *SlogHandler) Handle(ctx context.Context, record slog.Record) error {
+	attrs := make(map[string]any)
+	record.Attrs(func(a slog.Attr) bool {
+		attrs[a.Key] = a.Value.Any()
+		return true
+	})
+
+	logger := h.logger
+	if len(attrs) > 0 {
+		logger = logger.WithFields(attrs)
+	}
+	if ctx != nil {
+		logger = logger.WithContext(ctx)
+	}
+
+	msg := record.Message
+	switch record.Level {
+	case slog.LevelDebug:
+		logger.Debug(msg)
+	case slog.LevelInfo:
+		logger.Info(msg)
+	case slog.LevelWarn:
+		logger.Warn(msg)
+	case slog.LevelError:
+		logger.Error(msg)
+	default:
+		logger.Info(msg)
+	}
+	return nil
+}
+
+func (h *SlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	fields := make(map[string]any, len(attrs))
+	for _, a := range attrs {
+		fields[a.Key] = a.Value.Any()
+	}
+	return &SlogHandler{
+		logger: h.logger.WithFields(fields),
+	}
+}
+
+func (h *SlogHandler) WithGroup(name string) slog.Handler {
+	return h
+}
+
+// loggerFromSlogHandler wraps an slog.Handler to implement the Logger interface
+type loggerFromSlogHandler struct {
+	handler slog.Handler
+	level   Level
+	fields  map[string]any
+	ctx     context.Context
+}
+
+// NewLoggerFromSlogHandler creates a Logger from an slog.Handler
+func NewLoggerFromSlogHandler(handler slog.Handler, level Level) Logger {
+	return &loggerFromSlogHandler{
+		handler: handler,
+		level:   level,
+		fields:  make(map[string]any),
+		ctx:     context.Background(),
+	}
+}
+
+func (l *loggerFromSlogHandler) log(level slog.Level, format string, args ...any) {
+	msg := format
+	if len(args) > 0 {
+		msg = fmt.Sprintf(format, args...)
+	}
+
+	var attrs []slog.Attr
+	for k, v := range l.fields {
+		var attr slog.Attr
+		switch val := v.(type) {
+		case string:
+			attr = slog.String(k, val)
+		case int:
+			attr = slog.Int(k, val)
+		case int64:
+			attr = slog.Int64(k, val)
+		case uint64:
+			attr = slog.Uint64(k, val)
+		case float64:
+			attr = slog.Float64(k, val)
+		case bool:
+			attr = slog.Bool(k, val)
+		case time.Time:
+			attr = slog.Time(k, val)
+		case time.Duration:
+			attr = slog.Duration(k, val)
+		default:
+			attr = slog.Any(k, v)
+		}
+		attrs = append(attrs, attr)
+	}
+
+	record := slog.NewRecord(time.Now(), level, msg, 0)
+	record.AddAttrs(attrs...)
+
+	_ = l.handler.Handle(l.ctx, record)
+}
+
+func (l *loggerFromSlogHandler) Debug(format string, args ...any) {
+	l.log(slog.LevelDebug, format, args...)
+}
+
+func (l *loggerFromSlogHandler) Info(format string, args ...any) {
+	l.log(slog.LevelInfo, format, args...)
+}
+
+func (l *loggerFromSlogHandler) Warn(format string, args ...any) {
+	l.log(slog.LevelWarn, format, args...)
+}
+
+func (l *loggerFromSlogHandler) Error(format string, args ...any) {
+	l.log(slog.LevelError, format, args...)
+}
+
+func (l *loggerFromSlogHandler) WithFields(fields map[string]any) Logger {
+	merged := make(map[string]any, len(l.fields)+len(fields))
+	maps.Copy(merged, l.fields)
+	maps.Copy(merged, fields)
+	return &loggerFromSlogHandler{
+		handler: l.handler,
+		level:   l.level,
+		fields:  merged,
+		ctx:     l.ctx,
+	}
+}
+
+func (l *loggerFromSlogHandler) WithContext(ctx context.Context) Logger {
+	return &loggerFromSlogHandler{
+		handler: l.handler,
+		level:   l.level,
+		fields:  l.fields,
+		ctx:     ctx,
+	}
+}
+
+func (l *loggerFromSlogHandler) GetLevel() Level {
+	return l.level
+}
+
+func (l *loggerFromSlogHandler) SetLevel(level Level) {
+	l.level = level
 }

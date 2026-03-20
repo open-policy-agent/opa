@@ -49,6 +49,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
+	"github.com/open-policy-agent/opa/v1/plugins/logger"
 	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	metrics_config "github.com/open-policy-agent/opa/v1/plugins/server/metrics"
 	"github.com/open-policy-agent/opa/v1/repl"
@@ -383,10 +384,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	if params.Logger != nil {
 		logger = params.Logger
 	} else {
-		stdLogger := logging.New()
-		stdLogger.SetLevel(level)
-		stdLogger.SetFormatter(internal_logging.GetFormatter(params.Logging.Format, params.Logging.TimestampFormat))
-		logger = stdLogger
+		// Always use BufferedLogger to capture early startup logs
+		// After plugins start, we'll flush to either a logger plugin or StandardLogger
+		bufferedLogger := logging.NewBufferedLogger(1000)
+		bufferedLogger.SetLevel(level)
+		logger = bufferedLogger
 	}
 
 	if err := params.Hooks.Validate(); err != nil {
@@ -656,6 +658,27 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	defer rt.Manager.Stop(ctx)
+
+	// If we were using a buffered logger, flush it to the appropriate target
+	if buffered, ok := rt.logger.(*logging.BufferedLogger); ok {
+		var targetLogger logging.Logger
+
+		// Check if a logger plugin was configured and started
+		if slogHandler := logger.Lookup(rt.Manager); slogHandler != nil {
+			// Wrap the slog.Handler in a Logger adapter
+			targetLogger = logging.NewLoggerFromSlogHandler(slogHandler, buffered.GetLevel())
+		} else {
+			// No logger plugin - use StandardLogger for console output
+			stdLogger := logging.New()
+			stdLogger.SetLevel(buffered.GetLevel())
+			stdLogger.SetFormatter(internal_logging.GetFormatter(rt.Params.Logging.Format, rt.Params.Logging.TimestampFormat))
+			targetLogger = stdLogger
+		}
+
+		// Flush buffered logs to target and switch to it
+		buffered.Flush(targetLogger)
+		rt.logger = targetLogger
+	}
 
 	if rt.traceExporter != nil {
 		if err := rt.traceExporter.Start(ctx); err != nil {
