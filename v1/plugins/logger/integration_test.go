@@ -97,7 +97,8 @@ func TestBufferedLoggerIntegration(t *testing.T) {
 			t.Fatal("Plugin does not implement LoggerPlugin interface")
 		}
 
-		bufferedLogger.SetTarget(loggerPlugin.Logger())
+		targetLogger := loggerPlugin.Logger()
+		bufferedLogger.Flush(targetLogger)
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -125,7 +126,8 @@ func TestBufferedLoggerIntegration(t *testing.T) {
 
 		beforeDirectLog := len(entries)
 
-		bufferedLogger.Info("direct log after plugin set")
+		// After flush, use the target logger directly
+		targetLogger.Info("direct log after plugin set")
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -149,10 +151,11 @@ func TestBufferedLoggerWithFields(t *testing.T) {
 		logger1 := bufferedLogger.WithFields(map[string]any{"component": "runtime"})
 		logger1.Info("buffered message")
 
-		bufferedLogger.SetTarget(testLog)
+		bufferedLogger.Flush(testLog)
 		time.Sleep(50 * time.Millisecond)
 
-		logger2 := bufferedLogger.WithFields(map[string]any{"component": "server"})
+		// After flush, use the target logger directly
+		logger2 := testLog.WithFields(map[string]any{"component": "server"})
 		logger2.Info("direct message")
 		time.Sleep(50 * time.Millisecond)
 

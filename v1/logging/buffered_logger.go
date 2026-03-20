@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -16,14 +15,13 @@ type logEntry struct {
 	time    time.Time
 }
 
-// BufferedLogger captures log entries in memory until a target logger is set,
-// at which point it replays all buffered entries to the target.
+// BufferedLogger captures log entries in memory until Flush is called,
+// at which point it replays all buffered entries to the target logger.
+// After Flush() is called, the BufferedLogger should not be used anymore.
 type BufferedLogger struct {
 	mu           sync.Mutex
 	buffer       []logEntry
 	maxEntries   int
-	target       atomic.Pointer[Logger]
-	setOnce      sync.Once
 	currentLevel Level
 }
 
@@ -40,9 +38,6 @@ func NewBufferedLogger(maxEntries int) *BufferedLogger {
 }
 
 func (b *BufferedLogger) shouldLog(level Level) bool {
-	if target := b.target.Load(); target != nil {
-		return level <= (*target).GetLevel()
-	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return level <= b.currentLevel
@@ -93,56 +88,32 @@ func (b *BufferedLogger) Debug(format string, args ...any) {
 	if !b.shouldLog(Debug) {
 		return
 	}
-
-	if target := b.target.Load(); target != nil {
-		(*target).Debug(format, args...)
-	} else {
-		b.addToBuffer(Debug, format, args, nil)
-	}
+	b.addToBuffer(Debug, format, args, nil)
 }
 
 func (b *BufferedLogger) Info(format string, args ...any) {
 	if !b.shouldLog(Info) {
 		return
 	}
-
-	if target := b.target.Load(); target != nil {
-		(*target).Info(format, args...)
-	} else {
-		b.addToBuffer(Info, format, args, nil)
-	}
+	b.addToBuffer(Info, format, args, nil)
 }
 
 func (b *BufferedLogger) Warn(format string, args ...any) {
 	if !b.shouldLog(Warn) {
 		return
 	}
-
-	if target := b.target.Load(); target != nil {
-		(*target).Warn(format, args...)
-	} else {
-		b.addToBuffer(Warn, format, args, nil)
-	}
+	b.addToBuffer(Warn, format, args, nil)
 }
 
 func (b *BufferedLogger) Error(format string, args ...any) {
 	if !b.shouldLog(Error) {
 		return
 	}
-
-	if target := b.target.Load(); target != nil {
-		(*target).Error(format, args...)
-	} else {
-		b.addToBuffer(Error, format, args, nil)
-	}
+	b.addToBuffer(Error, format, args, nil)
 }
 
 // WithFields returns a new logger with additional fields.
 func (b *BufferedLogger) WithFields(fields map[string]any) Logger {
-	if target := b.target.Load(); target != nil {
-		return (*target).WithFields(fields)
-	}
-
 	return &bufferedLoggerWithFields{
 		parent: b,
 		fields: fields,
@@ -154,19 +125,11 @@ func (b *BufferedLogger) WithContext(ctx context.Context) Logger {
 	if ctx == nil {
 		return b
 	}
-
-	if target := b.target.Load(); target != nil {
-		return (*target).WithContext(ctx)
-	}
-
 	return b
 }
 
 // GetLevel returns the current log level.
 func (b *BufferedLogger) GetLevel() Level {
-	if target := b.target.Load(); target != nil {
-		return (*target).GetLevel()
-	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.currentLevel
@@ -174,35 +137,28 @@ func (b *BufferedLogger) GetLevel() Level {
 
 // SetLevel sets the log level.
 func (b *BufferedLogger) SetLevel(level Level) {
-	if target := b.target.Load(); target != nil {
-		(*target).SetLevel(level)
-		return
-	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.currentLevel = level
 }
 
-// SetTarget sets the target logger and flushes all buffered entries to it.
-// This method should only be called once.
-func (b *BufferedLogger) SetTarget(targetLogger Logger) {
+// Flush replays all buffered entries to the target logger.
+// After calling Flush, the BufferedLogger should not be used anymore.
+// The caller should switch to using the target logger directly.
+func (b *BufferedLogger) Flush(targetLogger Logger) {
 	if targetLogger == nil {
 		return
 	}
 
-	b.setOnce.Do(func() {
-		b.mu.Lock()
-		targetLogger.SetLevel(b.currentLevel)
-		entries := b.buffer
-		b.buffer = nil
-		b.mu.Unlock()
+	b.mu.Lock()
+	targetLogger.SetLevel(b.currentLevel)
+	entries := b.buffer
+	b.buffer = nil
+	b.mu.Unlock()
 
-		b.target.Store(&targetLogger)
-
-		for _, entry := range entries {
-			b.logToTarget(targetLogger, entry)
-		}
-	})
+	for _, entry := range entries {
+		b.logToTarget(targetLogger, entry)
+	}
 }
 
 type bufferedLoggerWithFields struct {
@@ -214,58 +170,34 @@ func (b *bufferedLoggerWithFields) Debug(format string, args ...any) {
 	if !b.parent.shouldLog(Debug) {
 		return
 	}
-
-	if target := b.parent.target.Load(); target != nil {
-		(*target).WithFields(b.fields).Debug(format, args...)
-	} else {
-		b.parent.addToBuffer(Debug, format, args, b.fields)
-	}
+	b.parent.addToBuffer(Debug, format, args, b.fields)
 }
 
 func (b *bufferedLoggerWithFields) Info(format string, args ...any) {
 	if !b.parent.shouldLog(Info) {
 		return
 	}
-
-	if target := b.parent.target.Load(); target != nil {
-		(*target).WithFields(b.fields).Info(format, args...)
-	} else {
-		b.parent.addToBuffer(Info, format, args, b.fields)
-	}
+	b.parent.addToBuffer(Info, format, args, b.fields)
 }
 
 func (b *bufferedLoggerWithFields) Warn(format string, args ...any) {
 	if !b.parent.shouldLog(Warn) {
 		return
 	}
-
-	if target := b.parent.target.Load(); target != nil {
-		(*target).WithFields(b.fields).Warn(format, args...)
-	} else {
-		b.parent.addToBuffer(Warn, format, args, b.fields)
-	}
+	b.parent.addToBuffer(Warn, format, args, b.fields)
 }
 
 func (b *bufferedLoggerWithFields) Error(format string, args ...any) {
 	if !b.parent.shouldLog(Error) {
 		return
 	}
-
-	if target := b.parent.target.Load(); target != nil {
-		(*target).WithFields(b.fields).Error(format, args...)
-	} else {
-		b.parent.addToBuffer(Error, format, args, b.fields)
-	}
+	b.parent.addToBuffer(Error, format, args, b.fields)
 }
 
 func (b *bufferedLoggerWithFields) WithFields(fields map[string]any) Logger {
 	merged := make(map[string]any, len(b.fields)+len(fields))
-	for k, v := range b.fields {
-		merged[k] = v
-	}
-	for k, v := range fields {
-		merged[k] = v
-	}
+	maps.Copy(merged, b.fields)
+	maps.Copy(merged, fields)
 	return &bufferedLoggerWithFields{
 		parent: b.parent,
 		fields: merged,
