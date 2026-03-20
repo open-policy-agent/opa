@@ -3,11 +3,11 @@ package file
 import (
 	"bufio"
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	opalogger "github.com/open-policy-agent/opa/v1/plugins/logger"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
@@ -52,17 +52,18 @@ func TestFileLoggerPlugin(t *testing.T) {
 	defer plugin.Stop(ctx)
 
 	loggerPlugin := plugin.(opalogger.LoggerPlugin)
-	logger := loggerPlugin.Logger()
+	handler := loggerPlugin.Logger()
+	logger := slog.New(handler)
 
 	logger.Info("test info message")
 	logger.Debug("test debug message")
 	logger.Warn("test warn message")
 	logger.Error("test error message")
 
-	logger.WithFields(map[string]any{
-		"key1": "value1",
-		"key2": 123,
-	}).Info("message with fields")
+	logger.Info("message with fields",
+		slog.String("key1", "value1"),
+		slog.Int("key2", 123),
+	)
 
 	plugin.Stop(ctx)
 
@@ -143,7 +144,8 @@ func TestFileLoggerLevelFiltering(t *testing.T) {
 	defer plugin.Stop(ctx)
 
 	loggerPlugin := plugin.(opalogger.LoggerPlugin)
-	logger := loggerPlugin.Logger()
+	handler := loggerPlugin.Logger()
+	logger := slog.New(handler)
 
 	logger.Debug("should not be logged")
 	logger.Info("should not be logged either")
@@ -224,20 +226,52 @@ func TestFileLoggerConfigValidation(t *testing.T) {
 	})
 }
 
-func TestFileLoggerWithFields(t *testing.T) {
+func TestFileLoggerWithAttrs(t *testing.T) {
+	ctx := t.Context()
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "opa.log")
 
-	logger := &fileLogger{
-		writer: mustCreateFile(t, logFile),
-		level:  logging.Info,
+	config := Config{
+		Path:       logFile,
+		MaxSize:    1,
+		MaxAge:     1,
+		MaxBackups: 1,
+		Compress:   false,
+		Level:      "info",
 	}
 
-	logger1 := logger.WithFields(map[string]any{"component": "runtime"})
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("Failed to marshal config: %v", err)
+	}
+
+	manager, err := plugins.New([]byte("{}"), "test-instance", inmem.New())
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
+
+	factory := &Factory{}
+	validatedConfig, err := factory.Validate(manager, configJSON)
+	if err != nil {
+		t.Fatalf("Failed to validate config: %v", err)
+	}
+
+	plugin := factory.New(manager, validatedConfig)
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatalf("Failed to start plugin: %v", err)
+	}
+	defer plugin.Stop(ctx)
+
+	loggerPlugin := plugin.(opalogger.LoggerPlugin)
+	handler := loggerPlugin.Logger()
+
+	logger1 := slog.New(handler).With(slog.String("component", "runtime"))
 	logger1.Info("message from runtime")
 
-	logger2 := logger1.WithFields(map[string]any{"subsystem": "storage"})
+	logger2 := logger1.With(slog.String("subsystem", "storage"))
 	logger2.Warn("warning from storage")
+
+	plugin.Stop(ctx)
 
 	f, err := os.Open(logFile)
 	if err != nil {
@@ -277,15 +311,6 @@ func TestFileLoggerWithFields(t *testing.T) {
 	})
 }
 
-func mustCreateFile(t *testing.T, path string) *os.File {
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatalf("Failed to create file: %v", err)
-	}
-	t.Cleanup(func() { f.Close() })
-	return f
-}
-
 func assertLogEntry(t *testing.T, entry map[string]any, expectedLevel, expectedMessage string, expectedFields map[string]any) {
 	t.Helper()
 
@@ -298,9 +323,9 @@ func assertLogEntry(t *testing.T, entry map[string]any, expectedLevel, expectedM
 		t.Errorf("Expected level %q, got %q", expectedLevel, level)
 	}
 
-	message, ok := entry["message"].(string)
+	message, ok := entry["msg"].(string)
 	if !ok {
-		t.Errorf("Log entry missing 'message' field or not a string: %v", entry)
+		t.Errorf("Log entry missing 'msg' field or not a string: %v", entry)
 		return
 	}
 	if message != expectedMessage {

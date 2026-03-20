@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/url"
 	"reflect"
@@ -795,12 +796,12 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		case Logger:
 			return l.Log(ctx, event)
 		case logplugin.LoggerPlugin:
-			logger := l.Logger()
-			if logger == nil {
+			handler := l.Logger()
+			if handler == nil {
 				return fmt.Errorf("plugin %q returned nil logger", *p.config.Plugin)
 			}
-			fields := p.eventToFields(event)
-			logger.WithFields(fields).Info("Decision Log")
+			logger := slog.New(handler)
+			logger.LogAttrs(ctx, slog.LevelInfo, "Decision Log", p.eventToAttrs(event)...)
 			return nil
 		}
 
@@ -1122,6 +1123,75 @@ func (p *Plugin) logEvent(event EventV1) error {
 	fields := p.eventToFields(event)
 	p.manager.ConsoleLogger().WithFields(fields).Info("Decision Log")
 	return nil
+}
+
+func addAttrIfNonZeroString(attrs *[]slog.Attr, key string, value string) {
+	if value != "" {
+		*attrs = append(*attrs, slog.String(key, value))
+	}
+}
+
+func addAttrIfNonZero[T comparable](attrs *[]slog.Attr, key string, value T) {
+	var zero T
+	if value != zero {
+		*attrs = append(*attrs, slog.Any(key, value))
+	}
+}
+
+func addAttrIfNotNil[T any](attrs *[]slog.Attr, key string, value *T) {
+	if value != nil {
+		*attrs = append(*attrs, slog.Any(key, *value))
+	}
+}
+
+func addAttrIfHasLen[M ~map[K]V, K comparable, V any](attrs *[]slog.Attr, key string, value M) {
+	if len(value) > 0 {
+		*attrs = append(*attrs, slog.Any(key, value))
+	}
+}
+
+func addAttrIfSliceNotEmpty[T any](attrs *[]slog.Attr, key string, value []T) {
+	if len(value) > 0 {
+		*attrs = append(*attrs, slog.Any(key, value))
+	}
+}
+
+func (p *Plugin) eventToAttrs(event EventV1) []slog.Attr {
+	attrs := make([]slog.Attr, 0, 24)
+	attrs = append(attrs, slog.String("type", DecisionLogType))
+	attrs = append(attrs, slog.Time("timestamp", event.Timestamp))
+	attrs = append(attrs, slog.String("decision_id", event.DecisionID))
+	addAttrIfNonZeroString(&attrs, "batch_decision_id", event.BatchDecisionID)
+	addAttrIfNonZeroString(&attrs, "trace_id", event.TraceID)
+	addAttrIfNonZeroString(&attrs, "span_id", event.SpanID)
+	addAttrIfHasLen(&attrs, "labels", event.Labels)
+	addAttrIfNonZeroString(&attrs, "revision", event.Revision)
+	addAttrIfHasLen(&attrs, "bundles", event.Bundles)
+	addAttrIfNonZeroString(&attrs, "path", event.Path)
+	addAttrIfNonZeroString(&attrs, "query", event.Query)
+	addAttrIfNotNil(&attrs, "input", event.Input)
+	addAttrIfNotNil(&attrs, "result", event.Result)
+	addAttrIfHasLen(&attrs, "intermediate_results", event.IntermediateResults)
+	addAttrIfNotNil(&attrs, "mapped_result", event.MappedResult)
+	addAttrIfNotNil(&attrs, "nd_builtin_cache", event.NDBuiltinCache)
+	addAttrIfSliceNotEmpty(&attrs, "erased", event.Erased)
+	addAttrIfSliceNotEmpty(&attrs, "masked", event.Masked)
+
+	if event.Error != nil {
+		attrs = append(attrs, slog.String("error", event.Error.Error()))
+	}
+
+	addAttrIfNonZeroString(&attrs, "requested_by", event.RequestedBy)
+	addAttrIfHasLen(&attrs, "metrics", event.Metrics)
+	addAttrIfNonZero(&attrs, "req_id", event.RequestID)
+
+	if event.RequestContext != nil {
+		attrs = append(attrs, slog.Any("request_context", event.RequestContext))
+	}
+
+	addAttrIfHasLen(&attrs, "custom", event.Custom)
+
+	return attrs
 }
 
 func addIfNonZero[T comparable](fields map[string]any, key string, value T) {

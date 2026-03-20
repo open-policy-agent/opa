@@ -1,7 +1,8 @@
 package logger
 
 import (
-	"github.com/open-policy-agent/opa/v1/logging"
+	"log/slog"
+
 	"github.com/open-policy-agent/opa/v1/plugins"
 )
 
@@ -9,12 +10,12 @@ import (
 type LoggerPlugin interface {
 	plugins.Plugin
 
-	// Logger returns the logger implementation provided by this plugin.
-	Logger() logging.Logger
+	// Logger returns the slog.Handler implementation provided by this plugin.
+	Logger() slog.Handler
 }
 
-// Lookup returns the logger from the logger plugin registered with the manager based on configuration.
-func Lookup(manager *plugins.Manager) logging.Logger {
+// Lookup returns the slog.Handler from the logger plugin registered with the manager based on configuration.
+func Lookup(manager *plugins.Manager) slog.Handler {
 	configObj := manager.GetConfig()
 	if configObj == nil {
 		return nil
