@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"maps"
 	"strings"
 	"testing"
@@ -21,13 +22,11 @@ import (
 
 type testLoggerPlugin struct {
 	manager *plugins.Manager
-	logger  *mockLogger
+	handler *mockHandler
 }
 
-type mockLogger struct {
-	buf    *bytes.Buffer
-	level  logging.Level
-	fields map[string]any
+type mockHandler struct {
+	buf *bytes.Buffer
 }
 
 func (p *testLoggerPlugin) Start(context.Context) error {
@@ -41,58 +40,35 @@ func (p *testLoggerPlugin) Stop(context.Context) {
 
 func (_ *testLoggerPlugin) Reconfigure(context.Context, any) {}
 
-func (p *testLoggerPlugin) Logger() logging.Logger {
-	return p.logger
+func (p *testLoggerPlugin) Logger() slog.Handler {
+	return p.handler
 }
 
-func (l *mockLogger) Debug(format string, args ...any) {
-	l.log("DEBUG", format, args)
+func (_ *mockHandler) Enabled(context.Context, slog.Level) bool {
+	return true
 }
 
-func (l *mockLogger) Info(format string, args ...any) {
-	l.log("INFO", format, args)
-}
-
-func (l *mockLogger) Warn(format string, args ...any) {
-	l.log("WARN", format, args)
-}
-
-func (l *mockLogger) Error(format string, args ...any) {
-	l.log("ERROR", format, args)
-}
-
-func (l *mockLogger) WithFields(fields map[string]any) logging.Logger {
-	newFields := make(map[string]any, len(l.fields)+len(fields))
-	maps.Copy(newFields, l.fields)
-	maps.Copy(newFields, fields)
-	return &mockLogger{
-		buf:    l.buf,
-		level:  l.level,
-		fields: newFields,
-	}
-}
-
-func (l *mockLogger) WithContext(context.Context) logging.Logger {
-	return l
-}
-
-func (l *mockLogger) GetLevel() logging.Level {
-	return l.level
-}
-
-func (l *mockLogger) SetLevel(level logging.Level) {
-	l.level = level
-}
-
-func (l *mockLogger) log(level string, format string, args []any) {
-	entry := make(map[string]any, 2+len(l.fields))
-	entry["level"] = level
-	maps.Copy(entry, l.fields)
-	entry["message"] = format
+func (h *mockHandler) Handle(_ context.Context, r slog.Record) error {
+	entry := make(map[string]any)
+	entry["level"] = r.Level.String()
+	entry["message"] = r.Message
+	r.Attrs(func(a slog.Attr) bool {
+		entry[a.Key] = a.Value.Any()
+		return true
+	})
 
 	data, _ := json.Marshal(entry)
-	l.buf.Write(data)
-	l.buf.WriteString("\n")
+	h.buf.Write(data)
+	h.buf.WriteString("\n")
+	return nil
+}
+
+func (h *mockHandler) WithAttrs([]slog.Attr) slog.Handler {
+	return h
+}
+
+func (h *mockHandler) WithGroup(string) slog.Handler {
+	return h
 }
 
 func TestDecisionLogsWithLoggerPlugin(t *testing.T) {
@@ -101,14 +77,12 @@ func TestDecisionLogsWithLoggerPlugin(t *testing.T) {
 
 		// Arrange
 		buf := &bytes.Buffer{}
-		testLog := &mockLogger{
-			buf:    buf,
-			level:  logging.Info,
-			fields: make(map[string]any),
+		testHandler := &mockHandler{
+			buf: buf,
 		}
 
 		testLoggerPlug := &testLoggerPlugin{
-			logger: testLog,
+			handler: testHandler,
 		}
 
 		mgrCfg := map[string]any{
@@ -202,10 +176,8 @@ func TestDecisionLogsWithBothConsoleAndLoggerPlugin(t *testing.T) {
 
 		// Arrange
 		buf := &bytes.Buffer{}
-		testLog := &mockLogger{
-			buf:    buf,
-			level:  logging.Info,
-			fields: make(map[string]any),
+		testHandler := &mockHandler{
+			buf: buf,
 		}
 
 		consoleBuf := &bytes.Buffer{}
@@ -216,7 +188,7 @@ func TestDecisionLogsWithBothConsoleAndLoggerPlugin(t *testing.T) {
 		}
 
 		testLoggerPlug := &testLoggerPlugin{
-			logger: testLog,
+			handler: testHandler,
 		}
 
 		mgrCfg := map[string]any{
@@ -330,16 +302,70 @@ func TestDecisionLogsWithMissingLoggerPlugin(t *testing.T) {
 	}
 }
 
+type mockLogger struct {
+	buf    *bytes.Buffer
+	level  logging.Level
+	fields map[string]any
+}
+
+func (l *mockLogger) Debug(format string, args ...any) {
+	l.log("DEBUG", format, args)
+}
+
+func (l *mockLogger) Info(format string, args ...any) {
+	l.log("INFO", format, args)
+}
+
+func (l *mockLogger) Warn(format string, args ...any) {
+	l.log("WARN", format, args)
+}
+
+func (l *mockLogger) Error(format string, args ...any) {
+	l.log("ERROR", format, args)
+}
+
+func (l *mockLogger) WithFields(fields map[string]any) logging.Logger {
+	newFields := make(map[string]any, len(l.fields)+len(fields))
+	maps.Copy(newFields, l.fields)
+	maps.Copy(newFields, fields)
+	return &mockLogger{
+		buf:    l.buf,
+		level:  l.level,
+		fields: newFields,
+	}
+}
+
+func (l *mockLogger) WithContext(context.Context) logging.Logger {
+	return l
+}
+
+func (l *mockLogger) GetLevel() logging.Level {
+	return l.level
+}
+
+func (l *mockLogger) SetLevel(level logging.Level) {
+	l.level = level
+}
+
+func (l *mockLogger) log(level string, format string, args []any) {
+	entry := make(map[string]any, 2+len(l.fields))
+	entry["level"] = level
+	maps.Copy(entry, l.fields)
+	entry["message"] = format
+
+	data, _ := json.Marshal(entry)
+	l.buf.Write(data)
+	l.buf.WriteString("\n")
+}
+
 func TestDecisionLogsLoggerPluginLookup(t *testing.T) {
 	buf := &bytes.Buffer{}
-	testLog := &mockLogger{
-		buf:    buf,
-		level:  logging.Info,
-		fields: make(map[string]any),
+	testHandler := &mockHandler{
+		buf: buf,
 	}
 
 	testLoggerPlug := &testLoggerPlugin{
-		logger: testLog,
+		handler: testHandler,
 	}
 
 	mgrCfg := map[string]any{}

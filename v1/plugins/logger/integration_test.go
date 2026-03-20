@@ -2,6 +2,7 @@ package logger_test
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -31,8 +32,8 @@ func (p *testLoggerPlugin) Stop(context.Context) {
 
 func (*testLoggerPlugin) Reconfigure(context.Context, any) {}
 
-func (p *testLoggerPlugin) Logger() logging.Logger {
-	return p.logger
+func (p *testLoggerPlugin) Logger() slog.Handler {
+	return logging.NewSlogHandler(p.logger)
 }
 
 type testLoggerFactory struct {
@@ -97,7 +98,9 @@ func TestBufferedLoggerIntegration(t *testing.T) {
 			t.Fatal("Plugin does not implement LoggerPlugin interface")
 		}
 
-		targetLogger := loggerPlugin.Logger()
+		handler := loggerPlugin.Logger()
+		// Wrap the slog.Handler in a Logger adapter
+		targetLogger := logging.NewLoggerFromSlogHandler(handler, logging.Debug)
 		bufferedLogger.Flush(targetLogger)
 
 		time.Sleep(100 * time.Millisecond)

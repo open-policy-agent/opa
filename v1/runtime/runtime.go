@@ -664,7 +664,9 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		var targetLogger logging.Logger
 
 		// Check if a logger plugin was configured and started
-		if targetLogger = logger.Lookup(rt.Manager); targetLogger != nil {
+		if slogHandler := logger.Lookup(rt.Manager); slogHandler != nil {
+			// Wrap the slog.Handler in a Logger adapter
+			targetLogger = logging.NewLoggerFromSlogHandler(slogHandler, buffered.GetLevel())
 		} else {
 			// No logger plugin - use StandardLogger for console output
 			stdLogger := logging.New()
