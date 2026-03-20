@@ -7,7 +7,6 @@ package logs
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -23,6 +22,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
+	logplugin "github.com/open-policy-agent/opa/v1/plugins/logger"
 	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/plugins/status"
@@ -31,6 +31,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+const DecisionLogType = "openpolicyagent.org/decision_logs"
 
 // Logger defines the interface for decision logging plugins.
 type Logger interface {
@@ -784,11 +786,25 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if p.config.Plugin != nil {
-		proxy, ok := p.manager.Plugin(*p.config.Plugin).(Logger)
-		if !ok {
-			return errors.New("plugin does not implement Logger interface")
+		plugin := p.manager.Plugin(*p.config.Plugin)
+		if plugin == nil {
+			return fmt.Errorf("plugin %q not found", *p.config.Plugin)
 		}
-		return proxy.Log(ctx, event)
+
+		switch l := plugin.(type) {
+		case Logger:
+			return l.Log(ctx, event)
+		case logplugin.LoggerPlugin:
+			logger := l.Logger()
+			if logger == nil {
+				return fmt.Errorf("plugin %q returned nil logger", *p.config.Plugin)
+			}
+			fields := p.eventToFields(event)
+			logger.WithFields(fields).Info("Decision Log")
+			return nil
+		}
+
+		return fmt.Errorf("plugin %q does not implement Logger or LoggerPlugin interface", *p.config.Plugin)
 	}
 
 	return nil
@@ -1103,19 +1119,72 @@ func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, dat
 }
 
 func (p *Plugin) logEvent(event EventV1) error {
-	eventBuf, err := json.Marshal(&event)
-	if err != nil {
-		return err
-	}
-	fields := map[string]any{}
-	err = util.UnmarshalJSON(eventBuf, &fields)
-	if err != nil {
-		return err
-	}
-	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]any{
-		"type": "openpolicyagent.org/decision_logs",
-	}).Info("Decision Log")
+	fields := p.eventToFields(event)
+	p.manager.ConsoleLogger().WithFields(fields).Info("Decision Log")
 	return nil
+}
+
+func addIfNonZero[T comparable](fields map[string]any, key string, value T) {
+	var zero T
+	if value != zero {
+		fields[key] = value
+	}
+}
+
+func addIfNotNil[T any](fields map[string]any, key string, value *T) {
+	if value != nil {
+		fields[key] = *value
+	}
+}
+
+func addIfHasLen[M ~map[K]V, K comparable, V any](fields map[string]any, key string, value M) {
+	if len(value) > 0 {
+		fields[key] = value
+	}
+}
+
+func addIfSliceNotEmpty[T any](fields map[string]any, key string, value []T) {
+	if len(value) > 0 {
+		fields[key] = value
+	}
+}
+
+func (p *Plugin) eventToFields(event EventV1) map[string]any {
+	fields := make(map[string]any)
+	fields["type"] = DecisionLogType
+	fields["timestamp"] = event.Timestamp
+	fields["decision_id"] = event.DecisionID
+	addIfNonZero(fields, "batch_decision_id", event.BatchDecisionID)
+	addIfNonZero(fields, "trace_id", event.TraceID)
+	addIfNonZero(fields, "span_id", event.SpanID)
+	addIfHasLen(fields, "labels", event.Labels)
+	addIfNonZero(fields, "revision", event.Revision)
+	addIfHasLen(fields, "bundles", event.Bundles)
+	addIfNonZero(fields, "path", event.Path)
+	addIfNonZero(fields, "query", event.Query)
+	addIfNotNil(fields, "input", event.Input)
+	addIfNotNil(fields, "result", event.Result)
+	addIfHasLen(fields, "intermediate_results", event.IntermediateResults)
+	addIfNotNil(fields, "mapped_result", event.MappedResult)
+	addIfNotNil(fields, "nd_builtin_cache", event.NDBuiltinCache)
+	addIfSliceNotEmpty(fields, "erased", event.Erased)
+	addIfSliceNotEmpty(fields, "masked", event.Masked)
+
+	if event.Error != nil {
+		fields["error"] = event.Error.Error()
+	}
+
+	addIfNonZero(fields, "requested_by", event.RequestedBy)
+	addIfHasLen(fields, "metrics", event.Metrics)
+	addIfNonZero(fields, "req_id", event.RequestID)
+
+	if event.RequestContext != nil {
+		fields["request_context"] = event.RequestContext
+	}
+
+	addIfHasLen(fields, "custom", event.Custom)
+
+	return fields
 }
 
 func (p *Plugin) setStatus(err error) {
