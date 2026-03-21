@@ -1,0 +1,1 @@
+Trimming whitespace from strings

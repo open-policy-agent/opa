@@ -1,0 +1,1 @@
+Checking path prefixes with strings.startswith
