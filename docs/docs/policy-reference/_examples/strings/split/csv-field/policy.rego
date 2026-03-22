@@ -1,12 +1,10 @@
 package play
 
-import rego.v1
-
 # Split a literal comma-separated string.
-fields := strings.split("alice,30,engineer", ",")
+fields := split("alice,30,engineer", ",")
 
 # Split an input CSV row.
-input_fields := strings.split(input.csv_row, ",")
+input_fields := split(input.csv_row, ",")
 
 # Extract the name (first field) from the input row.
 name := input_fields[0]
