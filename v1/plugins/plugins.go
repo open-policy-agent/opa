@@ -840,7 +840,7 @@ func (m *Manager) Stop(ctx context.Context) {
 	}
 	if c, ok := m.Store.(interface{ Close(context.Context) error }); ok {
 		if err := c.Close(ctx); err != nil {
-			m.logger.Error("Error closing store: %v", err)
+			m.Logger().Error("Error closing store: %v", err)
 		}
 	}
 
@@ -855,7 +855,7 @@ func (m *Manager) DefaultServiceOpts(config *config.Config) cfg.ServiceOptions {
 	return cfg.ServiceOptions{
 		Raw:                   config.Services,
 		AuthPlugin:            m.AuthPlugin,
-		Logger:                m.logger,
+		Logger:                m.Logger(),
 		Keys:                  m.keys,
 		DistributedTacingOpts: m.distributedTacingOpts,
 		MinTLSVersion:         m.minTLSVersion,
@@ -1127,12 +1127,16 @@ func (m *Manager) Services() []string {
 
 // Logger gets the standard logger for this plugin manager.
 func (m *Manager) Logger() logging.Logger {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	return m.logger
 }
 
 // SetLogger replaces the logger for this plugin manager.
 // Used during startup to swap the BufferedLogger for the real logger after flush.
 func (m *Manager) SetLogger(l logging.Logger) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	m.logger = l
 }
 
@@ -1208,7 +1212,7 @@ func (m *Manager) sendOPAUpdateLoop(ctx context.Context) {
 				opaReportNotify = false
 				_, err := m.versionChecker.LatestVersion(ctx)
 				if err != nil {
-					m.logger.WithFields(map[string]any{"err": err}).Debug("Unable to check OPA version.")
+					m.Logger().WithFields(map[string]any{"err": err}).Debug("Unable to check OPA version.")
 				}
 			}
 
