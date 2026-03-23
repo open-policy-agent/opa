@@ -121,6 +121,14 @@ func (b *BufferedLogger) SetLevel(level Level) {
 	b.currentLevel = level
 }
 
+// Close discards all buffered entries without flushing them.
+// After calling Close, the BufferedLogger should not be used anymore.
+func (b *BufferedLogger) Close() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.buffer = nil
+}
+
 // Flush replays all buffered entries to the target logger.
 // After calling Flush, the BufferedLogger should not be used anymore.
 // The caller should switch to using the target logger directly.

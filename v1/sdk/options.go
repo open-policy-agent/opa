@@ -42,7 +42,9 @@ type Options struct {
 	Config io.Reader
 
 	// Logger sets the logging implementation to use for standard logs emitted
-	// by OPA. By default, standard logging is disabled.
+	// by OPA. By default, logs are buffered until plugins start. If a logger
+	// plugin is configured, buffered logs are flushed to it; otherwise, they
+	// are discarded.
 	Logger logging.Logger
 
 	// ConsoleLogger sets the logging implementation to use for emitting Status
@@ -113,7 +115,7 @@ func (o *Options) init() error {
 	}
 
 	if o.Logger == nil {
-		o.Logger = logging.NewNoOpLogger()
+		o.Logger = logging.NewBufferedLogger(1000)
 	}
 
 	if o.ConsoleLogger == nil {
