@@ -344,7 +344,6 @@ func (r *Runner) SetCoverageTracer(tracer topdown.Tracer) *Runner {
 	} else {
 		r.cover = topdown.WrapLegacyTracer(tracer)
 	}
-	r.trace = false
 	return r
 }
 
@@ -354,7 +353,6 @@ func (r *Runner) SetCoverageQueryTracer(tracer topdown.QueryTracer) *Runner {
 		return r
 	}
 	r.cover = tracer
-	r.trace = false
 	return r
 }
 
@@ -908,17 +906,17 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	var bufferTracer *topdown.BufferTracer
 	var tracers []topdown.QueryTracer
 
-	if r.cover != nil {
-		t := NewTestQueryTracer()
-		tracers = append(tracers, r.cover, t)
-		bufferTracer = &t.BufferTracer
-	} else if r.trace {
+	if r.trace {
 		bufferTracer = topdown.NewBufferTracer()
 		tracers = append(tracers, bufferTracer)
 	} else {
 		t := NewTestQueryTracer()
 		tracers = append(tracers, t)
 		bufferTracer = &t.BufferTracer
+	}
+
+	if r.cover != nil {
+		tracers = append(tracers, r.cover)
 	}
 
 	printbuf := bytes.NewBuffer(nil)
