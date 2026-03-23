@@ -1130,6 +1130,12 @@ func (m *Manager) Logger() logging.Logger {
 	return m.logger
 }
 
+// SetLogger replaces the logger for this plugin manager.
+// Used during startup to swap the BufferedLogger for the real logger after flush.
+func (m *Manager) SetLogger(l logging.Logger) {
+	m.logger = l
+}
+
 // ConsoleLogger gets the console logger for this plugin manager.
 func (m *Manager) ConsoleLogger() logging.Logger {
 	return m.consoleLogger

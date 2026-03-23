@@ -1,7 +1,6 @@
 package test
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"maps"
@@ -128,6 +127,6 @@ func (l *Logger) append(lvl logging.Level, f string, a ...any) {
 		Level:   lvl,
 		Fields:  l.fields,
 		Message: fmt.Sprintf(f, a...),
-		Time:    cmp.Or(timestamp, time.Now()),
+		Time:    timestamp,
 	})
 }

@@ -678,6 +678,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		// Flush buffered logs to target and switch to it
 		buffered.Flush(targetLogger)
 		rt.logger = targetLogger
+		rt.Manager.SetLogger(targetLogger)
 	}
 
 	if rt.traceExporter != nil {

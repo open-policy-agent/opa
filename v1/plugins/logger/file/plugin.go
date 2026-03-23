@@ -38,7 +38,7 @@ type Plugin struct {
 type Factory struct{}
 
 // Validate validates the configuration for the file logger plugin.
-func (_ *Factory) Validate(manager *plugins.Manager, config []byte) (any, error) {
+func (*Factory) Validate(manager *plugins.Manager, config []byte) (any, error) {
 	var parsedConfig Config
 	if err := json.Unmarshal(config, &parsedConfig); err != nil {
 		return nil, fmt.Errorf("failed to parse file logger config: %w", err)
@@ -66,7 +66,7 @@ func (_ *Factory) Validate(manager *plugins.Manager, config []byte) (any, error)
 }
 
 // New creates a new file logger plugin instance.
-func (_ *Factory) New(manager *plugins.Manager, config any) plugins.Plugin {
+func (*Factory) New(manager *plugins.Manager, config any) plugins.Plugin {
 	parsedConfig := config.(Config)
 
 	return &Plugin{

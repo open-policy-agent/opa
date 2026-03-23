@@ -300,19 +300,18 @@ func NewSlogHandler(logger Logger) slog.Handler {
 }
 
 func (h *SlogHandler) Enabled(_ context.Context, level slog.Level) bool {
-	loggerLevel := h.logger.GetLevel()
+	lvl := h.logger.GetLevel()
 	switch level {
 	case slog.LevelDebug:
-		return loggerLevel >= Debug
+		return lvl >= Debug
 	case slog.LevelInfo:
-		return loggerLevel >= Info
+		return lvl >= Info
 	case slog.LevelWarn:
-		return loggerLevel >= Warn
+		return lvl >= Warn
 	case slog.LevelError:
-		return loggerLevel >= Error
-	default:
-		return true
+		return lvl >= Error
 	}
+	return true
 }
 
 func (h *SlogHandler) Handle(ctx context.Context, record slog.Record) error {
@@ -379,6 +378,9 @@ func NewLoggerFromSlogHandler(handler slog.Handler, level Level) Logger {
 }
 
 func (l *loggerFromSlogHandler) log(level slog.Level, format string, args ...any) {
+	if !l.handler.Enabled(l.ctx, level) {
+		return
+	}
 	msg := format
 	if len(args) > 0 {
 		msg = fmt.Sprintf(format, args...)

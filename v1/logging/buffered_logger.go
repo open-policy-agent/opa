@@ -59,7 +59,7 @@ func (b *BufferedLogger) addToBuffer(level Level, format string, args []any, fie
 	b.buffer = append(b.buffer, entry)
 }
 
-func (_ *BufferedLogger) logToTarget(target Logger, entry logEntry) {
+func (*BufferedLogger) logToTarget(target Logger, entry logEntry) {
 	fields := make(map[string]any, len(entry.fields))
 	maps.Copy(fields, entry.fields)
 	fields["time"] = entry.time

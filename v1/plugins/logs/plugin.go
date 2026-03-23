@@ -7,6 +7,7 @@ package logs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -1153,7 +1154,7 @@ func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, dat
 }
 
 func (p *Plugin) logEvent(event EventV1) error {
-	fields := p.eventToFields(event)
+	fields := eventToFields(event)
 	p.manager.ConsoleLogger().WithFields(fields).Info("Decision Log")
 	return nil
 }
@@ -1247,6 +1248,25 @@ func addIfSliceNotEmpty[T any](fields map[string]any, key string, value []T) {
 	}
 }
 
+// roundTripAny JSON-marshals and unmarshals a value into a fresh any,
+// ensuring that struct types are converted to map[string]any etc.
+// Unlike util.RoundTrip, this always unmarshals into a nil any target,
+// which prevents json.Decoder from reusing the existing concrete type.
+func roundTripAny(x any) (any, error) {
+	if !util.NeedsRoundTrip(x) {
+		return x, nil
+	}
+	bs, err := json.Marshal(x)
+	if err != nil {
+		return nil, err
+	}
+	var v any
+	if err := util.UnmarshalJSON(bs, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
 func stringsToAny(ss []string) []any {
 	result := make([]any, len(ss))
 	for i, s := range ss {
@@ -1263,7 +1283,7 @@ func stringsMapToAny(m map[string]string) map[string]any {
 	return result
 }
 
-func (_ *Plugin) eventToFields(event EventV1) map[string]any {
+func eventToFields(event EventV1) map[string]any {
 	// NOTE(sr): This used to do a JSON roundtrip. I didn't like that, so I've converted
 	// it to simple conversion steps. These, however, try to keep types as they were
 	// before after the roundtrip. So if you find any of the [stringsToAny] business
@@ -1282,10 +1302,22 @@ func (_ *Plugin) eventToFields(event EventV1) map[string]any {
 	addIfHasLen(fields, "bundles", event.Bundles)
 	addIfNonZero(fields, "path", event.Path)
 	addIfNonZero(fields, "query", event.Query)
-	addIfNotNil(fields, "input", event.Input)
-	addIfNotNil(fields, "result", event.Result)
+	if event.Input != nil {
+		if v, err := roundTripAny(*event.Input); err == nil {
+			fields["input"] = v
+		}
+	}
+	if event.Result != nil {
+		if v, err := roundTripAny(*event.Result); err == nil {
+			fields["result"] = v
+		}
+	}
 	addIfHasLen(fields, "intermediate_results", event.IntermediateResults)
-	addIfNotNil(fields, "mapped_result", event.MappedResult)
+	if event.MappedResult != nil {
+		if v, err := roundTripAny(*event.MappedResult); err == nil {
+			fields["mapped_result"] = v
+		}
+	}
 	if event.NDBuiltinCache != nil {
 		v := *event.NDBuiltinCache
 		if err := util.RoundTrip(&v); err == nil {
@@ -1301,13 +1333,23 @@ func (_ *Plugin) eventToFields(event EventV1) map[string]any {
 
 	addIfNonZero(fields, "requested_by", event.RequestedBy)
 	addIfHasLen(fields, "metrics", event.Metrics)
-	addIfNonZero(fields, "req_id", event.RequestID)
+	if event.RequestID != 0 {
+		var v any = event.RequestID
+		if err := util.RoundTrip(&v); err == nil {
+			fields["req_id"] = v
+		}
+	}
 
 	if event.RequestContext != nil {
 		fields["request_context"] = event.RequestContext
 	}
 
-	addIfHasLen(fields, "custom", event.Custom)
+	if len(event.Custom) > 0 {
+		var v any = event.Custom
+		if err := util.RoundTrip(&v); err == nil {
+			fields["custom"] = v
+		}
+	}
 
 	return fields
 }

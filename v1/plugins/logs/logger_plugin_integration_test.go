@@ -38,13 +38,13 @@ func (p *testLoggerPlugin) Stop(context.Context) {
 	p.manager.UpdatePluginStatus("test_logger", &plugins.Status{State: plugins.StateNotReady})
 }
 
-func (_ *testLoggerPlugin) Reconfigure(context.Context, any) {}
+func (*testLoggerPlugin) Reconfigure(context.Context, any) {}
 
 func (p *testLoggerPlugin) Logger() slog.Handler {
 	return p.handler
 }
 
-func (_ *mockHandler) Enabled(context.Context, slog.Level) bool {
+func (*mockHandler) Enabled(context.Context, slog.Level) bool {
 	return true
 }
 

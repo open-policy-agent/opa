@@ -40,7 +40,7 @@ type testLoggerFactory struct {
 	logger *test.Logger
 }
 
-func (_ *testLoggerFactory) Validate(manager *plugins.Manager, config []byte) (any, error) {
+func (*testLoggerFactory) Validate(manager *plugins.Manager, config []byte) (any, error) {
 	return nil, nil
 }
 
@@ -66,7 +66,6 @@ func TestBufferedLoggerIntegration(t *testing.T) {
 		bufferedLogger.Error("early error log")
 
 		testLog := test.New()
-		testLog.SetLevel(logging.Debug)
 		factory := &testLoggerFactory{logger: testLog}
 
 		config := []byte(`{"logger": {"plugin": "test_logger"}}`)
@@ -147,32 +146,28 @@ func TestBufferedLoggerIntegration(t *testing.T) {
 }
 
 func TestBufferedLoggerWithFields(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		bufferedLogger := logging.NewBufferedLogger(1000)
-		testLog := test.New()
+	bufferedLogger := logging.NewBufferedLogger(1000)
+	testLog := test.New()
 
 	logger1 := bufferedLogger.WithFields(map[string]any{"component": "runtime"})
 	logger1.Info("buffered message")
 
-		bufferedLogger.Flush(testLog)
-		time.Sleep(50 * time.Millisecond)
+	bufferedLogger.Flush(testLog)
 
-		// After flush, use the target logger directly
-		logger2 := testLog.WithFields(map[string]any{"component": "server"})
-		logger2.Info("direct message")
-		time.Sleep(50 * time.Millisecond)
+	// After flush, use the target logger directly
+	logger2 := testLog.WithFields(map[string]any{"component": "server"})
+	logger2.Info("direct message")
 
-		entries := testLog.Entries()
-		if len(entries) != 2 {
-			t.Fatalf("Expected 2 entries, got %d", len(entries))
-		}
+	entries := testLog.Entries()
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
 
-		if entries[0].Fields["component"] != "runtime" {
-			t.Errorf("First entry: expected component=runtime, got %v", entries[0].Fields)
-		}
+	if entries[0].Fields["component"] != "runtime" {
+		t.Errorf("First entry: expected component=runtime, got %v", entries[0].Fields)
+	}
 
-		if entries[1].Fields["component"] != "server" {
-			t.Errorf("Second entry: expected component=server, got %v", entries[1].Fields)
-		}
-	})
+	if entries[1].Fields["component"] != "server" {
+		t.Errorf("Second entry: expected component=server, got %v", entries[1].Fields)
+	}
 }
