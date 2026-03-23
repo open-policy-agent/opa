@@ -1,16 +1,15 @@
 import Link from "@docusaurus/Link";
 import { Icon } from "@iconify/react";
-import React from "react";
 
 import styles from "./styles.module.css";
 
-const SessionCard = ({ sessionType, title, datetime, room, location, speakers, link }) => {
+const SessionCard = ({ sessionType, title, datetime, room, location, speakers, link, highlight }) => {
   const speakersText = speakers && speakers.length > 0
-    ? speakers.map(s => `${s.name} (${s.title || s.affiliation || ""})`).join(", ")
+    ? speakers.map(s => s.title ? `${s.name} (${s.title})` : s.name).join(", ")
     : null;
 
   return (
-    <div className={styles.card}>
+    <div className={`${styles.card} ${highlight ? styles.highlighted : ""}`}>
       <div className={styles.header}>
         <h4 className={styles.title}>
           {sessionType === "lightning" && <Icon icon="lucide:zap" className={styles.lightningIcon} />}
