@@ -9,7 +9,7 @@ const SessionCard = ({ sessionType, title, datetime, room, location, speakers, l
     : null;
 
   return (
-    <div className={`${styles.card} ${highlight ? styles.highlighted : ''}`}>
+    <div className={`${styles.card} ${highlight ? styles.highlighted : ""}`}>
       <div className={styles.header}>
         <h4 className={styles.title}>
           {sessionType === "lightning" && <Icon icon="lucide:zap" className={styles.lightningIcon} />}
