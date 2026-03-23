@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/plugins"
-	opalogger "github.com/open-policy-agent/opa/v1/plugins/logger"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 )
 
@@ -51,7 +50,7 @@ func TestFileLoggerPlugin(t *testing.T) {
 	}
 	defer plugin.Stop(ctx)
 
-	loggerPlugin := plugin.(opalogger.LoggerPlugin)
+	loggerPlugin := plugin.(plugins.LoggerPlugin)
 	handler := loggerPlugin.Logger()
 	logger := slog.New(handler)
 
@@ -143,7 +142,7 @@ func TestFileLoggerLevelFiltering(t *testing.T) {
 	}
 	defer plugin.Stop(ctx)
 
-	loggerPlugin := plugin.(opalogger.LoggerPlugin)
+	loggerPlugin := plugin.(plugins.LoggerPlugin)
 	handler := loggerPlugin.Logger()
 	logger := slog.New(handler)
 
@@ -262,7 +261,7 @@ func TestFileLoggerWithAttrs(t *testing.T) {
 	}
 	defer plugin.Stop(ctx)
 
-	loggerPlugin := plugin.(opalogger.LoggerPlugin)
+	loggerPlugin := plugin.(plugins.LoggerPlugin)
 	handler := loggerPlugin.Logger()
 
 	logger1 := slog.New(handler).With(slog.String("component", "runtime"))

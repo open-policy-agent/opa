@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
 	mr "math/rand"
 	"net/http"
@@ -110,6 +111,14 @@ type Plugin interface {
 // Triggerable defines the interface plugins use for manual plugin triggers.
 type Triggerable interface {
 	Trigger(context.Context) error
+}
+
+// LoggerPlugin defines the interface for plugins that provide a logging implementation.
+type LoggerPlugin interface {
+	Plugin
+
+	// Logger returns the slog.Handler implementation provided by this plugin.
+	Logger() slog.Handler
 }
 
 // State defines the state that a Plugin instance is currently
@@ -1138,6 +1147,45 @@ func (m *Manager) SetLogger(l logging.Logger) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	m.logger = l
+}
+
+// ResolveBufferedLogger checks if the current logger is a BufferedLogger and
+// resolves it to a real logger. If a logger plugin is configured, buffered logs
+// are flushed to it. Otherwise, if a fallback logger is provided, buffered logs
+// are flushed to that. If no fallback is provided, buffered entries are discarded
+// and a no-op logger is used. Returns the resolved logger.
+//
+// This method should be called after Manager.Start().
+func (m *Manager) ResolveBufferedLogger(fallback logging.Logger) logging.Logger {
+	buffered, ok := m.logger.(*logging.BufferedLogger)
+	if !ok {
+		return m.logger
+	}
+
+	// Check if a logger plugin is configured and started.
+	configObj := m.GetConfig()
+	if configObj != nil && configObj.Server != nil && configObj.Server.LoggerPlugin != nil {
+		if p := m.Plugin(*configObj.Server.LoggerPlugin); p != nil {
+			if lp, ok := p.(LoggerPlugin); ok {
+				target := logging.NewLoggerFromSlogHandler(lp.Logger(), buffered.GetLevel())
+				buffered.Flush(target)
+				m.SetLogger(target)
+				return target
+			}
+		}
+	}
+
+	// No logger plugin found.
+	if fallback != nil {
+		buffered.Flush(fallback)
+		m.SetLogger(fallback)
+		return fallback
+	}
+
+	buffered.Close()
+	noop := logging.NewNoOpLogger()
+	m.SetLogger(noop)
+	return noop
 }
 
 // ConsoleLogger gets the console logger for this plugin manager.

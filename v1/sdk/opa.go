@@ -24,7 +24,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
-	"github.com/open-policy-agent/opa/v1/plugins/logger"
 	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/runtime/info"
@@ -271,23 +270,9 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		return err
 	}
 
-	// If we were using a buffered logger, flush it to the appropriate target
-	if buffered, ok := opa.logger.(*logging.BufferedLogger); ok {
-		// Check if a logger plugin was configured and started
-		if slogHandler := logger.Lookup(manager); slogHandler != nil {
-			targetLogger := logging.NewLoggerFromSlogHandler(slogHandler, buffered.GetLevel())
-			buffered.Flush(targetLogger)
-			opa.logger = targetLogger
-			manager.SetLogger(targetLogger)
-		} else {
-			// No logger plugin configured; discard buffered entries and
-			// switch to a no-op logger.
-			buffered.Close()
-			noopLogger := logging.NewNoOpLogger()
-			opa.logger = noopLogger
-			manager.SetLogger(noopLogger)
-		}
-	}
+	// Resolve the buffered logger: flush to logger plugin if configured,
+	// otherwise discard (no fallback).
+	opa.logger = manager.ResolveBufferedLogger(nil)
 
 	if block {
 		select {

@@ -14,7 +14,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
-	logplugin "github.com/open-policy-agent/opa/v1/plugins/logger"
 	"github.com/open-policy-agent/opa/v1/server"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -391,7 +390,7 @@ func TestDecisionLogsLoggerPluginLookup(t *testing.T) {
 		t.Fatal("expected direct lookup to return registered logger plugin")
 	}
 
-	loggerPlug, ok := directLookup.(logplugin.LoggerPlugin)
+	loggerPlug, ok := directLookup.(plugins.LoggerPlugin)
 	if !ok {
 		t.Fatal("expected plugin to implement LoggerPlugin interface")
 	}

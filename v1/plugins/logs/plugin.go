@@ -24,7 +24,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
-	logplugin "github.com/open-policy-agent/opa/v1/plugins/logger"
 	lstat "github.com/open-policy-agent/opa/v1/plugins/logs/status"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
 	"github.com/open-policy-agent/opa/v1/plugins/status"
@@ -798,7 +797,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		switch l := plugin.(type) {
 		case Logger:
 			return l.Log(ctx, event)
-		case logplugin.LoggerPlugin:
+		case plugins.LoggerPlugin:
 			logger, err := p.getSlogLogger(l)
 			if err != nil {
 				return err
@@ -813,7 +812,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	return nil
 }
 
-func (p *Plugin) getSlogLogger(l logplugin.LoggerPlugin) (*slog.Logger, error) {
+func (p *Plugin) getSlogLogger(l plugins.LoggerPlugin) (*slog.Logger, error) {
 	p.sloggerMtx.RLock()
 	if p.cachedSlogger != nil {
 		logger := p.cachedSlogger

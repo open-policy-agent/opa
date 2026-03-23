@@ -49,7 +49,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
-	"github.com/open-policy-agent/opa/v1/plugins/logger"
 	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	metrics_config "github.com/open-policy-agent/opa/v1/plugins/server/metrics"
 	"github.com/open-policy-agent/opa/v1/repl"
@@ -659,27 +658,12 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	defer rt.Manager.Stop(ctx)
 
-	// If we were using a buffered logger, flush it to the appropriate target
-	if buffered, ok := rt.logger.(*logging.BufferedLogger); ok {
-		var targetLogger logging.Logger
-
-		// Check if a logger plugin was configured and started
-		if slogHandler := logger.Lookup(rt.Manager); slogHandler != nil {
-			// Wrap the slog.Handler in a Logger adapter
-			targetLogger = logging.NewLoggerFromSlogHandler(slogHandler, buffered.GetLevel())
-		} else {
-			// No logger plugin - use StandardLogger for console output
-			stdLogger := logging.New()
-			stdLogger.SetLevel(buffered.GetLevel())
-			stdLogger.SetFormatter(internal_logging.GetFormatter(rt.Params.Logging.Format, rt.Params.Logging.TimestampFormat))
-			targetLogger = stdLogger
-		}
-
-		// Flush buffered logs to target and switch to it
-		buffered.Flush(targetLogger)
-		rt.logger = targetLogger
-		rt.Manager.SetLogger(targetLogger)
-	}
+	// Resolve the buffered logger: flush to logger plugin if configured,
+	// otherwise fall back to the standard logger.
+	stdLogger := logging.New()
+	stdLogger.SetLevel(rt.logger.GetLevel())
+	stdLogger.SetFormatter(internal_logging.GetFormatter(rt.Params.Logging.Format, rt.Params.Logging.TimestampFormat))
+	rt.logger = rt.Manager.ResolveBufferedLogger(stdLogger)
 
 	if rt.traceExporter != nil {
 		if err := rt.traceExporter.Start(ctx); err != nil {

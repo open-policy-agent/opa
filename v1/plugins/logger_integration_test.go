@@ -1,4 +1,4 @@
-package logger_test
+package plugins_test
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/logging/test"
 	"github.com/open-policy-agent/opa/v1/plugins"
-	"github.com/open-policy-agent/opa/v1/plugins/logger"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 )
 
@@ -92,7 +91,7 @@ func TestBufferedLoggerIntegration(t *testing.T) {
 			t.Fatal("Logger plugin not found")
 		}
 
-		loggerPlugin, ok := p.(logger.LoggerPlugin)
+		loggerPlugin, ok := p.(plugins.LoggerPlugin)
 		if !ok {
 			t.Fatal("Plugin does not implement LoggerPlugin interface")
 		}
