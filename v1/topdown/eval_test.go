@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1685,6 +1687,116 @@ func TestFmtVarTerm(t *testing.T) {
 
 	if res != "foobar_term_12345_54321" {
 		t.Fatalf("Expected foobar_term_12345_54321 but got %s", res)
+	}
+}
+
+func TestEvalVirtualNilIndex(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	store := inmem.New()
+
+	// Define a function under a non-ground ref parent.
+	// buildRuleIndices skips children of p (hasNonGroundRef=true),
+	// so p.c.f's tree node has Values but nil Index.
+	compiler := compileModules([]string{
+		`package test
+
+		p[q].r := i if { q := ["a", "b"][i] }
+		p.c.f(x) := x * 2
+		`,
+	})
+
+	// Verify the function node has nil Index
+	fNode := compiler.RuleTree.Find(ast.MustParseRef("data.test.p.c.f"))
+	if fNode == nil {
+		t.Fatal("expected to find data.test.p.c.f in rule tree")
+	}
+	t.Logf("p.c.f node: Values=%d, Index=%v", len(fNode.Values), fNode.Index != nil)
+
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	// Call the function with output capture — this goes through evalCall → getRules → nil Index → crash
+	query := NewQuery(ast.MustParseBody("data.test.p.c.f(3, x)")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn)
+
+	qrs, err := query.Run(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	t.Logf("results: %v", qrs)
+}
+
+// TestRaceEvalVirtualNilIndex demonstrates the nil pointer dereference
+// in evalVirtual.eval can be triggered via a race condition when Compile() is
+// called on a compiler that is concurrently used for query evaluation.
+func TestRaceEvalVirtualNilIndex(t *testing.T) {
+	ctx := t.Context()
+	store := inmem.New()
+
+	mods := map[string]*ast.Module{
+		"test": ast.MustParseModuleWithOpts(`package test
+p := 1 if true
+q := 2 if true
+r contains x if { x := "a" }
+`, ast.ParserOptions{AllFutureKeywords: true}),
+	}
+
+	// Compile once (fully, with indices) so queries work initially.
+	c := ast.NewCompiler()
+	if c.Compile(mods); c.Failed() {
+		t.Fatal(c.Errors)
+	}
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+	var crashes int64
+
+	// Start query evaluator goroutines — these read compiler.RuleTree.
+	for range 8 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+
+				txn := storage.NewTransactionOrDie(ctx, store)
+
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							atomic.AddInt64(&crashes, 1)
+						}
+					}()
+
+					query := NewQuery(ast.MustParseBody("data.test.p = x")).
+						WithCompiler(c).
+						WithStore(store).
+						WithTransaction(txn)
+					query.Run(ctx) //nolint:errcheck
+				}()
+
+				store.Abort(ctx, txn)
+			}
+		})
+	}
+
+	// Concurrently recompile the SAME compiler (simulates delta bundle reload).
+	// Between setRuleTree and buildRuleIndices, RuleTree nodes have Values but
+	// nil Index — the exact condition for the evalVirtual nil-pointer crash.
+	for range 2000 {
+		c.Compile(mods)
+	}
+
+	close(stop)
+	wg.Wait()
+
+	if crashes > 0 {
+		t.Errorf("caught %d nil-pointer panics (bug2 triggered via race)", crashes)
 	}
 }
 

@@ -2113,6 +2113,9 @@ type evalFunc struct {
 }
 
 func (e *evalFunc) eval(iter unifyIterator) error {
+	if e.ir == nil {
+		return nil
+	}
 	if e.ir.Empty() {
 		return nil
 	}
@@ -2704,11 +2707,14 @@ type evalVirtual struct {
 }
 
 func (e evalVirtual) eval(iter unifyIterator) error {
-
 	ir, err := e.e.getRules(e.plugged[:e.pos+1], nil)
 	defer ast.IndexResultPool.Put(ir)
 	if err != nil {
 		return err
+	}
+
+	if ir == nil {
+		return nil
 	}
 
 	// Partial evaluation of ordered rules is not supported currently. Save the
