@@ -11,7 +11,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/open-policy-agent/opa/v1/util"
 	"sigs.k8s.io/yaml"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -21,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/test/cases/testdata"
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/types"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to load a list of test names to exclude")
@@ -43,11 +43,8 @@ func setup() {
 }
 
 func shouldSkip(tc cases.TestCase) bool {
-	if _, ok := exceptions[tc.Note]; ok {
-		return true
-	}
-
-	return false
+	_, ok := exceptions[tc.Note]
+	return ok
 }
 
 type ExtendedTestCase struct {

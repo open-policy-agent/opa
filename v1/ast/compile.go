@@ -4612,96 +4612,97 @@ func (m ExprByVar) add(v Var, e *Expr) {
 	}
 }
 
-// unsafeNotVars
+// unsafeNotVars finds unsafe var candidates within a not body's expressions.
 // all vars in a not-body that aren't also assigned in that body are considered unsafe.
 // Assigned var must also be used in som other body expr. (Note: maybe not necessary for one-expr bodies, as we then can just report all vars)
 func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
 	// FIXME: Can we do less walking here?
 
-	if n, ok := v.(*Not); ok {
-		internalVis := varVisitorPool.Get()
-		defer varVisitorPool.Put(internalVis)
+	n, ok := v.(*Not)
+	if !ok {
+		return false
+	}
 
-		// 1. Find all visible vars in body and record associated expression(s)
-		exprByVar := ExprByVar{}
+	internalVis := varVisitorPool.Get()
+	defer varVisitorPool.Put(internalVis)
 
-		for _, e := range n.Body {
-			internalVis.Clear().WithParams(safetyCheckVisitorParams(arity))
-			internalVis.Walk(e)
+	// 1. Find all visible vars in body and record associated expression(s)
+	exprByVar := ExprByVar{}
 
-			for v := range internalVis.Vars() {
-				exprByVar.add(v, e)
-			}
-		}
-
-		// If there's only one expression in the not-body, simply report all vars found
-		if len(n.Body) == 1 {
-			for v := range exprByVar {
-				vis.Add(v)
-			}
-			return true
-		}
-
-		// 2. Find all variable assignments (unification, call output)
-		assignedVars := ExprByVar{}
-
-		WalkExprs(n.Body, func(expr *Expr) bool {
-			if terms, ok := expr.Terms.([]*Term); ok {
-				if expr.IsEquality() {
-					vs := outputVarsForExprEq(expr, VarSet{}, VarSet{})
-					for v := range vs {
-						assignedVars.add(v, expr)
-					}
-					return false
-				}
-
-				operator, ok := terms[0].Value.(Ref)
-				if !ok {
-					return false
-				}
-
-				ar := arity(operator)
-				if ar < 0 {
-					return false
-				}
-
-				numInputTerms := ar + 1
-				if numInputTerms >= len(terms) {
-					return false
-				}
-
-				internalVis.Clear().WithParams(VarVisitorParams{
-					SkipClosures:   true,
-					SkipSets:       true,
-					SkipObjectKeys: true,
-					SkipRefHead:    true,
-				})
-				internalVis.WalkArgs(terms[numInputTerms:])
-				for v := range internalVis.Vars() {
-					assignedVars.add(v, expr)
-				}
-			}
-			return false
-		})
-
-		// 3. Record all vars in the not-body that aren't also assigned
-
+	for _, e := range n.Body {
 		internalVis.Clear().WithParams(safetyCheckVisitorParams(arity))
-		internalVis.Walk(n.Body)
+		internalVis.Walk(e)
 
 		for v := range internalVis.Vars() {
-			if _, ok := assignedVars[v]; !ok {
-				vis.Add(v)
-			} else if exprs, ok := exprByVar[v]; ok && len(exprs) == 1 {
-				// Assigned vars must be used by another expression to be considered safe.
-				vis.Add(v)
-			}
+			exprByVar.add(v, e)
 		}
+	}
 
+	// If there's only one expression in the not-body, simply report all vars found
+	if len(n.Body) == 1 {
+		for v := range exprByVar {
+			vis.Add(v)
+		}
 		return true
 	}
 
-	return false
+	// 2. Find all variable assignments (unification, call output)
+	assignedVars := ExprByVar{}
+
+	WalkExprs(n.Body, func(expr *Expr) bool {
+		if terms, ok := expr.Terms.([]*Term); ok {
+			if expr.IsEquality() {
+				vs := outputVarsForExprEq(expr, VarSet{}, VarSet{})
+				for v := range vs {
+					assignedVars.add(v, expr)
+				}
+				return false
+			}
+
+			operator, ok := terms[0].Value.(Ref)
+			if !ok {
+				return false
+			}
+
+			ar := arity(operator)
+			if ar < 0 {
+				return false
+			}
+
+			numInputTerms := ar + 1
+			if numInputTerms >= len(terms) {
+				return false
+			}
+
+			internalVis.Clear().WithParams(VarVisitorParams{
+				SkipClosures:   true,
+				SkipSets:       true,
+				SkipObjectKeys: true,
+				SkipRefHead:    true,
+			})
+			internalVis.WalkArgs(terms[numInputTerms:])
+			for v := range internalVis.Vars() {
+				assignedVars.add(v, expr)
+			}
+		}
+		return false
+	})
+
+	// 3. Record all vars in the not-body that aren't also assigned
+
+	internalVis.Clear().WithParams(safetyCheckVisitorParams(arity))
+	internalVis.Walk(n.Body)
+
+	for v := range internalVis.Vars() {
+		if _, ok := assignedVars[v]; !ok {
+			vis.Add(v)
+		} else if exprs, ok := exprByVar[v]; ok && len(exprs) == 1 {
+			// Assigned vars must be used by another expression to be considered safe.
+			vis.Add(v)
+		}
+	}
+
+	return true
 }
 
 type bodySafetyTransformer struct {
