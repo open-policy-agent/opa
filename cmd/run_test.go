@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	internal_logging "github.com/open-policy-agent/opa/internal/logging"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/test/e2e"
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -333,11 +334,13 @@ func TestRunServerCheckLogTimestampFormat(t *testing.T) {
 			t.Run("parameter", func(t *testing.T) {
 				params := newTestRunParams()
 				params.logTimestampFormat = format
+				params.rt.Addrs = &[]string{"localhost:0"}
 				checkLogTimeStampFormat(t, params, format)
 			})
 			t.Run("environment variable", func(t *testing.T) {
 				t.Setenv("OPA_LOG_TIMESTAMP_FORMAT", format)
 				params := newTestRunParams()
+				params.rt.Addrs = &[]string{"localhost:0"}
 				checkLogTimeStampFormat(t, params, format)
 			})
 		})
@@ -347,13 +350,17 @@ func TestRunServerCheckLogTimestampFormat(t *testing.T) {
 func checkLogTimeStampFormat(t *testing.T, params runCmdParams, format string) {
 	ctx, cancel := context.WithCancel(t.Context())
 
+	// Pass a pre-configured StandardLogger to bypass BufferedLogger and capture logs directly.
+	var buf bytes.Buffer
+	stdLogger := logging.New()
+	stdLogger.SetFormatter(internal_logging.GetFormatter(params.logFormat.String(), format))
+	stdLogger.SetOutput(&buf)
+	params.rt.Logger = stdLogger
+
 	rt, err := initRuntime(ctx, params, nil, false)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	var buf bytes.Buffer
-	logger := rt.Manager.Logger().(*logging.StandardLogger)
-	logger.SetOutput(&buf)
 	testRuntime := e2e.WrapRuntime(ctx, cancel, rt)
 
 	done := make(chan bool)

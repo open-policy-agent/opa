@@ -383,10 +383,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	if params.Logger != nil {
 		logger = params.Logger
 	} else {
-		stdLogger := logging.New()
-		stdLogger.SetLevel(level)
-		stdLogger.SetFormatter(internal_logging.GetFormatter(params.Logging.Format, params.Logging.TimestampFormat))
-		logger = stdLogger
+		// Always use BufferedLogger to capture early startup logs
+		// After plugins start, we'll flush to either a logger plugin or StandardLogger
+		bufferedLogger := logging.NewBufferedLogger(1000)
+		bufferedLogger.SetLevel(level)
+		logger = bufferedLogger
 	}
 
 	if err := params.Hooks.Validate(); err != nil {
@@ -656,6 +657,13 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	defer rt.Manager.Stop(ctx)
+
+	// Resolve the buffered logger: flush to logger plugin if configured,
+	// otherwise fall back to the standard logger.
+	stdLogger := logging.New()
+	stdLogger.SetLevel(rt.logger.GetLevel())
+	stdLogger.SetFormatter(internal_logging.GetFormatter(rt.Params.Logging.Format, rt.Params.Logging.TimestampFormat))
+	rt.logger = rt.Manager.ResolveBufferedLogger(stdLogger)
 
 	if rt.traceExporter != nil {
 		if err := rt.traceExporter.Start(ctx); err != nil {
