@@ -306,14 +306,21 @@ type JSONCoverageReporter struct {
 // Report prints the test report to the reporter's output. If any tests fail or
 // encounter errors, this function returns an error.
 func (r JSONCoverageReporter) Report(ch chan *Result) error {
+	var failures []*Result
 	for tr := range ch {
-		if !tr.Pass() {
-			if tr.Error != nil {
-				return tr.Error
-			}
-			return errors.New(tr.String())
+		if tr.Error != nil {
+			return tr.Error
+		}
+		if tr.Fail {
+			failures = append(failures, tr)
 		}
 	}
+
+	if len(failures) > 0 {
+		reportFailures(r.Output, r.Verbose, failures)
+		return errors.New(failures[0].String())
+	}
+
 	report := r.Cover.Report(r.Modules)
 
 	if report.Coverage < r.Threshold {
@@ -332,6 +339,15 @@ func (r JSONCoverageReporter) Report(ch chan *Result) error {
 	encoder := json.NewEncoder(r.Output)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(report)
+}
+
+func reportFailures(output io.Writer, verbose bool, results []*Result) {
+	ch := make(chan *Result, len(results))
+	for _, r := range results {
+		ch <- r
+	}
+	close(ch)
+	_ = PrettyReporter{Output: output, Verbose: verbose}.Report(ch)
 }
 
 type indentingWriter struct {
