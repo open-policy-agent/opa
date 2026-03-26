@@ -270,6 +270,10 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		return err
 	}
 
+	// Resolve the buffered logger: flush to logger plugin if configured,
+	// otherwise discard (no fallback).
+	opa.logger = manager.ResolveBufferedLogger(nil)
+
 	if block {
 		select {
 		case <-ctx.Done():

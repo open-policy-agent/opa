@@ -9,8 +9,50 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 The `HTTPAuthPlugin.NewClient()` method is now called once per `Client` instance and cached rather than being called for every request. Custom plugins that performed per-request operations in `NewClient()` (such as request counters, per-request transport wrapping, or logging/metrics side effects) will now only execute those operations once. All per-request authentication logic must be moved from `NewClient()` to `Prepare()`. All plugins included in OPA have been updated and are unaffected by this change.
 
+### Logger Plugin Support
+
+OPA now supports pluggable logging implementations via the logger plugin interface, which is based on Go's standard `log/slog.Handler` interface. This allows any `slog.Handler` implementation to be used as a logger plugin. Loggers can be configured via the `server.logger_plugin` configuration option and used for both runtime logging and decision logs. OPA includes a built-in file logger plugin (`file_logger`) that writes structured JSON logs with rotation support using lumberjack. Users can also implement and register custom logger plugins when building OPA.
+
+Example configuration for server logging:
+
+```yaml
+server:
+  logger_plugin: file_logger
+
+plugins:
+  file_logger:
+    path: /var/log/opa/server.log
+    max_size_mb: 100
+    max_age_days: 28
+    max_backups: 3
+    compress: true
+    level: info
+```
+
+Example configuration for decision logs using the same plugin:
+
+```yaml
+server:
+  logger_plugin: file_logger
+
+decision_logs:
+  plugin: file_logger
+
+plugins:
+  file_logger:
+    path: /var/log/opa/server.log
+    max_size_mb: 100
+    max_age_days: 28
+    max_backups: 3
+    compress: true
+    level: info
+```
+
 ### Runtime, SDK, Tooling
 
+- plugins/logger: Add logger plugin interface and file logger implementation with log rotation
+- plugins/logs: Decision logs can now use logger plugins for output
+- logging: Add BufferedLogger to capture early startup logs before plugins are initialized
 - plugins/rest: Configurable re-read interval for TLS client certificates via `cert_reread_interval_seconds` field.
    Defaults to re-reading on every request for backwards compatibility.
    The implementation also uses content hashing to detect changes and avoid re-parsing unchanged TLS certificates and keys.

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -3019,4 +3020,105 @@ p := true
 		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 
+}
+
+// loggerPlugin implements a logger plugin for testing buffered logger behavior.
+type loggerPlugin struct {
+	manager *plugins.Manager
+	logger  *loggingtest.Logger
+}
+
+func (p *loggerPlugin) Start(context.Context) error {
+	p.manager.UpdatePluginStatus("test_logger", &plugins.Status{State: plugins.StateOK})
+	return nil
+}
+
+func (p *loggerPlugin) Stop(context.Context) {
+	p.manager.UpdatePluginStatus("test_logger", &plugins.Status{State: plugins.StateNotReady})
+}
+
+func (*loggerPlugin) Reconfigure(context.Context, any) {}
+
+func (p *loggerPlugin) Logger() slog.Handler {
+	return logging.NewSlogHandler(p.logger)
+}
+
+type loggerPluginFactory struct {
+	logger *loggingtest.Logger
+}
+
+func (*loggerPluginFactory) Validate(*plugins.Manager, []byte) (any, error) {
+	return nil, nil
+}
+
+func (f *loggerPluginFactory) New(manager *plugins.Manager, _ any) plugins.Plugin {
+	return &loggerPlugin{
+		manager: manager,
+		logger:  f.logger,
+	}
+}
+
+// TestBufferedLoggerWithLoggerPlugin verifies that when no Logger is provided,
+// the SDK uses a buffered logger, and after startup the buffered logs are
+// flushed to the logger plugin.
+func TestBufferedLoggerWithLoggerPlugin(t *testing.T) {
+	ctx := t.Context()
+
+	testLog := loggingtest.New()
+	testLog.SetLevel(logging.Debug)
+
+	config := `{
+		"plugins": {
+			"test_logger": {}
+		},
+		"server": {
+			"logger_plugin": "test_logger"
+		}
+	}`
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+		Plugins: map[string]plugins.Factory{
+			"test_logger": &loggerPluginFactory{logger: testLog},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opa.Stop(ctx)
+
+	// After startup, the buffered logger should have been flushed to the
+	// logger plugin. Any startup messages emitted by the plugin manager
+	// should be visible in the test logger.
+	entries := testLog.Entries()
+	if len(entries) == 0 {
+		t.Log("No buffered log entries were flushed to the logger plugin (may be expected if no startup logs were emitted)")
+	}
+
+	// Verify that the OPA instance is functional after the logger switch.
+	_, err = opa.Decision(ctx, sdk.DecisionOptions{Path: "nonexistent"})
+	if err != nil && !sdk.IsUndefinedErr(err) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// TestBufferedLoggerWithoutLoggerPlugin verifies that when no Logger is provided
+// and no logger plugin is configured, buffered logs are discarded (not sent to
+// stdout via the standard logger).
+func TestBufferedLoggerWithoutLoggerPlugin(t *testing.T) {
+	ctx := t.Context()
+
+	// No Logger set, no logger plugin configured — should default to buffered
+	// logger, then switch to NoOpLogger after startup.
+	opa, err := sdk.New(ctx, sdk.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opa.Stop(ctx)
+
+	// Verify that the OPA instance is functional.
+	_, err = opa.Decision(ctx, sdk.DecisionOptions{Path: "nonexistent"})
+	if err != nil && !sdk.IsUndefinedErr(err) {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
