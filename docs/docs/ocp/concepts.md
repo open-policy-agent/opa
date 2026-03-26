@@ -52,6 +52,40 @@ If you are interested in seeing this restriction relaxed please leave a comment 
   Add metadata to bundles to describe environment, team, system-type, etc. Labels are used by Stacks (see below) for bundle selection and policy composition.
 - `requirements`:
   Specify policies or data (from Sources) that must be included in the bundle. Requirements can include optional `path` and `prefix` settings to rewrite package names and data paths.
+- `options`: (optional)
+  Additional build options for the bundle.
+  - `target`: Build target for the bundle. Supported values: `rego` (default), `ir` / `plan` (synonymous), `wasm`.
+    ```yaml
+    bundles:
+      wasm-bundle:
+        object_storage:
+          filesystem:
+            path: bundles/wasm-bundle/bundle.tar.gz
+        options:
+          target: wasm
+        requirements:
+        - source: my-source
+    ```
+- `revision`: (optional)
+  A Rego expression that evaluates to a string used as the bundle revision in the manifest. The expression can reference source metadata via `input.sources["source-name"]`:
+  - `input.sources["source-name"].git.commit` — the commit hash for git-synced sources
+  - `input.sources["source-name"].sql.hash` — a content hash for SQL (data push) sources (computed lazily)
+  - `opa.runtime().env.MY_VAR` — environment variables
+  - Static strings (double-quoted, e.g. `'"REVISION-1"'`)
+
+  Example using a string template:
+  ```yaml
+  bundles:
+    my-app:
+      revision: '$"git-{input.sources.policies.git.commit}-sql-{substring(input.sources.data.sql.hash, 0, 7)}"'
+      requirements:
+      - source: policies
+      - source: data
+  ```
+
+  :::note
+  Frequently-changing expressions (e.g. `time.now_ns()`) are supported but will produce a new bundle object in storage on every build. Content-based hashes for push data sources are stable — identical SQL data yields the same hash.
+  :::
 - `excluded_files`: (optional)
   A list of files to be excluded from the bundle during build for example any hidden files
 
@@ -115,7 +149,7 @@ Sources define how OCP pulls Rego and data from external systems, local files, o
     - Example: `https://github.com/example/app-policy.git`
   - Reference (Optional): git reference
     - Example: `refs/head/main`
-  - Commit (Optional): Commit sha of the commit you want the bundle built from
+  - Commit (Optional): Commit sha of the commit you want the bundle built from. When both `commit` and `reference` are specified, the commit hash takes precedence.
     - Example: `d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3`
   - Path (Optional): Git path to the files to be included in the policy
     - Example: `policies/authz`
@@ -127,16 +161,28 @@ Sources define how OCP pulls Rego and data from external systems, local files, o
   - Name
   - Path
   - Type
-    - http
+    - `http`: Fetch data from an HTTP(S) endpoint. Supports `GET` (default) and other HTTP methods via the `method` config field.
+    - `s3`: Fetch data from a private S3 bucket. Accepts `bucket`, `key`, `region`, and `endpoint` config parameters. Reuses the same AWS credential infrastructure as bundle storage.
   - Transform Query
   - Config
   - Credentials
 - **files:** Local embedded files provided to OCP at build time.
 - **directory:** Local directories provided to OCP at build time
-- **paths:** Paths to individual rego or datasource files to be used during bundle build
+- **paths:** Paths to individual Rego or datasource files to be used during bundle build. Glob patterns are supported (e.g. `**/*.rego`, `**/*.json`).
 - **builtin:** Reference built-in policy or library modules shipped with OCP.
 - **requirements:** Specify dependencies on other sources or builtins for composable policy development.
 - **credentials:** Reference a named Secret for accessing Git/datasource endpoints.
+
+**Glob patterns example:**
+
+```yaml
+sources:
+  glob-paths:
+    directory: files/sources/my-policies
+    paths:
+    - "**/*.rego"
+    - "**/*.json"
+```
 
 **Example:**
 Configuration sourcing policy from git (`app-policy`), data from file (`global-data`)
@@ -162,6 +208,24 @@ sources:
         config:
           url: https://my-bucket.s3.my-region.amazonaws.com/s3-data.json
           credentials: aws_auth
+  private-s3-data:
+    datasources:
+      - name: private-s3-datasource
+        type: s3
+        path: data/from/private-s3
+        config:
+          bucket: my-private-bucket
+          key: data/payload.json
+          region: us-east-1
+  api-data:
+    datasources:
+      - name: api-datasource
+        type: http
+        path: data/from/api
+        config:
+          url: https://api.example.com/data
+          method: POST
+          credentials: api-token
 ```
 
 ### Path and Prefix Rewrites
@@ -504,6 +568,12 @@ Secrets enable OCP to securely communicate with external systems (object storage
   - Fingerprints: Optional ssh key fingerprints
 - **token\_auth**: For authentication with a Bearer token or JWT token.
   - token:
+- **oidc\_client\_credentials**: For OIDC client credentials flow (fetches and refreshes a bearer token automatically).
+  - issuer: (optional if `token_endpoint` is set) OIDC issuer URL; used to discover `token_endpoint` via `/.well-known/openid-configuration`
+  - token\_endpoint: (optional if `issuer` is set) Direct token endpoint URL
+  - client\_id:
+  - client\_secret:
+  - scopes: (array of strings)
 - **password:** For password based authentication with datasource or the database
   - password:
 
@@ -519,6 +589,13 @@ secrets:
     type: basic_auth
     username: ${GITHUB_USERNAME}
     password: ${GITHUB_TOKEN}
+  my-api-oidc:
+    type: oidc_client_credentials
+    issuer: https://auth.example.com
+    client_id: ${OIDC_CLIENT_ID}
+    client_secret: ${OIDC_CLIENT_SECRET}
+    scopes:
+    - read:data
 ```
 
 ## Configuration Organization

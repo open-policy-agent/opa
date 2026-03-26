@@ -15,6 +15,7 @@ OCP supports the following database drivers:
 - `postgres`
 - `mysql`
 - `aws_rds` (PostgreSQL or MySQL)
+- `cockroachdb`
 
 ### **Basic SQL Database Configuration**
 
@@ -32,9 +33,18 @@ Replace:
 - `driver` with `postgres`, `mysql`, or `sqlite3`
 - `dsn` with your database connection string
 
+PostgreSQL and CockroachDB support custom schemas via the `search_path` query parameter:
+
+```yaml
+database:
+  sql:
+    driver: postgres
+    dsn: postgres://user:password@db.example.com:5432/ocpdb?search_path=myschema&sslmode=disable
+```
+
 **Example: SQLite3 (file-based)**
 
-```
+```yaml
 database:
   sql:
     driver: sqlite3
@@ -102,3 +112,17 @@ secrets:
 - [Amazon RDS Cluster Endpoints](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html)
 
 - [Amazon RDS SSL Support](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html)
+
+## Server Configuration
+
+### Listening Address
+
+The `--addr` flag controls where the OCP server listens. It accepts TCP addresses (`host:port`) and Unix domain sockets:
+
+```shell
+# TCP (default)
+opactl run --addr=0.0.0.0:8282
+
+# Unix socket
+opactl run --addr=unix:///var/run/ocp.sock
+```
