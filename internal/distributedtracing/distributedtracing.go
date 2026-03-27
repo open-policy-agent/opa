@@ -15,11 +15,16 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	prometheus_client "github.com/prometheus/client_golang/prometheus"
+	otelprometheus "go.opentelemetry.io/contrib/bridges/prometheus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
@@ -53,6 +58,9 @@ const (
 	defaultBatchSpanProcessorExportTimeoutMs    = 30000
 	defaultBatchSpanProcessorMaxExportBatchSize = 512
 	defaultBatchSpanProcessorMaxQueueSize       = 2048
+
+	defaultMetricsEnabled          = false
+	defaultMetricsExportIntervalMs = 60000 // 60 seconds
 )
 
 var supportedEncryptionScheme = map[string]struct{}{
@@ -95,53 +103,50 @@ type distributedTracingConfig struct {
 	TLSCACertFile             string                   `json:"tls_ca_cert_file,omitempty"`
 	Resource                  resourceConfig           `json:"resource"`
 	BatchSpanProcessorOptions batchSpanProcessorConfig `json:"batch_span_processor_options"`
+	Metrics                   *bool                    `json:"metrics,omitempty"`
+	MetricsExportIntervalMs   *int                     `json:"metrics_export_interval_ms,omitempty"`
 }
 
-func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *trace.TracerProvider, *resource.Resource, error) {
+func Init(ctx context.Context, raw []byte, id string, gatherer prometheus_client.Gatherer) (*otlptrace.Exporter, *trace.TracerProvider, *resource.Resource, *metric.MeterProvider, error) {
 	parsedConfig, err := config.ParseConfig(raw, id)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	distributedTracingConfig, err := parseDistributedTracingConfig(parsedConfig.DistributedTracing)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	if !strings.EqualFold(distributedTracingConfig.Type, "grpc") && !strings.EqualFold(distributedTracingConfig.Type, "http") {
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 
 	certificate, err := loadCertificate(distributedTracingConfig.TLSCertFile, distributedTracingConfig.TLSCertPrivateKeyFile)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	certPool, err := loadCertPool(distributedTracingConfig.TLSCACertFile)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
+	}
+
+	tlsConfig, err := buildTLSConfig(distributedTracingConfig.EncryptionScheme, *distributedTracingConfig.EncryptionSkipVerify, certificate, certPool)
+	if err != nil {
+		return nil, nil, nil, nil, err
 	}
 
 	var traceExporter *otlptrace.Exporter
 	if strings.EqualFold(distributedTracingConfig.Type, "grpc") {
-		tlsOption, err := grpcTLSOption(distributedTracingConfig.EncryptionScheme, *distributedTracingConfig.EncryptionSkipVerify, certificate, certPool)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
 		traceExporter = otlptracegrpc.NewUnstarted(
 			otlptracegrpc.WithEndpoint(distributedTracingConfig.Address),
-			tlsOption,
+			grpcTLSOption(distributedTracingConfig.EncryptionScheme, tlsConfig),
 		)
 	} else if strings.EqualFold(distributedTracingConfig.Type, "http") {
-		tlsOption, err := httpTLSOption(distributedTracingConfig.EncryptionScheme, *distributedTracingConfig.EncryptionSkipVerify, certificate, certPool)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
 		traceExporter = otlptracehttp.NewUnstarted(
 			otlptracehttp.WithEndpoint(distributedTracingConfig.Address),
-			tlsOption,
+			httpTLSOption(distributedTracingConfig.EncryptionScheme, tlsConfig),
 		)
 	}
 
@@ -169,7 +174,7 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 		resource.WithAttributes(resourceAttributes...),
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	var batchSpanProcessorOptions []trace.BatchSpanProcessorOption
@@ -195,7 +200,60 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(traceExporter, batchSpanProcessorOptions...)),
 	)
 
-	return traceExporter, traceProvider, res, nil
+	var meterProvider *metric.MeterProvider
+	if distributedTracingConfig.Metrics != nil && *distributedTracingConfig.Metrics && gatherer != nil {
+		meterProvider, err = createMeterProvider(ctx, distributedTracingConfig, tlsConfig, res, gatherer)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+	}
+
+	return traceExporter, traceProvider, res, meterProvider, nil
+}
+
+func createMeterProvider(ctx context.Context, cfg *distributedTracingConfig, tlsConfig *tls.Config, res *resource.Resource, gatherer prometheus_client.Gatherer) (*metric.MeterProvider, error) {
+	var metricExporter metric.Exporter
+	var err error
+
+	if strings.EqualFold(cfg.Type, "grpc") {
+		opts := []otlpmetricgrpc.Option{
+			otlpmetricgrpc.WithEndpoint(cfg.Address),
+		}
+		if cfg.EncryptionScheme == "off" {
+			opts = append(opts, otlpmetricgrpc.WithInsecure())
+		} else if tlsConfig != nil {
+			opts = append(opts, otlpmetricgrpc.WithTLSCredentials(credentials.NewTLS(tlsConfig)))
+		}
+		metricExporter, err = otlpmetricgrpc.New(ctx, opts...)
+	} else {
+		opts := []otlpmetrichttp.Option{
+			otlpmetrichttp.WithEndpoint(cfg.Address),
+		}
+		if cfg.EncryptionScheme == "off" {
+			opts = append(opts, otlpmetrichttp.WithInsecure())
+		} else if tlsConfig != nil {
+			opts = append(opts, otlpmetrichttp.WithTLSClientConfig(tlsConfig))
+		}
+		metricExporter, err = otlpmetrichttp.New(ctx, opts...)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("create OTLP metric exporter: %w", err)
+	}
+
+	interval := time.Duration(*cfg.MetricsExportIntervalMs) * time.Millisecond
+	producer := otelprometheus.NewMetricProducer(otelprometheus.WithGatherer(gatherer))
+
+	reader := metric.NewPeriodicReader(metricExporter,
+		metric.WithInterval(interval),
+		metric.WithProducer(producer),
+	)
+
+	mp := metric.NewMeterProvider(
+		metric.WithResource(res),
+		metric.WithReader(reader),
+	)
+
+	return mp, nil
 }
 
 func SetupLogging(logger logging.Logger) {
@@ -207,14 +265,20 @@ func parseDistributedTracingConfig(raw []byte) (*distributedTracingConfig, error
 	if raw == nil {
 		encryptionSkipVerify := new(bool)
 		sampleRatePercentage := new(float64)
+		metricsEnabled := new(bool)
+		metricsExportIntervalMs := new(int)
 		*sampleRatePercentage = defaultSampleRatePercentage
 		*encryptionSkipVerify = defaultEncryptionSkipVerify
+		*metricsEnabled = defaultMetricsEnabled
+		*metricsExportIntervalMs = defaultMetricsExportIntervalMs
 		return &distributedTracingConfig{
-			Address:              defaultGRPCAddress,
-			ServiceName:          defaultServiceName,
-			SampleRatePercentage: sampleRatePercentage,
-			EncryptionScheme:     defaultEncyrptionScheme,
-			EncryptionSkipVerify: encryptionSkipVerify,
+			Address:                 defaultGRPCAddress,
+			ServiceName:             defaultServiceName,
+			SampleRatePercentage:    sampleRatePercentage,
+			EncryptionScheme:        defaultEncyrptionScheme,
+			EncryptionSkipVerify:    encryptionSkipVerify,
+			Metrics:                 metricsEnabled,
+			MetricsExportIntervalMs: metricsExportIntervalMs,
 		}, nil
 	}
 	var config distributedTracingConfig
@@ -290,6 +354,24 @@ func (c *distributedTracingConfig) validateAndInjectDefaults() error {
 		c.BatchSpanProcessorOptions.MaxQueueSize = maxQueueSize
 	}
 
+	if c.Metrics == nil {
+		metricsEnabled := new(bool)
+		*metricsEnabled = defaultMetricsEnabled
+		c.Metrics = metricsEnabled
+	}
+	if c.MetricsExportIntervalMs == nil {
+		metricsExportIntervalMs := new(int)
+		*metricsExportIntervalMs = defaultMetricsExportIntervalMs
+		c.MetricsExportIntervalMs = metricsExportIntervalMs
+	}
+	if *c.MetricsExportIntervalMs <= 0 {
+		return fmt.Errorf("distributed_tracing.metrics_export_interval_ms must be a positive value, got %d", *c.MetricsExportIntervalMs)
+	}
+
+	if *c.Metrics && c.Type == "" {
+		return errors.New("distributed_tracing.type must be set when distributed_tracing.metrics is enabled")
+	}
+
 	if !isSupportedEncryptionScheme(c.EncryptionScheme) {
 		return fmt.Errorf("unsupported distributed_tracing.encryption_scheme '%s'", c.EncryptionScheme)
 	}
@@ -334,9 +416,9 @@ func loadCertPool(tlsCACertFile string) (*x509.CertPool, error) {
 	return pool, nil
 }
 
-func grpcTLSOption(encryptionScheme string, encryptionSkipVerify bool, cert *tls.Certificate, certPool *x509.CertPool) (otlptracegrpc.Option, error) {
+func buildTLSConfig(encryptionScheme string, encryptionSkipVerify bool, cert *tls.Certificate, certPool *x509.CertPool) (*tls.Config, error) {
 	if encryptionScheme == "off" {
-		return otlptracegrpc.WithInsecure(), nil
+		return nil, nil
 	}
 	tlsConfig := &tls.Config{
 		RootCAs:            certPool,
@@ -348,24 +430,21 @@ func grpcTLSOption(encryptionScheme string, encryptionSkipVerify bool, cert *tls
 		}
 		tlsConfig.Certificates = []tls.Certificate{*cert}
 	}
-	return otlptracegrpc.WithTLSCredentials(credentials.NewTLS(tlsConfig)), nil
+	return tlsConfig, nil
 }
 
-func httpTLSOption(encryptionScheme string, encryptionSkipVerify bool, cert *tls.Certificate, certPool *x509.CertPool) (otlptracehttp.Option, error) {
+func grpcTLSOption(encryptionScheme string, tlsConfig *tls.Config) otlptracegrpc.Option {
 	if encryptionScheme == "off" {
-		return otlptracehttp.WithInsecure(), nil
+		return otlptracegrpc.WithInsecure()
 	}
-	tlsConfig := &tls.Config{
-		RootCAs:            certPool,
-		InsecureSkipVerify: encryptionSkipVerify,
+	return otlptracegrpc.WithTLSCredentials(credentials.NewTLS(tlsConfig))
+}
+
+func httpTLSOption(encryptionScheme string, tlsConfig *tls.Config) otlptracehttp.Option {
+	if encryptionScheme == "off" {
+		return otlptracehttp.WithInsecure()
 	}
-	if encryptionScheme == "mtls" {
-		if cert == nil {
-			return nil, errors.New("distributed_tracing.tls_cert_file required but not supplied")
-		}
-		tlsConfig.Certificates = []tls.Certificate{*cert}
-	}
-	return otlptracehttp.WithTLSClientConfig(tlsConfig), nil
+	return otlptracehttp.WithTLSClientConfig(tlsConfig)
 }
 
 type errorHandler struct {
