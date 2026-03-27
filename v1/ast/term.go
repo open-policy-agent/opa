@@ -562,6 +562,72 @@ func IsScalar(v Value) bool {
 	return false
 }
 
+// Not is both a Term and a Node
+type Not struct {
+	Body     Body      `json:"body"`
+	Location *Location `json:"location,omitempty"`
+}
+
+func NotTerm(exprs ...*Expr) *Term {
+	return NewTerm(&Not{
+		Body: NewBody(exprs...),
+	})
+}
+
+func NotExpr(exprs ...*Expr) *Expr {
+	return NewExpr(&Not{
+		Body: NewBody(exprs...),
+	})
+}
+
+// Copy returns a deep copy of n.
+func (n *Not) Copy() *Not {
+	cpy := *n
+	cpy.Body = n.Body.Copy()
+	return &cpy
+}
+
+func (n *Not) Loc() *Location {
+	return n.Location
+}
+
+func (n *Not) SetLoc(l *Location) {
+	n.Location = l
+}
+
+func (n *Not) Equal(other Value) bool {
+	return n.Compare(other) == 0
+}
+
+func (n *Not) Compare(other Value) int {
+	switch o := other.(type) {
+	case *Not:
+		return n.Body.Compare(o.Body)
+	default:
+		return -1
+	}
+}
+
+func (n *Not) Find(path Ref) (Value, error) {
+	if len(path) == 0 {
+		return n, nil
+	}
+	return nil, errFindNotFound
+}
+
+func (n *Not) Hash() int {
+	return 1 + n.Body.Hash()
+}
+
+func (n *Not) IsGround() bool {
+	return n.Body.IsGround()
+}
+
+func (n *Not) String() string {
+	// TODO: Do best-effort unroll/interpolation of not-body to create one-liner expression if possible
+	return "not {" + n.Body.String() + "}"
+}
+
 // Null represents the null value defined by JSON.
 type Null struct{}
 
