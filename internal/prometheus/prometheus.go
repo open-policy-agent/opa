@@ -67,6 +67,11 @@ func New(inner metrics.Metrics, logger loggerFunc, httpRequestBuckets []float64)
 	}
 }
 
+// Gatherer returns the underlying prometheus.Gatherer for exporting metrics via OTLP.
+func (p *Provider) Gatherer() prometheus.Gatherer {
+	return p.registry
+}
+
 // RegisterEndpoints registers `/metrics` endpoint
 func (p *Provider) RegisterEndpoints(registrar func(path, method string, handler http.Handler)) {
 	registrar("/metrics/alloc_bytes", http.MethodGet, http.HandlerFunc(allocHandler))

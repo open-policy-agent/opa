@@ -5951,7 +5951,7 @@ func TestDistributedTracingEnabled(t *testing.T) {
 		}}`)
 
 	ctx := t.Context()
-	_, _, _, err := distributedtracing.Init(ctx, c, "foo")
+	_, _, _, _, err := distributedtracing.Init(ctx, c, "foo", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error initializing gRPC trace exporter %v", err)
 	}
@@ -5960,7 +5960,7 @@ func TestDistributedTracingEnabled(t *testing.T) {
 		"type": "http"
 		}}`)
 
-	_, _, _, err = distributedtracing.Init(ctx, c, "foo")
+	_, _, _, _, err = distributedtracing.Init(ctx, c, "foo", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error initializing HTTP trace exporter %v", err)
 	}
@@ -5993,7 +5993,7 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 		attributes[semconv.DeploymentEnvironmentKey])
 
 	ctx := t.Context()
-	_, traceProvider, resource, err := distributedtracing.Init(ctx, c, "foo")
+	_, traceProvider, resource, _, err := distributedtracing.Init(ctx, c, "foo", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
 	}
