@@ -28,6 +28,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/internal/compiler"
@@ -344,6 +345,7 @@ type Runtime struct {
 	metrics           *prometheus.Provider
 	versionChecker    versioncheck.Checker
 	traceExporter     *otlptrace.Exporter
+	meterProvider     *sdkmetric.MeterProvider
 	loadedPathsResult *initload.LoadPathsResult
 
 	serverStatus  ServerStatus
@@ -486,7 +488,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
 
-	traceExporter, tracerProvider, _, err := internal_tracing.Init(ctx, config, params.ID)
+	traceExporter, tracerProvider, _, meterProvider, err := internal_tracing.Init(ctx, config, params.ID, metrics.Gatherer())
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -563,6 +565,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		versionChecker:    versionChecker,
 		serverStatus:      ServerNotStarted,
 		traceExporter:     traceExporter,
+		meterProvider:     meterProvider,
 		loadedPathsResult: loaded,
 	}
 
@@ -1016,6 +1019,12 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 		err = rt.traceExporter.Shutdown(ctx)
 		if err != nil {
 			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
+		}
+	}
+
+	if rt.meterProvider != nil {
+		if err := rt.meterProvider.Shutdown(ctx); err != nil {
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to shutdown OpenTelemetry meter provider gracefully.")
 		}
 	}
 
