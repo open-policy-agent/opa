@@ -47,4 +47,6 @@ ENV PATH="/binaryen/bin:/wabt/out/clang/Debug:${PATH}"
 ENV CC=clang-21
 ENV CXX=clang++-21
 
+RUN mkdir -p /dev && touch /dev/console 
+
 WORKDIR /src
