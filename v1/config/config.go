@@ -36,6 +36,8 @@ type ServerConfig struct {
 	Decoding json.RawMessage `json:"decoding,omitempty"`
 
 	LoggerPlugin *string `json:"logger_plugin,omitempty"`
+
+	RouteAliases map[string]string `json:"route_aliases,omitempty"`
 }
 
 // Clone creates a deep copy of ServerConfig.
@@ -61,6 +63,9 @@ func (s *ServerConfig) Clone() *ServerConfig {
 	if s.LoggerPlugin != nil {
 		pluginName := *s.LoggerPlugin
 		clone.LoggerPlugin = &pluginName
+	}
+	if s.RouteAliases != nil {
+		clone.RouteAliases = maps.Clone(s.RouteAliases)
 	}
 
 	return clone
@@ -311,6 +316,24 @@ func (c *Config) Clone() *Config {
 	return clone
 }
 
+func (s *ServerConfig) validateRouteAliases() error {
+	if s == nil {
+		return nil
+	}
+	for alias, target := range s.RouteAliases {
+		if !strings.HasPrefix(alias, "/") {
+			return fmt.Errorf("route alias %q must start with '/'", alias)
+		}
+		if !strings.HasPrefix(target, "/") {
+			return fmt.Errorf("route alias target %q must start with '/'", target)
+		}
+		if alias == target {
+			return fmt.Errorf("route alias %q cannot point to itself", alias)
+		}
+	}
+	return nil
+}
+
 func (c *Config) validateAndInjectDefaults(id string) error {
 	if c.DefaultDecision == nil {
 		s := defaultDecisionPath
@@ -338,6 +361,10 @@ func (c *Config) validateAndInjectDefaults(id string) error {
 
 	c.Labels["id"] = id
 	c.Labels["version"] = version.Version
+
+	if err := c.Server.validateRouteAliases(); err != nil {
+		return err
+	}
 
 	return nil
 }
