@@ -475,3 +475,63 @@ func TestConfigClone(t *testing.T) {
 		t.Errorf("clone differs:\n%s", diff)
 	}
 }
+
+func TestRouteAliasesConfig(t *testing.T) {
+	raw := `{
+		"server": {
+			"route_aliases": {
+				"/access/v1/evaluation": "/v1/data/authzen/allow",
+				"/my/api": "/v1/data/myapp/check"
+			}
+		}
+	}`
+	c, err := ParseConfig([]byte(raw), "test-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Server == nil {
+		t.Fatal("expected server config")
+	}
+	if len(c.Server.RouteAliases) != 2 {
+		t.Fatalf("expected 2 route aliases, got %d", len(c.Server.RouteAliases))
+	}
+	if c.Server.RouteAliases["/access/v1/evaluation"] != "/v1/data/authzen/allow" {
+		t.Errorf("unexpected alias target: %s", c.Server.RouteAliases["/access/v1/evaluation"])
+	}
+}
+
+func TestRouteAliasesValidation(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+		expErr string
+	}{
+		{
+			name:   "alias missing leading slash",
+			config: `{"server":{"route_aliases":{"no-slash":"/v1/data/foo"}}}`,
+			expErr: `route alias "no-slash" must start with '/'`,
+		},
+		{
+			name:   "target missing leading slash",
+			config: `{"server":{"route_aliases":{"/foo":"v1/data/bar"}}}`,
+			expErr: `route alias target "v1/data/bar" must start with '/'`,
+		},
+		{
+			name:   "alias points to itself",
+			config: `{"server":{"route_aliases":{"/v1/data/foo":"/v1/data/foo"}}}`,
+			expErr: `route alias "/v1/data/foo" cannot point to itself`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseConfig([]byte(tc.config), "test-id")
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if err.Error() != tc.expErr {
+				t.Fatalf("expected error %q, got %q", tc.expErr, err.Error())
+			}
+		})
+	}
+}

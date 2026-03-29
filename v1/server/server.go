@@ -861,6 +861,13 @@ func (s *Server) initRouters(ctx context.Context) {
 		mainRouter.Handle(p, s.instrumentHandler(r.HandlerFunc, r.PromName))
 	}
 
+	// Register any route aliases configured by the user.
+	if cfg := s.manager.GetConfig(); cfg.Server != nil {
+		for alias, target := range cfg.Server.RouteAliases {
+			mainRouter.Handle(alias, s.makeRouteAliasHandler(target, mainRouter))
+		}
+	}
+
 	if s.pprofEnabled {
 		mainRouter.HandleFunc("GET /debug/pprof/", pprof.Index)
 		mainRouter.Handle("GET /debug/pprof/allocs", pprof.Handler("allocs"))
@@ -935,6 +942,18 @@ func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Reque
 		return s.metrics.InstrumentHandler(httpHandler, label)
 	}
 	return httpHandler
+}
+
+func (*Server) makeRouteAliasHandler(target string, router *http.ServeMux) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r2 := new(http.Request)
+		*r2 = *r
+		r2.URL = new(url.URL)
+		*r2.URL = *r.URL
+		r2.URL.Path = target
+		r2.URL.RawPath = ""
+		router.ServeHTTP(w, r2)
+	})
 }
 
 func (s *Server) methodNotAllowedHandler() http.Handler {
