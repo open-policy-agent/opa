@@ -7022,3 +7022,57 @@ data.baz.qux`,
 		})
 	}
 }
+
+func TestRouteAliasDataPost(t *testing.T) {
+	config := `{"server":{"route_aliases":{"/access/v1/evaluation":"/v1/data/authzen/allow"}}}`
+	f := newFixtureWithConfig(t, config)
+
+	mod := `package authzen
+	default allow = false
+	allow if input.subject == "alice"
+	`
+	if err := f.v1(http.MethodPut, "/policies/authzen", mod, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	req := newReqUnversioned(http.MethodPost, "/access/v1/evaluation", `{"input":{"subject":"alice"}}`)
+	if err := f.executeRequest(req, 200, `{"result":true}`); err != nil {
+		t.Fatal(err)
+	}
+
+	req = newReqUnversioned(http.MethodPost, "/access/v1/evaluation", `{"input":{"subject":"bob"}}`)
+	if err := f.executeRequest(req, 200, `{"result":false}`); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRouteAliasDataGet(t *testing.T) {
+	config := `{"server":{"route_aliases":{"/my/api":"/v1/data/test/result"}}}`
+	f := newFixtureWithConfig(t, config)
+
+	if err := f.v1(http.MethodPut, "/data/test", `{"result":"hello"}`, 204, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	req := newReqUnversioned(http.MethodGet, "/my/api", "")
+	if err := f.executeRequest(req, 200, `{"result":"hello"}`); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRouteAliasQueryParams(t *testing.T) {
+	config := `{"server":{"route_aliases":{"/alias":"/v1/data/test/x"}}}`
+	f := newFixtureWithConfig(t, config)
+
+	mod := `package test
+	x := input.v
+	`
+	if err := f.v1(http.MethodPut, "/policies/test", mod, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	req := newReqUnversioned(http.MethodGet, `/alias?input={"v":42}`, "")
+	if err := f.executeRequest(req, 200, `{"result":42}`); err != nil {
+		t.Fatal(err)
+	}
+}
