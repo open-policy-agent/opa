@@ -14,7 +14,7 @@ import (
 func CheckPathConflicts(c *Compiler, exists func([]string) (bool, error)) Errors {
 	var errs Errors
 
-	root := c.RuleTree.Child(DefaultRootDocument.Value)
+	root := c.ruleTree().Child(DefaultRootDocument.Value)
 	if root == nil {
 		return nil
 	}

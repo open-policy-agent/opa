@@ -1263,7 +1263,7 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 	ref := a.Value.(ast.Ref)
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
-		node := e.compiler.RuleTree.Child(ref[0].Value)
+		node := e.compiler.GetRuleTree().Child(ref[0].Value)
 		eval := evalTree{
 			e:         e,
 			ref:       ref,
@@ -2711,10 +2711,6 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	defer ast.IndexResultPool.Put(ir)
 	if err != nil {
 		return err
-	}
-
-	if ir == nil {
-		return nil
 	}
 
 	// Partial evaluation of ordered rules is not supported currently. Save the

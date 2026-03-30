@@ -742,7 +742,7 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 			if len(c.Errors) > 0 {
 				t.Fatal(c.Errors)
 			}
-			tree := c.RuleTree
+			tree := c.ruleTree()
 			tree.DepthFirst(func(n *TreeNode) bool {
 				t.Log(n)
 				if !sort.SliceIsSorted(n.Sorted, func(i, j int) bool {
