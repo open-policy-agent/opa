@@ -126,8 +126,6 @@ type Compiler struct {
 	// Capabilities required by the modules that were compiled.
 	Required *Capabilities
 
-	ruleTreeBuilding           *TreeNode     // staging tree during compilation; swapped into RuleTree after indices are built
-	ruleTreeMu                 *sync.RWMutex // protects RuleTree pointer swap during concurrent compilation
 	localvargen                *localVarGenerator
 	moduleLoader               ModuleLoader
 	stages                     []stage
@@ -423,7 +421,6 @@ func NewCompiler() *Compiler {
 		Required:              &Capabilities{},
 		maxErrs:               CompileErrorLimitDefault,
 		mu:                    &sync.Mutex{},
-		ruleTreeMu:            &sync.RWMutex{},
 		after:                 map[string][]CompilerStageDefinition{},
 		unsafeBuiltinsMap:     map[string]struct{}{},
 		deprecatedBuiltinsMap: map[string]struct{}{},
@@ -731,7 +728,7 @@ func (c *Compiler) GetArity(ref Ref) int {
 //	GetRulesExact("data.a.b.c.p.x") => nil
 //	GetRulesExact("data.a.b.c")     => nil
 func (c *Compiler) GetRulesExact(ref Ref) (rules []*Rule) {
-	node := c.ruleTree()
+	node := c.RuleTree
 
 	for _, x := range ref {
 		if node = node.Child(x.Value); node == nil {
@@ -759,7 +756,7 @@ func (c *Compiler) GetRulesExact(ref Ref) (rules []*Rule) {
 //	GetRulesForVirtualDocument("data.a.b.c")     => nil
 func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
 
-	node := c.ruleTree()
+	node := c.RuleTree
 
 	for _, x := range ref {
 		if node = node.Child(x.Value); node == nil {
@@ -790,7 +787,7 @@ func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
 //	GetRulesWithPrefix("data.a.b.c")     => [rule1, rule2, rule3]
 func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 
-	node := c.ruleTree()
+	node := c.RuleTree
 
 	for _, x := range ref {
 		if node = node.Child(x.Value); node == nil {
@@ -896,7 +893,7 @@ func (c *Compiler) GetRulesDynamic(ref Ref) []*Rule {
 //
 // Without the options, it would be excluded.
 func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
-	node := c.ruleTree()
+	node := c.RuleTree
 
 	set := map[*Rule]struct{}{}
 	var walk func(node *TreeNode, i int)
@@ -956,21 +953,12 @@ func insertRules(set map[*Rule]struct{}, rules []*Rule) {
 	}
 }
 
-// GetRuleTree returns the compiler's rule tree, safe for concurrent use
-// during compilation.
-func (c *Compiler) GetRuleTree() *TreeNode {
-	c.ruleTreeMu.RLock()
-	tree := c.RuleTree
-	c.ruleTreeMu.RUnlock()
-	return tree
-}
-
 // RuleIndex returns a RuleIndex built for the rule set referred to by path.
 // The path must refer to the rule set exactly, i.e., given a rule set at path
 // data.a.b.c.p, refs data.a.b.c.p.x and data.a.b.c would not return a
 // RuleIndex built for the rule.
 func (c *Compiler) RuleIndex(path Ref) RuleIndex {
-	if node := c.GetRuleTree().Find(path); node != nil {
+	if node := c.RuleTree.Find(path); node != nil {
 		return node.Index
 	}
 	return nil
@@ -1123,9 +1111,8 @@ func (c *Compiler) counterAdd(name string, n uint64) {
 }
 
 func (c *Compiler) buildRuleIndices() {
-	tree := c.ruleTree()
 
-	tree.DepthFirst(func(node *TreeNode) bool {
+	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		if len(node.Values) == 0 {
 			return false
 		}
@@ -1155,22 +1142,13 @@ func (c *Compiler) buildRuleIndices() {
 		}
 
 		index := newBaseDocEqIndex(func(ref Ref) bool {
-			return isVirtual(tree, ref.GroundPrefix())
+			return isVirtual(c.RuleTree, ref.GroundPrefix())
 		})
 		if index.Build(rules) {
 			node.Index = index
 		}
 		return hasNonGroundRef // currently, we don't allow those branches to go deeper
 	})
-
-	// Publish the fully-indexed tree so concurrent readers never see
-	// a tree with nil indices.
-	if c.ruleTreeBuilding != nil {
-		c.ruleTreeMu.Lock()
-		c.RuleTree = c.ruleTreeBuilding
-		c.ruleTreeMu.Unlock()
-		c.ruleTreeBuilding = nil
-	}
 }
 
 func (c *Compiler) buildComprehensionIndices() {
@@ -1288,7 +1266,7 @@ func (c *Compiler) checkRecursion() {
 		return a.(*Rule) == b.(*Rule)
 	}
 
-	c.ruleTree().DepthFirst(func(node *TreeNode) bool {
+	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		for _, rule := range node.Values {
 			for node := rule; node != nil; node = node.Else {
 				c.checkSelfPath(node.Loc(), eq, node, node)
@@ -1319,7 +1297,7 @@ func astNodeToString(x any) string {
 func (c *Compiler) checkRuleConflicts() {
 	rw := rewriteVarsInRef(c.RewrittenVars)
 
-	c.ruleTree().DepthFirst(func(node *TreeNode) bool {
+	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		if len(node.Values) == 0 {
 			return false // go deeper
 		}
@@ -2310,7 +2288,7 @@ func (c *Compiler) isRefToKnownDefinedRule(ref Ref) bool {
 	if len(ref) < 2 || !ref.HasPrefix(DefaultRootRef) {
 		return false
 	}
-	if matched = c.ruleTree().Find(ref); matched == nil || len(matched.Values) == 0 {
+	if matched = c.RuleTree.Find(ref); matched == nil || len(matched.Values) == 0 {
 		return false
 	}
 	first := matched.Values[0]
@@ -3438,16 +3416,7 @@ func (c *Compiler) setModuleTree() {
 }
 
 func (c *Compiler) setRuleTree() {
-	c.ruleTreeBuilding = NewRuleTree(c.ModuleTree)
-}
-
-// ruleTree returns the rule tree being built during compilation,
-// falling back to the published RuleTree.
-func (c *Compiler) ruleTree() *TreeNode {
-	if c.ruleTreeBuilding != nil {
-		return c.ruleTreeBuilding
-	}
-	return c.RuleTree
+	c.RuleTree = NewRuleTree(c.ModuleTree)
 }
 
 func (c *Compiler) setGraph() {
@@ -6458,7 +6427,6 @@ func rewriteWithModifier(c *Compiler, unsafeBuiltinsMap map[string]struct{}, f *
 
 func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr, i int) (bool, *Error) {
 	target, value := expr.With[i].Target, expr.With[i].Value
-	tree := c.ruleTree()
 
 	// Ensure that values that are built-ins are rewritten to Ref (not Var)
 	if v, ok := value.Value.(Var); ok {
@@ -6482,7 +6450,7 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 	switch {
 	case isDataRef(target):
 		ref := target.Value.(Ref)
-		targetNode := tree
+		targetNode := c.RuleTree
 		for i := range len(ref) - 1 {
 			child := targetNode.Child(ref[i].Value)
 			if child == nil {
@@ -6501,7 +6469,7 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 			if child := targetNode.Child(ref[len(ref)-1].Value); child != nil {
 				for _, v := range child.Values {
 					if len(v.Head.Args) > 0 {
-						if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, tree, value); err != nil || ok {
+						if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, c.RuleTree, value); err != nil || ok {
 							return false, err // err may be nil
 						}
 					}
@@ -6512,7 +6480,7 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 		// If the with-value is a ref to a function, but not a call, we can't rewrite it
 		if r, ok := value.Value.(Ref); ok {
 			// TODO: check that target ref doesn't exist?
-			if valueNode := tree.Find(r); valueNode != nil {
+			if valueNode := c.RuleTree.Find(r); valueNode != nil {
 				for _, v := range valueNode.Values {
 					if len(v.Head.Args) > 0 {
 						return false, nil
@@ -6534,7 +6502,7 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 			return false, err
 		}
 
-		if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, tree, value); err != nil || ok {
+		if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, c.RuleTree, value); err != nil || ok {
 			return false, err // err may be nil
 		}
 	case isAllowedUnknownFuncCall:

@@ -1436,7 +1436,7 @@ func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term
 	}
 
 	path := module.Package.Path.Copy().Append(ast.StringTerm(string(name)))
-	node := compiler.GetRuleTree()
+	node := compiler.RuleTree
 
 	for _, elem := range path {
 		node = node.Child(elem.Value)
