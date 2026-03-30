@@ -349,3 +349,8 @@ func (s *SomeDecl) StringLength() int {
 func (c *Comment) StringLength() int {
 	return 1 + len(c.Text) // '#' + text
 }
+
+func (not *Not) StringLength() int {
+	l := 6 // "not {}"
+	return l + not.Body.StringLength()
+}

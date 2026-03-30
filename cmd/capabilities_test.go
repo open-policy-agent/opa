@@ -93,6 +93,9 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureKeywordsInRefs,
 				ast.FeatureTemplateStrings,
 			},
+			expFutureKeywords: []string{
+				// "not", // TODO: enable once future.keywords.not is enabled by default
+			},
 		},
 		{
 			note:         "current --v0-compatible",
@@ -109,6 +112,7 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				"every",
 				"contains",
 				"if",
+				// "not", // TODO: enable once future.keywords.not is enabled by default
 			},
 		},
 	}

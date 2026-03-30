@@ -148,6 +148,7 @@ type Parser struct {
 	cache             parsedTermCache
 	recursionDepth    int
 	maxRecursionDepth int
+	notBodies         bool
 }
 
 type parsedTermCacheItem struct {
@@ -434,9 +435,25 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 
 	selected := map[string]tokens.Token{}
-	if p.po.AllFutureKeywords || p.po.EffectiveRegoVersion() == RegoV1 {
+	if p.po.AllFutureKeywords {
 		maps.Copy(selected, allowedFutureKeywords)
 	} else {
+		if p.po.EffectiveRegoVersion() == RegoV1 {
+			for kw := range futureKeywordsV0 {
+				tok, ok := allowedFutureKeywords[kw]
+				if !ok {
+					return nil, nil, Errors{
+						&Error{
+							Code:     ParseErr,
+							Message:  fmt.Sprintf("unknown future keyword: %v", kw),
+							Location: nil,
+						},
+					}
+				}
+				selected[kw] = tok
+			}
+		}
+
 		for _, kw := range p.po.FutureKeywords {
 			tok, ok := allowedFutureKeywords[kw]
 			if !ok {
@@ -451,10 +468,15 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			selected[kw] = tok
 		}
 	}
+
+	if _, ok := selected["not"]; ok {
+		p.notBodies = true
+	}
+
 	p.s.s = p.s.s.WithKeywords(selected)
 
 	if p.po.EffectiveRegoVersion() == RegoV1 {
-		for kw, tok := range allowedFutureKeywords {
+		for kw, tok := range futureKeywordsV0 {
 			p.s.s.AddKeyword(kw, tok)
 		}
 	}
@@ -1272,7 +1294,6 @@ func (p *Parser) parseLiteralExpr(negated bool) *Expr {
 	s := p.save()
 	expr := p.parseExpr()
 	if expr != nil {
-		expr.Negated = negated
 		if p.s.tok == tokens.With {
 			if expr.With = p.parseWith(); expr.With == nil {
 				return nil
@@ -1294,6 +1315,12 @@ func (p *Parser) parseLiteralExpr(negated bool) *Expr {
 					p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
 				}
 			}
+		}
+
+		if negated && p.notBodies {
+			expr = NewExpr(&Not{Body: NewBody(expr), Location: p.s.Loc()})
+		} else {
+			expr.Negated = negated
 		}
 	}
 	return expr
@@ -3101,7 +3128,9 @@ func convertYAMLMapKeyTypes(x any, path []string) (any, error) {
 
 // futureKeywords is the source of truth for future keywords that will
 // eventually become standard keywords inside of Rego.
-var futureKeywords = map[string]tokens.Token{}
+var futureKeywords = map[string]tokens.Token{
+	"not": tokens.Not,
+}
 
 // futureKeywordsV0 is the source of truth for future keywords that were
 // not yet a standard part of Rego in v0, and required importing.
@@ -3167,8 +3196,13 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 			return
 		}
 
-		kwds = []string{keyword} // overwrite
+		if keyword == "not" {
+			p.notBodies = true
+		} else {
+			kwds = []string{keyword} // overwrite
+		}
 	}
+
 	for _, kw := range kwds {
 		p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
 	}
