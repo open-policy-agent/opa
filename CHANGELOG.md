@@ -5,16 +5,115 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Custom HTTPAuthPlugin behavior change
+## 1.15.0
 
-The `HTTPAuthPlugin.NewClient()` method is now called once per `Client` instance and cached rather than being called for every request. Custom plugins that performed per-request operations in `NewClient()` (such as request counters, per-request transport wrapping, or logging/metrics side effects) will now only execute those operations once. All per-request authentication logic must be moved from `NewClient()` to `Prepare()`. All plugins included in OPA have been updated and are unaffected by this change.
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
+
+- Add logger plugin interface and file logger implementation with log rotation
+- Custom HTTPAuthPlugin behavior change, all per-request authentication logic must be moved from `NewClient()` to
+  `Prepare()`
+- AWS signing supports for web identity for assume role credentials
+
+### Logger Plugin Support (#8434) (authored by @srenatus)
+
+OPA now supports pluggable logging implementations via the logger plugin interface, which is based on Go's standard `log/slog.Handler` interface. This allows any `slog.Handler` implementation to be used as a logger plugin. Loggers can be configured via the `server.logger_plugin` configuration option and used for both runtime logging and decision logs. OPA includes a built-in file logger plugin (`file_logger`) that writes structured JSON logs with rotation support using lumberjack. Users can also implement and register custom logger plugins when building OPA.
+
+Example configuration for server logging:
+
+```yaml
+server:
+  logger_plugin: file_logger
+
+plugins:
+  file_logger:
+    path: /var/log/opa/server.log
+    max_size_mb: 100
+    max_age_days: 28
+    max_backups: 3
+    compress: true
+    level: info
+```
+
+Example configuration for decision logs using the same plugin:
+
+```yaml
+server:
+  logger_plugin: file_logger
+
+decision_logs:
+  plugin: file_logger
+
+plugins:
+  file_logger:
+    path: /var/log/opa/server.log
+    max_size_mb: 100
+    max_age_days: 28
+    max_backups: 3
+    compress: true
+    level: info
+```
+
+### Custom HTTPAuthPlugin behavior change (#8376) (authored by @srenatus)
+
+The `HTTPAuthPlugin.NewClient()` method is now called once per `Client` instance and cached rather than being called for
+every request. Custom plugins that performed per-request operations in `NewClient()` (such as request counters,
+per-request transport wrapping, or logging/metrics side effects) will now only execute those operations once. All
+per-request authentication logic must be moved from `NewClient()` to `Prepare()`. All plugins included in OPA have been
+updated and are unaffected by this change.
 
 ### Runtime, SDK, Tooling
 
+- plugins/logger: Add logger plugin interface and file logger implementation with log rotation (#8434) (authored by
+  @srenatus)
+- plugins/logs: Decision logs can now use logger plugins for output (#8434) (authored by @srenatus)
+- logging: Add BufferedLogger to capture early startup logs before plugins are initialized (#8434) (authored by
+  @srenatus)
 - plugins/rest: Configurable re-read interval for TLS client certificates via `cert_reread_interval_seconds` field.
-   Defaults to re-reading on every request for backwards compatibility.
-   The implementation also uses content hashing to detect changes and avoid re-parsing unchanged TLS certificates and keys.
-- plugins/rest: All TLS configurations now inherit the minimum version and TLS ciphersuites as configured for the server.
+  Defaults to re-reading on every request for backwards compatibility.
+  The implementation also uses content hashing to detect changes and avoid re-parsing unchanged TLS certificates and
+  keys. (#8376) (authored by @srenatus)
+- plugins/rest: All TLS configurations now inherit the minimum version and TLS ciphersuites as configured for the
+  server. (#8376) (authored by @srenatus)
+- internal/providers/aws: Refactor deprecated crypto/elliptic APIs to crypto/ecdh (#8395) (authored by @kanywst)
+- plugins/rest: AWS Signing - Allow Service Account (Web Identity) credentials for Assume Role Credentials (#8386) (
+  authored by @tiagogviegas)
+
+### Compiler, Topdown and Rego
+
+- ast: fix overlapping array and scalar pattern in rule index (authored by @srenatus)
+
+#### Bundles
+
+- optimized bundles: filter metadata comments properly (
+  #8388) ([#6529](https://github.com/open-policy-agent/opa/issues/6529)) authored by @srenatus
+
+### Docs, Website, Ecosystem
+
+- docs(ecosystem): add Kopa ecosystem entry (#8405) (authored by @sfreet)
+- docs: Update KubeCon event listing (#8439) (authored by @charlieegan3)
+- docs: fix input of partial-evaluation example (#8430) (authored by @edobrb)
+- ecosystem: add Big ACL (#8389) (authored by @francois-eckert)
+- Regal v0.39.0 doc updates (#8383) (authored by @anderseknert)
+
+### Miscellaneous
+
+- build/generate-extended-cases: Fix testcase loader to use json.Number. (#8429) (authored by @philipaconrad)
+- Filter compliance test cases using capabilities file (#8418) (authored by @sspaink)
+- Fix intermittent plugins manager deadlock on opa.configure (#8407) (authored by @sspaink)
+- Linter configuration cleanup (#8397) (authored by @anderseknert)
+- fix nightly.yaml by moving secret to env (#8381) (authored by @sspaink)
+- fix release-vulnerability-check.yaml (authored by @sspaink)
+- nightly+release-vuln-check: add links to slack msg payloads (authored by @srenatus)
+- Dependency updates; notably:
+    - build: bump go 1.26.1 (#8409) (authored by @srenatus)
+    - gha: bump trivy-action (authored by @srenatus)
+    - build(deps): bump google.golang.org/grpc from 1.79.1 to 1.79.3 (#8428) (authored by @dependabot[bot])
+    - build(deps): bump github.com/vektah/gqlparser/v2 from 2.5.31 to 2.5.32 (#8399) (authored by @dependabot[bot])
+    - build(deps): bump modernc.org/sqlite from 1.45.0 to 1.46.1 (#8399) (authored by @dependabot[bot])
+    - build(deps): bump golang.org/x/net from 0.50.0 to 0.51.0 (#8412) (authored by @dependabot[bot])
+    - build(deps): bump golang.org/x/sync from 0.19.0 to 0.20.0 (#8412) (authored by @dependabot[bot])
+    - build(deps): bump golang.org/x/time from 0.14.0 to 0.15.0 (#8412) (authored by @dependabot[bot])
+    - build(deps): bump github.com/microsoft/go-mssqldb from 1.9.6 to 1.9.7(#8412) (authored by @dependabot[bot])
 
 ## 1.14.1
 

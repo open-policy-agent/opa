@@ -15,13 +15,45 @@
           "title": "Project Lightning Talk: How To Add A New Language Feature To OPA",
           "datetime": "10:20 - 10:25",
           "room": "Elicium 2",
+          "highlight": true,
           "speakers": [
             {
               "name": "Charlie Egan",
-              "title": "Maintainer"
+              "title": "OPA Maintainer"
             }
           ],
           "link": "https://kccnceu2026.sched.com/event/2EFwy"
+        },
+        {
+          "type": "session",
+          "sessionType": "lightning",
+          "title": "Project Lightning Talk: Visualize And Manage Your Cloud-Native Infrastructure With Meshery",
+          "datetime": "11:24 - 11:29",
+          "room": "Elicium 2",
+          "speakers": [
+            {
+              "name": "Yash Sharma"
+            }
+          ],
+          "link": "https://kccnceu2026.sched.com/event/2EFxS"
+        },
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "Backend-First IDP: A Production Roadmap With Argo CD, Crossplane, and OPA",
+          "datetime": "15:20 - 15:45",
+          "room": "Hall 8 | Room G",
+          "speakers": [
+            {
+              "name": "Abhinav Sharma",
+              "title": "KodeKloud"
+            },
+            {
+              "name": "Aditya Soni",
+              "title": "Sailpoint"
+            }
+          ],
+          "link": "https://colocatedeventseu2026.sched.com/event/2DY7M/backend-first-idp-a-production-roadmap-with-argo-cd-crossplane-and-opa-abhinav-sharma-kodekloud-aditya-soni-sailpoint"
         }
       ]
     },
@@ -33,6 +65,38 @@
           "type": "booth",
           "location": "P-22B, Project Pavilion",
           "hours": "10:45 – 19:00 (includes KubeCrawl + CloudNativeFest from 17:30 – 19:00)"
+        },
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "Your Models Are Vulnerable: How KitOps Turns KServe Into a Zero-Trust Inference Platform",
+          "datetime": "12:00 - 12:30",
+          "room": "Auditorium",
+          "speakers": [
+            {
+              "name": "Brad Micklea",
+              "title": "Jozu"
+            },
+            {
+              "name": "Gavrish Prabhu",
+              "title": "Nutanix"
+            }
+          ],
+          "link": "https://kccnceu2026.sched.com/event/2CVyT"
+        },
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "Policy Engines for Kubernetes: Picking One Without Losing Your Mind",
+          "datetime": "17:00 - 17:30",
+          "room": "Hall 7 | Room A",
+          "speakers": [
+            {
+              "name": "Nabarun Pal",
+              "title": "Broadcom"
+            }
+          ],
+          "link": "https://kccnceu2026.sched.com/event/2CW0S"
         }
       ]
     },
@@ -51,17 +115,36 @@
           "title": "OPA Intro & Deep Dive",
           "datetime": "14:15 - 14:45",
           "room": "E103-105",
+          "highlight": true,
           "speakers": [
             {
               "name": "Charlie Egan",
-              "title": "Maintainer"
+              "title": "OPA Maintainer"
             },
             {
               "name": "Anders Eknert",
-              "title": "Maintainer"
+              "title": "OPA Maintainer"
             }
           ],
           "link": "https://kccnceu2026.sched.com/event/2EF4m"
+        },
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "Kubernetes Security at Shopify Scale: Automating Security Across an Infrastructure Monorepo",
+          "datetime": "16:00 - 16:30",
+          "room": "Hall 8 | Room F",
+          "speakers": [
+            {
+              "name": "Jie Wu",
+              "title": "Shopify"
+            },
+            {
+              "name": "Pulkit Garg",
+              "title": "Shopify"
+            }
+          ],
+          "link": "https://kccnceu2026.sched.com/event/2CW3b"
         }
       ]
     },
@@ -73,6 +156,20 @@
           "type": "booth",
           "location": "P-22B, Project Pavilion",
           "hours": "10:45 – 14:30"
+        },
+        {
+          "type": "session",
+          "sessionType": "talk",
+          "title": "Building a Scalable and Cost-Effective MLOps Platform at PepsiCo Using CNCF Tools",
+          "datetime": "11:45 - 12:15",
+          "room": "Hall 8 | Room D",
+          "speakers": [
+            {
+              "name": "Chaitanya G",
+              "title": "PepsiCo"
+            }
+          ],
+          "link": "https://kccnceu2026.sched.com/event/2CW5a"
         }
       ]
     }

@@ -32,7 +32,7 @@ func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
 		fields = make(map[string]any, 1)
 	}
 	fields["line"] = pctx.Location.String()
-	h.logger.WithFields(fields).Info(msg)
+	logging.WithContext(h.logger.WithFields(fields), pctx.Context).Info(msg)
 	return nil
 }
 
@@ -112,10 +112,11 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fields["req_params"] = r.URL.Query()
 		}
 
+		log := logging.WithContext(h.logger, r.Context())
 		if err == nil {
-			h.logger.WithFields(fields).Info("Received request.")
+			log.WithFields(fields).Info("Received request.")
 		} else {
-			h.logger.WithFields(fields).Error("Failed to read body.")
+			log.WithFields(fields).Error("Failed to read body.")
 		}
 	}
 
@@ -157,10 +158,10 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						defer gzReader.Close()
 						fields["resp_body"] = string(plainOutput)
 					} else {
-						h.logger.Error("Failed to decompressed the payload: %v", readErr.Error())
+						logging.WithContext(h.logger, r.Context()).Error("Failed to decompressed the payload: %v", readErr.Error())
 					}
 				} else {
-					h.logger.Error("Failed to read the compressed payload: %v", gzErr.Error())
+					logging.WithContext(h.logger, r.Context()).Error("Failed to read the compressed payload: %v", gzErr.Error())
 				}
 
 			default:
@@ -168,7 +169,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		h.logger.WithFields(fields).Info("Sent response.")
+		logging.WithContext(h.logger.WithFields(fields), r.Context()).Info("Sent response.")
 	}
 }
 
