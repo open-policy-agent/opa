@@ -334,10 +334,6 @@ func (l *mockLogger) WithFields(fields map[string]any) logging.Logger {
 	}
 }
 
-func (l *mockLogger) WithContext(context.Context) logging.Logger {
-	return l
-}
-
 func (l *mockLogger) GetLevel() logging.Level {
 	return l.level
 }

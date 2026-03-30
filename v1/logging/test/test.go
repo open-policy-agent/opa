@@ -1,7 +1,6 @@
 package test
 
 import (
-	"context"
 	"fmt"
 	"maps"
 	"sync"
@@ -51,11 +50,6 @@ func (l *Logger) WithFields(fields map[string]any) logging.Logger {
 	maps.Copy(flds, fields)
 	cp.fields = flds
 	return &cp
-}
-
-// WithContext returns the logger unchanged (test logger doesn't use context).
-func (l *Logger) WithContext(context.Context) logging.Logger {
-	return l
 }
 
 // Debug buffers a log message.
