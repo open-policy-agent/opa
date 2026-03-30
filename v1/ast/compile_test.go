@@ -13226,7 +13226,7 @@ func TestCompilerNotImport(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Message: "var a is unsafe", // FIXME: Use more specific error msg: "cannot assign vars inside negated expression"
 				},
 			},
 		},
