@@ -34,10 +34,26 @@ type Logger interface {
 	Warn(fmt string, a ...any)
 
 	WithFields(map[string]any) Logger
-	WithContext(context.Context) Logger
 
 	GetLevel() Level
 	SetLevel(Level)
+}
+
+// LoggerWithContext is an optional interface that Logger implementations
+// can implement to support extracting trace information from a context.
+// Use WithContext to call this method on a Logger if it is supported.
+type LoggerWithContext interface {
+	WithContext(context.Context) Logger
+}
+
+// WithContext returns a logger with context information if the logger
+// supports it (i.e., implements LoggerWithContext). Otherwise, the
+// logger is returned unchanged.
+func WithContext(logger Logger, ctx context.Context) Logger {
+	if lc, ok := logger.(LoggerWithContext); ok {
+		return lc.WithContext(ctx)
+	}
+	return logger
 }
 
 // StandardLogger is the default OPA logger implementation.
@@ -79,13 +95,6 @@ func (l *StandardLogger) WithFields(fields map[string]any) Logger {
 	maps.Copy(cp.fields, l.fields)
 	maps.Copy(cp.fields, fields)
 	return &cp
-}
-
-// WithContext returns a logger with trace information extracted from the context.
-// Currently returns the logger as-is. Logger plugins can override this to extract
-// trace/span IDs or other context-specific information.
-func (l *StandardLogger) WithContext(context.Context) Logger {
-	return l
 }
 
 // getFields returns additional fields of this logger
@@ -188,11 +197,6 @@ func (l *NoOpLogger) WithFields(fields map[string]any) Logger {
 	cp := *l
 	cp.fields = fields
 	return &cp
-}
-
-// WithContext returns the logger unchanged (no-op).
-func (l *NoOpLogger) WithContext(context.Context) Logger {
-	return l
 }
 
 // Debug noop
@@ -326,7 +330,7 @@ func (h *SlogHandler) Handle(ctx context.Context, record slog.Record) error {
 		logger = logger.WithFields(attrs)
 	}
 	if ctx != nil {
-		logger = logger.WithContext(ctx)
+		logger = WithContext(logger, ctx)
 	}
 
 	msg := record.Message
@@ -366,6 +370,8 @@ type loggerFromSlogHandler struct {
 	fields  map[string]any
 	ctx     context.Context
 }
+
+var _ LoggerWithContext = (*loggerFromSlogHandler)(nil)
 
 // NewLoggerFromSlogHandler creates a Logger from an slog.Handler
 func NewLoggerFromSlogHandler(handler slog.Handler, level Level) Logger {
