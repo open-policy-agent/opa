@@ -117,6 +117,11 @@ func builtinParseDurationNanos(_ BuiltinContext, operands []*ast.Term, iter func
 
 	value, err := time.ParseDuration(d)
 	if err != nil {
+		if coefficient != 0 {
+			// rewriteAsHours already validated the digits, so a ParseDuration
+			// failure here means the value overflows.
+			return fmt.Errorf("time: duration overflow %q", string(duration))
+		}
 		return err
 	}
 
