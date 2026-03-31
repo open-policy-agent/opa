@@ -37,7 +37,14 @@ type ServerConfig struct {
 
 	LoggerPlugin *string `json:"logger_plugin,omitempty"`
 
-	RouteAliases map[string]string `json:"route_aliases,omitempty"`
+	RouteAliases map[string]RouteAlias `json:"route_aliases,omitempty"`
+}
+
+// RouteAlias represents a single route alias configuration.
+type RouteAlias struct {
+	Target         string            `json:"target"`
+	WrapBodyAsInput bool             `json:"wrap_body_as_input,omitempty"`
+	ResponseKeyMap map[string]string `json:"response_key_map,omitempty"`
 }
 
 // Clone creates a deep copy of ServerConfig.
@@ -65,7 +72,17 @@ func (s *ServerConfig) Clone() *ServerConfig {
 		clone.LoggerPlugin = &pluginName
 	}
 	if s.RouteAliases != nil {
-		clone.RouteAliases = maps.Clone(s.RouteAliases)
+		clone.RouteAliases = make(map[string]RouteAlias, len(s.RouteAliases))
+		for k, v := range s.RouteAliases {
+			ra := RouteAlias{
+				Target:          v.Target,
+				WrapBodyAsInput: v.WrapBodyAsInput,
+			}
+			if v.ResponseKeyMap != nil {
+				ra.ResponseKeyMap = maps.Clone(v.ResponseKeyMap)
+			}
+			clone.RouteAliases[k] = ra
+		}
 	}
 
 	return clone
@@ -320,14 +337,17 @@ func (s *ServerConfig) validateRouteAliases() error {
 	if s == nil {
 		return nil
 	}
-	for alias, target := range s.RouteAliases {
+	for alias, ra := range s.RouteAliases {
 		if !strings.HasPrefix(alias, "/") {
 			return fmt.Errorf("route alias %q must start with '/'", alias)
 		}
-		if !strings.HasPrefix(target, "/") {
-			return fmt.Errorf("route alias target %q must start with '/'", target)
+		if ra.Target == "" {
+			return fmt.Errorf("route alias %q must have a target", alias)
 		}
-		if alias == target {
+		if !strings.HasPrefix(ra.Target, "/") {
+			return fmt.Errorf("route alias target %q must start with '/'", ra.Target)
+		}
+		if alias == ra.Target {
 			return fmt.Errorf("route alias %q cannot point to itself", alias)
 		}
 	}

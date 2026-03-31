@@ -480,8 +480,14 @@ func TestRouteAliasesConfig(t *testing.T) {
 	raw := `{
 		"server": {
 			"route_aliases": {
-				"/access/v1/evaluation": "/v1/data/authzen/allow",
-				"/my/api": "/v1/data/myapp/check"
+				"/access/v1/evaluation": {
+					"target": "/v1/data/authzen/allow",
+					"wrap_body_as_input": true,
+					"response_key_map": {"result": "decision"}
+				},
+				"/my/api": {
+					"target": "/v1/data/myapp/check"
+				}
 			}
 		}
 	}`
@@ -495,8 +501,15 @@ func TestRouteAliasesConfig(t *testing.T) {
 	if len(c.Server.RouteAliases) != 2 {
 		t.Fatalf("expected 2 route aliases, got %d", len(c.Server.RouteAliases))
 	}
-	if c.Server.RouteAliases["/access/v1/evaluation"] != "/v1/data/authzen/allow" {
-		t.Errorf("unexpected alias target: %s", c.Server.RouteAliases["/access/v1/evaluation"])
+	ra := c.Server.RouteAliases["/access/v1/evaluation"]
+	if ra.Target != "/v1/data/authzen/allow" {
+		t.Errorf("unexpected alias target: %s", ra.Target)
+	}
+	if !ra.WrapBodyAsInput {
+		t.Error("expected wrap_body_as_input to be true")
+	}
+	if ra.ResponseKeyMap["result"] != "decision" {
+		t.Errorf("unexpected response_key_map: %v", ra.ResponseKeyMap)
 	}
 }
 
@@ -508,18 +521,23 @@ func TestRouteAliasesValidation(t *testing.T) {
 	}{
 		{
 			name:   "alias missing leading slash",
-			config: `{"server":{"route_aliases":{"no-slash":"/v1/data/foo"}}}`,
+			config: `{"server":{"route_aliases":{"no-slash":{"target":"/v1/data/foo"}}}}`,
 			expErr: `route alias "no-slash" must start with '/'`,
 		},
 		{
 			name:   "target missing leading slash",
-			config: `{"server":{"route_aliases":{"/foo":"v1/data/bar"}}}`,
+			config: `{"server":{"route_aliases":{"/foo":{"target":"v1/data/bar"}}}}`,
 			expErr: `route alias target "v1/data/bar" must start with '/'`,
 		},
 		{
 			name:   "alias points to itself",
-			config: `{"server":{"route_aliases":{"/v1/data/foo":"/v1/data/foo"}}}`,
+			config: `{"server":{"route_aliases":{"/v1/data/foo":{"target":"/v1/data/foo"}}}}`,
 			expErr: `route alias "/v1/data/foo" cannot point to itself`,
+		},
+		{
+			name:   "missing target",
+			config: `{"server":{"route_aliases":{"/foo":{"wrap_body_as_input":true}}}}`,
+			expErr: `route alias "/foo" must have a target`,
 		},
 	}
 

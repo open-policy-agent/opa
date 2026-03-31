@@ -7024,7 +7024,7 @@ data.baz.qux`,
 }
 
 func TestRouteAliasDataPost(t *testing.T) {
-	config := `{"server":{"route_aliases":{"/access/v1/evaluation":"/v1/data/authzen/allow"}}}`
+	config := `{"server":{"route_aliases":{"/access/v1/evaluation":{"target":"/v1/data/authzen/allow"}}}}`
 	f := newFixtureWithConfig(t, config)
 
 	mod := `package authzen
@@ -7047,7 +7047,7 @@ func TestRouteAliasDataPost(t *testing.T) {
 }
 
 func TestRouteAliasDataGet(t *testing.T) {
-	config := `{"server":{"route_aliases":{"/my/api":"/v1/data/test/result"}}}`
+	config := `{"server":{"route_aliases":{"/my/api":{"target":"/v1/data/test/result"}}}}`
 	f := newFixtureWithConfig(t, config)
 
 	if err := f.v1(http.MethodPut, "/data/test", `{"result":"hello"}`, 204, ""); err != nil {
@@ -7061,7 +7061,7 @@ func TestRouteAliasDataGet(t *testing.T) {
 }
 
 func TestRouteAliasQueryParams(t *testing.T) {
-	config := `{"server":{"route_aliases":{"/alias":"/v1/data/test/x"}}}`
+	config := `{"server":{"route_aliases":{"/alias":{"target":"/v1/data/test/x"}}}}`
 	f := newFixtureWithConfig(t, config)
 
 	mod := `package test
@@ -7073,6 +7073,70 @@ func TestRouteAliasQueryParams(t *testing.T) {
 
 	req := newReqUnversioned(http.MethodGet, `/alias?input={"v":42}`, "")
 	if err := f.executeRequest(req, 200, `{"result":42}`); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRouteAliasWrapBodyAsInput(t *testing.T) {
+	config := `{"server":{"route_aliases":{"/access/v1/evaluation":{"target":"/v1/data/authzen/allow","wrap_body_as_input":true}}}}`
+	f := newFixtureWithConfig(t, config)
+
+	mod := `package authzen
+	default allow = false
+	allow if input.subject.id == "alice@example.com"
+	`
+	if err := f.v1(http.MethodPut, "/policies/authzen", mod, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// Send AuthZEN-style request body (no {"input": ...} wrapper).
+	req := newReqUnversioned(http.MethodPost, "/access/v1/evaluation", `{
+		"subject": {"type": "user", "id": "alice@example.com"},
+		"resource": {"type": "account", "id": "123"},
+		"action": {"name": "can_read"}
+	}`)
+	if err := f.executeRequest(req, 200, `{"result":true}`); err != nil {
+		t.Fatal(err)
+	}
+
+	req = newReqUnversioned(http.MethodPost, "/access/v1/evaluation", `{
+		"subject": {"type": "user", "id": "bob@example.com"},
+		"resource": {"type": "account", "id": "123"},
+		"action": {"name": "can_read"}
+	}`)
+	if err := f.executeRequest(req, 200, `{"result":false}`); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRouteAliasResponseKeyMap(t *testing.T) {
+	config := `{"server":{"route_aliases":{"/access/v1/evaluation":{"target":"/v1/data/authzen/allow","wrap_body_as_input":true,"response_key_map":{"result":"decision"}}}}}`
+	f := newFixtureWithConfig(t, config)
+
+	mod := `package authzen
+	default allow = false
+	allow if input.subject.id == "alice@example.com"
+	`
+	if err := f.v1(http.MethodPut, "/policies/authzen", mod, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// Send AuthZEN-style request, expect AuthZEN-style response.
+	req := newReqUnversioned(http.MethodPost, "/access/v1/evaluation", `{
+		"subject": {"type": "user", "id": "alice@example.com"},
+		"resource": {"type": "account", "id": "123"},
+		"action": {"name": "can_read"}
+	}`)
+	if err := f.executeRequest(req, 200, `{"decision":true}`); err != nil {
+		t.Fatal(err)
+	}
+
+	req = newReqUnversioned(http.MethodPost, "/access/v1/evaluation", `{
+		"subject": {"type": "user", "id": "bob@example.com"},
+		"resource": {"type": "account", "id": "123"},
+		"action": {"name": "can_read"}
+	}`)
+	if err := f.executeRequest(req, 200, `{"decision":false}`); err != nil {
 		t.Fatal(err)
 	}
 }

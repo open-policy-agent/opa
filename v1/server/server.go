@@ -863,8 +863,8 @@ func (s *Server) initRouters(ctx context.Context) {
 
 	// Register any route aliases configured by the user.
 	if cfg := s.manager.GetConfig(); cfg.Server != nil {
-		for alias, target := range cfg.Server.RouteAliases {
-			mainRouter.Handle(alias, s.makeRouteAliasHandler(target, mainRouter))
+		for alias, ra := range cfg.Server.RouteAliases {
+			mainRouter.Handle(alias, s.makeRouteAliasHandler(ra, mainRouter))
 		}
 	}
 
@@ -944,16 +944,83 @@ func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Reque
 	return httpHandler
 }
 
-func (*Server) makeRouteAliasHandler(target string, router *http.ServeMux) http.Handler {
+func (*Server) makeRouteAliasHandler(ra config.RouteAlias, router *http.ServeMux) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r2 := new(http.Request)
 		*r2 = *r
 		r2.URL = new(url.URL)
 		*r2.URL = *r.URL
-		r2.URL.Path = target
+		r2.URL.Path = ra.Target
 		r2.URL.RawPath = ""
+
+		// Wrap the request body in {"input": <original body>} if configured.
+		if ra.WrapBodyAsInput && r.Body != nil {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, "failed to read request body", http.StatusBadRequest)
+				return
+			}
+			if len(bodyBytes) > 0 {
+				wrapped := fmt.Sprintf(`{"input":%s}`, bodyBytes)
+				r2.Body = io.NopCloser(strings.NewReader(wrapped))
+				r2.ContentLength = int64(len(wrapped))
+			}
+		}
+
+		// If response key mapping is configured, capture the response and transform it.
+		if len(ra.ResponseKeyMap) > 0 {
+			rec := &responseRecorder{
+				header:     make(http.Header),
+				statusCode: http.StatusOK,
+			}
+			router.ServeHTTP(rec, r2)
+
+			// Transform response keys.
+			var respObj map[string]json.RawMessage
+			if err := json.Unmarshal(rec.body.Bytes(), &respObj); err == nil {
+				for from, to := range ra.ResponseKeyMap {
+					if val, ok := respObj[from]; ok {
+						respObj[to] = val
+						delete(respObj, from)
+					}
+				}
+				transformed, err := json.Marshal(respObj)
+				if err == nil {
+					rec.body.Reset()
+					rec.body.Write(transformed)
+				}
+			}
+
+			for k, v := range rec.header {
+				w.Header()[k] = v
+			}
+			w.Header().Set("Content-Length", strconv.Itoa(rec.body.Len()))
+			w.WriteHeader(rec.statusCode)
+			w.Write(rec.body.Bytes()) //nolint:errcheck
+			return
+		}
+
 		router.ServeHTTP(w, r2)
 	})
+}
+
+// responseRecorder captures an HTTP response for post-processing.
+type responseRecorder struct {
+	header     http.Header
+	body       bytes.Buffer
+	statusCode int
+}
+
+func (r *responseRecorder) Header() http.Header {
+	return r.header
+}
+
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	return r.body.Write(b)
+}
+
+func (r *responseRecorder) WriteHeader(code int) {
+	r.statusCode = code
 }
 
 func (s *Server) methodNotAllowedHandler() http.Handler {
