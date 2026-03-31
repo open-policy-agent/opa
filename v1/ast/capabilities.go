@@ -147,6 +147,11 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 	switch co.regoVersion {
 	case RegoV0, RegoV0CompatV1:
 		for kw := range allFutureKeywords {
+			// TODO: drop once future.keywords.not is enabled by default
+			if kw == "not" {
+				continue
+			}
+
 			f.FutureKeywords = append(f.FutureKeywords, kw)
 		}
 
@@ -159,6 +164,11 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 		}
 	default:
 		for kw := range futureKeywords {
+			// TODO: drop once future.keywords.not is enabled by default
+			if kw == "not" {
+				continue
+			}
+
 			f.FutureKeywords = append(f.FutureKeywords, kw)
 		}
 
@@ -275,6 +285,10 @@ func (c *Capabilities) ContainsBuiltin(name string) bool {
 	return slices.ContainsFunc(c.Builtins, func(builtin *Builtin) bool {
 		return builtin.Name == name
 	})
+}
+
+func (c *Capabilities) ContainsFutureKeyword(kw string) bool {
+	return slices.Contains(c.FutureKeywords, kw)
 }
 
 // addBuiltinSorted inserts a built-in into c in sorted order. An existing built-in with the same name

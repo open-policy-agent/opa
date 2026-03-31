@@ -517,9 +517,22 @@ func (e *eval) evalStep(iter evalIterator) error {
 			}
 		case *ast.Every:
 			eval := evalEvery{
-				Every: terms,
 				e:     e,
+				every: terms,
 				expr:  expr,
+			}
+			err = eval.eval(func() error {
+				defined = true
+				err := iter(e)
+				e.traceRedo(expr)
+				return err
+			})
+
+		case *ast.Not:
+			eval := evalNot{
+				e:    e,
+				not:  terms,
+				expr: expr,
 			}
 			err = eval.eval(func() error {
 				defined = true
@@ -571,9 +584,19 @@ func (e *eval) evalStep(iter evalIterator) error {
 		})
 	case *ast.Every:
 		eval := evalEvery{
-			Every: terms,
 			e:     e,
+			every: terms,
 			expr:  expr,
+		}
+		err = eval.eval(func() error {
+			return iter(e)
+		})
+
+	case *ast.Not:
+		eval := evalNot{
+			e:    e,
+			not:  terms,
+			expr: expr,
 		}
 		err = eval.eval(func() error {
 			return iter(e)
@@ -3990,19 +4013,19 @@ func (e evalTerm) save(iter unifyIterator) error {
 }
 
 type evalEvery struct {
-	*ast.Every
-	e    *eval
-	expr *ast.Expr
+	e     *eval
+	every *ast.Every
+	expr  *ast.Expr
 }
 
 func (e evalEvery) eval(iter unifyIterator) error {
 	// unknowns in domain or body: save the expression, PE its body
 	// partial() check to avoid e.Body -> Node boxing allocation
-	if e.e.partial() && (e.e.unknown(e.Domain, e.e.bindings) || e.e.unknown(e.Body, e.e.bindings)) {
+	if e.e.partial() && (e.e.unknown(e.every.Domain, e.e.bindings) || e.e.unknown(e.every.Body, e.e.bindings)) {
 		return e.save(iter)
 	}
 
-	if pd := e.e.bindings.Plug(e.Domain); pd != nil {
+	if pd := e.e.bindings.Plug(e.every.Domain); pd != nil {
 		if !isIterableValue(pd.Value) {
 			e.e.traceFail(e.expr)
 			return nil
@@ -4011,9 +4034,9 @@ func (e evalEvery) eval(iter unifyIterator) error {
 
 	generator := ast.NewBody(
 		ast.Equality.Expr(
-			ast.RefTerm(e.Domain, e.Key).SetLocation(e.Domain.Location),
-			e.Value,
-		).SetLocation(e.Domain.Location),
+			ast.RefTerm(e.every.Domain, e.every.Key).SetLocation(e.every.Domain.Location),
+			e.every.Value,
+		).SetLocation(e.every.Domain.Location),
 	)
 
 	domain := evalPool.Get()
@@ -4035,18 +4058,18 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		body := evalPool.Get()
 		defer evalPool.Put(body)
 
-		child.closure(e.Body, body)
+		child.closure(e.every.Body, body)
 		body.findOne = true
 
 		if e.e.traceEnabled {
-			body.traceEnter(e.Body)
+			body.traceEnter(e.every.Body)
 		}
 
 		done := false
 		err := body.eval(func(*eval) error {
 			if e.e.traceEnabled {
-				body.traceExit(e.Body)
-				body.traceRedo(e.Body)
+				body.traceExit(e.every.Body)
+				body.traceRedo(e.every.Body)
 			}
 			done = true
 
@@ -4109,6 +4132,42 @@ func (e *evalEvery) plug(expr *ast.Expr) *ast.Expr {
 	every.Domain = e.e.bindings.PlugNamespaced(every.Domain, e.e.caller.bindings)
 	cpy.Terms = every
 	return cpy
+}
+
+// TODO: Add PE support
+type evalNot struct {
+	e    *eval
+	not  *ast.Not
+	expr *ast.Expr
+}
+
+func (e evalNot) eval(iter unifyIterator) error {
+	child := evalPool.Get()
+	defer evalPool.Put(child)
+
+	e.e.closure(e.not.Body, child)
+
+	if e.e.traceEnabled {
+		child.traceEnter(e.not.Body)
+	}
+
+	if err := child.eval(func(*eval) error {
+		if e.e.traceEnabled {
+			child.traceExit(e.not.Body)
+			child.traceRedo(e.not.Body)
+		}
+		child.defined = true
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if !child.defined {
+		return iter()
+	}
+
+	return nil
 }
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
@@ -4202,6 +4261,7 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 				// in the future, we can handle more cases.
 				return false
 			}
+			// TODO: also check expr.Terms.(*ast.Not)?
 			if !expr.Negated {
 				// Positive expressions containing variables cannot be trivially negated
 				// because they become unsafe (e.g., "x = 1" negated is "not x = 1" making x

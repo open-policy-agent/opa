@@ -74,9 +74,13 @@ func TestWasmE2E(t *testing.T) {
 					t.Setenv(k, v)
 				}
 
+				caps := ast.CapabilitiesForThisVersion()
+				caps.FutureKeywords = append(caps.FutureKeywords, "not")
+
 				opts := []func(*rego.Rego){
 					rego.Query(tc.Query),
 					rego.SetRegoVersion(regoVersion),
+					rego.Capabilities(caps),
 				}
 				for i := range tc.Modules {
 					opts = append(opts, rego.Module(fmt.Sprintf("module-%d.rego", i), tc.Modules[i]))

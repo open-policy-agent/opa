@@ -75,6 +75,9 @@ func Compare(a, b any) int {
 	}
 
 	switch a := a.(type) {
+	case *Not:
+		b := b.(*Not)
+		return Compare(a.Body, b.Body)
 	case Null:
 		return 0
 	case Boolean:
@@ -212,6 +215,8 @@ func sortOrder(x any) int {
 		return 102
 	case *With:
 		return 110
+	case *Not:
+		return 111
 	case *Head:
 		return 120
 	case Body:

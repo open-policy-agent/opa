@@ -5006,7 +5006,7 @@ q if { input.x = 7 }`},
 
 			var expectedQueries []ast.Body
 
-			opts := ast.ParserOptions{AllFutureKeywords: true}
+			opts := ast.ParserOptions{}
 			if len(tc.wantQueryASTs) > 0 {
 				expectedQueries = tc.wantQueryASTs
 			} else {
@@ -5075,7 +5075,7 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 
 			compiler := ast.NewCompiler()
 			modules := map[string]*ast.Module{}
-			opts := ast.ParserOptions{AllFutureKeywords: true}
+			opts := ast.ParserOptions{}
 
 			if len(params.moduleASTs) > 0 {
 				for i, module := range params.moduleASTs {

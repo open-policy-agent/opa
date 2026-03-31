@@ -67,6 +67,15 @@ func TestPlannerHelloWorld(t *testing.T) {
 			queries: []string{"not input.x.y = 1"},
 		},
 		{
+			note:    "negation, not-body",
+			queries: []string{"data.test.p = x"},
+			modules: []string{`
+				package test
+				import future.keywords.not
+				p if { not input.x.y = 1 }
+			`},
+		},
+		{
 			note:    "not and known vars", // https://github.com/open-policy-agent/opa/issues/3279
 			queries: []string{`x = "foo"; not data.tenants[x]`},
 		},
@@ -396,7 +405,16 @@ q = 2`,
 			modules := make([]*ast.Module, len(tc.modules))
 			for i := range modules {
 				file := fmt.Sprintf("module-%d.rego", i)
-				opts := ast.ParserOptions{AllFutureKeywords: true}
+
+				// TODO: drop once future.keywords.not is enabled by default
+				caps := ast.CapabilitiesForThisVersion()
+				caps.FutureKeywords = append(caps.FutureKeywords, "not")
+
+				opts := ast.ParserOptions{
+					AllFutureKeywords: true,
+					Capabilities:      caps,
+				}
+
 				m, err := ast.ParseModuleWithOpts(file, tc.modules[i], opts)
 				if err != nil {
 					t.Fatal(err)
