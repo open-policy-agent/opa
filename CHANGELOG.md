@@ -5,6 +5,17 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+1.15.1
+
+This patch release fixes a backwards-incompatible change in the v1/logging.Logger interface that inadvertently made it
+into Release v1.15.0. When using OPA as Go module, and when providing custom Logger implementations, this change would
+break your build.
+
+Users of the binaries or Docker images can ignore this, the code is otherwise the same as v1.15.0.
+Miscellaneous
+
+    logging: make WithContext() optional (authored by @srenatus)
+
 ## 1.15.0
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
