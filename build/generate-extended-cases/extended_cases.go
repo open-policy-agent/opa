@@ -179,10 +179,15 @@ func LoadIrExtendedTestCasesFiltered(filters ...Filters) ([]ExtendedSet, error) 
 				continue
 			}
 
+			// TODO: drop once future.keywords.not is enabled by default
+			caps := ast.CapabilitiesForThisVersion()
+			caps.FutureKeywords = append(caps.FutureKeywords, "not")
+
 			opts := []func(*rego.Rego){
 				rego.Target(pluginName),
 				rego.Query(tc.Query),
 				rego.SetRegoVersion(ast.RegoV1),
+				rego.Capabilities(caps),
 			}
 			for i := range tc.Modules {
 				opts = append(opts, rego.Module(fmt.Sprintf("module-%d.rego", i), tc.Modules[i]))
