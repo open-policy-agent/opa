@@ -7,12 +7,15 @@ package topdown
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	_ "time/tzdata" // this is needed to have LoadLocation when no filesystem tzdata is available
+	"unicode/utf8"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
@@ -26,6 +29,8 @@ var minDateAllowedForNsConversion = time.Unix(0, math.MinInt64)
 
 // 2262-04-11T23:47:16.854775807-00:00
 var maxDateAllowedForNsConversion = time.Unix(0, math.MaxInt64)
+
+var durationCoefficients = map[rune]int{'d': 24, 'w': 7 * 24, 'y': 365 * 24}
 
 func toSafeUnixNano(t time.Time, iter func(*ast.Term) error) error {
 	if t.Before(minDateAllowedForNsConversion) || t.After(maxDateAllowedForNsConversion) {
@@ -77,15 +82,52 @@ func builtinTimeParseRFC3339Nanos(_ BuiltinContext, operands []*ast.Term, iter f
 
 	return toSafeUnixNano(result, iter)
 }
+
 func builtinParseDurationNanos(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	duration, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
-	value, err := time.ParseDuration(string(duration))
+
+	// Allow days, weeks, and years as duration units by converting the input to hours
+	var d string
+	unit, _ := utf8.DecodeLastRuneInString(string(duration))
+
+	rewriteAsHours := func() (string, error) {
+		digits := strings.TrimSuffix(string(duration), string(unit))
+
+		_, err := strconv.ParseFloat(digits, 64)
+		if err != nil {
+			return "", fmt.Errorf("time: invalid duration \"%s\"", string(duration))
+		}
+
+		return digits + "h", nil
+	}
+
+	var coefficient int
+	if c, ok := durationCoefficients[unit]; ok {
+		d, err = rewriteAsHours()
+		if err != nil {
+			return err
+		}
+		coefficient = c
+	} else {
+		d = string(duration)
+	}
+
+	value, err := time.ParseDuration(d)
 	if err != nil {
 		return err
 	}
+
+	if coefficient != 0 {
+		if value > 0 && int64(value) > math.MaxInt64/int64(coefficient) ||
+			value < 0 && int64(value) < math.MinInt64/int64(coefficient) {
+			return fmt.Errorf("time: duration overflow %q", string(duration))
+		}
+		value *= time.Duration(coefficient)
+	}
+
 	return iter(ast.NumberTerm(int64ToJSONNumber(int64(value))))
 }
 

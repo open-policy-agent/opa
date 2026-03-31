@@ -43,3 +43,121 @@ func TestTimeSeeding(t *testing.T) {
 	}
 
 }
+
+func TestParseDurationNanos_BadInput(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expErr string
+	}{
+		{
+			name:   "no known suffix",
+			input:  `badinput`,
+			expErr: "time: invalid duration \"badinput\"",
+		},
+		{
+			name:   "bad digits with d suffix",
+			input:  `badinputd`,
+			expErr: "time: invalid duration \"badinputd\"",
+		},
+		{
+			name:   "bad digits with w suffix",
+			input:  `abcw`,
+			expErr: "time: invalid duration \"abcw\"",
+		},
+		{
+			name:   "bad digits with y suffix",
+			input:  `xyz.y`,
+			expErr: "time: invalid duration \"xyz.y\"",
+		},
+		{
+			name:   "overflow days",
+			input:  `99999999999d`,
+			expErr: `time: duration overflow "99999999999d"`,
+		},
+		{
+			name:   "overflow weeks",
+			input:  `99999999999w`,
+			expErr: `time: duration overflow "99999999999w"`,
+		},
+		{
+			name:   "overflow years",
+			input:  `99999999999y`,
+			expErr: `time: duration overflow "99999999999y"`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := builtinParseDurationNanos(BuiltinContext{}, []*ast.Term{
+				ast.StringTerm(tc.input),
+			}, func(a *ast.Term) error {
+				return nil
+			})
+			if err.Error() != tc.expErr {
+				t.Fatalf("expected error %q but got %q", tc.expErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestParseDurationNanos_ExtendedUnits(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		expNs int64
+	}{
+		{
+			name:  "fractional days",
+			input: "1.5d",
+			expNs: int64(36 * time.Hour),
+		},
+		{
+			name:  "fractional weeks",
+			input: "0.5w",
+			expNs: int64(84 * time.Hour),
+		},
+		{
+			name:  "negative days",
+			input: "-1d",
+			expNs: int64(-24 * time.Hour),
+		},
+		{
+			name:  "zero days",
+			input: "0d",
+			expNs: 0,
+		},
+		{
+			name:  "zero weeks",
+			input: "0w",
+			expNs: 0,
+		},
+		{
+			name:  "zero years",
+			input: "0y",
+			expNs: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var got int64
+			err := builtinParseDurationNanos(BuiltinContext{}, []*ast.Term{
+				ast.StringTerm(tc.input),
+			}, func(a *ast.Term) error {
+				v, ok := a.Value.(ast.Number).Int64()
+				if !ok {
+					t.Fatal("expected int64 result")
+				}
+				got = v
+				return nil
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.expNs {
+				t.Fatalf("expected %d but got %d", tc.expNs, got)
+			}
+		})
+	}
+}
