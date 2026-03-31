@@ -22,11 +22,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
+        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
         with:
-          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
           payload: |
             {
@@ -60,11 +58,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
+        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
         with:
-          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
           payload: |
             {
@@ -88,11 +84,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
+        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
         with:
-          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
           payload: |
             {
@@ -119,11 +113,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
+        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
         with:
-          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
           payload: |
             {
@@ -190,11 +182,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
+        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
         with:
-          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
           payload: |
             {
@@ -256,11 +246,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
+        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
         with:
-          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
           payload: |
             {
@@ -307,11 +295,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-        if: ${{ failure() && env.SLACK_WEBHOOK_URL != '' }}
+        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
         with:
-          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
           payload: |
             {
