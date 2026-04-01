@@ -94,7 +94,6 @@ release-dir:
 
 .PHONY: generate
 generate: wasm-lib-build
-	go install github.com/mna/pigeon@v1.3.0
 ifeq ($(GOOS),windows)
 	GOOS=linux go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
 endif
