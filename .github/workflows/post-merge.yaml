@@ -18,7 +18,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          token: ${{ secrets.GH_PUSH_TOKEN }} # required to push to protected branch below
+          token: ${{ secrets.GH_PUSH_TOKEN }} # zizmor: ignore[secrets-outside-env] required to push to protected branch below
           persist-credentials: true
 
       - name: Generate
@@ -194,12 +194,12 @@ jobs:
 
       - name: Deploy OPA Edge
         env:
-          DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }}
-          S3_RELEASE_BUCKET: ${{ secrets.S3_RELEASE_BUCKET }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }} # zizmor: ignore[secrets-outside-env]
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }} # zizmor: ignore[secrets-outside-env]
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }} # zizmor: ignore[secrets-outside-env]
+          S3_RELEASE_BUCKET: ${{ secrets.S3_RELEASE_BUCKET }} # zizmor: ignore[secrets-outside-env]
         # Only run if required secrets are provided
         if: ${{ env.S3_RELEASE_BUCKET && env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.DOCKER_USER && env.DOCKER_PASSWORD }}
         run: make deploy-ci
@@ -216,9 +216,9 @@ jobs:
 
       - name: Build and Push opa-wasm-builder
         env:
-          DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_WASM_BUILDER_IMAGE: ${{ secrets.DOCKER_WASM_BUILDER_IMAGE }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_WASM_BUILDER_IMAGE: ${{ secrets.DOCKER_WASM_BUILDER_IMAGE }} # zizmor: ignore[secrets-outside-env]
         # Only run if required secrets are provided
         if: ${{ env.DOCKER_USER && env.DOCKER_PASSWORD }}
         run: make push-wasm-builder-image

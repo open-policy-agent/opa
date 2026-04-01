@@ -15,13 +15,13 @@ jobs:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          token: ${{ secrets.GH_PUSH_TOKEN }}
+          token: ${{ secrets.GH_PUSH_TOKEN }} # zizmor: ignore[secrets-outside-env]
           persist-credentials: false
 
       - name: Get latest Regal release
         id: latest
         env:
-          GH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }} # zizmor: ignore[secrets-outside-env]
         run: |
           LATEST_VERSION=$(gh api repos/open-policy-agent/regal/releases/latest --jq '.tag_name')
           echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
@@ -115,7 +115,7 @@ jobs:
       - name: Create pull request
         if: steps.check.outputs.needed == 'true' && steps.changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }} # zizmor: ignore[secrets-outside-env]
           STEPS_LATEST_OUTPUTS_VERSION: ${{ steps.latest.outputs.version }}
         run: |
           VERSION="${STEPS_LATEST_OUTPUTS_VERSION}"
