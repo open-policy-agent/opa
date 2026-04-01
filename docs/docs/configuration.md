@@ -84,6 +84,8 @@ distributed_tracing:
   service_name: opa
   sample_percentage: 50
   encryption: "off"
+  metrics: false
+  metrics_export_interval_ms: 60000
   resource:
     service_namespace: "my-namespace"
     service_version: "1.1"
@@ -951,6 +953,8 @@ Distributed tracing represents the configuration of the OpenTelemetry Tracing.
 | `distributed_tracing.batch_span_processor_options.batch_timeout_ms`      | `int`     | No (default: `5000`)                                                                       | The maximum duration for constructing a batch in milliseconds.                                             |
 | `distributed_tracing.batch_span_processor_options.export_timeout_ms`     | `int`     | No (default: `30000`)                                                                      | The maximum duration for exporting spans in milliseconds.                                                  |
 | `distributed_tracing.batch_span_processor_options.max_export_batch_size` | `int`     | No (default: `512`)                                                                        | The maximum number of spans to process in a single batch.                                                  |
+| `distributed_tracing.metrics`                                            | `bool`    | No (default: `false`)                                                                      | Enables pushing Prometheus metrics to the OTel collector via OTLP.                                         |
+| `distributed_tracing.metrics_export_interval_ms`                         | `int`     | No (default: `60000`)                                                                      | Interval between metric exports in milliseconds.                                                           |
 | `distributed_tracing.batch_span_processor_options.max_queue_size`        | `int`     | No (default: `2048`)                                                                       | The maximum queue size to buffer spans for delayed processing.                                             |
 
 The following encryption methods are supported:
