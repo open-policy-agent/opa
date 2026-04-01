@@ -108,3 +108,15 @@ cases:
     query: data.generated.p = x
     want_result:
       - x: 31536000000000000
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.parse_duration_ns("1d2h", ns)
+        }
+    note: time/parse duration nanos, multiple-units
+    query: data.generated.p = x
+    want_result:
+      - x: 93600000000000

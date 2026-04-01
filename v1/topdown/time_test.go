@@ -73,17 +73,22 @@ func TestParseDurationNanos_BadInput(t *testing.T) {
 		{
 			name:   "overflow days",
 			input:  `99999999999d`,
-			expErr: `time: duration overflow "99999999999d"`,
+			expErr: `time: invalid duration "99999999999d"`,
 		},
 		{
 			name:   "overflow weeks",
 			input:  `99999999999w`,
-			expErr: `time: duration overflow "99999999999w"`,
+			expErr: `time: invalid duration "99999999999w"`,
 		},
 		{
 			name:   "overflow years",
 			input:  `99999999999y`,
-			expErr: `time: duration overflow "99999999999y"`,
+			expErr: `time: invalid duration "99999999999y"`,
+		},
+		{
+			name:   "invalid multi-unit",
+			input:  `1d2x`,
+			expErr: `time: unknown unit "x" in duration "1d2x"`,
 		},
 	}
 
@@ -136,6 +141,56 @@ func TestParseDurationNanos_ExtendedUnits(t *testing.T) {
 			name:  "zero years",
 			input: "0y",
 			expNs: 0,
+		},
+		{
+			name:  "days and hours",
+			input: "1d2h",
+			expNs: int64(26 * time.Hour),
+		},
+		{
+			name:  "hours and days",
+			input: "2h1d",
+			expNs: int64(26 * time.Hour),
+		},
+		{
+			name:  "days hours minutes",
+			input: "1d2h30m",
+			expNs: int64(26*time.Hour + 30*time.Minute),
+		},
+		{
+			name:  "weeks and days",
+			input: "2w3d",
+			expNs: int64((2*7*24 + 3*24) * time.Hour),
+		},
+		{
+			name:  "days and seconds",
+			input: "1d30s",
+			expNs: int64(24*time.Hour + 30*time.Second),
+		},
+		{
+			name:  "negative multi-unit",
+			input: "-1d2h",
+			expNs: int64(-26 * time.Hour),
+		},
+		{
+			name:  "days and milliseconds",
+			input: "1d100ms",
+			expNs: int64(24*time.Hour + 100*time.Millisecond),
+		},
+		{
+			name:  "days and nanoseconds",
+			input: "1d500ns",
+			expNs: int64(24*time.Hour + 500),
+		},
+		{
+			name:  "days and microseconds",
+			input: "1d200us",
+			expNs: int64(24*time.Hour + 200*time.Microsecond),
+		},
+		{
+			name:  "days and microseconds µs",
+			input: "1d200µs",
+			expNs: int64(24*time.Hour + 200*time.Microsecond),
 		},
 	}
 

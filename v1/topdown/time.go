@@ -89,51 +89,95 @@ func builtinParseDurationNanos(_ BuiltinContext, operands []*ast.Term, iter func
 		return err
 	}
 
-	// Allow days, weeks, and years as duration units by converting the input to hours
-	var d string
-	unit, _ := utf8.DecodeLastRuneInString(string(duration))
-
-	rewriteAsHours := func() (string, error) {
-		digits := strings.TrimSuffix(string(duration), string(unit))
-
-		_, err := strconv.ParseFloat(digits, 64)
-		if err != nil {
-			return "", fmt.Errorf("time: invalid duration \"%s\"", string(duration))
-		}
-
-		return digits + "h", nil
-	}
-
-	var coefficient int
-	if c, ok := durationCoefficients[unit]; ok {
-		d, err = rewriteAsHours()
-		if err != nil {
-			return err
-		}
-		coefficient = c
-	} else {
-		d = string(duration)
-	}
-
-	value, err := time.ParseDuration(d)
+	ns, err := parseExtendedDuration(string(duration))
 	if err != nil {
-		if coefficient != 0 {
-			// rewriteAsHours already validated the digits, so a ParseDuration
-			// failure here means the value overflows.
-			return fmt.Errorf("time: duration overflow %q", string(duration))
-		}
 		return err
 	}
 
-	if coefficient != 0 {
-		if value > 0 && int64(value) > math.MaxInt64/int64(coefficient) ||
-			value < 0 && int64(value) < math.MinInt64/int64(coefficient) {
-			return fmt.Errorf("time: duration overflow %q", string(duration))
-		}
-		value *= time.Duration(coefficient)
+	return iter(ast.NumberTerm(int64ToJSONNumber(ns)))
+}
+
+// parseExtendedDuration parses a duration string that may contain extended
+// units (d, w, y) mixed with standard Go duration units (h, m, s, ms, us, ns).
+// Extended unit segments are rewritten to equivalent hours (e.g. "1d2h30m" → "24h2h30m")
+func parseExtendedDuration(s string) (int64, error) {
+	if s == "" {
+		return 0, fmt.Errorf("time: invalid duration %q", s)
 	}
 
-	return iter(ast.NumberTerm(int64ToJSONNumber(int64(value))))
+	if !strings.ContainsAny(s, "dwy") {
+		v, err := time.ParseDuration(s)
+		if err != nil {
+			return 0, err
+		}
+		return int64(v), nil
+	}
+
+	orig := s
+	var b strings.Builder
+	b.Grow(len(s))
+
+	// Preserve leading sign
+	if s[0] == '-' || s[0] == '+' {
+		b.WriteByte(s[0])
+		s = s[1:]
+		if s == "" {
+			return 0, fmt.Errorf("time: invalid duration %q", orig)
+		}
+	}
+
+	for len(s) > 0 {
+		// Consume digits (including decimal point) for the next segment
+		j := 0
+		for j < len(s) && (s[j] == '.' || (s[j] >= '0' && s[j] <= '9')) {
+			j++
+		}
+
+		if j == 0 || j == len(s) {
+			// No digits found or no unit after digits — write remainder
+			// and let time.ParseDuration produce the appropriate error.
+			b.WriteString(s)
+			break
+		}
+
+		digits := s[:j]
+		unit, size := utf8.DecodeRuneInString(s[j:])
+
+		if coeff, ok := durationCoefficients[unit]; ok {
+			val, err := strconv.ParseFloat(digits, 64)
+			if err != nil {
+				return 0, fmt.Errorf("time: invalid duration %q", orig)
+			}
+			hours := val * float64(coeff)
+			b.WriteString(strconv.FormatFloat(hours, 'f', -1, 64))
+			b.WriteByte('h')
+			s = s[j+size:]
+
+			continue
+		}
+
+		b.WriteString(digits)
+		b.WriteRune(unit)
+		s = s[j+size:]
+
+		// Handle two-character units (ms, us, ns, µs)
+		if len(s) > 0 && s[0] == 's' {
+			b.WriteByte('s')
+			s = s[1:]
+		}
+	}
+
+	v, err := time.ParseDuration(b.String())
+	if err != nil {
+		// Replace the rewritten duration in the error with the original.
+		msg := err.Error()
+		if i := strings.LastIndex(msg, " "); i != -1 {
+			msg = msg[:i]
+		}
+		return 0, fmt.Errorf("%s %q", msg, orig)
+	}
+
+	return int64(v), nil
 }
 
 // Represent exposed constants for formatting from the stdlib time pkg
