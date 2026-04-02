@@ -109,7 +109,7 @@ func BenchmarkAciTestBuildAndEval(b *testing.B) {
 }
 
 // BenchmarkAciTestOnlyEval-10    12752    92188 ns/op    50005 B/op    1062 allocs/op
-// BenchmarkAciTestOnlyEval-10    13521	   86647 ns/op	  47448 B/op	 967 allocs/op // ref.CopyNonGround
+// BenchmarkAciTestOnlyEval-10    13521	   86647 ns/op	  47448 B/op	 967 allocs/op // ground-aware Copy
 // BenchmarkAciTestOnlyEval-12    21007	   57551 ns/op	  45323 B/op	 920 allocs/op
 func BenchmarkAciTestOnlyEval(b *testing.B) {
 	ctx := b.Context()
@@ -357,7 +357,7 @@ func BenchmarkStoreRead(b *testing.B) {
 }
 
 // 5730 ns/op	    5737 B/op	      93 allocs/op
-// 5222 ns/op	    5639 B/op	      89 allocs/op // ref.CopyNonGround
+// 5222 ns/op	    5639 B/op	      89 allocs/op // ground-aware Copy
 // 2786 ns/op	    5090 B/op	      77 allocs/op // Lazy init improvements
 func BenchmarkTrivialPolicy(b *testing.B) {
 	ctx := b.Context()

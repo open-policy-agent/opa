@@ -1819,3 +1819,29 @@ func TestAppendNoQuoteExistingBuffer(t *testing.T) {
 		t.Errorf("got  %s\nwant %s", got, exp)
 	}
 }
+
+func TestRefCopyNonGround(t *testing.T) {
+	ref := MustParseRef("data.foo[x].bar")
+
+	result := ref.CopyNonGround()
+
+	if &result[0] == &ref[0] {
+		t.Fatal("CopyNonGround() should return new slice")
+	}
+	if !result.Equal(ref) {
+		t.Fatalf("CopyNonGround() result not equal to original:\ngot:  %v\nwant: %v", result, ref)
+	}
+
+	// Ground elements should be shared (same pointer)
+	for i := 1; i < len(ref); i++ {
+		if ref[i].Value.IsGround() {
+			if result[i] != ref[i] {
+				t.Errorf("Ground element at index %d should be shared", i)
+			}
+		} else {
+			if result[i] == ref[i] {
+				t.Errorf("Non-ground element at index %d should be deep copied", i)
+			}
+		}
+	}
+}
