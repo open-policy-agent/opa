@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"net"
 	"net/http"
@@ -897,7 +896,6 @@ func (s *Server) initRouters(ctx context.Context) {
 	mainRouter.Handle("GET /v1/config", s.instrumentHandler(s.v1ConfigGet, PromHandlerV1Config))
 	mainRouter.Handle("GET /v1/status", s.instrumentHandler(s.v1StatusGet, PromHandlerV1Status))
 	mainRouter.Handle("POST /{$}", s.instrumentHandler(s.unversionedPost, PromHandlerIndex))
-	mainRouter.Handle("GET /{$}", s.instrumentHandler(s.indexGet, PromHandlerIndex))
 
 	// These are catch all handlers that respond http.StatusMethodNotAllowed for resources that exist but the method is not allowed
 	mainRouter.Handle("/v0/data/{path...}", s.methodNotAllowedHandler())
@@ -1005,20 +1003,6 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		return nil, err
 	}
 	return &results, nil
-}
-
-func (*Server) indexGet(w http.ResponseWriter, _ *http.Request) {
-	_ = indexHTML.Execute(w, struct {
-		Version        string
-		BuildCommit    string
-		BuildTimestamp string
-		BuildHostname  string
-	}{
-		Version:        version.Version,
-		BuildCommit:    version.Vcs,
-		BuildTimestamp: version.Timestamp,
-		BuildHostname:  version.Hostname,
-	})
 }
 
 type bundleRevisions struct {
@@ -3011,63 +2995,6 @@ func readInputCompilePostV1(reqBytes []byte, queryParserOptions ast.ParserOption
 		},
 	}, nil
 }
-
-var indexHTML, _ = template.New("index").Parse(`
-<html>
-<head>
-<script type="text/javascript">
-function query() {
-	params = {
-		'query': document.getElementById("query").value,
-	}
-	if (document.getElementById("input").value !== "") {
-		try {
-			params["input"] = JSON.parse(document.getElementById("input").value);
-		} catch (e) {
-			document.getElementById("result").innerHTML = e;
-			return;
-		}
-	}
-	body = JSON.stringify(params);
-	opts = {
-		'method': 'POST',
-		'body': body,
-	}
-	fetch(new Request('v1/query', opts))
-		.then(resp => resp.json())
-		.then(json => {
-			str = JSON.stringify(json, null, 2);
-			document.getElementById("result").innerHTML = str;
-		});
-}
-</script>
-</head>
-</body>
-<pre>
- ________      ________    ________
-|\   __  \    |\   __  \  |\   __  \
-\ \  \|\  \   \ \  \|\  \ \ \  \|\  \
- \ \  \\\  \   \ \   ____\ \ \   __  \
-  \ \  \\\  \   \ \  \___|  \ \  \ \  \
-   \ \_______\   \ \__\      \ \__\ \__\
-    \|_______|    \|__|       \|__|\|__|
-</pre>
-Open Policy Agent - An open source project to policy-enable your service.<br>
-<br>
-Version: {{ .Version }}<br>
-Build Commit: {{ .BuildCommit }}<br>
-Build Timestamp: {{ .BuildTimestamp }}<br>
-Build Hostname: {{ .BuildHostname }}<br>
-<br>
-Query:<br>
-<textarea rows="10" cols="50" id="query"></textarea><br>
-<br>Input Data (JSON):<br>
-<textarea rows="10" cols="50" id="input"></textarea><br>
-<br><button onclick="query()">Submit</button>
-<pre><div id="result"></div></pre>
-</body>
-</html>
-`)
 
 type decisionLogger struct {
 	revisions map[string]string
