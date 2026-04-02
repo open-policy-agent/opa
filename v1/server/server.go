@@ -1701,6 +1701,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
