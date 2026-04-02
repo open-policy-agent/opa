@@ -6688,7 +6688,7 @@ public_servers[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expError: "test.rego:14: rego_parse_error: yaml: line 6: could not find expected ':'",
+			expError: "test.rego:14: rego_parse_error: expected METADATA block, found whitespace",
 		},
 		{
 			note: "Ill-structured (invalid) annotation document path",
@@ -6876,6 +6876,27 @@ public_servers_1 contains server if {
 # METADATA
 # title: My rule
 
+# METADATA
+# title: My rule 2
+p if { input = "str" }`,
+			expNumComments: 4,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeRule,
+					Title: "My rule",
+				},
+				{
+					Scope: annotationScopeRule,
+					Title: "My rule 2",
+				},
+			},
+		},
+		{
+			note: "multiple metadata blocks on a single rule, with no space between",
+			module: `package test
+
+# METADATA
+# title: My rule
 # METADATA
 # title: My rule 2
 p if { input = "str" }`,
@@ -7180,8 +7201,11 @@ include if input.fruits.name == "banana"
 				AllFutureKeywords: true,
 			})
 			if err != nil {
-				if tc.expError == "" || !strings.Contains(err.Error(), tc.expError) {
+				if tc.expError == "" {
 					t.Fatalf("Unexpected parse error when getting annotations: %v", err)
+				}
+				if !strings.Contains(err.Error(), tc.expError) {
+					t.Fatalf("Expected error %v but got %v", tc.expError, err)
 				}
 				if tc.expErrorRow != 0 {
 					if errs, ok := err.(Errors); !ok {

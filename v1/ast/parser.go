@@ -603,7 +603,7 @@ func isMetadataComment(c *Comment) bool {
 }
 
 func blockBuster(curr, prev *Comment) bool { // or endOfBlock, but the name was too good to pass up
-	return curr.Location.Col != 1 || curr.Location.Row-1 != prev.Location.Row
+	return curr.Location.Col != 1 || curr.Location.Row-1 != prev.Location.Row || isMetadataComment(curr)
 }
 
 func (p *Parser) parsePackage() *Package {
