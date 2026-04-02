@@ -16,7 +16,7 @@
     "pg": "^8.20.0"
   },
   "devDependencies": {
-    "prisma": "^7.5.0"
+    "prisma": "^7.6.0"
   },
   "overrides": {
     "hono": "^4.11.4"
