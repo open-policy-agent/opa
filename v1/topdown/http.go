@@ -72,6 +72,7 @@ var allowedKeyNames = [...]string{
 	"caching_mode",
 	"max_retry_attempts",
 	"cache_ignored_headers",
+	"max_response_body_bytes",
 }
 
 // ref: https://www.rfc-editor.org/rfc/rfc7231#section-6.1
@@ -530,7 +531,8 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		case "cache", "caching_mode",
 			"force_cache", "force_cache_duration_seconds",
 			"force_json_decode", "force_yaml_decode",
-			"raise_error", "max_retry_attempts", "cache_ignored_headers": // no-op
+			"raise_error", "max_retry_attempts", "cache_ignored_headers",
+			"max_response_body_bytes": // no-op
 		default:
 			return nil, nil, fmt.Errorf("invalid parameter %q", key)
 		}
@@ -966,7 +968,11 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 		return cachedRespData.formatToAST(c.forceJSONDecode, c.forceYAMLDecode)
 	}
 
-	newValue, respBody, err := formatHTTPResponseToAST(result, c.forceJSONDecode, c.forceYAMLDecode)
+	maxBodyBytes, err := getInt64ValFromReqObj(c.key, ast.InternedTerm("max_response_body_bytes"))
+	if err != nil {
+		return nil, err
+	}
+	newValue, respBody, err := formatHTTPResponseToAST(result, c.forceJSONDecode, c.forceYAMLDecode, maxBodyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -1074,6 +1080,24 @@ func getNumberValFromReqObj(req ast.Object, key *ast.Term) (int, error) {
 
 	return 0, fmt.Errorf("invalid value %v for field %v", term.String(), key.String())
 }
+
+func getInt64ValFromReqObj(req ast.Object, key *ast.Term) (int64, error) {
+	term := req.Get(key)
+	if term == nil {
+		return 0, nil
+	}
+
+	if t, ok := term.Value.(ast.Number); ok {
+		num, ok := t.Int64()
+		if !ok || num < 0 {
+			return 0, fmt.Errorf("invalid value %v for field %v", t.String(), key.String())
+		}
+		return num, nil
+	}
+
+	return 0, fmt.Errorf("invalid value %v for field %v", term.String(), key.String())
+}
+
 
 func getCachingMode(req ast.Object) (cachingMode, error) {
 	key := ast.InternedTerm("caching_mode")
@@ -1197,8 +1221,8 @@ func (c *interQueryCacheData) toCacheValue() (*interQueryCacheValue, error) {
 	return &interQueryCacheValue{Data: b}, nil
 }
 
-func (*interQueryCacheData) SizeInBytes() int64 {
-	return 0
+func (c *interQueryCacheData) SizeInBytes() int64 {
+	return int64(len(c.RespBody))
 }
 
 func (c *interQueryCacheData) Clone() (cache.InterQueryCacheValue, error) {
@@ -1372,10 +1396,17 @@ func parseMaxAgeCacheDirective(cc map[string]string) (deltaSeconds, error) {
 	return deltaSeconds(val), nil
 }
 
-func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDecode bool) (ast.Value, []byte, error) {
-	resultRawBody, err := io.ReadAll(resp.Body)
+func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDecode bool, maxBodyBytes int64) (ast.Value, []byte, error) {
+	var reader io.Reader = resp.Body
+	if maxBodyBytes > 0 {
+		reader = io.LimitReader(resp.Body, maxBodyBytes+1)
+	}
+	resultRawBody, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, nil, err
+	}
+	if maxBodyBytes > 0 && int64(len(resultRawBody)) > maxBodyBytes {
+		return nil, nil, fmt.Errorf("http.send: response body exceeds max_response_body_bytes (%d bytes)", maxBodyBytes)
 	}
 
 	resultObj, err := prepareASTResult(resp.Header, forceJSONDecode, forceYAMLDecode, resultRawBody, resp.Status, resp.StatusCode)
@@ -1498,7 +1529,11 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 
 // InsertIntoCache inserts the key set on this object into the cache with the given value
 func (c *interQueryCache) InsertIntoCache(value *http.Response) (ast.Value, error) {
-	result, respBody, err := formatHTTPResponseToAST(value, c.forceJSONDecode, c.forceYAMLDecode)
+	maxBodyBytes, err := getInt64ValFromReqObj(c.key, ast.InternedTerm("max_response_body_bytes"))
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+	result, respBody, err := formatHTTPResponseToAST(value, c.forceJSONDecode, c.forceYAMLDecode, maxBodyBytes)
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
@@ -1556,7 +1591,11 @@ func (c *intraQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	result, _, err := formatHTTPResponseToAST(value, forceJSONDecode, forceYAMLDecode)
+	maxBodyBytes, err := getInt64ValFromReqObj(c.key, ast.InternedTerm("max_response_body_bytes"))
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+	result, _, err := formatHTTPResponseToAST(value, forceJSONDecode, forceYAMLDecode, maxBodyBytes)
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}

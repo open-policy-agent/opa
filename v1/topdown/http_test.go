@@ -733,6 +733,57 @@ func TestParseTimeout(t *testing.T) {
 }
 
 // TestHTTPRedirectDisable tests redirects are not enabled by default
+func TestHTTPSendMaxResponseBodyBytes(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("1234567890")) // 10 bytes
+	}))
+	defer ts.Close()
+
+	expectedResult := map[string]any{
+		"status":      "200 OK",
+		"status_code": http.StatusOK,
+		"body":        nil,
+		"raw_body":    "1234567890",
+		"headers": map[string]any{
+			"content-type":   []any{"text/plain"},
+			"content-length": []any{"10"},
+		},
+	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected any
+	}{
+		{
+			"less than max",
+			[]string{fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "max_response_body_bytes": 100}, resp); x := clean_headers(resp) }`, ts.URL)},
+			resultObj.String(),
+		},
+		{
+			"equal to max",
+			[]string{fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "max_response_body_bytes": 10}, resp); x := clean_headers(resp) }`, ts.URL)},
+			resultObj.String(),
+		},
+		{
+			"greater than max (returns error in dict)",
+			[]string{fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "max_response_body_bytes": 5, "raise_error": false}, resp); x := resp.error.code }`, ts.URL)},
+			`"eval_http_send_internal_error"`,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
+	}
+}
+
 func TestHTTPRedirectDisable(t *testing.T) {
 	t.Parallel()
 
