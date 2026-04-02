@@ -519,6 +519,7 @@ func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) ([]*ast
 }
 
 func (w *writer) writeComments(comments []*ast.Comment) error {
+	var inMetadataBlock bool
 	for i := range comments {
 		if i > 0 {
 			l, err := locCmp(comments[i], comments[i-1])
@@ -527,7 +528,18 @@ func (w *writer) writeComments(comments []*ast.Comment) error {
 			}
 			if l > 1 {
 				w.blankLine()
+				inMetadataBlock = false
+			} else if l == 1 {
+				// if next comment is a metadata header and previous comment
+				// was part of a metadata block, add a blank line to separate them
+				if inMetadataBlock && ast.IsMetadataComment(comments[i]) {
+					w.blankLine()
+				}
 			}
+		}
+
+		if ast.IsMetadataComment(comments[i]) {
+			inMetadataBlock = true
 		}
 
 		w.writeLine(comments[i].String())
