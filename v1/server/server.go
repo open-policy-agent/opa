@@ -896,6 +896,7 @@ func (s *Server) initRouters(ctx context.Context) {
 	mainRouter.Handle("GET /v1/config", s.instrumentHandler(s.v1ConfigGet, PromHandlerV1Config))
 	mainRouter.Handle("GET /v1/status", s.instrumentHandler(s.v1StatusGet, PromHandlerV1Status))
 	mainRouter.Handle("POST /{$}", s.instrumentHandler(s.unversionedPost, PromHandlerIndex))
+	mainRouter.Handle("GET /{$}", s.instrumentHandler(s.indexGet, PromHandlerIndex))
 
 	// These are catch all handlers that respond http.StatusMethodNotAllowed for resources that exist but the method is not allowed
 	mainRouter.Handle("/v0/data/{path...}", s.methodNotAllowedHandler())
@@ -1003,6 +1004,10 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		return nil, err
 	}
 	return &results, nil
+}
+
+func (*Server) indexGet(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 type bundleRevisions struct {
@@ -1696,7 +1701,6 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
