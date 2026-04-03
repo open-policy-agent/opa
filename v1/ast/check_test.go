@@ -2676,3 +2676,62 @@ p if { [data.base.foo] }`,
 		})
 	}
 }
+
+func TestCheckTypesFromReference(t *testing.T) {
+	tests := []struct {
+		name          string
+		policy        string
+		expectedError string
+	}{
+		{
+			name: "wrong type used directly",
+			policy: `package p
+
+s := sum([1, "foo"])`,
+			expectedError: "sum: invalid argument(s)",
+		},
+		{
+			name: "wrong type as reference",
+			policy: `package p
+
+a := "foo"
+s := sum([1, a])`,
+			expectedError: "sum: invalid argument(s)",
+		},
+		{
+			name: "wrong type as reference within rule",
+			policy: `package p
+
+allow := s if {
+    a := "foo"
+    s := sum([1, a])
+}`,
+			expectedError: "sum: invalid argument(s)",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			module, err := ParseModuleWithOpts("policy.rego", tc.policy, ParserOptions{ProcessAnnotation: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			modules := map[string]*Module{"policy.rego": module}
+
+			capabilities := CapabilitiesForThisVersion()
+			compiler := NewCompiler().
+				WithUseTypeCheckAnnotations(true).
+				WithCapabilities(capabilities)
+			compiler.Compile(modules)
+
+			if !compiler.Failed() {
+				t.Fatal("expected error, got none")
+			}
+
+			if !strings.Contains(compiler.Errors.Error(), tc.expectedError) {
+				t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s",
+					tc.expectedError, compiler.Errors.Error())
+			}
+		})
+	}
+}
