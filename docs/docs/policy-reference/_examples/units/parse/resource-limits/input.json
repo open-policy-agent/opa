@@ -1,0 +1,12 @@
+{
+  "containers": [
+    {
+      "name": "app",
+      "memory_limit": "512Mi"
+    },
+    {
+      "name": "sidecar",
+      "memory_limit": "2Gi"
+    }
+  ]
+}
