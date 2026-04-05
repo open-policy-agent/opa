@@ -2,12 +2,12 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package distributedtracing
+package metricsexport
 
 import (
-	"context"
-	"net"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -15,48 +15,46 @@ import (
 	"github.com/open-policy-agent/opa/v1/runtime"
 	"github.com/open-policy-agent/opa/v1/test/e2e"
 	colmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
-	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
-// mockOTLPGRPCCollector is a lightweight mock OTLP gRPC collector that records
+// mockOTLPHTTPCollector is a lightweight mock OTLP HTTP collector that records
 // incoming ExportMetricsServiceRequest messages.
-type mockOTLPGRPCCollector struct {
-	colmetricpb.UnimplementedMetricsServiceServer
+type mockOTLPHTTPCollector struct {
 	mu       sync.Mutex
 	requests []*colmetricpb.ExportMetricsServiceRequest
-	server   *grpc.Server
-	addr     string
+	server   *httptest.Server
 }
 
-func newMockOTLPGRPCCollector(t *testing.T) *mockOTLPGRPCCollector {
-	t.Helper()
-
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	c := &mockOTLPGRPCCollector{
-		server: grpc.NewServer(),
-		addr:   lis.Addr().String(),
-	}
-	colmetricpb.RegisterMetricsServiceServer(c.server, c)
-
-	go func() {
-		_ = c.server.Serve(lis)
-	}()
-
+func newMockOTLPHTTPCollector() *mockOTLPHTTPCollector {
+	c := &mockOTLPHTTPCollector{}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/metrics", c.handleMetrics)
+	c.server = httptest.NewServer(mux)
 	return c
 }
 
-func (c *mockOTLPGRPCCollector) Export(_ context.Context, req *colmetricpb.ExportMetricsServiceRequest) (*colmetricpb.ExportMetricsServiceResponse, error) {
+func (c *mockOTLPHTTPCollector) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	req := &colmetricpb.ExportMetricsServiceRequest{}
+	if err := proto.Unmarshal(body, req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	c.mu.Lock()
 	c.requests = append(c.requests, req)
 	c.mu.Unlock()
-	return &colmetricpb.ExportMetricsServiceResponse{}, nil
+
+	w.WriteHeader(http.StatusOK)
 }
 
-func (c *mockOTLPGRPCCollector) getRequests() []*colmetricpb.ExportMetricsServiceRequest {
+func (c *mockOTLPHTTPCollector) getRequests() []*colmetricpb.ExportMetricsServiceRequest {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	out := make([]*colmetricpb.ExportMetricsServiceRequest, len(c.requests))
@@ -64,12 +62,12 @@ func (c *mockOTLPGRPCCollector) getRequests() []*colmetricpb.ExportMetricsServic
 	return out
 }
 
-func (c *mockOTLPGRPCCollector) stop() {
-	c.server.GracefulStop()
+func (c *mockOTLPHTTPCollector) stop() {
+	c.server.Close()
 }
 
 // metricNames extracts all metric names from the collected requests.
-func (c *mockOTLPGRPCCollector) metricNames() map[string]bool {
+func (c *mockOTLPHTTPCollector) metricNames() map[string]bool {
 	names := make(map[string]bool)
 	for _, req := range c.getRequests() {
 		for _, rm := range req.GetResourceMetrics() {
@@ -83,21 +81,21 @@ func (c *mockOTLPGRPCCollector) metricNames() map[string]bool {
 	return names
 }
 
-// address returns the host:port of the gRPC collector.
-func (c *mockOTLPGRPCCollector) address() string {
-	return c.addr
+// address returns the host:port portion of the collector URL (no scheme).
+func (c *mockOTLPHTTPCollector) address() string {
+	// Strip "http://" prefix
+	return c.server.URL[len("http://"):]
 }
 
-func TestOTLPMetricsExportGRPC(t *testing.T) {
-	collector := newMockOTLPGRPCCollector(t)
+func TestOTLPMetricsExportHTTP(t *testing.T) {
+	collector := newMockOTLPHTTPCollector()
 	defer collector.stop()
 
 	testServerParams := e2e.NewAPIServerTestParams()
 	testServerParams.ConfigOverrides = []string{
-		"distributed_tracing.type=grpc",
-		"distributed_tracing.address=" + collector.address(),
-		"distributed_tracing.metrics=true",
-		"distributed_tracing.metrics_export_interval_ms=500",
+		"metrics_export.type=otlp/http",
+		"metrics_export.address=" + collector.address(),
+		"metrics_export.export_interval_ms=500",
 	}
 	testServerParams.Logging = runtime.LoggingConfig{Level: "error"}
 

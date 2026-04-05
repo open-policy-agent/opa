@@ -35,6 +35,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/config"
 	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
+	internal_metrics "github.com/open-policy-agent/opa/internal/metricsexport"
 	"github.com/open-policy-agent/opa/internal/pathwatcher"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/ref"
@@ -488,7 +489,12 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
 
-	traceExporter, tracerProvider, _, meterProvider, err := internal_tracing.Init(ctx, config, params.ID, metrics.Gatherer())
+	traceExporter, tracerProvider, _, err := internal_tracing.Init(ctx, config, params.ID)
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+
+	meterProvider, err := internal_metrics.Init(ctx, config, params.ID, metrics.Gatherer())
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}

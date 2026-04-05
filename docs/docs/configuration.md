@@ -84,8 +84,6 @@ distributed_tracing:
   service_name: opa
   sample_percentage: 50
   encryption: "off"
-  metrics: false
-  metrics_export_interval_ms: 60000
   resource:
     service_namespace: "my-namespace"
     service_version: "1.1"
@@ -953,8 +951,6 @@ Distributed tracing represents the configuration of the OpenTelemetry Tracing.
 | `distributed_tracing.batch_span_processor_options.batch_timeout_ms`      | `int`     | No (default: `5000`)                                                                       | The maximum duration for constructing a batch in milliseconds.                                             |
 | `distributed_tracing.batch_span_processor_options.export_timeout_ms`     | `int`     | No (default: `30000`)                                                                      | The maximum duration for exporting spans in milliseconds.                                                  |
 | `distributed_tracing.batch_span_processor_options.max_export_batch_size` | `int`     | No (default: `512`)                                                                        | The maximum number of spans to process in a single batch.                                                  |
-| `distributed_tracing.metrics`                                            | `bool`    | No (default: `false`)                                                                      | Enables pushing Prometheus metrics to the OTel collector via OTLP.                                         |
-| `distributed_tracing.metrics_export_interval_ms`                         | `int`     | No (default: `60000`)                                                                      | Interval between metric exports in milliseconds.                                                           |
 | `distributed_tracing.batch_span_processor_options.max_queue_size`        | `int`     | No (default: `2048`)                                                                       | The maximum queue size to buffer spans for delayed processing.                                             |
 
 The following encryption methods are supported:
@@ -964,6 +960,35 @@ The following encryption methods are supported:
 | `off`  | Disable TLS       |
 | `tls`  | Enable TLS        |
 | `mtls` | Enable mutual TLS |
+
+## Metrics Export
+
+The `metrics_export` configuration enables exporting Prometheus metrics via OTLP to an OpenTelemetry Collector, independently of distributed tracing.
+
+```yaml
+metrics_export:
+  type: otlp/http
+  address: localhost:4318
+  export_interval_ms: 5000
+  service_name: opa
+  encryption: "off"
+  allow_insecure_tls: false
+  tls_ca_cert_file: /path/to/ca.pem
+  tls_cert_file: /path/to/cert.pem
+  tls_private_key_file: /path/to/key.pem
+```
+
+| Field                                 | Type     | Required                                                                                           | Description                                                               |
+| ------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `metrics_export.type`                 | `string` | No                                                                                                 | `"otlp/grpc"` or `"otlp/http"`. Omit (or `""`) to disable metrics export. |
+| `metrics_export.address`              | `string` | No (default: `localhost:4317` if `type` is `otlp/grpc`, `localhost:4318` if `type` is `otlp/http`) | Address of the OpenTelemetry Collector endpoint.                          |
+| `metrics_export.export_interval_ms`   | `int`    | No (default: `60000`)                                                                              | Interval between metric exports in milliseconds. Must be > 0.             |
+| `metrics_export.service_name`         | `string` | No (default: `opa`)                                                                                | Logical name of the service reported in exported metrics.                 |
+| `metrics_export.encryption`           | `string` | No (default: `off`)                                                                                | Configures TLS: `off`, `tls`, or `mtls`.                                  |
+| `metrics_export.allow_insecure_tls`   | `bool`   | No (default: `false`)                                                                              | Allow insecure TLS.                                                       |
+| `metrics_export.tls_ca_cert_file`     | `string` | No                                                                                                 | The path to the root CA certificate.                                      |
+| `metrics_export.tls_cert_file`        | `string` | No (unless `encryption` equals `mtls`)                                                             | The path to the client certificate to authenticate with.                  |
+| `metrics_export.tls_private_key_file` | `string` | No (unless `tls_cert_file` provided)                                                               | The path to the private key of the client certificate.                    |
 
 ## Disk Storage
 
