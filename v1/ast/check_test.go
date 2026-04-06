@@ -2680,6 +2680,35 @@ test_obj2 if {
 	{"a":"1"} == obj with input as {"a": "1"}
 }`,
 		},
+		{
+			name: "compare two partial objects",
+			policy: `package p
+
+obj1["a"] := input.a
+obj1["b"] := input.b
+
+obj2["x"] := input.x
+obj2["y"] := input.y
+
+test if {
+	obj1 == obj2
+}`,
+		},
+		{
+			name: "sum with valid number args",
+			policy: `package p
+
+a := 1
+s := sum([1, a])`,
+		},
+		{
+			name: "sum with untyped var from input",
+			policy: `package p
+
+allow := s if {
+    s := sum([1, input.a])
+}`,
+		},
 	}
 
 	for _, tc := range tests {
