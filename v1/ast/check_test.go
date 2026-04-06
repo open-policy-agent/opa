@@ -2643,46 +2643,6 @@ allow if {
 p if { [data.base.foo] }`,
 			expectedError: "policy.rego:3: rego_type_error: function data.base.foo used as reference, not called",
 		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			module, err := ParseModuleWithOpts("policy.rego", tc.policy, ParserOptions{ProcessAnnotation: true})
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			capabilities := CapabilitiesForThisVersion()
-			compiler := NewCompiler().
-				WithUseTypeCheckAnnotations(true).
-				WithCapabilities(capabilities)
-			pOpts := ParserOptions{AllFutureKeywords: true}
-
-			functions := []string{
-				`foo([a, b]) = y if { split(a, b, y) }`,
-			}
-			body := strings.Join(functions, "\n")
-			base := "package base\n" + body
-			compiler.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, pOpts), "policy.rego": module})
-
-			if !compiler.Failed() {
-				t.Fatal("expected error, got none")
-			}
-
-			if !strings.Contains(compiler.Errors.Error(), tc.expectedError) {
-				t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s",
-					tc.expectedError, compiler.Errors.Error())
-			}
-		})
-	}
-}
-
-func TestCheckTypesFromReference(t *testing.T) {
-	tests := []struct {
-		name          string
-		policy        string
-		expectedError string
-	}{
 		{
 			name: "wrong type used directly",
 			policy: `package p
@@ -2708,6 +2668,18 @@ allow := s if {
 }`,
 			expectedError: "sum: invalid argument(s)",
 		},
+		{
+			name: "compare partial object",
+			policy: `package p
+
+obj["a"] := input.a
+
+obj["b"] := input.b
+
+test_obj2 if {
+	{"a":"1"} == obj with input as {"a": "1"}
+}`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -2716,13 +2688,27 @@ allow := s if {
 			if err != nil {
 				t.Fatal(err)
 			}
-			modules := map[string]*Module{"policy.rego": module}
 
 			capabilities := CapabilitiesForThisVersion()
 			compiler := NewCompiler().
 				WithUseTypeCheckAnnotations(true).
 				WithCapabilities(capabilities)
-			compiler.Compile(modules)
+			pOpts := ParserOptions{AllFutureKeywords: true}
+
+			functions := []string{
+				`foo([a, b]) = y if { split(a, b, y) }`,
+			}
+			body := strings.Join(functions, "\n")
+			base := "package base\n" + body
+			compiler.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, pOpts), "policy.rego": module})
+
+			if tc.expectedError == "" {
+				if compiler.Failed() {
+					t.Fatalf("expected no error, but got %v", compiler.Errors.Error())
+				} else {
+					return
+				}
+			}
 
 			if !compiler.Failed() {
 				t.Fatal("expected error, got none")
