@@ -2466,6 +2466,100 @@ Lines not covered:
 	}
 }
 
+func TestCoverageThresholdWithBundles(t *testing.T) {
+	modules := map[string]string{
+		"authz/policy.rego": `package authz
+
+import rego.v1
+
+allow if {
+	input.path == ["users"]
+	input.method == "POST"
+}
+
+allow if {
+	some profile_id
+	input.path = ["users", profile_id]
+	input.method == "GET"
+	profile_id == input.user_id
+}
+`,
+		"authz/policy_test.rego": `package authz
+
+import rego.v1
+
+test_post_allowed if {
+	allow with input as {"path": ["users"], "method": "POST"}
+}
+
+test_get_anonymous_denied if {
+	not allow with input as {"path": ["users"], "method": "GET"}
+}
+test_get_another_user_denied if {
+	not allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "alice"}
+}
+`,
+	}
+
+	for _, loadType := range []loadType{loadBundle, loadTarball} {
+		t.Run(loadType.String(), func(t *testing.T) {
+			var files map[string]string
+			if loadType != loadTarball {
+				files = modules
+			}
+			test.WithTempFS(files, func(root string) {
+				if loadType == loadTarball {
+					f, err := os.Create(filepath.Join(root, "bundle.tar.gz"))
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					testBundle := bundle.Bundle{
+						Data: map[string]any{},
+					}
+					for k, v := range modules {
+						testBundle.Modules = append(testBundle.Modules, bundle.ModuleFile{
+							Path: k,
+							Raw:  []byte(v),
+						})
+					}
+
+					if err := bundle.Write(f, testBundle); err != nil {
+						t.Fatal(err)
+					}
+				}
+
+				var buf bytes.Buffer
+
+				testParams := newTestCommandParams()
+				testParams.threshold = 100
+				testParams.verbose = true
+				testParams.count = 1
+				testParams.bundleMode = true
+				testParams.errOutput = &buf
+				testParams.coverage = true
+
+				var paths []string
+				if loadType == loadTarball {
+					paths = []string{filepath.Join(root, "bundle.tar.gz")}
+				} else {
+					paths = []string{root}
+				}
+
+				exitCode := opaTest(paths, testParams)
+				// Coverage should NOT be 100% since the second allow rule is never exercised
+				if exitCode != 2 {
+					t.Fatalf("expected exit code 2 (threshold not met), got %d\noutput: %s", exitCode, buf.String())
+				}
+
+				if !strings.Contains(buf.String(), "Code coverage threshold not met: got 92.31 instead of 100.00") {
+					t.Fatalf("expected coverage of 92.31, got:\n\n%q", buf.String())
+				}
+			})
+		})
+	}
+}
+
 type loadType int
 
 const (
