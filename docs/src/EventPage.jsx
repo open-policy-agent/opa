@@ -46,6 +46,12 @@ const EventPage = (props) => {
 
   return (
     <Layout title={event.title}>
+      {eventStatus === "after" && (
+        <div className={styles.eventPassedBanner}>
+          This event has now passed but you can still browse session links
+        </div>
+      )}
+
       <div className={styles.pageLayout}>
         <div className={styles.sidebar}>
           <img
@@ -70,7 +76,7 @@ const EventPage = (props) => {
 
           {eventStatus === "after" && (
             <Heading as="h1" className={styles.eventMessage}>
-              {event.title} has now passed
+              {event.title}
             </Heading>
           )}
         </div>
