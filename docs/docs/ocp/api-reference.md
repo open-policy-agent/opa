@@ -208,6 +208,70 @@ Bundles are collections of policies and data that can be distributed to OPA inst
 {}
 ```
 
+### `GET /v1/bundles/{bundle}/status/latest`
+
+**Description**: Get the most recent bundle status record for a given bundle across all revisions
+
+**Path Parameters**:
+
+- `bundle`: URL-encoded bundle name
+
+**Response**:
+
+- **200 OK**: Returns the latest bundle status record
+- **404 Not Found**: No status records exist for the given bundle
+
+**Example Response**:
+
+```json
+{
+  "result": {
+    "bundle_name": "my-app-bundle",
+    "revision": "1.0.0",
+    "phase": "BUILD",
+    "status": "SUCCESS",
+    "created_at": "2025-08-07T10:30:00Z"
+  }
+}
+```
+
+### `GET /v1/bundles/{bundle}/status`
+
+**Description**: Get bundle status records for a given bundle, ordered by status ID descending. If a revision is provided, results are filtered by that revision. If no revision is provided, returns records across all revisions.
+
+**Path Parameters**:
+
+- `bundle`: URL-encoded bundle name
+
+**Query Parameters**:
+
+- `revision` (optional): Filter results by bundle revision. If empty, returns records across all revisions.
+- `limit` (optional): Maximum number of results to return. Defaults to 10 if set to 0 or omitted. Values above 10 are capped at 10.
+
+**Example Response**:
+
+```json
+{
+  "result": [
+    {
+      "bundle_name": "my-app-bundle",
+      "revision": "1.0.0",
+      "phase": "PUSH",
+      "status": "PUSH_FAILED",
+      "error_message": "push failed",
+      "created_at": "2025-08-07T10:30:00Z"
+    },
+    {
+      "bundle_name": "my-app-bundle",
+      "revision": "2.0.0",
+      "phase": "BUILD",
+      "status": "SUCCESS",
+      "created_at": "2025-08-07T09:15:00Z"
+    }
+  ]
+}
+```
+
 ---
 
 ## Source Management
