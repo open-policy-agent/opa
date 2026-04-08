@@ -28,12 +28,14 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/internal/compiler"
 	"github.com/open-policy-agent/opa/internal/config"
 	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
+	internal_metrics "github.com/open-policy-agent/opa/internal/metricsexport"
 	"github.com/open-policy-agent/opa/internal/pathwatcher"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/ref"
@@ -344,6 +346,7 @@ type Runtime struct {
 	metrics           *prometheus.Provider
 	versionChecker    versioncheck.Checker
 	traceExporter     *otlptrace.Exporter
+	meterProvider     *sdkmetric.MeterProvider
 	loadedPathsResult *initload.LoadPathsResult
 
 	serverStatus  ServerStatus
@@ -490,6 +493,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
+
+	meterProvider, err := internal_metrics.Init(ctx, config, params.ID, metrics.Gatherer())
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
 	if tracerProvider != nil {
 		params.DistributedTracingOpts = tracing.NewOptions(
 			otelhttp.WithTracerProvider(tracerProvider),
@@ -563,6 +571,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		versionChecker:    versionChecker,
 		serverStatus:      ServerNotStarted,
 		traceExporter:     traceExporter,
+		meterProvider:     meterProvider,
 		loadedPathsResult: loaded,
 	}
 
@@ -1016,6 +1025,12 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 		err = rt.traceExporter.Shutdown(ctx)
 		if err != nil {
 			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
+		}
+	}
+
+	if rt.meterProvider != nil {
+		if err := rt.meterProvider.Shutdown(ctx); err != nil {
+			rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to shutdown OpenTelemetry meter provider gracefully.")
 		}
 	}
 

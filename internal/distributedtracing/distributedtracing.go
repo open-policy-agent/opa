@@ -7,10 +7,7 @@ package distributedtracing
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -25,6 +22,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/open-policy-agent/opa/internal/tlsutil"
 	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -112,36 +110,31 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 		return nil, nil, nil, nil
 	}
 
-	certificate, err := loadCertificate(distributedTracingConfig.TLSCertFile, distributedTracingConfig.TLSCertPrivateKeyFile)
+	certificate, err := tlsutil.LoadCertificate(distributedTracingConfig.TLSCertFile, distributedTracingConfig.TLSCertPrivateKeyFile)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	certPool, err := loadCertPool(distributedTracingConfig.TLSCACertFile)
+	certPool, err := tlsutil.LoadCertPool(distributedTracingConfig.TLSCACertFile)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	tlsConfig, err := tlsutil.BuildTLSConfig(distributedTracingConfig.EncryptionScheme, *distributedTracingConfig.EncryptionSkipVerify, certificate, certPool)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	var traceExporter *otlptrace.Exporter
 	if strings.EqualFold(distributedTracingConfig.Type, "grpc") {
-		tlsOption, err := grpcTLSOption(distributedTracingConfig.EncryptionScheme, *distributedTracingConfig.EncryptionSkipVerify, certificate, certPool)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
 		traceExporter = otlptracegrpc.NewUnstarted(
 			otlptracegrpc.WithEndpoint(distributedTracingConfig.Address),
-			tlsOption,
+			grpcTLSOption(distributedTracingConfig.EncryptionScheme, tlsConfig),
 		)
 	} else if strings.EqualFold(distributedTracingConfig.Type, "http") {
-		tlsOption, err := httpTLSOption(distributedTracingConfig.EncryptionScheme, *distributedTracingConfig.EncryptionSkipVerify, certificate, certPool)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
 		traceExporter = otlptracehttp.NewUnstarted(
 			otlptracehttp.WithEndpoint(distributedTracingConfig.Address),
-			tlsOption,
+			httpTLSOption(distributedTracingConfig.EncryptionScheme, tlsConfig),
 		)
 	}
 
@@ -301,71 +294,18 @@ func (c *distributedTracingConfig) validateAndInjectDefaults() error {
 	return nil
 }
 
-func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, error) {
-
-	if tlsCertFile != "" && tlsPrivateKeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(tlsCertFile, tlsPrivateKeyFile)
-		if err != nil {
-			return nil, err
-		}
-		return &cert, nil
-	}
-
-	if tlsCertFile != "" || tlsPrivateKeyFile != "" {
-		return nil, errors.New("distributed_tracing.tls_cert_file and distributed_tracing.tls_private_key_file must be specified together")
-	}
-
-	return nil, nil
-}
-
-func loadCertPool(tlsCACertFile string) (*x509.CertPool, error) {
-	if tlsCACertFile == "" {
-		return nil, nil
-	}
-
-	caCertPEM, err := os.ReadFile(tlsCACertFile)
-	if err != nil {
-		return nil, fmt.Errorf("read CA cert file: %v", err)
-	}
-	pool := x509.NewCertPool()
-	if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
-		return nil, fmt.Errorf("failed to parse CA cert %q", tlsCACertFile)
-	}
-	return pool, nil
-}
-
-func grpcTLSOption(encryptionScheme string, encryptionSkipVerify bool, cert *tls.Certificate, certPool *x509.CertPool) (otlptracegrpc.Option, error) {
+func grpcTLSOption(encryptionScheme string, tlsConfig *tls.Config) otlptracegrpc.Option {
 	if encryptionScheme == "off" {
-		return otlptracegrpc.WithInsecure(), nil
+		return otlptracegrpc.WithInsecure()
 	}
-	tlsConfig := &tls.Config{
-		RootCAs:            certPool,
-		InsecureSkipVerify: encryptionSkipVerify,
-	}
-	if encryptionScheme == "mtls" {
-		if cert == nil {
-			return nil, errors.New("distributed_tracing.tls_cert_file required but not supplied")
-		}
-		tlsConfig.Certificates = []tls.Certificate{*cert}
-	}
-	return otlptracegrpc.WithTLSCredentials(credentials.NewTLS(tlsConfig)), nil
+	return otlptracegrpc.WithTLSCredentials(credentials.NewTLS(tlsConfig))
 }
 
-func httpTLSOption(encryptionScheme string, encryptionSkipVerify bool, cert *tls.Certificate, certPool *x509.CertPool) (otlptracehttp.Option, error) {
+func httpTLSOption(encryptionScheme string, tlsConfig *tls.Config) otlptracehttp.Option {
 	if encryptionScheme == "off" {
-		return otlptracehttp.WithInsecure(), nil
+		return otlptracehttp.WithInsecure()
 	}
-	tlsConfig := &tls.Config{
-		RootCAs:            certPool,
-		InsecureSkipVerify: encryptionSkipVerify,
-	}
-	if encryptionScheme == "mtls" {
-		if cert == nil {
-			return nil, errors.New("distributed_tracing.tls_cert_file required but not supplied")
-		}
-		tlsConfig.Certificates = []tls.Certificate{*cert}
-	}
-	return otlptracehttp.WithTLSClientConfig(tlsConfig), nil
+	return otlptracehttp.WithTLSClientConfig(tlsConfig)
 }
 
 type errorHandler struct {

@@ -104,6 +104,7 @@ type Config struct {
 	NDBuiltinCache               bool                       `json:"nd_builtin_cache,omitempty"`
 	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
+	MetricsExport                json.RawMessage            `json:"metrics_export,omitempty"`
 	Server                       *ServerConfig              `json:"server,omitempty"`
 	Storage                      *StorageConfig             `json:"storage,omitempty"`
 	Extra                        map[string]json.RawMessage `json:"-"`
@@ -273,6 +274,10 @@ func (c *Config) Clone() *Config {
 	if c.DistributedTracing != nil {
 		clone.DistributedTracing = make(json.RawMessage, len(c.DistributedTracing))
 		copy(clone.DistributedTracing, c.DistributedTracing)
+	}
+	if c.MetricsExport != nil {
+		clone.MetricsExport = make(json.RawMessage, len(c.MetricsExport))
+		copy(clone.MetricsExport, c.MetricsExport)
 	}
 
 	if c.DefaultDecision != nil {
