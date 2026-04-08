@@ -2695,6 +2695,22 @@ test if {
 }`,
 		},
 		{
+			name: "compare two partial objects 2",
+			policy: `package test
+
+obj["a"] := true
+
+obj["b"] := "foo" if {
+    input.foo == "bar"
+}
+
+test_obj if {
+    obj == {
+        "a": true
+    } with input as {"foo": "baz"}
+}`,
+		},
+		{
 			name: "sum with valid number args",
 			policy: `package p
 
