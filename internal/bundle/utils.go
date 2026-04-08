@@ -78,7 +78,7 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 		}
 
 		for _, wmf := range resolversToLoad {
-			resolver, err := wasm.New(wmf.Entrypoints, wmf.Raw, data)
+			resolver, err := wasm.NewContext(ctx, wmf.Entrypoints, wmf.Raw, data)
 			if err != nil {
 				return nil, fmt.Errorf("failed to initialize wasm module for entrypoints '%s': %s", wmf.Entrypoints, err)
 			}

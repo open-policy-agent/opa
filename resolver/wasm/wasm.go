@@ -5,6 +5,8 @@
 package wasm
 
 import (
+	"context"
+
 	"github.com/open-policy-agent/opa/ast"
 	v1 "github.com/open-policy-agent/opa/v1/resolver/wasm"
 )
@@ -12,7 +14,7 @@ import (
 // New creates a new Resolver instance which is using the Wasm module
 // policy for the given entrypoint ref.
 func New(entrypoints []ast.Ref, policy []byte, data any) (*Resolver, error) {
-	return v1.New(entrypoints, policy, data)
+	return v1.NewContext(context.TODO(), entrypoints, policy, data)
 }
 
 // Resolver implements the resolver.Resolver interface
