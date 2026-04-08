@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.15.2
+
+This release updates the version of Go used to build the OPA binaries and images to 1.26.2.
+This version of Go contains multiple [security fixes](https://groups.google.com/g/golang-announce/c/0uYbvbPZRWU/).
+
 ## 1.15.1
 
 This patch release fixes a backwards-incompatible change in the `v1/logging.Logger` interface that inadvertently made it into Release v1.15.0.
