@@ -2680,6 +2680,7 @@ test_obj2 if {
 	{"a":"1"} == obj with input as {"a": "1"}
 }`,
 		},
+		// this policy verifies this issue: https://github.com/open-policy-agent/opa/issues/6751
 		{
 			name: "compare two partial objects",
 			policy: `package p
@@ -2694,6 +2695,7 @@ test if {
 	obj1 == obj2
 }`,
 		},
+		// this policy verifies this issue: https://github.com/open-policy-agent/opa/issues/5594
 		{
 			name: "compare two partial objects 2",
 			policy: `package test
