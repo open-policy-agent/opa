@@ -943,33 +943,36 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 		}
 	}
 
-	var indented, down bool
-	for i, with := range expr.With {
-		if i == 0 || with.Location.Row == expr.With[i-1].Location.Row { // we're on the same line
-			comments, err = w.writeWith(with, comments, false)
-			if err != nil {
-				return nil, err
-			}
-		} else { // we're on a new line
-			if !indented {
-				indented = true
-
-				w.up()
-				down = true
-			}
-			w.endLine()
-			w.startLine()
-			comments, err = w.writeWith(with, comments, true)
-			if err != nil {
-				return nil, err
-			}
-		}
+	if len(expr.With) == 0 {
+		return comments, nil
 	}
 
-	if down {
-		if err := w.down(); err != nil {
+	withs := expr.With
+	lastRow := expr.Location.Row
+
+	// Print on same row if already there, otherwise increase indent a print remaining
+	if withs[0].Location.Row == lastRow {
+		if comments, err = w.writeWith(withs[0], comments, false); err != nil {
 			return nil, err
 		}
+		lastRow, withs = withs[0].Location.Row, withs[1:]
+	}
+
+	if len(withs) > 0 {
+		w.up()
+		for _, with := range withs {
+			indent := with.Location.Row > lastRow
+			if indent {
+				w.endLine()
+				w.startLine()
+				lastRow = with.Location.Row
+			}
+			if comments, err = w.writeWith(with, comments, indent); err != nil {
+				return nil, err
+			}
+		}
+
+		return comments, w.down()
 	}
 
 	return comments, nil
