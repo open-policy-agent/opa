@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"net"
 	"net/http"
@@ -1007,7 +1008,17 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 }
 
 func (*Server) indexGet(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
+	_ = indexHTML.Execute(w, struct {
+		Version        string
+		BuildCommit    string
+		BuildTimestamp string
+		BuildHostname  string
+	}{
+		Version:        version.Version,
+		BuildCommit:    version.Vcs,
+		BuildTimestamp: version.Timestamp,
+		BuildHostname:  version.Hostname,
+	})
 }
 
 type bundleRevisions struct {
@@ -3000,6 +3011,30 @@ func readInputCompilePostV1(reqBytes []byte, queryParserOptions ast.ParserOption
 		},
 	}, nil
 }
+
+var indexHTML, _ = template.New("index").Parse(`
+<html>
+<head>
+</head>
+</body>
+<pre>
+ ________      ________    ________
+|\   __  \    |\   __  \  |\   __  \
+\ \  \|\  \   \ \  \|\  \ \ \  \|\  \
+ \ \  \\\  \   \ \   ____\ \ \   __  \
+  \ \  \\\  \   \ \  \___|  \ \  \ \  \
+   \ \_______\   \ \__\      \ \__\ \__\
+    \|_______|    \|__|       \|__|\|__|
+</pre>
+Open Policy Agent - An open source project to policy-enable your service.<br>
+<br>
+Version: {{ .Version }}<br>
+Build Commit: {{ .BuildCommit }}<br>
+Build Timestamp: {{ .BuildTimestamp }}<br>
+Build Hostname: {{ .BuildHostname }}<br>
+</body>
+</html>
+`)
 
 type decisionLogger struct {
 	revisions map[string]string
