@@ -16,6 +16,20 @@ multi_line_with {
                     3]
 }
 
+multi_line_with_all_indented {
+    fn(1)
+        with input.a as "a"
+        with input.b as "b"
+        with input.c as "c"
+}
+
+multi_line_with_all_indented_messy {
+    fn(1)
+with input.a as "a"
+        with input.b as "b"
+    with input.c as "c"
+}
+
 mixed_new_lines_with {
     true with input.a as "a"
       with input.b as "b" with input.c as "c"
