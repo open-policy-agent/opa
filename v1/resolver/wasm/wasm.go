@@ -16,8 +16,16 @@ import (
 )
 
 // New creates a new Resolver instance which is using the Wasm module
-// policy for the given entrypoint ref.
+// policy for the given entrypoint ref. This method creates a new
+// background context. If you need to pass an existing context use
+// NewWithContext instead.
 func New(entrypoints []ast.Ref, policy []byte, data any) (*Resolver, error) {
+	return NewWithContext(context.Background(), entrypoints, policy, data)
+}
+
+// NewWithContext creates a new Resolver instance which is using the Wasm module
+// policy for the given entrypoint ref. This method accepts a context.
+func NewWithContext(ctx context.Context, entrypoints []ast.Ref, policy []byte, data any) (*Resolver, error) {
 	e, err := opa.LookupEngine("wasm")
 	if err != nil {
 		return nil, err
@@ -37,7 +45,7 @@ func New(entrypoints []ast.Ref, policy []byte, data any) (*Resolver, error) {
 	// only the configured ones will be used when Eval() is
 	// called.
 	entrypointRefToID := ast.NewValueMap()
-	epIDs, err := o.Entrypoints(context.Background())
+	epIDs, err := o.Entrypoints(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +145,6 @@ func (r *Resolver) RemoveDataPath(ctx context.Context, path []string) error {
 }
 
 func getResult(evalResult *opa.Result) (ast.Value, error) {
-
 	parsed, err := ast.ParseTerm(string(evalResult.Result))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse wasm result: %s", err)
