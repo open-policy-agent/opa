@@ -2,3 +2,28 @@
 title: Units
 ---
 <BuiltinTable category={"units"}/>
+
+The `units` built-in functions help parse and convert strings representing
+measurements with unit suffixes into numeric values. These functions are
+particularly useful when working with resource limits, byte sizes, or any
+configuration that uses human-readable unit formats.
+
+## Examples
+
+### `units.parse`
+
+`units.parse` converts strings with unit suffixes into numbers. It supports:
+
+- **Decimal units**: `m` (milli), `K` (kilo), `M` (mega), `G` (giga), `T` (tera), `P` (peta), `E` (exa)
+- **Binary units**: `Ki` (kibi), `Mi` (mebi), `Gi` (gibi), `Ti` (tebi), `Pi` (pebi), `Ei` (exbi)
+- **Scientific notation**: `1e3K`, `2.5e6M`, etc.
+
+Note that 'm' and 'M' are case-sensitive to distinguish between "milli" and "mega" units.
+
+Common use cases include:
+
+- Validating resource limits in container configurations (memory, CPU)
+- Normalizing configuration values for comparison
+- Converting human-readable metrics to numeric values for calculations
+
+<PlaygroundExample dir={require.context('../_examples/units/parse/resource-limits')} />
