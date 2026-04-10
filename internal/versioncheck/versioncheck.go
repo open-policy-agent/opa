@@ -83,6 +83,9 @@ func New(opts Options) (Checker, error) {
 	if url == "" {
 		url = ExternalServiceURL
 	}
+	if url == "false" {
+		return nil, errors.New("version check is disabled with OPA_VERSION_CHECK_SERVICE_URL=false")
+	}
 
 	// Set a generic User-Agent to avoid sending version/platform information about the user's OPA instance.
 	// This ensures we only retrieve version information without transmitting any identifying data.
