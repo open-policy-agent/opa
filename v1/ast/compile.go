@@ -5050,7 +5050,7 @@ func resolveRef(globals map[Var]*usedRef, ignore *declaredVarStack, ref Ref) Ref
 		switch v := x.Value.(type) {
 		case Var:
 			if g, ok := globals[v]; ok && !ignore.Contains(v) {
-				cpy := g.ref.Copy()
+				cpy := g.ref.CopyNonGround()
 				for i := range cpy {
 					cpy[i].SetLocation(x.Location)
 				}
@@ -5203,7 +5203,7 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 	switch v := term.Value.(type) {
 	case Var:
 		if g, ok := globals[v]; ok && !ignore.Contains(v) {
-			cpy := g.ref.Copy()
+			cpy := g.ref.CopyNonGround()
 			for i := range cpy {
 				cpy[i].SetLocation(term.Location)
 			}
