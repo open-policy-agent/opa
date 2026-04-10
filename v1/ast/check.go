@@ -979,7 +979,7 @@ func unifiesObjectsStatic(a, b *types.Object) bool {
 	for _, k := range a.Keys() {
 		tpeB := b.Select(k)
 		if tpeB == nil {
-			if a.DynamicValue() != nil {
+			if a.DynamicValue() != nil || b.DynamicValue() != nil {
 				continue
 			}
 			return false
