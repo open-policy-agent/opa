@@ -1458,146 +1458,6 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
-			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
-			query: "data.test.p = true",
-			modules: []string{`
-				package test
-
-				mock_count(_) = 100
-				p if {
-					not q with input.x as 1 with count as mock_count
-				}
-
-				q if {
-					count([1,2,3]) = input.x
-				}
-			`},
-			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
-			wantSupport: []string{`
-				package partial.test
-
-				q if { 100 = input.x }
-			`},
-		},
-		{
-			note:  "with+function+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
-			query: "data.test.p = true",
-			modules: []string{`
-				package test
-				my_count(x) = count(x)
-				mock_count(_) = 100
-				p if {
-					not q with input.x as 1 with my_count as mock_count
-				}
-
-				q if {
-					my_count([1,2,3]) = input.x
-				}
-			`},
-			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
-			wantSupport: []string{`
-				package partial.test
-
-				q if { 100 = input.x }
-			`},
-		},
-		{
-			note:  "with+builtin+negation: when replacement args have unknowns, save negated expr with replacement",
-			query: "data.test.p = true",
-			modules: []string{`
-				package test
-
-				mock_count(_) = 100
-				p if {
-					not q with input.x as 1 with count as mock_count
-				}
-
-				q if {
-					count(input.y) = input.x # unknown arg for mocked func
-				}
-			`},
-			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
-			wantSupport: []string{`
-				package partial.test
-
-				q if { data.partial.test.mock_count(input.y, __local1__3); __local1__3 = input.x }
-				mock_count(__local0__4) = 100
-			`},
-		},
-		{
-			note:  "with+function+negation: when replacement args have unknowns, save negated expr with replacement",
-			query: "data.test.p = true",
-			modules: []string{`
-				package test
-				my_count(x) = count(x)
-				mock_count(_) = 100
-				p if {
-					not q with input.x as 1 with my_count as mock_count
-				}
-
-				q if {
-					my_count(input.y) = input.x # unknown arg for mocked func
-				}
-			`},
-			wantQueries: []string{`not data.partial.test.q with input.x as 1`},
-			wantSupport: []string{`
-				package partial.test
-
-				q if { data.partial.test.mock_count(input.y, __local3__3); __local3__3 = input.x }
-				mock_count(__local1__4) = 100
-			`},
-		},
-		{
-			note:  "with+builtin+negation: when replacement defs have unknowns, save negated expr with replacement",
-			query: "data.test.p = true",
-			modules: []string{`
-				package test
-
-				mock_count(_) = 100 if { input.y }
-				mock_count(_) = 101 if { input.z }
-				p if {
-					not q with input.x as 1 with count as mock_count
-				}
-
-				q if {
-					count([1]) = input.x # unknown arg for mocked func
-				}
-			`},
-			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
-			wantSupport: []string{`
-				package partial.test
-
-				q if { data.partial.test.mock_count([1], __local2__3); __local2__3 = input.x }
-				mock_count(__local0__5) = 100 if { input.y = x_term_5_05; x_term_5_05 }
-				mock_count(__local1__4) = 101 if { input.z = x_term_4_04; x_term_4_04 }
-			`},
-		},
-		{
-			note:  "with+function+negation: when replacement defs have unknowns, save negated expr with replacement",
-			query: "data.test.p = true",
-			modules: []string{`
-				package test
-				my_count(x) = count(x)
-				mock_count(_) = 100 if { input.y }
-				mock_count(_) = 101 if { input.z }
-				p if {
-					not q with input.x as 1 with my_count as mock_count
-				}
-
-				q if {
-					my_count([1]) = input.x # unknown arg for mocked func
-				}
-			`},
-			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
-			wantSupport: []string{`
-				package partial.test
-
-				q if { data.partial.test.mock_count([1], __local4__3); __local4__3 = input.x }
-				mock_count(__local1__5) = 100 if { input.y = x_term_5_05; x_term_5_05 }
-				mock_count(__local2__4) = 101 if { input.z = x_term_4_04; x_term_4_04 }
-			`},
-		},
-		{
 			note:  "save: sub path",
 			query: "input.x = 1; input.y = 2; input.z.a = 3; input.z.b = x",
 			input: `{"x": 1, "z": {"b": 4}}`,
@@ -2213,114 +2073,6 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
-			note:  "copy propagation: apply to support rules",
-			query: `data.test.p = true`,
-			modules: []string{`
-				package test
-
-				p if {
-					not q
-				}
-
-				q if {
-					input.x = x
-					x = y
-					y = 1
-				}
-			`},
-			wantQueries: []string{`not input.x = 1`},
-		},
-		{
-			note:  "copy propagation: apply to support rules: head vars are live",
-			query: `data.test.p = true`,
-			modules: []string{`
-				package test
-
-				p if {
-					input.x = z; not q[z]
-				}
-
-				q contains y if {
-					x = 1
-					x = a
-					a = y
-				}
-			`},
-			wantQueries: []string{`not input.x = 1`},
-		},
-		{
-			note:  "copy propagation: negation safety",
-			query: `data.test.p = true`,
-			modules: []string{
-				`package test
-
-				p if {
-					input.x[i] = x
-					not f(x)
-				}
-
-				f(x) if {
-					input.y = x
-				}`,
-			},
-			wantQueries: []string{
-				"not input.y = x1; x1 = input.x[i1]",
-			},
-		},
-		{
-			note:  "copy propagation: negation safety needs extra expr",
-			query: `data.test.p = true`,
-			modules: []string{
-				`package test
-
-				p if {
-				  x = data.y[c]
-				  x.z = 1
-				  not x.z = 2
-				}
-				`,
-			},
-			unknowns: []string{`data.y`},
-			wantQueries: []string{
-				`data.y[c1].z = 1; not x1.z = 2; x1 = data.y[c1]`,
-			},
-		},
-		{
-			note:  "copy propagation: negation safety needs extra expr - no live var overlap",
-			query: `data.test.p = true`,
-			modules: []string{
-				`package test
-
-				p if {
-				  x = input.y[c]
-				  x.z = 1
-				  not x.z = 2
-				}
-				`,
-			},
-			unknowns: []string{`input.y`},
-			wantQueries: []string{
-				`input.y[c1].z = 1; not x1.z = 2; x1 = input.y[c1]`,
-			},
-		},
-		{
-			note:  "copy propagation: negation safety no extra expr",
-			query: `data.test.p = true`,
-			modules: []string{
-				`package test
-
-				p if {
-				  x = data.y[c]
-				  not x.z = 2
-				}
-				`,
-			},
-			unknowns: []string{`data.y`},
-			wantQueries: []string{
-				`not x1.z = 2; x1 = data.y[c1]`,
-			},
-		},
-		{
 			note:  "copy propagation: rewrite object key (bug 1177)",
 			query: `data.test.p = true`,
 			modules: []string{
@@ -2468,395 +2220,6 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
-			note:  "negation: inline compound",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if { not q }
-				q if { ((input.x + 7) / input.y) > 100 }`,
-			},
-			wantQueries: []string{
-				`not data.partial.__not1_0_2__`,
-			},
-			wantSupport: []string{
-				`package partial
-
-				__not1_0_2__ if {
-					((input.x + 7) / input.y) > 100
-				}`,
-			},
-		},
-		{
-			note:  "negation: inline conjunction",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if { not q }
-				q if { a = input.x + 7; b = a / input.y; b > 100 }`,
-			},
-			wantQueries: []string{
-				`not data.partial.__not1_0_2__`,
-			},
-			wantSupport: []string{
-				`package partial
-
-				__not1_0_2__ if {
-					((input.x + 7) / input.y) > 100
-				}`,
-			},
-		},
-		{
-			note:  "negation: inline safety",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if {
-					input.x = 1;					# no op
-					not q;							# support
-					not r;							# fail
-					not s;							# inline (simple)
-					input.z = [z]; z1 = z; t(z1)	# inline transitive
-				}
-
-				q if {
-					input.a[i] = 1
-				}
-
-				r if { false }
-
-				s if { input.y = 2 }
-
-				t(z2) if {
-					z2 = z3
-					z3[0] = 1
-				}
-				`,
-			},
-			wantQueries: []string{
-				`input.x = 1; not data.partial.__not1_1_2__; not input.y = 2; input.z = [z38]; z38[0] = 1`,
-			},
-			wantSupport: []string{
-				`package partial
-
-				__not1_1_2__ if {
-					input.a[i3] = 1
-				}`,
-			},
-		},
-		{
-			note:  "negation: support safety without args",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if {
-					q
-					not r
-				}
-
-				q if {
-					input.x[i] = a
-					startswith(a, "foo")
-				}
-
-				r if {
-					input.y[i] = 1
-				}`,
-			},
-			wantQueries: []string{`startswith(input.x[i2], "foo"); not data.partial.__not1_1_3__`},
-			wantSupport: []string{
-				`package partial
-
-				__not1_1_3__ if { input.y[i4] = 1 }`,
-			},
-		},
-		{
-			note:  "negation: support safety with args",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if {
-					input.x = x; not f(x)
-				}
-
-				f(x) if {
-					input.y[i] = a
-					sort(x, z)
-					z[a] = 1
-				}`,
-			},
-			wantQueries: []string{`not data.partial.__not1_1_2__(input.x)`},
-			wantSupport: []string{`
-				package partial
-
-				__not1_1_2__(x1) if {
-					sort(x1, z3)
-					z3[input.y[i3]] = 1
-				}
-			`},
-		},
-		{
-			note:  "negation: inline safety with live var",
-			query: "input = x; not data.test.f(x)",
-			modules: []string{
-				`package test
-
-				f(x) if {
-					count(x) != 3
-				}`,
-			},
-			wantQueries: []string{
-				`input = x; not data.partial.__not0_1_1__(x)`,
-			},
-			wantSupport: []string{
-				`package partial
-
-				__not0_1_1__(x) if {
-					count(x) != 3
-				}`,
-			},
-		},
-		{
-			note:  "negation: inline namespacing",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if {
-					input = x; not f(x)
-				}
-
-				f(x) if {
-					count(x) > 3
-				}`,
-			},
-			wantQueries: []string{
-				`not data.partial.__not1_1_2__(input)`,
-			},
-			wantSupport: []string{
-				`package partial
-
-				__not1_1_2__(x1) if { count(x1) > 3 }`,
-			},
-		},
-		{
-			note:  "negation: inline namespacing embedded",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if {
-					y = input.y
-					z = y
-					x = [z, 1]
-					not f(x)
-				}
-
-				f(x) if {
-					sum(x) > 3
-				}`,
-			},
-			wantQueries: []string{
-				`not data.partial.__not1_3_2__(input.y)`,
-			},
-			wantSupport: []string{
-				`package partial
-
-				__not1_3_2__(z1) if {
-					sum([z1, 1]) > 3
-				}`,
-			},
-		},
-		{
-			note:  "negation: inline disjunction",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if { not q }
-				q if { input.x = 1 }
-				q if { input.x = 2 }
-				`,
-			},
-			wantQueries: []string{
-				`not input.x = 1; not input.x = 2`,
-			},
-			ignoreOrder: true,
-		},
-		{
-			note:  "negation: inline disjunction with args",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if { input.x = x; not q(x) }
-				q(x) if { x = 1 }
-				q(x) if { x = 2 }`,
-			},
-			wantQueries: []string{
-				`not input.x = 1; not input.x = 2`,
-			},
-			ignoreOrder: true,
-		},
-		{
-			note:  "negation: inline double negation (for all or universal quantifier pattern)",
-			query: `data.test.p = true`,
-			modules: []string{`
-				package test
-
-				p if {
-					x = input[i]
-					not f(x)
-				}
-
-				f(x) if {
-					q[y]
-					not g(y, x)
-				}
-
-				g(1, x) if {
-					x.a = "foo"
-				}
-
-				g(2, x) if {
-					x.b < 7
-				}
-
-				q = {
-					1, 2
-				}
-			`},
-			wantQueries: []string{
-				`input[i1].a = "foo"; data.partial.__not3_1_8__(input[i1])`,
-			},
-			wantSupport: []string{
-				`package partial
-
-				__not3_1_8__(__local0__3) if { __local0__3.b < 7 }`,
-			},
-		},
-		{
-			note:  "negation: inline cross product",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if {
-					not q
-				}
-
-				q if {
-					x = r[_]
-					not f(x)
-				}
-
-				f({"key": "a", "values": values}) if {
-					input.x = values[_]
-				}
-
-				f({"key": "b", "values": values}) if {
-					input.y = values[_]
-				}
-
-				f({"key": "c", "values": values}) if {
-					input.z = values[_]
-				}
-
-				r = [
-					{"key": "a", "values": [1,2]},
-					{"key": "b", "values": [3,4,5]},
-					{"key": "c", "values": [6]},
-				]`,
-			},
-			wantQueries: []string{
-				`1 = input.x; 3 = input.y; 6 = input.z`,
-				`1 = input.x; 4 = input.y; 6 = input.z`,
-				`1 = input.x; 5 = input.y; 6 = input.z`,
-				`2 = input.x; 3 = input.y; 6 = input.z`,
-				`2 = input.x; 4 = input.y; 6 = input.z`,
-				`2 = input.x; 5 = input.y; 6 = input.z`,
-			},
-		},
-		{
-			note:  "negation: inline cross product with live vars",
-			query: "input.x = x; input.y = y; not data.test.p[[x,y]]",
-			modules: []string{
-				`package test
-
-					p contains [0, 1]
-					p contains [2, 3]`,
-			},
-			wantQueries: []string{
-				`input.x = x; input.y = y; not x = 0; not x = 2`,
-				`input.x = x; input.y = y; not x = 0; not y = 3`,
-				`input.x = x; input.y = y; not y = 1; not x = 2`,
-				`input.x = x; input.y = y; not y = 1; not y = 3`,
-			},
-		},
-		{
-			note:  "negation: cross product limit",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-				p if {
-					not q
-				}
-				q if {
-					# size of cross product is 27 which exceeds default limit
-					a = {1,2,3}
-					a[x]
-					input.x = x
-					input.y = x
-					input.z = 0
-				}
-				`,
-			},
-			wantQueries: []string{`not data.partial.__not1_0_2__`},
-			wantSupport: []string{
-				`package partial
-
-				__not1_0_2__ if { input.x = 1; input.y = 1; input.z = 0 }
-				__not1_0_2__ if { input.x = 2; input.y = 2; input.z = 0 }
-				__not1_0_2__ if { input.x = 3; input.y = 3; input.z = 0 }
-				`,
-			},
-		},
-		{
-			note:  "negation: inlining namespaced variables",
-			query: "data.test.p[x]",
-			modules: []string{
-				`package test
-
-				p contains y if {
-					y = input
-					not y = 1
-				}
-				`,
-			},
-			wantQueries: []string{
-				`x = input; not x = 1; x`,
-			},
-		},
-		{
-			note:  "negation: inlining transitive unknown",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if { input = z; [z] = x; not q[x] }
-
-				q contains [1]
-				q contains [2]`,
-			},
-			wantQueries: []string{
-				`not input = 1; not input = 2`,
-			},
-		},
-		{
 			note:  "function inlining: output checked",
 			query: "data.test.p = true",
 			modules: []string{`
@@ -2997,50 +2360,6 @@ func TestTopDownPartialEval(t *testing.T) {
 			disableInlining: []string{`data.test.q`},
 		},
 		{
-			note:            "disable inlining: partial rule namespaced variables (negation)",
-			query:           "data.test.p[x]",
-			disableInlining: []string{"data.test.p"},
-			modules: []string{
-				`package test
-
-				p contains y if {
-					y = input
-					not y = 1
-				}
-				`,
-			},
-			wantQueries: []string{
-				`data.partial.test.p[x]`,
-			},
-			wantSupport: []string{
-				`package partial.test
-
-				p contains y1 if { y1 = input; not y1 = 1 }`,
-			},
-		},
-		{
-			note:            "disable inlining: complete rule namespaced variables (negation)",
-			query:           "data.test.p = x",
-			disableInlining: []string{"data.test.p"},
-			modules: []string{
-				`package test
-
-				p = y if {
-					y = input
-					not y = 1
-				}
-				`,
-			},
-			wantQueries: []string{
-				`data.partial.test.p = x`,
-			},
-			wantSupport: []string{
-				`package partial.test
-
-				p = y1 if { y1 = input; not y1 = 1 }`,
-			},
-		},
-		{
 			note:  "disable inlining: disable on prefix",
 			query: "data.test.foo.p = true",
 			modules: []string{
@@ -3089,26 +2408,6 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			disableInlining: []string{"data.base"},
 			wantQueries:     []string{"data.base.foo.bar.baz = 1"},
-		},
-		{
-			note:  "disable inlining: negation treats as unknown",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-
-				p if { not q }
-
-				q if { r }
-
-				r = false`,
-			},
-			disableInlining: []string{"data.test.r"},
-			wantQueries:     []string{"not data.partial.test.r"},
-			wantSupport: []string{
-				`package partial.test
-
-				r = false`,
-			},
 		},
 		{
 			note:  "disable inlining: comprehension treats as unknown",
@@ -3194,39 +2493,6 @@ func TestTopDownPartialEval(t *testing.T) {
 
 				q = x2 if { y2 = input.x; x2 = y2 }
 				p if { data.partial.test.q = 1 }
-				`,
-			},
-		},
-		{
-			note:  "shallow inlining: iteration and negation",
-			query: "data.test.p = true",
-			modules: []string{
-				`
-					package test
-
-					p if {
-						r[x]
-						not input[x]
-					}
-
-					r contains 1
-					r contains 2
-				`,
-			},
-			shallow:     true,
-			wantQueries: []string{"data.partial.test.p = true"},
-			wantSupport: []string{
-				`
-					package partial.test
-
-					p if { not data.partial.__not1_1_4__ }
-					p if { not data.partial.__not1_1_5__ }
-				`,
-				`
-					package partial
-
-					__not1_1_4__ if { input[1] = x_term_4_01; x_term_4_01 }
-					__not1_1_5__ if { input[2] = x_term_5_01; x_term_5_01 }
 				`,
 			},
 		},
@@ -3560,44 +2826,6 @@ func TestTopDownPartialEval(t *testing.T) {
 			note:        "comprehensions: ref heads (with live vars)",
 			query:       "x = [0]; y = {true | x[0]; input.y = 1}", // include an unknown in the comprehension to force saving
 			wantQueries: []string{`y = {true | x[0]; input.y = 1; x = [0]}; x = [0]`},
-		},
-		{
-			note:        "negation: save inline negated with",
-			query:       `not input with data.x as 2; data.x = 1`,
-			data:        `{"x": 1}`,
-			wantQueries: []string{"not input with data.x as 2"},
-		},
-		{
-			note:  "negation: save negated expr using plugged with value",
-			query: "data.test.p = true",
-			modules: []string{`
-				package test
-
-				p if {
-					x = 1
-					not q with input.x as x
-				}
-
-				q if {
-					r[input.x]
-				}
-
-				r contains 1
-				r contains 2
-			`},
-			disableInlining: []string{"data.test.q"},
-			wantQueries:     []string{"not data.partial.test.q with input.x as 1"},
-			wantSupport: []string{`
-				package partial.test
-
-				q if { 1 = input.x }
-				q if { 2 = input.x }
-			`},
-		},
-		{
-			note:        "negation: save inline negated with (undefined)",
-			query:       `not input with data.x as 1; data.x = 1`,
-			wantQueries: []string{},
 		},
 		{
 			note:  "multiple removed eqs",
@@ -4893,21 +4121,6 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 
-		{
-			note:  "default rule inlining, sole ref, not",
-			query: "data.test.p",
-			modules: []string{`package test
-					p if {
-						not q
-					}
-					
-					default q := false
-					
-					q if { input.x = 7 }
-				`},
-			wantQueries: []string{"not input.x = 7"},
-		},
-
 		{ // Regression test for https://github.com/open-policy-agent/opa/issues/1418
 			note:  "regression, good",
 			query: "data.x.p_good",
@@ -4949,14 +4162,7 @@ q if { input.x = 7 }`},
 	ctx := t.Context()
 
 	for _, tc := range tests {
-		// TODO: drop once future.keywords.not is enabled by default
-		caps := ast.CapabilitiesForThisVersion()
-		caps.FutureKeywords = append(caps.FutureKeywords, "not")
-
-		popts := ast.ParserOptions{
-			Capabilities:   caps,
-			FutureKeywords: []string{"not"},
-		}
+		popts := ast.ParserOptions{}
 
 		params := fixtureParams{
 			note:          tc.note,
@@ -5074,48 +4280,144 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		ignoreOrder              bool
 	}{
 		{
-			note:  "negation: inline compound",
+			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
 			query: "data.test.p = true",
-			modules: []string{
-				`package test
-				import future.keywords.not
+			modules: []string{`
+				package test
 
-				p if { not q }
-				q if { ((input.x + 7) / input.y) > 100 }`,
-			},
-			wantQueries: []string{
-				`not data.partial.__not1_0_2__`,
-			},
-			wantSupport: []string{
-				`package partial
-				import future.keywords.not
+				mock_count(_) = 100
+				p if {
+					not q with input.x as 1 with count as mock_count
+				}
 
-				__not1_0_2__ if {
-					((input.x + 7) / input.y) > 100
-				}`,
-			},
+				q if {
+					count([1,2,3]) = input.x
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q if { 100 = input.x }
+			`},
 		},
-
 		{
-			note:  "negation: inline safety with live var",
-			query: "input = x; not data.test.f(x)",
-			modules: []string{
-				`package test
+			note:  "with+function+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				my_count(x) = count(x)
+				mock_count(_) = 100
+				p if {
+					not q with input.x as 1 with my_count as mock_count
+				}
 
-				f(x) if {
-					count(x) != 3
-				}`,
-			},
-			wantQueries: []string{
-				`input = x; not data.partial.__not0_1_1__(x)`,
-			},
-			wantSupport: []string{
-				`package partial
+				q if {
+					my_count([1,2,3]) = input.x
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
 
-				__not0_1_1__(x) if {
-					count(x) != 3
-				}`,
-			},
+				q if { 100 = input.x }
+			`},
+		},
+		{
+			note:  "with+builtin+negation: when replacement args have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				mock_count(_) = 100
+				p if {
+					not q with input.x as 1 with count as mock_count
+				}
+
+				q if {
+					count(input.y) = input.x # unknown arg for mocked func
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q if { data.partial.test.mock_count(input.y, __local1__3); __local1__3 = input.x }
+				mock_count(__local0__4) = 100
+			`},
+		},
+		{
+			note:  "with+function+negation: when replacement args have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				my_count(x) = count(x)
+				mock_count(_) = 100
+				p if {
+					not q with input.x as 1 with my_count as mock_count
+				}
+
+				q if {
+					my_count(input.y) = input.x # unknown arg for mocked func
+				}
+			`},
+			wantQueries: []string{`not data.partial.test.q with input.x as 1`},
+			wantSupport: []string{`
+				package partial.test
+
+				q if { data.partial.test.mock_count(input.y, __local3__3); __local3__3 = input.x }
+				mock_count(__local1__4) = 100
+			`},
+		},
+		{
+			note:  "with+builtin+negation: when replacement defs have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				mock_count(_) = 100 if { input.y }
+				mock_count(_) = 101 if { input.z }
+				p if {
+					not q with input.x as 1 with count as mock_count
+				}
+
+				q if {
+					count([1]) = input.x # unknown arg for mocked func
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q if { data.partial.test.mock_count([1], __local2__3); __local2__3 = input.x }
+				mock_count(__local0__5) = 100 if { input.y = x_term_5_05; x_term_5_05 }
+				mock_count(__local1__4) = 101 if { input.z = x_term_4_04; x_term_4_04 }
+			`},
+		},
+		{
+			note:  "with+function+negation: when replacement defs have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				my_count(x) = count(x)
+				mock_count(_) = 100 if { input.y }
+				mock_count(_) = 101 if { input.z }
+				p if {
+					not q with input.x as 1 with my_count as mock_count
+				}
+
+				q if {
+					my_count([1]) = input.x # unknown arg for mocked func
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q if { data.partial.test.mock_count([1], __local4__3); __local4__3 = input.x }
+				mock_count(__local1__5) = 100 if { input.y = x_term_5_05; x_term_5_05 }
+				mock_count(__local2__4) = 101 if { input.z = x_term_4_04; x_term_4_04 }
+			`},
 		},
 
 		{
@@ -5123,7 +4425,6 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			query: `data.test.p = true`,
 			modules: []string{
 				`package test
-				import future.keywords.not
 
 				p if {
 					input.x[i] = x
@@ -5174,61 +4475,259 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				`input.y[c1].z = 1; not x1.z = 2; x1 = input.y[c1]`,
 			},
 		},
-
 		{
-			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
-			query: "data.test.p = true",
-			modules: []string{`
-				package test
+			note:  "copy propagation: negation safety no extra expr",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
 
-				import future.keywords.not
-
-				mock_count(_) = 100
 				p if {
-					not q with input.x as 1 with count as mock_count
+				  x = data.y[c]
+				  not x.z = 2
 				}
-
-				q if {
-					count([1,2,3]) = input.x
-				}
-			`},
-			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
-			wantSupport: []string{`
-				package partial.test
-
-				q if { 100 = input.x }
-			`},
+				`,
+			},
+			unknowns: []string{`data.y`},
+			wantQueries: []string{
+				`not x1.z = 2; x1 = data.y[c1]`,
+			},
 		},
 
 		{
-			note:  "negation: cross product limit",
+			note:  "negation: inline compound",
 			query: "data.test.p = true",
 			modules: []string{
 				`package test
-				p if {
-					not q
-				}
-				q if {
-					# size of cross product is 27 which exceeds default limit
-					a = {1,2,3}
-					a[x]
-					input.x = x
-					input.y = x
-					input.z = 0
-				}
-				`,
+
+				p if { not q }
+				q if { ((input.x + 7) / input.y) > 100 }`,
 			},
-			wantQueries: []string{`not data.partial.__not1_0_2__`},
+			wantQueries: []string{
+				`not data.partial.__not1_0_2__`,
+			},
 			wantSupport: []string{
 				`package partial
 
-				__not1_0_2__ if { input.x = 1; input.y = 1; input.z = 0 }
-				__not1_0_2__ if { input.x = 2; input.y = 2; input.z = 0 }
-				__not1_0_2__ if { input.x = 3; input.y = 3; input.z = 0 }
-				`,
+				__not1_0_2__ if {
+					((input.x + 7) / input.y) > 100
+				}`,
 			},
 		},
+		{
+			note:  "negation: inline conjunction",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
 
+				p if { not q }
+				q if { a = input.x + 7; b = a / input.y; b > 100 }`,
+			},
+			wantQueries: []string{
+				`not data.partial.__not1_0_2__`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_0_2__ if {
+					((input.x + 7) / input.y) > 100
+				}`,
+			},
+		},
+		{
+			note:  "negation: inline safety",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if {
+					input.x = 1;					# no op
+					not q;							# support
+					not r;							# fail
+					not s;							# inline (simple)
+					input.z = [z]; z1 = z; t(z1)	# inline transitive
+				}
+
+				q if {
+					input.a[i] = 1
+				}
+
+				r if { false }
+
+				s if { input.y = 2 }
+
+				t(z2) if {
+					z2 = z3
+					z3[0] = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`input.x = 1; not data.partial.__not1_1_2__; not input.y = 2; input.z = [z38]; z38[0] = 1`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_1_2__ if {
+					input.a[i3] = 1
+				}`,
+			},
+		},
+		{
+			note:  "negation: support safety without args",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if {
+					q
+					not r
+				}
+
+				q if {
+					input.x[i] = a
+					startswith(a, "foo")
+				}
+
+				r if {
+					input.y[i] = 1
+				}`,
+			},
+			wantQueries: []string{`startswith(input.x[i2], "foo"); not data.partial.__not1_1_3__`},
+			wantSupport: []string{
+				`package partial
+
+				__not1_1_3__ if { input.y[i4] = 1 }`,
+			},
+		},
+		{
+			note:  "negation: support safety with args",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if {
+					input.x = x; not f(x)
+				}
+
+				f(x) if {
+					input.y[i] = a
+					sort(x, z)
+					z[a] = 1
+				}`,
+			},
+			wantQueries: []string{`not data.partial.__not1_1_2__(input.x)`},
+			wantSupport: []string{`
+				package partial
+
+				__not1_1_2__(x1) if {
+					sort(x1, z3)
+					z3[input.y[i3]] = 1
+				}
+			`},
+		},
+		{
+			note:  "negation: inline safety with live var",
+			query: "input = x; not data.test.f(x)",
+			modules: []string{
+				`package test
+
+				f(x) if {
+					count(x) != 3
+				}`,
+			},
+			wantQueries: []string{
+				`input = x; not data.partial.__not0_1_1__(x)`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not0_1_1__(x) if {
+					count(x) != 3
+				}`,
+			},
+		},
+		{
+			note:  "negation: inline namespacing",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if {
+					input = x; not f(x)
+				}
+
+				f(x) if {
+					count(x) > 3
+				}`,
+			},
+			wantQueries: []string{
+				`not data.partial.__not1_1_2__(input)`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_1_2__(x1) if { count(x1) > 3 }`,
+			},
+		},
+		{
+			note:  "negation: inline namespacing embedded",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if {
+					y = input.y
+					z = y
+					x = [z, 1]
+					not f(x)
+				}
+
+				f(x) if {
+					sum(x) > 3
+				}`,
+			},
+			wantQueries: []string{
+				`not data.partial.__not1_3_2__(input.y)`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_3_2__(z1) if {
+					sum([z1, 1]) > 3
+				}`,
+			},
+		},
+		{
+			note:  "negation: inline disjunction",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if { not q }
+				q if { input.x = 1 }
+				q if { input.x = 2 }
+				`,
+			},
+			wantQueries: []string{
+				`not input.x = 1; not input.x = 2`,
+			},
+			ignoreOrder: true,
+		},
+		{
+			note:  "negation: inline disjunction with args",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if { input.x = x; not q(x) }
+				q(x) if { x = 1 }
+				q(x) if { x = 2 }`,
+			},
+			wantQueries: []string{
+				`not input.x = 1; not input.x = 2`,
+			},
+			ignoreOrder: true,
+		},
 		{
 			note:  "negation: inline double negation (for all or universal quantifier pattern)",
 			query: `data.test.p = true`,
@@ -5266,110 +4765,427 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				__not3_1_8__(__local0__3) if { __local0__3.b < 7 }`,
 			},
 		},
+		{
+			note:  "negation: inline cross product",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if {
+					not q
+				}
+
+				q if {
+					x = r[_]
+					not f(x)
+				}
+
+				f({"key": "a", "values": values}) if {
+					input.x = values[_]
+				}
+
+				f({"key": "b", "values": values}) if {
+					input.y = values[_]
+				}
+
+				f({"key": "c", "values": values}) if {
+					input.z = values[_]
+				}
+
+				r = [
+					{"key": "a", "values": [1,2]},
+					{"key": "b", "values": [3,4,5]},
+					{"key": "c", "values": [6]},
+				]`,
+			},
+			wantQueries: []string{
+				`1 = input.x; 3 = input.y; 6 = input.z`,
+				`1 = input.x; 4 = input.y; 6 = input.z`,
+				`1 = input.x; 5 = input.y; 6 = input.z`,
+				`2 = input.x; 3 = input.y; 6 = input.z`,
+				`2 = input.x; 4 = input.y; 6 = input.z`,
+				`2 = input.x; 5 = input.y; 6 = input.z`,
+			},
+		},
+		{
+			note:  "negation: inline cross product with live vars",
+			query: "input.x = x; input.y = y; not data.test.p[[x,y]]",
+			modules: []string{
+				`package test
+
+					p contains [0, 1]
+					p contains [2, 3]`,
+			},
+			wantQueries: []string{
+				`input.x = x; input.y = y; not x = 0; not x = 2`,
+				`input.x = x; input.y = y; not x = 0; not y = 3`,
+				`input.x = x; input.y = y; not y = 1; not x = 2`,
+				`input.x = x; input.y = y; not y = 1; not y = 3`,
+			},
+		},
+		{
+			note:  "negation: cross product limit",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p if {
+					not q
+				}
+				q if {
+					# size of cross product is 27 which exceeds default limit
+					a = {1,2,3}
+					a[x]
+					input.x = x
+					input.y = x
+					input.z = 0
+				}
+				`,
+			},
+			wantQueries: []string{`not data.partial.__not1_0_2__`},
+			wantSupport: []string{
+				`package partial
+
+				__not1_0_2__ if { input.x = 1; input.y = 1; input.z = 0 }
+				__not1_0_2__ if { input.x = 2; input.y = 2; input.z = 0 }
+				__not1_0_2__ if { input.x = 3; input.y = 3; input.z = 0 }
+				`,
+			},
+		},
+		{
+			note:  "negation: inlining namespaced variables",
+			query: "data.test.p[x]",
+			modules: []string{
+				`package test
+
+				p contains y if {
+					y = input
+					not y = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`x = input; not x = 1; x`,
+			},
+		},
+		{
+			note:  "negation: inlining transitive unknown",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if { input = z; [z] = x; not q[x] }
+
+				q contains [1]
+				q contains [2]`,
+			},
+			wantQueries: []string{
+				`not input = 1; not input = 2`,
+			},
+		},
+
+		{
+			note:            "disable inlining: partial rule namespaced variables (negation)",
+			query:           "data.test.p[x]",
+			disableInlining: []string{"data.test.p"},
+			modules: []string{
+				`package test
+
+				p contains y if {
+					y = input
+					not y = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p[x]`,
+			},
+			wantSupport: []string{
+				`package partial.test
+
+				p contains y1 if { y1 = input; not y1 = 1 }`,
+			},
+		},
+		{
+			note:            "disable inlining: complete rule namespaced variables (negation)",
+			query:           "data.test.p = x",
+			disableInlining: []string{"data.test.p"},
+			modules: []string{
+				`package test
+
+				p = y if {
+					y = input
+					not y = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p = x`,
+			},
+			wantSupport: []string{
+				`package partial.test
+
+				p = y1 if { y1 = input; not y1 = 1 }`,
+			},
+		},
+
+		{
+			note:  "disable inlining: negation treats as unknown",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p if { not q }
+
+				q if { r }
+
+				r = false`,
+			},
+			disableInlining: []string{"data.test.r"},
+			wantQueries:     []string{"not data.partial.test.r"},
+			wantSupport: []string{
+				`package partial.test
+
+				r = false`,
+			},
+		},
+
+		{
+			note:  "shallow inlining: iteration and negation",
+			query: "data.test.p = true",
+			modules: []string{
+				`
+					package test
+
+					p if {
+						r[x]
+						not input[x]
+					}
+
+					r contains 1
+					r contains 2
+				`,
+			},
+			shallow:     true,
+			wantQueries: []string{"data.partial.test.p = true"},
+			wantSupport: []string{
+				`
+					package partial.test
+
+					p if { not data.partial.__not1_1_4__ }
+					p if { not data.partial.__not1_1_5__ }
+				`,
+				`
+					package partial
+
+					__not1_1_4__ if { input[1] = x_term_4_01; x_term_4_01 }
+					__not1_1_5__ if { input[2] = x_term_5_01; x_term_5_01 }
+				`,
+			},
+		},
+
+		{
+			note:        "negation: save inline negated with",
+			query:       `not input with data.x as 2; data.x = 1`,
+			data:        `{"x": 1}`,
+			wantQueries: []string{"not input with data.x as 2"},
+		},
+		{
+			note:  "negation: save negated expr using plugged with value",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				p if {
+					x = 1
+					not q with input.x as x
+				}
+
+				q if {
+					r[input.x]
+				}
+
+				r contains 1
+				r contains 2
+			`},
+			disableInlining: []string{"data.test.q"},
+			wantQueries:     []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q if { 1 = input.x }
+				q if { 2 = input.x }
+			`},
+		},
+		{
+			note:        "negation: save inline negated with (undefined)",
+			query:       `not input with data.x as 1; data.x = 1`,
+			wantQueries: []string{},
+		},
+
+		{
+			note:  "copy propagation: apply to support rules",
+			query: `data.test.p = true`,
+			modules: []string{`
+				package test
+
+				p if {
+					not q
+				}
+
+				q if {
+					input.x = x
+					x = y
+					y = 1
+				}
+			`},
+			wantQueries: []string{`not input.x = 1`},
+		},
+		{
+			note:  "copy propagation: apply to support rules: head vars are live",
+			query: `data.test.p = true`,
+			modules: []string{`
+				package test
+
+				p if {
+					input.x = z; not q[z]
+				}
+
+				q contains y if {
+					x = 1
+					x = a
+					a = y
+				}
+			`},
+			wantQueries: []string{`not input.x = 1`},
+		},
+
+		{
+			note:  "default rule inlining, sole ref, not",
+			query: "data.test.p",
+			modules: []string{`package test
+					p if {
+						not q
+					}
+					
+					default q := false
+					
+					q if { input.x = 7 }
+				`},
+			wantQueries: []string{"not input.x = 7"},
+		},
 
 		// TODO: always undefined not-expression
 	}
 
 	ctx := t.Context()
+	variants := map[string]ast.ParserOptions{
+		"not": ast.ParserOptions{},
+		"not-body": func() ast.ParserOptions {
+			// TODO: drop once future.keywords.not is enabled by default
+			caps := ast.CapabilitiesForThisVersion()
+			caps.FutureKeywords = append(caps.FutureKeywords, "not")
 
-	for _, tc := range tests {
-		// TODO: drop once future.keywords.not is enabled by default
-		caps := ast.CapabilitiesForThisVersion()
-		caps.FutureKeywords = append(caps.FutureKeywords, "not")
-
-		popts := ast.ParserOptions{
-			Capabilities:   caps,
-			FutureKeywords: []string{"not"},
-		}
-
-		params := fixtureParams{
-			note:          tc.note,
-			query:         tc.query,
-			modules:       tc.modules,
-			moduleASTs:    tc.moduleASTs,
-			data:          tc.data,
-			input:         tc.input,
-			parserOptions: popts,
-		}
-
-		prepareTest(ctx, t, params, func(ctx context.Context, t *testing.T, f fixture) {
-
-			var save []string
-
-			if tc.unknowns == nil {
-				save = []string{"input"}
-			} else {
-				save = tc.unknowns
+			return ast.ParserOptions{
+				Capabilities:   caps,
+				FutureKeywords: []string{"not"},
 			}
+		}(),
+	}
 
-			unknowns := make([]*ast.Term, len(save))
-			for i, s := range save {
-				unknowns[i] = ast.MustParseTerm(s)
-			}
+	for n, popts := range variants {
+		t.Run(n, func(t *testing.T) {
+			for _, tc := range tests {
 
-			disableInlining := make([]ast.Ref, len(tc.disableInlining))
-			for i, s := range tc.disableInlining {
-				disableInlining[i] = ast.MustParseRef(s)
-			}
-
-			var buf BufferTracer
-
-			query := NewQuery(f.query).
-				WithCompiler(f.compiler).
-				WithStore(f.store).
-				WithTransaction(f.txn).
-				WithInput(f.input).
-				WithTracer(&buf).
-				WithUnknowns(unknowns).
-				WithDisableInlining(disableInlining).
-				WithSkipPartialNamespace(tc.skipPartialNamespace).
-				WithShallowInlining(tc.shallow).
-				WithNondeterministicBuiltins(tc.nondeterministicBuiltins)
-
-			// Set genvarprefix so that tests can refer to vars in generated
-			// expressions.
-			query.genvarprefix = "x"
-
-			partials, support, err := query.PartialRun(ctx)
-
-			if err != nil {
-				if buf != nil {
-					PrettyTrace(os.Stdout, buf)
+				params := fixtureParams{
+					note:          tc.note,
+					query:         tc.query,
+					modules:       tc.modules,
+					moduleASTs:    tc.moduleASTs,
+					data:          tc.data,
+					input:         tc.input,
+					parserOptions: popts,
 				}
-				t.Fatal(err)
-			}
 
-			var expectedQueries []ast.Body
+				prepareTest(ctx, t, params, func(ctx context.Context, t *testing.T, f fixture) {
 
-			if len(tc.wantQueryASTs) > 0 {
-				expectedQueries = tc.wantQueryASTs
-			} else {
-				expectedQueries = make([]ast.Body, len(tc.wantQueries))
-				for i := range tc.wantQueries {
-					expectedQueries[i] = ast.MustParseBodyWithOpts(tc.wantQueries[i], popts)
-				}
-			}
+					var save []string
 
-			queriesA, queriesB := bodySet(partials), bodySet(expectedQueries)
-			if !queriesB.Equal(queriesA, tc.ignoreOrder) {
-				missing := queriesB.Diff(queriesA, tc.ignoreOrder)
-				extra := queriesA.Diff(queriesB, tc.ignoreOrder)
-				t.Errorf("Partial evaluation results differ. Expected %d queries but got %d queries:\nMissing:\n%v\nExtra:\n%v", len(queriesB), len(queriesA), missing, extra)
-			}
+					if tc.unknowns == nil {
+						save = []string{"input"}
+					} else {
+						save = tc.unknowns
+					}
 
-			var expectedSupport []*ast.Module
-			if len(tc.wantSupportASTs) > 0 {
-				expectedSupport = tc.wantSupportASTs
-			} else {
-				for i := range tc.wantSupport {
-					expectedSupport = append(expectedSupport, ast.MustParseModuleWithOpts(tc.wantSupport[i], popts))
-				}
-			}
-			supportA, supportB := moduleSet(support), moduleSet(expectedSupport)
-			if !supportA.Equal(supportB) {
-				missing := supportB.Diff(supportA)
-				extra := supportA.Diff(supportB)
-				t.Errorf("Partial evaluation results differ. Expected %d modules but got %d:\nMissing:\n%v\nExtra:\n%v", len(supportB), len(supportA), missing, extra)
+					unknowns := make([]*ast.Term, len(save))
+					for i, s := range save {
+						unknowns[i] = ast.MustParseTerm(s)
+					}
+
+					disableInlining := make([]ast.Ref, len(tc.disableInlining))
+					for i, s := range tc.disableInlining {
+						disableInlining[i] = ast.MustParseRef(s)
+					}
+
+					var buf BufferTracer
+
+					query := NewQuery(f.query).
+						WithCompiler(f.compiler).
+						WithStore(f.store).
+						WithTransaction(f.txn).
+						WithInput(f.input).
+						WithTracer(&buf).
+						WithUnknowns(unknowns).
+						WithDisableInlining(disableInlining).
+						WithSkipPartialNamespace(tc.skipPartialNamespace).
+						WithShallowInlining(tc.shallow).
+						WithNondeterministicBuiltins(tc.nondeterministicBuiltins)
+
+					// Set genvarprefix so that tests can refer to vars in generated
+					// expressions.
+					query.genvarprefix = "x"
+
+					partials, support, err := query.PartialRun(ctx)
+
+					if err != nil {
+						if buf != nil {
+							PrettyTrace(os.Stdout, buf)
+						}
+						t.Fatal(err)
+					}
+
+					var expectedQueries []ast.Body
+
+					if len(tc.wantQueryASTs) > 0 {
+						expectedQueries = tc.wantQueryASTs
+					} else {
+						expectedQueries = make([]ast.Body, len(tc.wantQueries))
+						for i := range tc.wantQueries {
+							expectedQueries[i] = ast.MustParseBodyWithOpts(tc.wantQueries[i], popts)
+						}
+					}
+
+					queriesA, queriesB := bodySet(partials), bodySet(expectedQueries)
+					if !queriesB.Equal(queriesA, tc.ignoreOrder) {
+						missing := queriesB.Diff(queriesA, tc.ignoreOrder)
+						extra := queriesA.Diff(queriesB, tc.ignoreOrder)
+						t.Errorf("Partial evaluation results differ. Expected %d queries but got %d queries:\nMissing:\n%v\nExtra:\n%v", len(queriesB), len(queriesA), missing, extra)
+					}
+
+					var expectedSupport []*ast.Module
+					if len(tc.wantSupportASTs) > 0 {
+						expectedSupport = tc.wantSupportASTs
+					} else {
+						for i := range tc.wantSupport {
+							expectedSupport = append(expectedSupport, ast.MustParseModuleWithOpts(tc.wantSupport[i], popts))
+						}
+					}
+					supportA, supportB := moduleSet(support), moduleSet(expectedSupport)
+					if !supportA.Equal(supportB) {
+						missing := supportB.Diff(supportA)
+						extra := supportA.Diff(supportB)
+						t.Errorf("Partial evaluation results differ. Expected %d modules but got %d:\nMissing:\n%v\nExtra:\n%v", len(supportB), len(supportA), missing, extra)
+					}
+				})
 			}
 		})
 	}
