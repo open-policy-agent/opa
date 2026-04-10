@@ -13016,7 +13016,7 @@ func TestCompilerNotImport(t *testing.T) {
 								&Not{
 									Body: NewBody(
 										Plus.Expr(NumberTerm("1"), NumberTerm("2"), VarTerm("__local0__")),
-										Equal.Expr(VarTerm("__local0__"), NumberTerm("3")),
+										Equality.Expr(VarTerm("__local0__"), NumberTerm("3")),
 									),
 								},
 							),
@@ -13080,8 +13080,7 @@ func TestCompilerNotImport(t *testing.T) {
 										Equality.Expr(VarTerm("__local1__"), RefTerm(VarTerm("input"), StringTerm("x"))),
 										Equality.Expr(VarTerm("__local2__"), RefTerm(VarTerm("input"), StringTerm("y"))),
 										Plus.Expr(VarTerm("__local1__"), VarTerm("__local2__"), VarTerm("__local0__")),
-										Equality.Expr(VarTerm("__local3__"), RefTerm(VarTerm("input"), StringTerm("z"))),
-										Equal.Expr(VarTerm("__local0__"), VarTerm("__local3__")),
+										Equality.Expr(VarTerm("__local0__"), RefTerm(VarTerm("input"), StringTerm("z"))),
 									),
 								},
 							),
@@ -13649,6 +13648,198 @@ func TestCompilerNotImport(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			note: "with, ref replaced",
+			module: `package negation
+				import future.keywords.not
+
+				p if {
+					not q with input.x as 1
+				}
+
+				q if {
+					input.x
+				}`,
+			expMod: &Module{
+				Package: MustParsePackage("package negation"),
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							&Expr{
+								Terms: NewNot(NewExpr(RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("q")))),
+								With: []*With{
+									{
+										Target: RefTerm(VarTerm("input"), StringTerm("x")),
+										Value:  NumberTerm("1"),
+									},
+								},
+							},
+						),
+					},
+					&Rule{
+						Head: &Head{
+							Name:      Var("q"),
+							Reference: Ref{VarTerm("q")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							NewExpr(RefTerm(VarTerm("input"), StringTerm("x"))),
+						),
+					},
+				},
+			},
+		},
+		{
+			note: "with, built-in call replaced",
+			module: `package negation
+				import future.keywords.not
+
+				p if {
+					not q with count as mock_count
+				}
+
+				q if {
+					count([1,2,3]) == 1
+				}
+
+				mock_count(_) := 100`,
+			expMod: &Module{
+				Package: MustParsePackage("package negation"),
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							&Expr{
+								Terms: NewNot(NewExpr(RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("q")))),
+								With: []*With{
+									{
+										Target: RefTerm(VarTerm("count")),
+										Value:  RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("mock_count")),
+									},
+								},
+							},
+						),
+					},
+					&Rule{
+						Head: &Head{
+							Name:      Var("q"),
+							Reference: Ref{VarTerm("q")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							Count.Expr(
+								ArrayTerm(NumberTerm("1"), NumberTerm("2"), NumberTerm("3")),
+								VarTerm("__local1__"),
+							),
+							Equality.Expr(VarTerm("__local1__"), NumberTerm("1")),
+						),
+					},
+					&Rule{
+						Head: &Head{
+							Name:      Var("mock_count"),
+							Reference: Ref{VarTerm("mock_count")},
+							Args:      Args{VarTerm("__local0__")},
+							Value:     NumberTerm("100"),
+							Assign:    true,
+						},
+						Body: NewBody(
+							NewExpr(BooleanTerm(true)),
+						),
+					},
+				},
+			},
+		},
+		{
+			note: "with, rego-function call replaced",
+			module: `package negation
+				import future.keywords.not
+
+				p if {
+					not q with foo as mock_foo
+				}
+
+				q if {
+					foo([1,2,3]) == 1
+				}
+
+				foo(x) := x
+
+				mock_foo(_) := 100`,
+			expMod: &Module{
+				Package: MustParsePackage("package negation"),
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							&Expr{
+								Terms: NewNot(NewExpr(RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("q")))),
+								With: []*With{
+									{
+										Target: RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("foo")),
+										Value:  RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("mock_foo")),
+									},
+								},
+							},
+						),
+					},
+					&Rule{
+						Head: &Head{
+							Name:      Var("q"),
+							Reference: Ref{VarTerm("q")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							NewExpr([]*Term{
+								RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("foo")),
+								ArrayTerm(NumberTerm("1"), NumberTerm("2"), NumberTerm("3")),
+								VarTerm("__local2__"),
+							}),
+
+							Equality.Expr(VarTerm("__local2__"), NumberTerm("1")),
+						),
+					},
+					&Rule{
+						Head: &Head{
+							Name:      Var("foo"),
+							Reference: Ref{VarTerm("foo")},
+							Args:      Args{VarTerm("__local0__")},
+							Value:     VarTerm("__local0__"),
+							Assign:    true,
+						},
+						Body: NewBody(
+							NewExpr(BooleanTerm(true)),
+						),
+					},
+					&Rule{
+						Head: &Head{
+							Name:      Var("mock_foo"),
+							Reference: Ref{VarTerm("mock_foo")},
+							Args:      Args{VarTerm("__local1__")},
+							Value:     NumberTerm("100"),
+							Assign:    true,
+						},
+						Body: NewBody(
+							NewExpr(BooleanTerm(true)),
+						),
+					},
+				},
+			},
+		},
+
 		// TODO: Add purely nested negations (requires body parsing)
 
 		// TODO: not-body parsing required

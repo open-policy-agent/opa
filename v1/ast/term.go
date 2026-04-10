@@ -568,10 +568,14 @@ type Not struct {
 	Location *Location `json:"location,omitempty"`
 }
 
-func NotTerm(exprs ...*Expr) *Term {
-	return NewTerm(&Not{
+func NewNot(exprs ...*Expr) *Not {
+	return &Not{
 		Body: NewBody(exprs...),
-	})
+	}
+}
+
+func NotTerm(exprs ...*Expr) *Term {
+	return NewTerm(NewNot(exprs...))
 }
 
 func NotExpr(exprs ...*Expr) *Expr {

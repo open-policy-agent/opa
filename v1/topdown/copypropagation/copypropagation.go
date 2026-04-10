@@ -100,7 +100,7 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 		pctx := &plugContext{
 			removedEqs: removedEqs,
 			uf:         uf,
-			negated:    expr.Negated,
+			negated:    expr.IsNegated(),
 			headvars:   headvars,
 		}
 
@@ -158,7 +158,8 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 	safe.Update(ast.ReservedVars)
 	safe.Update(p.livevars)
 	safe.Update(ast.OutputVarsFromBody(p.compiler, result, safe))
-	unsafe := result.Vars(ast.SafetyCheckVisitorParams).Diff(safe)
+	// FIXME: Do we need to account for generated support function arity?
+	unsafe := result.Vars(ast.SafetyCheckVisitorParamsWithArity(p.compiler.GetArity)).Diff(safe)
 
 	for _, b := range sortbindings(removedEqs) {
 		removedEq := ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v))

@@ -138,6 +138,66 @@ cases:
         }
 
         f(x) := x
-
     want_result:
       - x: 2
+  - note: "negation/not-body: with statement, ref replaced"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        mock_count(_) = 100
+
+        p if {
+          not q with input.x as 1
+        }
+
+        q if {
+          count([1,2,3]) = input.x
+        }
+    input:
+      x: 3
+    want_result:
+      - x: true
+  - note: "negation/not-body: with statement, built-in call replaced"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+          not q with count as mock_count
+        }
+
+        q if {
+          count([1,2,3]) == 3
+        }
+        
+        mock_count(_) = 100
+    want_result:
+      - x: true
+  - note: "negation/not-body: with statement, rego-function call replaced"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+          not q with foo as mock_foo
+        }
+
+        q if {
+          foo([1,2,3]) == 3
+        }
+
+        foo(x) := count(x)
+
+        mock_foo(_) := 100
+    want_result:
+      - x: true

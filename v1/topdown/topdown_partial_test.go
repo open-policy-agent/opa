@@ -4949,14 +4949,25 @@ q if { input.x = 7 }`},
 	ctx := t.Context()
 
 	for _, tc := range tests {
-		params := fixtureParams{
-			note:       tc.note,
-			query:      tc.query,
-			modules:    tc.modules,
-			moduleASTs: tc.moduleASTs,
-			data:       tc.data,
-			input:      tc.input,
+		// TODO: drop once future.keywords.not is enabled by default
+		caps := ast.CapabilitiesForThisVersion()
+		caps.FutureKeywords = append(caps.FutureKeywords, "not")
+
+		popts := ast.ParserOptions{
+			Capabilities:   caps,
+			FutureKeywords: []string{"not"},
 		}
+
+		params := fixtureParams{
+			note:          tc.note,
+			query:         tc.query,
+			modules:       tc.modules,
+			moduleASTs:    tc.moduleASTs,
+			data:          tc.data,
+			input:         tc.input,
+			parserOptions: popts,
+		}
+
 		prepareTest(ctx, t, params, func(ctx context.Context, t *testing.T, f fixture) {
 
 			var save []string
@@ -5006,13 +5017,13 @@ q if { input.x = 7 }`},
 
 			var expectedQueries []ast.Body
 
-			opts := ast.ParserOptions{}
+			//opts := ast.ParserOptions{}
 			if len(tc.wantQueryASTs) > 0 {
 				expectedQueries = tc.wantQueryASTs
 			} else {
 				expectedQueries = make([]ast.Body, len(tc.wantQueries))
 				for i := range tc.wantQueries {
-					expectedQueries[i] = ast.MustParseBodyWithOpts(tc.wantQueries[i], opts)
+					expectedQueries[i] = ast.MustParseBodyWithOpts(tc.wantQueries[i], popts)
 				}
 			}
 
@@ -5028,7 +5039,330 @@ q if { input.x = 7 }`},
 				expectedSupport = tc.wantSupportASTs
 			} else {
 				for i := range tc.wantSupport {
-					expectedSupport = append(expectedSupport, ast.MustParseModuleWithOpts(tc.wantSupport[i], opts))
+					expectedSupport = append(expectedSupport, ast.MustParseModuleWithOpts(tc.wantSupport[i], popts))
+				}
+			}
+			supportA, supportB := moduleSet(support), moduleSet(expectedSupport)
+			if !supportA.Equal(supportB) {
+				missing := supportB.Diff(supportA)
+				extra := supportA.Diff(supportB)
+				t.Errorf("Partial evaluation results differ. Expected %d modules but got %d:\nMissing:\n%v\nExtra:\n%v", len(supportB), len(supportA), missing, extra)
+			}
+		})
+	}
+}
+
+func TestTopDownPartialEvalNegation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note                     string
+		unknowns                 []string
+		disableInlining          []string
+		nondeterministicBuiltins bool
+		shallow                  bool
+		skipPartialNamespace     bool
+		query                    string
+		modules                  []string
+		moduleASTs               []*ast.Module
+		data                     string
+		input                    string
+		wantQueries              []string
+		wantQueryASTs            []ast.Body
+		wantSupport              []string
+		wantSupportASTs          []*ast.Module
+		ignoreOrder              bool
+	}{
+		{
+			note:  "negation: inline compound",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				import future.keywords.not
+
+				p if { not q }
+				q if { ((input.x + 7) / input.y) > 100 }`,
+			},
+			wantQueries: []string{
+				`not data.partial.__not1_0_2__`,
+			},
+			wantSupport: []string{
+				`package partial
+				import future.keywords.not
+
+				__not1_0_2__ if {
+					((input.x + 7) / input.y) > 100
+				}`,
+			},
+		},
+
+		{
+			note:  "negation: inline safety with live var",
+			query: "input = x; not data.test.f(x)",
+			modules: []string{
+				`package test
+
+				f(x) if {
+					count(x) != 3
+				}`,
+			},
+			wantQueries: []string{
+				`input = x; not data.partial.__not0_1_1__(x)`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not0_1_1__(x) if {
+					count(x) != 3
+				}`,
+			},
+		},
+
+		{
+			note:  "copy propagation: negation safety",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+				import future.keywords.not
+
+				p if {
+					input.x[i] = x
+					not f(x)
+				}
+
+				f(x) if {
+					input.y = x
+				}`,
+			},
+			wantQueries: []string{
+				"not input.y = x1; x1 = input.x[i1]",
+			},
+		},
+		{
+			note:  "copy propagation: negation safety needs extra expr",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p if {
+				  x = data.y[c]
+				  x.z = 1
+				  not x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`data.y`},
+			wantQueries: []string{
+				`data.y[c1].z = 1; not x1.z = 2; x1 = data.y[c1]`,
+			},
+		},
+		{
+			note:  "copy propagation: negation safety needs extra expr - no live var overlap",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p if {
+				  x = input.y[c]
+				  x.z = 1
+				  not x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`input.y`},
+			wantQueries: []string{
+				`input.y[c1].z = 1; not x1.z = 2; x1 = input.y[c1]`,
+			},
+		},
+
+		{
+			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				import future.keywords.not
+
+				mock_count(_) = 100
+				p if {
+					not q with input.x as 1 with count as mock_count
+				}
+
+				q if {
+					count([1,2,3]) = input.x
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q if { 100 = input.x }
+			`},
+		},
+
+		{
+			note:  "negation: cross product limit",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p if {
+					not q
+				}
+				q if {
+					# size of cross product is 27 which exceeds default limit
+					a = {1,2,3}
+					a[x]
+					input.x = x
+					input.y = x
+					input.z = 0
+				}
+				`,
+			},
+			wantQueries: []string{`not data.partial.__not1_0_2__`},
+			wantSupport: []string{
+				`package partial
+
+				__not1_0_2__ if { input.x = 1; input.y = 1; input.z = 0 }
+				__not1_0_2__ if { input.x = 2; input.y = 2; input.z = 0 }
+				__not1_0_2__ if { input.x = 3; input.y = 3; input.z = 0 }
+				`,
+			},
+		},
+
+		{
+			note:  "negation: inline double negation (for all or universal quantifier pattern)",
+			query: `data.test.p = true`,
+			modules: []string{`
+				package test
+
+				p if {
+					x = input[i]
+					not f(x)
+				}
+
+				f(x) if {
+					q[y]
+					not g(y, x)
+				}
+
+				g(1, x) if {
+					x.a = "foo"
+				}
+
+				g(2, x) if {
+					x.b < 7
+				}
+
+				q = {
+					1, 2
+				}
+			`},
+			wantQueries: []string{
+				`input[i1].a = "foo"; data.partial.__not3_1_8__(input[i1])`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not3_1_8__(__local0__3) if { __local0__3.b < 7 }`,
+			},
+		},
+
+		// TODO: always undefined not-expression
+	}
+
+	ctx := t.Context()
+
+	for _, tc := range tests {
+		// TODO: drop once future.keywords.not is enabled by default
+		caps := ast.CapabilitiesForThisVersion()
+		caps.FutureKeywords = append(caps.FutureKeywords, "not")
+
+		popts := ast.ParserOptions{
+			Capabilities:   caps,
+			FutureKeywords: []string{"not"},
+		}
+
+		params := fixtureParams{
+			note:          tc.note,
+			query:         tc.query,
+			modules:       tc.modules,
+			moduleASTs:    tc.moduleASTs,
+			data:          tc.data,
+			input:         tc.input,
+			parserOptions: popts,
+		}
+
+		prepareTest(ctx, t, params, func(ctx context.Context, t *testing.T, f fixture) {
+
+			var save []string
+
+			if tc.unknowns == nil {
+				save = []string{"input"}
+			} else {
+				save = tc.unknowns
+			}
+
+			unknowns := make([]*ast.Term, len(save))
+			for i, s := range save {
+				unknowns[i] = ast.MustParseTerm(s)
+			}
+
+			disableInlining := make([]ast.Ref, len(tc.disableInlining))
+			for i, s := range tc.disableInlining {
+				disableInlining[i] = ast.MustParseRef(s)
+			}
+
+			var buf BufferTracer
+
+			query := NewQuery(f.query).
+				WithCompiler(f.compiler).
+				WithStore(f.store).
+				WithTransaction(f.txn).
+				WithInput(f.input).
+				WithTracer(&buf).
+				WithUnknowns(unknowns).
+				WithDisableInlining(disableInlining).
+				WithSkipPartialNamespace(tc.skipPartialNamespace).
+				WithShallowInlining(tc.shallow).
+				WithNondeterministicBuiltins(tc.nondeterministicBuiltins)
+
+			// Set genvarprefix so that tests can refer to vars in generated
+			// expressions.
+			query.genvarprefix = "x"
+
+			partials, support, err := query.PartialRun(ctx)
+
+			if err != nil {
+				if buf != nil {
+					PrettyTrace(os.Stdout, buf)
+				}
+				t.Fatal(err)
+			}
+
+			var expectedQueries []ast.Body
+
+			if len(tc.wantQueryASTs) > 0 {
+				expectedQueries = tc.wantQueryASTs
+			} else {
+				expectedQueries = make([]ast.Body, len(tc.wantQueries))
+				for i := range tc.wantQueries {
+					expectedQueries[i] = ast.MustParseBodyWithOpts(tc.wantQueries[i], popts)
+				}
+			}
+
+			queriesA, queriesB := bodySet(partials), bodySet(expectedQueries)
+			if !queriesB.Equal(queriesA, tc.ignoreOrder) {
+				missing := queriesB.Diff(queriesA, tc.ignoreOrder)
+				extra := queriesA.Diff(queriesB, tc.ignoreOrder)
+				t.Errorf("Partial evaluation results differ. Expected %d queries but got %d queries:\nMissing:\n%v\nExtra:\n%v", len(queriesB), len(queriesA), missing, extra)
+			}
+
+			var expectedSupport []*ast.Module
+			if len(tc.wantSupportASTs) > 0 {
+				expectedSupport = tc.wantSupportASTs
+			} else {
+				for i := range tc.wantSupport {
+					expectedSupport = append(expectedSupport, ast.MustParseModuleWithOpts(tc.wantSupport[i], popts))
 				}
 			}
 			supportA, supportB := moduleSet(support), moduleSet(expectedSupport)
@@ -5042,12 +5376,13 @@ q if { input.x = 7 }`},
 }
 
 type fixtureParams struct {
-	note       string
-	data       string
-	modules    []string
-	moduleASTs []*ast.Module
-	query      string
-	input      string
+	note          string
+	data          string
+	modules       []string
+	moduleASTs    []*ast.Module
+	query         string
+	input         string
+	parserOptions ast.ParserOptions
 }
 
 type fixture struct {
@@ -5075,7 +5410,7 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 
 			compiler := ast.NewCompiler()
 			modules := map[string]*ast.Module{}
-			opts := ast.ParserOptions{}
+			opts := params.parserOptions
 
 			if len(params.moduleASTs) > 0 {
 				for i, module := range params.moduleASTs {
@@ -5100,7 +5435,7 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 
 			queryCompiler := compiler.QueryCompiler().WithContext(queryContext)
 
-			compiledQuery, err := queryCompiler.Compile(ast.MustParseBody(params.query))
+			compiledQuery, err := queryCompiler.Compile(ast.MustParseBodyWithOpts(params.query, opts))
 			if err != nil {
 				t.Fatal(err)
 			}
