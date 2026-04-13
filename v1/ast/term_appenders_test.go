@@ -7,7 +7,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
-var value_appender_tests = []struct {
+var valueAppenderTests = []struct {
 	name string
 	term ast.StringLengther
 	want string
@@ -87,9 +87,34 @@ var value_appender_tests = []struct {
 		want: `{k: v | some k, v; equal(data.items[k], v); gt(v, 10)}`,
 	},
 	{
+		name: "object comprehension infix value",
+		term: ast.MustParseTerm(`{k: (v * 100) | some k, v; v > 0}`),
+		want: `{k: (v * 100) | some k, v; gt(v, 0)}`,
+	},
+	{
+		name: "object comprehension infix key",
+		term: ast.MustParseTerm(`{(k + 1): v | some k, v; v > 0}`),
+		want: `{(k + 1): v | some k, v; gt(v, 0)}`,
+	},
+	{
 		name: "array comprehension",
 		term: ast.MustParseTerm(`[(x * 2) | x := data.numbers[_]; x > 5]`),
-		want: `[mul(x, 2) | assign(x, data.numbers[_]); gt(x, 5)]`,
+		want: `[(x * 2) | assign(x, data.numbers[_]); gt(x, 5)]`,
+	},
+	{
+		name: "array comprehension nested infix operators",
+		term: ast.MustParseTerm(`[((x + 1) * 2) | x := data.numbers[_]]`),
+		want: `[((x + 1) * 2) | assign(x, data.numbers[_])]`,
+	},
+	{
+		name: "array comprehension non-infix head",
+		term: ast.MustParseTerm(`[count(x) | x := data.lists[_]]`),
+		want: `[count(x) | assign(x, data.lists[_])]`,
+	},
+	{
+		name: "array comprehension nested infix with function call",
+		term: ast.MustParseTerm(`[(to_number(cpu_str[i])/1000) | cpu_str[i]]`),
+		want: `[(to_number(cpu_str[i]) / 1000) | cpu_str[i]]`,
 	},
 	{
 		name: "set comprehension",
@@ -99,7 +124,7 @@ var value_appender_tests = []struct {
 }
 
 func TestASTValueTextAppendersAndStringLength(t *testing.T) {
-	for _, tc := range value_appender_tests {
+	for _, tc := range valueAppenderTests {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf []byte
 			var err error
@@ -123,7 +148,7 @@ func TestASTValueTextAppendersAndStringLength(t *testing.T) {
 
 // Ensure no appender allocates when appending to a pre-sized buffer.
 func BenchmarkNoASTTypeAllocatesOnAppendToBufferOfStringLength(b *testing.B) {
-	for _, tc := range value_appender_tests {
+	for _, tc := range valueAppenderTests {
 		b.Run(tc.name, func(b *testing.B) {
 			buf := make([]byte, 0, tc.term.StringLength())
 			for b.Loop() {
