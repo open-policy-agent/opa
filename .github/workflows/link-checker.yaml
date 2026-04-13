@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   linkChecker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       issues: write # required for peter-evans/create-issue-from-file
     steps:
@@ -19,36 +19,46 @@ jobs:
       with:
         persist-credentials: false
 
-    - name: Link Checker
+    - name: Build docs
+      run: make docs-install docs-build
+
+    - name: Link Checker (Docs Site)
+      id: lychee-docs
+      uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2.8.0
+      with:
+        args: --config build/lychee/website.toml --root-dir ${{ github.workspace }}/docs/build docs/build
+        fail: false
+        output: lychee/docs-out.md
+
+    - name: Link Checker (Repository)
       id: lychee
       uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2.8.0
       # ignored domains are a source of false positives in
       # https://github.com/open-policy-agent/opa/issues/7888 for example
       with:
-        args: >
-          --max-concurrency 1
-          --no-progress
-          --exclude-path vendor
-          --exclude-path internal
-          --exclude-path CHANGELOG.md
-          --scheme https
-          --scheme http
-          --exclude medium.com
-          --exclude blog.openpolicyagent.org
-          --exclude itnext.io
-          --accept 200..=206,403,429
-          --retry-wait-time 5
-          --max-retries 1
-          .
+        args: --config build/lychee/repo.toml .
         fail: false
+        output: lychee/repo-out.md
+
+    - name: Combine Reports
+      run: |
+        {
+          echo "# Link Checker Report"
+          echo ""
+          echo "## Docs Site"
+          cat lychee/docs-out.md
+          echo ""
+          echo "## Repository"
+          cat lychee/repo-out.md
+        } > lychee/combined-out.md
 
     - name: Show Report
-      run: cat lychee/out.md
+      run: cat lychee/combined-out.md
 
     - name: Create Issue From File
-      if: steps.lychee.outputs.exit_code != 0
+      if: steps.lychee-docs.outputs.exit_code != 0 || steps.lychee.outputs.exit_code != 0
       uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
       with:
         title: "docs: Link Checker Report"
-        content-filepath: ./lychee/out.md
+        content-filepath: ./lychee/combined-out.md
         labels: report, automated issue

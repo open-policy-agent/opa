@@ -40,7 +40,7 @@ jobs:
         name: Read go version
         run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
       - name: Install Go (${{ steps.go_version.outputs.go_version }})
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
           cache: false
@@ -89,7 +89,7 @@ jobs:
         run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
       - name: Install Go (${{ steps.go_version.outputs.go_version }})
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
           cache: false
@@ -136,9 +136,9 @@ jobs:
       - name: Build and Deploy OPA Docker Images
         id: build-and-deploy
         env:
-          DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }} # zizmor: ignore[secrets-outside-env]
         # Only run if required secrets are provided
         if: ${{ env.DOCKER_USER && env.DOCKER_PASSWORD }}
         run: make release-ci

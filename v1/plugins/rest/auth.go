@@ -5,7 +5,6 @@
 package rest
 
 import (
-	"cmp"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -33,7 +32,6 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/internal/uuid"
-	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/keys"
 	"github.com/open-policy-agent/opa/v1/logging"
 )
@@ -258,9 +256,7 @@ type oauth2ClientCredentialsAuthPlugin struct {
 	signingKey       *keys.Config
 	signingKeyParsed any
 	tokenCache       *oauth2Token
-	tlsSkipVerify    bool
-	minTLSVersion    uint16
-	cipherSuites     *[]uint16
+	tokenTLSConfig   *tls.Config
 	logger           logging.Logger
 }
 
@@ -502,10 +498,14 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		}
 	}
 
-	// Inherit TLS settings from the "parent" config
-	ap.tlsSkipVerify = c.AllowInsecureTLS
-	ap.minTLSVersion = c.minTLSVersion
-	ap.cipherSuites = c.cipherSuites
+	// Inherit TLS config from the "parent" service config so that the token
+	// endpoint client uses the same CA certs, min TLS version, cipher suites,
+	// and insecure-skip-verify setting as the service itself.
+	ap.tokenTLSConfig = t.Clone()
+	// The token URL is always https (validated below). DefaultTLSConfig only
+	// sets InsecureSkipVerify when the *service* URL is https, but we need
+	// the setting to apply to the token endpoint regardless.
+	ap.tokenTLSConfig.InsecureSkipVerify = c.AllowInsecureTLS
 
 	ap.logger = c.logger
 
@@ -661,15 +661,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 		r.Header.Add(k, v)
 	}
 
-	tlsConfig := &tls.Config{
-		MinVersion:         cmp.Or(ap.minTLSVersion, uint16(config.DefaultMinTLSVersion)),
-		InsecureSkipVerify: ap.tlsSkipVerify,
-	}
-	if ap.cipherSuites != nil {
-		tlsConfig.CipherSuites = *ap.cipherSuites
-	}
-
-	client := DefaultRoundTripperClient(tlsConfig, 10)
+	client := DefaultRoundTripperClient(ap.tokenTLSConfig.Clone(), 10)
 	response, err := client.Do(r)
 	if err != nil {
 		return nil, err
