@@ -119,6 +119,28 @@ cases:
             - c
           - - a
             - c
+  - note: reachable_paths/shared_ancestor
+    query: data.reachable.p = x
+    modules:
+      - |
+        package reachable
+
+        p := result if {
+        	graph.reachable_paths(input.graph, input.initial, result)
+        }
+    data: {}
+    input_term: '{ "graph": { "1": [], "2": ["1"], "3": ["2"], "4": ["3", "2"], "5": ["4"] }, "initial": ["5"] }'
+    want_result:
+      - x:
+          - - "5"
+            - "4"
+            - "2"
+            - "1"
+          - - "5"
+            - "4"
+            - "3"
+            - "2"
+            - "1"
   - note: reachable_paths/invalid_end
     query: data.reachable.p = x
     modules:

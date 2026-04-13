@@ -71,10 +71,13 @@ cases:
           - - one
             - five
             - six
+            - nine
           - - one
             - five
             - six
-            - nine
+            - seven
+            - eight
+            - three
           - - one
             - two
             - four
