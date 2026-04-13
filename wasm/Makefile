@@ -106,7 +106,11 @@ endif
 test:
 ifeq ($(USE_DOCKER), 1)
 	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src:Z $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa-test.wasm
-	@$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE -v $(CURDIR):/src:Z -w /src node:$(WASM_TEST_NODE_VERSION) node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+	@NODE_IMAGE="node:$(WASM_TEST_NODE_VERSION)"; \
+	if [ "$$(uname -m)" = "s390x" ]; then \
+		NODE_IMAGE="node:$(WASM_TEST_NODE_VERSION)-bullseye"; \
+	fi; \
+	$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE -v $(CURDIR):/src:Z -w /src $$NODE_IMAGE node test.js $(WASM_OBJ_DIR)/opa-test.wasm
 else
 	@$(MAKE) $(WASM_OBJ_DIR)/opa-test.wasm
 	@node test.js $(WASM_OBJ_DIR)/opa-test.wasm
