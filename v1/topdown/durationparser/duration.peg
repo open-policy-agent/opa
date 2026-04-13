@@ -1,0 +1,34 @@
+{
+package durationparser
+}
+
+Duration <- sign:Sign? segments:Segment+ EOF {
+	signStr := ""
+	if sign != nil {
+		signStr = sign.(string)
+	}
+	raw := segments.([]any)
+	segs := make([]Segment, len(raw))
+	for i, s := range raw {
+		segs[i] = s.(Segment)
+	}
+	return Result{Sign: signStr, Segments: segs}, nil
+}
+
+Sign <- [-+] {
+	return string(c.text), nil
+}
+
+Segment <- digits:Digits unit:Unit {
+	return Segment{Digits: digits.(string), Unit: unit.(string)}, nil
+}
+
+Digits <- [0-9.]+ {
+	return string(c.text), nil
+}
+
+Unit <- ("ms" / "us" / "µs" / "ns" / [a-z]) {
+	return string(c.text), nil
+}
+
+EOF <- !.

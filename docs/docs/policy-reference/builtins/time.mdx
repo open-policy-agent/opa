@@ -18,6 +18,20 @@ Timezones can be specified as
 Note that OPA will use the `time/tzdata` data if none is present on the runtime filesystem (see the
 [Go `time.LoadLocation()`](https://pkg.go.dev/time#LoadLocation) documentation for more information).
 
+#### Duration Parsing
+
+OPA supports the following time units for `time.parse_duration_ns`:
+
+* `ns` - NanoSeconds
+* `us` (or `µs`) - MicroSeconds
+* `ms` - MilliSeconds
+* `s` - Seconds
+* `m` - Minutes (ignoring leap seconds)
+* `h` - Hours
+* `d` - Days (ignoring so-called daylight saving time)
+* `w` - Weeks
+* `y` - Years (ignoring leap days)
+
 #### Timestamp Parsing
 
 OPA can parse timestamps of nearly arbitrary formats, and currently accepts the same inputs as Go's `time.Parse()` utility.
