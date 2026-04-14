@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v39"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v43"
 
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
