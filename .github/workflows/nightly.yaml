@@ -156,7 +156,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: open-policy-agent/opa-control-plane
-          ref: ${{ steps.ocp_release.outputs.tag }}
+          ref: "61213c778cd937822cfdfed0f8914649a8381954" # ${{ steps.ocp_release.outputs.tag }}
           persist-credentials: false
           path: ocp
 
