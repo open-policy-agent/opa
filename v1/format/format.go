@@ -1181,6 +1181,15 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 		if errors.As(err, &unexpectedCommentError{}) {
 			w.buf.Truncate(currentLen)
 
+			// If beforeEnd refers to a comment within the source text range, clear it
+			// This prevents the comment from being written twice
+			if w.beforeEnd != nil && len(term.Location.Text) > 0 {
+				endRow := term.Location.Row + bytes.Count(term.Location.Text, []byte{'\n'})
+				if w.beforeEnd.Location.Row >= term.Location.Row && w.beforeEnd.Location.Row <= endRow {
+					w.beforeEnd = nil
+				}
+			}
+
 			comments, uErr := w.writeUnformatted(term.Location, *currentComments)
 			if uErr != nil {
 				return nil, uErr
@@ -1792,6 +1801,20 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 	if err != nil {
 		return nil, err
 	}
+
+	// If there are comments within the single line, don't collapse it and keep it as-is
+	// Return an error so that writeTerm will write the original formatting
+	if len(lines) == 1 {
+		for _, c := range comments {
+			if c.Location.Row > last.Row && c.Location.Row < close.Row {
+				return comments, unexpectedCommentError{
+					newComment:    truncatedString(c.String(), 100),
+					newCommentRow: c.Location.Row,
+				}
+			}
+		}
+	}
+
 	if len(lines) > 1 {
 		w.delayBeforeEnd()
 		w.startMultilineSeq()
