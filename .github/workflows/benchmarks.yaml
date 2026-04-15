@@ -27,20 +27,20 @@ jobs:
           set -e
           BEFORE_SHA="${{ github.event.before }}"
           CURRENT_SHA="${{ github.event.after }}"
-  
+
           # Default to running all checks
           echo "go=true" >> $GITHUB_OUTPUT
-  
+
           echo "Comparing $BEFORE_SHA with $CURRENT_SHA"
           git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA" > changed_files.txt
           if [ ! -s changed_files.txt ]; then
             echo "Warning: No changed files found"
             exit 0
           fi
-  
+
           echo "Changed files:"
           cat changed_files.txt
-  
+
           # Check for Go-related changes
           go_patterns="^(.*\.go$|\
           .*\.yaml$|\
@@ -60,7 +60,7 @@ jobs:
           else
             echo "Found Go file changes"
           fi
-  
+
           echo "Final outputs:"
           echo "go=$(grep '^go=' $GITHUB_OUTPUT | tail -1 | cut -d'=' -f2)"
 
@@ -113,7 +113,7 @@ jobs:
       - name: Install Node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 24
+          node-version: 25
       - name: update notebook
         run: |
           npm ci
