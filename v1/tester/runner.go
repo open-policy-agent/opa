@@ -542,6 +542,12 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 					defer wg.Done()
 
 					select {
+					case <-stopCtx.Done():
+						return
+					default:
+					}
+
+					select {
 					case semaphore <- struct{}{}:
 						defer func() { <-semaphore }()
 					case <-stopCtx.Done():
