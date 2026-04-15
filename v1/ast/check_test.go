@@ -2751,6 +2751,36 @@ output if {
 	}
 }`,
 		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/6736
+		{
+			name: "check referencing generated map with numeric keys",
+			policy: `package p
+
+import rego.v1
+
+nums[x] contains x if some x in [1, 2, 3]
+
+bug if {
+    nums[x]
+    x == 1
+}`,
+		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/6736
+		{
+			name: "check referencing generated map with numeric keys with some...in",
+			policy: `package p
+
+import rego.v1
+
+ns := [1, 2, 3]
+
+nums[x] contains ns if some x in ns
+
+bug if {
+	some n1 in ns
+	some n2 in nums[n1]
+}`,
+		},
 	}
 
 	for _, tc := range tests {
