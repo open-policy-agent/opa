@@ -22,12 +22,12 @@
     if (githubToken) {
       headers['Authorization'] = `token ${githubToken}`;
     }
-  
+
     const baseUrl = `https://api.github.com/repos/${repoOwner}/${repoName}`;
     const commitsMap = new Map(); // Changed to a Map
-  
+
     const commitsResponse = await fetch(`${baseUrl}/commits?per_page=${count}`, { headers });
-    
+
     if (!commitsResponse.ok) {
       throw new Error(`Failed to fetch commits: ${commitsResponse.statusText}`);
     }
@@ -40,7 +40,7 @@
         author_date: commit.author.date,
       });
     });
-    
+
     return commitsMap;
   }
   const commitDataMap = await fetchLastNCommitsMap("open-policy-agent", "opa", 100, process.env.GITHUB_TOKEN);
@@ -56,10 +56,10 @@
     if (githubToken) {
       headers['Authorization'] = `token ${githubToken}`;
     }
-  
+
     const baseUrl = `https://api.github.com/repos/${repoOwner}/${repoName}`;
     const commitToTagMap = {};
-  
+
     let page = 1;
     let hasMore = true;
 
@@ -87,10 +87,10 @@
     return benchmarksData.flatMap(commitData => {
       const commit = commitData.Version;
       const date = new Date(commitData.Date * 1000);
-  
+
       return (commitData.Suites || []).flatMap(suite => {
         const pkg = suite.Pkg.replace('github.com/open-policy-agent/opa', '.');
-  
+
         // Map each individual benchmark into the final flat record
         return (suite.Benchmarks || []).flatMap(benchmark => {
           const base = { commit, date, pkg, name: benchmark.Name, tag: tagData[commit] };
@@ -115,10 +115,25 @@
     });
   }
   const rows = flatten(benchmarks, tags).filter(d => commits[d.commit]);
+
+  // Compute CV per benchmark (pkg+name) using NsPerOp values
+  const cvByBenchmark = new Map();
+  const grouped = d3.group(rows, d => `${d.pkg}\0${d.name}`);
+  for (const [key, values] of grouped) {
+    const nsValues = values.filter(d => d.measure === "NsPerOp").map(d => d.value);
+    if (nsValues.length > 1) {
+      const mean = d3.mean(nsValues);
+      const std = Math.sqrt(d3.mean(nsValues.map(v => (v - mean) ** 2)));
+      cvByBenchmark.set(key, mean !== 0 ? std / Math.abs(mean) : 0);
+    }
+  }
   </script>
   <script type="module">
   const tagsInData = [...new Set(rows.flatMap((d) => d.tag || []))];
   const selectedTag = view(Inputs.select(tagsInData, {label: "Tag as Index:"}))
+  </script>
+  <script type="module">
+  const hideNoisy = view(Inputs.toggle({label: "Hide noisy", value: true}));
   </script>
   <script type="module">
   const relativeDifferencesByMeasure = d3.rollup(
@@ -128,7 +143,7 @@
       v.sort((a, b) => b.date.getTime() - a.date.getTime());
       const lastMeasurement = v[0];
       const latestTaggedMeasurement = v.find(d => !!d.tag);
-  
+
       if (!latestTaggedMeasurement) return null;
       return { relativeDifference: latestTaggedMeasurement.value !== 0 ? lastMeasurement.value / latestTaggedMeasurement.value : null};
     },
@@ -137,14 +152,14 @@
     d => d.measure
   );
   const benchmarksWithRelDiffs = [];
-  
+
   for (const [pkg, nameMap] of relativeDifferencesByMeasure) {
     for (const [name, measureMap] of nameMap) {
       const outputRow = {
         pkg,
         name,
       };
-  
+
       for (const [measure, data] of measureMap) {
         if (data && data?.relativeDifference !== null) {
           outputRow[measure] = data.relativeDifference;
@@ -160,6 +175,10 @@
   }
   d3.sort(benchmarksWithRelDiffs, (d) => d.NsPerOp);
 
+  const filteredBenchmarks = hideNoisy
+    ? benchmarksWithRelDiffs.filter(d => (cvByBenchmark.get(`${d.pkg}\0${d.name}`) || 0) <= 0.2)
+    : benchmarksWithRelDiffs;
+
   const numericKeys = ["NsPerOp", "BytesPerOp", "AllocsPerOp"];
   const minMaxByMeasureKeyLog2 = new Map(); // Stores { key: { minLog2, maxLog2 } } for each column
 
@@ -168,7 +187,7 @@
     let colMinLog2 = Infinity;
     let colMaxLog2 = -Infinity;
 
-    benchmarksWithRelDiffs.forEach(row => {
+    filteredBenchmarks.forEach(row => {
       const value = row[key];
       if (typeof value === 'number' && !isNaN(value) && value > 0) { // Ensure value is positive for log2
         const log2Value = Math.log2(value);
@@ -210,7 +229,7 @@
       const bgColor = scale(Math.log2(value));
       // Simple luminance check for text color contrast
       const textColor = d3.color(bgColor).rgb().r * 0.299 + d3.color(bgColor).rgb().g * 0.587 + d3.color(bgColor).rgb().b * 0.114 > 186 ? "black" : "white";
-  
+
       return htl.html`<div style="
         background-color: ${bgColor};
         width: 100%;
@@ -249,17 +268,17 @@
       };
     };
   }
-  
-  const search = view(Inputs.search(benchmarksWithRelDiffs, {
+
+  const search = view(Inputs.search(filteredBenchmarks, {
     label: "Benchmarks",
     filter: columnFilter(["pkg", "name"]),
     autocomplete: true,
   }));
   </script>
   <script type="module" >
-  const selectedRow = view(Inputs.table(search.length > 0 ? search : benchmarksWithRelDiffs, {
+  const selectedRow = view(Inputs.table(search.length > 0 ? search : filteredBenchmarks, {
     multiple: false,
-    value: search.length > 0 ? search[0] : benchmarksWithRelDiffs[0],
+    value: search.length > 0 ? search[0] : filteredBenchmarks[0],
     width: {
       pkg: 200,
       name: 300,
