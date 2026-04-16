@@ -34,9 +34,10 @@ func errUnitNotRecognized(unit string) error {
 }
 
 var (
-	errNoAmount       = parseUnitsError("no amount provided")
-	errNumConv        = parseUnitsError("could not parse amount to a number")
-	errIncludesSpaces = parseUnitsError("spaces not allowed in resource strings")
+	errNoAmount              = parseUnitsError("no amount provided")
+	errNumConv               = parseUnitsError("could not parse amount to a number")
+	errIncludesSpaces        = parseUnitsError("spaces not allowed in resource strings")
+	errUnitsExponentTooLarge = parseUnitsError("exponent too large")
 )
 
 // Accepts both normal SI and binary SI units.
@@ -56,7 +57,10 @@ func builtinUnits(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 		return errIncludesSpaces
 	}
 
-	num, unit := extractNumAndUnit(s)
+	num, unit, err := extractNumAndUnit(s)
+	if err != nil {
+		return errUnitsExponentTooLarge
+	}
 	if num == "" {
 		return errNoAmount
 	}
