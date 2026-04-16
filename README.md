@@ -79,6 +79,11 @@ and more, see [openpolicyagent.org](https://www.openpolicyagent.org).
 
 ## Presentations
 
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2026: [video](https://www.youtube.com/watch?v=TENlj4r6IXk)
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon NA 2025: [video](https://www.youtube.com/watch?v=tDBYMF2XXLA)
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2025: [video](https://www.youtube.com/watch?v=XtA-NKoJDaI)
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon NA 2024: [video](https://www.youtube.com/watch?v=QuotLxFb2f4)
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2024: [video](https://www.youtube.com/watch?v=hENwFyrtm1g)
 - Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon NA 2023: [video](https://www.youtube.com/watch?v=wJkjsvVpj_Q)
 - Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2023: [video](https://www.youtube.com/watch?v=6RNp3m_THw4)
 - Running Policy in Hard to Reach Places with WASM & OPA @ CN Wasm Day EU 2023: [video](https://www.youtube.com/watch?v=BdeBhukLwt4)
