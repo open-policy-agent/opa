@@ -13,9 +13,6 @@ on:
         type: string
         default: ''
 
-permissions:
-  contents: write # Required when publish=true; capped by caller's token otherwise
-
 jobs:
   benchmarks:
     name: Benchmarks
