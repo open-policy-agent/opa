@@ -567,7 +567,7 @@ func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 }
 
 func parseAnnotations(comments []*Comment) (stmts []*Annotations, errs Errors) {
-	numBlocks := CountFunc(comments, isMetadataComment)
+	numBlocks := CountFunc(comments, IsMetadataComment)
 	if numBlocks == 0 {
 		return nil, nil
 	}
@@ -579,7 +579,7 @@ func parseAnnotations(comments []*Comment) (stmts []*Annotations, errs Errors) {
 	}
 
 	for i := range comments {
-		if isMetadataComment(comments[i]) { // scan until end of block
+		if IsMetadataComment(comments[i]) { // scan until end of block
 			mdp.Reset(comments[i].Location)
 			for i++; i < len(comments) && !blockBuster(comments[i], comments[i-1]); i++ {
 				mdp.Append(comments[i])
@@ -598,12 +598,12 @@ func parseAnnotations(comments []*Comment) (stmts []*Annotations, errs Errors) {
 	return stmts, errs
 }
 
-func isMetadataComment(c *Comment) bool {
+func IsMetadataComment(c *Comment) bool {
 	return c.Location.Col == 1 && bytes.HasPrefix(bytes.TrimSpace(c.Text), metadataBytes)
 }
 
 func blockBuster(curr, prev *Comment) bool { // or endOfBlock, but the name was too good to pass up
-	return curr.Location.Col != 1 || curr.Location.Row-1 != prev.Location.Row
+	return curr.Location.Col != 1 || curr.Location.Row-1 != prev.Location.Row || IsMetadataComment(curr)
 }
 
 func (p *Parser) parsePackage() *Package {

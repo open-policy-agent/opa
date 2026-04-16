@@ -6,9 +6,117 @@ cases:
         package generated
 
         p = ns {
+          time.parse_duration_ns("100ns", ns)
+        }
+    note: time/parse duration nanos, nanoseconds
+    query: data.generated.p = x
+    want_result:
+      - x: 100
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.parse_duration_ns("100us", ns)
+        }
+    note: time/parse duration nanos, microseconds
+    query: data.generated.p = x
+    want_result:
+      - x: 100000
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
           time.parse_duration_ns("100ms", ns)
         }
-    note: time/parse duration nanos
+    note: time/parse duration nanos, milliseconds
     query: data.generated.p = x
     want_result:
       - x: 100000000
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.parse_duration_ns("100s", ns)
+        }
+    note: time/parse duration nanos, seconds
+    query: data.generated.p = x
+    want_result:
+      - x: 100000000000
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.parse_duration_ns("100m", ns)
+        }
+    note: time/parse duration nanos, minutes
+    query: data.generated.p = x
+    want_result:
+      - x: 6000000000000
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.parse_duration_ns("100h", ns)
+        }
+    note: time/parse duration nanos, hours
+    query: data.generated.p = x
+    want_result:
+      - x: 360000000000000
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.parse_duration_ns("365d", ns)
+        }
+    note: time/parse duration nanos, days
+    query: data.generated.p = x
+    want_result:
+      - x: 31536000000000000
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.parse_duration_ns("1w", ns)
+        }
+    note: time/parse duration nanos, weeks
+    query: data.generated.p = x
+    want_result:
+      - x: 604800000000000
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.parse_duration_ns("1y", ns)
+        }
+    note: time/parse duration nanos, years
+    query: data.generated.p = x
+    want_result:
+      - x: 31536000000000000
+  - data: { }
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.parse_duration_ns("1d2h", ns)
+        }
+    note: time/parse duration nanos, multiple-units
+    query: data.generated.p = x
+    want_result:
+      - x: 93600000000000

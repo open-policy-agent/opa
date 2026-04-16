@@ -419,7 +419,18 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 		return newArgError(expr.Location, name, "too few arguments", getArgTypes(env, args), namedFargs)
 	}
 
+	pre := getArgTypes(env, args)
+
 	for i := range args {
+		// Check that pre-existing argument types are compatible with the expected types.
+		// Catching that case here avoids false negatives for builtins like sum([1, a]) where a is known to be a string.
+		if pre[i] != nil && !types.Nil(pre[i]) && !unifies(pre[i], fargs.Arg(i)) {
+			return newArgError(expr.Location, name, "invalid argument(s)", pre, namedFargs)
+		}
+
+		// unify1 infers types for untyped variables and checks resolved parts (constants, refs) inside partially-typed composites.
+		// The unifies pre-check above is skipped when the argument contains untyped variables,
+		// so unify1 is still needed to catch those errors.
 		if !unify1(env, args[i], fargs.Arg(i), false) {
 			post := make([]types.Type, len(args))
 			for i := range args {
@@ -549,6 +560,9 @@ func unify2Object(env *TypeEnv, a *Term, b *Term) bool {
 	return false
 }
 
+// unify1 walks into a term's structure (arrays, objects, sets, vars), checks
+// compatibility against the expected type, and infers types for variables by
+// assigning them in env. It uses unifies internally for leaf checks.
 func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 	switch v := term.Value.(type) {
 	case *Array:
@@ -839,6 +853,7 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	return rc.checkRefLeaf(types.Values(tpe), ref, idx+1)
 }
 
+// unifies checks whether two types are compatible with each other.
 func unifies(a, b types.Type) bool {
 
 	if a == nil || b == nil {
@@ -962,7 +977,14 @@ func unifiesObjects(a, b *types.Object) bool {
 
 func unifiesObjectsStatic(a, b *types.Object) bool {
 	for _, k := range a.Keys() {
-		if !unifies(a.Select(k), b.Select(k)) {
+		tpeB := b.Select(k)
+		if tpeB == nil {
+			if a.DynamicValue() != nil || b.DynamicValue() != nil {
+				continue
+			}
+			return false
+		}
+		if !unifies(a.Select(k), tpeB) {
 			return false
 		}
 	}
@@ -1174,7 +1196,7 @@ func removeDuplicate(list []Value) []Value {
 func getArgTypes(env *TypeEnv, args []*Term) []types.Type {
 	pre := make([]types.Type, len(args))
 	for i := range args {
-		pre[i] = env.Get(args[i])
+		pre[i] = env.GetByValue(args[i].Value)
 	}
 	return pre
 }

@@ -7,6 +7,9 @@ on:
 permissions:
   contents: read
 
+env:
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+
 jobs:
   race-detector:
     name: Go Race Detector
@@ -22,7 +25,7 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
@@ -58,7 +61,7 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
@@ -84,7 +87,7 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
@@ -113,7 +116,7 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
@@ -153,7 +156,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: open-policy-agent/opa-control-plane
-          ref: ${{ steps.ocp_release.outputs.tag }}
+          ref: "61213c778cd937822cfdfed0f8914649a8381954" # ${{ steps.ocp_release.outputs.tag }}
           persist-credentials: false
           path: ocp
 
@@ -182,7 +185,7 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
@@ -246,7 +249,7 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
@@ -295,7 +298,7 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }} # zizmor: ignore[secrets-outside-env]
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook

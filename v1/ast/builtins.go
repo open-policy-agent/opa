@@ -2416,7 +2416,7 @@ var ParseDurationNanos = &Builtin{
 	Description: "Returns the duration in nanoseconds represented by a string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("duration", types.S).Description("a duration like \"3m\"; see the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details"),
+			types.Named("duration", types.S).Description("a duration like \"3m\"; see the [OPA `Duration Parsing` documentation](https://www.openpolicyagent.org/docs/latest/policy-reference/builtins/time#duration-parsing) for more details"),
 		),
 		types.Named("ns", types.N).Description("the `duration` in nanoseconds"),
 	),

@@ -2643,6 +2643,114 @@ allow if {
 p if { [data.base.foo] }`,
 			expectedError: "policy.rego:3: rego_type_error: function data.base.foo used as reference, not called",
 		},
+		{
+			name: "wrong type used directly",
+			policy: `package p
+
+s := sum([1, "foo"])`,
+			expectedError: "sum: invalid argument(s)",
+		},
+		{
+			name: "wrong type as reference",
+			policy: `package p
+
+a := "foo"
+s := sum([1, a])`,
+			expectedError: "sum: invalid argument(s)",
+		},
+		{
+			name: "wrong type as reference within rule",
+			policy: `package p
+
+allow := s if {
+    a := "foo"
+    s := sum([1, a])
+}`,
+			expectedError: "sum: invalid argument(s)",
+		},
+		{
+			name: "compare partial object",
+			policy: `package p
+
+obj["a"] := input.a
+
+obj["b"] := input.b
+
+test_obj2 if {
+	{"a":"1"} == obj with input as {"a": "1"}
+}`,
+		},
+		// this policy verifies this issue: https://github.com/open-policy-agent/opa/issues/6751
+		{
+			name: "compare two partial objects",
+			policy: `package p
+
+obj1["a"] := input.a
+obj1["b"] := input.b
+
+obj2["x"] := input.x
+obj2["y"] := input.y
+
+test if {
+	obj1 == obj2
+}`,
+		},
+		// this policy verifies this issue: https://github.com/open-policy-agent/opa/issues/5594
+		{
+			name: "compare two partial objects 2",
+			policy: `package test
+
+obj["a"] := true
+
+obj["b"] := "foo" if {
+    input.foo == "bar"
+}
+
+test_obj if {
+    obj == {
+        "a": true
+    } with input as {"foo": "baz"}
+}`,
+		},
+		{
+			name: "sum with valid number args",
+			policy: `package p
+
+a := 1
+s := sum([1, a])`,
+		},
+		{
+			name: "sum with untyped var from input",
+			policy: `package p
+
+allow := s if {
+    s := sum([1, input.a])
+}`,
+		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/6260
+		{
+			name: "object literal with set keys",
+			policy: `package bin
+
+a := {1, 2, 3, 4}
+
+b := {3, 4, 5}
+
+c := {4, 5, 6}
+
+d := {
+	a: b,
+	[1, 2]: c,
+}
+
+# this results in a compile error due to type mismatch
+output if {
+	d == {
+		[1, 2]: {4, 5, 6},
+		{1, 2, 3, 4}: {3, 4, 5}
+	}
+}`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -2664,6 +2772,14 @@ p if { [data.base.foo] }`,
 			body := strings.Join(functions, "\n")
 			base := "package base\n" + body
 			compiler.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, pOpts), "policy.rego": module})
+
+			if tc.expectedError == "" {
+				if compiler.Failed() {
+					t.Fatalf("expected no error, but got %v", compiler.Errors.Error())
+				} else {
+					return
+				}
+			}
 
 			if !compiler.Failed() {
 				t.Fatal("expected error, got none")

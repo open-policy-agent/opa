@@ -125,6 +125,19 @@ func (c Call) StringLength() int {
 	return c[0].StringLength() + 2 + TermSliceStringLength(c[1:], 2)
 }
 
+// comprehensionTermStringLength returns the string length of a term when
+// rendered inside a comprehension head, where infix operators are rendered
+// in infix notation wrapped in parens.
+func comprehensionTermStringLength(t *Term) int {
+	if call, ok := t.Value.(Call); ok && len(call) == 3 {
+		if bi, found := BuiltinMap[call[0].String()]; found && bi.Infix != "" && bi.Infix != "in" {
+			// "(left op right)" = left + " " + op + " " + right + "()"
+			return comprehensionTermStringLength(call[1]) + len(bi.Infix) + comprehensionTermStringLength(call[2]) + 4
+		}
+	}
+	return t.StringLength()
+}
+
 func (r Ref) StringLength() (n int) {
 	rlen := len(r)
 	if rlen == 0 {
@@ -165,16 +178,16 @@ func (v Var) StringLength() int {
 }
 
 func (s *SetComprehension) StringLength() int {
-	return s.Term.StringLength() + s.Body.StringLength() + 5 // {} and " | "
+	return comprehensionTermStringLength(s.Term) + s.Body.StringLength() + 5 // {} and " | "
 }
 
 func (a *ArrayComprehension) StringLength() int {
-	return a.Term.StringLength() + a.Body.StringLength() + 5 // [] and " | "
+	return comprehensionTermStringLength(a.Term) + a.Body.StringLength() + 5 // [] and " | "
 }
 
 func (o *ObjectComprehension) StringLength() (n int) {
-	n += o.Key.StringLength()
-	n += o.Value.StringLength()
+	n += comprehensionTermStringLength(o.Key)
+	n += comprehensionTermStringLength(o.Value)
 	n += o.Body.StringLength()
 	return n + 7 // "{}"", " | ", and ": "
 }

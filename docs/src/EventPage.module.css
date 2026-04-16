@@ -1,3 +1,12 @@
+.eventPassedBanner {
+    background-color: var(--ifm-color-warning-contrast-background);
+    color: var(--ifm-color-warning-contrast-foreground);
+    padding: 1rem 2rem;
+    text-align: center;
+    font-size: 1rem;
+    border-bottom: 1px solid var(--ifm-color-emphasis-300);
+}
+
 .pageLayout {
     display: flex;
     gap: 2rem;

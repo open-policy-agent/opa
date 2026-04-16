@@ -1481,6 +1481,56 @@ func TestOauth2ClientCredentials(t *testing.T) {
 	}
 }
 
+func TestOauth2ClientCredentialsTokenEndpointTLSCACert(t *testing.T) {
+	t.Parallel()
+
+	// Service URL server (plain HTTP)
+	ts := testServer{t: t, expBearerToken: "token_1"}
+	ts.start()
+	defer ts.stop()
+
+	// OAuth2 token server (TLS with self-signed cert)
+	ots := oauth2TestServer{t: t}
+	ots.start()
+	defer ots.stop()
+
+	caCertPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: ots.server.Certificate().Raw,
+	})
+	caFile := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(caFile, caCertPEM, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Configure without allow_insecure_tls — the CA cert alone should be
+	// sufficient for the token endpoint TLS handshake.
+	config := fmt.Sprintf(`{
+		"name": "foo",
+		"url": %q,
+		"tls": {
+			"ca_cert": %q
+		},
+		"credentials": {
+			"oauth2": {
+				"token_url": "%v/token",
+				"client_id": "client_one",
+				"client_secret": "super_secret"
+			}
+		}
+	}`, ts.server.URL, caFile, ots.server.URL)
+
+	client, err := New([]byte(config), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	_, err = client.Do(t.Context(), "GET", "test")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
 func TestOauth2ClientCredentialsExpiringTokenIsRefreshed(t *testing.T) {
 	t.Parallel()
 

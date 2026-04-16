@@ -74,39 +74,31 @@ func builtinReachable(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 
 // pathBuilder is called recursively to build a Set of paths that are reachable from the root
 func pathBuilder(graph ast.Object, root *ast.Term, path []*ast.Term, edgeRslt ast.Set, reached ast.Set) {
-	paths := []*ast.Term{}
-
-	if edges := graph.Get(root); edges != nil {
-		path = append(path, root)
-
-		if numberOfEdges(edges) >= 1 {
-
-			foreachVertex(edges, func(neighbor *ast.Term) {
-
-				if reached.Contains(neighbor) {
-					// If we've already reached this node, return current path (avoid infinite recursion)
-					paths = append(paths, path...)
-					edgeRslt.Add(ast.ArrayTerm(paths...))
-				} else {
-					reached.Add(root)
-					pathBuilder(graph, neighbor, path, edgeRslt, reached)
-
-				}
-
-			})
-
-		} else {
-			paths = append(paths, path...)
-			edgeRslt.Add(ast.ArrayTerm(paths...))
-
-		}
-	} else {
-		// Node is nonexistent (not in graph). Commit the current path (without adding this root)
-		paths = append(paths, path...)
-		edgeRslt.Add(ast.ArrayTerm(paths...))
-
+	edges := graph.Get(root)
+	if edges == nil {
+		// Node not in graph — commit path without this node.
+		edgeRslt.Add(ast.ArrayTerm(path...))
+		return
 	}
 
+	path = append(path, root)
+
+	if numberOfEdges(edges) == 0 {
+		edgeRslt.Add(ast.ArrayTerm(path...))
+		return
+	}
+
+	reached = reached.Copy()
+	reached.Add(root)
+
+	foreachVertex(edges, func(neighbor *ast.Term) {
+		if reached.Contains(neighbor) {
+			// Cycle detected — commit current path.
+			edgeRslt.Add(ast.ArrayTerm(path...))
+		} else {
+			pathBuilder(graph, neighbor, append([]*ast.Term(nil), path...), edgeRslt, reached)
+		}
+	})
 }
 
 func builtinReachablePaths(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
