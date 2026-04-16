@@ -10,6 +10,7 @@ concurrency:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
   # Check what types of changes this PR contains
