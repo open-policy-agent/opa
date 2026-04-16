@@ -33,7 +33,7 @@ mkdir bundles
 cd bundles
 ```
 
-```rego title=example.rego"
+```rego title="example.rego"
 package httpapi.authz
 
 # bob is alice's manager, and betty is charlie's.
