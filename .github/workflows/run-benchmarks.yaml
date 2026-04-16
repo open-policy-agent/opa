@@ -14,7 +14,7 @@ on:
         default: ''
 
 permissions:
-  contents: write
+  contents: write # Required when publish=true; capped by caller's token otherwise
 
 jobs:
   benchmarks:

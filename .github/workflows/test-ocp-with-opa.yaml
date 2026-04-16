@@ -13,6 +13,8 @@ jobs:
   test-ocp-with-opa:
     name: Test OCP with OPA
     runs-on: ubuntu-24.04
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }}
     steps:
       - name: Check out OPA code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -70,9 +72,9 @@ jobs:
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        if: failure() && secrets.slack_webhook_url != ''
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
-          webhook: ${{ secrets.slack_webhook_url }} # zizmor: ignore[secrets-outside-env]
+          webhook: ${{ env.SLACK_WEBHOOK_URL }} # zizmor: ignore[secrets-outside-env]
           webhook-type: incoming-webhook
           payload: |
             {
