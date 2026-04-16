@@ -626,29 +626,23 @@ func TestRunnerPrintOutput(t *testing.T) {
 			},
 		}
 
-		got := map[string]string{}
-		var lastFile string
+		got := map[string]map[string]string{}
 		for r := range ch {
-			if lastFile == "" {
-				lastFile = filepath.Base(r.Location.File)
-			} else if lastFile != filepath.Base(r.Location.File) {
-				// assert that all expected results for the file has been received
-				// the individual files could be out of order, but it has to be grouped by file
-				if !maps.Equal(exp[lastFile], got) {
-					t.Fatal("expected:", exp, "got:", got)
-				}
-
-				// clear got for the next file
-				got = map[string]string{}
-				lastFile = filepath.Base(r.Location.File)
+			file := filepath.Base(r.Location.File)
+			if got[file] == nil {
+				got[file] = map[string]string{}
 			}
-
-			got[r.Name] = string(r.Output)
+			got[file][r.Name] = string(r.Output)
 		}
 
-		// check the last file
-		if !maps.Equal(exp[lastFile], got) {
-			t.Fatal("expected:", exp, "got:", got)
+		if !maps.Equal(exp["test.rego"], got["test.rego"]) {
+			t.Fatal("test.rego expected:", exp["test.rego"], "got:", got["test.rego"])
+		}
+		if !maps.Equal(exp["test2.rego"], got["test2.rego"]) {
+			t.Fatal("test2.rego expected:", exp["test2.rego"], "got:", got["test2.rego"])
+		}
+		if !maps.Equal(exp["test3.rego"], got["test3.rego"]) {
+			t.Fatal("test3.rego expected:", exp["test3.rego"], "got:", got["test3.rego"])
 		}
 	})
 }

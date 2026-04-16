@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -421,7 +422,7 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (chan 
 }
 
 // RunTests executes tests found in either modules or bundles loaded on the runner.
-// The test results will be sent in file order.
+// Test results are sent as they complete and may arrive in any order.
 func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (chan *Result, error) {
 	return r.runTests(ctx, txn, true, r.runTest, r.parallel)
 }
@@ -529,62 +530,47 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	go func() {
 		defer close(ch)
 
+		var wg sync.WaitGroup
 		semaphore := make(chan struct{}, parallel)
-		results := make(chan []*Result, len(r.compiler.Modules))
 		stopCtx, cancelTests := context.WithCancel(ctx)
 		defer cancelTests()
 
 		for _, module := range r.compiler.Modules {
-
-			// group the test results together by file
-			modResult := make(chan *Result, len(module.Rules))
-			go func() {
-				var testResults []*Result
-				for range len(module.Rules) {
-					tr := <-modResult
-					if tr != nil {
-						testResults = append(testResults, tr)
-					}
-				}
-				results <- testResults
-			}()
-
 			for _, rule := range module.Rules {
+				wg.Add(1)
 				go func() {
-					semaphore <- struct{}{}
-					defer func() { <-semaphore }()
+					defer wg.Done()
 
 					select {
 					case <-stopCtx.Done():
-						modResult <- nil
 						return
 					default:
-						if !r.shouldRun(rule, testRegex) {
-							modResult <- nil
-							return
-						}
+					}
 
-						tr, stop := func() (*Result, bool) {
-							runCtx, cancel := context.WithTimeout(ctx, r.timeout)
-							defer cancel()
-							return runFunc(runCtx, txn, module, rule)
-						}()
-						modResult <- tr
-						if stop {
-							cancelTests()
-						}
+					select {
+					case semaphore <- struct{}{}:
+						defer func() { <-semaphore }()
+					case <-stopCtx.Done():
+						return
+					}
+
+					if !r.shouldRun(rule, testRegex) {
+						return
+					}
+
+					tr, stop := func() (*Result, bool) {
+						runCtx, cancel := context.WithTimeout(ctx, r.timeout)
+						defer cancel()
+						return runFunc(runCtx, txn, module, rule)
+					}()
+					ch <- tr
+					if stop {
+						cancelTests()
 					}
 				}()
 			}
 		}
-
-		for range len(r.compiler.Modules) {
-			res := <-results
-
-			for _, tr := range res {
-				ch <- tr
-			}
-		}
+		wg.Wait()
 	}()
 
 	return ch, nil
