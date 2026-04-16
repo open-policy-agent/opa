@@ -2727,6 +2727,60 @@ allow := s if {
     s := sum([1, input.a])
 }`,
 		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/6260
+		{
+			name: "object literal with set keys",
+			policy: `package bin
+
+a := {1, 2, 3, 4}
+
+b := {3, 4, 5}
+
+c := {4, 5, 6}
+
+d := {
+	a: b,
+	[1, 2]: c,
+}
+
+# this results in a compile error due to type mismatch
+output if {
+	d == {
+		[1, 2]: {4, 5, 6},
+		{1, 2, 3, 4}: {3, 4, 5}
+	}
+}`,
+		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/6736
+		{
+			name: "check referencing generated map with numeric keys",
+			policy: `package p
+
+import rego.v1
+
+nums[x] contains x if some x in [1, 2, 3]
+
+bug if {
+    nums[x]
+    x == 1
+}`,
+		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/6736
+		{
+			name: "check referencing generated map with numeric keys with some...in",
+			policy: `package p
+
+import rego.v1
+
+ns := [1, 2, 3]
+
+nums[x] contains ns if some x in ns
+
+bug if {
+	some n1 in ns
+	some n2 in nums[n1]
+}`,
+		},
 	}
 
 	for _, tc := range tests {

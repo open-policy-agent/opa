@@ -308,6 +308,17 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 			typeK := cpy.GetByValue(rule.Head.Key.Value)
 			if typeK != nil {
 				tpe = types.NewSet(typeK)
+				if !path.IsGround() {
+					objPath := path.DynamicSuffix()
+					path = path.GroundPrefix()
+
+					var err error
+					tpe, err = nestedObject(cpy, objPath, tpe)
+					if err != nil {
+						tc.err(NewError(TypeErr, rule.Head.Location, "%s", err.Error()))
+						tpe = nil
+					}
+				}
 			}
 		}
 	}
@@ -979,7 +990,7 @@ func unifiesObjectsStatic(a, b *types.Object) bool {
 	for _, k := range a.Keys() {
 		tpeB := b.Select(k)
 		if tpeB == nil {
-			if a.DynamicValue() != nil {
+			if a.DynamicValue() != nil || b.DynamicValue() != nil {
 				continue
 			}
 			return false

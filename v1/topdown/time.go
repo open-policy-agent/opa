@@ -7,15 +7,18 @@ package topdown
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	_ "time/tzdata" // this is needed to have LoadLocation when no filesystem tzdata is available
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/topdown/durationparser"
 )
 
 var tzCache map[string]*time.Location
@@ -26,6 +29,84 @@ var minDateAllowedForNsConversion = time.Unix(0, math.MinInt64)
 
 // 2262-04-11T23:47:16.854775807-00:00
 var maxDateAllowedForNsConversion = time.Unix(0, math.MaxInt64)
+
+var durationCoefficients = map[string]int{
+	"d": 24,
+	"w": 7 * 24,
+	"y": 365 * 24,
+}
+
+// parseExtendedDuration parses a duration string that may contain extended
+// units (d, w, y) mixed with standard Go duration units (h, m, s, ms, us, ns).
+// Extended unit segments are rewritten to equivalent hours (e.g. "1d2h30m" → "24h2h30m")
+func parseExtendedDuration(s string) (int64, error) {
+	if s == "" {
+		return 0, fmt.Errorf("time: invalid duration %q", s)
+	}
+
+	if !strings.ContainsAny(s, "dwy") {
+		v, err := time.ParseDuration(s)
+		if err != nil {
+			return 0, err
+		}
+		return int64(v), nil
+	}
+
+	result, err := durationparser.Parse("", []byte(s))
+	if err != nil {
+		return 0, fmt.Errorf("time: invalid duration %q", s)
+	}
+
+	rewritten, err := rewriteDuration(result.(durationparser.Result))
+	if err != nil {
+		return 0, fmt.Errorf("time: invalid duration %q", s)
+	}
+
+	v, err := time.ParseDuration(rewritten)
+	if err != nil {
+		// Replace the rewritten duration in the error with the original.
+		msg := err.Error()
+		if i := strings.LastIndex(msg, " "); i != -1 {
+			msg = msg[:i]
+		}
+		return 0, fmt.Errorf("%s %q", msg, s)
+	}
+
+	return int64(v), nil
+}
+
+// rewriteDuration converts parsed duration segments, replacing extended
+// units (d, w, y) with their equivalent in hours.
+func rewriteDuration(dr durationparser.Result) (string, error) {
+	var b strings.Builder
+	if dr.Sign != "" {
+		b.WriteString(dr.Sign)
+	}
+	for _, seg := range dr.Segments {
+		s, err := rewriteSegment(seg)
+		if err != nil {
+			return "", err
+		}
+		b.WriteString(s)
+	}
+	return b.String(), nil
+}
+
+// rewriteSegment rewrites a single segment like {Digits:"1", Unit:"d"} to "24h".
+// Segments with standard units are returned unchanged.
+func rewriteSegment(seg durationparser.Segment) (string, error) {
+	coeff, ok := durationCoefficients[seg.Unit]
+	if !ok {
+		return seg.Digits + seg.Unit, nil
+	}
+
+	val, err := strconv.ParseFloat(seg.Digits, 64)
+	if err != nil {
+		return "", fmt.Errorf("time: invalid duration: bad value %q for unit %q", seg.Digits, seg.Unit)
+	}
+	hours := val * float64(coeff)
+	return strconv.FormatFloat(hours, 'f', -1, 64) + "h", nil
+}
 
 func toSafeUnixNano(t time.Time, iter func(*ast.Term) error) error {
 	if t.Before(minDateAllowedForNsConversion) || t.After(maxDateAllowedForNsConversion) {
@@ -77,16 +158,19 @@ func builtinTimeParseRFC3339Nanos(_ BuiltinContext, operands []*ast.Term, iter f
 
 	return toSafeUnixNano(result, iter)
 }
+
 func builtinParseDurationNanos(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	duration, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
-	value, err := time.ParseDuration(string(duration))
+
+	ns, err := parseExtendedDuration(string(duration))
 	if err != nil {
 		return err
 	}
-	return iter(ast.NumberTerm(int64ToJSONNumber(int64(value))))
+
+	return iter(ast.NumberTerm(int64ToJSONNumber(ns)))
 }
 
 // Represent exposed constants for formatting from the stdlib time pkg
