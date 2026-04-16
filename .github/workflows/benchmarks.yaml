@@ -4,7 +4,6 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main]
-  merge_group: # needed for checks in merge queue
 
 permissions:
   contents: read
