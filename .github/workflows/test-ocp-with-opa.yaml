@@ -14,7 +14,7 @@ jobs:
     name: Test OCP with OPA
     runs-on: ubuntu-24.04
     env:
-      SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }}
+      SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }} # zizmor: ignore[secrets-outside-env]
     steps:
       - name: Check out OPA code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
