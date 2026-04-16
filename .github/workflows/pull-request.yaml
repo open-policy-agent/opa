@@ -593,32 +593,23 @@ jobs:
 
   benchmarks:
     name: Benchmarks
-    runs-on: ubuntu-24.04
     needs: check-changes
     if: github.event_name == 'merge_group' && needs.check-changes.outputs.go == 'true'
-    steps:
-      - name: Check out code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          path: opa
-          persist-credentials: false
-      - id: go_version
-        name: Read go version
-        run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
-        working-directory: opa
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version: ${{ steps.go_version.outputs.go_version }}
-          cache-dependency-path: opa/go.sum
-      - name: Run benchmarks
-        run: go run go.bobheadxi.dev/gobenchdata@v1 action
-        env:
-          INPUT_GO_TEST_FLAGS: "-tags=opa_wasm -timeout=120m -run=^#"
-          INPUT_GO_TEST_PKGS: ./...
-          INPUT_SUBDIRECTORY: opa
-          INPUT_PUBLISH: false
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        timeout-minutes: 120
+    uses: ./.github/workflows/run-benchmarks.yaml
+    with:
+      publish: false
+
+  test-ocp-with-opa:
+    name: Test OCP with OPA
+    needs: check-changes
+    if: github.event_name == 'merge_group' && needs.check-changes.outputs.go == 'true'
+    uses: ./.github/workflows/test-ocp-with-opa.yaml
+
+  test-regal-with-opa:
+    name: Test Regal with OPA
+    needs: check-changes
+    if: github.event_name == 'merge_group' && needs.check-changes.outputs.go == 'true'
+    uses: ./.github/workflows/test-regal-with-opa.yaml
 
   # This job is required to complete before merging, and is set as a branch
   # protection rule:
@@ -647,6 +638,8 @@ jobs:
       docs-markdownlint-check,
       docs-spell-check,
       benchmarks,
+      test-ocp-with-opa,
+      test-regal-with-opa,
     ]
     if: always()
     steps:
