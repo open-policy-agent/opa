@@ -91,7 +91,7 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		} else if r.Verbose || !tr.Pass() {
 			if tr.Location != nil {
 				if lastFile != "" && lastFile != tr.Location.File {
-					r.println("")
+					r.println()
 				}
 				_, _ = fmt.Fprintf(r.Output, "%s:%d:\n", tr.Location.File, tr.Location.Row)
 				lastFile = tr.Location.File
