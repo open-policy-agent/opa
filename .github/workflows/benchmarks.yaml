@@ -28,8 +28,8 @@ jobs:
           set -e
           # merge_group events use different context properties than push events
           if [ -n "${{ github.event.merge_group.base_sha }}" ]; then
-            BEFORE_SHA="${{ github.event.merge_group.base_sha }}"
-            CURRENT_SHA="${{ github.event.merge_group.head_sha }}"
+            BEFORE_SHA="${{ github.event.merge_group.base_sha }}" # zizmor: ignore[template-injection]
+            CURRENT_SHA="${{ github.event.merge_group.head_sha }}" # zizmor: ignore[template-injection]
           else
             BEFORE_SHA="${{ github.event.before }}"
             CURRENT_SHA="${{ github.event.after }}"
