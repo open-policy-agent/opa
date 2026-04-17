@@ -13,9 +13,10 @@ software:
 inventors:
 - vulnetix
 code:
-- https://github.com/vulnetix
+- https://github.com/vulnetix/cli
 tutorials:
 - https://www.vulnetix.com/features/code-scanner
+- https://docs.cli.vulnetix.com/docs/getting-started/
 docs_features:
   policy-testing:
     note: |
@@ -23,7 +24,7 @@ docs_features:
       secrets, SAST, license and SBOM checks, and lets teams extend coverage
       with their own policy-as-code rule repositories via the `--rule` flag.
       See the
-      [Code Scanner docs](https://www.vulnetix.com/features/code-scanner)
+      [Code Scanner docs](https://docs.cli.vulnetix.com/docs/sast-rules/custom-rules/)
       for details.
 ---
 
@@ -36,5 +37,6 @@ Policy-as-code is a first-class concern: detections, severity thresholds, and
 supply-chain controls (such as `--block-malware`, `--block-unpinned`,
 `--version-lag`, and `--cooldown`) are expressed as Rego rules, so organizations
 can tune or replace the built-in rule set to match their own security posture.
-Results can be emitted as SARIF, CycloneDX, SPDX, VEX, or token-efficient JSON
-for use in CI quality gates and AI coding agents.
+Results can be emitted as SARIF, CycloneDX, SPDX, VEX, or token-efficient plain
+text for [use in CI](https://www.vulnetix.com/integrations) quality gates and
+[AI coding agents](https://ai-docs.vulnetix.com/docs/getting-started/installation/).
