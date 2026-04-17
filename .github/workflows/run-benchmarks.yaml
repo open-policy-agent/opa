@@ -1,0 +1,43 @@
+name: Run Benchmarks
+
+on:
+  workflow_call:
+    inputs:
+      publish:
+        description: Whether to publish benchmark results
+        required: true
+        type: boolean
+      publish_branch:
+        description: Branch to publish results to
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  benchmarks:
+    name: Benchmarks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: opa
+          persist-credentials: false
+      - id: go_version
+        name: Read go version
+        run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
+        working-directory: opa
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+          cache-dependency-path: opa/go.sum
+      - name: Run benchmarks
+        run: go run go.bobheadxi.dev/gobenchdata@v1 action
+        env:
+          INPUT_GO_TEST_FLAGS: "-tags=opa_wasm -timeout=120m -run=^#"
+          INPUT_GO_TEST_PKGS: ./...
+          INPUT_SUBDIRECTORY: opa
+          INPUT_PUBLISH: ${{ inputs.publish }}
+          INPUT_PUBLISH_BRANCH: ${{ inputs.publish_branch }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 120
