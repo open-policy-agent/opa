@@ -591,6 +591,24 @@ jobs:
       run: vale --config=.vale.ini .
       working-directory: docs
 
+  benchmarks:
+    name: Benchmarks
+    needs: check-changes
+    if: github.event_name == 'merge_group' && needs.check-changes.outputs.go == 'true'
+    uses: ./.github/workflows/run-benchmarks.yaml
+    with:
+      publish: false
+
+  test-ocp-with-opa:
+    needs: check-changes
+    if: github.event_name == 'merge_group' && needs.check-changes.outputs.go == 'true'
+    uses: ./.github/workflows/test-ocp-with-opa.yaml
+
+  test-regal-with-opa:
+    needs: check-changes
+    if: github.event_name == 'merge_group' && needs.check-changes.outputs.go == 'true'
+    uses: ./.github/workflows/test-regal-with-opa.yaml
+
   # This job is required to complete before merging, and is set as a branch
   # protection rule:
   # https://github.com/open-policy-agent/opa/settings/branch_protection_rules
@@ -617,6 +635,9 @@ jobs:
       docs-lint-check,
       docs-markdownlint-check,
       docs-spell-check,
+      benchmarks,
+      test-ocp-with-opa,
+      test-regal-with-opa,
     ]
     if: always()
     steps:
