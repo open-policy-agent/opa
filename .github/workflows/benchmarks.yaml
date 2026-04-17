@@ -50,11 +50,13 @@ jobs:
           echo "Changed files:"
           jq -r '.[].filename' changed_files.json
 
-          go_result=$(opa eval \
-            --data build/policy/pr-check/pr_check.rego \
-            --input changed_files.json \
-            --format pretty \
-            'data.policy["pr-check"].changes.go' | jq -r '. // false')
+          opa eval \
+          --data build/policy/pr-check/pr_check.rego \
+          --input changed_files.json \
+          --format pretty \
+          'data.policy["pr-check"]' > opa_result.json
+          
+          go_result=$(jq -r '.changes.go // false' opa_result.json)
 
           echo "go=${go_result}" >> $GITHUB_OUTPUT
 
