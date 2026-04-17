@@ -51,7 +51,7 @@ You can re-build the project with `make build`, execute all of the tests
 with `make test`, and execute all of the performance benchmarks with `make perf`.
 
 For quicker development-test iteration, you may use `make test-short` during development,
-and only run `make test` before submitting your changed. This avoids running the slowest
+and only run `make test` before submitting your changes. This avoids running the slowest
 tests and normally completes under a minute (compared to the several minutes required to run
 the full test suite).
 

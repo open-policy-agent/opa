@@ -3,7 +3,7 @@ title: Terraform
 ---
 
 Terraform lets you describe the infrastructure you want and automatically creates, deletes, and
-modifies your existing infrastructure to match. OPA makes it possible to write policies check
+modifies your existing infrastructure to match. OPA makes it possible to write policies that check
 the changes Terraform is about to make before it makes them. Such policy based checks help by:
 
 - Giving individual developers a first pass review of their Terraform changes
