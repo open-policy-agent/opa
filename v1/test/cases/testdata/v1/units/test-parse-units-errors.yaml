@@ -84,3 +84,15 @@ cases:
     want_error_code: eval_builtin_error
     want_error: "units.parse: spaces not allowed in resource strings"
     strict_error: true
+  - note: units_parse/exponent too large
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("10e10000000Ei")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse: exponent too large"
+    strict_error: true
