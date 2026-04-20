@@ -735,7 +735,9 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 		return nil, nil, err
 	}
 
-	if s.unixSocketPerm != nil {
+	// Skip chmod for abstract Unix sockets — they exist only in the
+	// kernel's socket namespace and have no filesystem path to chmod.
+	if s.unixSocketPerm != nil && !strings.HasPrefix(socketPath, "@") {
 		modeVal, err := strconv.ParseUint(*s.unixSocketPerm, 8, 32)
 		if err != nil {
 			return nil, nil, err
