@@ -7,6 +7,16 @@ retry_wait_time = 5
 accept = ["200..=206", "403", "429"]
 scheme = ["https", "http"]
 
+exclude = [
+    # These domains frequently timeout, causing false positives
+    # e.g. https://github.com/open-policy-agent/opa/issues/8495
+    'opa-docs\.netlify\.app',
+    'kind\.sigs\.k8s\.io',
+    'openpolicycontainers\.com',
+    'permit\.io',
+    'aserto\.com',
+]
+
 exclude_path = [
     # docs is tested with the website.toml config instead
     'docs',
