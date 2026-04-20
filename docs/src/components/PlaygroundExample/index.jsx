@@ -53,6 +53,7 @@ export default function PlaygroundExample({
   const showPlayground = config?.showPlayground ?? true;
   const command = config?.command ?? "data.play";
   const titleSize = config?.titleSize ?? 2;
+  const showInitialOutput = config?.showInitialOutput ?? true;
 
   const state = encodeToBase64(JSON.stringify({
     i: JSON.stringify(input, null, 2),
@@ -61,7 +62,7 @@ export default function PlaygroundExample({
   }));
   const url = `https://play.openpolicyagent.org/?state=${state}`;
 
-  const showNotes = output && output.some(rule => rule.note);
+  const outputString = output && showInitialOutput ? JSON.stringify(output, null, 2) : null;
 
   let dataString = JSON.stringify(data, null, 2);
   const introT = intro ? intro() : "";
@@ -85,7 +86,7 @@ export default function PlaygroundExample({
               <CodeBlock language={"rego"} title="policy.rego">
                 {policy}
               </CodeBlock>
-              <RunSnippet command={command} id={`${id}-policy.rego`} files={snippetFiles} />
+              <RunSnippet command={command} id={`${id}-policy.rego`} files={snippetFiles} output={outputString} />
             </MDXProvider>
           </SideBySideColumn>
           <SideBySideColumn>
@@ -135,6 +136,7 @@ export default function PlaygroundExample({
             id={`${id}-policy.rego`}
             files={snippetFiles}
             playgroundLink={showPlayground && url}
+            output={outputString}
           />
         </MDXProvider>
       )}
@@ -143,34 +145,6 @@ export default function PlaygroundExample({
         <p>
           <Link to={url}>Open in OPA Playground</Link>
         </p>
-      )}
-
-      {output && (
-        <table>
-          <thead>
-            <tr>
-              <th>Rule</th>
-              <th>Output Value</th>
-              {showNotes && <th>Notes</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {output.map((rule, index) => {
-              return (
-                <tr key={index}>
-                  <td>{rule.ref}</td>
-                  <td>
-                    {rule.value !== undefined
-                      && rule.value !== "undefined"
-                      && <code>{JSON.stringify(rule.value)}</code>}
-                    {rule.value === "undefined" && <code>undefined</code>}
-                  </td>
-                  {showNotes && <td>{rule.note}</td>}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
       )}
 
       {outro && outroT}

@@ -1,0 +1,12 @@
+{
+  "allow": true,
+  "headers": {
+    "x-password": "secret123",
+    "x-username": "alice"
+  },
+  "password": "secret123",
+  "response_headers_to_add": {
+    "Authorization": "Basic YWxpY2U6c2VjcmV0MTIz"
+  },
+  "username": "alice"
+}

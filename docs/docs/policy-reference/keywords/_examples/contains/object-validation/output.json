@@ -1,0 +1,14 @@
+{
+  "approval_min": 350,
+  "reasons": {
+    "1bd91655": [
+      "category must be set"
+    ],
+    "226c3910": [
+      "items over 350 must be approved"
+    ],
+    "db5a4b23": [
+      "approver does not exist"
+    ]
+  }
+}

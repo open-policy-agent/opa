@@ -1,0 +1,12 @@
+{
+  "deny": [
+    {
+      "reason": "Numbers may not be higher than 5",
+      "severity": "MEDIUM"
+    },
+    {
+      "reason": "Subject must have the 'admin' role",
+      "severity": "HIGH"
+    }
+  ]
+}

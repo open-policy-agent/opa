@@ -2,5 +2,6 @@
   "showInput": false,
   "showData": false,
   "showTitles": false,
+  "showInitialOutput": false,
   "command": "data.payments"
 }

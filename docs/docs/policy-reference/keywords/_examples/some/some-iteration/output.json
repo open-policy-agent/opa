@@ -1,0 +1,24 @@
+{
+  "allow": true,
+  "limit_count": 4,
+  "limit_period": 3,
+  "message": "user_id 1 made 4 requests in 3 days, limit is 4",
+  "requests_in_period": [
+    {
+      "request_id": 403,
+      "user_id": 1
+    },
+    {
+      "request_id": 501,
+      "user_id": 1
+    },
+    {
+      "request_id": 602,
+      "user_id": 1
+    },
+    {
+      "request_id": 701,
+      "user_id": 1
+    }
+  ]
+}
