@@ -7022,3 +7022,20 @@ data.baz.qux`,
 		})
 	}
 }
+
+func TestAbstractUnixSocketWithPermFlag(t *testing.T) {
+	t.Parallel()
+
+	perm := "755"
+	s := New().
+		WithAddresses([]string{"unix://@opa-test-abstract.sock"}).
+		WithUnixSocketPermission(&perm)
+
+	loops, err := s.Listeners()
+	if err != nil {
+		t.Fatalf("expected no error creating listener on abstract socket with --unix-socket-perm, got: %v", err)
+	}
+	if len(loops) == 0 {
+		t.Fatal("expected at least one loop")
+	}
+}
