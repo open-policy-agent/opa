@@ -1173,6 +1173,7 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 	}
 
 	currentLen := w.buf.Len()
+	currentLevel := w.level
 	currentComments := saveComments(comments)
 	defer commentsSlicePool.Put(currentComments)
 
@@ -1180,6 +1181,7 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 	if err != nil {
 		if errors.As(err, &unexpectedCommentError{}) {
 			w.buf.Truncate(currentLen)
+			w.level = currentLevel
 
 			// If beforeEnd refers to a comment within the source text range, clear it
 			// This prevents the comment from being written twice
