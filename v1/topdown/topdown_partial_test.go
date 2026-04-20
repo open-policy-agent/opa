@@ -4278,6 +4278,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		wantSupport              []string
 		wantSupportASTs          []*ast.Module
 		ignoreOrder              bool
+		notBodyOnly              bool
 	}{
 		{
 			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
@@ -5058,6 +5059,62 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			`},
 			wantQueries: []string{`not input.x = 1`},
 		},
+		{
+			note:  "copy propagation: apply to support rules: head vars are live, enumeration",
+			query: `data.test.p = true`,
+			modules: []string{`
+				package test
+
+				p if {
+					input.x = z; not q[z]
+				}
+
+				q contains y if {
+					some x in [1, 2]
+					x = a
+					a = y
+				}
+			`},
+			wantQueries: []string{`not input.x = 1; not input.x = 2`},
+		},
+		{
+			note:  "copy propagation: nested not body (double negation)",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				p if {
+					not q
+				}
+
+				q if {
+					input.items[i] = x
+					not f(x)
+				}
+
+				f(x) if {
+					a = x.value
+					a > 10
+				}
+			`},
+			wantQueries: []string{
+				`not data.partial.__not1_0_2__`,
+			},
+			wantSupport: []string{
+				`
+					package partial
+					
+					__not1_0_2__ = true if {
+						not data.partial.__not3_1_4__(x3)
+						x3 = input.items[i3]
+					}
+
+					__not3_1_4__(x3) = true if {
+						gt(x3.value, 10)
+					}
+				`,
+			},
+		},
 
 		{
 			note:  "default rule inlining, sole ref, not",
@@ -5074,7 +5131,189 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			wantQueries: []string{"not input.x = 7"},
 		},
 
-		// TODO: always undefined not-expression
+		// Test cases for when the compiler expands a one-line negated expression into multiple expressions,
+		// necessitating a not-body to close over all expanded expressions
+		// NOTE: The can-inline-check for negated expressions doesn't allow nested refs, which now actually can be safely wrapped in a not-body.
+		// We can relax this now, but it would require updating the type-checker to allow nested calls. But if we wait until the not-body
+		// syntax ('not {...}') is allowed, that change will be unnecessary and we'd instead simply inline the negated composite expression inside the not-body.
+
+		{
+			note:        "negated expression expansion",
+			notBodyOnly: true,
+			query:       "data.test.p",
+			modules: []string{`
+				package test
+				
+				p if {
+					not input.x + 1 = 2
+				}
+			`},
+			wantQueries: []string{"not data.partial.__not1_0_2__"},
+			wantSupport: []string{`
+				package partial
+				__not1_0_2__ = true if { plus(input.x, 1, 2) }
+			`},
+		},
+		{
+			note:        "negated expression expansion, inlining",
+			notBodyOnly: true,
+			query:       "data.test.p",
+			modules: []string{`
+				package test
+				
+				p if {
+					not q + 1 = 2
+				}
+				
+				q := x if {
+					x := input.x
+				} 
+			`},
+			wantQueries: []string{"not data.partial.__not1_0_2__"},
+			wantSupport: []string{`
+				package partial
+				__not1_0_2__ = true if { plus(input.x, 1, 2) }
+			`},
+		},
+		{
+			note:        "negated expression expansion, inlining, shallow",
+			notBodyOnly: true,
+			shallow:     true,
+			query:       "data.test.p = true",
+			modules: []string{`
+				package test
+				
+				p if {
+					not q + 1 = 2
+				}
+				
+				q := x if {
+					x := input.x
+				} 
+			`},
+			wantQueries: []string{"data.partial.test.p = true"},
+			wantSupport: []string{`
+				package partial.test
+				
+				p = true if { 
+					not data.partial.__not1_0_2__
+				}
+				
+				q = __local0__3 if { 
+					__local0__3 = input.x 
+				}
+			`, `
+				package partial
+
+				__not1_0_2__ = true if { 
+					data.partial.test.q = __local2__1
+					plus(__local2__1, 1, __local1__1)
+					__local1__1 = 2 
+				}
+			`},
+		},
+		{
+			note:        "negated expression expansion: not body preserves outer var",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`
+				package test
+
+				p if {
+					x = input.x
+					not q(x, input.y)
+				}
+
+				q(x, y) if {
+					x = y
+				}
+			`},
+			wantQueries: []string{`not input.x = input.y`},
+		},
+
+		{
+			note:        "negated expression expansion, inlining, with on outer negation",
+			notBodyOnly: true,
+			query:       "data.test.p",
+			modules: []string{`
+				package test
+				
+				p if {
+					not q + 1 = 2 with input.x as 1
+				}
+				
+				q := x if {
+					x := input.x
+				} 
+			`},
+			wantQueries: []string{"not data.partial.__not1_0_2__ with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+				
+				q = __local0__3 if { 
+					__local0__3 = input.x
+				}
+			`, `
+				package partial
+				
+				__not1_0_2__ = true if { 
+					plus(data.partial.test.q, 1, 2)
+				}
+			`},
+		},
+		{
+			note:        "negated expression expansion, inlining, with inside negation",
+			notBodyOnly: true,
+			query:       "data.test.p",
+			modules: []string{`
+				package test
+				
+				p if {
+					not q + 1 = 2
+				}
+				
+				q := x if {
+					x := r with input.x as 1
+				} 
+
+				r := x if {
+					x := input.x
+				} 
+			`},
+			wantQueries: []string{"not data.partial.__not1_0_2__"},
+			wantSupport: []string{`
+				package partial.test
+				
+				r = __local1__4 if { 
+					__local1__4 = input.x 
+				}
+			`, `
+				package partial
+				
+				__not1_0_2__ = true if { 
+					data.partial.test.r = __local3__1 with input.x as 1
+					plus(__local3__1, 1, 2)
+				}
+			`},
+		},
+		{
+			note:        "negated expression expansion, inlining, with (unknown value)",
+			notBodyOnly: true,
+			query:       "data.test.p",
+			modules: []string{`
+				package test
+				
+				p if {
+					not q + 1 = 2 with input.x as input.y
+				}
+				
+				q := x if {
+					x := input.x
+				} 
+			`},
+			// Unknown 'with' values will save the expression instead of PE:ing it, which is why it remains as-is in the query instead of generating a support rule.
+			wantQueries: []string{"not plus(data.test.q, 1, 2) with input.x as input.y"},
+		},
 	}
 
 	ctx := t.Context()
@@ -5095,6 +5334,10 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 	for n, popts := range variants {
 		t.Run(n, func(t *testing.T) {
 			for _, tc := range tests {
+
+				if n == "not" && tc.notBodyOnly {
+					continue
+				}
 
 				params := fixtureParams{
 					note:          tc.note,

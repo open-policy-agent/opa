@@ -1299,6 +1299,8 @@ func (expr *Expr) Copy() *Expr {
 		cpy.Terms = ts.Copy()
 	case *Every:
 		cpy.Terms = ts.Copy()
+	case *Not:
+		cpy.Terms = ts.Copy()
 	}
 
 	return cpy

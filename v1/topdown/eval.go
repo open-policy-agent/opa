@@ -4252,8 +4252,7 @@ func (e evalNot) evalPartial(iter evalIterator) error {
 	//	(!A && !C) || (!A && !D) || (!B && !C) || (!B && !D)
 	compl := func(expr *ast.Expr) []*ast.Expr {
 		if n, ok := expr.Terms.(*ast.Not); ok {
-			// TODO: Attach outer 'with'
-			return n.Body
+			return complementNotExpr(expr, n)
 		}
 
 		return []*ast.Expr{ast.NotExpr(expr)}
@@ -4264,6 +4263,20 @@ func (e evalNot) evalPartial(iter evalIterator) error {
 			return iter(e.e)
 		})
 	})
+}
+
+func complementNotExpr(expr *ast.Expr, n *ast.Not) []*ast.Expr {
+	b := make([]*ast.Expr, 0, len(n.Body))
+	for _, e := range n.Body {
+		cpy := *e
+
+		for _, w := range expr.With {
+			cpy.With = append(cpy.With, w.Copy())
+		}
+
+		b = append(b, &cpy)
+	}
+	return b
 }
 
 func (e evalNot) evalNotPartialSupport(negationID uint64, expr *ast.Expr, unknowns ast.VarSet, queries []ast.Body, iter evalIterator) error {
@@ -4411,8 +4424,7 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 				// in the future, we can handle more cases.
 				return false
 			}
-			// TODO: also check expr.Terms.(*ast.Not)?
-			if !expr.Negated {
+			if !expr.IsNegated() {
 				// Positive expressions containing variables cannot be trivially negated
 				// because they become unsafe (e.g., "x = 1" negated is "not x = 1" making x
 				// unsafe.) We check if the vars in the expr are already safe.
