@@ -627,7 +627,7 @@ func (e *eval) evalNot(iter evalIterator) error {
 	expr := e.query[e.index]
 
 	if e.unknown(expr, e.bindings) {
-		return e.evalNotPartial(iter)
+		return e.setupAndEvalNotPartial(iter)
 	}
 
 	negation := ast.NewBody(expr.ComplementNoWith())
@@ -816,15 +816,39 @@ func (e *eval) evalWithPop(input, data *ast.Term) {
 	e.input = input
 }
 
-func (e *eval) evalNotPartial(iter evalIterator) error {
+func (e *eval) setupAndEvalNotPartial(iter evalIterator) error {
 	// Prepare query normally.
 	expr := e.query[e.index]
-	negation := expr.ComplementNoWith()
 
+	unNegate := func(expr *ast.Expr) ast.Body {
+		return ast.NewBody(expr.ComplementNoWith())
+	}
+
+	complement := func(expr *ast.Expr) []*ast.Expr {
+		return []*ast.Expr{expr.Complement()}
+	}
+
+	supportTerms := func(terms any) any {
+		return terms
+	}
+
+	return e.evalNotPartial(expr, unNegate, complement, supportTerms, iter)
+}
+
+// unNegateFn returns the "unwrapped" non-negated expressions (1..*) of a negated expressions
+type unNegateFn func(expr *ast.Expr) ast.Body
+
+// complementFn returns the set of expressions (1..*) that is the complement of an expression
+type complementFn func(*ast.Expr) []*ast.Expr
+
+// supportTermsFn transforms the given terms to a support reference/call to the form required by the negated expression's ast.Expr.Terms field.
+type supportTermsFn func(terms any) any
+
+func (e *eval) evalNotPartial(expr *ast.Expr, unNegateFn unNegateFn, complementFn complementFn, supportTermsFn supportTermsFn, iter evalIterator) error {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.closure(ast.NewBody(negation), child)
+	e.closure(unNegateFn(expr), child)
 
 	// Unknowns is the set of variables that are marked as unknown. The variables
 	// are namespaced with the query ID that they originate in. This ensures that
@@ -876,7 +900,7 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	// the unknowns as safe because vars in the save set will either be known to
 	// the caller or made safe by an expression on the save stack.
 	if !canInlineNegation(unknowns, savedQueries) {
-		return e.evalNotPartialSupport(child.queryID, expr, unknowns, savedQueries, iter)
+		return e.evalNotPartialSupport(child.queryID, expr, supportTermsFn, unknowns, savedQueries, iter)
 	}
 
 	// If we can inline the result, we have to generate the cross product of the
@@ -887,18 +911,14 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	// Becomes:
 	//
 	//	(!A && !C) || (!A && !D) || (!B && !C) || (!B && !D)
-	compl := func(expr *ast.Expr) []*ast.Expr {
-		return []*ast.Expr{expr.Complement()}
-	}
-
-	return complementedCartesianProduct(savedQueries, 0, nil, compl, func(q ast.Body) error {
+	return complementedCartesianProduct(savedQueries, 0, nil, complementFn, func(q ast.Body) error {
 		return e.saveInlinedNegatedExprs(q, func() error {
 			return iter(e)
 		})
 	})
 }
 
-func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, unknowns ast.VarSet, queries []ast.Body, iter evalIterator) error {
+func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, supportTermsFn supportTermsFn, unknowns ast.VarSet, queries []ast.Body, iter evalIterator) error {
 
 	// Prepare support rule head.
 	supportName := fmt.Sprintf("__not%d_%d_%d__", e.queryID, e.index, negationID)
@@ -942,9 +962,9 @@ func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, unknowns
 		terms := make([]*ast.Term, len(args)+1)
 		terms[0] = term
 		copy(terms[1:], args)
-		cpy.Terms = terms
+		cpy.Terms = supportTermsFn(terms)
 	} else {
-		cpy.Terms = term
+		cpy.Terms = supportTermsFn(term)
 	}
 
 	return e.saveInlinedNegatedExprs([]*ast.Expr{cpy}, func() error {
@@ -4138,7 +4158,6 @@ func (e *evalEvery) plug(expr *ast.Expr) *ast.Expr {
 	return cpy
 }
 
-// TODO: Add PE support
 type evalNot struct {
 	e    *eval
 	not  *ast.Not
@@ -4178,159 +4197,42 @@ func (e evalNot) eval(iter evalIterator) error {
 	return nil
 }
 
-// FIXME: Reuse code with eval.evalNotPartial?
 func (e evalNot) evalPartial(iter evalIterator) error {
 	// Prepare query normally.
-	// NOTE: Not dropping 'with', as this hasn't been evaluated yet
 	expr := e.e.query[e.e.index]
 
-	child := evalPool.Get()
-	defer evalPool.Put(child)
-
-	e.e.closure(e.not.Body, child)
-
-	// Unknowns is the set of variables that are marked as unknown. The variables
-	// are namespaced with the query ID that they originate in. This ensures that
-	// variables across two or more queries are identified uniquely.
-	//
-	// NOTE(tsandall): this is greedy in the sense that we only need variable
-	// dependencies of the negation.
-	unknowns := e.e.saveSet.Vars(e.e.caller.bindings)
-
-	// Run partial evaluation. Since the result may require support, push a new
-	// query onto the save stack to avoid mutating the current save query. If
-	// shallow inlining is not enabled, run copy propagation to further simplify
-	// the result.
-	var cp *copypropagation.CopyPropagator
-
-	if !e.e.inliningControl.shallow {
-		cp = copypropagation.New(unknowns).WithEnsureNonEmptyBody(true).WithCompiler(e.e.compiler)
+	unNegate := func(expr *ast.Expr) ast.Body {
+		return e.not.Body
 	}
 
-	var savedQueries []ast.Body
-	e.e.saveStack.PushQuery(nil)
-
-	_ = child.eval(func(*eval) error {
-		query := e.e.saveStack.Peek()
-		plugged := query.Plug(e.e.caller.bindings)
-		// Skip this rule body if it fails to type-check.
-		// Type-checking failure means the rule body will never succeed.
-		if !e.e.compiler.PassesTypeCheck(plugged) {
-			return nil
-		}
-		if cp != nil {
-			plugged = applyCopyPropagation(cp, e.e.instr, plugged)
-		}
-		savedQueries = append(savedQueries, plugged)
-		return nil
-	}) // cannot return error
-
-	e.e.saveStack.PopQuery()
-
-	// If partial evaluation produced no results, the expression is always undefined
-	// so it does not have to be saved.
-	if len(savedQueries) == 0 {
-		return iter(e.e)
-	}
-
-	// Check if the partial evaluation result can be inlined in this query. If not,
-	// generate support rules for the result. Depending on the size of the partial
-	// evaluation result and the contents, it may or may not be inlinable. We treat
-	// the unknowns as safe because vars in the save set will either be known to
-	// the caller or made safe by an expression on the save stack.
-	if !canInlineNegation(unknowns, savedQueries) {
-		return e.evalNotPartialSupport(child.queryID, expr, unknowns, savedQueries, iter)
-	}
-
-	// If we can inline the result, we have to generate the cross product of the
-	// queries. For example:
-	//
-	//	(A && B) || (C && D)
-	//
-	// Becomes:
-	//
-	//	(!A && !C) || (!A && !D) || (!B && !C) || (!B && !D)
-	compl := func(expr *ast.Expr) []*ast.Expr {
+	complement := func(expr *ast.Expr) []*ast.Expr {
 		if n, ok := expr.Terms.(*ast.Not); ok {
-			return complementNotExpr(expr, n)
+			b := make([]*ast.Expr, 0, len(n.Body))
+			for _, e := range n.Body {
+				cpy := *e
+
+				for _, w := range expr.With {
+					cpy.With = append(cpy.With, w.Copy())
+				}
+
+				b = append(b, &cpy)
+			}
+			return b
+		}
+
+		// The negated expr might be coming from a module that's not importing 'future.keywords.not'
+		if expr.Negated {
+			return []*ast.Expr{expr.Complement()}
 		}
 
 		return []*ast.Expr{ast.NotExpr(expr)}
 	}
 
-	return complementedCartesianProduct(savedQueries, 0, nil, compl, func(q ast.Body) error {
-		return e.e.saveInlinedNegatedExprs(q, func() error {
-			return iter(e.e)
-		})
-	})
-}
-
-func complementNotExpr(expr *ast.Expr, n *ast.Not) []*ast.Expr {
-	b := make([]*ast.Expr, 0, len(n.Body))
-	for _, e := range n.Body {
-		cpy := *e
-
-		for _, w := range expr.With {
-			cpy.With = append(cpy.With, w.Copy())
-		}
-
-		b = append(b, &cpy)
-	}
-	return b
-}
-
-func (e evalNot) evalNotPartialSupport(negationID uint64, expr *ast.Expr, unknowns ast.VarSet, queries []ast.Body, iter evalIterator) error {
-
-	// Prepare support rule head.
-	supportName := fmt.Sprintf("__not%d_%d_%d__", e.e.queryID, e.e.index, negationID)
-	term := ast.RefTerm(ast.DefaultRootDocument, e.e.saveNamespace, ast.StringTerm(supportName))
-	path := term.Value.(ast.Ref)
-	head := ast.NewHead(ast.Var(supportName), nil, ast.BooleanTerm(true))
-
-	bodyVars := ast.NewVarSet()
-
-	for _, q := range queries {
-		bodyVars.Update(q.Vars(ast.VarVisitorParams{}))
+	supportTerms := func(terms any) any {
+		return ast.NewNot(ast.NewExpr(terms))
 	}
 
-	unknowns = unknowns.Intersect(bodyVars)
-
-	// Make rule args. Sort them to ensure order is deterministic.
-	args := make([]*ast.Term, 0, len(unknowns))
-
-	for v := range unknowns {
-		args = append(args, ast.NewTerm(v))
-	}
-
-	slices.SortFunc(args, ast.TermValueCompare)
-
-	if len(args) > 0 {
-		head.Args = args
-	}
-
-	// Save support rules.
-	for _, query := range queries {
-		e.e.saveSupport.Insert(path, &ast.Rule{
-			Head: head,
-			Body: query,
-		})
-	}
-
-	// Save expression that refers to support rule set.
-	cpy := expr.CopyWithoutTerms()
-
-	if len(args) > 0 {
-		terms := make([]*ast.Term, len(args)+1)
-		terms[0] = term
-		copy(terms[1:], args)
-		cpy.Terms = ast.NewNot(ast.NewExpr(terms))
-	} else {
-		cpy.Terms = ast.NewNot(ast.NewExpr(term))
-	}
-
-	return e.e.saveInlinedNegatedExprs([]*ast.Expr{cpy}, func() error {
-		return e.e.next(iter)
-	})
+	return e.e.evalNotPartial(expr, unNegate, complement, supportTerms, iter)
 }
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
