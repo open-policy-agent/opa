@@ -15,6 +15,14 @@ const vendors = [
     link: "https://paclabs.io/opa_support.html?utm_source=opa&utm_content=opa-support",
     link_text: "Learn more",
   },
+  {
+    title: "Procedure",
+    icon: require.context("./assets/logos/procedure.png").default,
+    note:
+      "Procedure provides OPA and Gatekeeper consulting for Kubernetes policy enforcement, Terraform governance, and CI/CD policy integration. From policy design to production rollout.",
+    link: "https://procedure.tech/services/opa-consulting",
+    link_text: "Learn more",
+  },
 ];
 
 export default function Support() {
