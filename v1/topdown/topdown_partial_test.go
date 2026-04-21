@@ -4223,7 +4223,6 @@ q if { input.x = 7 }`},
 
 			var expectedQueries []ast.Body
 
-			//opts := ast.ParserOptions{}
 			if len(tc.wantQueryASTs) > 0 {
 				expectedQueries = tc.wantQueryASTs
 			} else {
@@ -5318,7 +5317,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 
 	ctx := t.Context()
 	variants := map[string]ast.ParserOptions{
-		"not": ast.ParserOptions{},
+		"not": {},
 		"not-body": func() ast.ParserOptions {
 			// TODO: drop once future.keywords.not is enabled by default
 			caps := ast.CapabilitiesForThisVersion()

@@ -176,7 +176,7 @@ cases:
         q if {
           count([1,2,3]) == 3
         }
-        
+
         mock_count(_) = 100
     want_result:
       - x: true
