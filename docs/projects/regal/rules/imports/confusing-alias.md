@@ -5,6 +5,7 @@
 **Category**: Imports
 
 **Avoid**
+
 ```rego
 package policy
 
@@ -14,6 +15,7 @@ import data.resources.users as employees
 ```
 
 **Prefer**
+
 ```rego
 package policy
 
@@ -50,3 +52,7 @@ rules:
       # one of "error", "warning", "ignore"
       level: error
 ```
+
+## Related Resources
+
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/imports/confusing-alias/confusing_alias.rego)
