@@ -1,5 +1,6 @@
 {
   "showInput": false,
   "showOutput": false,
-  "titleSize": 4
+  "titleSize": 4,
+  "skip_output_reason": "example of invalid syntax"
 }

@@ -2331,6 +2331,42 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				`),
 			err: "rego_type_error: rule data.pkg.p.q conflicts with [data.pkg.p.q.r]",
 		},
+		{
+			note: "function within dynamic extent of rule",
+			modules: modules(
+				`package pkg
+				a[x].c := i if some i, x in ["one", "two"]
+				a.b.d(x) := x
+				`),
+			err: "rego_type_error: rule data.pkg.a[x].c conflicts with [data.pkg.a.b.d]",
+		},
+		{
+			note: "function within dynamic extent of rule (different packages)",
+			modules: modules(
+				`package pkg
+				a[x].c := i if some i, x in ["one", "two"]`,
+				`package pkg.a.b
+				d(x) := x
+				`),
+			err: "rego_type_error: rule data.pkg.a[x].c conflicts with [data.pkg.a.b.d]",
+		},
+		{
+			note: "function within dynamic extent, deeper nesting",
+			modules: modules(
+				`package pkg
+				p[x].q if x := "a"
+				p.r.s.t(x) := x
+				`),
+			err: "rego_type_error: rule data.pkg.p[x].q conflicts with [data.pkg.p.r.s.t]",
+		},
+		{
+			note: "non-function rule within dynamic extent (no conflict)",
+			modules: modules(
+				`package pkg
+				p[x].q if x := "a"
+				p.r.s := 1
+				`),
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {

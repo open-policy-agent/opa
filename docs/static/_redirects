@@ -9,14 +9,6 @@
 # redirect them to /docs/
 /docs/latest/*    /docs/:splat    301
 
-# TODO remove after 2025-12-01
-# comparison-to-other-systems has been moved into a new section
-/docs/comparison-to-other-systems /docs/comparisons/access-control-systems
-# TODO remove after 2025-12-01
-# deployments page has been broken down into docker, k8s and operations.
-# /deploy is the best entry point now
-/docs/deployments /docs/deploy
-
 # these two pages have been moved in the creation of the new site.
 /docs/kubernetes-introduction/ /docs/kubernetes/
 /docs/kubernetes-tutorial/ /docs/kubernetes/tutorial/
@@ -35,6 +27,10 @@
 # be ideal if human users were redirected to the documentation for decision
 # logs.
 /decision_logs /docs/management-decision-logs
+
+# TODO: Remove after 2026-10-01
+# https://github.com/open-policy-agent/opa/issues/8424
+/docs/management/ /docs/management-introduction
 
 # 7729 and #7720 were opened relating to this but we don't know the source of
 # the old link

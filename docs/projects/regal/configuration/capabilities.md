@@ -52,18 +52,18 @@ capabilities:
     version: v0.58.0
   minus:
     builtins:
-    # exclude rules that depend on the http.send built-in function
-    - name: http.send
+      # exclude rules that depend on the http.send built-in function
+      - name: http.send
   plus:
     builtins:
-    # make Regal aware of a custom "ldap.query" function
-    - name: ldap.query
-      type: function
-      decl:
-        args:
-        - type: string
-      result:
-        type: object
+      # make Regal aware of a custom "ldap.query" function
+      - name: ldap.query
+        type: function
+        decl:
+          args:
+            - type: string
+        result:
+          type: object
 ```
 
 ## Loading Capabilities from URLs
@@ -82,10 +82,10 @@ capabilities:
 
 Regal includes capabilities files for the following engines:
 
-| Engine | Website                                                         | Description          |
-| ------ | --------------------------------------------------------------- | -------------------- |
-| `opa`  | [OPA website](https://www.openpolicyagent.org/)                 | Open Policy Agent    |
-| `eopa` | [Enterprise OPA website](https://www.styra.com/enterprise-opa/) | Styra Enterprise OPA |
-| `rq`   | [rq website](https://git.sr.ht/~charles/rq)                     | Rego Query (`rq`)    |
+| Engine | Website                                                      | Description       |
+| ------ | ------------------------------------------------------------ | ----------------- |
+| `opa`  | [OPA website](https://www.openpolicyagent.org/)              | Open Policy Agent |
+| `eopa` | [EOPA repository](https://github.com/open-policy-agent/eopa) | EOPA              |
+| `rq`   | [rq website](https://git.sr.ht/~charles/rq)                  | Rego Query (`rq`) |
 
 **`rq` support note**: `rq` scripts must include `package` statements to be compatible with Regal.

@@ -2,6 +2,7 @@ package ast
 
 import (
 	"encoding"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -228,7 +229,7 @@ func (r Ref) AppendText(buf []byte) ([]byte, error) {
 func (sc *SetComprehension) AppendText(buf []byte) ([]byte, error) {
 	buf = append(buf, '{')
 	var err error
-	if buf, err = sc.Term.AppendText(buf); err != nil {
+	if buf, err = appendComprehensionTerm(buf, sc.Term); err != nil {
 		return nil, err
 	}
 	if buf, err = sc.Body.AppendText(append(buf, " | "...)); err != nil {
@@ -240,7 +241,7 @@ func (sc *SetComprehension) AppendText(buf []byte) ([]byte, error) {
 func (ac *ArrayComprehension) AppendText(buf []byte) ([]byte, error) {
 	buf = append(buf, '[')
 	var err error
-	if buf, err = ac.Term.AppendText(buf); err != nil {
+	if buf, err = appendComprehensionTerm(buf, ac.Term); err != nil {
 		return nil, err
 	}
 	if buf, err = ac.Body.AppendText(append(buf, " | "...)); err != nil {
@@ -252,17 +253,38 @@ func (ac *ArrayComprehension) AppendText(buf []byte) ([]byte, error) {
 func (oc *ObjectComprehension) AppendText(buf []byte) ([]byte, error) {
 	buf = append(buf, '{')
 	var err error
-	if buf, err = oc.Key.AppendText(buf); err != nil {
+	if buf, err = appendComprehensionTerm(buf, oc.Key); err != nil {
 		return nil, err
 	}
 	buf = append(buf, ": "...)
-	if buf, err = oc.Value.AppendText(buf); err != nil {
+	if buf, err = appendComprehensionTerm(buf, oc.Value); err != nil {
 		return nil, err
 	}
 	if buf, err = oc.Body.AppendText(append(buf, " | "...)); err != nil {
 		return nil, err
 	}
 	return append(buf, '}'), nil
+}
+
+// appendComprehensionTerm writes a term, rendering infix operator calls
+// in infix notation wrapped in parens. This prevents ambiguity with the
+// comprehension "|" separator and produces more readable output.
+func appendComprehensionTerm(buf []byte, term *Term) ([]byte, error) {
+	if call, ok := term.Value.(Call); ok && len(call) == 3 {
+		if bi, found := BuiltinMap[call[0].String()]; found && bi.Infix != "" && bi.Infix != "in" {
+			buf = append(buf, '(')
+			var err error
+			if buf, err = appendComprehensionTerm(buf, call[1]); err != nil {
+				return nil, err
+			}
+			buf = fmt.Appendf(buf, " %s ", bi.Infix)
+			if buf, err = appendComprehensionTerm(buf, call[2]); err != nil {
+				return nil, err
+			}
+			return append(buf, ')'), nil
+		}
+	}
+	return term.AppendText(buf)
 }
 
 func (not *Not) AppendText(buf []byte) ([]byte, error) {

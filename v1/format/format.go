@@ -519,6 +519,7 @@ func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) ([]*ast
 }
 
 func (w *writer) writeComments(comments []*ast.Comment) error {
+	var inMetadataBlock bool
 	for i := range comments {
 		if i > 0 {
 			l, err := locCmp(comments[i], comments[i-1])
@@ -527,7 +528,18 @@ func (w *writer) writeComments(comments []*ast.Comment) error {
 			}
 			if l > 1 {
 				w.blankLine()
+				inMetadataBlock = false
+			} else if l == 1 {
+				// if next comment is a metadata header and previous comment
+				// was part of a metadata block, add a blank line to separate them
+				if inMetadataBlock && ast.IsMetadataComment(comments[i]) {
+					w.blankLine()
+				}
 			}
+		}
+
+		if ast.IsMetadataComment(comments[i]) {
+			inMetadataBlock = true
 		}
 
 		w.writeLine(comments[i].String())
@@ -931,33 +943,36 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 		}
 	}
 
-	var indented, down bool
-	for i, with := range expr.With {
-		if i == 0 || with.Location.Row == expr.With[i-1].Location.Row { // we're on the same line
-			comments, err = w.writeWith(with, comments, false)
-			if err != nil {
-				return nil, err
-			}
-		} else { // we're on a new line
-			if !indented {
-				indented = true
-
-				w.up()
-				down = true
-			}
-			w.endLine()
-			w.startLine()
-			comments, err = w.writeWith(with, comments, true)
-			if err != nil {
-				return nil, err
-			}
-		}
+	if len(expr.With) == 0 {
+		return comments, nil
 	}
 
-	if down {
-		if err := w.down(); err != nil {
+	withs := expr.With
+	lastRow := expr.Location.Row
+
+	// Print on same row if already there, otherwise increase indent a print remaining
+	if withs[0].Location.Row == lastRow {
+		if comments, err = w.writeWith(withs[0], comments, false); err != nil {
 			return nil, err
 		}
+		lastRow, withs = withs[0].Location.Row, withs[1:]
+	}
+
+	if len(withs) > 0 {
+		w.up()
+		for _, with := range withs {
+			indent := with.Location.Row > lastRow
+			if indent {
+				w.endLine()
+				w.startLine()
+				lastRow = with.Location.Row
+			}
+			if comments, err = w.writeWith(with, comments, indent); err != nil {
+				return nil, err
+			}
+		}
+
+		return comments, w.down()
 	}
 
 	return comments, nil
@@ -1158,6 +1173,7 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 	}
 
 	currentLen := w.buf.Len()
+	currentLevel := w.level
 	currentComments := saveComments(comments)
 	defer commentsSlicePool.Put(currentComments)
 
@@ -1165,6 +1181,16 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 	if err != nil {
 		if errors.As(err, &unexpectedCommentError{}) {
 			w.buf.Truncate(currentLen)
+			w.level = currentLevel
+
+			// If beforeEnd refers to a comment within the source text range, clear it
+			// This prevents the comment from being written twice
+			if w.beforeEnd != nil && len(term.Location.Text) > 0 {
+				endRow := term.Location.Row + bytes.Count(term.Location.Text, []byte{'\n'})
+				if w.beforeEnd.Location.Row >= term.Location.Row && w.beforeEnd.Location.Row <= endRow {
+					w.beforeEnd = nil
+				}
+			}
 
 			comments, uErr := w.writeUnformatted(term.Location, *currentComments)
 			if uErr != nil {
@@ -1777,6 +1803,20 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 	if err != nil {
 		return nil, err
 	}
+
+	// If there are comments within the single line, don't collapse it and keep it as-is
+	// Return an error so that writeTerm will write the original formatting
+	if len(lines) == 1 {
+		for _, c := range comments {
+			if c.Location.Row > last.Row && c.Location.Row < close.Row {
+				return comments, unexpectedCommentError{
+					newComment:    truncatedString(c.String(), 100),
+					newCommentRow: c.Location.Row,
+				}
+			}
+		}
+	}
+
 	if len(lines) > 1 {
 		w.delayBeforeEnd()
 		w.startMultilineSeq()

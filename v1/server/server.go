@@ -735,7 +735,9 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 		return nil, nil, err
 	}
 
-	if s.unixSocketPerm != nil {
+	// Skip chmod for abstract Unix sockets — they exist only in the
+	// kernel's socket namespace and have no filesystem path to chmod.
+	if s.unixSocketPerm != nil && !strings.HasPrefix(socketPath, "@") {
 		modeVal, err := strconv.ParseUint(*s.unixSocketPerm, 8, 32)
 		if err != nil {
 			return nil, nil, err
@@ -3015,32 +3017,6 @@ func readInputCompilePostV1(reqBytes []byte, queryParserOptions ast.ParserOption
 var indexHTML, _ = template.New("index").Parse(`
 <html>
 <head>
-<script type="text/javascript">
-function query() {
-	params = {
-		'query': document.getElementById("query").value,
-	}
-	if (document.getElementById("input").value !== "") {
-		try {
-			params["input"] = JSON.parse(document.getElementById("input").value);
-		} catch (e) {
-			document.getElementById("result").innerHTML = e;
-			return;
-		}
-	}
-	body = JSON.stringify(params);
-	opts = {
-		'method': 'POST',
-		'body': body,
-	}
-	fetch(new Request('v1/query', opts))
-		.then(resp => resp.json())
-		.then(json => {
-			str = JSON.stringify(json, null, 2);
-			document.getElementById("result").innerHTML = str;
-		});
-}
-</script>
 </head>
 </body>
 <pre>
@@ -3058,13 +3034,6 @@ Version: {{ .Version }}<br>
 Build Commit: {{ .BuildCommit }}<br>
 Build Timestamp: {{ .BuildTimestamp }}<br>
 Build Hostname: {{ .BuildHostname }}<br>
-<br>
-Query:<br>
-<textarea rows="10" cols="50" id="query"></textarea><br>
-<br>Input Data (JSON):<br>
-<textarea rows="10" cols="50" id="input"></textarea><br>
-<br><button onclick="query()">Submit</button>
-<pre><div id="result"></div></pre>
 </body>
 </html>
 `)

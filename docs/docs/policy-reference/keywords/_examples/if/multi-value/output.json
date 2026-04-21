@@ -1,0 +1,17 @@
+{
+  "missing_paths": [
+    "request.method",
+    "role"
+  ],
+  "validations": {
+    "email": [
+      "email admin@example.net must end with @example.com"
+    ],
+    "request.method": [
+      "path must be set"
+    ],
+    "role": [
+      "path must be set"
+    ]
+  }
+}

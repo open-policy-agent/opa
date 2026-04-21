@@ -5,6 +5,7 @@
 **Category**: Bugs
 
 **Avoid**
+
 ```rego
 package policy
 
@@ -17,6 +18,7 @@ allow if {
 ```
 
 **Prefer**
+
 ```rego
 package policy
 
@@ -80,3 +82,7 @@ rules:
       # one of "error", "warning", "ignore"
       level: error
 ```
+
+## Related Resources
+
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/bugs/redundant-loop-count/redundant_loop_count.rego)

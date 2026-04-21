@@ -22,7 +22,7 @@ Kubernetes, from cluster to application-level deployments.
   extends the OPA native API capabilities to support Envoy's
   [External authorization](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html)
   API. This allows OPA to be used to enforce L7 policy on requests before they
-  event reach the application. In this use case, the PEP is the Envoy proxy,
+  even reach the application. In this use case, the PEP is the Envoy proxy,
   however OPA sidecar still exposes other APIs for local policy decisions as
   above.
 - **Cluster Service**: Sometimes, running a cluster service is the best way to
@@ -191,7 +191,7 @@ applications using using the cluster service hostname and pod network. This
 deployment model is easily extended to a LoadBalancer service for external
 PEPs too.
 
-As outlined above, the sidecar pattern is preffered for most applications,
+As outlined above, the sidecar pattern is preferred for most applications,
 however this pattern is useful when a higher latency is tolerable or a _very_
 large dataset is required to evaluate policy rules.
 

@@ -4,5 +4,6 @@
   "showTitles": false,
   "showPlayground": false,
   "titleSize": 4,
-  "command": "data.jwt"
+  "command": "data.jwt",
+  "skip_output_reason": "document dependencies"
 }

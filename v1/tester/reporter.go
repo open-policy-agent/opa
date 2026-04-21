@@ -43,14 +43,18 @@ func (r PrettyReporter) println(a ...any) {
 }
 
 // Report prints the test report to the reporter's output.
+// Results are streamed as they arrive from the channel: each test line is
+// printed immediately, and the FAILURES detail section and summary are
+// printed after all results have been received.
 func (r PrettyReporter) Report(ch chan *Result) error {
 
 	dirty := false
 	var pass, fail, skip, errs int
-	results := make([]*Result, 0, len(ch))
 	var failures []*Result
+	var lastFile string
 
 	for tr := range ch {
+		// Count results.
 		if tr.Skip {
 			skip++
 		} else if tr.Error != nil {
@@ -79,10 +83,49 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 				}
 			}
 		}
-		results = append(results, tr)
+
+		// Stream: print each result immediately.
+		if tr.Pass() && r.BenchmarkResults {
+			dirty = true
+			r.println(r.fmtBenchmark(tr))
+		} else if r.Verbose || !tr.Pass() {
+			if tr.Location != nil {
+				if lastFile != "" && lastFile != tr.Location.File {
+					r.println()
+				}
+				_, _ = fmt.Fprintf(r.Output, "%s:%d:\n", tr.Location.File, tr.Location.Row)
+				lastFile = tr.Location.File
+			}
+
+			dirty = true
+			r.println(tr.string(false))
+
+			w := newIndentingWriter(r.Output)
+			if srs := tr.SubResults; len(srs) > 0 {
+				for fullName, sr := range srs.Iter {
+					if sr.Fail || r.Verbose {
+						_, _ = fmt.Fprintf(w, "%s%s\n",
+							strings.Repeat("  ", len(fullName)-1),
+							sr.String(),
+						)
+					}
+				}
+			}
+
+			if len(tr.Output) > 0 {
+				r.println()
+				_, _ = fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
+				r.println()
+			}
+		}
+		if tr.Error != nil {
+			_, _ = fmt.Fprintf(r.Output, "  %v\n", tr.Error)
+		}
 	}
 
+	// Print failure details after all results have been streamed.
 	if fail > 0 && (r.Verbose || r.FailureLine) {
+		r.hl()
 		r.println("FAILURES")
 		r.hl()
 
@@ -124,51 +167,6 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 			}
 
 			r.println()
-		}
-
-		r.println("SUMMARY")
-		r.hl()
-	}
-
-	// Report individual tests.
-	var lastFile string
-	for _, tr := range results {
-
-		if tr.Pass() && r.BenchmarkResults {
-			dirty = true
-			r.println(r.fmtBenchmark(tr))
-		} else if r.Verbose || !tr.Pass() {
-			if tr.Location != nil {
-				if lastFile != "" && lastFile != tr.Location.File {
-					r.println("")
-				}
-				_, _ = fmt.Fprintf(r.Output, "%s:%d:\n", tr.Location.File, tr.Location.Row)
-				lastFile = tr.Location.File
-			}
-
-			dirty = true
-			r.println(tr.string(false))
-
-			w := newIndentingWriter(r.Output)
-			if srs := tr.SubResults; len(srs) > 0 {
-				for fullName, sr := range srs.Iter {
-					if sr.Fail || r.Verbose {
-						_, _ = fmt.Fprintf(w, "%s%s\n",
-							strings.Repeat("  ", len(fullName)-1),
-							sr.String(),
-						)
-					}
-				}
-			}
-
-			if len(tr.Output) > 0 {
-				r.println()
-				_, _ = fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
-				r.println()
-			}
-		}
-		if tr.Error != nil {
-			_, _ = fmt.Fprintf(r.Output, "  %v\n", tr.Error)
 		}
 	}
 

@@ -19,7 +19,20 @@ Requirements:
 - GitHub account (if you are contributing)
 - Go (please see the project's [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) file for the current version in use)
 - GNU Make
+- A POSIX-compatible shell (`bash`)
+- A C compiler (e.g., `gcc`) for CGO
 - Python3, pip, `yamllint` (if linting YAML files manually)
+
+## Windows
+
+The build system relies on `bash` shell scripts and GNU Make, which are not available out of the box on Windows. The recommended approach is to use [WSL (Windows Subsystem for Linux)](https://learn.microsoft.com/en-us/windows/wsl/install), which provides a full Linux environment where the standard requirements above apply.
+
+If you prefer to develop without WSL, you can use [MSYS2](https://www.msys2.org/) with the MinGW64 toolchain, which provides `bash`, `make`, and `gcc`. Note the following when using MSYS2/MinGW64:
+
+- Install the MinGW64 variants of GCC, Go, and Make (e.g., `pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-go make`).
+- Configure Git to check out files with Unix-style line endings (`git config --global core.autocrlf input`) to avoid test failures caused by `CRLF` vs `LF` differences.
+- A small number of tests may still fail due to Windows path separator differences (`\\` vs `/`). This is expected and should not block development.
+- Some build scripts (e.g., `go:generate` directives in `main.go`) invoke `.sh` files directly. These require `bash` to be in your `PATH`, which MSYS2 provides.
 
 ## Getting Started
 
@@ -38,7 +51,7 @@ You can re-build the project with `make build`, execute all of the tests
 with `make test`, and execute all of the performance benchmarks with `make perf`.
 
 For quicker development-test iteration, you may use `make test-short` during development,
-and only run `make test` before submitting your changed. This avoids running the slowest
+and only run `make test` before submitting your changes. This avoids running the slowest
 tests and normally completes under a minute (compared to the several minutes required to run
 the full test suite).
 

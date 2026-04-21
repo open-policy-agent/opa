@@ -1,0 +1,25 @@
+[
+  [
+    [
+      "aTop"
+    ]
+  ],
+  [
+    [
+      "bBottom",
+      "cMiddle",
+      "aTop"
+    ]
+  ],
+  [
+    [
+      "cMiddle",
+      "aTop"
+    ]
+  ],
+  [
+    [
+      "dIgnored"
+    ]
+  ]
+]

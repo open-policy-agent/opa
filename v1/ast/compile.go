@@ -1366,6 +1366,21 @@ func (c *Compiler) checkRuleConflicts() {
 			}
 		}
 
+		// Functions cannot exist within a rule's dynamic extent, as there is no valid
+		// evaluation scenario for this right now: it will return an error or panic.
+		// NB(sr): This is something we may overcome later -- but for now, it's better
+		// to return an error than to fail in hard-to-understand ways.
+		if conflicts == nil && len(node.Children) > 0 {
+			for _, rule := range node.Values {
+				if !rule.Ref().IsGround() {
+					if funcConflicts := node.flattenChildFunctions(); len(funcConflicts) > 0 {
+						conflicts = funcConflicts
+					}
+					break
+				}
+			}
+		}
+
 		switch {
 		case conflicts != nil:
 			return !c.err(NewError(TypeErr, node.Values[0].Loc(), "rule %v conflicts with %v", name, conflicts))
@@ -4236,12 +4251,22 @@ func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
 
 // flattenChildren flattens all children's rule refs into a sorted array.
 func (n *TreeNode) flattenChildren() []Ref {
+	return n.flattenMatchingChildren(func(_ *Rule) bool { return true })
+}
+
+// flattenChildFunctions is like flattenChildren but only collects functions (rules with args).
+func (n *TreeNode) flattenChildFunctions() []Ref {
+	return n.flattenMatchingChildren(func(r *Rule) bool { return r.isFunction() })
+}
+
+func (n *TreeNode) flattenMatchingChildren(f func(*Rule) bool) []Ref {
 	ret := newRefSet()
 	for _, sub := range n.Children { // we only want the children, so don't use n.DepthFirst() right away
 		sub.DepthFirst(func(x *TreeNode) bool {
-			for _, r := range x.Values {
-				rule := r
-				ret.AddPrefix(rule.Ref())
+			for _, rule := range x.Values {
+				if f(rule) {
+					ret.AddPrefix(rule.Ref())
+				}
 			}
 			return false
 		})

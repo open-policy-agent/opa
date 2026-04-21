@@ -1,0 +1,35 @@
+# Lychee configuration for checking the built docs website
+
+no_progress = true
+max_concurrency = 1
+max_retries = 1
+retry_wait_time = 5
+accept = ["200..=206", "403", "429"]
+scheme = ["https", "http"]
+
+# Root dir must be an absolute path, set as CLI arg with --root-dir
+# root_dir = ...
+
+exclude = [
+    # Exclude openpolicyagent.org links in the built site as they're internal links
+    # that are validated at build time by Docusaurus.
+    'openpolicyagent\.org',
+    # These domains block the link checker creating false positives
+    'medium\.com',
+    'blog\.openpolicyagent\.org',
+    'itnext\.io',
+    'stacklok\.com',
+    # These domains frequently timeout, causing false positives
+    # e.g. https://github.com/open-policy-agent/opa/issues/8495
+    'opa-docs\.netlify\.app',
+    'kind\.sigs\.k8s\.io',
+    'openpolicycontainers\.com',
+    'permit\.io',
+    'aserto\.com',
+]
+
+exclude_path = [
+    # some libraries contain files that we don't control and so do not need to be
+    # checked
+    'docs/build/assets/js',
+]

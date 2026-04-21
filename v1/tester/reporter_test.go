@@ -178,28 +178,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exp := `FAILURES
---------------------------------------------------------------------------------
-data.foo.bar.test_corge: FAIL (0s)
-
-  query:1       | Fail true = false  
-
-data.foo.qux.test_cases: FAIL (0s)
-
-  query:1       | Fail true = false  
-
-  bar: FAIL
-
-data.foo.qux.test_cases_nested: FAIL (0s)
-
-  query:1       | Fail true = false  
-
-  two: FAIL
-    foo: FAIL
-
-SUMMARY
---------------------------------------------------------------------------------
-policy1.rego:1:
+	exp := `policy1.rego:1:
 data.foo.bar.test_baz: PASS (0s)
 policy1.rego:2:
 data.foo.bar.test_qux: ERROR (0s)
@@ -232,6 +211,26 @@ data.foo.qux.test_cases_nested: FAIL (0s)
   two: FAIL
     bar: PASS
     foo: FAIL
+--------------------------------------------------------------------------------
+FAILURES
+--------------------------------------------------------------------------------
+data.foo.bar.test_corge: FAIL (0s)
+
+  query:1       | Fail true = false  
+
+data.foo.qux.test_cases: FAIL (0s)
+
+  query:1       | Fail true = false  
+
+  bar: FAIL
+
+data.foo.qux.test_cases_nested: FAIL (0s)
+
+  query:1       | Fail true = false  
+
+  two: FAIL
+    foo: FAIL
+
 --------------------------------------------------------------------------------
 PASS: 8/13
 FAIL: 3/13
@@ -418,7 +417,29 @@ func TestPrettyReporterFailureLine(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exp := `FAILURES
+	exp := `policy1.rego:2:
+data.foo.bar.test_qux: ERROR (0s)
+  some err
+policy1.rego:3:
+data.foo.bar.test_corge: FAIL (0s)
+policy1.rego:4:
+data.foo.bar.todo_test_qux: SKIPPED
+
+policy2.rego:1:
+data.foo.bar.test_contains_print_fail: FAIL (0s)
+
+  fake print output2
+
+
+policy3.rego:1:
+data.foo.baz.p.q.r.test_quz: FAIL (0s)
+
+policy5.rego:1:
+data.foo.qux.test_cases_nested: FAIL (0s)
+  two: FAIL
+    foo: FAIL
+--------------------------------------------------------------------------------
+FAILURES
 --------------------------------------------------------------------------------
 data.foo.bar.test_corge: FAIL (0s)
 
@@ -447,29 +468,6 @@ data.foo.qux.test_cases_nested: FAIL (0s)
           |    2
           1      
 
-SUMMARY
---------------------------------------------------------------------------------
-policy1.rego:2:
-data.foo.bar.test_qux: ERROR (0s)
-  some err
-policy1.rego:3:
-data.foo.bar.test_corge: FAIL (0s)
-policy1.rego:4:
-data.foo.bar.todo_test_qux: SKIPPED
-
-policy2.rego:1:
-data.foo.bar.test_contains_print_fail: FAIL (0s)
-
-  fake print output2
-
-
-policy3.rego:1:
-data.foo.baz.p.q.r.test_quz: FAIL (0s)
-
-policy5.rego:1:
-data.foo.qux.test_cases_nested: FAIL (0s)
-  two: FAIL
-    foo: FAIL
 --------------------------------------------------------------------------------
 PASS: 5/11
 FAIL: 4/11

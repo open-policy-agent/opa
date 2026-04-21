@@ -15,7 +15,7 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 - Check out the learning resources in the [Learning Rego](https://www.openpolicyagent.org/ecosystem/by-feature/learning-rego) section of the ecosystem directory.
 - Follow the [Running OPA](https://www.openpolicyagent.org/docs/latest/#running-opa) instructions to get started with the OPA CLI locally.
 - See [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa/tags/) for container images and the [GitHub releases](https://github.com/open-policy-agent/opa/releases) for binaries.
-- Check out the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
+- Check out the [OPA Roadmap](https://github.com/orgs/open-policy-agent/projects/10) to see a high-level snapshot of OPA features in-progress and planned.
 
 ## Want to talk about OPA or get support?
 
@@ -79,6 +79,11 @@ and more, see [openpolicyagent.org](https://www.openpolicyagent.org).
 
 ## Presentations
 
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2026: [video](https://www.youtube.com/watch?v=TENlj4r6IXk)
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon NA 2025: [video](https://www.youtube.com/watch?v=tDBYMF2XXLA)
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2025: [video](https://www.youtube.com/watch?v=XtA-NKoJDaI)
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon NA 2024: [video](https://www.youtube.com/watch?v=QuotLxFb2f4)
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2024: [video](https://www.youtube.com/watch?v=hENwFyrtm1g)
 - Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon NA 2023: [video](https://www.youtube.com/watch?v=wJkjsvVpj_Q)
 - Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2023: [video](https://www.youtube.com/watch?v=6RNp3m_THw4)
 - Running Policy in Hard to Reach Places with WASM & OPA @ CN Wasm Day EU 2023: [video](https://www.youtube.com/watch?v=BdeBhukLwt4)

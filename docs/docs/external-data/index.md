@@ -51,7 +51,7 @@ JWTs have a limited size in practice, so if your organization has too many user 
 ### Security
 
 - OPA includes primitives to verify the signature of JWT tokens.
-- OPA let's you check the TTL.
+- OPA lets you check the TTL.
 - OPA has support for making HTTP requests during evaluation, which could be used to check if a JWT has been revoked. Though if you're connecting to a remote system on every policy decision anyway, you should think about whether connecting to the authentication system directly is more appropriate (see below).
 
 ## Option 2: Overload `input`
