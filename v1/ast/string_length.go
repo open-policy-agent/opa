@@ -364,6 +364,10 @@ func (c *Comment) StringLength() int {
 }
 
 func (not *Not) StringLength() int {
-	l := 6 // "not {}"
-	return l + not.Body.StringLength()
+	if !not.ExplicitBody && len(not.Body) == 1 {
+		// "not ..."
+		return 4 + not.Body.StringLength()
+	}
+	// "not {...}"
+	return 6 + not.Body.StringLength()
 }

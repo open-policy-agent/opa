@@ -121,6 +121,42 @@ var valueAppenderTests = []struct {
 		term: ast.MustParseTerm(`{x | x := data.values[_]; x < 100}`),
 		want: `{x | assign(x, data.values[_]); lt(x, 100)}`,
 	},
+	{
+		name: "not",
+		term: &ast.Not{
+			Body: ast.NewBody(ast.NewExpr(ast.LessThan.Call(ast.NumberTerm("100"), ast.NumberTerm("1")))),
+		},
+		want: `not lt(100, 1)`,
+	},
+	{
+		name: "not, explicit body, one-line",
+		term: &ast.Not{
+			ExplicitBody: true,
+			Body:         ast.NewBody(ast.NewExpr(ast.LessThan.Call(ast.NumberTerm("100"), ast.NumberTerm("1")))),
+		},
+		want: `not {lt(100, 1)}`,
+	},
+	{
+		name: "not, implicit body, multi-line",
+		term: &ast.Not{
+			Body: ast.NewBody(
+				ast.NewExpr(ast.LessThan.Call(ast.NumberTerm("100"), ast.NumberTerm("1"))),
+				ast.NewExpr(ast.LessThan.Call(ast.NumberTerm("99"), ast.NumberTerm("1"))),
+			),
+		},
+		want: `not {lt(100, 1); lt(99, 1)}`,
+	},
+	{
+		name: "not, explicit body, multi-line",
+		term: &ast.Not{
+			ExplicitBody: true,
+			Body: ast.NewBody(
+				ast.NewExpr(ast.LessThan.Call(ast.NumberTerm("100"), ast.NumberTerm("1"))),
+				ast.NewExpr(ast.LessThan.Call(ast.NumberTerm("99"), ast.NumberTerm("1"))),
+			),
+		},
+		want: `not {lt(100, 1); lt(99, 1)}`,
+	},
 }
 
 func TestASTValueTextAppendersAndStringLength(t *testing.T) {

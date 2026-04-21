@@ -194,6 +194,11 @@ func Transform(t Transformer, x any) (any, error) {
 				return nil, err
 			}
 			y.Terms = ts
+		case *Not:
+			ts.Body, err = transformBody(t, ts.Body)
+			if err != nil {
+				return nil, err
+			}
 		}
 		for i, w := range y.With {
 			w, err := Transform(t, w)

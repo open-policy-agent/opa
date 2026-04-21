@@ -118,8 +118,13 @@ func TestFormatV0Source(t *testing.T) {
 				t.Fatalf("Failed to read expected rego source: %v", err)
 			}
 
+			// TODO: drop once future.keywords.not is enabled by default
+			caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV0))
+			caps.FutureKeywords = append(caps.FutureKeywords, "not")
+
 			popts := ast.ParserOptions{
-				RegoVersion: ast.RegoV0,
+				RegoVersion:  ast.RegoV0,
+				Capabilities: caps,
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV0,
@@ -170,8 +175,13 @@ func TestFormatV1Source(t *testing.T) {
 				t.Fatalf("Failed to read expected rego source: %v", err)
 			}
 
+			// TODO: drop once future.keywords.not is enabled by default
+			caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1))
+			caps.FutureKeywords = append(caps.FutureKeywords, "not")
+
 			popts := ast.ParserOptions{
-				RegoVersion: ast.RegoV1,
+				RegoVersion:  ast.RegoV1,
+				Capabilities: caps,
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV1,
@@ -232,14 +242,23 @@ func TestFormatV0SourceToRegoV1(t *testing.T) {
 				}
 			}
 
+			// TODO: drop once future.keywords.not is enabled by default
+			caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(ast.RegoV1))
+			caps.FutureKeywords = append(caps.FutureKeywords, "not")
+
 			sourceOpts := Opts{
 				RegoVersion: ast.RegoV0CompatV1, // Target syntax is v0 compat v1
 				ParserOptions: &ast.ParserOptions{
-					RegoVersion: ast.RegoV0, // Original syntax is v0
+					RegoVersion:  ast.RegoV0, // Original syntax is v0
+					Capabilities: caps,
 				},
 			}
 			targetOpts := Opts{
 				RegoVersion: ast.RegoV0CompatV1, // Target syntax is v0 compat v1
+				ParserOptions: &ast.ParserOptions{
+					RegoVersion:  ast.RegoV0CompatV1,
+					Capabilities: caps,
+				},
 			}
 
 			if errorExpected {
@@ -262,13 +281,13 @@ func TestFormatV0SourceToRegoV1(t *testing.T) {
 					t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
 				}
 
-				if _, err := ast.ParseModule(rego+".tmp", string(formatted)); err != nil {
+				if _, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), ast.ParserOptions{RegoVersion: ast.RegoV0CompatV1, Capabilities: caps}); err != nil {
 					t.Fatalf("Failed to parse formatted bytes: %v", err)
 				}
 
 				formatted, err = SourceWithOpts(rego, formatted, targetOpts)
 				if err != nil {
-					t.Fatalf("Failed to double format file")
+					t.Fatalf("Failed to double format file: %s", err)
 				}
 
 				if ln, at := differsAt(formatted, expected); ln != 0 {
@@ -278,7 +297,7 @@ func TestFormatV0SourceToRegoV1(t *testing.T) {
 				// rego-v1 formatted code is still compliant with v0, and should not be changed if formatted as such
 				formatted, err = SourceWithOpts(rego, formatted, targetOpts)
 				if err != nil {
-					t.Fatalf("Failed to double format file as v0")
+					t.Fatalf("Failed to double format file as v0: %s", err)
 				}
 
 				if ln, at := differsAt(formatted, expected); ln != 0 {
@@ -744,6 +763,132 @@ a[_x[y][[z, w]]]`,
 				ast.StringTerm("\n}"),
 			),
 			expected: "$`allow if \\{\n\t{x}\n}`",
+		},
+		{
+			note:        "v0, not-body adds import if missing",
+			regoVersion: ast.RegoV0,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					not 1 + input.x == 2
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"not"},
+					Capabilities: func() *ast.Capabilities {
+						// TODO: drop once future.keywords.not is enabled by default
+						caps := ast.CapabilitiesForThisVersion()
+						caps.FutureKeywords = append(caps.FutureKeywords, "not")
+						return caps
+					}(),
+				}),
+			expected: `package test
+
+import future.keywords.not
+
+p {
+	not 1 + input.x == 2
+}`,
+		},
+		{
+			note:        "v1, not-body adds import if missing",
+			regoVersion: ast.RegoV1,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					not 1 + input.x == 2
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"not"},
+					Capabilities: func() *ast.Capabilities {
+						// TODO: drop once future.keywords.not is enabled by default
+						caps := ast.CapabilitiesForThisVersion()
+						caps.FutureKeywords = append(caps.FutureKeywords, "not")
+						return caps
+					}(),
+				}),
+			expected: `package test
+
+import future.keywords.not
+
+p if {
+	not 1 + input.x == 2
+}`,
+		},
+		{
+			note:        "v1, not-body explicit single expression round-trips",
+			regoVersion: ast.RegoV1,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				import future.keywords.not
+				p if {
+					not {input.x == 1}
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"not"},
+					Capabilities: func() *ast.Capabilities {
+						caps := ast.CapabilitiesForThisVersion()
+						caps.FutureKeywords = append(caps.FutureKeywords, "not")
+						return caps
+					}(),
+				}),
+			expected: `package test
+
+import future.keywords.not
+
+p if {
+	not { input.x == 1 }
+}`,
+		},
+		{
+			note:        "v1, not-body multi expression",
+			regoVersion: ast.RegoV1,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				import future.keywords.not
+				p if {
+					not {
+						input.x == 1
+						input.y == 2
+					}
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"not"},
+					Capabilities: func() *ast.Capabilities {
+						caps := ast.CapabilitiesForThisVersion()
+						caps.FutureKeywords = append(caps.FutureKeywords, "not")
+						return caps
+					}(),
+				}),
+			expected: `package test
+
+import future.keywords.not
+
+p if {
+	not {
+		input.x == 1
+		input.y == 2
+	}
+}`,
+		},
+		{
+			note:        "v1, not-body implicit single expression stays inline",
+			regoVersion: ast.RegoV1,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				import future.keywords.not
+				p if {
+					not input.x == 1
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"not"},
+					Capabilities: func() *ast.Capabilities {
+						caps := ast.CapabilitiesForThisVersion()
+						caps.FutureKeywords = append(caps.FutureKeywords, "not")
+						return caps
+					}(),
+				}),
+			expected: `package test
+
+import future.keywords.not
+
+p if {
+	not input.x == 1
+}`,
 		},
 	}
 

@@ -4661,6 +4661,10 @@ func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
 		return false
 	}
 
+	if n.ExplicitBody {
+		return true
+	}
+
 	internalVis := varVisitorPool.Get()
 	defer varVisitorPool.Put(internalVis)
 
@@ -5227,7 +5231,8 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 		ignore.Pop()
 	case *Not:
 		cpy.Terms = &Not{
-			Body: resolveRefsInBody(globals, ignore, ts.Body),
+			Body:         resolveRefsInBody(globals, ignore, ts.Body),
+			ExplicitBody: ts.ExplicitBody,
 		}
 	}
 	for _, w := range cpy.With {
@@ -6100,6 +6105,9 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs, strict)
 		case body[i].IsEvery():
 			expr, errs = rewriteEveryStatement(g, stack, body[i], errs, strict)
+		case body[i].IsNot() && body[i].Terms.(*Not).ExplicitBody:
+			// Only explicit not bodies are allowed to declare vars
+			expr, errs = rewriteNotStatement(g, stack, body[i], errs, strict)
 		default:
 			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs, strict)
 		}
@@ -6337,6 +6345,19 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 		}
 	}
 	return nil, errs
+}
+
+func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
+	e := expr.Copy()
+	not := e.Terms.(*Not)
+
+	stack.Push()
+	defer stack.Pop()
+
+	used := NewVarSet()
+	not.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, not.Body, errs, strict)
+
+	return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
 }
 
 func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {

@@ -1260,6 +1260,10 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 	}
 
+	if negated && p.notBodies && p.s.tok == tokens.LBrace {
+		return p.parseNotBody()
+	}
+
 	switch p.s.tok {
 	case tokens.Some:
 		if negated {
@@ -1318,7 +1322,11 @@ func (p *Parser) parseLiteralExpr(negated bool) *Expr {
 		}
 
 		if negated && p.notBodies {
+			// Move 'with' statement to outer not expr
+			w := expr.With
+			expr.With = nil
 			expr = NewExpr(&Not{Body: NewBody(expr), Location: p.s.Loc()})
+			expr.With = w
 		} else {
 			expr.Negated = negated
 		}
@@ -1452,6 +1460,28 @@ func (p *Parser) parseSome() *Expr {
 	}
 
 	return NewExpr(decl).SetLocation(decl.Location)
+}
+
+func (p *Parser) parseNotBody() *Expr {
+	loc := p.s.Loc()
+	p.scan()
+
+	body := p.parseBody(tokens.RBrace)
+	if body == nil {
+		return nil
+	}
+	p.scan()
+
+	not := &Not{Body: body, ExplicitBody: true, Location: loc}
+	expr := NewExpr(not).SetLocation(loc)
+
+	if p.s.tok == tokens.With {
+		if expr.With = p.parseWith(); expr.With == nil {
+			return nil
+		}
+	}
+
+	return expr
 }
 
 func (p *Parser) parseEvery() *Expr {
