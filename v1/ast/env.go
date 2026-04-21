@@ -320,7 +320,11 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 			curr.children.Put(child.key, child)
 		} else if child.value != nil && i+1 < len(path) {
 			// If child has an object value, merge the new value into it.
-			if o, ok := child.value.(*types.Object); ok {
+			cv := child.value
+			if r, ok := cv.(*types.Recursive); ok {
+				cv = r.Unwrap()
+			}
+			if o, ok := cv.(*types.Object); ok {
 				var err error
 				child.value, err = insertIntoObject(o, path[i+1:], tpe, env)
 				if err != nil {
@@ -334,15 +338,26 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 
 	curr.value = mergeTypes(curr.value, tpe)
 
-	if _, ok := tpe.(*types.Object); ok && curr.children.Len() > 0 {
+	_, isObj := tpe.(*types.Object)
+	if !isObj {
+		if r, ok := tpe.(*types.Recursive); ok {
+			_, isObj = r.Unwrap().(*types.Object)
+		}
+	}
+	if isObj && curr.children.Len() > 0 {
 		// merge all leafs into the inserted object
+		cv := curr.value
+		if r, ok := cv.(*types.Recursive); ok {
+			cv = r.Unwrap()
+		}
 		for p, t := range curr.Leafs() {
 			var err error
-			curr.value, err = insertIntoObject(curr.value.(*types.Object), *p, t, env)
+			cv, err = insertIntoObject(cv.(*types.Object), *p, t, env)
 			if err != nil {
 				panic(fmt.Errorf("unreachable, insertIntoObject: %w", err))
 			}
 		}
+		curr.value = cv
 	}
 }
 
@@ -361,6 +376,14 @@ func mergeTypes(a, b types.Type) types.Type {
 
 	if b == nil {
 		return a
+	}
+
+	// Unwrap recursive types so they merge as their underlying type.
+	if r, ok := a.(*types.Recursive); ok {
+		a = r.Unwrap()
+	}
+	if r, ok := b.(*types.Recursive); ok {
+		b = r.Unwrap()
 	}
 
 	switch a := a.(type) {

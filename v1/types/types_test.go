@@ -7,6 +7,7 @@ package types
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -371,6 +372,145 @@ func TestNil(t *testing.T) {
 		t.Fatalf("Expected %v type to be unknown", tpe)
 	}
 
+}
+
+func TestNilCircularObject(t *testing.T) {
+	// Construct a circular type using Recursive: an Object whose property
+	// is a Recursive type pointing back to itself.
+	// Nil() must terminate and return false (the type is known, just recursive).
+	obj := NewObject([]*StaticProperty{
+		NewStaticProperty("self", nil),
+	}, nil)
+	obj.StaticProperties()[0].Value = NewRecursive("test", obj)
+
+	if Nil(obj) {
+		t.Fatal("Expected Nil to return false for circular object type")
+	}
+}
+
+func TestNilCircularArray(t *testing.T) {
+	rec := NewRecursive("tree", nil)
+	arr := NewArray(nil, rec)
+	rec.SetType(arr)
+
+	if Nil(arr) {
+		t.Fatal("Expected Nil to return false for circular array type")
+	}
+}
+
+func TestRecursiveType(t *testing.T) {
+	// Build a recursive type: object<"foo": recursive(#/$defs/foo), "bar": number>
+	obj := NewObject([]*StaticProperty{
+		NewStaticProperty("foo", nil),
+		NewStaticProperty("bar", N),
+	}, nil)
+	rec := NewRecursive("#/$defs/foo", obj)
+	// NewObject sorts by key, so "bar" is at index 0 and "foo" is at index 1.
+	obj.StaticProperties()[1].Value = rec
+
+	t.Run("String", func(t *testing.T) {
+		s := rec.String()
+		if s != "recursive(#/$defs/foo)" {
+			t.Fatalf("expected recursive(#/$defs/foo), got %s", s)
+		}
+		// Verify the containing object can be stringified without infinite loop.
+		s = obj.String()
+		if !strings.Contains(s, "recursive(#/$defs/foo)") {
+			t.Fatalf("expected object string to contain recursive reference, got %s", s)
+		}
+	})
+
+	t.Run("Unwrap", func(t *testing.T) {
+		if rec.Unwrap() != obj {
+			t.Fatal("Unwrap should return the wrapped object")
+		}
+	})
+
+	t.Run("Compare", func(t *testing.T) {
+		// Recursive should compare equal to its underlying object
+		if Compare(rec, obj) != 0 {
+			t.Fatal("Recursive should compare equal to its underlying object")
+		}
+	})
+
+	t.Run("Select", func(t *testing.T) {
+		// Selecting "bar" through the recursive type should return Number
+		result := Select(rec, "bar")
+		if Compare(result, N) != 0 {
+			t.Fatalf("expected number, got %v", result)
+		}
+		// Selecting "foo" should return the Recursive type itself
+		result = Select(rec, "foo")
+		if result == nil {
+			t.Fatal("expected non-nil selecting 'foo' from recursive type")
+		}
+	})
+
+	t.Run("Keys", func(t *testing.T) {
+		k := Keys(rec)
+		if k == nil {
+			t.Fatal("expected non-nil keys")
+		}
+	})
+
+	t.Run("Values", func(t *testing.T) {
+		v := Values(rec)
+		if v == nil {
+			t.Fatal("expected non-nil values")
+		}
+	})
+
+	t.Run("Contains", func(t *testing.T) {
+		if !Contains(rec, obj) {
+			t.Fatal("Recursive should contain its underlying object")
+		}
+	})
+}
+
+func TestRecursiveArray(t *testing.T) {
+	rec := NewRecursive("#/$defs/tree", nil)
+	arr := NewArray(nil, rec)
+	rec.SetType(arr)
+
+	t.Run("String", func(t *testing.T) {
+		s := rec.String()
+		if s != "recursive(#/$defs/tree)" {
+			t.Fatalf("expected recursive(#/$defs/tree), got %s", s)
+		}
+	})
+
+	t.Run("Unwrap", func(t *testing.T) {
+		if rec.Unwrap() != arr {
+			t.Fatal("Unwrap should return the wrapped array")
+		}
+	})
+
+	t.Run("Compare", func(t *testing.T) {
+		if Compare(rec, arr) != 0 {
+			t.Fatal("Recursive should compare equal to its underlying array")
+		}
+	})
+
+	t.Run("Select", func(t *testing.T) {
+		result := Select(rec, json.Number("0"))
+		if result == nil {
+			t.Fatal("expected non-nil selecting from recursive array type")
+		}
+	})
+
+	t.Run("Keys", func(t *testing.T) {
+		k := Keys(rec)
+		if Compare(k, N) != 0 {
+			t.Fatalf("expected number keys for array, got %v", k)
+		}
+	})
+
+	t.Run("Values", func(t *testing.T) {
+		v := Values(rec)
+		if v == nil {
+			t.Fatal("expected non-nil values")
+		}
+	})
 }
 
 func TestMarshalJSON(t *testing.T) {

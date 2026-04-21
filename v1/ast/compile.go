@@ -1639,7 +1639,9 @@ type schemaParser struct {
 }
 
 type cachedDef struct {
-	properties []*types.StaticProperty
+	typ        types.Type
+	rec        *types.Recursive
+	processing bool
 }
 
 func newSchemaParser() *schemaParser {
@@ -1652,7 +1654,7 @@ func (parser *schemaParser) parseSchema(schema any) (types.Type, error) {
 	return parser.parseSchemaWithPropertyKey(schema, "")
 }
 
-func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey string) (types.Type, error) {
+func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey string) (result types.Type, err error) {
 	subSchema, ok := schema.(*gojsonschema.SubSchema)
 	if !ok {
 		return nil, fmt.Errorf("unexpected schema type %v", subSchema)
@@ -1661,9 +1663,33 @@ func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey s
 	// Handle referenced schemas, returns directly when a $ref is found
 	if subSchema.RefSchema != nil {
 		if existing, ok := parser.definitionCache[subSchema.Ref.String()]; ok {
-			return types.NewObject(existing.properties, nil), nil
+			if existing.processing {
+				if existing.rec == nil {
+					existing.rec = types.NewRecursive(subSchema.Ref.String(), nil)
+				}
+				return existing.rec, nil
+			}
+			return existing.typ, nil
 		}
 		return parser.parseSchemaWithPropertyKey(subSchema.RefSchema, subSchema.Ref.String())
+	}
+
+	// Cache this $ref definition and finalize it via defer when parsing
+	// completes. This allows recursive $refs to be detected: if a nested
+	// $ref hits a definition that is still processing, we know it's a cycle.
+	var def *cachedDef
+	if propertyKey != "" {
+		def = &cachedDef{processing: true}
+		parser.definitionCache[propertyKey] = def
+		defer func() {
+			def.processing = false
+			if result != nil && err == nil {
+				def.typ = result
+				if def.rec != nil {
+					def.rec.SetType(result)
+				}
+			}
+		}()
 	}
 
 	// Handle anyOf
@@ -1733,28 +1759,15 @@ func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey s
 
 		} else if subSchema.Types.Contains("object") {
 			if len(subSchema.PropertiesChildren) > 0 {
-				def := &cachedDef{
-					properties: make([]*types.StaticProperty, 0, len(subSchema.PropertiesChildren)),
-				}
-				for _, pSchema := range subSchema.PropertiesChildren {
-					def.properties = append(def.properties, types.NewStaticProperty(pSchema.Property, nil))
-				}
-				if propertyKey != "" {
-					parser.definitionCache[propertyKey] = def
-				}
+				properties := make([]*types.StaticProperty, 0, len(subSchema.PropertiesChildren))
 				for _, pSchema := range subSchema.PropertiesChildren {
 					newtype, err := parser.parseSchema(pSchema)
 					if err != nil {
 						return nil, fmt.Errorf("unexpected schema type %v: %w", pSchema, err)
 					}
-					for i, prop := range def.properties {
-						if prop.Key == pSchema.Property {
-							def.properties[i].Value = newtype
-							break
-						}
-					}
+					properties = append(properties, types.NewStaticProperty(pSchema.Property, newtype))
 				}
-				return types.NewObject(def.properties, nil), nil
+				return types.NewObject(properties, nil), nil
 			}
 			return types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)), nil
 

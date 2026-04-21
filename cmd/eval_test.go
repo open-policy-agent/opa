@@ -639,6 +639,217 @@ func testReadParamWithSchemaDir(input string, inputSchema string) error {
 	return err
 }
 
+func TestEvalWithRecursiveJSONSchema(t *testing.T) {
+	input := `{"foo": {"foo": {}}}`
+
+	policy := `package p
+
+allow if input.foo`
+
+	schema := `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`
+
+	err := testEvalWithSchemaFile(t, input, "data.p.allow", schema, policy, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Type mismatch: input.foo is an object per the recursive schema, not a number
+	policyWithSchemasAnnotation := `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.foo == 42
+}`
+	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyWithSchemasAnnotation, true)
+	if err != nil {
+		t.Fatalf("unexpected error for schema annotation type check: %s", err)
+	}
+
+	// Type mismatch on nested recursive property
+	policyNestedMismatch := `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.foo.foo == "hello"
+}`
+	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyNestedMismatch, true)
+	if err != nil {
+		t.Fatalf("unexpected error for nested recursive type check: %s", err)
+	}
+
+	// Type mismatch with inlined recursive schema
+	policyWithInlinedSchema := `
+package test
+
+# METADATA
+# schemas:
+#   - input.foo: {"type": "boolean"}
+p if {
+	input.foo == 42
+}`
+	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyWithInlinedSchema, true)
+	if err != nil {
+		t.Fatalf("unexpected error for inlined schema type check: %s", err)
+	}
+
+	// Valid usage: no type error when comparing object property correctly
+	policyValid := `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.foo
+}`
+	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyValid, false)
+	if err != nil {
+		t.Fatalf("unexpected error for valid recursive schema usage: %s", err)
+	}
+}
+
+func TestEvalWithRecursiveArrayJSONSchema(t *testing.T) {
+	input := `{"tree": [[[]]]}`
+
+	schema := `{
+    "type": "object",
+    "properties": {
+        "tree": {
+            "$ref": "#/$defs/tree"
+        }
+    },
+    "$defs": {
+        "tree": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/tree"
+            }
+        }
+    }
+}`
+
+	policy := `package p
+
+allow if input.tree`
+
+	err := testEvalWithSchemaFile(t, input, "data.p.allow", schema, policy, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Type mismatch: input.tree[0] is an array per the recursive schema, not a string
+	policyMismatch := `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.tree[0] == "hello"
+}`
+	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyMismatch, true)
+	if err != nil {
+		t.Fatalf("unexpected error for recursive array type check: %s", err)
+	}
+}
+
+func TestEvalWithRecursiveAnyOfJSONSchema(t *testing.T) {
+	input := `{"node": ["hello", ["world"]]}`
+
+	schema := `{
+    "type": "object",
+    "properties": {
+        "node": {
+            "$ref": "#/$defs/node"
+        }
+    },
+    "$defs": {
+        "node": {
+            "anyOf": [
+                { "type": "string" },
+                {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/node" }
+                }
+            ]
+        }
+    }
+}`
+
+	policy := `package p
+
+allow if input.node`
+
+	err := testEvalWithSchemaFile(t, input, "data.p.allow", schema, policy, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestEvalWithNonRecursiveRefJSONSchema(t *testing.T) {
+	input := `{"addr": {"street": "Main St", "city": "Springfield"}}`
+
+	schema := `{
+    "type": "object",
+    "properties": {
+        "addr": {
+            "$ref": "#/$defs/address"
+        }
+    },
+    "$defs": {
+        "address": {
+            "type": "object",
+            "properties": {
+                "street": { "type": "string" },
+                "city": { "type": "string" }
+            }
+        }
+    }
+}`
+
+	policy := `package p
+
+allow if input.addr.street`
+
+	err := testEvalWithSchemaFile(t, input, "data.p.allow", schema, policy, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Type mismatch: input.addr.street is a string, not a number
+	policyMismatch := `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.addr.street == 42
+}`
+	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyMismatch, true)
+	if err != nil {
+		t.Fatalf("unexpected error for non-recursive ref type check: %s", err)
+	}
+}
+
 func TestEvalWithJSONSchema(t *testing.T) {
 
 	input := `{

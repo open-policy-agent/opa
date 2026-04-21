@@ -315,6 +315,75 @@ func TestCheckInference(t *testing.T) {
 	}
 }
 
+func TestCheckInferenceRecursiveTypes(t *testing.T) {
+	// Build a recursive object type: object{foo: Recursive -> self, bar: number}
+	recObj := types.NewObject([]*types.StaticProperty{
+		types.NewStaticProperty("foo", nil),
+		types.NewStaticProperty("bar", types.N),
+	}, nil)
+	recObjType := types.NewRecursive("#/$defs/obj", recObj)
+	// NewObject sorts by key: index 0 = "bar", index 1 = "foo"
+	recObj.StaticProperties()[1].Value = recObjType
+
+	// Build a recursive array type: array[Recursive -> self]
+	recArrType := types.NewRecursive("#/$defs/arr", nil)
+	recArr := types.NewArray(nil, recArrType)
+	recArrType.SetType(recArr)
+
+	tests := []struct {
+		note     string
+		query    string
+		expected map[Var]types.Type
+	}{
+		{
+			note:  "object unify against recursive object",
+			query: `{"foo": x, "bar": y} = data.rec_obj`,
+			expected: map[Var]types.Type{
+				Var("x"): recObjType,
+				Var("y"): types.N,
+			},
+		},
+		{
+			note:  "array unify against recursive array",
+			query: `[x] = data.rec_arr`,
+			expected: map[Var]types.Type{
+				Var("x"): recArrType,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			body := MustParseBody(tc.query)
+			checker := newTypeChecker()
+			env := checker.Env(BuiltinMap)
+
+			// Inject recursive types into the environment for data.rec_obj and data.rec_arr
+			env.tree.Put(MustParseRef("data.rec_obj"), recObjType)
+			env.tree.Put(MustParseRef("data.rec_arr"), recArrType)
+
+			env, err := checker.CheckBody(env, body)
+			if len(err) != 0 {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			for k, tpe := range tc.expected {
+				result := env.GetByValue(k)
+				if tpe == nil {
+					if result != nil {
+						t.Errorf("Expected %v type to be unset but got: %v", k, result)
+					}
+				} else {
+					if result == nil {
+						t.Errorf("Expected to infer %v => %v but got nil", k, tpe)
+					} else if types.Compare(tpe, result) != 0 {
+						t.Errorf("Expected to infer %v => %v but got %v", k, tpe, result)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestCheckInferenceRules(t *testing.T) {
 
 	// Rules must have refs resolved, safe ordering, etc. Each pair is a
