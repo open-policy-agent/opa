@@ -33,7 +33,15 @@ func (lb *logBuffer) Push(bs []byte) (dropped int) {
 	size := int64(len(bs))
 
 	if lb.limit > 0 {
-		for elem := lb.l.Front(); elem != nil && (lb.usage+size > lb.limit); elem = elem.Next() {
+		if size > lb.limit {
+			return 1
+		}
+
+		for lb.usage+size > lb.limit {
+			elem := lb.l.Front()
+			if elem == nil {
+				break
+			}
 			drop := elem.Value.(logBufferElem).bs
 			lb.l.Remove(elem)
 			lb.usage -= int64(len(drop))
