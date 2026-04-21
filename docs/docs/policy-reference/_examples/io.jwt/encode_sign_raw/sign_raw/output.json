@@ -1,0 +1,12 @@
+{
+  "raw_result_hs256": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.Duw7jWmGY54yEu6kcqd2w1TKp1EspzboBnx8EeMc-z0",
+  "raw_result_parts_hs256": [
+    true,
+    {
+      "alg": "HS256",
+      "typ": "JWT"
+    },
+    {}
+  ],
+  "raw_result_valid_hs256": true
+}

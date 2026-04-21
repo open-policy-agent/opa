@@ -60,3 +60,16 @@ markdownlint-check:
 .PHONY: spell-check
 spell-check:
 	vale --config=.vale.ini .
+
+.PHONY: gen
+gen:
+	./bin/eval-examples.sh
+
+.PHONY: gen-check
+gen-check:
+	./bin/eval-examples.sh
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: working directory is not clean after running gen"; \
+		git diff; \
+		exit 1; \
+	fi

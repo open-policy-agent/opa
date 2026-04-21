@@ -16,13 +16,6 @@ jwks := `{
     ]
 }`
 
-t := time.add_date(
-	time.now_ns(),
-	100,
-	0,
-	0,
-)
-
 verified_claims := claims if {
 	[verified, _, claims] := io.jwt.decode_verify(
 		input.token,

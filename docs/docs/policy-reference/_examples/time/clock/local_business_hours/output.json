@@ -1,0 +1,8 @@
+{
+  "allow": false,
+  "local_hours": {
+    "end": 18,
+    "start": 9
+  },
+  "request_time": 1720015440000000000
+}

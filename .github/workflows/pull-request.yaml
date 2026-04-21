@@ -575,6 +575,25 @@ jobs:
     - name: Check markdown linting
       run: make docs-install docs-markdownlint-check
 
+  docs-gen-check:
+    name: Docs Gen Check
+    runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.docs == 'true' }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+
+    - name: Setup OPA
+      uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
+      with:
+        version: latest
+
+    - name: Check generated docs are up to date
+      run: make docs-gen-check
+
   docs-spell-check:
     name: Docs Spell Check
     runs-on: ubuntu-24.04
@@ -640,6 +659,7 @@ jobs:
       docs-fmt-check,
       docs-lint-check,
       docs-markdownlint-check,
+      docs-gen-check,
       docs-spell-check,
       benchmarks,
       test-ocp-with-opa,
