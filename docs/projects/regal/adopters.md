@@ -44,8 +44,9 @@ Public open source projects integrating Regal for linting in their CI/CD pipelin
 Projects and products that integrate Regal into their offerings.
 
 <!-- cspell:disable -->
+- [Code Rabbit](https://docs.coderabbit.ai/tools/regal)
 - [Dependency Management Data](https://gitlab.com/tanna.dev/dependency-management-data)
-- [Enterprise OPA](https://github.com/styrainc/enterprise-opa)
+- [EOPA](https://github.com/open-policy-agent/eopa)
 - [The Rego Playground](https://play.openpolicyagent.org)
 - [Trunk Check](https://trunk.io/)
 - [reviewdog/action-regal](https://github.com/reviewdog/action-regal)
@@ -83,7 +84,6 @@ Some companies and organizations using Regal.
 - [Red Hat](https://www.redhat.com)
 - [Spacelift](https://www.spacelift.io)
 - [Stacklok](https://stacklok.com)
-- [Styra](https://www.styra.com)
 - [UNIwise](https://uniwise.eu/)
 - [VodafoneZiggo](https://www.vodafoneziggo.nl)
 <!-- cspell:enable-->

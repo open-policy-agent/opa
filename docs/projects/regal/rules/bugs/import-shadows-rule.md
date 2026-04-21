@@ -5,18 +5,20 @@
 **Category**: Bugs
 
 **Avoid**
+
 ```rego
 package policy
 
 import data.resources
 
-# 'resources' shadowed by import 
+# 'resources' shadowed by import
 resources contains resource if {
     # ...
 }
 ```
 
 **Prefer**
+
 ```rego
 package policy
 
@@ -56,3 +58,7 @@ rules:
       # one of "error", "warning", "ignore"
       level: error
 ```
+
+## Related Resources
+
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/bugs/import-shadows-rule/import_shadows_rule.rego)
