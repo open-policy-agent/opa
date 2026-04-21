@@ -637,11 +637,11 @@ func (p *Planner) planQuery(q ast.Body, index int, iter planiter) error {
 func (p *Planner) planExpr(e *ast.Expr, iter planiter) error {
 
 	switch {
-	case e.IsNegated():
-		return p.planNot(e, iter)
-
 	case len(e.With) > 0:
 		return p.planWith(e, iter)
+
+	case e.IsNegated():
+		return p.planNot(e, iter)
 
 	case e.IsCall():
 		return p.planExprCall(e, iter)
