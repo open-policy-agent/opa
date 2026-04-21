@@ -23,7 +23,7 @@ jobs:
           persist-credentials: false
 
       - name: Download OPA
-        uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
+        uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
         with:
           version: edge
 
@@ -82,7 +82,7 @@ jobs:
     needs: [check-changes, benchmarks] # force sequential commits for notebook and benchmark results
     if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
-      - uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
+      - uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

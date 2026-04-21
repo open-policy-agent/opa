@@ -31,7 +31,7 @@ jobs:
         persist-credentials: false
 
     - name: Download OPA
-      uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
+      uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
       with:
         version: latest
 
@@ -488,7 +488,7 @@ jobs:
         persist-credentials: false
 
     - name: Download OPA
-      uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
+      uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
       with:
         version: edge
 
@@ -587,7 +587,7 @@ jobs:
         persist-credentials: false
 
     - name: Setup OPA
-      uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
+      uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
       with:
         version: latest
 
@@ -672,7 +672,7 @@ jobs:
       with:
         persist-credentials: false
     - name: Download OPA
-      uses: open-policy-agent/setup-opa@950f159a49aa91f9323f36f1de81c7f6b5de9576 # v2.3.0
+      uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
       with:
         version: edge
     - name: Check job results
