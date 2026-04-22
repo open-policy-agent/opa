@@ -24,6 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/tester"
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/types"
+	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -60,9 +61,10 @@ type expectedTestResult struct {
 }
 
 type testRunConfig struct {
-	bench       bool
-	filter      string
-	coverTracer topdown.QueryTracer
+	bench          bool
+	filter         string
+	coverTracer    topdown.QueryTracer
+	prefixMatchers []string
 }
 
 type expectedTestResults map[[2]string]expectedTestResult
@@ -184,7 +186,8 @@ func doTestRunWithTmpDir(t *testing.T, dir string, conf testRunConfig) ([]*teste
 		SetModules(modules).
 		Filter(conf.filter).
 		SetTimeout(60 * time.Second).
-		SetCoverageQueryTracer(conf.coverTracer)
+		SetCoverageQueryTracer(conf.coverTracer).
+		SetPrefixMatchers(util.Map(conf.prefixMatchers, ast.MustParseRef)...)
 
 	var ch chan *tester.Result
 	if conf.bench {
@@ -259,6 +262,115 @@ func validateSubTestResults(t *testing.T, tests map[string]expectedTestResult, s
 			validateSubTestResults(t, tests[k].cases, v.SubResults)
 		}
 	}
+}
+
+func TestRunWithPrefixMatchers(t *testing.T) {
+	files := map[string]string{
+		"/a_b_c_test.rego": `package a.b.c_test
+
+		test_input_1 if true
+		test_input_2 if true
+
+		nested.test_input_3 if true`,
+	}
+
+	cases := []struct {
+		note     string
+		prefixes []string
+		tests    expectedTestResults
+	}{
+		{
+			note:     "empty prefixes matches all tests",
+			prefixes: nil,
+			tests: expectedTestResults{
+				{"data.a.b.c_test", "test_input_1"}:        {false, false, false, nil},
+				{"data.a.b.c_test", "test_input_2"}:        {false, false, false, nil},
+				{"data.a.b.c_test", "nested.test_input_3"}: {false, false, false, nil},
+			},
+		},
+		{
+			note:     "data document ref",
+			prefixes: []string{"data"},
+			tests: expectedTestResults{
+				{"data.a.b.c_test", "test_input_1"}:        {false, false, false, nil},
+				{"data.a.b.c_test", "test_input_2"}:        {false, false, false, nil},
+				{"data.a.b.c_test", "nested.test_input_3"}: {false, false, false, nil},
+			},
+		},
+		{
+			note:     "package name",
+			prefixes: []string{"data.a.b.c_test"},
+			tests: expectedTestResults{
+				{"data.a.b.c_test", "test_input_1"}:        {false, false, false, nil},
+				{"data.a.b.c_test", "test_input_2"}:        {false, false, false, nil},
+				{"data.a.b.c_test", "nested.test_input_3"}: {false, false, false, nil},
+			},
+		},
+		{
+			note:     "package prefix",
+			prefixes: []string{"data.a.b"},
+			tests: expectedTestResults{
+				{"data.a.b.c_test", "test_input_1"}:        {false, false, false, nil},
+				{"data.a.b.c_test", "test_input_2"}:        {false, false, false, nil},
+				{"data.a.b.c_test", "nested.test_input_3"}: {false, false, false, nil},
+			},
+		},
+		{
+			note:     "exact ref match",
+			prefixes: []string{"data.a.b.c_test.test_input_1"},
+			tests: expectedTestResults{
+				{"data.a.b.c_test", "test_input_1"}: {false, false, false, nil},
+			},
+		},
+		{
+			note:     "nested test",
+			prefixes: []string{"data.a.b.c_test.nested.test_input_3"},
+			tests: expectedTestResults{
+				{"data.a.b.c_test", "nested.test_input_3"}: {false, false, false, nil},
+			},
+		},
+		{
+			note:     "no tests match",
+			prefixes: []string{"data.x.y.z"},
+			tests:    nil,
+		},
+		{
+			note:     "prefix longer than refs",
+			prefixes: []string{"data.a.b.c_test.test_input_1.extra"},
+			tests:    nil,
+		},
+		{
+			note:     "multiple prefixes matches",
+			prefixes: []string{"data.a.b.c_test.test_input_1", "data.a.b.c_test.nested"},
+			tests: expectedTestResults{
+				{"data.a.b.c_test", "test_input_1"}:        {false, false, false, nil},
+				{"data.a.b.c_test", "nested.test_input_3"}: {false, false, false, nil},
+			},
+		},
+		{
+			note:     "multiple prefixes one match",
+			prefixes: []string{"data.a.b.c_test.test_input_1", "data.x.y.z"},
+			tests: expectedTestResults{
+				{"data.a.b.c_test", "test_input_1"}: {false, false, false, nil},
+			},
+		},
+		{
+			note:     "multiple prefixes no match",
+			prefixes: []string{"data.a.b.c_test.test_input_1.extra", "data.x.y.z"},
+			tests:    nil,
+		},
+	}
+
+	test.WithTempFS(files, func(d string) {
+		for _, tc := range cases {
+			t.Run(tc.note, func(t *testing.T) {
+
+				conf := testRunConfig{prefixMatchers: tc.prefixes}
+				rs, _ := doTestRunWithTmpDir(t, d, conf)
+				validateTestResults(t, tc.tests, rs, conf)
+			})
+		}
+	})
 }
 
 func TestRunWithFilterRegex(t *testing.T) {
@@ -430,7 +542,6 @@ func TestRunWithFilterRegex(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(d string) {
-
 		for _, tc := range cases {
 			t.Run(tc.note, func(t *testing.T) {
 				conf := testRunConfig{filter: tc.regex}
