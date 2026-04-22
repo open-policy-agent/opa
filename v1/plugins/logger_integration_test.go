@@ -153,20 +153,33 @@ func TestBufferedLoggerWithFields(t *testing.T) {
 
 	bufferedLogger.Flush(testLog)
 
-	// After flush, use the target logger directly
+	// After flush, log via the SAME cached WithFields reference.
+	// This is the scenario where plugins hold a stale reference to the
+	// BufferedLogger: the forwarding behavior ensures these logs reach
+	// the resolved target.
+	logger1.Info("forwarded message")
+
+	// Also log directly on the target for comparison.
 	logger2 := testLog.WithFields(map[string]any{"component": "server"})
 	logger2.Info("direct message")
 
 	entries := testLog.Entries()
-	if len(entries) != 2 {
-		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	if len(entries) != 3 {
+		t.Fatalf("Expected 3 entries, got %d", len(entries))
 	}
 
 	if entries[0].Fields["component"] != "runtime" {
 		t.Errorf("First entry: expected component=runtime, got %v", entries[0].Fields)
 	}
 
-	if entries[1].Fields["component"] != "server" {
-		t.Errorf("Second entry: expected component=server, got %v", entries[1].Fields)
+	if entries[1].Message != "forwarded message" {
+		t.Errorf("Second entry: expected 'forwarded message', got %q", entries[1].Message)
+	}
+	if entries[1].Fields["component"] != "runtime" {
+		t.Errorf("Second entry: expected component=runtime, got %v", entries[1].Fields)
+	}
+
+	if entries[2].Fields["component"] != "server" {
+		t.Errorf("Third entry: expected component=server, got %v", entries[2].Fields)
 	}
 }
