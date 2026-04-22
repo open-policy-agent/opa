@@ -16,12 +16,15 @@ type logEntry struct {
 
 // BufferedLogger captures log entries in memory until Flush is called,
 // at which point it replays all buffered entries to the target logger.
-// After Flush() is called, the BufferedLogger should not be used anymore.
+// After Flush, subsequent log calls are forwarded to the flush target.
+// This ensures that code holding a cached reference to the BufferedLogger
+// (or a WithFields derivative) continues to work correctly.
 type BufferedLogger struct {
 	mu           sync.Mutex
 	buffer       []logEntry
 	maxEntries   int
 	currentLevel Level
+	target       Logger
 }
 
 // NewBufferedLogger creates a new buffered logger that will buffer up to maxEntries.
@@ -42,20 +45,38 @@ func (b *BufferedLogger) addToBuffer(level Level, format string, args []any, fie
 		message = fmt.Sprintf(format, args...)
 	}
 
-	entry := logEntry{
-		level:   level,
-		message: message,
-		fields:  fields,
-		time:    time.Now(),
-	}
-
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	if b.target != nil {
+		target := b.target
+		b.mu.Unlock()
+
+		logger := target
+		if len(fields) > 0 {
+			logger = target.WithFields(fields)
+		}
+		switch level {
+		case Debug:
+			logger.Debug("%s", message)
+		case Info:
+			logger.Info("%s", message)
+		case Warn:
+			logger.Warn("%s", message)
+		case Error:
+			logger.Error("%s", message)
+		}
+		return
+	}
 
 	if len(b.buffer) >= b.maxEntries {
 		b.buffer = b.buffer[1:]
 	}
-	b.buffer = append(b.buffer, entry)
+	b.buffer = append(b.buffer, logEntry{
+		level:   level,
+		message: message,
+		fields:  fields,
+		time:    time.Now(),
+	})
+	b.mu.Unlock()
 }
 
 func (*BufferedLogger) logToTarget(target Logger, entry logEntry) {
@@ -105,6 +126,9 @@ func (b *BufferedLogger) WithFields(fields map[string]any) Logger {
 func (b *BufferedLogger) GetLevel() Level {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.target != nil {
+		return b.target.GetLevel()
+	}
 	return b.currentLevel
 }
 
@@ -113,6 +137,9 @@ func (b *BufferedLogger) SetLevel(level Level) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.currentLevel = level
+	if b.target != nil {
+		b.target.SetLevel(level)
+	}
 }
 
 // Close discards all buffered entries without flushing them.
@@ -124,14 +151,15 @@ func (b *BufferedLogger) Close() {
 }
 
 // Flush replays all buffered entries to the target logger.
-// After calling Flush, the BufferedLogger should not be used anymore.
-// The caller should switch to using the target logger directly.
+// After Flush, subsequent log calls on this BufferedLogger (and any
+// previously obtained WithFields loggers) are forwarded to the target.
 func (b *BufferedLogger) Flush(targetLogger Logger) {
 	if targetLogger == nil {
 		return
 	}
 
 	b.mu.Lock()
+	b.target = targetLogger
 	targetLogger.SetLevel(b.currentLevel)
 	entries := b.buffer
 	b.buffer = nil
