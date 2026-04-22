@@ -640,13 +640,19 @@ func testReadParamWithSchemaDir(input string, inputSchema string) error {
 }
 
 func TestEvalWithRecursiveJSONSchema(t *testing.T) {
-	input := `{"foo": {"foo": {}}}`
-
-	policy := `package p
-
-allow if input.foo`
-
-	schema := `{
+	tests := []struct {
+		note       string
+		input      string
+		query      string
+		schema     string
+		policy     string
+		expTypeErr bool
+	}{
+		{
+			note:  "recursive object ref - valid usage",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.p.allow",
+			schema: `{
     "$ref": "#/$defs/foo",
     "$defs": {
         "foo": {
@@ -658,15 +664,29 @@ allow if input.foo`
             }
         }
     }
-}`
+}`,
+			policy: `package p
 
-	err := testEvalWithSchemaFile(t, input, "data.p.allow", schema, policy, false)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	// Type mismatch: input.foo is an object per the recursive schema, not a number
-	policyWithSchemasAnnotation := `
+allow if input.foo`,
+		},
+		{
+			note:  "recursive object ref - type mismatch at top level",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.test.p",
+			schema: `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`,
+			policy: `
 package test
 
 # METADATA
@@ -674,14 +694,27 @@ package test
 #   - input: schema
 p if {
 	input.foo == 42
-}`
-	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyWithSchemasAnnotation, true)
-	if err != nil {
-		t.Fatalf("unexpected error for schema annotation type check: %s", err)
-	}
-
-	// Type mismatch on nested recursive property
-	policyNestedMismatch := `
+}`,
+			expTypeErr: true,
+		},
+		{
+			note:  "recursive object ref - nested type mismatch",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.test.p",
+			schema: `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`,
+			policy: `
 package test
 
 # METADATA
@@ -689,14 +722,27 @@ package test
 #   - input: schema
 p if {
 	input.foo.foo == "hello"
-}`
-	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyNestedMismatch, true)
-	if err != nil {
-		t.Fatalf("unexpected error for nested recursive type check: %s", err)
-	}
-
-	// Type mismatch with inlined recursive schema
-	policyWithInlinedSchema := `
+}`,
+			expTypeErr: true,
+		},
+		{
+			note:  "recursive object ref - inlined schema type mismatch",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.test.p",
+			schema: `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`,
+			policy: `
 package test
 
 # METADATA
@@ -704,14 +750,27 @@ package test
 #   - input.foo: {"type": "boolean"}
 p if {
 	input.foo == 42
-}`
-	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyWithInlinedSchema, true)
-	if err != nil {
-		t.Fatalf("unexpected error for inlined schema type check: %s", err)
-	}
-
-	// Valid usage: no type error when comparing object property correctly
-	policyValid := `
+}`,
+			expTypeErr: true,
+		},
+		{
+			note:  "recursive object ref - valid with schema annotation",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.test.p",
+			schema: `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`,
+			policy: `
 package test
 
 # METADATA
@@ -719,17 +778,13 @@ package test
 #   - input: schema
 p if {
 	input.foo
-}`
-	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyValid, false)
-	if err != nil {
-		t.Fatalf("unexpected error for valid recursive schema usage: %s", err)
-	}
-}
-
-func TestEvalWithRecursiveArrayJSONSchema(t *testing.T) {
-	input := `{"tree": [[[]]]}`
-
-	schema := `{
+}`,
+		},
+		{
+			note:  "recursive array ref - valid usage",
+			input: `{"tree": [[[]]]}`,
+			query: "data.p.allow",
+			schema: `{
     "type": "object",
     "properties": {
         "tree": {
@@ -744,19 +799,32 @@ func TestEvalWithRecursiveArrayJSONSchema(t *testing.T) {
             }
         }
     }
-}`
+}`,
+			policy: `package p
 
-	policy := `package p
-
-allow if input.tree`
-
-	err := testEvalWithSchemaFile(t, input, "data.p.allow", schema, policy, false)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	// Type mismatch: input.tree[0] is an array per the recursive schema, not a string
-	policyMismatch := `
+allow if input.tree`,
+		},
+		{
+			note:  "recursive array ref - type mismatch on element",
+			input: `{"tree": [[[]]]}`,
+			query: "data.test.p",
+			schema: `{
+    "type": "object",
+    "properties": {
+        "tree": {
+            "$ref": "#/$defs/tree"
+        }
+    },
+    "$defs": {
+        "tree": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/tree"
+            }
+        }
+    }
+}`,
+			policy: `
 package test
 
 # METADATA
@@ -764,17 +832,14 @@ package test
 #   - input: schema
 p if {
 	input.tree[0] == "hello"
-}`
-	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyMismatch, true)
-	if err != nil {
-		t.Fatalf("unexpected error for recursive array type check: %s", err)
-	}
-}
-
-func TestEvalWithRecursiveAnyOfJSONSchema(t *testing.T) {
-	input := `{"node": ["hello", ["world"]]}`
-
-	schema := `{
+}`,
+			expTypeErr: true,
+		},
+		{
+			note:  "recursive anyOf ref - valid usage",
+			input: `{"node": ["hello", ["world"]]}`,
+			query: "data.p.allow",
+			schema: `{
     "type": "object",
     "properties": {
         "node": {
@@ -792,22 +857,16 @@ func TestEvalWithRecursiveAnyOfJSONSchema(t *testing.T) {
             ]
         }
     }
-}`
+}`,
+			policy: `package p
 
-	policy := `package p
-
-allow if input.node`
-
-	err := testEvalWithSchemaFile(t, input, "data.p.allow", schema, policy, false)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-}
-
-func TestEvalWithNonRecursiveRefJSONSchema(t *testing.T) {
-	input := `{"addr": {"street": "Main St", "city": "Springfield"}}`
-
-	schema := `{
+allow if input.node`,
+		},
+		{
+			note:  "non-recursive ref - valid usage",
+			input: `{"addr": {"street": "Main St", "city": "Springfield"}}`,
+			query: "data.p.allow",
+			schema: `{
     "type": "object",
     "properties": {
         "addr": {
@@ -823,19 +882,33 @@ func TestEvalWithNonRecursiveRefJSONSchema(t *testing.T) {
             }
         }
     }
-}`
+}`,
+			policy: `package p
 
-	policy := `package p
-
-allow if input.addr.street`
-
-	err := testEvalWithSchemaFile(t, input, "data.p.allow", schema, policy, false)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	// Type mismatch: input.addr.street is a string, not a number
-	policyMismatch := `
+allow if input.addr.street`,
+		},
+		{
+			note:  "non-recursive ref - type mismatch",
+			input: `{"addr": {"street": "Main St", "city": "Springfield"}}`,
+			query: "data.test.p",
+			schema: `{
+    "type": "object",
+    "properties": {
+        "addr": {
+            "$ref": "#/$defs/address"
+        }
+    },
+    "$defs": {
+        "address": {
+            "type": "object",
+            "properties": {
+                "street": { "type": "string" },
+                "city": { "type": "string" }
+            }
+        }
+    }
+}`,
+			policy: `
 package test
 
 # METADATA
@@ -843,10 +916,18 @@ package test
 #   - input: schema
 p if {
 	input.addr.street == 42
-}`
-	err = testEvalWithSchemaFile(t, input, "data.test.p", schema, policyMismatch, true)
-	if err != nil {
-		t.Fatalf("unexpected error for non-recursive ref type check: %s", err)
+}`,
+			expTypeErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			err := testEvalWithSchemaFile(t, tc.input, tc.query, tc.schema, tc.policy, tc.expTypeErr)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+		})
 	}
 }
 
