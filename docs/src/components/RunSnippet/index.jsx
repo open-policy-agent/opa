@@ -56,7 +56,7 @@ export default function RunSnippet({ id, files, depends, command, playgroundLink
     // json file
     return (
       <BrowserOnly>
-        {() => <codapi-snippet editor="basic" id={id}></codapi-snippet>}
+        {() => <codapi-snippet editor="basic" id={id} data-copy-exclude></codapi-snippet>}
       </BrowserOnly>
     );
   }
@@ -78,6 +78,7 @@ export default function RunSnippet({ id, files, depends, command, playgroundLink
               depends-on={depends}
               init-delay={500} // we need this for codapi-toolbar to work
               className={isLoading ? styles.dn : styles.codeApiSnippet}
+              data-copy-exclude
             >
               <codapi-toolbar>
                 <button>Evaluate</button>
@@ -91,13 +92,17 @@ export default function RunSnippet({ id, files, depends, command, playgroundLink
           )}
         </BrowserOnly>
       </div>
+      {/* Output is hidden visually but included in the DOM for copy-as-markdown */}
       {showInitialOutput && (
         <div>
+          <div className={styles.dn}>Output</div>
           <pre>{output}</pre>
         </div>
       )}
       {/* must be at the end or it'll become the codapi policy */}
-      <div className={isLoading ? styles.codeApiSnippetLoadingPlaceholder : styles.dn}>Loading...</div>
+      <div className={isLoading ? styles.codeApiSnippetLoadingPlaceholder : styles.dn} data-copy-exclude>
+        Loading...
+      </div>
     </>
   );
 }
