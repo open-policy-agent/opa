@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/loader/filter"
+	"github.com/open-policy-agent/opa/v1/util"
 
 	"github.com/open-policy-agent/opa/v1/storage"
 )
@@ -193,10 +194,7 @@ func (d *dirLoader) WithFollowSymlinks(followSymlinks bool) DirectoryLoader {
 func formatPath(fileName string, root string, pathFormat PathFormat) string {
 	switch pathFormat {
 	case SlashRooted:
-		if !strings.HasPrefix(fileName, string(filepath.Separator)) {
-			return string(filepath.Separator) + fileName
-		}
-		return fileName
+		return util.WithPrefix(fileName, string(filepath.Separator))
 	case Chrooted:
 		// Trim off the root directory and return path as if chrooted
 		result := strings.TrimPrefix(fileName, filepath.FromSlash(root))
@@ -206,10 +204,7 @@ func formatPath(fileName string, root string, pathFormat PathFormat) string {
 		if root == "." && (filepath.Base(fileName) == ManifestExt || filepath.Base(fileName) == ManifestProtoExt) {
 			result = fileName
 		}
-		if !strings.HasPrefix(result, string(filepath.Separator)) {
-			result = string(filepath.Separator) + result
-		}
-		return result
+		return util.WithPrefix(result, string(filepath.Separator))
 	case Passthrough:
 		fallthrough
 	default:
