@@ -11,7 +11,7 @@ SECRETS_SCAN_OMIT_PATHS = "v1/test/cases,v1/topdown/crypto_test.go"
 
 [context.deploy-preview]
 command = "make netlify-edge"
-ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- docs/ netlify.toml"
+ignore = "git diff --quiet HEAD~1 -- docs/ netlify.toml"
 
 [[edge_functions]]
 # this path should not be changed as various external sites depend on it for OPA
