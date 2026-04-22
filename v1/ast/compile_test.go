@@ -8774,7 +8774,7 @@ func TestCompilerMockFunction(t *testing.T) {
 			`,
 		},
 		{
-			note: "invalid ref: nonexistant",
+			note: "invalid ref: nonexistent",
 			module: `package test
 				p if { true with time.now_ns as now }
 			`,
