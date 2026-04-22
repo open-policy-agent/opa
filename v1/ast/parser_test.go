@@ -3814,6 +3814,16 @@ func TestRule(t *testing.T) {
 		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 
+	assertParseRule(t, "assignment with unary minus on reference", `x := -input.number { true }`, &Rule{
+		Head: &Head{
+			Name:      Var("x"),
+			Reference: Ref{VarTerm("x")},
+			Value:     Minus.Call(IntNumberTerm(0), RefTerm(InputRootDocument, StringTerm("number"))),
+			Assign:    true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
 	assertParseRule(t, "else assignment", `x := 1 { false } else := 2`, &Rule{
 		Head: &Head{
 			Name:      "x", // ha! clever!

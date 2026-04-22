@@ -1758,6 +1758,7 @@ func (p *Parser) parseTerm() *Term {
 	s0 := p.save()
 
 	var term *Term
+	var unaryMinusLoc *Location
 	switch p.s.tok {
 	case tokens.Null:
 		term = NullTerm().SetLocation(p.s.Loc())
@@ -1765,7 +1766,21 @@ func (p *Parser) parseTerm() *Term {
 		term = BooleanTerm(true).SetLocation(p.s.Loc())
 	case tokens.False:
 		term = BooleanTerm(false).SetLocation(p.s.Loc())
-	case tokens.Sub, tokens.Dot, tokens.Number:
+	case tokens.Sub:
+		loc := p.s.Loc()
+		s := p.save()
+		p.scan()
+		if p.s.tok == tokens.Ident || p.s.tok == tokens.Contains {
+			// Unary minus on a reference: -ref → minus(0, ref).
+			// parseTermFinish below will resolve the full ref (e.g. input.number),
+			// after which we wrap the result in a minus call.
+			unaryMinusLoc = loc
+			term = p.parseVar()
+		} else {
+			p.restore(s)
+			term = p.parseNumber()
+		}
+	case tokens.Dot, tokens.Number:
 		term = p.parseNumber()
 	case tokens.String:
 		term = p.parseString()
@@ -1795,6 +1810,10 @@ func (p *Parser) parseTerm() *Term {
 	}
 
 	term = p.parseTermFinish(term, false)
+	if unaryMinusLoc != nil && term != nil {
+		zero := IntNumberTerm(0).SetLocation(unaryMinusLoc)
+		term = p.setLoc(Minus.Call(zero, term), unaryMinusLoc, unaryMinusLoc.Offset, p.s.lastEnd)
+	}
 	p.parsedTermCachePush(term, s0)
 	return term
 }
