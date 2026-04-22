@@ -141,7 +141,7 @@ const Index = (props) => {
               <div className={styles.videoWrapper}>
                 <iframe
                   className={styles.video}
-                  src="https://www.youtube.com/embed/Icl0_b5Llqc?si=t4GZVXYI2-mfZFCe&controls=0&modestbranding=1&rel=0&showinfo=0"
+                  src="https://www.youtube.com/embed/NF0VXAqJH8E?controls=0&modestbranding=1&rel=0&showinfo=0"
                   title="YouTube video player"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
