@@ -204,8 +204,8 @@ type Manager struct {
 	plugins                      []namedplugin
 	registeredTriggers           []func(storage.Transaction)
 	mtx                          sync.Mutex
-	pluginStatus                 map[string]*Status
-	pluginStatusListeners        map[string]StatusListener
+	pluginStatusCh               chan pluginStatusMsg
+	stopPluginStatusCh           chan chan struct{}
 	initBundles                  map[string]*bundle.Bundle
 	initFiles                    loader.Result
 	maxErrors                    int
@@ -238,6 +238,37 @@ type Manager struct {
 	extraAuthorizerRoutes        []func(string, []any) bool
 	bundleActivatorPlugin        string
 }
+
+type pluginStatusMsg interface{ pluginStatusMsg() }
+
+type statusUpdate struct {
+	name   string
+	status *Status
+	done   chan struct{}
+}
+
+type statusInitPlugin struct {
+	name string
+}
+
+type statusRegisterListener struct {
+	name     string
+	listener StatusListener
+}
+
+type statusUnregisterListener struct {
+	name string
+}
+
+type statusQuery struct {
+	reply chan map[string]*Status
+}
+
+func (statusUpdate) pluginStatusMsg()             {}
+func (statusInitPlugin) pluginStatusMsg()         {}
+func (statusRegisterListener) pluginStatusMsg()   {}
+func (statusUnregisterListener) pluginStatusMsg() {}
+func (statusQuery) pluginStatusMsg()              {}
 
 type (
 	managerContextKey      string
@@ -496,12 +527,12 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		Store:                 store,
 		Config:                parsedConfig,
 		ID:                    id,
-		pluginStatus:          map[string]*Status{},
-		pluginStatusListeners: map[string]StatusListener{},
 		maxErrors:             -1,
 		serverInitialized:     make(chan struct{}),
 		bootstrapConfigLabels: parsedConfig.Labels,
 		extraRoutes:           map[string]ExtraRoute{},
+		pluginStatusCh:        make(chan pluginStatusMsg),
+		stopPluginStatusCh:    make(chan chan struct{}),
 	}
 
 	for _, f := range opts {
@@ -559,6 +590,8 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		}
 		m.versionChecker = versionChecker
 	}
+
+	go m.pluginStatusLoop()
 
 	return m, nil
 }
@@ -649,14 +682,12 @@ func (m *Manager) GetConfig() *config.Config {
 // the plugins will be started.
 func (m *Manager) Register(name string, plugin Plugin) {
 	m.mtx.Lock()
-	defer m.mtx.Unlock()
 	m.plugins = append(m.plugins, namedplugin{
 		name:   name,
 		plugin: plugin,
 	})
-	if _, ok := m.pluginStatus[name]; !ok {
-		m.pluginStatus[name] = &Status{State: StateNotReady}
-	}
+	m.mtx.Unlock()
+	m.pluginStatusCh <- statusInitPlugin{name: name}
 }
 
 // Plugins returns the list of plugins registered with the manager.
@@ -853,6 +884,12 @@ func (m *Manager) Stop(ctx context.Context) {
 		}
 	}
 
+	{
+		done := make(chan struct{})
+		m.stopPluginStatusCh <- done
+		<-done
+	}
+
 	if m.stop != nil {
 		done := make(chan struct{})
 		m.stop <- done
@@ -929,54 +966,35 @@ func (m *Manager) Reconfigure(newCfg *config.Config) error {
 
 // PluginStatus returns the current statuses of any plugins registered.
 func (m *Manager) PluginStatus() map[string]*Status {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
-	return m.copyPluginStatus()
+	reply := make(chan map[string]*Status, 1)
+	m.pluginStatusCh <- statusQuery{reply: reply}
+	return <-reply
 }
 
 // RegisterPluginStatusListener registers a StatusListener to be
 // called when plugin status updates occur.
 func (m *Manager) RegisterPluginStatusListener(name string, listener StatusListener) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
-	m.pluginStatusListeners[name] = listener
+	m.pluginStatusCh <- statusRegisterListener{name: name, listener: listener}
 }
 
 // UnregisterPluginStatusListener removes a StatusListener registered with the
 // same name.
 func (m *Manager) UnregisterPluginStatusListener(name string) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
-	delete(m.pluginStatusListeners, name)
+	m.pluginStatusCh <- statusUnregisterListener{name: name}
 }
 
 // UpdatePluginStatus updates a named plugins status. Any registered
 // listeners will be called with a copy of the new state of all
 // plugins.
 func (m *Manager) UpdatePluginStatus(pluginName string, status *Status) {
-	var toNotify map[string]StatusListener
-	var statuses map[string]*Status
-
-	func() {
-		m.mtx.Lock()
-		defer m.mtx.Unlock()
-		m.pluginStatus[pluginName] = status
-		toNotify = make(map[string]StatusListener, len(m.pluginStatusListeners))
-		maps.Copy(toNotify, m.pluginStatusListeners)
-		statuses = m.copyPluginStatus()
-	}()
-
-	for _, l := range toNotify {
-		l(statuses)
-	}
+	done := make(chan struct{})
+	m.pluginStatusCh <- statusUpdate{name: pluginName, status: status, done: done}
+	<-done
 }
 
-func (m *Manager) copyPluginStatus() map[string]*Status {
+func copyPluginStatus(src map[string]*Status) map[string]*Status {
 	statusCpy := map[string]*Status{}
-	for k, v := range m.pluginStatus {
+	for k, v := range src {
 		var cpy *Status
 		if v != nil {
 			cpy = &Status{
@@ -1269,6 +1287,39 @@ func (m *Manager) sendOPAUpdateLoop(ctx context.Context) {
 		case done := <-m.stop:
 			cancel()
 			ticker.Stop()
+			done <- struct{}{}
+			return
+		}
+	}
+}
+
+func (m *Manager) pluginStatusLoop() {
+	status := map[string]*Status{}
+	listeners := map[string]StatusListener{}
+
+	for {
+		select {
+		case msg := <-m.pluginStatusCh:
+			switch msg := msg.(type) {
+			case statusUpdate:
+				status[msg.name] = msg.status
+				statuses := copyPluginStatus(status)
+				for _, l := range listeners {
+					l(statuses)
+				}
+				close(msg.done)
+			case statusInitPlugin:
+				if _, ok := status[msg.name]; !ok {
+					status[msg.name] = &Status{State: StateNotReady}
+				}
+			case statusRegisterListener:
+				listeners[msg.name] = msg.listener
+			case statusUnregisterListener:
+				delete(listeners, msg.name)
+			case statusQuery:
+				msg.reply <- copyPluginStatus(status)
+			}
+		case done := <-m.stopPluginStatusCh:
 			done <- struct{}{}
 			return
 		}
