@@ -959,20 +959,24 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 	}
 
 	if len(withs) > 0 {
-		w.up()
+		var indented bool
+
 		for _, with := range withs {
 			indent := with.Location.Row > lastRow
 			if indent {
+				if !indented {
+					w.up()
+					defer w.down() //nolint:errcheck
+					indented = true
+				}
 				w.endLine()
 				w.startLine()
 				lastRow = with.Location.Row
 			}
 			if comments, err = w.writeWith(with, comments, indent); err != nil {
-				return nil, err
+				return comments, err
 			}
 		}
-
-		return comments, w.down()
 	}
 
 	return comments, nil
