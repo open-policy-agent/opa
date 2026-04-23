@@ -927,7 +927,7 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 			return nil, err
 		}
 	case *ast.Every:
-		comments, err = w.writeEvery(t, comments)
+		comments, err = w.writeEvery(t, expr.Loc(), comments)
 		if err != nil {
 			return nil, err
 		}
@@ -1023,9 +1023,13 @@ func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) ([]*
 	return comments, nil
 }
 
-func (w *writer) writeEvery(every *ast.Every, comments []*ast.Comment) ([]*ast.Comment, error) {
+func (w *writer) writeEvery(every *ast.Every, loc *ast.Location, comments []*ast.Comment) ([]*ast.Comment, error) {
+	if loc == nil {
+		loc = every.Loc()
+	}
+
 	var err error
-	comments, err = w.insertComments(comments, every.Location)
+	comments, err = w.insertComments(comments, loc)
 	if err != nil {
 		return nil, err
 	}
@@ -1047,7 +1051,7 @@ func (w *writer) writeEvery(every *ast.Every, comments []*ast.Comment) ([]*ast.C
 		return nil, err
 	}
 	w.write(" {")
-	comments, err = w.writeComprehensionBody('{', '}', every.Body, every.Loc(), every.Loc(), comments)
+	comments, err = w.writeComprehensionBody('{', '}', every.Body, loc, loc, comments)
 	if err != nil {
 		// the unexpected comment error is passed up to be handled by writeHead
 		if !errors.As(err, &unexpectedCommentError{}) {
