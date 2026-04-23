@@ -114,3 +114,34 @@ p[x].r := y if {
 
 	y := 1
 }
+
+set_compr if {
+	# comment 1
+	{x | # comment 2
+		# comment 3
+		x = input.x # comment 4
+		# comment 5
+	} # comment 6
+	# comment 7
+}
+
+array_compr if {
+	# comment 1
+	[x | # comment 2
+		# comment 3
+		x = input.x # comment 4
+		# comment 5
+	] # comment 6
+	# comment 7
+}
+
+map_compr if {
+	# comment 1
+	{x: y | # comment 2
+		# comment 3
+		x = input.x # comment 4
+		y = input.y # comment 5
+		# comment 6
+	} # comment 7
+	# comment 8
+}
