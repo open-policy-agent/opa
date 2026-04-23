@@ -953,7 +953,7 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 	// Print on same row if already there, otherwise increase indent a print remaining
 	if withs[0].Location.Row == lastRow {
 		if comments, err = w.writeWith(withs[0], comments, false); err != nil {
-			return nil, err
+			return comments, err
 		}
 		lastRow, withs = withs[0].Location.Row, withs[1:]
 	}
@@ -1150,7 +1150,7 @@ func (w *writer) writeWith(with *ast.With, comments []*ast.Comment, indented boo
 	w.write(" as ")
 	comments, err = w.writeTerm(with.Value, comments)
 	if err != nil {
-		return nil, err
+		return comments, err
 	}
 	return comments, nil
 }
