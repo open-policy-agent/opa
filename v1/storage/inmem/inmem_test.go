@@ -1291,6 +1291,135 @@ func TestInMemoryContext(t *testing.T) {
 
 }
 
+func TestInMemoryMakeDir(t *testing.T) {
+	tests := []struct {
+		note    string
+		data    map[string]any
+		path    string
+		expErr  string
+		expData string
+	}{
+		{
+			note:    "create nested path from scratch",
+			data:    map[string]any{},
+			path:    "/a/b/c",
+			expData: `{"a": {"b": {"c": {}}}}`,
+		},
+		{
+			note:    "existing intermediate object is a no-op",
+			data:    map[string]any{"a": map[string]any{"b": map[string]any{"x": "y"}}},
+			path:    "/a/b",
+			expData: `{"a": {"b": {"x": "y"}}}`,
+		},
+		{
+			note:    "create sibling under existing parent",
+			data:    map[string]any{"a": map[string]any{"b": map[string]any{}}},
+			path:    "/a/c",
+			expData: `{"a": {"b": {}, "c": {}}}`,
+		},
+		{
+			note:   "conflict on non-object leaf",
+			data:   map[string]any{"a": "string-value"},
+			path:   "/a",
+			expErr: storage.WriteConflictErr,
+		},
+		{
+			note:    "empty path is a no-op",
+			data:    map[string]any{"x": "y"},
+			path:    "/",
+			expData: `{"x": "y"}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := t.Context()
+			store := NewFromObject(tc.data)
+
+			txn, err := store.NewTransaction(ctx, storage.WriteParams)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			path := storage.MustParsePath(tc.path)
+			err = storage.MakeDir(ctx, store, txn, path)
+
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatal("expected error")
+				}
+				serr, ok := err.(*storage.Error)
+				if !ok || serr.Code != tc.expErr {
+					t.Fatalf("expected %v error but got: %v", tc.expErr, err)
+				}
+				store.Abort(ctx, txn)
+				return
+			}
+
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Commit(ctx, txn); err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := storage.ReadOne(ctx, store, storage.RootPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var expected any
+			if err := util.UnmarshalJSON([]byte(tc.expData), &expected); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(result, expected) {
+				t.Fatalf("expected %v but got %v", expected, result)
+			}
+		})
+	}
+}
+
+func TestInMemoryMakeDirMultipleSiblings(t *testing.T) {
+	ctx := t.Context()
+	store := NewFromObject(map[string]any{
+		"parent": map[string]any{
+			"existing": map[string]any{"data": "value"},
+		},
+	})
+
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, id := range []string{"aaa", "bbb", "ccc"} {
+		path := storage.MustParsePath("/parent/" + id)
+		if err := storage.MakeDir(ctx, store, txn, path); err != nil {
+			t.Fatalf("MakeDir(%s): %v", id, err)
+		}
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := storage.ReadOne(ctx, store, storage.MustParsePath("/parent"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	obj, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected object")
+	}
+
+	for _, key := range []string{"existing", "aaa", "bbb", "ccc"} {
+		if _, ok := obj[key]; !ok {
+			t.Errorf("missing key %q", key)
+		}
+	}
+}
+
 func loadExpectedResult(input string) any {
 	if len(input) == 0 {
 		return nil
