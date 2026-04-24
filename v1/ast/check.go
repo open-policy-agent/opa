@@ -745,6 +745,9 @@ func (rc *refChecker) Visit(x any) bool {
 		case *Term:
 			NewGenericVisitor(rc.Visit).Walk(terms)
 			return true
+		case *Not:
+			NewGenericVisitor(rc.Visit).Walk(terms.Body)
+			return true
 		}
 	case Ref:
 		if err := rc.checkApply(rc.env, x); err != nil {

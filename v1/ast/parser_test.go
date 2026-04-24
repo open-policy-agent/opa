@@ -9045,9 +9045,10 @@ func TestNotImport(t *testing.T) {
 		note   string
 		module string
 		exp    *Module
+		expErr string
 	}{
 		{
-			note: "no import",
+			note: "no import, implicit body (legacy negation)",
 			module: `package test
 				p if {
 					not 1 + 1 == 3
@@ -9077,7 +9078,34 @@ func TestNotImport(t *testing.T) {
 			},
 		},
 		{
-			note: "import",
+			// Syntactically similar to empty explicit not-body, but not an error state
+			note: "no import, implicit body, empty object",
+			module: `package test
+				p if {
+					not {}
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							&Expr{
+								Terms:   ObjectTerm(),
+								Negated: true,
+							},
+						),
+					},
+				},
+			},
+		},
+		{
+			note: "implicit body",
 			module: `package test
 				import future.keywords.not
 				p if {
@@ -9108,18 +9136,272 @@ func TestNotImport(t *testing.T) {
 				},
 			},
 		},
+		{
+			note: "explicit body, no expression",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not {}
+				}
+			`,
+			expErr: "rego_parse_error: found empty body",
+		},
+		{
+			note: "explicit body, single expression",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not { x == 1 }
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Imports: []*Import{{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("not"))}},
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							NewExpr(
+								&Not{
+									Body: NewBody(
+										Equal.Expr(VarTerm("x"), NumberTerm("1")),
+									),
+									ExplicitBody: true,
+								},
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			note: "explicit body, multiple expressions",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not {
+						x == 1
+						y == 2
+					}
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Imports: []*Import{{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("not"))}},
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							NewExpr(
+								&Not{
+									Body: NewBody(
+										Equal.Expr(VarTerm("x"), NumberTerm("1")),
+										Equal.Expr(VarTerm("y"), NumberTerm("2")),
+									),
+									ExplicitBody: true,
+								},
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			note: "explicit body, multiple expressions, one-line",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not { x == 1;y == 2 }
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Imports: []*Import{{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("not"))}},
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							NewExpr(
+								&Not{
+									Body: NewBody(
+										Equal.Expr(VarTerm("x"), NumberTerm("1")),
+										Equal.Expr(VarTerm("y"), NumberTerm("2")),
+									),
+									ExplicitBody: true,
+								},
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			note: "explicit body, 'with' modifier, outer",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not { x == 1 } with input as {"x": 2}
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Imports: []*Import{{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("not"))}},
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							func() *Expr {
+								e := NewExpr(
+									&Not{
+										Body: NewBody(
+											Equal.Expr(VarTerm("x"), NumberTerm("1")),
+										),
+										ExplicitBody: true,
+									},
+								)
+								e.With = []*With{
+									{
+										Target: RefTerm(VarTerm("input")),
+										Value:  ObjectTerm([2]*Term{StringTerm("x"), NumberTerm("2")}),
+									},
+								}
+								return e
+							}(),
+						),
+					},
+				},
+			},
+		},
+		{
+			note: "explicit body, 'with' modifier, inner",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not { x == 1 with input as {"x": 2} } 
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Imports: []*Import{{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("not"))}},
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							NewExpr(
+								&Not{
+									Body: NewBody(
+										func() *Expr {
+											e := Equal.Expr(VarTerm("x"), NumberTerm("1"))
+											e.With = []*With{
+												{
+													Target: RefTerm(VarTerm("input")),
+													Value:  ObjectTerm([2]*Term{StringTerm("x"), NumberTerm("2")}),
+												},
+											}
+											return e
+										}(),
+									),
+									ExplicitBody: true,
+								},
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			note: "explicit body, 'with' modifier, inner+outer",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not { x == 1 with input as {"x": 2} } with input as {"y": 3}
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Imports: []*Import{{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("not"))}},
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							func() *Expr {
+								e := NewExpr(
+									&Not{
+										Body: NewBody(
+											func() *Expr {
+												e := Equal.Expr(VarTerm("x"), NumberTerm("1"))
+												e.With = []*With{
+													{
+														Target: RefTerm(VarTerm("input")),
+														Value:  ObjectTerm([2]*Term{StringTerm("x"), NumberTerm("2")}),
+													},
+												}
+												return e
+											}(),
+										),
+										ExplicitBody: true,
+									},
+								)
+								e.With = []*With{
+									{
+										Target: RefTerm(VarTerm("input")),
+										Value:  ObjectTerm([2]*Term{StringTerm("y"), NumberTerm("3")}),
+									},
+								}
+								return e
+							}(),
+						),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			mod, err := ParseModuleWithOpts("", tc.module,
 				ParserOptions{Capabilities: CapabilitiesForThisVersion().withFutureKeyword("not")}) // TODO: drop once future.keywords.not is enabled by default
-			if err != nil {
-				t.Fatalf("Unexpected error: %s", err)
-			}
 
-			if diff := cmp.Diff(tc.exp, mod); diff != "" {
-				t.Errorf("Unexpected result (-want, +got):\n%s", diff)
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("Expected error, got nil")
+				}
+
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("Expected error to contain %q, but got: %v", tc.expErr, err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				if diff := cmp.Diff(tc.exp, mod); diff != "" {
+					t.Errorf("Unexpected result (-want, +got):\n%s", diff)
+				}
 			}
 		})
 	}
