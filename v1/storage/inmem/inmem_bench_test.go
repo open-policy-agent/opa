@@ -295,6 +295,42 @@ func BenchmarkWriteAndCommitWithTriggersSkipConversion(b *testing.B) {
 	}
 }
 
+func BenchmarkMakeDirSiblings(b *testing.B) {
+	for _, n := range []int{10, 100, 1000} {
+		b.Run(strconv.Itoa(n)+"_existing", func(b *testing.B) {
+			existing := make(map[string]any, n)
+			for i := range n {
+				existing[strconv.Itoa(i)] = map[string]any{"v": i}
+			}
+			data := map[string]any{"parent": existing}
+
+			paths := make([]storage.Path, 100)
+			for i := range paths {
+				paths[i] = storage.Path{"parent", "new-" + strconv.Itoa(i)}
+			}
+
+			// Abort after each iteration so the store stays unmodified
+			// and subsequent iterations exercise the full MakeDir path.
+			operation := func(ctx context.Context, target *target) error {
+				txn, err := target.store.NewTransaction(ctx, storage.WriteParams)
+				if err != nil {
+					return err
+				}
+				for _, p := range paths {
+					if err := storage.MakeDir(ctx, target.store, txn, p); err != nil {
+						target.store.Abort(ctx, txn)
+						return err
+					}
+				}
+				target.store.Abort(ctx, txn)
+				return nil
+			}
+
+			AllStores(data).Bench(b, operation)
+		})
+	}
+}
+
 func (t targets) VerifyRead(b *testing.B, path storage.Path, expected any) targets {
 	b.Helper()
 	for _, target := range t {

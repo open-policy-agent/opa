@@ -297,6 +297,75 @@ func (txn *transaction) Read(path storage.Path) (any, error) {
 	return cpy, nil
 }
 
+func (txn *transaction) makeDir(path storage.Path) error {
+	if len(path) == 0 {
+		return nil
+	}
+
+	exists, isObj, err := txn.isObject(path)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		if isObj {
+			return nil
+		}
+		return &storage.Error{
+			Code:    storage.WriteConflictErr,
+			Message: path.String(),
+		}
+	}
+
+	if err := txn.makeDir(path[:len(path)-1]); err != nil {
+		return err
+	}
+
+	return txn.Write(storage.AddOp, path, map[string]any{})
+}
+
+// isObject checks whether the given path exists and points to an object,
+// without deep-copying the subtree the way transaction.Read would.
+func (txn *transaction) isObject(path storage.Path) (exists bool, isObj bool, err error) {
+	if !txn.write || txn.updates == nil {
+		return isObjectNode(pointer(txn.db.data, path))
+	}
+
+	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
+		upd := curr.Value.(dataUpdate)
+
+		if path.HasPrefix(upd.Path()) {
+			if upd.Remove() {
+				return false, false, nil
+			}
+			return isObjectNode(pointer(upd.Value(), path[len(upd.Path()):]))
+		}
+
+		// A child of this path has been written, so this path is an object.
+		if upd.Path().HasPrefix(path) {
+			return true, true, nil
+		}
+	}
+
+	return isObjectNode(pointer(txn.db.data, path))
+}
+
+func isObjectNode(node any, err error) (bool, bool, error) {
+	if err != nil {
+		if storage.IsNotFound(err) {
+			return false, false, nil
+		}
+		return false, false, err
+	}
+
+	switch node.(type) {
+	case map[string]any, ast.Object:
+		return true, true, nil
+	default:
+		return true, false, nil
+	}
+}
+
 func (txn *transaction) ListPolicies() (ids []string) {
 	for id := range txn.db.policies {
 		if _, ok := txn.policies[id]; !ok {
