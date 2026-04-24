@@ -19,6 +19,7 @@ import (
 	"net/http/pprof"
 	"net/url"
 	"os"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -717,10 +718,14 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 	socketPath := u.Host + u.Path
 
-	// Recover @ prefix for abstract Unix sockets.
+	// Recover @ prefix for abstract Unix sockets (Linux-only).
+	isAbstract := false
 	if strings.HasPrefix(u.String(), u.Scheme+"://@") {
 		socketPath = "@" + socketPath
-	} else {
+		isAbstract = runtime.GOOS == "linux"
+	}
+
+	if !isAbstract {
 		// Remove domain socket file in case it already exists.
 		os.Remove(socketPath)
 	}
@@ -737,7 +742,7 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 
 	// Skip chmod for abstract Unix sockets — they exist only in the
 	// kernel's socket namespace and have no filesystem path to chmod.
-	if s.unixSocketPerm != nil && !strings.HasPrefix(socketPath, "@") {
+	if s.unixSocketPerm != nil && !isAbstract {
 		modeVal, err := strconv.ParseUint(*s.unixSocketPerm, 8, 32)
 		if err != nil {
 			return nil, nil, err

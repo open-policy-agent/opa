@@ -564,8 +564,9 @@ func IsScalar(v Value) bool {
 
 // Not is both a Term and a Node
 type Not struct {
-	Body     Body      `json:"body"`
-	Location *Location `json:"location,omitempty"`
+	Body         Body      `json:"body"`
+	ExplicitBody bool      `json:"explicit_body,omitempty"`
+	Location     *Location `json:"location,omitempty"`
 }
 
 func NewNot(exprs ...*Expr) *Not {
@@ -606,6 +607,7 @@ func (n *Not) Equal(other Value) bool {
 func (n *Not) Compare(other Value) int {
 	switch o := other.(type) {
 	case *Not:
+		// We don't consider the ExplicitBody field, as it has no effect on expression negation
 		return n.Body.Compare(o.Body)
 	default:
 		return -1
@@ -628,7 +630,10 @@ func (n *Not) IsGround() bool {
 }
 
 func (n *Not) String() string {
-	// TODO: Do best-effort unroll/interpolation of not-body to create one-liner expression if possible
+	if !n.ExplicitBody && len(n.Body) == 1 {
+		return "not " + n.Body.String()
+	}
+
 	return "not {" + n.Body.String() + "}"
 }
 

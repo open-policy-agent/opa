@@ -1115,6 +1115,10 @@ func (b *Bundle) FormatModulesWithOptions(opts BundleFormatOptions) error {
 			Capabilities: opts.Capabilities,
 		}
 
+		if fmtOpts.Capabilities == nil {
+			fmtOpts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(fmtOpts.RegoVersion))
+		}
+
 		if module.Parsed != nil {
 			fmtOpts.ParserOptions = &ast.ParserOptions{
 				RegoVersion: module.Parsed.RegoVersion(),
@@ -1122,10 +1126,9 @@ func (b *Bundle) FormatModulesWithOptions(opts BundleFormatOptions) error {
 			if opts.PreserveModuleRegoVersion {
 				fmtOpts.RegoVersion = module.Parsed.RegoVersion()
 			}
-		}
-
-		if fmtOpts.Capabilities == nil {
-			fmtOpts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(fmtOpts.RegoVersion))
+			if fmtOpts.ParserOptions.RegoVersion == fmtOpts.RegoVersion {
+				fmtOpts.ParserOptions.Capabilities = fmtOpts.Capabilities
+			}
 		}
 
 		if module.Raw == nil {

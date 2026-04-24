@@ -31,6 +31,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -7026,9 +7027,14 @@ data.baz.qux`,
 func TestAbstractUnixSocketWithPermFlag(t *testing.T) {
 	t.Parallel()
 
+	if runtime.GOOS != "linux" {
+		t.Skip("abstract unix sockets are only supported on Linux")
+	}
+
+	sockName := fmt.Sprintf("@opa-test-abstract-%d.sock", time.Now().UnixNano())
 	perm := "755"
 	s := New().
-		WithAddresses([]string{"unix://@opa-test-abstract.sock"}).
+		WithAddresses([]string{"unix://" + sockName}).
 		WithUnixSocketPermission(&perm)
 
 	loops, err := s.Listeners()
@@ -7038,4 +7044,8 @@ func TestAbstractUnixSocketWithPermFlag(t *testing.T) {
 	if len(loops) == 0 {
 		t.Fatal("expected at least one loop")
 	}
+
+	t.Cleanup(func() {
+		_ = s.Shutdown(t.Context())
+	})
 }

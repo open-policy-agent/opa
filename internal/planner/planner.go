@@ -662,11 +662,22 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 	p.curr = not.Block
 
 	if n, ok := e.Terms.(*ast.Not); ok {
-		for _, be := range n.Body {
-			if err := p.planExpr(be, func() error { return nil }); err != nil {
-				return err
-			}
+		cond := p.newLocal() // success condition
+
+		err := p.planQuery(n.Body, 0, func() error {
+			p.appendStmt(&ir.AssignVarStmt{
+				Source: op(ir.Bool(true)),
+				Target: cond,
+			})
+			return nil
+		})
+		if err != nil {
+			return err
 		}
+
+		p.appendStmt(&ir.IsDefinedStmt{
+			Source: cond,
+		})
 	} else {
 		if err := p.planExpr(e.Complement(), func() error { return nil }); err != nil {
 			return err

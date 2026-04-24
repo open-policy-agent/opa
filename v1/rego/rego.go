@@ -2616,31 +2616,31 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		for i, mod := range support {
 			// We can't apply the RegoV0CompatV1 version to the support module if it contains rules or vars that
 			// conflict with future keywords.
-			applyRegoVersion := true
+			applyCompatRegoVersion := true
 
 			ast.WalkRules(mod, func(r *ast.Rule) bool {
 				name := r.Head.Name
 				if name == "" && len(r.Head.Reference) > 0 {
 					name = r.Head.Reference[0].Value.(ast.Var)
 				}
-				if ast.IsFutureKeywordForRegoVersion(name.String(), ast.RegoV0) {
-					applyRegoVersion = false
+				if ast.IsFutureKeywordForRegoVersion(name.String(), ast.RegoV0) && !ast.IsFutureKeywordForRegoVersion(name.String(), ast.RegoV1) {
+					applyCompatRegoVersion = false
 					return true
 				}
 				return false
 			})
 
-			if applyRegoVersion {
+			if applyCompatRegoVersion {
 				ast.WalkVars(mod, func(v ast.Var) bool {
-					if ast.IsFutureKeywordForRegoVersion(v.String(), ast.RegoV0) {
-						applyRegoVersion = false
+					if ast.IsFutureKeywordForRegoVersion(v.String(), ast.RegoV0) && !ast.IsFutureKeywordForRegoVersion(v.String(), ast.RegoV1) {
+						applyCompatRegoVersion = false
 						return true
 					}
 					return false
 				})
 			}
 
-			if applyRegoVersion {
+			if applyCompatRegoVersion {
 				support[i].SetRegoVersion(ast.RegoV0CompatV1)
 			} else {
 				support[i].SetRegoVersion(r.regoVersion)

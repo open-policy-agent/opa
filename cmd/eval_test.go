@@ -639,6 +639,298 @@ func testReadParamWithSchemaDir(input string, inputSchema string) error {
 	return err
 }
 
+func TestEvalWithRecursiveJSONSchema(t *testing.T) {
+	tests := []struct {
+		note       string
+		input      string
+		query      string
+		schema     string
+		policy     string
+		expTypeErr bool
+	}{
+		{
+			note:  "recursive object ref - valid usage",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.p.allow",
+			schema: `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`,
+			policy: `package p
+
+allow if input.foo`,
+		},
+		{
+			note:  "recursive object ref - type mismatch at top level",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.test.p",
+			schema: `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`,
+			policy: `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.foo == 42
+}`,
+			expTypeErr: true,
+		},
+		{
+			note:  "recursive object ref - nested type mismatch",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.test.p",
+			schema: `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`,
+			policy: `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.foo.foo == "hello"
+}`,
+			expTypeErr: true,
+		},
+		{
+			note:  "recursive object ref - inlined schema type mismatch",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.test.p",
+			schema: `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`,
+			policy: `
+package test
+
+# METADATA
+# schemas:
+#   - input.foo: {"type": "boolean"}
+p if {
+	input.foo == 42
+}`,
+			expTypeErr: true,
+		},
+		{
+			note:  "recursive object ref - valid with schema annotation",
+			input: `{"foo": {"foo": {}}}`,
+			query: "data.test.p",
+			schema: `{
+    "$ref": "#/$defs/foo",
+    "$defs": {
+        "foo": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+}`,
+			policy: `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.foo
+}`,
+		},
+		{
+			note:  "recursive array ref - valid usage",
+			input: `{"tree": [[[]]]}`,
+			query: "data.p.allow",
+			schema: `{
+    "type": "object",
+    "properties": {
+        "tree": {
+            "$ref": "#/$defs/tree"
+        }
+    },
+    "$defs": {
+        "tree": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/tree"
+            }
+        }
+    }
+}`,
+			policy: `package p
+
+allow if input.tree`,
+		},
+		{
+			note:  "recursive array ref - type mismatch on element",
+			input: `{"tree": [[[]]]}`,
+			query: "data.test.p",
+			schema: `{
+    "type": "object",
+    "properties": {
+        "tree": {
+            "$ref": "#/$defs/tree"
+        }
+    },
+    "$defs": {
+        "tree": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/tree"
+            }
+        }
+    }
+}`,
+			policy: `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.tree[0] == "hello"
+}`,
+			expTypeErr: true,
+		},
+		{
+			note:  "recursive anyOf ref - valid usage",
+			input: `{"node": ["hello", ["world"]]}`,
+			query: "data.p.allow",
+			schema: `{
+    "type": "object",
+    "properties": {
+        "node": {
+            "$ref": "#/$defs/node"
+        }
+    },
+    "$defs": {
+        "node": {
+            "anyOf": [
+                { "type": "string" },
+                {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/node" }
+                }
+            ]
+        }
+    }
+}`,
+			policy: `package p
+
+allow if input.node`,
+		},
+		{
+			note:  "non-recursive ref - valid usage",
+			input: `{"addr": {"street": "Main St", "city": "Springfield"}}`,
+			query: "data.p.allow",
+			schema: `{
+    "type": "object",
+    "properties": {
+        "addr": {
+            "$ref": "#/$defs/address"
+        }
+    },
+    "$defs": {
+        "address": {
+            "type": "object",
+            "properties": {
+                "street": { "type": "string" },
+                "city": { "type": "string" }
+            }
+        }
+    }
+}`,
+			policy: `package p
+
+allow if input.addr.street`,
+		},
+		{
+			note:  "non-recursive ref - type mismatch",
+			input: `{"addr": {"street": "Main St", "city": "Springfield"}}`,
+			query: "data.test.p",
+			schema: `{
+    "type": "object",
+    "properties": {
+        "addr": {
+            "$ref": "#/$defs/address"
+        }
+    },
+    "$defs": {
+        "address": {
+            "type": "object",
+            "properties": {
+                "street": { "type": "string" },
+                "city": { "type": "string" }
+            }
+        }
+    }
+}`,
+			policy: `
+package test
+
+# METADATA
+# schemas:
+#   - input: schema
+p if {
+	input.addr.street == 42
+}`,
+			expTypeErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			err := testEvalWithSchemaFile(t, tc.input, tc.query, tc.schema, tc.policy, tc.expTypeErr)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+		})
+	}
+}
+
 func TestEvalWithJSONSchema(t *testing.T) {
 
 	input := `{

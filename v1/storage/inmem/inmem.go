@@ -304,6 +304,14 @@ func (db *store) Register(_ context.Context, txn storage.Transaction, config sto
 	return h, nil
 }
 
+func (db *store) MakeDir(_ context.Context, txn storage.Transaction, path storage.Path) error {
+	underlying, err := db.underlying(txn)
+	if err != nil {
+		return err
+	}
+	return underlying.makeDir(path)
+}
+
 func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.Path) (any, error) {
 	underlying, err := db.underlying(txn)
 	if err != nil {

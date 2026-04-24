@@ -15,3 +15,14 @@ r if {
 }
 
 is_odd(x) := (x % 2) == 0
+
+s if {
+	# comment 1
+	every x, y in input.x { # comment 2
+		# comment 3
+		input.a == x
+		input.b == y # comment 4
+		# comment 5
+	} # comment 6
+	# comment 7
+}

@@ -1,0 +1,26 @@
+package p
+
+test_with_and_indentation if {
+	# with should not increase indentation level here
+	dep == 6 with input.x as 2 with input.y.z as {
+			"x": 3,
+			"z": 4,
+		}
+
+	# but here it should
+	dep == 6 with input.x as 2
+		with input.y.z as {
+			"x": 3,
+			"z": 4,
+		}
+
+	# and here
+	dep == 6
+		with input.x as 2
+		with input.y.z as {
+			"x": 3,
+			"z": 4,
+		}
+}
+
+dep := input.x + input.y.z

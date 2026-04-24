@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -43,7 +44,12 @@ var (
 	errBytesValueNoAmount       = parseNumBytesError("no byte amount provided")
 	errBytesValueNumConv        = parseNumBytesError("could not parse byte amount to a number")
 	errBytesValueIncludesSpaces = parseNumBytesError("spaces not allowed in resource strings")
+	errBytesExponentTooLarge    = parseNumBytesError("exponent too large")
 )
+
+// maxExponentDigits limits the number of digits allowed in the exponent of
+// scientific notation input.
+const maxExponentDigits = 6
 
 func builtinNumBytes(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	var m big.Float
@@ -59,7 +65,10 @@ func builtinNumBytes(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return errBytesValueIncludesSpaces
 	}
 
-	num, unit := extractNumAndUnit(s)
+	num, unit, err := extractNumAndUnit(s)
+	if err != nil {
+		return errBytesExponentTooLarge
+	}
 	if num == "" {
 		return errBytesValueNoAmount
 	}
@@ -115,7 +124,9 @@ func formatString(s ast.String) string {
 // Splits the string into a number string à la "10" or "10.2" and a unit
 // string à la "gb" or "MiB" or "foo". Either can be an empty string
 // (error handling is provided elsewhere).
-func extractNumAndUnit(s string) (string, string) {
+// Returns an error if the exponent in scientific notation exceeds
+// maxExponentDigits digits.
+func extractNumAndUnit(s string) (string, string, error) {
 	isNum := func(r rune) bool {
 		return unicode.IsDigit(r) || r == '.'
 	}
@@ -138,18 +149,28 @@ func extractNumAndUnit(s string) (string, string) {
 			if idx+1 < len(s) && (s[idx+1] == '+' || s[idx+1] == '-') {
 				idx++
 			}
+
+			// Count the digits in the exponent and reject if too large.
+			expStart := idx + 1
+			expEnd := expStart
+			for expEnd < len(s) && unicode.IsDigit(rune(s[expEnd])) {
+				expEnd++
+			}
+			if expEnd-expStart > maxExponentDigits {
+				return "", "", errors.New("exponent too large")
+			}
 		}
 	}
 
 	if firstNonNumIdx == -1 { // only digits, '.', or valid scientific notation
-		return s, ""
+		return s, "", nil
 	}
 	if firstNonNumIdx == 0 { // only units (starts with non-digit)
-		return "", s
+		return "", s, nil
 	}
 
 	// Return the number and the rest as the unit
-	return s[:firstNonNumIdx], s[firstNonNumIdx:]
+	return s[:firstNonNumIdx], s[firstNonNumIdx:], nil
 }
 
 func init() {

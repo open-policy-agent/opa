@@ -148,8 +148,6 @@ cases:
 
         import future.keywords.not
 
-        mock_count(_) = 100
-
         p if {
           not q with input.x as 1
         }
@@ -201,3 +199,121 @@ cases:
         mock_foo(_) := 100
     want_result:
       - x: true
+  - note: "negation/not-body: explicit body"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if not {
+          false
+        }
+    want_result:
+      - x: true
+  - note: "negation/not-body: explicit body, local var assignment override"
+    query: data.negation.p = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+          a = 2
+          not {
+            a := 1
+            a == 3
+          }
+          a == 2
+        }
+    want_result:
+      - x: true
+  - note: "negation/not-body: explicit body, nested negation"
+    query: data.negation = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        a if {
+          not { # 2 so this succeeds
+            not { # 1. this fails
+              true
+            }
+          }
+        }
+
+        b if {
+          not { # 2. so this fails
+            not { # 1. this succeeds
+              false
+            }
+          }
+        }
+
+        c if {
+          not { # 3. therefore this succeeds
+            not { # 2. so this fails
+              not { # 1. this succeeds
+                false
+              }
+            }
+          }
+        }
+    want_result:
+      - x:
+          a: true
+          c: true
+  - note: "negation/not-body: explicit body, enumeration"
+    query: data.negation = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+          not {
+            l = ["a", "b", "c"]
+            x = l[_]
+            x == "b"
+          }
+        }
+
+        q if {
+          not {
+            l = ["a", "b", "c"]
+            x = l[_]
+            x == "d"
+          }
+        }
+    want_result:
+      - x:
+          q: true
+  - note: "negation/not-body: explicit body, enumeration (some .. in)"
+    query: data.negation = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords.not
+
+        p if {
+          not {
+            some x in ["a", "b", "c"]
+            x == "b"
+          }
+        }
+
+        q if {
+          not {
+            some x in ["a", "b", "c"]
+            x == "d"
+          }
+        }
+    want_result:
+      - x:
+          q: true

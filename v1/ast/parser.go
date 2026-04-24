@@ -1260,6 +1260,10 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 	}
 
+	if negated && p.notBodies && p.s.tok == tokens.LBrace {
+		return p.parseNotBody()
+	}
+
 	switch p.s.tok {
 	case tokens.Some:
 		if negated {
@@ -1456,6 +1460,28 @@ func (p *Parser) parseSome() *Expr {
 	}
 
 	return NewExpr(decl).SetLocation(decl.Location)
+}
+
+func (p *Parser) parseNotBody() *Expr {
+	loc := p.s.Loc()
+	p.scan()
+
+	body := p.parseBody(tokens.RBrace)
+	if body == nil {
+		return nil
+	}
+	p.scan()
+
+	not := &Not{Body: body, ExplicitBody: true, Location: loc}
+	expr := NewExpr(not).SetLocation(loc)
+
+	if p.s.tok == tokens.With {
+		if expr.With = p.parseWith(); expr.With == nil {
+			return nil
+		}
+	}
+
+	return expr
 }
 
 func (p *Parser) parseEvery() *Expr {
@@ -1762,6 +1788,7 @@ func (p *Parser) parseTerm() *Term {
 	s0 := p.save()
 
 	var term *Term
+	var unaryMinusLoc *Location
 	switch p.s.tok {
 	case tokens.Null:
 		term = NullTerm().SetLocation(p.s.Loc())
@@ -1769,7 +1796,21 @@ func (p *Parser) parseTerm() *Term {
 		term = BooleanTerm(true).SetLocation(p.s.Loc())
 	case tokens.False:
 		term = BooleanTerm(false).SetLocation(p.s.Loc())
-	case tokens.Sub, tokens.Dot, tokens.Number:
+	case tokens.Sub:
+		loc := p.s.Loc()
+		s := p.save()
+		p.scan()
+		if p.s.tok == tokens.Ident || p.s.tok == tokens.Contains {
+			// Unary minus on a reference: -ref → minus(0, ref).
+			// parseTermFinish below will resolve the full ref (e.g. input.number),
+			// after which we wrap the result in a minus call.
+			unaryMinusLoc = loc
+			term = p.parseVar()
+		} else {
+			p.restore(s)
+			term = p.parseNumber()
+		}
+	case tokens.Dot, tokens.Number:
 		term = p.parseNumber()
 	case tokens.String:
 		term = p.parseString()
@@ -1799,6 +1840,10 @@ func (p *Parser) parseTerm() *Term {
 	}
 
 	term = p.parseTermFinish(term, false)
+	if unaryMinusLoc != nil && term != nil {
+		zero := IntNumberTerm(0).SetLocation(unaryMinusLoc)
+		term = p.setLoc(Minus.Call(zero, term), unaryMinusLoc, unaryMinusLoc.Offset, p.s.lastEnd)
+	}
 	p.parsedTermCachePush(term, s0)
 	return term
 }

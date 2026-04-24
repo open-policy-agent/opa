@@ -115,6 +115,20 @@ func (unknownResolver) Resolve(_ ast.Ref) (any, error) {
 	return "UNKNOWN", nil
 }
 
+type prefixMatchers []ast.Ref
+
+// Match returns true if any of it's prefixes matches ref, or it contains no prefixes.
+func (pm prefixMatchers) Match(ref ast.Ref) bool {
+	return len(pm) == 0 || slices.ContainsFunc(pm, ref.HasPrefix)
+}
+
+// AnyPrefixMatcher returns true if prefix is a prefix of any of the matchers, or it contains no prefixes.
+func (pm prefixMatchers) AnyPrefixMatcher(prefix ast.Ref) bool {
+	return len(pm) == 0 || slices.ContainsFunc(pm, func(matcher ast.Ref) bool {
+		return matcher.HasPrefix(prefix)
+	})
+}
+
 func termToString(t *ast.Term) string {
 	ti, err := ast.ValueToInterface(t.Value, unknownResolver{})
 	if err != nil {
@@ -270,6 +284,7 @@ type Runner struct {
 	timeout               time.Duration
 	modules               map[string]*ast.Module
 	bundles               map[string]*bundle.Bundle
+	prefixMatchers        prefixMatchers
 	filter                string
 	target                string // target type (wasm, rego, etc.)
 	customBuiltins        []*Builtin
@@ -397,6 +412,19 @@ func (r *Runner) SetModules(modules map[string]*ast.Module) *Runner {
 // for discovering and evaluating tests.
 func (r *Runner) SetBundles(bundles map[string]*bundle.Bundle) *Runner {
 	r.bundles = bundles
+	return r
+}
+
+// SetPrefixMatchers will have the test runner use the provided ref prefixes as a
+// filter for which test cases to run- This could either be a shorther path to e.g.
+// run all tests in one or more packages, or a full refs pointing to to individual
+// tests. Potential matches are evaluated in ascending order based on ref length.
+//
+// Experimental: This function is used to allow editor integrations more
+// flexibility in selecting which tests to run, and the implementation may
+// change depending on what we learn from that.
+func (r *Runner) SetPrefixMatchers(prefixes ...ast.Ref) *Runner {
+	r.prefixMatchers = slices.SortedFunc(slices.Values(prefixes), util.SliceLenCompare)
 	return r
 }
 
@@ -536,11 +564,17 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		defer cancelTests()
 
 		for _, module := range r.compiler.Modules {
-			for _, rule := range module.Rules {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+			// If:
+			// 1. prefix matchers have been provided, and
+			// 2. no provided prefix matches the package path, and
+			// 3. the package path is not a prefix of any provided matcher
+			// We can skip this the module entirely
+			if !r.prefixMatchers.Match(module.Package.Path) && !r.prefixMatchers.AnyPrefixMatcher(module.Package.Path) {
+				continue
+			}
 
+			for _, rule := range module.Rules {
+				wg.Go(func() {
 					select {
 					case <-stopCtx.Done():
 						return
@@ -567,7 +601,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 					if stop {
 						cancelTests()
 					}
-				}()
+				})
 			}
 		}
 		wg.Wait()
@@ -576,10 +610,17 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	return ch, nil
 }
 
-func (*Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
+func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
+	ruleRef := rule.Head.Ref().GroundPrefix()
+	// len check even though the Match function does this already, as we'll
+	// want to avoid the Extend allocations in the common case of no prefixes configured
+	if len(r.prefixMatchers) > 0 && !r.prefixMatchers.Match(rule.Module.Package.Path.Extend(ruleRef)) {
+		return false
+	}
+
 	var ref ast.Ref
 
-	for _, term := range rule.Head.Ref().GroundPrefix() {
+	for _, term := range ruleRef {
 		ref = ref.Append(term)
 
 		var n string
@@ -588,8 +629,6 @@ func (*Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
 			n = string(v)
 		case ast.String:
 			n = string(v)
-		default:
-			n = ""
 		}
 
 		if strings.HasPrefix(n, TestPrefix) || strings.HasPrefix(n, SkipTestPrefix) {
@@ -740,15 +779,15 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 							// Find the lowest (highest up the body) individual index of each var referenced in the rhs,
 							// and select the highest (lowest down the body) of those
 
-							// TODO: Use TypedValueMap once synced with main
-							lowest := ast.NewValueMap()
+							lowest := util.NewHasherMap[ast.Var, int](cmpEqual)
 
 							for j := i - 1; j >= 0; j-- {
 								expr := rule.Body[j]
 								ast.WalkVars(expr, func(v ast.Var) bool {
 									if vars.Contains(v) {
-										// We override the value for each var, so we get the lowest index (line highest up the body) for each
-										lowest.Put(v, ast.Number(strconv.Itoa(j)))
+										// We override the value for each var, so we get the lowest index
+										// (line highest up the body) for each
+										lowest.Put(v, j)
 										return true
 									}
 									return false
@@ -756,20 +795,18 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 							}
 
 							highest := 0
-							lowest.Iter(func(k, v ast.Value) bool {
-								if n, err := strconv.Atoi(string(v.(ast.Number))); err == nil {
-									if n > highest {
-										highest = n
-									}
+							lowest.Iter(func(k ast.Var, v int) bool {
+								if v > highest {
+									highest = v
 								}
+
 								return false
 							})
 
 							if highest < i {
-								// The expression is lower in the body than the lowes line of any expression that might contribute to its assignment
-								// Move the expression to just after the lowest line
-								moveTo := highest + 1
-								rule.Body, moved = moveExpr(rule.Body, i, moveTo)
+								// The expression is lower in the body than the lowest line of any expression that might
+								// contribute to its assignment. Move the expression to just after the lowest line.
+								rule.Body, moved = moveExpr(rule.Body, i, highest+1)
 							}
 						}
 					}
@@ -787,9 +824,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 
 			injectBelowMap := ast.NewValueMap()
 			for _, term := range argsRef {
-				for i := len(rule.Body) - 1; i >= 0; i-- {
-					expr := rule.Body[i]
-
+				for i, expr := range slices.Backward(rule.Body) {
 					ast.WalkVars(expr, func(v ast.Var) bool {
 						if v.Equal(term.Value) {
 							injectBelowMap.Put(v, ast.Number(strconv.Itoa(i)))
@@ -819,6 +854,10 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 		}
 	}
 	return nil
+}
+
+func cmpEqual[T comparable](a, b T) bool {
+	return a == b
 }
 
 func isLocalVar(v ast.Value) bool {

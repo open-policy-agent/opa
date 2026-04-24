@@ -226,6 +226,8 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 				extraFutureKeywordImports["in"] = struct{}{}
 			case n.IsEvery():
 				extraFutureKeywordImports["every"] = struct{}{}
+			case n.IsNot():
+				extraFutureKeywordImports["not"] = struct{}{}
 			}
 
 		case *ast.Import:
@@ -278,6 +280,7 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 		}
 
 		regoV1Imported := slices.ContainsFunc(x.Imports, isRegoV1Compatible)
+
 		if regoVersion == ast.RegoV0CompatV1 || regoVersion == ast.RegoV1 || regoV1Imported {
 			if !opts.DropV0Imports && !regoV1Imported {
 				for _, kw := range o.futureKeywords {
@@ -286,11 +289,18 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 			} else {
 				x.Imports = future.FilterFutureImports(x.Imports)
 			}
+
+			for kw := range extraFutureKeywordImports {
+				if ast.IsFutureKeywordForRegoVersion(kw, ast.RegoV1) {
+					x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+				}
+			}
 		} else {
 			for kw := range extraFutureKeywordImports {
 				x.Imports = ensureFutureKeywordImport(x.Imports, kw)
 			}
 		}
+
 		err := w.writeModule(x)
 		if err != nil {
 			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
@@ -927,7 +937,12 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 			return nil, err
 		}
 	case *ast.Every:
-		comments, err = w.writeEvery(t, comments)
+		comments, err = w.writeEvery(t, expr.Loc(), comments)
+		if err != nil {
+			return nil, err
+		}
+	case *ast.Not:
+		comments, err = w.writeNot(t, expr.Loc(), comments)
 		if err != nil {
 			return nil, err
 		}
@@ -953,26 +968,30 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 	// Print on same row if already there, otherwise increase indent a print remaining
 	if withs[0].Location.Row == lastRow {
 		if comments, err = w.writeWith(withs[0], comments, false); err != nil {
-			return nil, err
+			return comments, err
 		}
 		lastRow, withs = withs[0].Location.Row, withs[1:]
 	}
 
 	if len(withs) > 0 {
-		w.up()
+		var indented bool
+
 		for _, with := range withs {
 			indent := with.Location.Row > lastRow
 			if indent {
+				if !indented {
+					w.up()
+					defer w.down() //nolint:errcheck
+					indented = true
+				}
 				w.endLine()
 				w.startLine()
 				lastRow = with.Location.Row
 			}
 			if comments, err = w.writeWith(with, comments, indent); err != nil {
-				return nil, err
+				return comments, err
 			}
 		}
-
-		return comments, w.down()
 	}
 
 	return comments, nil
@@ -1019,9 +1038,13 @@ func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) ([]*
 	return comments, nil
 }
 
-func (w *writer) writeEvery(every *ast.Every, comments []*ast.Comment) ([]*ast.Comment, error) {
+func (w *writer) writeEvery(every *ast.Every, loc *ast.Location, comments []*ast.Comment) ([]*ast.Comment, error) {
+	if loc == nil {
+		loc = every.Loc()
+	}
+
 	var err error
-	comments, err = w.insertComments(comments, every.Location)
+	comments, err = w.insertComments(comments, loc)
 	if err != nil {
 		return nil, err
 	}
@@ -1043,7 +1066,7 @@ func (w *writer) writeEvery(every *ast.Every, comments []*ast.Comment) ([]*ast.C
 		return nil, err
 	}
 	w.write(" {")
-	comments, err = w.writeComprehensionBody('{', '}', every.Body, every.Loc(), every.Loc(), comments)
+	comments, err = w.writeComprehensionBody('{', '}', every.Body, loc, loc, comments)
 	if err != nil {
 		// the unexpected comment error is passed up to be handled by writeHead
 		if !errors.As(err, &unexpectedCommentError{}) {
@@ -1056,6 +1079,45 @@ func (w *writer) writeEvery(every *ast.Every, comments []*ast.Comment) ([]*ast.C
 		w.write(" ")
 	}
 	w.write("}")
+	return comments, nil
+}
+
+func (w *writer) writeNot(not *ast.Not, loc *ast.Location, comments []*ast.Comment) ([]*ast.Comment, error) {
+	if loc == nil {
+		loc = not.Loc()
+	}
+
+	var err error
+	comments, err = w.insertComments(comments, loc)
+	if err != nil {
+		return nil, err
+	}
+
+	w.write("not ")
+
+	if not.ExplicitBody || len(not.Body) > 1 {
+		w.write("{")
+		comments, err = w.writeComprehensionBody('{', '}', not.Body, loc, loc, comments)
+		if err != nil {
+			if !errors.As(err, &unexpectedCommentError{}) {
+				return nil, err
+			}
+		}
+
+		if len(not.Body) == 1 &&
+			not.Body[0].Location.Row == loc.Row {
+			w.write(" ")
+		}
+		w.write("}")
+	} else {
+		comments, err = w.writeExpr(not.Body[0], comments)
+		if err != nil {
+			if !errors.As(err, &unexpectedCommentError{}) {
+				return nil, err
+			}
+		}
+	}
+
 	return comments, nil
 }
 
@@ -1150,7 +1212,7 @@ func (w *writer) writeWith(with *ast.With, comments []*ast.Comment, indented boo
 	w.write(" as ")
 	comments, err = w.writeTerm(with.Value, comments)
 	if err != nil {
-		return nil, err
+		return comments, err
 	}
 	return comments, nil
 }
@@ -1776,6 +1838,9 @@ func (w *writer) writeImport(imp *ast.Import) error {
 		// We don't want to wrap future.keywords imports in parens, so we create a new writer that doesn't
 		w2 := writer{
 			buf: bytes.Buffer{},
+			fmtOpts: fmtOpts{
+				allowKeywordsInRefs: true,
+			},
 		}
 		_, err := w2.writeRef(path, nil)
 		if err != nil {
@@ -2335,15 +2400,33 @@ func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
 		}
 	}
 	imp := &ast.Import{
-		// NOTE: This is a hack to not error on the ref containing a keyword already present in v1.
-		// A cleaner solution would be to instead allow refs to contain keyword terms.
-		// E.g. in v1, `import future.keywords["in"]` is valid, but `import future.keywords.in` is not
-		// as it contains a reserved keyword.
-		Path: ast.MustParseTerm("future.keywords[\"" + kw + "\"]"),
-		//Path: ast.MustParseTerm("future.keywords." + kw),
+		Path: ast.MustParseTerm("future.keywords." + kw),
 	}
-	imp.Location = defaultLocation(imp)
+	imp.Location = nextImportLoc(imps, imp)
 	return append(imps, imp)
+}
+
+func nextImportLoc(imps []*ast.Import, node ast.Node) *ast.Location {
+	maxRow := 0
+	for _, imp := range imps {
+		if imp.Loc() == nil {
+			continue
+		}
+		if isFutureKeywordsImport(imp) || isRegoV1Compatible(imp) {
+			if imp.Loc().Row > maxRow {
+				maxRow = imp.Loc().Row
+			}
+		}
+	}
+	if maxRow == 0 {
+		return defaultLocation(node)
+	}
+	return ast.NewLocation([]byte(node.String()), defaultLocationFile, maxRow+1, 1)
+}
+
+func isFutureKeywordsImport(imp *ast.Import) bool {
+	path := imp.Path.Value.(ast.Ref)
+	return len(path) >= 2 && ast.FutureRootDocument.Equal(path[0])
 }
 
 func ensureRegoV1Import(imps []*ast.Import) []*ast.Import {
@@ -2371,7 +2454,7 @@ func ensureImport(imps []*ast.Import, path ast.Ref) []*ast.Import {
 	imp := &ast.Import{
 		Path: ast.NewTerm(path),
 	}
-	imp.Location = defaultLocation(imp)
+	imp.Location = nextImportLoc(imps, imp)
 	return append(imps, imp)
 }
 

@@ -580,6 +580,11 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 		switch tpe := tpe.(type) {
 		case *types.Array:
 			return unify1Array(env, v, tpe, union)
+		case *types.Recursive:
+			if arr, ok := tpe.Unwrap().(*types.Array); ok {
+				return unify1Array(env, v, arr, union)
+			}
+			return false
 		case types.Any:
 			if types.Compare(tpe, types.A) == 0 {
 				for i := range v.Len() {
@@ -598,6 +603,11 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 		switch tpe := tpe.(type) {
 		case *types.Object:
 			return unify1Object(env, v, tpe, union)
+		case *types.Recursive:
+			if obj, ok := tpe.Unwrap().(*types.Object); ok {
+				return unify1Object(env, v, obj, union)
+			}
+			return false
 		case types.Any:
 			if types.Compare(tpe, types.A) == 0 {
 				v.Foreach(func(key, value *Term) {
@@ -872,6 +882,14 @@ func unifies(a, b types.Type) bool {
 
 	if a == nil || b == nil {
 		return false
+	}
+
+	// Unwrap recursive types so they compare as their underlying type.
+	if r, ok := a.(*types.Recursive); ok {
+		a = r.Unwrap()
+	}
+	if r, ok := b.(*types.Recursive); ok {
+		b = r.Unwrap()
 	}
 
 	anyA, ok1 := a.(types.Any)
@@ -1183,6 +1201,9 @@ func getOneOfForType(tpe types.Type) (result []Value) {
 			result = append(result, v)
 		}
 
+	case *types.Recursive:
+		return getOneOfForType(tpe.Unwrap())
+
 	case types.Any:
 		for _, object := range tpe {
 			objRes := getOneOfForType(object)
@@ -1237,6 +1258,9 @@ var dynamicAnyAny = types.NewDynamicProperty(types.A, types.A)
 // override takes a type t and returns a type obtained from t where the path represented by ref within it has type o (overriding the original type of that path)
 func override(ref Ref, t types.Type, o types.Type, rule *Rule) (types.Type, *Error) {
 	var newStaticProps []*types.StaticProperty
+	if r, ok := t.(*types.Recursive); ok {
+		t = r.Unwrap()
+	}
 	obj, ok := t.(*types.Object)
 	if !ok {
 		newType, err := getObjectType(ref, o, rule, dynamicAnyAny)

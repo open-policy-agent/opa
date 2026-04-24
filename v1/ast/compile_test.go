@@ -12991,6 +12991,12 @@ func TestCompilerCopiesTemplateStrings(t *testing.T) {
 
 // TODO: For readability, update AST assertions to use parsed expected module (parser update required)
 func TestCompilerNotImport(t *testing.T) {
+	// TODO: drop once future.keywords.not is enabled by default
+	popts := ParserOptions{
+		Capabilities:   CapabilitiesForThisVersion().withFutureKeyword("not"),
+		FutureKeywords: []string{"not"},
+	}
+
 	tests := []struct {
 		note    string
 		module  string
@@ -13004,31 +13010,14 @@ func TestCompilerNotImport(t *testing.T) {
 					not input.x + input.y == input.z
 				}
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							Equality.Expr(VarTerm("__local1__"), RefTerm(VarTerm("input"), StringTerm("x"))), // broken out of not expr
-							Equality.Expr(VarTerm("__local2__"), RefTerm(VarTerm("input"), StringTerm("y"))), // broken out of not expr
-							Plus.Expr(VarTerm("__local1__"), VarTerm("__local2__"), VarTerm("__local0__")),   // broken out of not expr
-							&Expr{
-								Terms: []*Term{
-									NewTerm(Equality.Ref()),
-									VarTerm("__local0__"),
-									RefTerm(VarTerm("input"), StringTerm("z")),
-								},
-								Negated: true,
-							},
-						),
-					},
-				},
-			},
+			expMod: MustParseModule(`package negation
+				p = true if {
+					__local1__ = input.x
+					__local2__ = input.y
+					plus(__local1__, __local2__, __local0__)
+					not __local0__ = input.z
+				}
+			`),
 		},
 		{
 			note: "negated call, equal",
@@ -13038,28 +13027,14 @@ func TestCompilerNotImport(t *testing.T) {
 					not 1 + 2 == 3
 				}
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							NewExpr(
-								&Not{
-									Body: NewBody(
-										Plus.Expr(NumberTerm("1"), NumberTerm("2"), VarTerm("__local0__")),
-										Equality.Expr(VarTerm("__local0__"), NumberTerm("3")),
-									),
-								},
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {
+						plus(1, 2, __local0__)
+						__local0__ = 3
+					}
+				}
+			`, popts),
 		},
 		{
 			note: "negated call, unification",
@@ -13069,28 +13044,31 @@ func TestCompilerNotImport(t *testing.T) {
 					not 1 + 2 = 3
 				}
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							NewExpr(
-								&Not{
-									Body: NewBody(
-										Plus.Expr(NumberTerm("1"), NumberTerm("2"), VarTerm("__local0__")),
-										Equality.Expr(VarTerm("__local0__"), NumberTerm("3")),
-									),
-								},
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {
+						plus(1, 2, __local0__)
+						__local0__ = 3
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "negated call, unification, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				p if {
+					not { 1 + 2 = 3 }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {
+						plus(1, 2, __local0__)
+						__local0__ = 3
+					}
+				}
+			`, popts),
 		},
 		{
 			note: "negated call with refs (local var expansion)",
@@ -13100,30 +13078,16 @@ func TestCompilerNotImport(t *testing.T) {
 					not input.x + input.y == input.z
 				}
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							NewExpr(
-								&Not{
-									Body: NewBody(
-										Equality.Expr(VarTerm("__local1__"), RefTerm(VarTerm("input"), StringTerm("x"))),
-										Equality.Expr(VarTerm("__local2__"), RefTerm(VarTerm("input"), StringTerm("y"))),
-										Plus.Expr(VarTerm("__local1__"), VarTerm("__local2__"), VarTerm("__local0__")),
-										Equality.Expr(VarTerm("__local0__"), RefTerm(VarTerm("input"), StringTerm("z"))),
-									),
-								},
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {
+						__local1__ = input.x
+						__local2__ = input.y
+						plus(__local1__, __local2__, __local0__)
+						__local0__ = input.z
+					}
+				}
+			`, popts),
 		},
 		{
 			note: "negated call with vars, inside comprehension",
@@ -13134,47 +13098,18 @@ func TestCompilerNotImport(t *testing.T) {
 				
 				f(_) := true
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     VarTerm("__local2__"),
-							Assign:    true,
-						},
-						Body: NewBody(
-							Equality.Expr(
-								VarTerm("__local2__"),
-								ArrayComprehensionTerm(
-									VarTerm("__local0__"),
-									NewBody(
-										Equality.Expr(VarTerm("__local0__"), StringTerm("foo")),
-										NotExpr(
-											Equality.Expr(VarTerm("__local3__"), RefTerm(VarTerm("input"), StringTerm("x"))),
-											NewExpr([]*Term{
-												RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("f")),
-												VarTerm("__local3__"),
-											}),
-										),
-									),
-								),
-							),
-						),
-					},
-					&Rule{
-						Head: &Head{
-							Name:      Var("f"),
-							Reference: Ref{VarTerm("f")},
-							Args:      Args{VarTerm("__local1__")},
-							Value:     BooleanTerm(true),
-							Assign:    true,
-						},
-						Body: NewBody(NewExpr(BooleanTerm(true))),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p := __local2__ if {
+					__local2__ = [__local0__ | __local0__ = "foo"
+						not {
+							__local3__ = input.x
+							data.negation.f(__local3__)
+						}
+					]
+				}
+				
+				f(__local1__) := true if { true }
+			`, popts),
 		},
 		{
 			note: "negated call with vars, inside comprehension, unsafe assignment",
@@ -13205,49 +13140,19 @@ func TestCompilerNotImport(t *testing.T) {
 				
 				f(_, _) := true
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							Equality.Expr(
-								VarTerm("__local4__"),
-								RefTerm(VarTerm("input"), StringTerm("x")),
-							),
-							NewExpr(&Every{
-								Key:    VarTerm("__local0__"),
-								Value:  VarTerm("__local1__"),
-								Domain: VarTerm("__local4__"),
-								Body: NewBody(
-									NotExpr(
-										Equality.Expr(VarTerm("__local5__"), RefTerm(VarTerm("input"), StringTerm("y"))),
-										NewExpr([]*Term{
-											RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("f")),
-											VarTerm("__local1__"),
-											VarTerm("__local5__"),
-										}),
-									),
-								),
-							}),
-						),
-					},
-					&Rule{
-						Head: &Head{
-							Name:      Var("f"),
-							Reference: Ref{VarTerm("f")},
-							Args:      Args{VarTerm("__local2__"), VarTerm("__local3__")},
-							Value:     BooleanTerm(true),
-							Assign:    true,
-						},
-						Body: NewBody(NewExpr(BooleanTerm(true))),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					__local4__ = input.x
+					every __local0__, __local1__ in __local4__ {
+						not {
+							__local5__ = input.y
+							data.negation.f(__local1__, __local5__)
+						}
+					}
+				}
+				
+				f(__local2__, __local3__) := true if { true }
+			`, popts),
 		},
 		{
 			note: "negated assignment",
@@ -13266,6 +13171,21 @@ func TestCompilerNotImport(t *testing.T) {
 			},
 		},
 		{
+			note: "negated assignment, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a := 1 }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					not { __local0__ = 1 }
+				}
+			`, popts),
+		},
+		{
 			note: "negated assignment, call",
 			module: `package negation
 				import future.keywords.not
@@ -13280,6 +13200,24 @@ func TestCompilerNotImport(t *testing.T) {
 					Message: "var a is unsafe",
 				},
 			},
+		},
+		{
+			note: "negated assignment, call, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a := 1 + 2 }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {
+						plus(1, 2, __local1__)
+						__local0__ = __local1__
+					}
+				}
+			`, popts),
 		},
 		{
 			note: "negated assignment, call, output var",
@@ -13298,12 +13236,45 @@ func TestCompilerNotImport(t *testing.T) {
 			},
 		},
 		{
+			note: "negated assignment, call, output var, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { plus(1, 2, a) }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {
+						plus(1, 2, a)
+					}
+				}
+			`, popts),
+		},
+		{
 			note: "negated equality, unsafe var",
 			module: `package negation
 				import future.keywords.not
 				
 				p if {
 					not a == 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+			},
+		},
+		{
+			note: "negated equality, unsafe var, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a == 1 }
 				}
 			`,
 			expErrs: Errors{
@@ -13330,6 +13301,21 @@ func TestCompilerNotImport(t *testing.T) {
 			},
 		},
 		{
+			note: "negated unification, unsafe var, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a = 1 }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {a = 1}
+				}
+			`, popts),
+		},
+		{
 			note: "negated unification, unsafe var, call",
 			module: `package negation
 				import future.keywords.not
@@ -13344,6 +13330,24 @@ func TestCompilerNotImport(t *testing.T) {
 					Message: "var a is unsafe",
 				},
 			},
+		},
+		{
+			note: "negated unification, call, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a = 1 + 2 }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {
+						plus(1, 2, __local0__)
+						a = __local0__
+					}
+				}
+			`, popts),
 		},
 		{
 			note: "negated enumeration, unsafe var (wildcard)",
@@ -13362,6 +13366,21 @@ func TestCompilerNotImport(t *testing.T) {
 			},
 		},
 		{
+			note: "negated enumeration, wildcard, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { input.a[_] }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not { input.a[_] }
+				}
+			`, popts),
+		},
+		{
 			note: "negated safe var",
 			module: `package negation
 				import future.keywords.not
@@ -13371,25 +13390,35 @@ func TestCompilerNotImport(t *testing.T) {
 					not a + 2 = 3
 				}
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							Equality.Expr(VarTerm("a"), NumberTerm("1")),
-							NotExpr(
-								Plus.Expr(VarTerm("a"), NumberTerm("2"), VarTerm("__local0__")),
-								Equality.Expr(VarTerm("__local0__"), NumberTerm("3")),
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					a = 1
+					not {
+						plus(a, 2, __local0__)
+						__local0__ = 3
+					}
+			}
+			`, popts),
+		},
+		{
+			note: "negated safe var, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					a = 1
+					not { a + 2 = 3 }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					a = 1
+					not {
+						plus(a, 2, __local0__)
+						__local0__ = 3
+					}
+				}
+			`, popts),
 		},
 		{
 			note: "negated safe var, rearranged",
@@ -13401,25 +13430,35 @@ func TestCompilerNotImport(t *testing.T) {
 					a = 1
 				}
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							Equality.Expr(VarTerm("a"), NumberTerm("1")), // reordered
-							NotExpr(
-								Plus.Expr(VarTerm("a"), NumberTerm("2"), VarTerm("__local0__")),
-								Equality.Expr(VarTerm("__local0__"), NumberTerm("3")),
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					a = 1
+					not {
+						plus(a, 2, __local0__)
+						__local0__ = 3
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "negated safe var, explicit not-body, rearranged",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a + 2 = 3 }
+					a = 1
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					a = 1
+					not {
+						plus(a, 2, __local0__)
+						__local0__ = 3
+					}
+				}
+			`, popts),
 		},
 		{
 			note: "negated unsafe var",
@@ -13428,6 +13467,22 @@ func TestCompilerNotImport(t *testing.T) {
 				
 				p if {
 					not a + 2 = 3
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+			},
+		},
+		{
+			note: "negated unsafe var, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a + 2 = 3 }
 				}
 			`,
 			expErrs: Errors{
@@ -13448,24 +13503,54 @@ func TestCompilerNotImport(t *testing.T) {
 					not a = 1
 				}
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							Equality.Expr(VarTerm("a"), NumberTerm("2")),
-							NotExpr(
-								Equality.Expr(VarTerm("a"), NumberTerm("1")),
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					a = 2
+					not { a = 1 }
+				}
+			`, popts),
+		},
+		{
+			note: "negated and non-negated unification on same var, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					a = 2
+					not { a = 1 }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					a = 2
+					not { a = 1 }
+				}
+			`, popts),
+		},
+		{
+			note: "negated assignment override, explicit not-body",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					a = 2
+					not { 
+						a := 1
+						a == 3
+					}
+					a == 2
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					a = 2
+					not {
+						__local0__ = 1
+						__local0__ = 3
+					}
+					a = 2
+				}
+			`, popts),
 		},
 		{
 			note: "negated and non-negated unification on same var, rearranged",
@@ -13477,24 +13562,29 @@ func TestCompilerNotImport(t *testing.T) {
 					a = 2
 				}
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							Equality.Expr(VarTerm("a"), NumberTerm("2")), // reordered
-							NotExpr(
-								Equality.Expr(VarTerm("a"), NumberTerm("1")),
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					a = 2
+					not { a = 1 }
+				}
+			`, popts),
+		},
+		{
+			note: "negated and non-negated unification on same var, explicit not-body, rearranged",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a = 1 }
+					a = 2
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					a = 2
+					not { a = 1 }
+				}
+			`, popts),
 		},
 		{
 			note: "negated and non-negated unification on same var, calls, rearranged",
@@ -13502,50 +13592,49 @@ func TestCompilerNotImport(t *testing.T) {
 				import future.keywords.not
 				
 				p if {
-					a = f(2)
 					not a = f(1)
+					a = f(2)
 				}
 				
 				f(x) := x
 			`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							NewExpr([]*Term{
-								RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("f")),
-								NumberTerm("2"),
-								VarTerm("__local1__"),
-							}),
-							Equality.Expr(VarTerm("a"), VarTerm("__local1__")), // reordered
-							NotExpr(
-								NewExpr([]*Term{
-									RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("f")),
-									NumberTerm("1"),
-									VarTerm("__local2__"),
-								}),
-								Equality.Expr(VarTerm("a"), VarTerm("__local2__")),
-							),
-						),
-					},
-					&Rule{
-						Head: &Head{
-							Name:      Var("f"),
-							Reference: Ref{VarTerm("f")},
-							Args:      Args{VarTerm("__local0__")},
-							Value:     VarTerm("__local0__"),
-							Assign:    true,
-						},
-						Body: NewBody(NewExpr(BooleanTerm(true))),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					data.negation.f(2, __local2__)
+					a = __local2__
+					not {
+						data.negation.f(1, __local1__)
+						a = __local1__
+					}
+				}
+				
+				f(__local0__) := __local0__ if { true }
+			`, popts),
+		},
+		{
+			note: "negated and non-negated unification on same var, calls, explicit not-body, rearranged",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a = f(1) }
+					a = f(2)
+				}
+				
+				f(x) := x
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					data.negation.f(2, __local2__)
+					a = __local2__
+					not {
+						data.negation.f(1, __local1__)
+						a = __local1__
+					}
+				}
+				
+				f(__local0__) := __local0__ if { true }
+			`, popts),
 		},
 
 		{
@@ -13559,33 +13648,40 @@ func TestCompilerNotImport(t *testing.T) {
 						not v = 2
 					]
 				}`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							NotExpr(
-								&Expr{
-									Terms: ArrayComprehensionTerm(
-										VarTerm("__local0__"),
-										NewBody(
-											Equality.Expr(VarTerm("__local0__"), NumberTerm("1")),
-											NotExpr(
-												Equality.Expr(VarTerm("__local0__"), NumberTerm("2")),
-											),
-										),
-									),
-								},
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					not {
+						[__local0__ | 
+							__local0__ = 1
+							not { __local0__ = 2 }
+						]
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "nested negation (comprehension), explicit not-bodies",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not {
+						[v |
+							v := 1
+							not { v = 2 }
+						]
+					}
+				}`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					not {
+						[__local0__ | 
+							__local0__ = 1
+							not { __local0__ = 2 }
+						]
+					}
+				}
+			`, popts),
 		},
 		{
 			note: "nested negation (comprehension), outer closure var reference",
@@ -13598,33 +13694,62 @@ func TestCompilerNotImport(t *testing.T) {
 						not v = 2
 					]
 				}`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							Equality.Expr(VarTerm("__local0__"), NumberTerm("1")),
-							NotExpr(
-								&Expr{
-									Terms: ArrayComprehensionTerm(
-										NumberTerm("42"),
-										NewBody(
-											NotExpr(
-												Equality.Expr(VarTerm("__local0__"), NumberTerm("2")),
-											),
-										),
-									),
-								},
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					__local0__ = 1
+					not {
+						[42 | 
+							not { __local0__ = 2 }
+						]
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "nested negation (comprehension), outer closure var reference, rearranged",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not [42 |
+						not v = 2
+					]
+					v = 1
+				}`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					v = 1
+					not {
+						[42 | 
+							not { v = 2 }
+						]
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "nested negation (comprehension), outer closure var reference, explicit not-bodies, rearranged",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not {
+						[42 |
+							not { v = 2 }
+						]
+					}
+					v = 1
+				}`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					v = 1
+					not {
+						[42 | 
+							not { v = 2 }
+						]
+					}
+				}
+			`, popts),
 		},
 		{
 			note: "nested negation (comprehension), unsafe var reference",
@@ -13655,278 +13780,322 @@ func TestCompilerNotImport(t *testing.T) {
 						not v = 1
 					]
 				}`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							Equality.Expr(VarTerm("__local0__"), NumberTerm("1")),
-							NotExpr(
-								&Expr{
-									Terms: ArrayComprehensionTerm(
-										NumberTerm("42"),
-										NewBody(
-											Equality.Expr(VarTerm("__local1__"), NumberTerm("2")),
-											NotExpr(
-												Equality.Expr(VarTerm("__local1__"), NumberTerm("1")),
-											),
-										),
-									),
-								},
-							),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					__local0__ = 1
+					not {
+						[42 | 
+							__local1__ = 2
+							not { __local1__ = 1 }
+						]
+					}
+				}
+			`, popts),
 		},
 
+		// Explicit not-bodies required
+
 		{
-			note: "with, ref replaced",
+			note: "explicit not-body, enumeration",
 			module: `package negation
 				import future.keywords.not
-
+				
 				p if {
-					not q with input.x as 1
-				}
-
-				q if {
-					input.x
+					not {
+						x = [1, 2][_]
+						x > 2
+					}
 				}`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							&Expr{
-								Terms: NewNot(NewExpr(RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("q")))),
-								With: []*With{
-									{
-										Target: RefTerm(VarTerm("input"), StringTerm("x")),
-										Value:  NumberTerm("1"),
-									},
-								},
-							},
-						),
-					},
-					&Rule{
-						Head: &Head{
-							Name:      Var("q"),
-							Reference: Ref{VarTerm("q")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							NewExpr(RefTerm(VarTerm("input"), StringTerm("x"))),
-						),
-					},
-				},
-			},
+			expMod: MustParseModuleWithOpts(`package negation
+				p if {
+					not {
+						__local0__ = [1, 2]
+						x = __local0__[_]
+						gt(x, 2)
+					}
+				}
+			`, popts),
 		},
 		{
-			note: "with, built-in call replaced",
+			note: "explicit not-body, enumeration, reordering",
 			module: `package negation
 				import future.keywords.not
-
+				
 				p if {
-					not q with count as mock_count
+					not {
+						x = [1, 2][_]
+						x > y
+					}
+					y = 2
+				}`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p if {
+					y = 2
+					not {
+						__local0__ = [1, 2]
+						x = __local0__[_]
+						gt(x, y)
+					}
 				}
+			`, popts),
+		},
 
-				q if {
-					count([1,2,3]) == 1
+		{
+			note: "explicit not-body, enumeration, some in",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not {
+						some x in [1, 2]
+						x > 3
+					}
+				}`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {
+						__local3__ = [1, 2]
+						__local2__ = __local3__[__local1__]
+						gt(__local2__, 3)
+					}
 				}
-
-				mock_count(_) := 100`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							&Expr{
-								Terms: NewNot(NewExpr(RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("q")))),
-								With: []*With{
-									{
-										Target: RefTerm(VarTerm("count")),
-										Value:  RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("mock_count")),
-									},
-								},
-							},
-						),
-					},
-					&Rule{
-						Head: &Head{
-							Name:      Var("q"),
-							Reference: Ref{VarTerm("q")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							Count.Expr(
-								ArrayTerm(NumberTerm("1"), NumberTerm("2"), NumberTerm("3")),
-								VarTerm("__local1__"),
-							),
-							Equality.Expr(VarTerm("__local1__"), NumberTerm("1")),
-						),
-					},
-					&Rule{
-						Head: &Head{
-							Name:      Var("mock_count"),
-							Reference: Ref{VarTerm("mock_count")},
-							Args:      Args{VarTerm("__local0__")},
-							Value:     NumberTerm("100"),
-							Assign:    true,
-						},
-						Body: NewBody(
-							NewExpr(BooleanTerm(true)),
-						),
-					},
-				},
-			},
+			`, popts),
 		},
 		{
-			note: "with, rego-function call replaced",
+			note: "explicit not-body, enumeration, some in, reordering",
 			module: `package negation
 				import future.keywords.not
-
+				
 				p if {
-					not q with foo as mock_foo
+					not {
+						some x in [1, 2]
+						x < y
+					}
+					y = 3
+				}`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					y = 3
+					not {
+						__local3__ = [1, 2]
+						__local2__ = __local3__[__local1__]
+						lt(__local2__, y)
+					}
 				}
+			`, popts),
+		},
 
-				q if {
-					foo([1,2,3]) == 1
+		{
+			note: "explicit not-body, var indirection",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not {
+						a = 1
+						b = a
+						a + 1 = 2
+					}
 				}
-
-				foo(x) := x
-
-				mock_foo(_) := 100`,
-			expMod: &Module{
-				Package: MustParsePackage("package negation"),
-				Rules: RuleSet{
-					&Rule{
-						Head: &Head{
-							Name:      Var("p"),
-							Reference: Ref{VarTerm("p")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							&Expr{
-								Terms: NewNot(NewExpr(RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("q")))),
-								With: []*With{
-									{
-										Target: RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("foo")),
-										Value:  RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("mock_foo")),
-									},
-								},
-							},
-						),
-					},
-					&Rule{
-						Head: &Head{
-							Name:      Var("q"),
-							Reference: Ref{VarTerm("q")},
-							Value:     BooleanTerm(true),
-						},
-						Body: NewBody(
-							NewExpr([]*Term{
-								RefTerm(VarTerm("data"), StringTerm("negation"), StringTerm("foo")),
-								ArrayTerm(NumberTerm("1"), NumberTerm("2"), NumberTerm("3")),
-								VarTerm("__local2__"),
-							}),
-
-							Equality.Expr(VarTerm("__local2__"), NumberTerm("1")),
-						),
-					},
-					&Rule{
-						Head: &Head{
-							Name:      Var("foo"),
-							Reference: Ref{VarTerm("foo")},
-							Args:      Args{VarTerm("__local0__")},
-							Value:     VarTerm("__local0__"),
-							Assign:    true,
-						},
-						Body: NewBody(
-							NewExpr(BooleanTerm(true)),
-						),
-					},
-					&Rule{
-						Head: &Head{
-							Name:      Var("mock_foo"),
-							Reference: Ref{VarTerm("mock_foo")},
-							Args:      Args{VarTerm("__local1__")},
-							Value:     NumberTerm("100"),
-							Assign:    true,
-						},
-						Body: NewBody(
-							NewExpr(BooleanTerm(true)),
-						),
-					},
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					not {
+						a = 1
+						b = a
+						plus(a, 1, __local0__)
+						__local0__ = 2
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "explicit not-body, var indirection, safe var (unification)",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					x = 1
+					not {
+						a = x
+						b = a
+						a + 1 = 2
+					}
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if { 
+					x = 1
+					not {
+						a = x
+						b = a
+						plus(a, 1, __local0__)
+						__local0__ = 2
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "explicit not-body, var indirection, safe var (assignment)",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					x := 1
+					not {
+						a = x
+						b = a
+						a + 1 = 2
+					}
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					__local0__ = 1
+					not {
+						a = __local0__
+						b = a
+						plus(a, 1, __local1__)
+						__local1__ = 2
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "explicit not-body, var indirection, unsafe var",
+			module: `package negation
+				import future.keywords.not
+		
+				p if {
+					not {
+						a = x
+						b = a
+						a + 1 = 2
+					}
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var b is unsafe",
 				},
 			},
 		},
 
-		// TODO: Add purely nested negations (requires body parsing)
-
-		// TODO: not-body parsing required
-		// {
-		// 	note: "negated indirection",
-		// 	module: `package negation
-		// 		import future.keywords.not
-		//
-		// 		p if {
-		// 			not {
-		// 				a = 1
-		// 				b = a
-		// 				a + 1 = 2
-		// 			}
-		// 		}
-		// 	`,
-		// },
-		// 	note: "negated indirection, safe var",
-		// 	module: `package negation
-		// 		import future.keywords.not
-		//
-		// 		p if {
-		// 			x := 1
-		// 			not {
-		// 				a = x
-		// 				b = a
-		// 				a + 1 = 2
-		// 			}
-		// 		}
-		// 	`,
-		// },
-		// {
-		// 	note: "negated indirection, unsafe var",
-		// 	module: `package negation
-		// 		import future.keywords.not
-		//
-		// 		p if {
-		// 			not {
-		// 				a = x
-		// 				b = a
-		// 				a + 1 = 2
-		// 			}
-		// 		}
-		// 	`,
-		// 	expErrs: Errors{
-		// 		&Error{
-		// 			Code:    CompileErr,
-		// 			Message: "var a is unsafe",
-		// 		},
-		// 	},
-		// },
+		{
+			note: "explicit not-body, nested negations",
+			module: `package negation
+				import future.keywords.not
+				
+				p if not {
+					not {
+						not false
+					}
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p if not {
+					not {
+						not false
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "explicit not-body, nested negations, ref to outer var",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					a = 1
+					not {
+						a = 2
+						not {
+							a = 3
+							not a = 4
+						}
+					}
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p if {
+					a = 1
+					not {
+						a = 2
+						not {
+							a = 3
+							not a = 4
+						}
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "explicit not-body, nested negations, ref to outer var, inner override",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					a = 1
+					not {
+						a := 2
+						not {
+							a = 3
+							not a = 4
+						}
+					}
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					a = 1
+					not {
+						__local0__ = 2
+						not {
+							__local0__ = 3
+							not { __local0__ = 4 }
+						}
+					}
+				}
+			`, popts),
+		},
+		{
+			note: "explicit not-body, nested negations, ref to outer var, multiple inner overrides",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					a = 1
+					not {
+						a := 2
+						not {
+							a := 3
+							not a = 4
+						}
+					}
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					a = 1
+					not {
+						__local0__ = 2
+						not {
+							__local1__ = 3
+							not { __local1__ = 4 }
+						}
+					}
+				}
+			`, popts),
+		},
 	}
 
 	for _, tc := range tests {

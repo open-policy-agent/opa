@@ -1639,7 +1639,9 @@ type schemaParser struct {
 }
 
 type cachedDef struct {
-	properties []*types.StaticProperty
+	typ        types.Type
+	rec        *types.Recursive
+	processing bool
 }
 
 func newSchemaParser() *schemaParser {
@@ -1652,7 +1654,7 @@ func (parser *schemaParser) parseSchema(schema any) (types.Type, error) {
 	return parser.parseSchemaWithPropertyKey(schema, "")
 }
 
-func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey string) (types.Type, error) {
+func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey string) (result types.Type, err error) {
 	subSchema, ok := schema.(*gojsonschema.SubSchema)
 	if !ok {
 		return nil, fmt.Errorf("unexpected schema type %v", subSchema)
@@ -1661,9 +1663,33 @@ func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey s
 	// Handle referenced schemas, returns directly when a $ref is found
 	if subSchema.RefSchema != nil {
 		if existing, ok := parser.definitionCache[subSchema.Ref.String()]; ok {
-			return types.NewObject(existing.properties, nil), nil
+			if existing.processing {
+				if existing.rec == nil {
+					existing.rec = types.NewRecursive(subSchema.Ref.String(), nil)
+				}
+				return existing.rec, nil
+			}
+			return existing.typ, nil
 		}
 		return parser.parseSchemaWithPropertyKey(subSchema.RefSchema, subSchema.Ref.String())
+	}
+
+	// Cache this $ref definition and finalize it via defer when parsing
+	// completes. This allows recursive $refs to be detected: if a nested
+	// $ref hits a definition that is still processing, we know it's a cycle.
+	var def *cachedDef
+	if propertyKey != "" {
+		def = &cachedDef{processing: true}
+		parser.definitionCache[propertyKey] = def
+		defer func() {
+			def.processing = false
+			if result != nil && err == nil {
+				def.typ = result
+				if def.rec != nil {
+					def.rec.SetType(result)
+				}
+			}
+		}()
 	}
 
 	// Handle anyOf
@@ -1733,28 +1759,15 @@ func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey s
 
 		} else if subSchema.Types.Contains("object") {
 			if len(subSchema.PropertiesChildren) > 0 {
-				def := &cachedDef{
-					properties: make([]*types.StaticProperty, 0, len(subSchema.PropertiesChildren)),
-				}
-				for _, pSchema := range subSchema.PropertiesChildren {
-					def.properties = append(def.properties, types.NewStaticProperty(pSchema.Property, nil))
-				}
-				if propertyKey != "" {
-					parser.definitionCache[propertyKey] = def
-				}
+				properties := make([]*types.StaticProperty, 0, len(subSchema.PropertiesChildren))
 				for _, pSchema := range subSchema.PropertiesChildren {
 					newtype, err := parser.parseSchema(pSchema)
 					if err != nil {
 						return nil, fmt.Errorf("unexpected schema type %v: %w", pSchema, err)
 					}
-					for i, prop := range def.properties {
-						if prop.Key == pSchema.Property {
-							def.properties[i].Value = newtype
-							break
-						}
-					}
+					properties = append(properties, types.NewStaticProperty(pSchema.Property, newtype))
 				}
-				return types.NewObject(def.properties, nil), nil
+				return types.NewObject(properties, nil), nil
 			}
 			return types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)), nil
 
@@ -4648,6 +4661,10 @@ func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
 		return false
 	}
 
+	if n.ExplicitBody {
+		return true
+	}
+
 	internalVis := varVisitorPool.Get()
 	defer varVisitorPool.Put(internalVis)
 
@@ -5214,7 +5231,8 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 		ignore.Pop()
 	case *Not:
 		cpy.Terms = &Not{
-			Body: resolveRefsInBody(globals, ignore, ts.Body),
+			Body:         resolveRefsInBody(globals, ignore, ts.Body),
+			ExplicitBody: ts.ExplicitBody,
 		}
 	}
 	for _, w := range cpy.With {
@@ -6087,6 +6105,9 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs, strict)
 		case body[i].IsEvery():
 			expr, errs = rewriteEveryStatement(g, stack, body[i], errs, strict)
+		case body[i].IsNot() && body[i].Terms.(*Not).ExplicitBody:
+			// Only explicit not bodies are allowed to declare vars
+			expr, errs = rewriteNotStatement(g, stack, body[i], errs, strict)
 		default:
 			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs, strict)
 		}
@@ -6324,6 +6345,19 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 		}
 	}
 	return nil, errs
+}
+
+func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
+	e := expr.Copy()
+	not := e.Terms.(*Not)
+
+	stack.Push()
+	defer stack.Pop()
+
+	used := NewVarSet()
+	not.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, not.Body, errs, strict)
+
+	return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
 }
 
 func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
