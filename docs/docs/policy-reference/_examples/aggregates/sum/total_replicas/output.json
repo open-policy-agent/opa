@@ -1,0 +1,7 @@
+{
+  "replicas": [3, 4, 5],
+  "total_replicas": 12,
+  "deny": [
+    "total replicas 12 exceeds namespace budget of 10"
+  ]
+}
