@@ -1,14 +1,22 @@
 {
-  "containers": ["nginx", "sidecar", "logger"],
   "container_count": 3,
-  "unique_ports": [80, 443],
-  "unique_port_count": 2,
+  "containers": [
+    "nginx",
+    "sidecar",
+    "logger"
+  ],
+  "deny": [],
+  "label_count": 3,
   "labels": {
     "app": "web",
-    "tier": "frontend",
-    "team": "platform"
+    "team": "platform",
+    "tier": "frontend"
   },
-  "label_count": 3,
   "name": "kubernetes",
-  "name_length": 10
+  "name_length": 10,
+  "unique_port_count": 2,
+  "unique_ports": [
+    80,
+    443
+  ]
 }
