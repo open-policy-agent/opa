@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 # An array
 containers := ["nginx", "sidecar", "logger"]
 

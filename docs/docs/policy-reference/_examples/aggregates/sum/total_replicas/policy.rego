@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 # Replicas requested by every Deployment in the input.
 replicas := [d.spec.replicas | some d in input.deployments]
 
