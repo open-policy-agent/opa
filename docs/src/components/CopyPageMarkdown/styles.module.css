@@ -2,6 +2,6 @@
   margin: 0.75rem 0 1rem;
 }
 
-.icons {
-  display: flex;
+.wrapper button {
+    font-size: 0.75rem;
 }
