@@ -18,6 +18,7 @@ go_change_suffixes := [
 	".sh",
 	".yaml",
 	".yml",
+	".txtar",
 ]
 
 wasm_change_prefixes := [
