@@ -7,14 +7,5 @@
 }
 
 .icons {
-  display: flex;
-    width: 1em;
-    height: 1em;
-}
-
-/* Hide icon in Firefox to match Safari's rendering */
-@supports (-moz-appearance: none) {
-    .icons {
-        display: none;
-    }
+    display: none;
 }
