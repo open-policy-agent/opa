@@ -2,6 +2,19 @@
   margin: 0.75rem 0 1rem;
 }
 
+.wrapper button {
+    font-size: 0.75rem;
+}
+
 .icons {
   display: flex;
+    width: 1em;
+    height: 1em;
+}
+
+/* Hide icon in Firefox to match Safari's rendering */
+@supports (-moz-appearance: none) {
+    .icons {
+        display: none;
+    }
 }
