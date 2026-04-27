@@ -5137,7 +5137,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		// syntax ('not {...}') is allowed, that change will be unnecessary and we'd instead simply inline the negated composite expression inside the not-body.
 
 		{
-			note:        "negated expression expansion",
+			note:        "not-body: negated expression expansion",
 			notBodyOnly: true,
 			query:       "data.test.p",
 			modules: []string{`
@@ -5154,7 +5154,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			`},
 		},
 		{
-			note:        "negated expression expansion, inlining",
+			note:        "not-body: negated expression expansion, inlining",
 			notBodyOnly: true,
 			query:       "data.test.p",
 			modules: []string{`
@@ -5175,7 +5175,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			`},
 		},
 		{
-			note:        "negated expression expansion, inlining, shallow",
+			note:        "not-body: negated expression expansion, inlining, shallow",
 			notBodyOnly: true,
 			shallow:     true,
 			query:       "data.test.p = true",
@@ -5212,7 +5212,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			`},
 		},
 		{
-			note:        "negated expression expansion: not body preserves outer var",
+			note:        "not-body: negated expression expansion: not body preserves outer var",
 			notBodyOnly: true,
 			query:       "data.test.p = true",
 			modules: []string{`
@@ -5231,7 +5231,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		},
 
 		{
-			note:        "negated expression expansion, inlining, with on outer negation",
+			note:        "not-body: negated expression expansion, inlining, with on outer negation",
 			notBodyOnly: true,
 			query:       "data.test.p",
 			modules: []string{`
@@ -5261,7 +5261,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			`},
 		},
 		{
-			note:        "negated expression expansion, inlining, with inside negation",
+			note:        "not-body: negated expression expansion, inlining, with inside negation",
 			notBodyOnly: true,
 			query:       "data.test.p",
 			modules: []string{`
@@ -5296,7 +5296,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			`},
 		},
 		{
-			note:        "negated expression expansion, inlining, with (unknown value)",
+			note:        "not-body: negated expression expansion, inlining, with (unknown value)",
 			notBodyOnly: true,
 			query:       "data.test.p",
 			modules: []string{`
@@ -5312,6 +5312,291 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			`},
 			// Unknown 'with' values will save the expression instead of PE:ing it, which is why it remains as-is in the query instead of generating a support rule.
 			wantQueries: []string{"not plus(data.test.q, 1, 2) with input.x as input.y"},
+		},
+
+		{
+			note:        "not-body: multi-expression, inline",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`
+				package test
+				import future.keywords.not
+				p if {
+					not {
+						input.x = 1
+						input.y = 2
+					}
+				}
+			`},
+			wantQueries: []string{"not {input.x = 1; input.y = 2}"},
+			ignoreOrder: true,
+		},
+		{
+			note:        "not-body: multi-expression, shallow",
+			notBodyOnly: true,
+			shallow:     true,
+			query:       "data.test.p = true",
+			modules: []string{`
+				package test
+				import future.keywords.not
+				p if {
+					not {
+						input.x = 1
+						input.y = 2
+					}
+				}
+			`},
+			wantQueries: []string{"data.partial.test.p = true"},
+			wantSupport: []string{`
+				package partial.test
+				
+				p = true if { not input.x = 1 }
+				p = true if { not input.y = 2 }
+			`},
+			ignoreOrder: true,
+		},
+
+		{
+			note:        "not-body: multi-expression, interdependent expressions, inline",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`
+				package test
+				import future.keywords.not
+				p if {
+					not {
+						a = input.x
+						b = input.y
+						a == 1
+						b == 2
+						a == b
+					}
+				}
+			`},
+			wantQueries: []string{"not {a1 = input.x; b1 = input.y; a1 = 1; b1 = 2; a1 = b1}"},
+			ignoreOrder: true,
+		},
+		{
+			note:        "not-body: multi-expression, interdependent expressions, shallow",
+			notBodyOnly: true,
+			shallow:     true,
+			query:       "data.test.p = true",
+			modules: []string{`
+				package test
+				import future.keywords.not
+				p if {
+					not {
+						a = input.x
+						b = input.y
+						a == 1
+						b == 2
+						a == b
+					}
+				}
+			`},
+			wantQueries: []string{"data.partial.test.p = true"},
+			wantSupport: []string{`
+				package partial
+				
+				__not1_0_2__ = true if { 
+					a1 = input.x
+					b1 = input.y
+					a1 = 1
+					b1 = 2
+					a1 = b1
+				}
+			`, `package partial.test
+				
+				p = true if { 
+					not data.partial.__not1_0_2__ 
+				}
+			`},
+			ignoreOrder: true,
+		},
+
+		{
+			note:        "not-body: multi-expression, compound expressions",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+
+				p if {
+					not {
+						(input.x + 1) > 10
+						input.y / input.z < 5
+					}
+				}
+			`},
+			// The compound expressions can't be inlined, so they need support rules
+			wantQueries: []string{"not {gt(plus(input.x, 1), 10); lt(div(input.y, input.z), 5)}"},
+		},
+		{
+			note:        "not-body: multi-expression, compound expressions, shallow",
+			notBodyOnly: true,
+			shallow:     true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+
+				p if {
+					not {
+						(input.x + 1) > 10
+						input.y / input.z < 5
+					}
+				}
+			`},
+			// The compound expressions can't be inlined, so they need support rules
+			wantQueries: []string{"data.partial.test.p = true"},
+			wantSupport: []string{`package partial.test
+				
+				p = true if { 
+					not data.partial.__not1_0_2__ 
+				}
+			`, `package partial
+				
+				__not1_0_2__ = true if { 
+					__local2__1 = input.x
+					plus(__local2__1, 1, __local0__1)
+					gt(__local0__1, 10)
+					__local3__1 = input.y
+					__local4__1 = input.z
+					div(__local3__1, __local4__1, __local1__1)
+					lt(__local1__1, 5) 
+				}
+			`},
+			ignoreOrder: true,
+		},
+
+		{
+			note:        "not-body: with modifier",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not {
+						input.x = 1
+					} with input.x as 2
+				}
+			`},
+			wantQueries: []string{`not {input.x = 1} with input.x as 2`},
+		},
+
+		{
+			note:        "not-body: outer variable binding",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+			
+				p if {
+					x = input.x
+					not {
+						x = 1
+						x = input.y
+					}
+				}
+			`},
+			wantQueries: []string{"not {input.x = 1; input.x = input.y}"},
+			ignoreOrder: true,
+		},
+
+		{
+			note:        "not-body: nested double negation",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+
+				p if {
+					not {
+						input.items[_] = x
+						not { x > 10 }
+					}
+				}
+			`},
+			wantQueries: []string{`not {not {gt(x1, 10)}; x1 = input.items[_]}`},
+		},
+		{
+			note:        "not-body: nested double negation, shallow",
+			notBodyOnly: true,
+			shallow:     true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+
+				p if {
+					not {
+						input.items[_] = x
+						not { x > 10 }
+					}
+				}
+			`},
+			wantQueries: []string{`data.partial.test.p = true`},
+			wantSupport: []string{`package partial
+				
+				__not1_0_2__ = true if { 
+					input.items[_] = x1
+					not gt(x1, 10)
+				}
+			`, `package partial.test
+				
+				p = true if { 
+					not data.partial.__not1_0_2__
+				}
+			`},
+			ignoreOrder: true,
+		},
+
+		{
+			note:        "not-body: disjunctive rule call",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not {
+						q
+						input.y = 1
+					}
+				}
+				
+				q if { input.x = 1 }
+				q if { input.x = 2 }
+			`},
+			wantQueries: []string{`not {input.x = 1; input.y = 1}; not {input.x = 2; input.y = 1}`},
+		},
+		{
+			note:        "not-body: disjunctive rule call, shallow",
+			notBodyOnly: true,
+			shallow:     true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not {
+						q
+						input.y = 1
+					}
+				}
+				
+				q if { input.x = 1 }
+				q if { input.x = 2 }
+			`},
+			wantQueries: []string{`data.partial.test.p = true`},
+			wantSupport: []string{`package partial.test
+
+				p = true if { 
+					not data.partial.__not1_0_2__ 
+				}
+				
+				q = true if { input.x = 1 }
+				q = true if { input.x = 2 }
+			`, `package partial
+				
+				__not1_0_2__ = true if { 
+					data.partial.test.q = x_term_2_01
+					x_term_2_01
+					input.y = 1
+				}
+			`},
+			ignoreOrder: true,
 		},
 	}
 
@@ -5407,6 +5692,9 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 					}
 
 					queriesA, queriesB := bodySet(partials), bodySet(expectedQueries)
+					replaceWildcardsInBodySet(queriesA)
+					replaceWildcardsInBodySet(queriesB)
+
 					if !queriesB.Equal(queriesA, tc.ignoreOrder) {
 						missing := queriesB.Diff(queriesA, tc.ignoreOrder)
 						extra := queriesA.Diff(queriesB, tc.ignoreOrder)
@@ -5422,6 +5710,9 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 						}
 					}
 					supportA, supportB := moduleSet(support), moduleSet(expectedSupport)
+					replaceWildcardsInModuleSet(supportA)
+					replaceWildcardsInModuleSet(supportB)
+
 					if !supportA.Equal(supportB) {
 						missing := supportB.Diff(supportA)
 						extra := supportA.Diff(supportB)
@@ -5430,6 +5721,30 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func replaceWildcardsInBodySet(s bodySet) {
+	for i := range s {
+		x, _ := ast.TransformVars(s[i], func(v ast.Var) (ast.Value, error) {
+			if v.IsWildcard() {
+				return ast.WildcardValue, nil
+			}
+			return v, nil
+		})
+		s[i] = x.(ast.Body)
+	}
+}
+
+func replaceWildcardsInModuleSet(s moduleSet) {
+	for i := range s {
+		x, _ := ast.TransformVars(s[i], func(v ast.Var) (ast.Value, error) {
+			if v.IsWildcard() {
+				return ast.WildcardValue, nil
+			}
+			return v, nil
+		})
+		s[i] = x.(*ast.Module)
 	}
 }
 

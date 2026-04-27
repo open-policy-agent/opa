@@ -4198,7 +4198,54 @@ func (e evalNot) eval(iter evalIterator) error {
 }
 
 func (e evalNot) evalPartial(iter evalIterator) error {
-	// Prepare query normally.
+	if e.not.ExplicitBody && !e.e.inliningControl.shallow {
+		// we don't need to calculate a cartesian product for explicit not-bodies, as each 'not' acts as a closure for PE:d child expressions.
+
+		child := evalPool.Get()
+		defer evalPool.Put(child)
+
+		e.e.closure(e.not.Body, child)
+
+		var savedQueries []ast.Body
+		e.e.saveStack.PushQuery(nil)
+
+		_ = child.eval(func(*eval) error {
+			query := e.e.saveStack.Peek()
+			plugged := query.Plug(e.e.caller.bindings)
+
+			// Note: we could possibly apply copy propagation here, but that might fold calls into a nested structure that would require a type-checker update.
+
+			// Skip this rule body if it fails to type-check.
+			// Type-checking failure means the rule body will never succeed.
+			if !e.e.compiler.PassesTypeCheck(plugged) {
+				return nil
+			}
+
+			savedQueries = append(savedQueries, plugged)
+			return nil
+		}) // cannot return error
+
+		e.e.saveStack.PopQuery()
+
+		// If partial evaluation produced no results, the expression is always undefined
+		// so it does not have to be saved.
+		if len(savedQueries) == 0 {
+			return iter(e.e)
+		}
+
+		q := make([]*ast.Expr, 0, len(savedQueries))
+		for i := range savedQueries {
+			q = append(q, ast.NewExpr(&ast.Not{
+				Body:         savedQueries[i].Copy(),
+				ExplicitBody: true,
+			}))
+		}
+
+		return e.e.saveInlinedNegatedExprs(q, func() error {
+			return iter(e.e)
+		})
+	}
+
 	expr := e.e.query[e.e.index]
 
 	unNegate := func(expr *ast.Expr) ast.Body {
@@ -4424,11 +4471,12 @@ func complementedCartesianProduct(queries []ast.Body, idx int, curr ast.Body, co
 		return iter(curr)
 	}
 	for _, expr := range queries[idx] {
+		mark := len(curr)
 		curr = append(curr, complement(expr)...)
 		if err := complementedCartesianProduct(queries, idx+1, curr, complement, iter); err != nil {
 			return err
 		}
-		curr = curr[:len(curr)-1]
+		curr = curr[:mark]
 	}
 	return nil
 }
