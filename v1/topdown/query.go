@@ -63,6 +63,8 @@ type Query struct {
 	tracingOpts                 tracing.Options
 	virtualCache                VirtualCache
 	baseCache                   BaseCache
+	requestMetadata             map[string]any
+	responseMetadata            map[string]any
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -333,6 +335,21 @@ func (q *Query) WithNondeterministicBuiltins(yes bool) *Query {
 	return q
 }
 
+// WithRequestMetadata sets arbitrary metadata from the caller that can be
+// used by wrapping projects. The data is stored but not directly used by
+// OPA's evaluation engine.
+func (q *Query) WithRequestMetadata(m map[string]any) *Query {
+	q.requestMetadata = m
+	return q
+}
+
+// WithResponseMetadata sets a map that wrapping projects can populate during
+// evaluation to include additional fields in the API response.
+func (q *Query) WithResponseMetadata(m map[string]any) *Query {
+	q.responseMetadata = m
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -407,13 +424,15 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 			shallow:                  q.shallowInlining,
 			nondeterministicBuiltins: q.nondeterministicBuiltins,
 		},
-		genvarprefix:  q.genvarprefix,
-		runtime:       q.runtime,
-		indexing:      q.indexing,
-		earlyExit:     q.earlyExit,
-		builtinErrors: &builtinErrors{},
-		printHook:     q.printHook,
-		strictObjects: q.strictObjects,
+		genvarprefix:     q.genvarprefix,
+		runtime:          q.runtime,
+		indexing:         q.indexing,
+		earlyExit:        q.earlyExit,
+		builtinErrors:    &builtinErrors{},
+		printHook:        q.printHook,
+		strictObjects:    q.strictObjects,
+		requestMetadata:  q.requestMetadata,
+		responseMetadata: q.responseMetadata,
 	}
 
 	if len(q.disableInlining) > 0 {
@@ -602,6 +621,11 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		tracingOpts:                 q.tracingOpts,
 		strictObjects:               q.strictObjects,
 		roundTripper:                q.roundTripper,
+		requestMetadata:             q.requestMetadata,
+		responseMetadata:            q.responseMetadata,
+	}
+	if e.requestMetadata == nil {
+		e.requestMetadata = map[string]any{}
 	}
 	e.caller = e
 	q.metrics.Timer(metrics.RegoQueryEval).Start()

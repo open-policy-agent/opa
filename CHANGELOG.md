@@ -5,7 +5,65 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-1.15.1
+### Data API Request/Response Metadata
+
+Wrapping projects can now attach custom metadata to Data API requests and have evaluation produce response metadata.
+
+Two distinct metadata paths are introduced:
+
+- **Request metadata**: parsed from extra top-level keys in the request body, made available to builtins via `BuiltinContext.RequestMetadata`. Logged in the decision log under `Custom["request_metadata"]`.
+
+- **Response metadata**: a separate map (`BuiltinContext.ResponseMetadata`) that builtins can populate during evaluation. Only included in the API response and decision log if non-empty.
+
+In vanilla OPA, no builtins write response metadata, so responses are unchanged. The request metadata map is only allocated when the request carries extra fields; the response map is one empty map per request.
+
+To avoid conflicts with future OPA top-level keys, callers should use a namespaced key: `{"input": {...}, "com.example.opa/md": {...}}`.
+
+**Request with metadata:**
+
+```bash
+curl -H 'Content-Type: application/json' \
+  -d '{"input": {"user": "alice"}, "com.example.opa/metadata": {"corp-id": "acme-42"}}' \
+  http://localhost:8181/v1/data/example/allow
+```
+
+**Response** (response metadata included if, for example, set by a custom builtin):
+
+```json
+{
+  "decision_id": "04789f85-de5a-477b-8aa5-6d59d7742135",
+  "result": true,
+  "com.example.opa/response": {
+    "snapshot_version": "v3"
+  }
+}
+```
+
+**Decision log entry:**
+
+```json
+{
+  "custom": {
+    "request_metadata": {
+      "com.example.opa/metadata": {
+        "corp-id": "acme-42"
+      }
+    },
+    "response_metadata": {
+      "com.example.opa/response": {
+        "snapshot_version": "v3"
+      }
+    }
+  },
+  "decision_id": "04789f85-de5a-477b-8aa5-6d59d7742135",
+  "input": { "user": "alice" },
+  "msg": "Decision Log",
+  "path": "example/allow",
+  "result": true
+}
+```
+
+## 1.15.1
 
 This patch release fixes a backwards-incompatible change in the v1/logging.Logger interface that inadvertently made it
 into Release v1.15.0. When using OPA as Go module, and when providing custom Logger implementations, this change would

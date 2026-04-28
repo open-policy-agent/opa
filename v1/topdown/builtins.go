@@ -54,6 +54,8 @@ type (
 		PrintHook                   print.Hook                 // provides callback function to use for printing
 		RoundTripper                CustomizeRoundTripper      // customize transport to use for HTTP requests
 		DistributedTracingOpts      tracing.Options            // options to be used by distributed tracing.
+		RequestMetadata             map[string]any             // metadata from the caller, for use by wrapping projects
+		ResponseMetadata            map[string]any             // metadata for the response, populated by wrapping projects
 		rand                        *rand.Rand                 // randomization source for non-security-sensitive operations
 		Capabilities                *ast.Capabilities
 	}
