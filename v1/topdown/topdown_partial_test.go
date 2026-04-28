@@ -5761,7 +5761,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 						&ast.Expr{ // legacy negation (equivalent to implicit not-body when serialized to Rego).
 							Negated: true,
 							Terms: []*ast.Term{
-								&ast.Term{Value: ast.Equality.Ref()},
+								{Value: ast.Equality.Ref()},
 								ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("x")),
 								ast.NumberTerm("1"),
 							},
@@ -5822,7 +5822,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 						&ast.Expr{ // legacy negation (equivalent to implicit not-body when serialized to Rego).
 							Negated: true,
 							Terms: []*ast.Term{
-								&ast.Term{Value: ast.Equality.Ref()},
+								{Value: ast.Equality.Ref()},
 								ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("y")),
 								ast.NumberTerm("2"),
 							},
