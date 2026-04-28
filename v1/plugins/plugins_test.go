@@ -134,6 +134,7 @@ func TestManagerPluginStatusListener(t *testing.T) {
 
 	// Unregister the first listener
 	m.UnregisterPluginStatusListener("l1")
+	l1Status = nil
 
 	// Send another update, ensure the status is ok and the remaining listener is still called
 	m.UpdatePluginStatus("p2", &Status{State: StateErr})
@@ -144,15 +145,22 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	if !reflect.DeepEqual(currentStatus, l2Status) {
 		t.Fatalf("Unexpected status in updates:\n\n\texpecting: %+v\n\n\tgot: %+v\n", currentStatus, l2Status)
 	}
+	if l1Status != nil {
+		t.Fatalf("Expected unregistered listener l1 to not be called, got: %+v", l1Status)
+	}
 
 	// Unregister the last listener
 	m.UnregisterPluginStatusListener("l2")
+	l2Status = nil
 
 	// Ensure updates can still be sent with no listeners
 	m.UpdatePluginStatus("p2", &Status{State: StateOK})
 	currentStatus = m.PluginStatus()
 	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != message || currentStatus["p2"].State != StateOK {
 		t.Fatalf("Unexpected current plugin status, got: %+v", currentStatus)
+	}
+	if l2Status != nil {
+		t.Fatalf("Expected unregistered listener l2 to not be called, got: %+v", l2Status)
 	}
 }
 

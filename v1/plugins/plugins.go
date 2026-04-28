@@ -239,7 +239,9 @@ type Manager struct {
 	bundleActivatorPlugin        string
 }
 
-type pluginStatusMsg interface{ pluginStatusMsg() }
+type pluginStatusMsg interface {
+	pluginStatusMsg()
+}
 
 type statusUpdate struct {
 	name   string
@@ -856,6 +858,7 @@ func (m *Manager) Start(ctx context.Context) error {
 // of the graceful shutdown period passed with the context as a timeout.
 // Note that a graceful shutdown period configured with the Manager instance
 // will override the timeout of the passed in context (if applicable).
+// NOTE: You cannot call this twice, or it will hang.
 func (m *Manager) Stop(ctx context.Context) {
 	var toStop []Plugin
 
@@ -1303,9 +1306,11 @@ func (m *Manager) pluginStatusLoop() {
 			switch msg := msg.(type) {
 			case statusUpdate:
 				status[msg.name] = msg.status
-				statuses := copyPluginStatus(status)
-				for _, l := range listeners {
-					l(statuses)
+				if len(listeners) > 0 {
+					statuses := copyPluginStatus(status)
+					for _, l := range listeners {
+						l(statuses)
+					}
 				}
 				close(msg.done)
 			case statusInitPlugin:
