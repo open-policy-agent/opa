@@ -164,8 +164,7 @@ func TestDecisionLogsWithLoggerPlugin(t *testing.T) {
 			t.Errorf("expected type field in log output, got: %s", logged)
 		}
 
-		decisionLogsPlugin.Stop(ctx)
-		testLoggerPlug.Stop(ctx)
+		manager.Stop(ctx)
 	})
 }
 
@@ -277,8 +276,7 @@ func TestDecisionLogsWithBothConsoleAndLoggerPlugin(t *testing.T) {
 			t.Errorf("expected decision_id in console logger output")
 		}
 
-		decisionLogsPlugin.Stop(ctx)
-		testLoggerPlug.Stop(ctx)
+		manager.Stop(ctx)
 	})
 }
 
