@@ -531,6 +531,16 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 		}
 	}
 
+	// When one side is a Var with no type and the other has partial type
+	// info (e.g. a comprehension with some undetermined components),
+	// assign the known structure to the Var.
+	if _, ok := a.Value.(Var); ok && typeA == nil && typeB != nil {
+		return unify1(env, a, typeB, false)
+	}
+	if _, ok := b.Value.(Var); ok && typeB == nil && typeA != nil {
+		return unify1(env, b, typeA, false)
+	}
+
 	return false
 }
 

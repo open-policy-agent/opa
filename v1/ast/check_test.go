@@ -2850,6 +2850,40 @@ bug if {
 	some n2 in nums[n1]
 }`,
 		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/5234
+		{
+			name: "undetermined function args should be any",
+			policy: `package p
+
+flatten(k, v) = vs if {
+  is_array(v)
+  vs = {[k, u] | u = v[_]}
+} {
+  is_string(v)
+  vs = {[k, v]}
+}`,
+		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/5234
+		{
+			name: "undetermined function args",
+			policy: `package p
+
+f(x) := y if y := { x | true }
+
+p := f(2)`,
+		},
+		{
+			name: "undetermined function args, reversed operands",
+			policy: `package p
+
+flatten(k, v) = vs if {
+  is_array(v)
+  {[k, u] | u = v[_]} = vs
+} {
+  is_string(v)
+  {[k, v]} = vs
+}`,
+		},
 	}
 
 	for _, tc := range tests {
