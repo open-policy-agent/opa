@@ -585,6 +585,29 @@ func NotExpr(exprs ...*Expr) *Expr {
 	})
 }
 
+func ComplementNotExpr(expr *Expr) []*Expr {
+	if expr.Negated {
+		// Legacy negation
+		return []*Expr{expr.Complement()}
+	}
+
+	if n, ok := expr.Terms.(*Not); ok {
+		b := make([]*Expr, 0, len(n.Body))
+		for _, e := range n.Body {
+			cpy := *e
+
+			for _, w := range expr.With {
+				cpy.With = append(cpy.With, w.Copy())
+			}
+
+			b = append(b, &cpy)
+		}
+		return b
+	}
+
+	return []*Expr{NotExpr(expr)}
+}
+
 // Copy returns a deep copy of n.
 func (n *Not) Copy() *Not {
 	cpy := *n

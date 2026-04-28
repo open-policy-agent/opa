@@ -1163,6 +1163,8 @@ func NewExpr(terms any) *Expr {
 }
 
 // Complement returns a copy of this expression with the negation flag flipped.
+// Note: complementing an expression containing an ast.Not term is invalid, as this will create a double negation;
+// ast.Not terms may contain multiple expressions, and can therefore not be un-negated to a single *ast.Expr; use ast.ComplementNotExpr() instead.
 func (expr *Expr) Complement() *Expr {
 	cpy := *expr
 	cpy.Negated = !cpy.Negated

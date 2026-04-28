@@ -825,6 +825,9 @@ func (e *eval) setupAndEvalNotPartial(iter evalIterator) error {
 	}
 
 	complement := func(expr *ast.Expr) []*ast.Expr {
+		if expr.IsNot() {
+			return ast.ComplementNotExpr(expr)
+		}
 		return []*ast.Expr{expr.Complement()}
 	}
 
@@ -4252,34 +4255,11 @@ func (e evalNot) evalPartial(iter evalIterator) error {
 		return e.not.Body
 	}
 
-	complement := func(expr *ast.Expr) []*ast.Expr {
-		if n, ok := expr.Terms.(*ast.Not); ok {
-			b := make([]*ast.Expr, 0, len(n.Body))
-			for _, e := range n.Body {
-				cpy := *e
-
-				for _, w := range expr.With {
-					cpy.With = append(cpy.With, w.Copy())
-				}
-
-				b = append(b, &cpy)
-			}
-			return b
-		}
-
-		// The negated expr might be coming from a module that's not importing 'future.keywords.not'
-		if expr.Negated {
-			return []*ast.Expr{expr.Complement()}
-		}
-
-		return []*ast.Expr{ast.NotExpr(expr)}
-	}
-
 	supportTerms := func(terms any) any {
 		return ast.NewNot(ast.NewExpr(terms))
 	}
 
-	return e.e.evalNotPartial(expr, unNegate, complement, supportTerms, iter)
+	return e.e.evalNotPartial(expr, unNegate, ast.ComplementNotExpr, supportTerms, iter)
 }
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {

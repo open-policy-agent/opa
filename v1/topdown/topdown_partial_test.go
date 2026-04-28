@@ -5598,6 +5598,239 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			`},
 			ignoreOrder: true,
 		},
+
+		{
+			note:        "not-body: complemented cartesian product, multi-element complement",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not q # This implicit not-body triggers complemented cartesian product generation
+				}
+				
+				q if {
+					not {
+						input.x = 1
+						input.y = 2
+					}
+					input.a = "foo"
+				}
+			`},
+			wantQueries: []string{
+				`input.x = 1; input.y = 2`,
+				`not input.a = "foo"`,
+			},
+			ignoreOrder: true,
+		},
+		{
+			note:        "not-body: complemented cartesian product, multi-element complement (2)",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not q
+				}
+				
+				q if {
+					not {
+						input.x = 1
+						input.y = 2
+						input.z = 3
+					}
+					input.a = 4
+					input.b = 5
+					not input.c = 6
+				}
+			`},
+			wantQueries: []string{
+				`input.x = 1; input.y = 2; input.z = 3`,
+				`not input.a = 4`,
+				`not input.b = 5`,
+				`input.c = 6`,
+			},
+			ignoreOrder: true,
+		},
+		{
+			note:        "not-body: complemented cartesian product, multi-element complement with disjunction",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not q
+				}
+				
+				q if {
+					not {
+						input.x = 1
+						input.y = 2
+					}
+					input.a = "foo"
+				}
+				
+				q if {
+					input.z = 3
+				}
+			`},
+			wantQueries: []string{
+				`input.x = 1; input.y = 2; not input.z = 3`,
+				`not input.a = "foo"; not input.z = 3`,
+			},
+			ignoreOrder: true,
+		},
+
+		{
+			note:        "not-body and legacy negation mix",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not {
+						input.x = 1
+						input.y = 2
+					}
+				}
+			`},
+			// Legacy modules
+			moduleASTs: []*ast.Module{
+				ast.MustParseModule(`package test
+					p if {
+						not input.z = 3
+					}
+				`),
+			},
+			wantQueries: []string{
+				`not {input.x = 1; input.y = 2}`,
+			},
+			// legacy queries
+			wantQueryASTs: []ast.Body{
+				ast.MustParseBody(`not input.z = 3`),
+			},
+		},
+		{
+			note:        "not-body and legacy negation mix, legacy calls not-body",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				q if {
+					not {
+						input.x = 1
+						input.y = 2
+					}
+				}
+			`},
+			// Legacy modules
+			moduleASTs: []*ast.Module{
+				ast.MustParseModule(`package test
+					p if {
+						not q
+					}
+				`),
+			},
+			wantQueries: []string{
+				`input.x = 1; input.y = 2`,
+			},
+		},
+		{
+			note:        "not-body and legacy negation mix, not-body calls legacy, explicit not-body",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not { q }
+				}
+			`},
+			// Legacy modules
+			moduleASTs: []*ast.Module{
+				ast.MustParseModule(`package test
+					q if {
+						not input.x = 1
+					}
+				`),
+			},
+			// not {not input.x = 1}
+			wantQueryASTs: []ast.Body{
+				ast.NewBody(
+					ast.NotExpr(
+
+						&ast.Expr{ // legacy negation (equivalent to implicit not-body when serialized to Rego).
+							Negated: true,
+							Terms: []*ast.Term{
+								&ast.Term{Value: ast.Equality.Ref()},
+								ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("x")),
+								ast.NumberTerm("1"),
+							},
+						},
+					),
+				),
+			},
+		},
+		{
+			note:        "not-body and legacy negation mix, not-body calls legacy, implicit not-body",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not q 
+				}
+			`},
+			// Legacy modules
+			moduleASTs: []*ast.Module{
+				ast.MustParseModule(`package test
+					q if {
+						not input.x = 1
+					}
+				`),
+			},
+			wantQueries: []string{`input.x = 1`},
+		},
+		{
+			note:        "not-body and legacy negation mix, not-body calls legacy, multiple expressions in not-body",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not {
+						input.x = 1
+						q
+					}
+				}
+			`},
+			// Legacy modules
+			moduleASTs: []*ast.Module{
+				ast.MustParseModule(`package test
+					q if {
+						not input.y = 2
+					}
+				`),
+			},
+			// not {input.x = 1; not input.y = 2}
+			wantQueryASTs: []ast.Body{
+				ast.NewBody(
+					ast.NotExpr(
+						ast.Equality.Expr(
+							ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("x")),
+							ast.NumberTerm("1"),
+						),
+						&ast.Expr{ // legacy negation (equivalent to implicit not-body when serialized to Rego).
+							Negated: true,
+							Terms: []*ast.Term{
+								&ast.Term{Value: ast.Equality.Ref()},
+								ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("y")),
+								ast.NumberTerm("2"),
+							},
+						},
+					),
+				),
+			},
+		},
 	}
 
 	ctx := t.Context()
@@ -5684,11 +5917,10 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 
 					if len(tc.wantQueryASTs) > 0 {
 						expectedQueries = tc.wantQueryASTs
-					} else {
-						expectedQueries = make([]ast.Body, len(tc.wantQueries))
-						for i := range tc.wantQueries {
-							expectedQueries[i] = ast.MustParseBodyWithOpts(tc.wantQueries[i], popts)
-						}
+					}
+
+					for i := range tc.wantQueries {
+						expectedQueries = append(expectedQueries, ast.MustParseBodyWithOpts(tc.wantQueries[i], popts))
 					}
 
 					queriesA, queriesB := bodySet(partials), bodySet(expectedQueries)
