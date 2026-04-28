@@ -988,18 +988,18 @@ HTTP/1.1 200 OK
 #### Request/Response Metadata
 
 The Data API POST request body may contain additional top-level keys beyond
-`input`. These are captured as **incoming metadata** and made available to
-custom builtins via `BuiltinContext.IncomingMetadata` during evaluation. Incoming
+`input`. These are captured as **request metadata** and made available to
+custom builtins via `BuiltinContext.RequestMetadata` during evaluation. Request
 metadata is included in [decision log](./management-decision-logs) events under
-the `custom.incoming_metadata` field.
+the `custom.request_metadata` field.
 
-Custom builtins registered by wrapping projects can also produce **outgoing
-metadata** by writing to `BuiltinContext.OutgoingMetadata` during evaluation.
-If any outgoing metadata is produced, it appears as additional top-level fields
+Custom builtins registered by wrapping projects can also produce **response
+metadata** by writing to `BuiltinContext.ResponseMetadata` during evaluation.
+If any response metadata is produced, it appears as additional top-level fields
 in the API response and is included in decision log events under
-`custom.outgoing_metadata`.
+`custom.response_metadata`.
 
-In vanilla OPA, no builtins write outgoing metadata, so responses are unchanged.
+In vanilla OPA, no builtins write response metadata, so responses are unchanged.
 
 :::caution
 Future OPA versions may introduce new top-level keys in the request and response
@@ -1027,7 +1027,7 @@ Content-Type: application/json
 
 ##### Example Response
 
-If a custom builtin writes outgoing metadata during evaluation, the response
+If a custom builtin writes response metadata during evaluation, the response
 includes those fields alongside the standard ones:
 
 ```http
@@ -1045,7 +1045,7 @@ Content-Type: application/json
 }
 ```
 
-Without any outgoing metadata, the response contains only the standard fields:
+Without any response metadata, the response contains only the standard fields:
 
 ```json
 {

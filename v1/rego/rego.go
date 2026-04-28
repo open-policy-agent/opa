@@ -125,8 +125,8 @@ type EvalContext struct {
 	baseCache                   topdown.BaseCache
 	tracing                     tracing.Options
 	externalCancel              topdown.Cancel // Note(philip): If non-nil, the cancellation is handled outside of this package.
-	incomingMetadata            map[string]any
-	outgoingMetadata            map[string]any
+	requestMetadata             map[string]any
+	responseMetadata            map[string]any
 }
 
 func (e *EvalContext) RawInput() *any {
@@ -410,20 +410,20 @@ func EvalExternalCancel(ec topdown.Cancel) EvalOption {
 	}
 }
 
-// EvalIncomingMetadata sets arbitrary metadata from the caller that can be
+// EvalRequestMetadata sets arbitrary metadata from the caller that can be
 // passed through to the evaluation. This allows wrapping projects to attach
 // custom metadata to queries.
-func EvalIncomingMetadata(m map[string]any) EvalOption {
+func EvalRequestMetadata(m map[string]any) EvalOption {
 	return func(e *EvalContext) {
-		e.incomingMetadata = m
+		e.requestMetadata = m
 	}
 }
 
-// EvalOutgoingMetadata sets a map that wrapping projects can populate during
+// EvalResponseMetadata sets a map that wrapping projects can populate during
 // evaluation to include additional fields in the API response.
-func EvalOutgoingMetadata(m map[string]any) EvalOption {
+func EvalResponseMetadata(m map[string]any) EvalOption {
 	return func(e *EvalContext) {
-		e.outgoingMetadata = m
+		e.responseMetadata = m
 	}
 }
 
@@ -2291,8 +2291,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithDistributedTracingOpts(r.distributedTracingOpts).
 		WithVirtualCache(ectx.virtualCache).
 		WithBaseCache(ectx.baseCache).
-		WithIncomingMetadata(ectx.incomingMetadata).
-		WithOutgoingMetadata(ectx.outgoingMetadata)
+		WithRequestMetadata(ectx.requestMetadata).
+		WithResponseMetadata(ectx.responseMetadata)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2587,8 +2587,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithStrictBuiltinErrors(ectx.strictBuiltinErrors).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
-		WithIncomingMetadata(ectx.incomingMetadata).
-		WithOutgoingMetadata(ectx.outgoingMetadata)
+		WithRequestMetadata(ectx.requestMetadata).
+		WithResponseMetadata(ectx.responseMetadata)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

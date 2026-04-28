@@ -63,8 +63,8 @@ type Query struct {
 	tracingOpts                 tracing.Options
 	virtualCache                VirtualCache
 	baseCache                   BaseCache
-	incomingMetadata            map[string]any
-	outgoingMetadata            map[string]any
+	requestMetadata             map[string]any
+	responseMetadata            map[string]any
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -335,18 +335,18 @@ func (q *Query) WithNondeterministicBuiltins(yes bool) *Query {
 	return q
 }
 
-// WithIncomingMetadata sets arbitrary metadata from the caller that can be
+// WithRequestMetadata sets arbitrary metadata from the caller that can be
 // used by wrapping projects. The data is stored but not directly used by
 // OPA's evaluation engine.
-func (q *Query) WithIncomingMetadata(m map[string]any) *Query {
-	q.incomingMetadata = m
+func (q *Query) WithRequestMetadata(m map[string]any) *Query {
+	q.requestMetadata = m
 	return q
 }
 
-// WithOutgoingMetadata sets a map that wrapping projects can populate during
+// WithResponseMetadata sets a map that wrapping projects can populate during
 // evaluation to include additional fields in the API response.
-func (q *Query) WithOutgoingMetadata(m map[string]any) *Query {
-	q.outgoingMetadata = m
+func (q *Query) WithResponseMetadata(m map[string]any) *Query {
+	q.responseMetadata = m
 	return q
 }
 
@@ -431,8 +431,8 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		builtinErrors:    &builtinErrors{},
 		printHook:        q.printHook,
 		strictObjects:    q.strictObjects,
-		incomingMetadata: q.incomingMetadata,
-		outgoingMetadata: q.outgoingMetadata,
+		requestMetadata:  q.requestMetadata,
+		responseMetadata: q.responseMetadata,
 	}
 
 	if len(q.disableInlining) > 0 {
@@ -621,11 +621,11 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		tracingOpts:                 q.tracingOpts,
 		strictObjects:               q.strictObjects,
 		roundTripper:                q.roundTripper,
-		incomingMetadata:            q.incomingMetadata,
-		outgoingMetadata:            q.outgoingMetadata,
+		requestMetadata:             q.requestMetadata,
+		responseMetadata:            q.responseMetadata,
 	}
-	if e.incomingMetadata == nil {
-		e.incomingMetadata = map[string]any{}
+	if e.requestMetadata == nil {
+		e.requestMetadata = map[string]any{}
 	}
 	e.caller = e
 	q.metrics.Timer(metrics.RegoQueryEval).Start()

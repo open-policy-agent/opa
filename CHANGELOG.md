@@ -11,11 +11,11 @@ Wrapping projects can now attach custom metadata to Data API requests and have e
 
 Two distinct metadata paths are introduced:
 
-- **Incoming metadata**: parsed from extra top-level keys in the request body, made available to builtins via `BuiltinContext.IncomingMetadata`. Logged in the decision log under `Custom["incoming_metadata"]`.
+- **Request metadata**: parsed from extra top-level keys in the request body, made available to builtins via `BuiltinContext.RequestMetadata`. Logged in the decision log under `Custom["request_metadata"]`.
 
-- **Outgoing metadata**: a separate map (`BuiltinContext.OutgoingMetadata`) that builtins can populate during evaluation. Only included in the API response and decision log if non-empty.
+- **Response metadata**: a separate map (`BuiltinContext.ResponseMetadata`) that builtins can populate during evaluation. Only included in the API response and decision log if non-empty.
 
-In vanilla OPA, no builtins write outgoing metadata, so responses are unchanged. The incoming metadata map is only allocated when the request carries extra fields; the outgoing map is one empty map per request.
+In vanilla OPA, no builtins write response metadata, so responses are unchanged. The request metadata map is only allocated when the request carries extra fields; the response map is one empty map per request.
 
 To avoid conflicts with future OPA top-level keys, callers should use a namespaced key: `{"input": {...}, "com.example.opa/md": {...}}`.
 
@@ -27,7 +27,7 @@ curl -H 'Content-Type: application/json' \
   http://localhost:8181/v1/data/example/allow
 ```
 
-**Response** (outgoing metadata included if, for example, set by a custom builtin):
+**Response** (response metadata included if, for example, set by a custom builtin):
 
 ```json
 {
@@ -44,12 +44,12 @@ curl -H 'Content-Type: application/json' \
 ```json
 {
   "custom": {
-    "incoming_metadata": {
+    "request_metadata": {
       "com.example.opa/metadata": {
         "corp-id": "acme-42"
       }
     },
-    "outgoing_metadata": {
+    "response_metadata": {
       "com.example.opa/response": {
         "snapshot_version": "v3"
       }

@@ -1749,10 +1749,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		}
 		c := make(map[string]any, 2)
 		if len(reqMetadata) > 0 {
-			c["incoming_metadata"] = reqMetadata
+			c["request_metadata"] = reqMetadata
 		}
 		if len(respMetadata) > 0 {
-			c["outgoing_metadata"] = respMetadata
+			c["response_metadata"] = respMetadata
 		}
 		return c
 	}
@@ -1846,11 +1846,11 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalInstrument(includeInstrumentation),
 		rego.EvalNDBuiltinCache(ndbCache),
-		rego.EvalOutgoingMetadata(respMetadata),
+		rego.EvalResponseMetadata(respMetadata),
 	}
 
 	if reqMetadata != nil {
-		evalOpts = append(evalOpts, rego.EvalIncomingMetadata(reqMetadata))
+		evalOpts = append(evalOpts, rego.EvalRequestMetadata(reqMetadata))
 	}
 
 	rs, err := preparedQuery.Eval(ctx, evalOpts...)

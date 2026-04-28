@@ -77,8 +77,8 @@ func init() {
 	topdown.RegisterBuiltinFunc(
 		"test.set_outgoing",
 		func(bctx topdown.BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
-			if bctx.OutgoingMetadata != nil {
-				bctx.OutgoingMetadata["version"] = "1.0"
+			if bctx.ResponseMetadata != nil {
+				bctx.ResponseMetadata["version"] = "1.0"
 			}
 			return iter(ast.BooleanTerm(true))
 		},
@@ -4603,14 +4603,14 @@ func TestDecisionLogRequestMetadata(t *testing.T) {
 		t.Fatal("expected Custom in decision log")
 	}
 
-	incoming, ok := logged.Custom["incoming_metadata"].(map[string]any)
+	incoming, ok := logged.Custom["request_metadata"].(map[string]any)
 	if !ok {
-		t.Fatal("expected incoming_metadata in Custom")
+		t.Fatal("expected request_metadata in Custom")
 	}
 
 	md, ok := incoming["com.example.opa/metadata"].(map[string]any)
 	if !ok {
-		t.Fatal("expected com.example.opa/metadata in incoming_metadata")
+		t.Fatal("expected com.example.opa/metadata in request_metadata")
 	}
 
 	if md["trace_id"] != "abc-123" {
@@ -4618,15 +4618,15 @@ func TestDecisionLogRequestMetadata(t *testing.T) {
 	}
 
 	if _, ok := incoming["input"]; ok {
-		t.Fatal("'input' should not appear in incoming_metadata")
+		t.Fatal("'input' should not appear in request_metadata")
 	}
 
-	if _, ok := logged.Custom["outgoing_metadata"]; ok {
-		t.Fatal("outgoing_metadata should be absent when nothing populates it")
+	if _, ok := logged.Custom["response_metadata"]; ok {
+		t.Fatal("response_metadata should be absent when nothing populates it")
 	}
 }
 
-func TestDecisionLogOutgoingMetadata(t *testing.T) {
+func TestDecisionLogResponseMetadata(t *testing.T) {
 	t.Parallel()
 
 	f := newFixture(t)
@@ -4658,13 +4658,13 @@ func TestDecisionLogOutgoingMetadata(t *testing.T) {
 		t.Fatal("expected Custom in decision log")
 	}
 
-	outgoing, ok := logged.Custom["outgoing_metadata"].(map[string]any)
+	outgoing, ok := logged.Custom["response_metadata"].(map[string]any)
 	if !ok {
-		t.Fatalf("expected outgoing_metadata in Custom, got %v", logged.Custom)
+		t.Fatalf("expected response_metadata in Custom, got %v", logged.Custom)
 	}
 
 	if outgoing["version"] != "1.0" {
-		t.Fatalf("expected version='1.0' in outgoing_metadata, got %v", outgoing["version"])
+		t.Fatalf("expected version='1.0' in response_metadata, got %v", outgoing["version"])
 	}
 }
 

@@ -21,10 +21,10 @@ func init() {
 	topdown.RegisterBuiltinFunc(
 		"test.transform_metadata",
 		func(bctx topdown.BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
-			if bctx.OutgoingMetadata != nil {
-				if v, ok := bctx.IncomingMetadata["correlation_id"]; ok {
-					bctx.OutgoingMetadata["correlation_id"] = v
-					bctx.OutgoingMetadata["processed"] = true
+			if bctx.ResponseMetadata != nil {
+				if v, ok := bctx.RequestMetadata["correlation_id"]; ok {
+					bctx.ResponseMetadata["correlation_id"] = v
+					bctx.ResponseMetadata["processed"] = true
 				}
 			}
 			return iter(ast.BooleanTerm(true))
@@ -52,7 +52,7 @@ func TestEvalMetadataTransformViaBuiltin(t *testing.T) {
 	}
 	outgoing := map[string]any{}
 
-	rs, err := pq.Eval(t.Context(), EvalIncomingMetadata(incoming), EvalOutgoingMetadata(outgoing))
+	rs, err := pq.Eval(t.Context(), EvalRequestMetadata(incoming), EvalResponseMetadata(outgoing))
 	if err != nil {
 		t.Fatal(err)
 	}
