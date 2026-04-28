@@ -5216,10 +5216,11 @@ func TestServerUsesAuthorizerParsedBody(t *testing.T) {
 	})
 
 	// Check that v1 reader function behaves correctly.
-	inp, goInp, _, err := readInputPostV1(req.WithContext(ctx))
+	parsed, err := readInputPostV1(req.WithContext(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
+	inp, goInp := parsed.Value, parsed.GoInput
 
 	exp := ast.MustParseTerm(`{"foo": "good"}`)
 
@@ -5259,23 +5260,23 @@ func TestReadInputPostV1Metadata(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	inp, goInp, metadata, err := readInputPostV1(req)
+	parsed, err := readInputPostV1(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if inp == nil {
+	if parsed.Value == nil {
 		t.Fatal("expected parsed input")
 	}
-	if goInp == nil {
+	if parsed.GoInput == nil {
 		t.Fatal("expected go input")
 	}
 
-	if metadata == nil {
+	if parsed.Metadata == nil {
 		t.Fatal("expected metadata fields")
 	}
 
-	md, ok := metadata["com.example.opa/metadata"].(map[string]any)
+	md, ok := parsed.Metadata["com.example.opa/metadata"].(map[string]any)
 	if !ok {
 		t.Fatal("expected com.example.opa/metadata in metadata")
 	}
@@ -5284,7 +5285,7 @@ func TestReadInputPostV1Metadata(t *testing.T) {
 		t.Fatalf("expected trace_id='abc-123', got %v", md["trace_id"])
 	}
 
-	if _, ok := metadata["input"]; ok {
+	if _, ok := parsed.Metadata["input"]; ok {
 		t.Fatal("'input' should not appear in metadata")
 	}
 }

@@ -1732,11 +1732,15 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Start()
 
-	input, goInput, reqMetadata, err := readInputPostV1(r)
+	parsed, err := readInputPostV1(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
+
+	input := parsed.Value
+	goInput := parsed.GoInput
+	reqMetadata := parsed.Metadata
 
 	respMetadata := map[string]any{}
 	customLog := func() map[string]any {
@@ -2939,16 +2943,22 @@ func readInputGetV1(str string) (ast.Value, *any, error) {
 	return v, &input, err
 }
 
-func readInputPostV1(r *http.Request) (ast.Value, *any, map[string]any, error) {
+type parsedInput struct {
+	Value    ast.Value
+	GoInput  *any
+	Metadata map[string]any
+}
+
+func readInputPostV1(r *http.Request) (*parsedInput, error) {
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
 		if obj, ok := parsed.(map[string]any); ok {
 			if input, ok := obj["input"]; ok {
 				v, err := ast.InterfaceToValue(input)
-				return v, &input, nil, err
+				return &parsedInput{Value: v, GoInput: &input}, err
 			}
 		}
-		return nil, nil, nil, nil
+		return &parsedInput{}, nil
 	}
 
 	var request types.DataRequestV1
@@ -2956,7 +2966,7 @@ func readInputPostV1(r *http.Request) (ast.Value, *any, map[string]any, error) {
 	// decompress the input if sent as zip
 	bodyBytes, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("could not decompress the body: %w", err)
+		return nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
 
 	ct := r.Header.Get("Content-Type")
@@ -2965,22 +2975,22 @@ func readInputPostV1(r *http.Request) (ast.Value, *any, map[string]any, error) {
 	if strings.Contains(ct, "yaml") {
 		if len(bodyBytes) > 0 {
 			if err = util.Unmarshal(bodyBytes, &request); err != nil {
-				return nil, nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
+				return nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
 		}
 	} else {
 		dec := util.NewJSONDecoder(bytes.NewBuffer(bodyBytes))
 		if err := dec.Decode(&request); err != nil && err != io.EOF {
-			return nil, nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
+			return nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
 	}
 
 	if request.Input == nil {
-		return nil, nil, request.Metadata, nil
+		return &parsedInput{Metadata: request.Metadata}, nil
 	}
 
 	v, err := ast.InterfaceToValue(*request.Input)
-	return v, request.Input, request.Metadata, err
+	return &parsedInput{Value: v, GoInput: request.Input, Metadata: request.Metadata}, err
 }
 
 type compileRequest struct {
