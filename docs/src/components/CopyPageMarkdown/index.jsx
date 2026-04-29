@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from "react-dom";
 
 import BrowserOnly from "@docusaurus/BrowserOnly";
+import IconCopy from "@theme/Icon/Copy";
+import IconSuccess from "@theme/Icon/Success";
+
 import styles from "./styles.module.css";
 
 export default function CopyPageMarkdown() {
@@ -136,6 +139,9 @@ function CopyButton() {
         title={label}
         aria-label={label}
       >
+        <span className={styles.icons} aria-hidden="true">
+          {copied ? <IconSuccess /> : <IconCopy />}
+        </span>
         {label}
       </button>
     </div>
