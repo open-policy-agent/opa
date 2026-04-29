@@ -5600,6 +5600,72 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		},
 
 		{
+			note:        "not-body: complemented cartesian product, inlining disabled because of nested call/ref",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not q # This implicit not-body triggers complemented cartesian product generation
+				}
+				
+				q if {
+					not {
+						input.x = 1
+						input.y = 2
+					}
+					input.a > 3 # ref (input.a) inside call (gt) nesting; inlining disabled
+				}
+			`},
+			wantQueries: []string{
+				`not data.partial.__not1_0_2__`,
+			},
+			wantSupport: []string{`package partial
+				
+				__not1_0_2__ = true if {
+					not {
+						input.x = 1
+						input.y = 2
+					}
+					gt(input.a, 3)
+				}
+			`},
+			ignoreOrder: true,
+		},
+		{
+			note:        "not-body: complemented cartesian product, inlining disabled because of nested call/ref inside not-body",
+			notBodyOnly: true,
+			query:       "data.test.p = true",
+			modules: []string{`package test
+				
+				p if {
+					not q # This implicit not-body triggers complemented cartesian product generation
+				}
+				
+				q if {
+					not {
+						input.x = 1
+						input.y > 2 # ref (input.y) inside call (gt) nesting; inlining disabled
+					}
+					input.a = 3
+				}
+			`},
+			wantQueries: []string{
+				`not data.partial.__not1_0_2__`,
+			},
+			wantSupport: []string{`package partial
+				
+				__not1_0_2__ = true if {
+					not {
+						input.x = 1
+						gt(input.y, 2)
+					}
+					input.a = 3
+				}
+			`},
+			ignoreOrder: true,
+		},
+		{
 			note:        "not-body: complemented cartesian product, multi-element complement",
 			notBodyOnly: true,
 			query:       "data.test.p = true",
