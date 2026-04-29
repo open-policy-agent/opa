@@ -27091,7 +27091,7 @@
     "description": "Returns true if the input can be parsed as a URI.",
     "introduced": "edge",
     "result": {
-      "description": "true if `uri` is a valid URI",
+      "description": "true if `uri` is a valid URI, false otherwise",
       "name": "result",
       "type": "boolean"
     },

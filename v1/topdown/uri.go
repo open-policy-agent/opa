@@ -26,26 +26,26 @@ func builtinURIParse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	obj := ast.NewObject()
 
 	if parsed.Scheme != "" {
-		obj.Insert(ast.StringTerm("scheme"), ast.StringTerm(parsed.Scheme))
+		obj.Insert(ast.InternedTerm("scheme"), ast.StringTerm(parsed.Scheme))
 	}
 	if hostname := parsed.Hostname(); hostname != "" {
-		obj.Insert(ast.StringTerm("hostname"), ast.StringTerm(hostname))
+		obj.Insert(ast.InternedTerm("hostname"), ast.StringTerm(hostname))
 	}
 	if port := parsed.Port(); port != "" {
-		obj.Insert(ast.StringTerm("port"), ast.StringTerm(port))
+		obj.Insert(ast.InternedTerm("port"), ast.StringTerm(port))
 	}
 	if parsed.Path != "" {
-		obj.Insert(ast.StringTerm("path"), ast.StringTerm(parsed.Path))
+		obj.Insert(ast.InternedTerm("path"), ast.StringTerm(parsed.Path))
 		// raw_path is always set when path is present, so that users can
 		// rely on it being available for custom path normalization.
-		obj.Insert(ast.StringTerm("raw_path"), ast.StringTerm(cmp.Or(parsed.RawPath, parsed.Path)))
+		obj.Insert(ast.InternedTerm("raw_path"), ast.StringTerm(cmp.Or(parsed.RawPath, parsed.Path)))
 	}
 	if parsed.RawQuery != "" {
 		// raw_query can be piped into urlquery.decode_object() for structured access
-		obj.Insert(ast.StringTerm("raw_query"), ast.StringTerm(parsed.RawQuery))
+		obj.Insert(ast.InternedTerm("raw_query"), ast.StringTerm(parsed.RawQuery))
 	}
 	if parsed.Fragment != "" {
-		obj.Insert(ast.StringTerm("fragment"), ast.StringTerm(parsed.Fragment))
+		obj.Insert(ast.InternedTerm("fragment"), ast.StringTerm(parsed.Fragment))
 	}
 
 	return iter(ast.NewTerm(obj))

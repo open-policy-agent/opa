@@ -341,6 +341,8 @@ func init() {
 		"data", "input", "result", "keywords", "path", "v1", "error", "partial",
 		// HTTP
 		"code", "message", "status_code", "method", "url", "uri", "body", "raw_body", "headers", "query_params",
+		// URI
+		"scheme", "hostname", "port", "raw_path", "raw_query", "fragment",
 		// JWT
 		"enc", "cty", "iss", "exp", "nbf", "aud", "secret", "cert",
 		// Decisions

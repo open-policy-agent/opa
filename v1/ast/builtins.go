@@ -2067,7 +2067,7 @@ var URIIsValid = &Builtin{
 		types.Args(
 			types.Named("uri", types.S).Description("the URI string to validate"),
 		),
-		types.Named("result", types.B).Description("true if `uri` is a valid URI"),
+		types.Named("result", types.B).Description("true if `uri` is a valid URI, false otherwise"),
 	),
 	CanSkipBctx: true,
 }
