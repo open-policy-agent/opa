@@ -571,7 +571,7 @@ func TestTopdownJWTUnknownAlgTypesDiscardedFromJWKS(t *testing.T) {
 		  "kty": "RSA",
 		  "alg": "RSA-OAEP",
 		  "use": "enc",
-		  "n": "zPn9zRXe0Qh_STAznwePx7k5lkCD5OiXbP-0oqqIj-7szsra77lMWbgXjU9HiKHz_Qk6JkZu6kve83KdJuwF_0pKxzIZ9AoZa9glIU923TvJ5uXtN7v4mHH6hHjsAWNwmXpBhW68tRJqpCcrpRmUTZMvC4hI7OzdOD883H8YGmhb4hP_ItGcXo13KysD2tXzv23yGzXYMeE5R1H_U22FHdwRJPLUfJToERWX3WnS6g9qjs6FJLlil5q9sjDQSeoLYwrEqigb0cd89fQhNbjskv9_FUcVzzNMxvbg674HBmGI2-rKk_H0NUAEcs3_akMFaQxdW_opyNrjlgzA0kf20Q",
+		  "n": "onlqv4UZx5ZabJ3TCq-IO0s0xaOwo6fWl9o4SzLXPbGtvxonQhoYOeMlS0XkdEdLzB-eqh_hkQ",
 		  "e": "AQAB"
 		}
 	]
@@ -626,7 +626,7 @@ func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
 		  "kty": "RSA",
 		  "alg": "RSA-OAEP",
 		  "use": "enc",
-		  "n": "zPn9zRXe0Qh_STAznwePx7k5lkCD5OiXbP-0oqqIj-7szsra77lMWbgXjU9HiKHz_Qk6JkZu6kve83KdJuwF_0pKxzIZ9AoZa9glIU923TvJ5uXtN7v4mHH6hHjsAWNwmXpBhW68tRJqpCcrpRmUTZMvC4hI7OzdOD883H8YGmhb4hP_ItGcXo13KysD2tXzv23yGzXYMeE5R1H_U22FHdwRJPLUfJToERWX3WnS6g9qjs6FJLlil5q9sjDQSeoLYwrEqigb0cd89fQhNbjskv9_FUcVzzNMxvbg674HBmGI2-rKk_H0NUAEcs3_akMFaQxdW_opyNrjlgzA0kf20Q",
+		  "n": "onlqv4UZx5ZabJ3TCq-IO0s0xaOwo6fWl9o4SzLXPbGtvxonQhoYOeMlS0XkdEdLzB-eqh_hkQ",
 		  "e": "AQAB"
 		}
 	]
@@ -726,7 +726,7 @@ func TestTopdownJWTDecodeVerifyIgnoresKeysOfUnknownAlgInJWKS(t *testing.T) {
 		  "kty": "RSA",
 		  "alg": "RSA-OAEP",
 		  "use": "enc",
-		  "n": "zPn9zRXe0Qh_STAznwePx7k5lkCD5OiXbP-0oqqIj-7szsra77lMWbgXjU9HiKHz_Qk6JkZu6kve83KdJuwF_0pKxzIZ9AoZa9glIU923TvJ5uXtN7v4mHH6hHjsAWNwmXpBhW68tRJqpCcrpRmUTZMvC4hI7OzdOD883H8YGmhb4hP_ItGcXo13KysD2tXzv23yGzXYMeE5R1H_U22FHdwRJPLUfJToERWX3WnS6g9qjs6FJLlil5q9sjDQSeoLYwrEqigb0cd89fQhNbjskv9_FUcVzzNMxvbg674HBmGI2-rKk_H0NUAEcs3_akMFaQxdW_opyNrjlgzA0kf20Q",
+		  "n": "onlqv4UZx5ZabJ3TCq-IO0s0xaOwo6fWl9o4SzLXPbGtvxonQhoYOeMlS0XkdEdLzB-eqh_hkQ",
 		  "e": "AQAB"
 		}
 	]
