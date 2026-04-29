@@ -4701,6 +4701,42 @@
       }
     },
     {
+      "name": "uri.is_valid",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "uri.parse",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "key": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "urlquery.decode",
       "decl": {
         "args": [

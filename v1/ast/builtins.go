@@ -174,6 +174,8 @@ var DefaultBuiltins = [...]*Builtin{
 	URLQueryEncode,
 	URLQueryEncodeObject,
 	URLQueryDecodeObject,
+	URIParse,
+	URIIsValid,
 	YAMLMarshal,
 	YAMLUnmarshal,
 	YAMLIsValid,
@@ -2040,6 +2042,33 @@ var URLQueryDecodeObject = &Builtin{
 			types.NewArray(nil, types.S)))).Description("the resulting object"),
 	),
 	Categories:  catEncoding,
+	CanSkipBctx: true,
+}
+
+var URIParse = &Builtin{
+	Name: "uri.parse",
+	Description: "Parses a URI and returns an object containing its components according to RFC 3986. " +
+		"Empty components are omitted. " +
+		"In addition to the standard components, `raw_query` is returned for use with `urlquery` builtins, " +
+		"and `raw_path` is returned to allow detection of path-based exploits using percent-encoded characters.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("uri", types.S).Description("the URI string to parse"),
+		),
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.S))).Description("object containing URI components"),
+	),
+	CanSkipBctx: true,
+}
+
+var URIIsValid = &Builtin{
+	Name:        "uri.is_valid",
+	Description: "Returns true if the input can be parsed as a URI.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("uri", types.S).Description("the URI string to validate"),
+		),
+		types.Named("result", types.B).Description("true if `uri` is a valid URI, false otherwise"),
+	),
 	CanSkipBctx: true,
 }
 
