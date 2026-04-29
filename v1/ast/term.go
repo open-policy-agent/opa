@@ -585,7 +585,7 @@ func NotExpr(exprs ...*Expr) *Expr {
 	})
 }
 
-func ComplementNotExpr(expr *Expr) []*Expr {
+func Complement(expr *Expr) []*Expr {
 	if expr.Negated {
 		// Legacy negation
 		return []*Expr{expr.Complement()}

@@ -826,7 +826,7 @@ func (e *eval) setupAndEvalNotPartial(iter evalIterator) error {
 
 	complement := func(expr *ast.Expr) []*ast.Expr {
 		if expr.IsNot() {
-			return ast.ComplementNotExpr(expr)
+			return ast.Complement(expr)
 		}
 		return []*ast.Expr{expr.Complement()}
 	}
@@ -4259,7 +4259,7 @@ func (e evalNot) evalPartial(iter evalIterator) error {
 		return ast.NewNot(ast.NewExpr(terms))
 	}
 
-	return e.e.evalNotPartial(expr, unNegate, ast.ComplementNotExpr, supportTerms, iter)
+	return e.e.evalNotPartial(expr, unNegate, ast.Complement, supportTerms, iter)
 }
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
