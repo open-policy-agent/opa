@@ -24,7 +24,6 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 	_ "modernc.org/sqlite"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/google/go-cmp/cmp"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -122,7 +121,7 @@ func setupTestContainer(ctx context.Context, dbType DBType) (testcontainers.Cont
 		return nil, "", fmt.Errorf("failed to start container: %v", err)
 	}
 
-	port, err := container.MappedPort(ctx, nat.Port(config.port))
+	port, err := container.MappedPort(ctx, config.port)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get container port: %v", err)
 	}
