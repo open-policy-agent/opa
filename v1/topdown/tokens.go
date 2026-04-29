@@ -332,7 +332,6 @@ func getKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
 		return nil, errors.New("failed to extract a Key from the PEM certificate")
 	}
 
-	jwk.Configure(jwk.WithMinRSAPublicExponent(0), jwk.WithMinRSAModulusBits(0))
 	jwks, err := jwk.ParseString(certificate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse a JWK key (set): %w", err)
@@ -1290,6 +1289,8 @@ func createTokenCacheKey(serializedJwt ast.Value, publicKey ast.Value) ast.Value
 }
 
 func init() {
+	jwk.Configure(jwk.WithMinRSAPublicExponent(0), jwk.WithMinRSAModulusBits(0))
+
 	// By default, the JWT cache is disabled.
 	disabled := true
 	var tokenCache = cache.NamedValueCacheConfig{
