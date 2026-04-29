@@ -1,7 +1,21 @@
 .wrapper {
   margin: 0.75rem 0 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.wrapper button {
+  padding-left: 0.5rem;
 }
 
 .icons {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.icons svg {
+  width: 1rem;
+  height: 1rem;
 }
