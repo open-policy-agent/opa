@@ -244,6 +244,10 @@
       "units.parse",
       "units.parse_bytes"
     ],
+    "uri": [
+      "uri.is_valid",
+      "uri.parse"
+    ],
     "uuid": [
       "uuid.parse",
       "uuid.rfc4122"
@@ -27072,6 +27076,46 @@
       "type": "string"
     },
     "wasm": true
+  },
+  "uri.is_valid": {
+    "args": [
+      {
+        "description": "the URI string to validate",
+        "name": "uri",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns true if the input can be parsed as a URI.",
+    "introduced": "edge",
+    "result": {
+      "description": "true if `uri` is a valid URI",
+      "name": "result",
+      "type": "boolean"
+    },
+    "wasm": false
+  },
+  "uri.parse": {
+    "args": [
+      {
+        "description": "the URI string to parse",
+        "name": "uri",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Parses a URI and returns an object containing its components according to RFC 3986. Empty components are omitted. In addition to the standard components, `raw_query` is returned for use with `urlquery` builtins, and `raw_path` is returned to allow detection of path-based exploits using percent-encoded characters.",
+    "introduced": "edge",
+    "result": {
+      "description": "object containing URI components",
+      "name": "output",
+      "type": "object[string: string]"
+    },
+    "wasm": false
   },
   "urlquery.decode": {
     "args": [
