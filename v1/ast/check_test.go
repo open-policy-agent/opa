@@ -2872,6 +2872,7 @@ f(x) := y if y := { x | true }
 
 p := f(2)`,
 		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/5234
 		{
 			name: "undetermined function args, reversed operands",
 			policy: `package p
@@ -2882,6 +2883,21 @@ flatten(k, v) = vs if {
 } {
   is_string(v)
   {[k, v]} = vs
+}`,
+		},
+		// this policy verifies the issue: https://github.com/open-policy-agent/opa/issues/3838
+		{
+			name: "comparing objects with array keys",
+			policy: `package testcase
+
+rule1 if {
+    object1 == { [0]: "foo" }
+}
+
+object1[key] = value if {
+    some i
+    value := input[i]
+    key := [i]
 }`,
 		},
 	}
