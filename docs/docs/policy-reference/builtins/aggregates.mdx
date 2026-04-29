@@ -3,3 +3,20 @@ title: Aggregates
 ---
 <BuiltinTable category={"aggregates"}/>
 
+## Examples
+
+### `count`
+
+`count` returns the number of elements in an array, set, or object, or the
+number of runes in a string. It's the simplest building block for size-based
+policy checks (e.g. *"reject any Pod with more than 10 containers"*).
+
+<PlaygroundExample dir={require.context("../_examples/aggregates/count/list_size")} />
+
+### `sum`
+
+`sum` adds up the elements of an array or set of numbers. A common use is
+budgeting a quota across multiple Kubernetes resources from a single
+admission policy.
+
+<PlaygroundExample dir={require.context("../_examples/aggregates/sum/total_replicas")} />

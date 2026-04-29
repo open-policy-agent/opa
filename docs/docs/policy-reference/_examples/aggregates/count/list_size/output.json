@@ -1,0 +1,22 @@
+{
+  "container_count": 3,
+  "containers": [
+    "nginx",
+    "sidecar",
+    "logger"
+  ],
+  "deny": [],
+  "label_count": 3,
+  "labels": {
+    "app": "web",
+    "team": "platform",
+    "tier": "frontend"
+  },
+  "name": "kubernetes",
+  "name_length": 10,
+  "unique_port_count": 2,
+  "unique_ports": [
+    80,
+    443
+  ]
+}
