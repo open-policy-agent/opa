@@ -4,125 +4,87 @@
 (def page-style
   (kind/hiccup
     [:style "
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Go+Mono&display=swap');
 
 :root {
-  --pink: #e619a0;
-  --cyan: #0bc;
-  --purple: #b388ff;
-  --bg: #fff;
-  --bg-alt: #f8f8f8;
-  --fg: #333;
-  --fg-muted: #888;
-  --border: #e0e0e0;
-  --chart-bg: #fff;
-  --chart-grid: #eee;
-  --chart-baseline: #ccc;
-  --tag-line: rgba(230,25,160,0.25);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111;
-    --bg-alt: #1a1a2e;
-    --fg: #ddd;
-    --fg-muted: #777;
-    --border: #333;
-    --chart-bg: #111;
-    --chart-grid: #282828;
-    --chart-baseline: #444;
-    --tag-line: rgba(230,25,160,0.35);
-  }
+  --yellow: #ffffea;
+  --blue: #eaffff;
+  --tag-bg: #e1e1cf;
+  --border: #888;
+  --fg: #000;
+  --fg-muted: #444;
+  --link: #268bd2;
+  --chart-bg: #ffffea;
+  --chart-grid: #e0e0c8;
+  --chart-baseline: #aaa;
+  --tag-line: rgba(0,0,0,0.15);
 }
 
 body {
-  font-family: 'JetBrains Mono', monospace !important;
-  background: var(--bg) !important;
+  font-family: 'Go Mono', monospace !important;
+  font-size: 13px;
+  background: var(--yellow) !important;
   color: var(--fg) !important;
+  margin: 0;
+  padding: 12px 16px;
 }
 
-h1 { color: var(--pink) !important; letter-spacing: 1px; }
-p, li { color: var(--fg) !important; }
-code { color: var(--pink) !important; }
+h1 {
+  background: var(--blue) !important;
+  color: var(--fg) !important;
+  margin: -12px -16px 12px -16px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 0;
+}
 
-a { color: var(--pink) !important; text-decoration: none; }
+a { color: var(--link) !important; text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-#commit-info {
-  font-family: 'JetBrains Mono', monospace !important;
-  background: var(--bg-alt) !important;
-  border: 1px solid var(--border) !important;
-  border-left: 3px solid var(--pink) !important;
-  color: var(--fg) !important;
-}
+p, code { font-family: 'Go Mono', monospace !important; font-size: 13px; }
+code { background: var(--blue); padding: 1px 4px; }
 
-/* glitch title */
-.glitch {
-  position: relative;
-  display: inline-block;
-}
-.glitch::before, .glitch::after {
-  content: attr(data-text);
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  overflow: hidden;
-  pointer-events: none;
-}
-.glitch::before {
-  color: var(--cyan);
-  clip-path: inset(0 0 60% 0);
-  animation: glitch-top 3s infinite linear alternate-reverse;
-}
-.glitch::after {
-  color: var(--pink);
-  clip-path: inset(60% 0 0 0);
-  animation: glitch-bottom 4s infinite linear alternate-reverse;
-}
-@keyframes glitch-top {
-  0%, 92%  { transform: translate(0); }
-  93%      { transform: translate(-2px, -1px); }
-  95%      { transform: translate(2px, 1px); }
-  97%      { transform: translate(-1px, 0); }
-  100%     { transform: translate(0); }
-}
-@keyframes glitch-bottom {
-  0%, 90%  { transform: translate(0); }
-  91%      { transform: translate(1px, 1px); }
-  94%      { transform: translate(-2px, -1px); }
-  97%      { transform: translate(1px, 0); }
-  100%     { transform: translate(0); }
+#commit-info {
+  font-family: 'Go Mono', monospace !important;
+  font-size: 12px;
+  background: var(--blue) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--fg) !important;
 }
 
 /* datatables */
+table.dataTable { font-size: 12px !important; }
 table.dataTable thead th {
-  background: var(--bg-alt) !important;
+  background: var(--blue) !important;
   color: var(--fg) !important;
-  border-bottom: 2px solid var(--pink) !important;
+  border-bottom: 1px solid var(--border) !important;
+  font-weight: bold;
 }
-table.dataTable tbody tr { background: var(--bg) !important; }
-table.dataTable tbody tr:hover { background: var(--bg-alt) !important; }
-table.dataTable tbody td { border-color: var(--border) !important; color: var(--fg) !important; }
-.dataTables_wrapper { color: var(--fg) !important; }
+table.dataTable tbody tr { background: var(--yellow) !important; }
+table.dataTable tbody tr:hover { background: var(--tag-bg) !important; }
+table.dataTable tbody td { border-color: var(--tag-bg) !important; }
+.dataTables_wrapper { color: var(--fg) !important; font-size: 12px; }
 .dataTables_wrapper .dataTables_filter input,
 .dataTables_wrapper .dataTables_length select {
-  background: var(--bg-alt) !important;
+  background: var(--blue) !important;
   color: var(--fg) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 3px;
+  font-family: 'Go Mono', monospace !important;
+  font-size: 12px;
 }
 .dataTables_wrapper .dataTables_paginate .paginate_button {
   color: var(--fg-muted) !important;
+  font-size: 12px;
 }
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-  background: var(--pink) !important;
-  color: white !important;
-  border: none !important;
-  border-radius: 3px;
+  background: var(--blue) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--border) !important;
 }
 .dataTables_wrapper .dataTables_info { color: var(--fg-muted) !important; }
 "]))
 
-(defn glitch-title [text]
-  (kind/hiccup
-    [:h1 {:class "glitch" :data-text text} text]))
+(defn page-title [text]
+  (kind/hiccup [:h1 text]))

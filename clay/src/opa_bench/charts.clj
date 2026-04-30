@@ -54,8 +54,8 @@
                     :hovermode "x unified"
                     :height   500
                     :margin   {:b 120}
-                    :colorway ["#e619a0" "#0bc" "#b388ff"]
-                    :font {:family "JetBrains Mono, monospace"}
+                    :colorway ["#268bd2" "#d33682" "#859900"]
+                    :font {:family "Go Mono, monospace" :size 11}
                     :shapes   [{:type "line"
                                 :xref "paper" :x0 0 :x1 1
                                 :yref "y" :y0 1 :y1 1}]}]
