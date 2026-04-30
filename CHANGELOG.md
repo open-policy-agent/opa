@@ -3,7 +3,116 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.16.0
+
+### Fixes
+
+- Add method to match tests by ref prefixes (#8550) ([#6696](https://github.com/open-policy-agent/opa/issues/6696)) authored by @anderseknert
+- Limit exponent size in parse_bytes/parse_units to prevent timeout bypass (#8524) ([#8326](https://github.com/open-policy-agent/opa/issues/8326)) authored by @isaiahvita
+- ast,format,planner: Add `not` block syntax (#8562) ([#8402](https://github.com/open-policy-agent/opa/issues/8402)) authored by @johanfylling
+- ast: Fix parsing of unary `-` in front of a ref (#8551) ([#5014](https://github.com/open-policy-agent/opa/issues/5014)) authored by @mmzzuu
+- ast: catch functions in dynamic extent of ref head rule ([#8461](https://github.com/open-policy-agent/opa/issues/8461)) authored by @srenatus
+- build: Exclude domains that cause false positives (#8533) ([#8495](https://github.com/open-policy-agent/opa/issues/8495)) authored by @charlieegan3 reported by @github-actions[bot]
+- distributedtracing: export Prometheus metrics via OTLP (#8450) ([#7591](https://github.com/open-policy-agent/opa/issues/7591)) authored by @Munken reported by @Munken
+- format: Preserve location of trailing comments inside `every` body (#8559) ([#8558](https://github.com/open-policy-agent/opa/issues/8558)) authored by @johanfylling
+- planner: Add not-body support to planner (#8458) ([#8392](https://github.com/open-policy-agent/opa/issues/8392)) authored by @johanfylling
+- plugins/rest: carry over all of `*tls.Config` (#8476) ([#8473](https://github.com/open-policy-agent/opa/issues/8473)) authored by @srenatus reported by @ashu2496
+- server: Drop HTML index page (#8478) ([#8477](https://github.com/open-policy-agent/opa/issues/8477)) authored by @johanfylling
+
+### Miscellaneous
+
+- Add banner to show when event has passed (#8493) (authored by @charlieegan3)
+- Add copy-as-markdown button to doc pages (#8540) (authored by @charlieegan3)
+- Add generated output.jsons for docs examples (#8535) (authored by @charlieegan3)
+- Add support for days, weeks and years in parse_duration_ns (#8463) (authored by @sspaink)
+- Add the latest videos to the README presentations section (#8523) (authored by @sspaink)
+- Add vulnetix ecosystem entry (#8532) (authored by @0x73746F66)
+- Allow Back-to-back metadata blocks (#8482) (authored by @sspaink)
+- Delete copy content icon (#8568) (authored by @sspaink)
+- Don't post netlify preview on non-doc changes (#8527) (authored by @sspaink)
+- Fix benchmarks check files changed (#8530) (authored by @sspaink)
+- Fix dropping comments after handling unexpectedCommentError (#8553) (authored by @sspaink)
+- Fix logBuffer eviction loop only dropping one element (#8543) (authored by @sspaink)
+- Fix out-of-order plugin status notifications (#8563) (authored by @sspaink)
+- Fix type checker match error for objects with set keys (authored by @sspaink)
+- Fix type checker to recognize numeric index in generated map (#8518) (authored by @sspaink)
+- Handle nil in comprehension (authored by @sspaink)
+- Integrate 1.15.1 patch release (#8462) (authored by @sspaink)
+- Prepare v1.16.0 development (#8447) (authored by @sspaink)
+- Prevent fmt from formatting single attribute objects with comments (#8519) (authored by @sspaink)
+- Remove old redirects, add new management redirect (#8491) (authored by @charlieegan3)
+- Run benchmarks in the merge queue (#8525) (authored by @sspaink)
+- Security policy update (#8479) (authored by @anderseknert)
+- Support recursive JSON Schemas (#8542) (authored by @sspaink)
+- Test OCP and Regal during merge queue (#8528) (authored by @sspaink)
+- Update Regal docs to v0.40.0 (#8538) (authored by @charlieegan3)
+- Update benchmarks.yaml to use pr_check.rego (#8526) (authored by @sspaink)
+- Update intro video on homepage (#8547) (authored by @charlieegan3)
+- Update netlify ignore using previous commit instead of cached commit (#8552) (authored by @sspaink)
+- Update opa test to stream test case results (#8517) (authored by @sspaink)
+- Updated roadmap link (#8501) (authored by @johanfylling)
+- add merge_group build trigger to benchmarks (#8522) (authored by @sspaink)
+- ast, topdown: Add `not` AST node type (#8427) (authored by @johanfylling)
+- ast: fix parenthesis in String() of {obj,arr,set} comprehensions (authored by @srenatus)
+- benchmarks: bump nodejs (24 -> 25) (authored by @srenatus)
+- build(deps): bump actions/setup-go in the gha-dependencies group (#8469) (authored by @dependabot[bot])
+- build(deps): bump ajv from 6.12.6 to 6.14.0 in /docs (#8467) (authored by @dependabot[bot])
+- build(deps): bump brace-expansion from 1.1.12 to 1.1.13 in /docs (authored by @dependabot[bot])
+- build(deps): bump dompurify from 3.3.2 to 3.4.0 in /docs (authored by @dependabot[bot])
+- build(deps): bump follow-redirects from 1.15.11 to 1.16.0 in /docs (#8513) (authored by @dependabot[bot])
+- build(deps): bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp (#8503) (authored by @dependabot[bot])
+- build(deps): bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp (#8504) (authored by @dependabot[bot])
+- build(deps): bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp (#8506) (authored by @dependabot[bot])
+- build(deps): bump hono from 4.12.9 to 4.12.12 in /e2e/api/compile/prisma (#8498) (authored by @dependabot[bot])
+- build(deps): bump hono in /e2e/api/compile/prisma (authored by @dependabot[bot])
+- build(deps): bump lodash and prisma in /e2e/api/compile/prisma (#8475) (authored by @dependabot[bot])
+- build(deps): bump lodash from 4.17.23 to 4.18.1 in /docs (#8494) (authored by @dependabot[bot])
+- build(deps): bump minimatch and serve-handler in /docs (#8466) (authored by @dependabot[bot])
+- build(deps): bump node-forge from 1.3.2 to 1.4.0 in /docs (#8448) (authored by @dependabot[bot])
+- build(deps): bump path-to-regexp from 0.1.12 to 0.1.13 in /docs (authored by @dependabot[bot])
+- build(deps): bump the dependencies group across 2 directories with 8 updates (#8471) (authored by @dependabot[bot])
+- build(deps): bump the dependencies group across 2 directories with 9 updates (#8575) (authored by @dependabot[bot])
+- build(deps): bump the e2e-prisma group (#8472) (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 2 updates (#8576) (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 3 updates (#8539) (authored by @dependabot[bot])
+- build(deps): bump the go-opentelemetry-io group across 1 directory with 4 updates (#8574) (authored by @dependabot[bot])
+- build(deps): bump the go-opentelemetry-io group across 1 directory with 7 updates (#8470) (authored by @dependabot[bot])
+- build: bump go 1.26.2 (#8497) (authored by @sspaink)
+- build: bump wasmtime-go to v43.0.2 (authored by @srenatus)
+- builtins: Add uri.parse and uri.is_valid built in functions (#8578) (authored by @charlieegan3)
+- cicd: Split link checker into docs & repo checks (#8492) (authored by @charlieegan3)
+- docs(policy-reference): add aggregates examples for count and sum (#8566) (authored by @alliasgher)
+- docs: Add spec for OCP bundle status tracking API (authored by @ashutosh-narkar)
+- docs: Fix input value type in not undefined example (#8580) (authored by @menma1234)
+- docs: add Windows development notes to dev reference guide (#8422) (authored by @raajheshkannaa)
+- docs: various typo fixes (#8529) (authored by @sspaink)
+- e2e/cli: add test for debug `print()` logging (#8567) (authored by @srenatus)
+- e2e/cli: start CLI E2E tests (#8545) (authored by @srenatus)
+- fix: reachable_paths does not return all reachable paths (#8510) (authored by @davidmarne-wf)
+- fmt: Allow indenting all `with`s in expression (#8508) (authored by @anderseknert)
+- fmt: add new line between METADATA blocks (#8483) (authored by @sspaink)
+- fmt: don't indent until first with on new line (#8555) (authored by @anderseknert)
+- fmt: restore indention level when handling unexpected comments (#8534) (authored by @sspaink)
+- gitattributes: fix language name (#8565) (authored by @srenatus)
+- github: declare formatted rego as rego (#8564) (authored by @srenatus)
+- logging: keep forwarding from BufferedLogger after Flush() (#8544) (authored by @srenatus)
+- logging: make WithContext() optional (authored by @srenatus)
+- nightly: add OCP+Regal builds to catch breaking changes (#8460) (authored by @srenatus)
+- perf: Add CopyNonGround() methods for Array, Set, and Object (#8323) (authored by @alex60217101990)
+- resolver/wasm: Add NewWithContext to allow passing context (#8499) (authored by @dominikschulz)
+- server+topdown+logs: feed arbitrary extra info from Data API to topdown and back (#8570) (authored by @srenatus)
+- server: Skip chmod for abstract Unix domain sockets (#8536) (authored by @bakayolo)
+- server: only avoid chmod on linux (macos/win don't have abstract sockets) (#8549) (authored by @srenatus)
+- show full errors when test fails and using --coverge (#8438) (authored by @grosser)
+- storage/inmem: avoid allocations from Read() in MakeDir() (#8561) (authored by @srenatus)
+- type checker: identify compatible type from reference (#8485) (authored by @sspaink)
+- website: Copy button improvements (#8577) (authored by @charlieegan3)
+- workflows/nightly: use OCP ref (temporary workaround) (authored by @srenatus)
+- workflows: attempt to fix slack notifications (authored by @srenatus)
+- workflows: bump setup-regal (#8546) (authored by @srenatus)
+- workflows: fix nightly and release-vuln-check (authored by @srenatus)
+- workflows: remove trivy from nightly+release-vuln-check (authored by @srenatus)
+- 🌱 Add KubeStellar Console to OPA ecosystem (#8560) (authored by @clubanderson)
 
 ### Data API Request/Response Metadata
 
