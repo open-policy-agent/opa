@@ -120,7 +120,7 @@ jobs:
             git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
             git config --local user.name "${GITHUB_ACTOR}"
             git add -f .
-            git diff --staged
+            git diff --staged --name-only
             git commit -m "benchmarks: update notebook for ${GITHUB_SHA}"
             git push origin benchmarks
           else
