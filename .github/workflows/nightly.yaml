@@ -137,6 +137,12 @@ jobs:
     secrets:
       slack_webhook_url: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
 
+  test-envoy-with-opa-main:
+    name: Test Envoy with OPA main
+    uses: ./.github/workflows/test-envoy-with-opa.yaml
+    secrets:
+      slack_webhook_url: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+
   go-get-test:
     name: Go Get Smoke Test
     runs-on: ubuntu-24.04
