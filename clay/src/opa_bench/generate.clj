@@ -35,7 +35,7 @@ style/page-style
   (println "Rendering index...")
   (clay/make! {:source-path    "notebooks/index.clj"
                :format         [:html]
-               :base-target-path "../public"
+               :base-target-path "../docs"
                :title          "OPA Benchmarks"
                :hide-code      true
                :hide-info-line true
@@ -48,7 +48,7 @@ style/page-style
       (print (str "  " (:id b) "... ")) (flush)
       (clay/make! {:source-path      src
                    :format           [:html]
-                   :base-target-path "../public"
+                   :base-target-path "../docs"
                    :title            (:name b)
                    :hide-code        true
                    :hide-info-line   true
@@ -56,7 +56,7 @@ style/page-style
                    :live-reload      false})
       (println "done.")))
 
-  (println (str "\nDone. " (count data/benchmarks-with-ids) " pages in ../public/")))
+  (println (str "\nDone. " (count data/benchmarks-with-ids) " pages in ../docs/")))
 
 (defn -main [& _args]
   (render-all!)
