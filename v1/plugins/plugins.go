@@ -206,6 +206,8 @@ type Manager struct {
 	mtx                          sync.Mutex
 	pluginStatusCh               chan pluginStatusMsg
 	stopPluginStatusCh           chan chan struct{}
+	pluginStatusDoneCh           chan struct{}
+	finalPluginStatus            map[string]*Status
 	initBundles                  map[string]*bundle.Bundle
 	initFiles                    loader.Result
 	maxErrors                    int
@@ -535,6 +537,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		extraRoutes:           map[string]ExtraRoute{},
 		pluginStatusCh:        make(chan pluginStatusMsg),
 		stopPluginStatusCh:    make(chan chan struct{}),
+		pluginStatusDoneCh:    make(chan struct{}),
 	}
 
 	for _, f := range opts {
@@ -689,7 +692,11 @@ func (m *Manager) Register(name string, plugin Plugin) {
 		plugin: plugin,
 	})
 	m.mtx.Unlock()
-	m.pluginStatusCh <- statusInitPlugin{name: name}
+
+	select {
+	case m.pluginStatusCh <- statusInitPlugin{name: name}:
+	case <-m.pluginStatusDoneCh:
+	}
 }
 
 // Plugins returns the list of plugins registered with the manager.
@@ -970,20 +977,30 @@ func (m *Manager) Reconfigure(newCfg *config.Config) error {
 // PluginStatus returns the current statuses of any plugins registered.
 func (m *Manager) PluginStatus() map[string]*Status {
 	reply := make(chan map[string]*Status, 1)
-	m.pluginStatusCh <- statusQuery{reply: reply}
-	return <-reply
+	select {
+	case m.pluginStatusCh <- statusQuery{reply: reply}:
+		return <-reply
+	case <-m.pluginStatusDoneCh:
+		return m.finalPluginStatus
+	}
 }
 
 // RegisterPluginStatusListener registers a StatusListener to be
 // called when plugin status updates occur.
 func (m *Manager) RegisterPluginStatusListener(name string, listener StatusListener) {
-	m.pluginStatusCh <- statusRegisterListener{name: name, listener: listener}
+	select {
+	case m.pluginStatusCh <- statusRegisterListener{name: name, listener: listener}:
+	case <-m.pluginStatusDoneCh:
+	}
 }
 
 // UnregisterPluginStatusListener removes a StatusListener registered with the
 // same name.
 func (m *Manager) UnregisterPluginStatusListener(name string) {
-	m.pluginStatusCh <- statusUnregisterListener{name: name}
+	select {
+	case m.pluginStatusCh <- statusUnregisterListener{name: name}:
+	case <-m.pluginStatusDoneCh:
+	}
 }
 
 // UpdatePluginStatus updates a named plugins status. Any registered
@@ -991,8 +1008,11 @@ func (m *Manager) UnregisterPluginStatusListener(name string) {
 // plugins.
 func (m *Manager) UpdatePluginStatus(pluginName string, status *Status) {
 	done := make(chan struct{})
-	m.pluginStatusCh <- statusUpdate{name: pluginName, status: status, done: done}
-	<-done
+	select {
+	case m.pluginStatusCh <- statusUpdate{name: pluginName, status: status, done: done}:
+		<-done
+	case <-m.pluginStatusDoneCh:
+	}
 }
 
 func copyPluginStatus(src map[string]*Status) map[string]*Status {
@@ -1299,6 +1319,11 @@ func (m *Manager) sendOPAUpdateLoop(ctx context.Context) {
 func (m *Manager) pluginStatusLoop() {
 	status := map[string]*Status{}
 	listeners := map[string]StatusListener{}
+
+	defer func() {
+		m.finalPluginStatus = copyPluginStatus(status)
+		close(m.pluginStatusDoneCh)
+	}()
 
 	for {
 		select {
