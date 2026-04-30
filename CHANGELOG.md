@@ -118,7 +118,7 @@ Authored by @srenatus
 ### Runtime, SDK, Tooling
 
 - distributedtracing: Export Prometheus metrics via OTLP ([#7591](https://github.com/open-policy-agent/opa/issues/7591)) reported and authored by @Munken
-- cmd,tester: Update opa test to stream test case results ([#3676]https://github.com/open-policy-agent/opa/issues/3676)) authored by @sspaink reported by @tsandall
+- cmd,tester: Update opa test to stream test case results ([#3676](https://github.com/open-policy-agent/opa/issues/3676)) authored by @sspaink reported by @tsandall
 - cmd,tester: Show full errors when test fails and using `--coverage` ([#8438](https://github.com/open-policy-agent/opa/pull/8438)) authored by @grosser
 - format: Add new line between METADATA blocks ([#8483](https://github.com/open-policy-agent/opa/pull/8483)) authored by @sspaink
 - format: Allow indenting all `with`s in expression ([#8508](https://github.com/open-policy-agent/opa/pull/8508)) authored by @anderseknert
