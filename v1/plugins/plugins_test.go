@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
+	"time"
 
 	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/storage/mock"
@@ -456,6 +457,114 @@ func TestPluginManagerServerInitialized(t *testing.T) {
 		t.Fatal("expected ServerInitializedChannel to be open and have no messages")
 	default:
 		break
+	}
+}
+
+func TestUpdatePluginStatusAfterStop(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m.Register("p1", &testPlugin{m})
+
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	m.Stop(t.Context())
+
+	// Must not hang.
+	done := make(chan struct{})
+	go func() {
+		m.UpdatePluginStatus("p1", &Status{State: StateNotReady})
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("UpdatePluginStatus hung after Stop")
+	}
+}
+
+func TestPluginStatusAfterStop(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m.Register("p1", &testPlugin{m})
+
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	m.Stop(t.Context())
+
+	done := make(chan struct{})
+	var status map[string]*Status
+	go func() {
+		status = m.PluginStatus()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("PluginStatus hung after Stop")
+	}
+
+	// testPlugin.Stop() reports StateNotReady
+	if s, ok := status["p1"]; !ok {
+		t.Fatal("expected status for p1")
+	} else if s.State != StateNotReady {
+		t.Fatalf("expected StateNotReady, got %v", s.State)
+	}
+}
+
+func TestRegisterAfterStop(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	m.Stop(t.Context())
+
+	done := make(chan struct{})
+	go func() {
+		m.Register("late", &testPlugin{m})
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("Register hung after Stop")
+	}
+}
+
+func TestRegisterListenerAfterStop(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	m.Stop(t.Context())
+
+	done := make(chan struct{})
+	go func() {
+		m.RegisterPluginStatusListener("l1", func(map[string]*Status) {})
+		m.UnregisterPluginStatusListener("l1")
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("RegisterPluginStatusListener hung after Stop")
 	}
 }
 
