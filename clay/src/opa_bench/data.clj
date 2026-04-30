@@ -56,6 +56,9 @@
 (def rows
   (filter #(contains? commits (:commit %)) all-rows))
 
+(def benchmarks-in-window
+  (into #{} (map (juxt :pkg :name)) rows))
+
 (def latest-tag
   (->> all-rows
        (filter :tag)
@@ -94,4 +97,6 @@
   (clojure.string/replace (str pkg "_" name) #"[^a-zA-Z0-9]" "-"))
 
 (def benchmarks-with-ids
-  (mapv #(assoc % :id (benchmark-id (:pkg %) (:name %))) ratios))
+  (->> ratios
+       (filter #(contains? benchmarks-in-window [(:pkg %) (:name %)]))
+       (mapv #(assoc % :id (benchmark-id (:pkg %) (:name %))))))
