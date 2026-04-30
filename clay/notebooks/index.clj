@@ -5,6 +5,6 @@
 
 style/page-style
 
-(style/glitch-title "OPA Benchmarks")
+(style/page-title "OPA Benchmarks")
 
 (charts/index-table data/benchmarks-with-ids)

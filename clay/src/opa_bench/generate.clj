@@ -15,7 +15,7 @@
 
 style/page-style
 
-(style/glitch-title %s)
+(style/page-title %s)
 
 ;; **Package:** `%s`
 
