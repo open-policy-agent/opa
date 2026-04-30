@@ -8,10 +8,56 @@ project adheres to [Semantic Versioning](http://semver.org/).
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
 - New `uri.parse` and `uri.is_valid` built-in functions
+- Data API Request/Response Metadata
+- Prometheus metrics exported via OTLP
+- Formatter improvements
 
-### Data API Request/Response Metadata ([#8570](https://github.com/open-policy-agent/opa/pull/8570)
+> **_NOTE:_**
+>
+> In v1.15.x, OPA was dropping logs for bundle downloads, `print()` calls and other plugin-originated logs. 
+> Users are advised to update, v1.16.0 fixes this bug in ([#8544](https://github.com/open-policy-agent/opa/pull/8544)).
 
-Wrapping projects can now attach custom metadata to Data API requests and have evaluation produce response metadata.
+### New `uri.parse` and `uri.is_valid` built-in functions ([#8263](https://github.com/open-policy-agent/opa/issues/8263))
+
+Two new [built-in functions](https://www.openpolicyagent.org/docs/policy-reference/builtins) have been added: `uri.parse` for parsing a given URI, and `uri.is_valid` for verifying the structure of a given URI.
+
+#### uri.parse
+
+Parses a URI and returns an object containing its components according to [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986.html). Empty components are omitted.
+
+```rego
+package example
+
+test_uri if {
+	uri.parse("https://example.com:8080/api?q=1#top") == {
+		"scheme": "https",
+		"hostname": "example.com",
+		"port": "8080",
+		"path": "/api",
+		"raw_path": "/api",
+		"raw_query": "q=1",
+		"fragment": "top",
+	}
+}
+```
+
+#### uri.is_valid
+
+Returns `true` if the input can be parsed as a URI, `false` otherwise.
+
+```rego
+package example
+
+deny contains "invalid URI" if {
+    not uri.is_valid("http://[invalid")
+}
+```
+
+Authored by @charlieegan3 reported by @anivar
+
+### Data API Request/Response Metadata ([#8570](https://github.com/open-policy-agent/opa/pull/8570))
+
+Wrapping projects can now attach custom metadata to [Data API](https://www.openpolicyagent.org/docs/rest-api#data-api) requests and have evaluation produce response metadata.
 
 Two distinct metadata paths are introduced:
 
@@ -101,7 +147,6 @@ Authored by @srenatus
 - ast: Identify compatible type from reference in type checker ([#7273](https://github.com/open-policy-agent/opa/issues/7273)) authored by @sspaink reported by @anderseknert
 - ast: Support recursive JSON Schemas ([#6099](https://github.com/open-policy-agent/opa/issues/6099)) authored by @sspaink reported by @anderseknert
 - builtins: Add support for days, weeks and years in `time.parse_duration_ns` built-in function ([#2719](https://github.com/open-policy-agent/opa/issues/2719)) authored by @sspaink reported by @freeseacher
-- builtins: Add `uri.parse` and `uri.is_valid` built-in functions ([#8263](https://github.com/open-policy-agent/opa/issues/8263)) authored by @charlieegan3 reported by @anivar
 - builtins: Fix `graph.reachable_paths` to return all reachable paths ([#5871](https://github.com/open-policy-agent/opa/issues/5871)) authored by @davidmarne-wf reported by @ericjkao
 - builtins: Limit exponent size in `units.parse_bytes` built-in function to prevent timeout bypass ([#8326](https://github.com/open-policy-agent/opa/issues/8326)) authored by @isaiahvita reported by @anderseknert
 - perf: Add CopyNonGround() methods for Array, Set, and Object ([#8323](https://github.com/open-policy-agent/opa/pull/8323)) authored by @alex60217101990
