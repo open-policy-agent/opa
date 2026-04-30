@@ -1,0 +1,5 @@
+{:paths ["src" "notebooks"]
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        org.clojure/data.json {:mvn/version "2.5.2"}
+        org.scicloj/clay {:mvn/version "2.0.16"}
+        org.babashka/http-client {:mvn/version "0.4.22"}}}
