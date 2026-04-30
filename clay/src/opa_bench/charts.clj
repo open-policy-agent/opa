@@ -32,12 +32,11 @@
                         :mode "lines+markers"
                         :line {:shape "hvh"}
                         :hovertemplate "%{text}<extra>%{fullData.name}</extra>"}))
-        tag-lines  (for [tag tag-xs]
-                     {:x [tag tag] :y [0.001 1000]
-                      :mode "lines"
-                      :line {:color "grey" :width 1 :dash "dash"}
-                      :showlegend false
-                      :hoverinfo "none"})
+        tag-shapes (for [tag tag-xs]
+                     {:type "line"
+                      :x0 tag :x1 tag
+                      :yref "paper" :y0 0 :y1 1
+                      :line {:color "grey" :width 1 :dash "dash"}})
         commit-by-x (into {}
                           (map (fn [r]
                                  (let [x (or (:tag r) (subs (:commit r) 0 7))
@@ -56,9 +55,10 @@
                     :margin   {:b 120}
                     :colorway ["#268bd2" "#d33682" "#859900"]
                     :font {:family "Go Mono, monospace" :size 11}
-                    :shapes   [{:type "line"
-                                :xref "paper" :x0 0 :x1 1
-                                :yref "y" :y0 1 :y1 1}]}]
+                    :shapes   (into [{:type "line"
+                                      :xref "paper" :x0 0 :x1 1
+                                      :yref "y" :y0 1 :y1 1}]
+                                    tag-shapes)}]
     (kind/hiccup
       [:div
        [:script {:src "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.20.0/plotly.min.js"}]
@@ -85,11 +85,9 @@
     xaxis: Object.assign({}, baseLayout.xaxis, {gridcolor: cv('--chart-grid'), color: cv('--fg')}),
   });
   layout.shapes[0].line = {color: cv('--chart-baseline'), width: 1, dash: 'dash'};
-  traces.forEach(function(t) {
-    if (t.line && t.line.dash === 'dash' && !t.name) {
-      t.line.color = cv('--tag-line');
-    }
-  });
+  for (var i = 1; i < layout.shapes.length; i++) {
+    layout.shapes[i].line.color = cv('--tag-line');
+  }
 
   Plotly.newPlot(el, traces, layout, {responsive: true});
 
@@ -112,7 +110,7 @@
 })();
 "
                 (json/write-str commit-by-x)
-                (json/write-str (vec (concat traces tag-lines)))
+                (json/write-str (vec traces))
                 (json/write-str layout))]])))
 
 (defn color-for-ratio [ratio]
@@ -133,6 +131,20 @@
   "Matches Clay's actual output naming for ns `benchmarks.<id>`."
   [id]
   (str "benchmarks." (str/replace id #"-" "_") ".html"))
+
+(defn source-search-url
+  "GitHub code search URL for the benchmark function definition."
+  [pkg bench-name]
+  (let [func-name (-> bench-name
+                      (str/split #"/")
+                      first
+                      (str/replace #"-\d+$" ""))
+        path      (str/replace pkg #"^\.\/" "")]
+    (str "https://github.com/search?q="
+         (java.net.URLEncoder/encode
+           (str "\"func " func-name "\" repo:open-policy-agent/opa path:" path)
+           "UTF-8")
+         "&type=code")))
 
 (defn index-table [benchmarks]
   (kind/table

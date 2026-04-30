@@ -1,5 +1,6 @@
 (ns opa-bench.generate
   (:require [opa-bench.data :as data]
+            [opa-bench.charts :as charts]
             [scicloj.clay.v2.api :as clay]
             [clojure.java.io :as io]))
 
@@ -17,13 +18,13 @@ style/page-style
 
 (style/page-title %s)
 
-;; **Package:** `%s`
-
-;; [Back to index](index.html)
+;; **Package:** `%s` | [source](%s) | [index](index.html)
 
 (charts/benchmark-chart %s %s)
 "
-                  id (pr-str name) pkg (pr-str pkg) (pr-str name)))
+                  id (pr-str name) pkg
+                  (charts/source-search-url pkg name)
+                  (pr-str pkg) (pr-str name)))
     file))
 
 (defn render-all! []
