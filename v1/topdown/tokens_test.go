@@ -572,12 +572,7 @@ func TestTopdownJWTUnknownAlgTypesDiscardedFromJWKS(t *testing.T) {
 		  "alg": "RSA-OAEP",
 		  "use": "enc",
 		  "n": "onlqv4UZx5ZabJ3TCq-IO0s0xaOwo6fWl9o4SzLXPbGtvxonQhoYOeMlS0XkdEdLzB-eqh_hkQ",
-		  "e": "AQAB",
-		  "x5c": [
-			"MIICnTCCAYUCBgGAmcG0xjANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQ2YVaQn47Eew=="
-		  ],
-		  "x5t": "WKfdwdQkg",
-		  "x5t#S256": "2_FidAwjlCQl20"
+		  "e": "AQAB"
 		}
 	]
 }
@@ -632,12 +627,7 @@ func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
 		  "alg": "RSA-OAEP",
 		  "use": "enc",
 		  "n": "onlqv4UZx5ZabJ3TCq-IO0s0xaOwo6fWl9o4SzLXPbGtvxonQhoYOeMlS0XkdEdLzB-eqh_hkQ",
-		  "e": "AQAB",
-		  "x5c": [
-			"MIICnTCCAYUCBgGAmcG0xjANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQ2YVaQn47Eew=="
-		  ],
-		  "x5t": "WKfdwdQkg",
-		  "x5t#S256": "2_FidAw.....jlCQl20"
+		  "e": "AQAB"
 		}
 	]
 }
@@ -737,12 +727,7 @@ func TestTopdownJWTDecodeVerifyIgnoresKeysOfUnknownAlgInJWKS(t *testing.T) {
 		  "alg": "RSA-OAEP",
 		  "use": "enc",
 		  "n": "onlqv4UZx5ZabJ3TCq-IO0s0xaOwo6fWl9o4SzLXPbGtvxonQhoYOeMlS0XkdEdLzB-eqh_hkQ",
-		  "e": "AQAB",
-		  "x5c": [
-			"MIICnTCCAYUCBgGAmcG0xjANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQ2YVaQn47Eew=="
-		  ],
-		  "x5t": "WKfdwdQkg",
-		  "x5t#S256": "2_FidAw.....jlCQl20"
+		  "e": "AQAB"
 		}
 	]
 }

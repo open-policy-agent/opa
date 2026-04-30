@@ -1289,6 +1289,8 @@ func createTokenCacheKey(serializedJwt ast.Value, publicKey ast.Value) ast.Value
 }
 
 func init() {
+	jwk.Configure(jwk.WithMinRSAPublicExponent(0), jwk.WithMinRSAModulusBits(0))
+
 	// By default, the JWT cache is disabled.
 	disabled := true
 	var tokenCache = cache.NamedValueCacheConfig{
