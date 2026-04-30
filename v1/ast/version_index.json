@@ -970,6 +970,16 @@
       "Minor": 17,
       "Patch": 0
     },
+    "uri.is_valid": {
+      "Major": 1,
+      "Minor": 16,
+      "Patch": 0
+    },
+    "uri.parse": {
+      "Major": 1,
+      "Minor": 16,
+      "Patch": 0
+    },
     "urlquery.decode": {
       "Major": 0,
       "Minor": 17,

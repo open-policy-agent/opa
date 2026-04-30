@@ -3,11 +3,61 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.16.0
 
-### Data API Request/Response Metadata
+This release contains a mix of new features, performance improvements, and bugfixes. Notably:
 
-Wrapping projects can now attach custom metadata to Data API requests and have evaluation produce response metadata.
+- New `uri.parse` and `uri.is_valid` built-in functions
+- Data API Request/Response Metadata
+- Prometheus metrics exported via OTLP
+- Formatter improvements
+
+> **_NOTE:_**
+>
+> In v1.15.x, OPA was dropping logs for bundle downloads, `print()` calls and other plugin-originated logs. 
+> Users are advised to update, v1.16.0 fixes this bug in ([#8544](https://github.com/open-policy-agent/opa/pull/8544)).
+
+### New `uri.parse` and `uri.is_valid` built-in functions ([#8263](https://github.com/open-policy-agent/opa/issues/8263))
+
+Two new [built-in functions](https://www.openpolicyagent.org/docs/policy-reference/builtins) have been added: `uri.parse` for parsing a given URI, and `uri.is_valid` for verifying the structure of a given URI.
+
+#### uri.parse
+
+Parses a URI and returns an object containing its components according to [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986.html). Empty components are omitted.
+
+```rego
+package example
+
+test_uri if {
+	uri.parse("https://example.com:8080/api?q=1#top") == {
+		"scheme": "https",
+		"hostname": "example.com",
+		"port": "8080",
+		"path": "/api",
+		"raw_path": "/api",
+		"raw_query": "q=1",
+		"fragment": "top",
+	}
+}
+```
+
+#### uri.is_valid
+
+Returns `true` if the input can be parsed as a URI, `false` otherwise.
+
+```rego
+package example
+
+deny contains "invalid URI" if {
+    not uri.is_valid("http://[invalid")
+}
+```
+
+Authored by @charlieegan3 reported by @anivar
+
+### Data API Request/Response Metadata ([#8570](https://github.com/open-policy-agent/opa/pull/8570))
+
+Wrapping projects can now attach custom metadata to [Data API](https://www.openpolicyagent.org/docs/rest-api#data-api) requests and have evaluation produce response metadata.
 
 Two distinct metadata paths are introduced:
 
@@ -62,6 +112,80 @@ curl -H 'Content-Type: application/json' \
   "result": true
 }
 ```
+
+Authored by @srenatus
+
+### Runtime, SDK, Tooling
+
+- distributedtracing: Export Prometheus metrics via OTLP ([#7591](https://github.com/open-policy-agent/opa/issues/7591)) reported and authored by @Munken
+- cmd,tester: Update opa test to stream test case results ([#3676](https://github.com/open-policy-agent/opa/issues/3676)) authored by @sspaink reported by @tsandall
+- cmd,tester: Show full errors when test fails and using `--coverage` ([#8438](https://github.com/open-policy-agent/opa/pull/8438)) authored by @grosser
+- format: Add new line between METADATA blocks ([#8483](https://github.com/open-policy-agent/opa/pull/8483)) authored by @sspaink
+- format: Allow indenting all `with`s in expression ([#8508](https://github.com/open-policy-agent/opa/pull/8508)) authored by @anderseknert
+- format: Fix dropping comments after handling unexpectedCommentError ([#8553](https://github.com/open-policy-agent/opa/pull/8553)) authored by @sspaink
+- format: Preserve location of trailing comments inside `every` body ([#8558](https://github.com/open-policy-agent/opa/issues/8558)) authored by @johanfylling
+- format: Prevent `opa fmt` from formatting single attribute objects with comments ([#7565](https://github.com/open-policy-agent/opa/issues/7565)) authored by @sspaink reported by @anderseknert
+- logging: Keep forwarding from BufferedLogger after Flush() ([#8544](https://github.com/open-policy-agent/opa/pull/8544)) authored by @srenatus reported by @annieyhuang
+- plugins/logs: Fix logBuffer eviction loop only dropping one element ([#8543](https://github.com/open-policy-agent/opa/pull/8543)) authored by @sspaink
+- plugins/logs: Fix out-of-order plugin status notifications ([#8009](https://github.com/open-policy-agent/opa/issues/8009)) authored by @sspaink reported by @Pushpalanka
+- plugins/rest: Carry over all of `*tls.Config` ([#8473](https://github.com/open-policy-agent/opa/issues/8473)) authored by @srenatus reported by @ashu2496
+- server: Drop HTML index page query form ([#8477](https://github.com/open-policy-agent/opa/issues/8477)) authored by @johanfylling reported by @srenatus and @r0binak
+- server: Skip chmod for abstract Unix domain sockets ([#8536](https://github.com/open-policy-agent/opa/pull/8536)) authored by @bakayolo
+- storage/inmem: Avoid allocations from Read() in MakeDir() ([#8561](https://github.com/open-policy-agent/opa/pull/8561)) authored by @srenatus
+- tester: Add method to match tests by ref prefixes ([#6696](https://github.com/open-policy-agent/opa/issues/6696)) authored by @anderseknert  
+  Note: Experimental.
+
+### Compiler, Topdown and Rego
+
+- ast: Allow Back-to-back metadata blocks ([#8482](https://github.com/open-policy-agent/opa/issues/6409)) authored by @sspaink reported by @johanfylling
+- ast: Catch functions in dynamic extent of ref head rule ([#8461](https://github.com/open-policy-agent/opa/issues/8461)) authored by @srenatus reported by @johanfylling
+- ast: Fix parenthesis in String() of {obj,arr,set} comprehensions ([#8511](https://github.com/open-policy-agent/opa/pull/8511)) authored by @srenatus
+- ast: Fix parsing of unary `-` in front of a ref ([#5014](https://github.com/open-policy-agent/opa/issues/5014)) authored by @mmzzuu reported by @philipaconrad
+- ast: Fix type checker match error for objects with set keys ([#6260](https://github.com/open-policy-agent/opa/issues/6260)) authored by @sspaink reported by @tsandall
+- ast: Fix type checker to recognize numeric index in generated map ([#6736](https://github.com/open-policy-agent/opa/issues/6736)) authored by @sspaink reported by @anderseknert
+- ast: Handle underdetermined function args ([#5234](https://github.com/open-policy-agent/opa/issues/5234)) authored by @sspaink reported by @obataku
+- ast: Identify compatible type from reference in type checker ([#7273](https://github.com/open-policy-agent/opa/issues/7273)) authored by @sspaink reported by @anderseknert
+- ast: Support recursive JSON Schemas ([#6099](https://github.com/open-policy-agent/opa/issues/6099)) authored by @sspaink reported by @anderseknert
+- builtins: Add support for days, weeks and years in `time.parse_duration_ns` built-in function ([#2719](https://github.com/open-policy-agent/opa/issues/2719)) authored by @sspaink reported by @freeseacher
+- builtins: Fix `graph.reachable_paths` to return all reachable paths ([#5871](https://github.com/open-policy-agent/opa/issues/5871)) authored by @davidmarne-wf reported by @ericjkao
+- builtins: Limit exponent size in `units.parse_bytes` built-in function to prevent timeout bypass ([#8326](https://github.com/open-policy-agent/opa/issues/8326)) authored by @isaiahvita reported by @anderseknert
+- perf: Add CopyNonGround() methods for Array, Set, and Object ([#8323](https://github.com/open-policy-agent/opa/pull/8323)) authored by @alex60217101990
+- resolver/wasm: Add NewWithContext to allow passing context ([#8499](https://github.com/open-policy-agent/opa/pull/8499)) authored by @dominikschulz
+
+### Docs, Website, Ecosystem
+
+- docs: Add aggregates examples for `count` and `sum` built-in functions ([#8566](https://github.com/open-policy-agent/opa/pull/8566)) authored by @alliasgher reported by @srenatus
+- docs: Add generated output.jsons for docs examples ([#8535](https://github.com/open-policy-agent/opa/pull/8535)) authored by @charlieegan3
+- docs: Add spec for OCP bundle status tracking API ([#8502](https://github.com/open-policy-agent/opa/pull/8502)) authored by @ashutosh-narkar
+- docs: Add the latest videos to the README presentations section ([#8523](https://github.com/open-policy-agent/opa/pull/8523)) authored by @sspaink
+- docs: Add Windows development notes to dev reference guide ([#8422](https://github.com/open-policy-agent/opa/pull/8422)) authored by @raajheshkannaa
+- docs: Fix input value type in `not` undefined example ([#8580](https://github.com/open-policy-agent/opa/pull/8580)) authored by @menma1234
+- docs: Update Regal docs to v0.40.0 ([#8538](https://github.com/open-policy-agent/opa/pull/8538)) authored by @charlieegan3
+- docs: Updated roadmap link ([#8501](https://github.com/open-policy-agent/opa/pull/8501)) authored by @johanfylling
+- docs: Various typo fixes ([#8529](https://github.com/open-policy-agent/opa/pull/8529)) authored by @sspaink
+- ecosystem: Add vulnetix ecosystem entry ([#8532](https://github.com/open-policy-agent/opa/pull/8532)) authored by @0x73746F66
+- ecosystem: Add KubeStellar Console ([#8560](https://github.com/open-policy-agent/opa/pull/8560)) authored by @clubanderson
+- website: Add banner to show when event has passed ([#8493](https://github.com/open-policy-agent/opa/pull/8493)) authored by @charlieegan3
+- website: Add copy-as-markdown button to doc pages ([#8540](https://github.com/open-policy-agent/opa/pull/8540)) authored by @charlieegan3
+- website: Copy button improvements ([#8577](https://github.com/open-policy-agent/opa/pull/8577)) authored by @charlieegan3
+- website: Remove old redirects, add new management redirect ([#8424](https://github.com/open-policy-agent/opa/issues/8424)) authored by @charlieegan3 reported by @narainar
+- website: Update intro video on homepage ([#8547](https://github.com/open-policy-agent/opa/pull/8547)) authored by @charlieegan3
+
+### Miscellaneous
+
+- build: Exclude domains that cause false positives (#8533) ([#8495](https://github.com/open-policy-agent/opa/issues/8495)) authored by @charlieegan3
+- e2e/cli: Add test for debug `print()` logging ([#8567](https://github.com/open-policy-agent/opa/pull/8567)) authored by @srenatus
+- e2e/cli: Start CLI E2E tests ([#8545](https://github.com/open-policy-agent/opa/pull/8545)) authored by @srenatus
+- github: declare formatted rego as rego ([#8564](https://github.com/open-policy-agent/opa/pull/8564)) authored by @srenatus
+- Security policy update ([#8479](https://github.com/open-policy-agent/opa/pull/8479)) authored by @anderseknert
+- Dependency updates; notably:
+  - build: bump go 1.26.2 ([#8497](https://github.com/open-policy-agent/opa/pull/8497)) authored by @sspaink
+  - build(deps): bump wasmtime-go from v39.0.1 to v43.0.2
+  - build(deps): bump go.opentelemetry.io deps from 1.40.0/0.65.0 to 1.43.0/0.68.0
+  - build(deps): bump github.com/containerd/containerd/v2 from 2.2.1 to 2.2.3
+  - build(deps): bump ithub.com/huandu/go-sqlbuilder from 1.39.1 to 1.40.2
+  - build(deps): bump golang.org/x/net from 0.51.0 to 0.53.0
+  - build(deps): bump golang.org/x/text from 0.34.0 to 0.36.0
 
 ## 1.15.1
 
