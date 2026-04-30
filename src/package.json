@@ -1,9 +1,0 @@
-{
-  "dependencies": {
-    "@observablehq/notebook-kit": "^1.5.2"
-  },
-  "scripts": {
-    "docs:preview": "NODE_OPTIONS='--allow-net' notebooks preview",
-    "docs:build": "NODE_OPTIONS='--allow-net' notebooks build --no-minify --base /opa/benchmarks --empty --out ../benchmarks/ -- *.html"
-  }
-}
