@@ -1,0 +1,77 @@
+name: Test Envoy with OPA
+
+on:
+  workflow_call:
+    secrets:
+      slack_webhook_url:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  test-envoy-with-opa:
+    name: Test Envoy with OPA
+    runs-on: ubuntu-24.04
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }} # zizmor: ignore[secrets-outside-env]
+    steps:
+      - name: Check out OPA code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          path: opa
+
+      - id: go_version
+        name: Read go version
+        run: echo "go_version=$(cat opa/.go-version)" >> $GITHUB_OUTPUT
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+
+      - name: Get latest opa-envoy-plugin release tag
+        id: envoy_release
+        run: |
+          tag=$(gh api repos/open-policy-agent/opa-envoy-plugin/releases/latest --jq '.tag_name')
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Check out opa-envoy-plugin ${{ steps.envoy_release.outputs.tag }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: open-policy-agent/opa-envoy-plugin
+          ref: ${{ steps.envoy_release.outputs.tag }}
+          persist-credentials: false
+          path: envoy
+
+      - name: Update OPA dependency
+        working-directory: envoy
+        run: |
+          go mod edit -replace github.com/open-policy-agent/opa=../opa
+          go mod tidy
+
+      - name: Build
+        working-directory: envoy
+        run: make build
+
+      - name: Test
+        working-directory: envoy
+        run: make test
+
+      - name: e2e tests
+        working-directory: envoy
+        run: make test-e2e
+
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        with:
+          webhook: ${{ env.SLACK_WEBHOOK_URL }} # zizmor: ignore[secrets-outside-env]
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "opa-envoy-plugin compatibility check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
+            }
