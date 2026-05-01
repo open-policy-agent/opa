@@ -24,7 +24,7 @@ jobs:
         run: CGO_ENABLED=1 make ci-go-race-detector
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c # v3.0.2
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
@@ -60,7 +60,7 @@ jobs:
         run: find ast/testdata/fuzz ! -name '*.stmt' ! -type d -print -exec cat {} \;
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c # v3.0.2
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
@@ -86,7 +86,7 @@ jobs:
           DOCKER_RUNNING: 0
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c # v3.0.2
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
@@ -115,7 +115,7 @@ jobs:
       - run: govulncheck ./...
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c # v3.0.2
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
@@ -182,7 +182,7 @@ jobs:
         timeout-minutes: 10
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c # v3.0.2
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
