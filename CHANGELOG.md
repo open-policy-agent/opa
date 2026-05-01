@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.16.1
+
+This is a patch release addressing a regression ([#8590](https://github.com/open-policy-agent/opa/pull/8590)) in the plugin manager that may cause the service to hang on shutdown.
+
 ## 1.16.0
 
 This release contains a mix of new features, performance improvements, and bugfixes. Notably:
