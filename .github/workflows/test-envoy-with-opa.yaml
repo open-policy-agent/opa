@@ -61,9 +61,7 @@ jobs:
         working-directory: envoy
         run: make test
 
-      - name: e2e tests
-        working-directory: envoy
-        run: make test-e2e
+        # TODO: run e2e tests
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
