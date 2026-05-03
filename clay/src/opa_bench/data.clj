@@ -96,7 +96,16 @@
 (defn benchmark-id [pkg name]
   (clojure.string/replace (str pkg "_" name) #"[^a-zA-Z0-9]" "-"))
 
+(def sparklines
+  (->> rows
+       (filter #(= (:measure %) "NsPerOp"))
+       (group-by (juxt :pkg :name))
+       (into {}
+             (map (fn [[k vs]]
+                    [k (mapv :value (sort-by :date vs))])))))
+
 (def benchmarks-with-ids
   (->> ratios
        (filter #(contains? benchmarks-in-window [(:pkg %) (:name %)]))
-       (mapv #(assoc % :id (benchmark-id (:pkg %) (:name %))))))
+       (mapv #(assoc % :id (benchmark-id (:pkg %) (:name %))
+                        :spark (get sparklines [(:pkg %) (:name %)])))))
