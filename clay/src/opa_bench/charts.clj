@@ -146,15 +146,37 @@
            "UTF-8")
          "&type=code")))
 
+(defn sparkline [values]
+  (when (and values (> (count values) 1))
+    (let [w 80 h 20
+          vs (vec values)
+          mn (apply min vs)
+          mx (apply max vs)
+          rng (- mx mn)
+          rng (if (zero? rng) 1.0 rng)
+          n (count vs)
+          points (str/join " "
+                   (for [i (range n)]
+                     (str (double (* (/ i (max 1 (dec n))) w))
+                          ","
+                          (double (- h (* (/ (- (nth vs i) mn) rng) h))))))]
+      (kind/hiccup
+        [:svg {:width w :height h :style "vertical-align:middle"}
+         [:polyline {:points points
+                     :fill "none"
+                     :stroke "#268bd2"
+                     :stroke-width "1.5"}]]))))
+
 (defn index-table [benchmarks]
   (kind/table
-    {:column-names ["Pkg" "Name" "NsPerOp" "AllocsPerOp" "BytesPerOp"]
-     :row-maps (for [{:keys [pkg name id] :as b} benchmarks]
+    {:column-names ["Pkg" "Name" "Trend" "NsPerOp" "AllocsPerOp" "BytesPerOp"]
+     :row-maps (for [{:keys [pkg name id spark] :as b} benchmarks]
                  {"Pkg"        pkg
                   "Name"       (kind/hiccup [:a {:href (clay-output-path id)} name])
+                  "Trend"      (or (sparkline spark) "")
                   "NsPerOp"    (ratio-cell (get b "NsPerOp"))
                   "AllocsPerOp" (ratio-cell (get b "AllocsPerOp"))
                   "BytesPerOp" (ratio-cell (get b "BytesPerOp"))})}
     {:use-datatables true
      :datatables {:pageLength 25
-                  :order [[2 "desc"]]}}))
+                  :order [[3 "desc"]]}}))
