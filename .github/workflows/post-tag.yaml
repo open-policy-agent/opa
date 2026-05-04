@@ -44,10 +44,13 @@ jobs:
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
           cache: false
-      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
-          version: '0.15.2'
-          use-cache: false
+          install: true
+          cache: false
+          mise_toml: |
+            [tools]
+            zig = "0.16.0"
 
       - name: Git Describe
         run: git describe --tags
