@@ -3,6 +3,7 @@ package rego
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -419,4 +420,30 @@ check := true`
 		}
 		assertBoolResult(t, rs, true, "Expected allow=true when all of data is visible")
 	})
+}
+
+func TestExternalSourceUnsupportedTarget(t *testing.T) {
+	externalModule := ast.MustParseModule(`package external.authz
+allow if input.role == "admin"`)
+
+	packageRef := ast.MustParseRef("data.external.authz")
+	source := newMockExternalSource([]ast.Ref{packageRef}, externalModule.Rules)
+
+	for _, target := range []string{"wasm", "plan", "custom-plugin"} {
+		t.Run(target, func(t *testing.T) {
+			r := New(
+				Query("data.external.authz.allow"),
+				Module("test.rego", `package test`),
+				ExternalSource(source),
+				Target(target),
+			)
+			_, err := r.Eval(t.Context())
+			if err == nil {
+				t.Fatal("Expected error for non-rego target with external sources")
+			}
+			if !strings.Contains(err.Error(), "external rule sources are not supported") {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+		})
+	}
 }
