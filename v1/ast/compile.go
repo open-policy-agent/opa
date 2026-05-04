@@ -4540,7 +4540,7 @@ func (vs unsafeVars) Slice() (result []unsafePair) {
 // If the body cannot be reordered to ensure safety, the second return value
 // contains a mapping of expressions to unsafe variables in those expressions.
 func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
-	vis := varVisitorPool.Get().WithParams(safetyCheckVisitorParams(arity))
+	vis := varVisitorPool.Get().WithParams(SafetyCheckVisitorParamsWithArity(arity))
 	vis.WalkBody(body)
 
 	defer varVisitorPool.Put(vis)
@@ -4550,7 +4550,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	unsafe := make(unsafeVars, len(bodyVars)-len(safe))
 
 	for _, e := range body {
-		vis = vis.Clear().WithParams(safetyCheckVisitorParams(arity))
+		vis = vis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
 		vis.Walk(e)
 		for v := range vis.Vars() {
 			if _, ok := safe[v]; !ok {
@@ -4619,7 +4619,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 
 	for i, e := range reordered {
 		if i > 0 {
-			vis = vis.Clear().WithParams(safetyCheckVisitorParams(arity))
+			vis = vis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
 			vis.Walk(reordered[i-1])
 			g.Update(vis.Vars())
 		}
@@ -4632,7 +4632,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	return reordered, unsafe
 }
 
-func safetyCheckVisitorParams(arity func(Ref) int) VarVisitorParams {
+func SafetyCheckVisitorParamsWithArity(arity func(Ref) int) VarVisitorParams {
 	params := SafetyCheckVisitorParams
 	params.customVisit = func(vis *VarVisitor, v any) bool {
 		return unsafeNotVars(arity, vis, v)
@@ -4672,7 +4672,7 @@ func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
 	exprByVar := ExprByVar{}
 
 	for _, e := range n.Body {
-		internalVis.Clear().WithParams(safetyCheckVisitorParams(arity))
+		internalVis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
 		internalVis.Walk(e)
 
 		for v := range internalVis.Vars() {
@@ -4732,7 +4732,7 @@ func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
 
 	// 3. Record all vars in the not-body that aren't also assigned
 
-	internalVis.Clear().WithParams(safetyCheckVisitorParams(arity))
+	internalVis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
 	internalVis.Walk(n.Body)
 
 	for v := range internalVis.Vars() {
@@ -4813,7 +4813,7 @@ func (xform *bodySafetyTransformer) Visit(x any) bool {
 }
 
 func (xform *bodySafetyTransformer) reorderComprehensionSafety(tv VarSet, body Body) Body {
-	bv := body.Vars(safetyCheckVisitorParams(xform.arity))
+	bv := body.Vars(SafetyCheckVisitorParamsWithArity(xform.arity))
 	bv.Update(xform.globals)
 
 	if tv.DiffCount(bv) > 0 {

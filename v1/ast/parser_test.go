@@ -9137,6 +9137,44 @@ func TestNotImport(t *testing.T) {
 			},
 		},
 		{
+			note: "implicit body, with",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not 1 + 1 == input.x with input.x as 3
+				}
+			`,
+			exp: &Module{
+				Package: MustParsePackage("package test"),
+				Imports: []*Import{{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("not"))}},
+				Rules: RuleSet{
+					&Rule{
+						Head: &Head{
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     BooleanTerm(true),
+						},
+						Body: NewBody(
+							&Expr{
+								Terms: &Not{
+									Body: NewBody(Equal.Expr(
+										CallTerm(NewTerm(Plus.Ref()), NumberTerm("1"), NumberTerm("1")),
+										RefTerm(VarTerm("input"), StringTerm("x")),
+									)),
+								},
+								With: []*With{
+									{
+										Target: RefTerm(VarTerm("input"), StringTerm("x")),
+										Value:  NumberTerm("3"),
+									},
+								},
+							},
+						),
+					},
+				},
+			},
+		},
+		{
 			note: "explicit body, no expression",
 			module: `package test
 				import future.keywords.not

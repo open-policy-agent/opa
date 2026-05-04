@@ -531,12 +531,12 @@ func (e *eval) evalStep(iter evalIterator) error {
 			})
 
 		case *ast.Not:
-			eval := evalNot{
+			en := evalNot{
 				e:    e,
 				not:  terms,
 				expr: expr,
 			}
-			err = eval.eval(func() error {
+			err = en.eval(func(e *eval) error {
 				defined = true
 				err := iter(e)
 				e.traceRedo(expr)
@@ -595,12 +595,12 @@ func (e *eval) evalStep(iter evalIterator) error {
 		})
 
 	case *ast.Not:
-		eval := evalNot{
+		en := evalNot{
 			e:    e,
 			not:  terms,
 			expr: expr,
 		}
-		err = eval.eval(func() error {
+		err = en.eval(func(e *eval) error {
 			return iter(e)
 		})
 
@@ -629,7 +629,7 @@ func (e *eval) evalNot(iter evalIterator) error {
 	expr := e.query[e.index]
 
 	if e.unknown(expr, e.bindings) {
-		return e.evalNotPartial(iter)
+		return e.setupAndEvalNotPartial(iter)
 	}
 
 	negation := ast.NewBody(expr.ComplementNoWith())
@@ -818,15 +818,42 @@ func (e *eval) evalWithPop(input, data *ast.Term) {
 	e.input = input
 }
 
-func (e *eval) evalNotPartial(iter evalIterator) error {
+func (e *eval) setupAndEvalNotPartial(iter evalIterator) error {
 	// Prepare query normally.
 	expr := e.query[e.index]
-	negation := expr.ComplementNoWith()
 
+	unNegate := func(expr *ast.Expr) ast.Body {
+		return ast.NewBody(expr.ComplementNoWith())
+	}
+
+	complement := func(expr *ast.Expr) []*ast.Expr {
+		if expr.IsNot() {
+			return ast.Complement(expr)
+		}
+		return []*ast.Expr{expr.Complement()}
+	}
+
+	supportTerms := func(terms any) any {
+		return terms
+	}
+
+	return e.evalNotPartial(expr, unNegate, complement, supportTerms, iter)
+}
+
+// unNegateFn returns the "unwrapped" non-negated expressions (1..*) of a negated expressions
+type unNegateFn func(expr *ast.Expr) ast.Body
+
+// complementFn returns the set of expressions (1..*) that is the complement of an expression
+type complementFn func(*ast.Expr) []*ast.Expr
+
+// supportTermsFn transforms the given terms to a support reference/call to the form required by the negated expression's ast.Expr.Terms field.
+type supportTermsFn func(terms any) any
+
+func (e *eval) evalNotPartial(expr *ast.Expr, unNegateFn unNegateFn, complementFn complementFn, supportTermsFn supportTermsFn, iter evalIterator) error {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
-	e.closure(ast.NewBody(negation), child)
+	e.closure(unNegateFn(expr), child)
 
 	// Unknowns is the set of variables that are marked as unknown. The variables
 	// are namespaced with the query ID that they originate in. This ensures that
@@ -878,7 +905,7 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	// the unknowns as safe because vars in the save set will either be known to
 	// the caller or made safe by an expression on the save stack.
 	if !canInlineNegation(unknowns, savedQueries) {
-		return e.evalNotPartialSupport(child.queryID, expr, unknowns, savedQueries, iter)
+		return e.evalNotPartialSupport(child.queryID, expr, supportTermsFn, unknowns, savedQueries, iter)
 	}
 
 	// If we can inline the result, we have to generate the cross product of the
@@ -889,14 +916,14 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	// Becomes:
 	//
 	//	(!A && !C) || (!A && !D) || (!B && !C) || (!B && !D)
-	return complementedCartesianProduct(savedQueries, 0, nil, func(q ast.Body) error {
+	return complementedCartesianProduct(savedQueries, 0, nil, complementFn, func(q ast.Body) error {
 		return e.saveInlinedNegatedExprs(q, func() error {
 			return iter(e)
 		})
 	})
 }
 
-func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, unknowns ast.VarSet, queries []ast.Body, iter evalIterator) error {
+func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, supportTermsFn supportTermsFn, unknowns ast.VarSet, queries []ast.Body, iter evalIterator) error {
 
 	// Prepare support rule head.
 	supportName := fmt.Sprintf("__not%d_%d_%d__", e.queryID, e.index, negationID)
@@ -940,9 +967,9 @@ func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, unknowns
 		terms := make([]*ast.Term, len(args)+1)
 		terms[0] = term
 		copy(terms[1:], args)
-		cpy.Terms = terms
+		cpy.Terms = supportTermsFn(terms)
 	} else {
-		cpy.Terms = term
+		cpy.Terms = supportTermsFn(term)
 	}
 
 	return e.saveInlinedNegatedExprs([]*ast.Expr{cpy}, func() error {
@@ -4138,14 +4165,17 @@ func (e *evalEvery) plug(expr *ast.Expr) *ast.Expr {
 	return cpy
 }
 
-// TODO: Add PE support
 type evalNot struct {
 	e    *eval
 	not  *ast.Not
 	expr *ast.Expr
 }
 
-func (e evalNot) eval(iter unifyIterator) error {
+func (e evalNot) eval(iter evalIterator) error {
+	if e.e.partial() && e.e.unknown(e.not.Body, e.e.bindings) {
+		return e.evalPartial(iter)
+	}
+
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
@@ -4168,10 +4198,72 @@ func (e evalNot) eval(iter unifyIterator) error {
 	}
 
 	if !child.defined {
-		return iter()
+		return iter(e.e)
 	}
 
 	return nil
+}
+
+func (e evalNot) evalPartial(iter evalIterator) error {
+	if e.not.ExplicitBody && !e.e.inliningControl.shallow {
+		// we don't need to calculate a cartesian product for explicit not-bodies, as each 'not' acts as a closure for PE:d child expressions.
+
+		child := evalPool.Get()
+		defer evalPool.Put(child)
+
+		e.e.closure(e.not.Body, child)
+
+		var savedQueries []ast.Body
+		e.e.saveStack.PushQuery(nil)
+
+		_ = child.eval(func(*eval) error {
+			query := e.e.saveStack.Peek()
+			plugged := query.Plug(e.e.caller.bindings)
+
+			// Note: we could possibly apply copy propagation here, but that might fold calls into a nested structure that would require a type-checker update.
+
+			// Skip this rule body if it fails to type-check.
+			// Type-checking failure means the rule body will never succeed.
+			if !e.e.compiler.PassesTypeCheck(plugged) {
+				return nil
+			}
+
+			savedQueries = append(savedQueries, plugged)
+			return nil
+		}) // cannot return error
+
+		e.e.saveStack.PopQuery()
+
+		// If partial evaluation produced no results, the expression is always undefined
+		// so it does not have to be saved.
+		if len(savedQueries) == 0 {
+			return iter(e.e)
+		}
+
+		q := make([]*ast.Expr, 0, len(savedQueries))
+		for i := range savedQueries {
+			q = append(q, ast.NewExpr(&ast.Not{
+				Body:         savedQueries[i].Copy(),
+				ExplicitBody: true,
+			}))
+		}
+
+		return e.e.saveInlinedNegatedExprs(q, func() error {
+			return iter(e.e)
+		})
+	}
+
+	expr := e.e.query[e.e.index]
+
+	unNegate := func(expr *ast.Expr) ast.Body {
+		return e.not.Body
+	}
+
+	supportTerms := func(terms any) any {
+		return ast.NewNot(ast.NewExpr(terms))
+	}
+
+	return e.e.evalNotPartial(expr, unNegate, ast.Complement, supportTerms, iter)
 }
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
@@ -4265,8 +4357,7 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 				// in the future, we can handle more cases.
 				return false
 			}
-			// TODO: also check expr.Terms.(*ast.Not)?
-			if !expr.Negated {
+			if !expr.IsNegated() {
 				// Positive expressions containing variables cannot be trivially negated
 				// because they become unsafe (e.g., "x = 1" negated is "not x = 1" making x
 				// unsafe.) We check if the vars in the expr are already safe.
@@ -4328,6 +4419,15 @@ func containsNestedRefOrCall(vis *nestedCheckVisitor, expr *ast.Expr) bool {
 		return false
 	}
 
+	if n, ok := expr.Terms.(*ast.Not); ok {
+		for _, nExpr := range n.Body {
+			if containsNestedRefOrCall(vis, nExpr) {
+				return true
+			}
+		}
+		return false
+	}
+
 	return containsNestedRefOrCallInTerm(vis, expr.Terms.(*ast.Term))
 }
 
@@ -4350,16 +4450,17 @@ func containsNestedRefOrCallInTerm(vis *nestedCheckVisitor, term *ast.Term) bool
 	}
 }
 
-func complementedCartesianProduct(queries []ast.Body, idx int, curr ast.Body, iter func(ast.Body) error) error {
+func complementedCartesianProduct(queries []ast.Body, idx int, curr ast.Body, complement func(expr *ast.Expr) []*ast.Expr, iter func(ast.Body) error) error {
 	if idx == len(queries) {
 		return iter(curr)
 	}
 	for _, expr := range queries[idx] {
-		curr = append(curr, expr.Complement())
-		if err := complementedCartesianProduct(queries, idx+1, curr, iter); err != nil {
+		mark := len(curr)
+		curr = append(curr, complement(expr)...)
+		if err := complementedCartesianProduct(queries, idx+1, curr, complement, iter); err != nil {
 			return err
 		}
-		curr = curr[:len(curr)-1]
+		curr = curr[:mark]
 	}
 	return nil
 }

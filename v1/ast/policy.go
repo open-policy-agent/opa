@@ -1159,7 +1159,14 @@ func NewExpr(terms any) *Expr {
 }
 
 // Complement returns a copy of this expression with the negation flag flipped.
+// Note: complementing an expression containing an ast.Not term is invalid, as this will create a double negation;
+// ast.Not terms may contain multiple expressions, and can therefore not be un-negated to a single *ast.Expr; use ast.Complement() instead.
+// Passing an expression containing an ast.Not with multiple expressions in its body will cause a panic.
 func (expr *Expr) Complement() *Expr {
+	if n, ok := expr.Terms.(*Not); ok && len(n.Body) > 1 {
+		panic(fmt.Errorf("cannot complement %T containing multiple expressions (%s)", n, n))
+	}
+
 	cpy := *expr
 	cpy.Negated = !cpy.Negated
 	return &cpy
@@ -1294,6 +1301,8 @@ func (expr *Expr) Copy() *Expr {
 	case *Term:
 		cpy.Terms = ts.Copy()
 	case *Every:
+		cpy.Terms = ts.Copy()
+	case *Not:
 		cpy.Terms = ts.Copy()
 	}
 
