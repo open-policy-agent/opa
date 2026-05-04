@@ -49,8 +49,11 @@
                                        :url     (str "https://github.com/open-policy-agent/opa/commit/"
                                                      (:commit r))}])))
                           bench-rows)
+        all-x      (mapv #(or (:tag %) (subs (:commit %) 0 7)) bench-rows)
+        tick-vals  (filterv some? (mapv :tag bench-rows))
         layout     {:yaxis    {:type "log" :title (str "Relative to " data/latest-tag)}
-                    :xaxis    {:title "" :tickangle -45}
+                    :xaxis    {:title "" :tickangle -45
+                               :tickvals tick-vals :ticktext tick-vals}
                     :hovermode "x unified"
                     :height   500
                     :margin   {:b 120}
