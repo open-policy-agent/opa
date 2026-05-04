@@ -354,7 +354,7 @@ func gen3LayerObject(l1Keys, l2Keys, l3Keys int) ast.Value {
 
 // Generates a list of paths for JSON operations. N keys per level, M levels. P patches.
 // TODO: Generate non-conflicting paths.
-func genRandom3LayerObjectJSONPatchListData(l1Keys, l2Keys, l3Keys, p int) ast.Value {
+func genRandom3LayerObjectJSONPatchListData(rng *rand.Rand, l1Keys, l2Keys, l3Keys, p int) ast.Value {
 	patchList := make([]*ast.Term, p)
 	numKeys := []int{l1Keys, l2Keys, l3Keys}
 	for i := range p {
@@ -362,13 +362,11 @@ func genRandom3LayerObjectJSONPatchListData(l1Keys, l2Keys, l3Keys, p int) ast.V
 			[2]*ast.Term{ast.InternedTerm("op"), ast.InternedTerm("replace")},
 			[2]*ast.Term{ast.InternedTerm("value"), ast.InternedTerm(2)},
 		)
-		// Random path depth.
-		depth := rand.Intn(3) + 1 // (max - min) + min method of getting a random range.
+		depth := rng.Intn(3) + 1
 
-		// Random values for each path segment.
 		segments := make([]string, 0, 2*depth)
 		for j := range depth {
-			pathSegment := strconv.FormatInt(int64(rand.Intn(numKeys[j])), 10)
+			pathSegment := strconv.FormatInt(int64(rng.Intn(numKeys[j])), 10)
 			segments = append(segments, "/", pathSegment)
 		}
 		path := strings.Join(segments, "")
@@ -382,6 +380,7 @@ func BenchmarkJSONPatchReplace(b *testing.B) {
 	ctx := b.Context()
 
 	sizes := []int{10, 100, 1000}
+	rng := rand.New(rand.NewSource(42))
 
 	// Pre-generate the test datasets/patches.
 	testdata := map[string][2]ast.Value{}
@@ -389,7 +388,7 @@ func BenchmarkJSONPatchReplace(b *testing.B) {
 		for _, m := range sizes {
 			testObj := gen3LayerObject(n, m, 10)
 			for _, p := range sizes {
-				testdata[fmt.Sprintf("%dx%dx10-%dp", n, m, p)] = [2]ast.Value{testObj, genRandom3LayerObjectJSONPatchListData(n, m, 10, p)}
+				testdata[fmt.Sprintf("%dx%dx10-%dp", n, m, p)] = [2]ast.Value{testObj, genRandom3LayerObjectJSONPatchListData(rng, n, m, 10, p)}
 			}
 		}
 	}
