@@ -54,6 +54,8 @@
         layout     {:yaxis    {:type "log" :title (str "Relative to " data/latest-tag)}
                     :xaxis    {:title "" :tickangle -45
                                :tickvals tick-vals :ticktext tick-vals}
+                    :hoverlabel {:bgcolor "#eaffff" :bordercolor "#888"
+                                 :font {:family "Go Mono, monospace" :size 11 :color "#000"}}
                     :hovermode "x unified"
                     :height   500
                     :margin   {:b 120}
