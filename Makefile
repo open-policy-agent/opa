@@ -19,12 +19,33 @@ GOVERSION ?= $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
+GO_S390X = CGO_CFLAGS="-I$(WASMTIME_DIR)/include" CGO_LDFLAGS="-L$(WASMTIME_DIR)/lib -lwasmtime -Wl,-rpath,$(WASMTIME_DIR)/lib" CGO_ENABLED=$(CGO_ENABLED) GOFLAGS="$(GOFLAGS)" go
+ifeq ($(GOARCH),s390x)
+GO = $(GO_S390X)
+endif
+
 GO_TAGS ?=
 CONDITIONAL_WASM_TAG :=
 ifeq ($(WASM_ENABLED),1)
 CONDITIONAL_WASM_TAG := -tags=opa_wasm
 endif
 override GO_TAGS := $(GO_TAGS) $(CONDITIONAL_WASM_TAG)
+
+WASMTIME_VERSION ?= 39.0.1
+WASMTIME_DIR := $(shell pwd)/.wasmtime
+
+.PHONY: ensure-wasmtime-s390x
+ensure-wasmtime-s390x:
+ifeq ($(GOARCH),s390x)
+ifeq ($(WASM_ENABLED),1)
+	@echo "Ensuring Wasmtime C-API for s390x"
+	@if [ ! -f "$(WASMTIME_DIR)/lib/libwasmtime.a" ]; then \
+		mkdir -p $(WASMTIME_DIR); \
+		curl -L https://github.com/bytecodealliance/wasmtime/releases/download/v$(WASMTIME_VERSION)/wasmtime-v$(WASMTIME_VERSION)-s390x-linux-c-api.tar.xz \
+		| tar -xJ --strip-components=1 -C $(WASMTIME_DIR); \
+	fi
+endif
+endif
 
 GOLANGCI_LINT_VERSION := v2.9.0
 YAML_LINT_VERSION := 0.29.0
@@ -93,7 +114,7 @@ release-dir:
 	@echo $(RELEASE_DIR)
 
 .PHONY: generate
-generate: wasm-lib-build
+generate: ensure-wasmtime-s390x wasm-lib-build
 ifeq ($(GOOS),windows)
 	GOOS=linux go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
 endif
@@ -126,15 +147,15 @@ e2e-prep: build
 test-short: go-test-short
 
 .PHONY: go-build
-go-build: generate
+go-build: generate ensure-wasmtime-s390x
 	$(GO) build $(GO_TAGS) -o $(BIN) -ldflags $(LDFLAGS)
 
 .PHONY: go-test
-go-test: generate
+go-test: generate ensure-wasmtime-s390x
 	$(GO) test $(GO_TAGS),slow ./...
 
 .PHONY: go-test-short
-go-test-short: generate
+go-test-short: generate ensure-wasmtime-s390x
 	$(GO) test $(GO_TAGS) -short ./...
 
 .PHONY: race-detector
@@ -154,13 +175,24 @@ perf-noisy: generate
 	$(GO) test $(GO_TAGS),slow,noisy $(GO_TEST_TIMEOUT) -run=- -bench=. -benchmem ./...
 
 .PHONY: wasm-sdk-e2e-test
-wasm-sdk-e2e-test: generate
+wasm-sdk-e2e-test: generate ensure-wasmtime-s390x
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) ./internal/wasm/sdk/test/e2e
 
 .PHONY: check
 check:
 ifeq ($(DOCKER_RUNNING), 1)
-	$(DOCKER) run --rm -v $(shell pwd):/app:ro,Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
+    ifeq ($(GOARCH),s390x)
+		@# ON S390X: Check if linter exists, install if missing, then run natively
+		@if ! command -v golangci-lint >/dev/null; then \
+			echo "s390x detected: Installing golangci-lint binary..."; \
+			curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b `go env GOPATH`/bin ${GOLANGCI_LINT_VERSION}; \
+		fi
+		@# Use the binary we just confirmed/installed
+		golangci-lint run
+    else
+		@# ON INTEL/ARM: Keep the original Docker-based linting
+		docker run --rm -v $(shell pwd):/app:ro,Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
+    endif
 else
 	@echo "Docker not installed or running. Skipping golangci run."
 endif
@@ -168,7 +200,17 @@ endif
 .PHONY: fmt
 fmt:
 ifeq ($(DOCKER_RUNNING), 1)
-	$(DOCKER) run --rm -v $(shell pwd):/app:Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
+    ifeq ($(GOARCH),s390x)
+		@# ON S390X: Install if missing, then run with --fix to actually format
+		@if ! command -v golangci-lint >/dev/null; then \
+			echo "s390x detected: Installing golangci-lint binary..."; \
+			curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b `go env GOPATH`/bin ${GOLANGCI_LINT_VERSION}; \
+		fi
+		golangci-lint run --fix
+    else
+		@# ON INTEL/ARM: Original Docker behavior with fix enabled
+		docker run --rm -v $(shell pwd):/app:Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
+    endif
 else
 	@echo "Docker not installed or running. Skipping golangci run."
 endif
@@ -214,12 +256,16 @@ deb:
 ######################################################
 
 .PHONY: wasm-test
-wasm-test: wasm-lib-test wasm-rego-test
+wasm-test: ensure-wasmtime-s390x wasm-lib-test wasm-rego-test
 
 .PHONY: wasm-lib-build
 wasm-lib-build:
 ifeq ($(DOCKER_RUNNING), 1)
+ifeq ($(GOARCH),s390x)
+	@$(MAKE) -C wasm builder build
+else
 	@$(MAKE) -C wasm ensure-builder build
+endif
 	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
 	cp wasm/_obj/callgraph.csv internal/compiler/wasm/opa/callgraph.csv
 else
@@ -340,6 +386,24 @@ build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-bui
 
 .PHONY: image-quick
 image-quick: image-quick-$(GOARCH)
+
+.PHONY: image-s390x
+image-s390x: build
+	$(DOCKER) build \
+               -t $(DOCKER_IMAGE):$(VERSION) \
+               --build-arg BASE=gcr.io/distroless/cc \
+               --platform linux/s390x \
+               .
+
+.PHONY: image-s390x-static
+image-s390x-static:
+	@$(MAKE) build GOOS=linux WASM_ENABLED=0 CGO_ENABLED=0 BIN=opa_linux_s390x_static
+	$(DOCKER) build \
+               -t $(DOCKER_IMAGE):$(VERSION) \
+               --build-arg BASE=gcr.io/distroless/cc \
+               --build-arg BIN_SUFFIX=_static \
+               --platform linux/s390x \
+               .
 
 # % = arch
 .PHONY: image-quick-%

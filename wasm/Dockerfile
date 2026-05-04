@@ -19,7 +19,11 @@ RUN apt-get update && \
       libc++-21-dev \
       libc++abi-21-dev \
       lld-21 && \
-    update-alternatives --install /usr/bin/ld ld /usr/bin/lld-21 90 && \
+    if [ "$(uname -m)" = "s390x" ]; then \
+        update-alternatives --install /usr/bin/ld ld /usr/bin/ld.bfd 90; \
+    else \
+        update-alternatives --install /usr/bin/ld ld /usr/bin/lld-21 90; \
+    fi && \
     update-alternatives --install /usr/bin/cc cc /usr/bin/clang-21 90 && \
     update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-21 90
 

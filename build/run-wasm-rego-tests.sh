@@ -69,13 +69,19 @@ function run_testcases {
     # NOTE(tsandall): background the container because the interrupt trap does
     # not run otherwise.
     purge_testrun_container
+
+    NODE_IMAGE="node:14"
+    if [[ "$(uname -m)" == "s390x" ]]; then
+        NODE_IMAGE="node:14-bullseye"
+    fi
+
     docker run \
         --rm \
         --name $TESTRUN_CONTAINER_NAME \
         --volumes-from $TESTGEN_CONTAINER_NAME:z \
         -e VERBOSE=$VERBOSE \
         -w /scratch \
-        node:14 \
+        ${NODE_IMAGE} \
         sh -c 'tar xzf \
             /src/.go/cache/testcases.tar.gz \
             && node test.js opa.wasm' &
