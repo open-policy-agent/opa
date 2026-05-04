@@ -2152,6 +2152,10 @@ func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserO
 }
 
 func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
+	if len(r.externalSources) > 0 && r.target != "" && r.target != targetRego {
+		return fmt.Errorf("external rule sources are not supported with target %q: only the default (rego) target is supported", r.target)
+	}
+
 	// Apply external sources to the compiler before compilation
 	for i := range r.externalSources {
 		source := r.externalSources[i]
