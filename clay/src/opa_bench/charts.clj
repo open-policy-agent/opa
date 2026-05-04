@@ -11,7 +11,8 @@
                         (sort-by :date))
         by-measure (group-by :measure bench-rows)
         tag-xs     (into #{} (keep :tag) bench-rows)
-        traces     (for [[measure rows] by-measure]
+        traces     (for [[measure rows] by-measure
+                         :when (some #(pos? (:value %)) rows)]
                      (let [basis-val (get data/basis [pkg bench-name measure] 1)
                            basis-val (if (zero? basis-val) 1 basis-val)]
                        {:x    (mapv #(or (:tag %) (subs (:commit %) 0 7)) rows)
