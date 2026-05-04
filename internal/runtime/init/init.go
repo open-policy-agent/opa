@@ -31,6 +31,7 @@ type InsertAndCompileOptions struct {
 	EnablePrintStatements bool
 	ParserOptions         ast.ParserOptions
 	BundleActivatorPlugin string
+	ExternalSources       map[string]ast.ExternalRuleSource // keyed by package ref string
 }
 
 // InsertAndCompileResult contains the output of the operation.
@@ -59,18 +60,29 @@ func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*Inser
 		SetErrorLimit(opts.MaxErrors).
 		WithPathConflictsCheck(storage.NonEmpty(ctx, opts.Store, opts.Txn)).
 		WithEnablePrintStatements(opts.EnablePrintStatements)
+
+	// Apply external sources BEFORE compilation
+	for refStr, source := range opts.ExternalSources {
+		ref, err := ast.ParseRef(refStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid external source ref %s: %w", refStr, err)
+		}
+		compiler = compiler.WithExternalSource(ref, source)
+	}
+
 	m := metrics.New()
 
 	activation := &bundle.ActivateOpts{
-		Ctx:           ctx,
-		Store:         opts.Store,
-		Txn:           opts.Txn,
-		Compiler:      compiler,
-		Metrics:       m,
-		Bundles:       opts.Bundles,
-		ExtraModules:  policies,
-		ParserOptions: opts.ParserOptions,
-		Plugin:        opts.BundleActivatorPlugin,
+		Ctx:             ctx,
+		Store:           opts.Store,
+		Txn:             opts.Txn,
+		Compiler:        compiler,
+		Metrics:         m,
+		Bundles:         opts.Bundles,
+		ExtraModules:    policies,
+		ExternalSources: opts.ExternalSources,
+		ParserOptions:   opts.ParserOptions,
+		Plugin:          opts.BundleActivatorPlugin,
 	}
 
 	err := bundle.Activate(activation)
