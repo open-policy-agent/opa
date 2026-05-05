@@ -560,7 +560,7 @@ func hasMetadataWithID(comments []*Comment) bool {
 	for i := range comments {
 		if IsMetadataComment(comments[i]) {
 			for i++; i < len(comments) && !blockBuster(comments[i], comments[i-1]); i++ {
-				if bytes.Contains(comments[i].Text, []byte("id:")) {
+				if bytes.HasPrefix(bytes.TrimSpace(comments[i].Text), []byte("id:")) {
 					return true
 				}
 			}
