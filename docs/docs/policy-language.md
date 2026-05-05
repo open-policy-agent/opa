@@ -2668,8 +2668,9 @@ message := "welcome!" if allow
 ### Metadata `id`
 
 The `id` annotation is a string value that uniquely identifies a rule. When
-`decision_logs.evaluated_rules` is enabled, the `id` of each successfully
-evaluated rule is recorded in the decision log. The `id` can also be returned
+any loaded policy contains rules with `id` annotations (or when external rule
+sources are registered), the IDs of successfully evaluated rules are
+automatically recorded in decision log events. The `id` can also be returned
 in the Data API response using the `?rules` query parameter.
 
 When any module contains a metadata block with an `id` field, annotation

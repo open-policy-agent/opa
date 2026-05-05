@@ -7,10 +7,10 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Evaluated Rules in Decision Logs and API Responses
 
-Rules can now be annotated with a metadata `id` field. When `decision_logs.evaluated_rules`
-is enabled in the configuration, the IDs of successfully evaluated rules are included in
-decision log events. Additionally, the Data API supports a `?rules` query parameter to
-include evaluated rule IDs directly in the response payload.
+Rules can now be annotated with a metadata `id` field. When any loaded policy contains
+rules with `id` annotations, the IDs of successfully evaluated rules are automatically
+included in decision log events. Additionally, the Data API supports a `?rules` query
+parameter to include evaluated rule IDs directly in the response payload.
 
 ```rego
 # METADATA

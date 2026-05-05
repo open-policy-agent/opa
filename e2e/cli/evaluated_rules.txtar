@@ -2,7 +2,7 @@
 # have metadata annotations with id fields, and in the response when
 # the ?rules query parameter is used.
 
-exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --set decision_logs.console=true --set decision_logs.evaluated_rules=true ./policy/ &opa&
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --set decision_logs.console=true ./policy/ &opa&
 retry curl -sf --unix-socket opa.sock 'http://localhost/health'
 
 # POST to v1/data — rule with id "allow-admin" should be evaluated.

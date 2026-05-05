@@ -26,6 +26,9 @@ jq -s stderr '[.[] | select(.msg == "Decision Log" and .custom.request_metadata[
 # Decision log for the second request (no metadata) must not have a custom field.
 jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "example/allow" and (.custom | not))] | length == 1'
 
+# No rules have id annotations, so evaluated_rules must never appear.
+! jq -s stderr '[.[] | select(.msg == "Decision Log" and .evaluated_rules)] | length > 0'
+
 -- policy/example.rego --
 package example
 

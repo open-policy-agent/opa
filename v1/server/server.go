@@ -232,6 +232,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.partials = map[string]rego.PartialResult{}
 	s.preparedEvalQueries = newCache(pqMaxCacheSize)
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
+	s.evaluatedRulesEnabled = compilerHasRuleIDs(s.getCompiler())
 	s.manager.RegisterNDCacheTrigger(s.updateNDCache)
 
 	s.Handler = s.initHandlerAuthn(s.Handler)
@@ -440,19 +441,27 @@ func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	return s
 }
 
-// WithEvaluatedRules enables tracking of evaluated rules in decision logs.
-// When enabled, the annotation "id" field of each successfully evaluated
-// rule is recorded in the decision log's evaluated_rules field.
-func (s *Server) WithEvaluatedRules(enabled bool) *Server {
-	s.evaluatedRulesEnabled = enabled
-	return s
-}
-
 func (s *Server) newEvaluatedRuleTracker() *topdown.EvaluatedRuleTracker {
 	if !s.evaluatedRulesEnabled {
 		return nil
 	}
 	return &topdown.EvaluatedRuleTracker{}
+}
+
+func compilerHasRuleIDs(c *ast.Compiler) bool {
+	if c == nil {
+		return false
+	}
+	for _, mod := range c.Modules {
+		for _, r := range mod.Rules {
+			for _, a := range r.Annotations {
+				if a.ID != "" {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func evaluatedRuleIDs(t *topdown.EvaluatedRuleTracker) []string {
@@ -1102,6 +1111,7 @@ func (s *Server) reload(_ context.Context, _ storage.Transaction, evt storage.Tr
 	if evt.PolicyChanged() {
 		s.compileUnknownsCache.Purge()
 		s.compileMaskingRulesCache.Purge()
+		s.evaluatedRulesEnabled = compilerHasRuleIDs(s.getCompiler())
 	}
 }
 

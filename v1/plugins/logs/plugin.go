@@ -313,7 +313,6 @@ type Config struct {
 	ConsoleLogs     bool                 `json:"console"`
 	Resource        *string              `json:"resource"`
 	NDBuiltinCache  bool                 `json:"nd_builtin_cache,omitempty"`
-	EvaluatedRules  bool                 `json:"evaluated_rules,omitempty"`
 	maskDecisionRef ast.Ref
 	dropDecisionRef ast.Ref
 }
