@@ -31,6 +31,7 @@ type InsertAndCompileOptions struct {
 	EnablePrintStatements bool
 	ParserOptions         ast.ParserOptions
 	BundleActivatorPlugin string
+	ExternalSources       *util.HasherMap[ast.Ref, ast.ExternalRuleSource]
 }
 
 // InsertAndCompileResult contains the output of the operation.
@@ -59,18 +60,31 @@ func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*Inser
 		SetErrorLimit(opts.MaxErrors).
 		WithPathConflictsCheck(storage.NonEmpty(ctx, opts.Store, opts.Txn)).
 		WithEnablePrintStatements(opts.EnablePrintStatements)
+
+	// Apply external sources to the compiler before bundle activation.
+	// Bundle activation applies them again via compileModules, but we need them
+	// here too: there may be no bundles, or a custom activator plugin may not
+	// call compileModules.
+	if opts.ExternalSources != nil {
+		opts.ExternalSources.Iter(func(ref ast.Ref, source ast.ExternalRuleSource) bool {
+			compiler = compiler.WithExternalSource(ref, source)
+			return false
+		})
+	}
+
 	m := metrics.New()
 
 	activation := &bundle.ActivateOpts{
-		Ctx:           ctx,
-		Store:         opts.Store,
-		Txn:           opts.Txn,
-		Compiler:      compiler,
-		Metrics:       m,
-		Bundles:       opts.Bundles,
-		ExtraModules:  policies,
-		ParserOptions: opts.ParserOptions,
-		Plugin:        opts.BundleActivatorPlugin,
+		Ctx:             ctx,
+		Store:           opts.Store,
+		Txn:             opts.Txn,
+		Compiler:        compiler,
+		Metrics:         m,
+		Bundles:         opts.Bundles,
+		ExtraModules:    policies,
+		ExternalSources: opts.ExternalSources,
+		ParserOptions:   opts.ParserOptions,
+		Plugin:          opts.BundleActivatorPlugin,
 	}
 
 	err := bundle.Activate(activation)

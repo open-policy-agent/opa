@@ -92,8 +92,9 @@ type eval struct {
 	input                       *ast.Term
 	data                        *ast.Term
 	external                    *resolverTrie
+	externalTreeStack           *externalTreeStack
 	targetStack                 *refStack
-	traceLastLocation           *ast.Location // Last location of a trace event.
+	traceLastLocation           *ast.Location
 	instr                       *Instrumentation
 	builtins                    map[string]*Builtin
 	builtinCache                builtins.Cache
@@ -267,12 +268,15 @@ func (e *eval) unknown(x any, b *bindings) bool {
 		x = ast.NewTerm(v)
 	}
 
-	return saveRequired(e.compiler, e.inliningControl, true, e.saveSet, b, x, false)
+	return saveRequired(e.compiler.RuleTree, e.externalTreeStack, e.inliningControl, true, e.saveSet, b, x, false)
 }
 
 // exactly like `unknown` above` but without the cost of `any` boxing when arg is known to be a ref
 func (e *eval) unknownRef(ref ast.Ref, b *bindings) bool {
-	return e.partial() && saveRequired(e.compiler, e.inliningControl, true, e.saveSet, b, ast.NewTerm(ref), false)
+	if !e.partial() {
+		return false
+	}
+	return saveRequired(e.compiler.RuleTree, e.externalTreeStack, e.inliningControl, true, e.saveSet, b, ast.NewTerm(ref), false)
 }
 
 func (e *eval) traceEnter(x ast.Node) {
@@ -755,26 +759,33 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 	}
 
-	oldInput, oldData := e.evalWithPush(input, data, functionMocks, targets, disable)
+	oldInput, oldData, pushedFrame := e.evalWithPush(input, data, functionMocks, targets, disable)
 
 	err = e.evalStep(func(e *eval) error {
-		e.evalWithPop(oldInput, oldData)
+		e.evalWithPop(oldInput, oldData, pushedFrame)
 		err := e.next(iter)
-		oldInput, oldData = e.evalWithPush(input, data, functionMocks, targets, disable)
+		oldInput, oldData, pushedFrame = e.evalWithPush(input, data, functionMocks, targets, disable)
 		return err
 	})
 
-	e.evalWithPop(oldInput, oldData)
+	e.evalWithPop(oldInput, oldData, pushedFrame)
 
 	return err
 }
 
-func (e *eval) evalWithPush(input, data *ast.Term, functionMocks [][2]*ast.Term, targets, disable []ast.Ref) (*ast.Term, *ast.Term) {
+func (e *eval) evalWithPush(input, data *ast.Term, functionMocks [][2]*ast.Term, targets, disable []ast.Ref) (*ast.Term, *ast.Term, bool) {
 	var oldInput *ast.Term
+	var pushedFrame bool
 
 	if input != nil {
 		oldInput = e.input
 		e.input = input
+
+		// When input changes, push a new frame for external tree caching
+		if e.externalTreeStack != nil {
+			e.externalTreeStack.PushFrame()
+			pushedFrame = true
+		}
 	}
 
 	var oldData *ast.Term
@@ -804,16 +815,22 @@ func (e *eval) evalWithPush(input, data *ast.Term, functionMocks [][2]*ast.Term,
 
 	e.functionMocks.PutPairs(functionMocks)
 
-	return oldInput, oldData
+	return oldInput, oldData, pushedFrame
 }
 
-func (e *eval) evalWithPop(input, data *ast.Term) {
+func (e *eval) evalWithPop(input, data *ast.Term, popFrame bool) {
 	// NOTE(ae) no nil checks here as we assume evalWithPush always called first
 	e.inliningControl.PopDisable()
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
 	e.comprehensionCache.Pop()
 	e.functionMocks.PopPairs()
+
+	// When input is restored, pop the external tree frame
+	if popFrame {
+		e.externalTreeStack.PopFrame()
+	}
+
 	e.data = data
 	e.input = input
 }
@@ -980,14 +997,18 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 
 		var ir *ast.IndexResult
 		var err error
+		index := e.ruleIndex(ref)
 		if e.partial() {
-			ir, err = e.getRules(ref, nil)
+			ir, err = e.getRules(ref, nil, index)
 		} else {
-			ir, err = e.getRules(ref, terms[1:])
+			ir, err = e.getRules(ref, terms[1:], index)
 		}
 		defer ast.IndexResultPool.Put(ir)
 		if err != nil {
 			return err
+		}
+		if ir == nil {
+			return nil
 		}
 
 		eval := evalFuncPool.Get()
@@ -1724,11 +1745,10 @@ func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) er
 	return err
 }
 
-func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error) {
+func (e *eval) getRules(ref ast.Ref, args []*ast.Term, index ast.RuleIndex) (*ast.IndexResult, error) {
 	e.instr.startTimer(evalOpRuleIndex)
 	defer e.instr.stopTimer(evalOpRuleIndex)
 
-	index := e.ruleIndex(ref)
 	if index == nil {
 		return nil, nil
 	}
@@ -1742,6 +1762,7 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 
 	var result *ast.IndexResult
 	var err error
+
 	resolver.e = e
 	if e.indexing {
 		resolver.args = args
@@ -1777,11 +1798,6 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error)
 	}
 
 	return result, err
-}
-
-// ruleIndex performs a lookup for a RuleIndex in the compiler's RuleTree.
-func (e *eval) ruleIndex(ref ast.Ref) ast.RuleIndex {
-	return e.compiler.RuleIndex(ref)
 }
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
@@ -1996,7 +2012,7 @@ func (e *eval) getDeclArgsLen(x *ast.Expr) (int, error) {
 		return bi.Decl.Arity(), nil
 	}
 
-	ir, err := e.getRules(operator, nil)
+	ir, err := e.getRules(operator, nil, e.ruleIndex(operator))
 	defer ast.IndexResultPool.Put(ir)
 	if err != nil {
 		return -1, err
@@ -2536,10 +2552,48 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 	cpy.plugged[e.pos] = plugged
 	cpy.pos++
 
+	// Track whether we pushed an external tree that needs cleanup
+	pushedExternalTree := false
 	if !e.e.targetStack.Prefixed(cpy.plugged[:cpy.pos]) {
 		if e.node != nil {
 			node = e.node.Child(plugged.Value)
-			if node != nil && len(node.Values) > 0 {
+
+			// Handle external sources transparently
+			if node != nil && node.External != nil {
+				externalRef := node.External.Ref
+				externalIndex := node.External.Index
+
+				// Initialize externalTreeStack if needed
+				if e.e.externalTreeStack == nil {
+					e.e.externalTreeStack = newExternalTreeStack(e.e)
+				}
+
+				// Check cache first
+				cachedNode, _, found := e.e.externalTreeStack.findCached(externalRef)
+				if found {
+					node = cachedNode
+				} else {
+					// Call Tree() and cache the result
+					e.e.instr.startTimer(evalOpExternalRuleSource)
+					tree, updatedIndex, err := node.External.Tree(e.e.ctx, e.e.compiler.RuleTree, externalRef, e.e.input, e.e.metrics, e.e.requestMetadata, e.e.responseMetadata)
+					e.e.instr.stopTimer(evalOpExternalRuleSource)
+					if err != nil {
+						return err
+					}
+					if tree != nil {
+						if updatedIndex != nil {
+							externalIndex = updatedIndex
+						}
+						e.e.externalTreeStack.Push(externalRef, tree, externalIndex, e.e.input)
+						node = tree
+						pushedExternalTree = true
+					}
+				}
+			}
+
+			hasRules := node != nil && len(node.Values) > 0
+
+			if hasRules {
 				r := evalVirtual{
 					e:         e.e,
 					ref:       e.ref,
@@ -2550,13 +2604,21 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 					rbindings: e.rbindings,
 				}
 				r.plugged[e.pos] = plugged
-				return r.eval(iter)
+				err := r.eval(iter)
+				if pushedExternalTree {
+					e.e.externalTreeStack.Pop()
+				}
+				return err
 			}
 		}
 	}
 
 	cpy.node = node
-	return cpy.eval(iter)
+	err := cpy.eval(iter)
+	if pushedExternalTree {
+		e.e.externalTreeStack.Pop()
+	}
+	return err
 }
 
 // enumerateNext is a helper to avoid closure allocation in enumerate loops.
@@ -2732,10 +2794,14 @@ type evalVirtual struct {
 
 func (e evalVirtual) eval(iter unifyIterator) error {
 
-	ir, err := e.e.getRules(e.plugged[:e.pos+1], nil)
+	ir, err := e.e.getRules(e.plugged[:e.pos+1], nil, e.e.ruleIndex(e.plugged[:e.pos+1]))
 	defer ast.IndexResultPool.Put(ir)
 	if err != nil {
 		return err
+	}
+
+	if ir == nil {
+		return nil
 	}
 
 	// Partial evaluation of ordered rules is not supported currently. Save the
@@ -4489,4 +4555,181 @@ func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
 		ret = append(ret, w.Copy())
 	}
 	return ret
+}
+
+// simpleTreeNode provides minimal tree structure for navigation
+type simpleTreeNode struct {
+	tree     *ast.TreeNode
+	children map[ast.Value]*simpleTreeNode
+}
+
+func newSimpleTreeNode() *simpleTreeNode {
+	return &simpleTreeNode{
+		children: make(map[ast.Value]*simpleTreeNode),
+	}
+}
+
+// externalTreeStack caches external rule trees and tracks frames for input changes.
+// It maintains both a flat cache for lookups and a tree structure for navigation.
+type externalTreeStack struct {
+	eval    *eval
+	entries []externalTreeEntry // flat list of cached entries
+	frames  []int               // frame markers for input changes (indices into entries)
+	root    *simpleTreeNode     // tree structure for navigation
+}
+
+type externalTreeEntry struct {
+	ref   ast.Ref
+	input *ast.Term
+	tree  *ast.TreeNode
+	index ast.ExternalRuleIndex
+}
+
+func newExternalTreeStack(e *eval) *externalTreeStack {
+	return &externalTreeStack{
+		eval:    e,
+		entries: make([]externalTreeEntry, 0, 4),
+		frames:  make([]int, 0, 4),
+	}
+}
+
+// findCached checks if we already have a cached tree for this ref.
+// Frame tracking ensures any cached entry has the correct input.
+func (s *externalTreeStack) findCached(ref ast.Ref) (*ast.TreeNode, ast.ExternalRuleIndex, bool) {
+	// Determine search boundary: only search within current frame if one exists
+	startIdx := 0
+	if len(s.frames) > 0 {
+		startIdx = s.frames[len(s.frames)-1]
+	}
+
+	// Search from most recent to the frame boundary
+	for i := len(s.entries) - 1; i >= startIdx; i-- {
+		entry := &s.entries[i]
+		if entry.ref.Equal(ref) {
+			return entry.tree, entry.index, true
+		}
+	}
+	return nil, nil, false
+}
+
+func (s *externalTreeStack) Push(ref ast.Ref, tree *ast.TreeNode, index ast.ExternalRuleIndex, input *ast.Term) {
+	// Add entry to cache (we never have duplicates in the same frame)
+	s.entries = append(s.entries, externalTreeEntry{
+		ref:   ref,
+		input: input,
+		tree:  tree,
+		index: index,
+	})
+
+	// Update root tree structure
+	if s.root == nil {
+		s.root = newSimpleTreeNode()
+	}
+	node := s.root
+	for _, term := range ref {
+		key := term.Value
+		if node.children[key] == nil {
+			node.children[key] = newSimpleTreeNode()
+		}
+		node = node.children[key]
+	}
+	node.tree = tree
+}
+
+// Pop removes the most recent entry from the stack and closes its index.
+// If a frame is active and entries are at or below the frame boundary,
+// Pop is a no-op — PopFrame already cleaned up (or will clean up) those entries.
+func (s *externalTreeStack) Pop() {
+	if len(s.entries) == 0 {
+		return
+	}
+
+	// Don't pop at or below the current frame boundary.
+	if len(s.frames) > 0 && len(s.entries) <= s.frames[len(s.frames)-1] {
+		return
+	}
+
+	// Close the external index if it supports closing
+	lastEntry := &s.entries[len(s.entries)-1]
+	if closer, ok := lastEntry.index.(ast.ExternalRuleIndexCloser); ok {
+		_ = closer.Close()
+	}
+
+	// Remove the most recent entry
+	s.entries = s.entries[:len(s.entries)-1]
+
+	// Rebuild tree from remaining entries
+	s.root = newSimpleTreeNode()
+	for i := range s.entries {
+		entry := &s.entries[i]
+		node := s.root
+		for _, term := range entry.ref {
+			key := term.Value
+			if node.children[key] == nil {
+				node.children[key] = newSimpleTreeNode()
+			}
+			node = node.children[key]
+		}
+		node.tree = entry.tree
+	}
+}
+
+// PushFrame marks the current stack position for input changes
+func (s *externalTreeStack) PushFrame() {
+	s.frames = append(s.frames, len(s.entries))
+}
+
+// PopFrame restores the cache to the marked position
+func (s *externalTreeStack) PopFrame() {
+	if len(s.frames) == 0 {
+		return
+	}
+
+	// Get the frame marker and truncate entries
+	targetSize := s.frames[len(s.frames)-1]
+	s.frames = s.frames[:len(s.frames)-1]
+
+	// Close indices of entries being removed
+	for i := len(s.entries) - 1; i >= targetSize; i-- {
+		if closer, ok := s.entries[i].index.(ast.ExternalRuleIndexCloser); ok {
+			_ = closer.Close()
+		}
+	}
+
+	// Rebuild tree from remaining entries
+	s.root = newSimpleTreeNode()
+	for i := range targetSize {
+		entry := &s.entries[i]
+		node := s.root
+		for _, term := range entry.ref {
+			key := term.Value
+			if node.children[key] == nil {
+				node.children[key] = newSimpleTreeNode()
+			}
+			node = node.children[key]
+		}
+		node.tree = entry.tree
+	}
+
+	s.entries = s.entries[:targetSize]
+}
+
+// ruleIndex performs a shadowed lookup for a RuleIndex, checking external trees first.
+// It searches through the pushStack (most recent to oldest), navigating the tree structure
+// to find matching rules, then falls back to the compiler's static RuleTree.
+func (e *eval) ruleIndex(ref ast.Ref) ast.RuleIndex {
+	if e.externalTreeStack != nil && len(e.externalTreeStack.entries) > 0 {
+		// Search from most recent to oldest
+		for i := len(e.externalTreeStack.entries) - 1; i >= 0; i-- {
+			entry := &e.externalTreeStack.entries[i]
+			if ref.HasPrefix(entry.ref) {
+				// Look for the relative ref in the cached tree
+				relativeRef := ref[len(entry.ref):]
+				if found := entry.tree.Find(relativeRef); found != nil {
+					return found.Index
+				}
+			}
+		}
+	}
+	return e.compiler.RuleIndex(ref)
 }
