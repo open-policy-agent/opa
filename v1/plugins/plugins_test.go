@@ -683,8 +683,8 @@ test_rule := true`)
 		m.Register("test_external_source", plugin)
 		m.RegisterExternalSource(pkgRef, source)
 
-		if len(m.GetExternalSources()) != 1 {
-			t.Fatalf("Expected 1 external source, got %d", len(m.GetExternalSources()))
+		if m.GetExternalSources() == nil || m.GetExternalSources().Len() != 1 {
+			t.Fatalf("Expected 1 external source, got %d", m.GetExternalSources().Len())
 		}
 
 		if err := m.Start(ctx); err != nil {
@@ -735,8 +735,8 @@ test_rule := true`)
 
 		m.Stop(ctx)
 
-		if len(m.GetExternalSources()) != 1 {
-			t.Fatalf("Expected external sources to still be registered after stop, got %d", len(m.GetExternalSources()))
+		if m.GetExternalSources() == nil || m.GetExternalSources().Len() != 1 {
+			t.Fatalf("Expected external sources to still be registered after stop, got %d", m.GetExternalSources().Len())
 		}
 	})
 

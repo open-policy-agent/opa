@@ -36,6 +36,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
 	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/open-policy-agent/opa/v1/tracing"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -239,7 +240,7 @@ type Manager struct {
 	extraMiddlewares             []func(http.Handler) http.Handler
 	extraAuthorizerRoutes        []func(string, []any) bool
 	bundleActivatorPlugin        string
-	externalSources              map[string]ast.ExternalRuleSource // keyed by package ref string
+	externalSources              *util.HasherMap[ast.Ref, ast.ExternalRuleSource]
 	externalSourcesMux           sync.RWMutex
 }
 
@@ -849,23 +850,20 @@ func (m *Manager) RegisterExternalSource(pkgRef ast.Ref, source ast.ExternalRule
 	defer m.externalSourcesMux.Unlock()
 
 	if m.externalSources == nil {
-		m.externalSources = make(map[string]ast.ExternalRuleSource)
+		m.externalSources = util.NewHasherMap[ast.Ref, ast.ExternalRuleSource](ast.RefEqual)
 	}
 
-	key := pkgRef.String()
-	m.externalSources[key] = source
+	m.externalSources.Put(pkgRef, source)
 
-	m.logger.Debug("Registered external source for package: %s", key)
+	m.logger.Debug("Registered external source for package: %s", pkgRef)
 }
 
-// GetExternalSources returns a copy of all registered external sources
-func (m *Manager) GetExternalSources() map[string]ast.ExternalRuleSource {
+// GetExternalSources returns the registered external sources
+func (m *Manager) GetExternalSources() *util.HasherMap[ast.Ref, ast.ExternalRuleSource] {
 	m.externalSourcesMux.RLock()
 	defer m.externalSourcesMux.RUnlock()
 
-	result := make(map[string]ast.ExternalRuleSource, len(m.externalSources))
-	maps.Copy(result, m.externalSources)
-	return result
+	return m.externalSources
 }
 
 // Start starts the manager. Init() should be called once before Start().
@@ -900,14 +898,14 @@ func (m *Manager) Start(ctx context.Context) error {
 	// After starting plugins, check if any external sources were registered
 	// and recompile if necessary to include them in the rule tree
 	externalSources := m.GetExternalSources()
-	if len(externalSources) > 0 {
+	if externalSources != nil && externalSources.Len() > 0 {
 		err := storage.Txn(ctx, m.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			compiler, err := loadCompilerFromStore(ctx, m.Store, txn, m.enablePrintStatements, m.ParserOptions(), externalSources)
 			if err != nil {
 				return err
 			}
 			m.setCompiler(compiler)
-			m.logger.Debug("Recompiled policies with %d external source(s) after plugin startup", len(externalSources))
+			m.logger.Debug("Recompiled policies with %d external source(s) after plugin startup", externalSources.Len())
 			return nil
 		})
 
@@ -1135,7 +1133,7 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	}
 }
 
-func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, enablePrintStatements bool, popts ast.ParserOptions, externalSources map[string]ast.ExternalRuleSource) (*ast.Compiler, error) {
+func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, enablePrintStatements bool, popts ast.ParserOptions, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource]) (*ast.Compiler, error) {
 	policies, err := store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, err
@@ -1162,12 +1160,11 @@ func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage
 	}
 
 	// Apply external sources BEFORE compilation
-	for refStr, source := range externalSources {
-		ref, err := ast.ParseRef(refStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid external source ref %s: %w", refStr, err)
-		}
-		compiler = compiler.WithExternalSource(ref, source)
+	if externalSources != nil {
+		externalSources.Iter(func(ref ast.Ref, source ast.ExternalRuleSource) bool {
+			compiler = compiler.WithExternalSource(ref, source)
+			return false
+		})
 	}
 
 	compiler.Compile(modules)

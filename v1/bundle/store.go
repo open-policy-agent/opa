@@ -359,9 +359,9 @@ type ActivateOpts struct {
 	TxnCtx                   *storage.Context
 	Compiler                 *ast.Compiler
 	Metrics                  metrics.Metrics
-	Bundles                  map[string]*Bundle                // Optional
-	ExtraModules             map[string]*ast.Module            // Optional
-	ExternalSources          map[string]ast.ExternalRuleSource // Optional
+	Bundles                  map[string]*Bundle                               // Optional
+	ExtraModules             map[string]*ast.Module                           // Optional
+	ExternalSources          *util.HasherMap[ast.Ref, ast.ExternalRuleSource] // Optional
 	AuthorizationDecisionRef ast.Ref
 	ParserOptions            ast.ParserOptions
 	Plugin                   string
@@ -966,18 +966,17 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
-func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref, externalSources map[string]ast.ExternalRuleSource) error {
+func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource]) error {
 
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
 	// Apply external sources before compilation
-	for refStr, source := range externalSources {
-		ref, err := ast.ParseRef(refStr)
-		if err != nil {
-			return fmt.Errorf("invalid external source ref %s: %w", refStr, err)
-		}
-		compiler = compiler.WithExternalSource(ref, source)
+	if externalSources != nil {
+		externalSources.Iter(func(ref ast.Ref, source ast.ExternalRuleSource) bool {
+			compiler = compiler.WithExternalSource(ref, source)
+			return false
+		})
 	}
 
 	modules := make(map[string]*ast.Module, len(compiler.Modules)+len(extraModules)+len(bundles))
@@ -1010,18 +1009,17 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 	return iCompiler.VerifyAuthorizationPolicySchema(compiler, authorizationDecisionRef)
 }
 
-func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, externalSources map[string]ast.ExternalRuleSource) error {
+func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource]) error {
 
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
 	// Apply external sources before compilation
-	for refStr, source := range externalSources {
-		ref, err := ast.ParseRef(refStr)
-		if err != nil {
-			return fmt.Errorf("invalid external source ref %s: %w", refStr, err)
-		}
-		compiler = compiler.WithExternalSource(ref, source)
+	if externalSources != nil {
+		externalSources.Iter(func(ref ast.Ref, source ast.ExternalRuleSource) bool {
+			compiler = compiler.WithExternalSource(ref, source)
+			return false
+		})
 	}
 
 	modules := map[string]*ast.Module{}
