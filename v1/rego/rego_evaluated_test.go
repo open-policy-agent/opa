@@ -303,3 +303,60 @@ p contains x if {
 		}
 	})
 }
+
+func TestEvaluatedRulesPreparedQuery(t *testing.T) {
+	module := `package test
+
+# METADATA
+# id: rule1
+p if input.foo
+
+# METADATA
+# id: rule2
+p if input.bar`
+
+	r := New(
+		Query("data.test.p"),
+		Module("test.rego", module),
+	)
+
+	pq, err := r.PrepareForEval(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var evaluated []string
+	rs, err := pq.Eval(context.Background(),
+		EvalInput(map[string]any{"foo": true}),
+		EvalEvaluated(&evaluated),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(rs) == 0 {
+		t.Fatal("expected result")
+	}
+
+	if len(evaluated) != 1 || evaluated[0] != "rule1" {
+		t.Fatalf("expected [rule1], got %v", evaluated)
+	}
+
+	// Reuse the prepared query with a fresh slice
+	var evaluated2 []string
+	rs, err = pq.Eval(context.Background(),
+		EvalInput(map[string]any{"bar": true}),
+		EvalEvaluated(&evaluated2),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(rs) == 0 {
+		t.Fatal("expected result")
+	}
+
+	if len(evaluated2) != 1 || evaluated2[0] != "rule2" {
+		t.Fatalf("expected [rule2], got %v", evaluated2)
+	}
+}

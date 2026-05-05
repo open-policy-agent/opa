@@ -127,6 +127,7 @@ type EvalContext struct {
 	externalCancel              topdown.Cancel // Note(philip): If non-nil, the cancellation is handled outside of this package.
 	requestMetadata             map[string]any
 	responseMetadata            map[string]any
+	evaluated                   *[]string
 }
 
 func (e *EvalContext) RawInput() *any {
@@ -424,6 +425,14 @@ func EvalRequestMetadata(m map[string]any) EvalOption {
 func EvalResponseMetadata(m map[string]any) EvalOption {
 	return func(e *EvalContext) {
 		e.responseMetadata = m
+	}
+}
+
+// EvalEvaluated sets a slice to record rule IDs that were successfully
+// evaluated during query evaluation.
+func EvalEvaluated(evaluated *[]string) EvalOption {
+	return func(e *EvalContext) {
+		e.evaluated = evaluated
 	}
 }
 
@@ -2324,8 +2333,13 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithVirtualCache(ectx.virtualCache).
 		WithBaseCache(ectx.baseCache).
 		WithRequestMetadata(ectx.requestMetadata).
-		WithResponseMetadata(ectx.responseMetadata).
-		WithEvaluated(r.evaluated)
+		WithResponseMetadata(ectx.responseMetadata)
+
+	if ectx.evaluated != nil {
+		q = q.WithEvaluated(ectx.evaluated)
+	} else {
+		q = q.WithEvaluated(r.evaluated)
+	}
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

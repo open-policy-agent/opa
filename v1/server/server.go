@@ -1172,6 +1172,9 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
 
+	var evaluatedRules []string
+	evalOpts = append(evalOpts, rego.EvalEvaluated(&evaluatedRules))
+
 	rs, err := preparedQuery.Eval(
 		ctx,
 		evalOpts...,
@@ -1206,8 +1209,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		writer.Error(w, http.StatusNotFound, errV1)
 		return
 	}
-	// TODO: Add evaluated rules support for PreparedEvalQuery
-	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, nil, nil)
+	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, evaluatedRules, nil)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1606,6 +1608,9 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
 
+	var evaluatedRules []string
+	evalOpts = append(evalOpts, rego.EvalEvaluated(&evaluatedRules))
+
 	rs, err := preparedQuery.Eval(
 		ctx,
 		evalOpts...,
@@ -1655,8 +1660,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	// TODO: Add evaluated rules support for PreparedEvalQuery
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, nil, nil); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRules, nil); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1854,6 +1858,9 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalResponseMetadata(respMetadata),
 	}
 
+	var evaluatedRules []string
+	evalOpts = append(evalOpts, rego.EvalEvaluated(&evaluatedRules))
+
 	if reqMetadata != nil {
 		evalOpts = append(evalOpts, rego.EvalRequestMetadata(reqMetadata))
 	}
@@ -1911,8 +1918,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	// TODO: Add evaluated rules support for PreparedEvalQuery
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, nil, customLog()); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRules, customLog()); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
