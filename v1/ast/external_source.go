@@ -62,6 +62,11 @@ type ExternalSourceOptions struct {
 	// SkippedStages allows external sources to skip stages in the dynamic compiler
 	// used with the externally-provided Rego. If, for example, the `[]*Rule` returned
 	// has already been compiled, we can skip all stages.
+	//
+	// For pre-compiled rules, prefer starting from AllStages() and removing only
+	// the stages you need (e.g. SetModuleTree, SetRuleTree, BuildRuleIndices).
+	// This is forward-compatible: new compiler stages added in future releases
+	// will be skipped automatically rather than running unexpectedly.
 	SkippedStages []StageID
 }
 
