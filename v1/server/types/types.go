@@ -218,12 +218,13 @@ func (r DataRequestV1) MarshalJSON() ([]byte, error) {
 
 // DataResponseV1 models the response message for Data API read operations.
 type DataResponseV1 struct {
-	DecisionID  string        `json:"decision_id,omitempty"`
-	Provenance  *ProvenanceV1 `json:"provenance,omitempty"`
-	Explanation TraceV1       `json:"explanation,omitempty"`
-	Metrics     MetricsV1     `json:"metrics,omitempty"`
-	Result      *any          `json:"result,omitempty"`
-	Warning     *Warning      `json:"warning,omitempty"`
+	DecisionID     string        `json:"decision_id,omitempty"`
+	Provenance     *ProvenanceV1 `json:"provenance,omitempty"`
+	Explanation    TraceV1       `json:"explanation,omitempty"`
+	Metrics        MetricsV1     `json:"metrics,omitempty"`
+	EvaluatedRules []string      `json:"evaluated_rules,omitempty"`
+	Result         *any          `json:"result,omitempty"`
+	Warning        *Warning      `json:"warning,omitempty"`
 
 	// Metadata holds any additional top-level fields not defined in this struct.
 	// These fields are preserved during JSON marshaling/unmarshaling, allowing
@@ -635,6 +636,10 @@ const (
 	// ParamStrictBuiltinErrors names the HTTP URL parameter that indicates the client
 	// wants built-in function errors to be treated as fatal.
 	ParamStrictBuiltinErrors = "strict-builtin-errors"
+
+	// ParamEvaluatedRulesV1 names the HTTP URL parameter that indicates the client
+	// wants evaluated rule IDs included in the response.
+	ParamEvaluatedRulesV1 = "rules"
 )
 
 // BadRequestErr represents an error condition raised if the caller passes

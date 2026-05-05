@@ -456,7 +456,7 @@ func (s *Server) newEvaluatedRuleTracker() *topdown.EvaluatedRuleTracker {
 }
 
 func evaluatedRuleIDs(t *topdown.EvaluatedRuleTracker) []string {
-	if t == nil {
+	if t == nil || len(t.IDs) == 0 {
 		return nil
 	}
 	return t.IDs
@@ -1540,6 +1540,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
+	includeEvaluatedRules := getBoolParam(r.URL, types.ParamEvaluatedRulesV1, true)
 
 	m.Timer(metrics.RegoInputParse).Start()
 
@@ -1634,6 +1635,9 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tracker := s.newEvaluatedRuleTracker()
+	if tracker == nil && includeEvaluatedRules {
+		tracker = &topdown.EvaluatedRuleTracker{}
+	}
 	if tracker != nil {
 		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
 	}
@@ -1685,6 +1689,10 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	if explainMode != types.ExplainOffV1 {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
+	}
+
+	if includeEvaluatedRules {
+		result.EvaluatedRules = evaluatedRuleIDs(tracker)
 	}
 
 	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil); err != nil {
@@ -1835,6 +1843,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+	includeEvaluatedRules := getBoolParam(r.URL, types.ParamEvaluatedRulesV1, true)
 
 	pqID := "v1DataPost::"
 	if strictBuiltinErrors {
@@ -1886,6 +1895,9 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tracker := s.newEvaluatedRuleTracker()
+	if tracker == nil && includeEvaluatedRules {
+		tracker = &topdown.EvaluatedRuleTracker{}
+	}
 	if tracker != nil {
 		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
 	}
@@ -1945,6 +1957,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	if explainMode != types.ExplainOffV1 {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
+	}
+
+	if includeEvaluatedRules {
+		result.EvaluatedRules = evaluatedRuleIDs(tracker)
 	}
 
 	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), customLog()); err != nil {
