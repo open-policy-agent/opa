@@ -14,6 +14,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/plugins"
 )
 
+const Name = "file_logger"
+
 // Config holds the configuration for the file logger plugin.
 type Config struct {
 	Path       string `json:"path"`
