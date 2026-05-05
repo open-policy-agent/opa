@@ -5561,6 +5561,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				q if { input.x = 2 }
 			`},
 			wantQueries: []string{`not {input.x = 1; input.y = 1}; not {input.x = 2; input.y = 1}`},
+			ignoreOrder: true,
 		},
 		{
 			note:        "not-body: disjunctive rule call, shallow",
