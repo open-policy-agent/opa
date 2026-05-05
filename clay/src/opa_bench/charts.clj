@@ -174,15 +174,30 @@
                      :stroke-width "1.5"}]]))))
 
 (defn index-table [benchmarks]
-  (kind/table
-    {:column-names ["Pkg" "Name" "Trend" "NsPerOp" "AllocsPerOp" "BytesPerOp"]
-     :row-maps (for [{:keys [pkg name id spark] :as b} benchmarks]
-                 {"Pkg"        pkg
-                  "Name"       (kind/hiccup [:a {:href (clay-output-path id)} name])
-                  "Trend"      (or (sparkline spark) "")
-                  "NsPerOp"    (ratio-cell (get b "NsPerOp"))
-                  "AllocsPerOp" (ratio-cell (get b "AllocsPerOp"))
-                  "BytesPerOp" (ratio-cell (get b "BytesPerOp"))})}
-    {:use-datatables true
-     :datatables {:pageLength 25
-                  :order [[3 "desc"]]}}))
+  (kind/fragment
+    [(kind/table
+       {:column-names ["Pkg" "Name" "Trend" "NsPerOp" "AllocsPerOp" "BytesPerOp"]
+        :row-maps (for [{:keys [pkg name id spark] :as b} benchmarks]
+                    {"Pkg"        pkg
+                     "Name"       (kind/hiccup [:a {:href (clay-output-path id)} name])
+                     "Trend"      (or (sparkline spark) "")
+                     "NsPerOp"    (ratio-cell (get b "NsPerOp"))
+                     "AllocsPerOp" (ratio-cell (get b "AllocsPerOp"))
+                     "BytesPerOp" (ratio-cell (get b "BytesPerOp"))})}
+       {:use-datatables true
+        :datatables {:pageLength 25
+                     :order [[3 "desc"]]}})
+     (kind/hiccup
+       [:script "
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('table tbody tr').forEach(function(row) {
+    var link = row.querySelector('a');
+    if (link) {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', function(e) {
+        if (e.target.tagName !== 'A') window.location = link.href;
+      });
+    }
+  });
+});
+"])]))
