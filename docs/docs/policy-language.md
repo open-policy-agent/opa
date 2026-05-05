@@ -2603,6 +2603,7 @@ comment block containing the YAML document is finished
 | Name                | Type                                                        | Description                                                                                                                                            |
 | ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | scope               | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more in the [Metadata Scope section below](#metadata-scope).                                            |
+| `id`                | string                                                      | A unique identifier for the rule, used to track evaluated rules in decision logs. Read more in the [Metadata ID section below](#metadata-id).          |
 | `title`             | string                                                      | A human-readable name for the annotation target. Read more in the [Metadata Title section below](#metadata-title).                                     |
 | `description`       | string                                                      | A description of the annotation target. Read more in the [Metadata Description section below](#metadata-description).                                  |
 | `related_resources` | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more in the [Metadata Related Resources section below](#metadata-related_resources).  |
@@ -2662,6 +2663,22 @@ allow if {
 #   `scope` annotation automatically set to `document`
 #   as that is required for entrypoints
 message := "welcome!" if allow
+```
+
+### Metadata `id`
+
+The `id` annotation is a string value that uniquely identifies a rule. When
+`decision_logs.evaluated_rules` is enabled, the `id` of each successfully
+evaluated rule is recorded in the decision log. The `id` can also be returned
+in the Data API response using the `?rules` query parameter.
+
+When any module contains a metadata block with an `id` field, annotation
+parsing is enabled automatically (even if `ProcessAnnotation` was not set).
+
+```rego
+# METADATA
+# id: allow-admin
+allow if input.role == "admin"
 ```
 
 ### Metadata `title`

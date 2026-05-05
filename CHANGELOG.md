@@ -5,6 +5,23 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Evaluated Rules in Decision Logs and API Responses
+
+Rules can now be annotated with a metadata `id` field. When `decision_logs.evaluated_rules`
+is enabled in the configuration, the IDs of successfully evaluated rules are included in
+decision log events. Additionally, the Data API supports a `?rules` query parameter to
+include evaluated rule IDs directly in the response payload.
+
+```rego
+# METADATA
+# id: allow-admin
+allow if input.role == "admin"
+```
+
+Modules containing `id` annotations will have metadata parsing enabled automatically.
+When external rule sources are registered, rule tracking is always enabled so that
+externally-provided rules with `id` annotations are recorded.
+
 ## 1.16.1
 
 This is a patch release addressing a regression ([#8590](https://github.com/open-policy-agent/opa/pull/8590)) in the plugin manager that may cause the service to hang on shutdown.
