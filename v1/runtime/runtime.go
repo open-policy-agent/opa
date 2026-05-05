@@ -51,6 +51,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/discovery"
+	filelogger "github.com/open-policy-agent/opa/v1/plugins/logger/file"
 	"github.com/open-policy-agent/opa/v1/plugins/logs"
 	metrics_config "github.com/open-policy-agent/opa/v1/plugins/server/metrics"
 	"github.com/open-policy-agent/opa/v1/repl"
@@ -1133,6 +1134,12 @@ func generateDecisionID() string {
 	return id
 }
 
+func init() {
+	registeredPlugins = map[string]plugins.Factory{
+		filelogger.Name: &filelogger.Factory{},
+	}
+}
+
 func verifyAuthorizationPolicySchema(m *plugins.Manager) error {
 	authorizationDecisionRef, err := ref.ParseDataPath(*m.GetConfig().DefaultAuthorizationDecision)
 	if err != nil {
@@ -1140,8 +1147,4 @@ func verifyAuthorizationPolicySchema(m *plugins.Manager) error {
 	}
 
 	return compiler.VerifyAuthorizationPolicySchema(m.GetCompiler(), authorizationDecisionRef)
-}
-
-func init() {
-	registeredPlugins = make(map[string]plugins.Factory)
 }

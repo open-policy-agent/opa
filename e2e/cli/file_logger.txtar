@@ -1,0 +1,33 @@
+# Verify that decision logs are written via the file_logger plugin (slog path).
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --config-file config.yaml ./policy/ &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+
+# POST to v1/data — should produce a decision log entry.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == true'
+
+# POST to v1/data — false result.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "guest"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == false'
+
+kill -INT opa
+wait opa
+
+# Decision log file should contain entries for both requests.
+jq -s decisions.log '[.[] | select(.path == "authz/allow" and .result == true)] | length == 1'
+jq -s decisions.log '[.[] | select(.path == "authz/allow" and .result == false)] | length == 1'
+
+-- config.yaml --
+plugins:
+  file_logger:
+    path: decisions.log
+decision_logs:
+  plugin: file_logger
+
+-- policy/authz.rego --
+package authz
+
+default allow := false
+
+allow if input.role == "admin"
