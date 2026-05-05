@@ -599,6 +599,10 @@ func attachAnnotationsNodes(mod *Module) Errors {
 		if err := validateAnnotationEntrypointAttachment(a); err != nil {
 			errs = append(errs, err)
 		}
+
+		if err := validateAnnotationIDAttachment(a); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	return errs
@@ -627,6 +631,14 @@ func validateAnnotationEntrypointAttachment(a *Annotations) *Error {
 	if a.Entrypoint && !(a.Scope == annotationScopeDocument || a.Scope == annotationScopePackage) {
 		return NewError(
 			ParseErr, a.Loc(), "annotation entrypoint applied to non-document or package scope '%v'", a.Scope)
+	}
+	return nil
+}
+
+func validateAnnotationIDAttachment(a *Annotations) *Error {
+	if a.ID != "" && a.Scope != annotationScopeRule {
+		return NewError(
+			ParseErr, a.Loc(), "annotation id applied to non-rule scope '%v'", a.Scope)
 	}
 	return nil
 }

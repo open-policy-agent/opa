@@ -8207,10 +8207,9 @@ func TestAnnotationsAutoEnableWithID(t *testing.T) {
 	}{
 		{
 			note: "auto-enable when metadata has id field",
-			module: `# METADATA
+			module: `package test
+# METADATA
 # id: test-rule
-# title: Test Rule
-package test
 allow if true
 `,
 			processAnnotation:   false,
