@@ -442,7 +442,7 @@ func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 }
 
 func (s *Server) newEvaluatedRuleTracker() *topdown.EvaluatedRuleTracker {
-	if !s.evaluatedRulesEnabled {
+	if !s.evaluatedRulesEnabled && !s.hasExternalSources() {
 		return nil
 	}
 	return &topdown.EvaluatedRuleTracker{}
@@ -462,6 +462,10 @@ func compilerHasRuleIDs(c *ast.Compiler) bool {
 		}
 	}
 	return false
+}
+
+func (s *Server) hasExternalSources() bool {
+	return s.manager.GetExternalSources() != nil && s.manager.GetExternalSources().Len() > 0
 }
 
 func evaluatedRuleIDs(t *topdown.EvaluatedRuleTracker) []string {
