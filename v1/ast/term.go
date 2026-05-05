@@ -569,16 +569,43 @@ type Not struct {
 	Location     *Location `json:"location,omitempty"`
 }
 
-func NotTerm(exprs ...*Expr) *Term {
-	return NewTerm(&Not{
+func NewNot(exprs ...*Expr) *Not {
+	return &Not{
 		Body: NewBody(exprs...),
-	})
+	}
+}
+
+func NotTerm(exprs ...*Expr) *Term {
+	return NewTerm(NewNot(exprs...))
 }
 
 func NotExpr(exprs ...*Expr) *Expr {
 	return NewExpr(&Not{
 		Body: NewBody(exprs...),
 	})
+}
+
+func Complement(expr *Expr) []*Expr {
+	if expr.Negated {
+		// Legacy negation
+		return []*Expr{expr.Complement()}
+	}
+
+	if n, ok := expr.Terms.(*Not); ok {
+		b := make([]*Expr, 0, len(n.Body))
+		for _, e := range n.Body {
+			cpy := *e
+
+			for _, w := range expr.With {
+				cpy.With = append(cpy.With, w.Copy())
+			}
+
+			b = append(b, &cpy)
+		}
+		return b
+	}
+
+	return []*Expr{NotExpr(expr)}
 }
 
 // Copy returns a deep copy of n.
