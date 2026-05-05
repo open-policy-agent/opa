@@ -149,6 +149,7 @@ type Server struct {
 	allPluginsOkOnce            bool
 	distributedTracingOpts      tracing.Options
 	ndbCacheEnabled             bool
+	evaluatedRulesEnabled       bool
 	unixSocketPerm              *string
 	cipherSuites                *[]uint16
 	hooks                       hooks.Hooks
@@ -437,6 +438,28 @@ func (s *Server) WithHooks(hs hooks.Hooks) *Server {
 func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	s.ndbCacheEnabled = ndbCacheEnabled
 	return s
+}
+
+// WithEvaluatedRules enables tracking of evaluated rules in decision logs.
+// When enabled, the annotation "id" field of each successfully evaluated
+// rule is recorded in the decision log's evaluated_rules field.
+func (s *Server) WithEvaluatedRules(enabled bool) *Server {
+	s.evaluatedRulesEnabled = enabled
+	return s
+}
+
+func (s *Server) newEvaluatedRuleTracker() *topdown.EvaluatedRuleTracker {
+	if !s.evaluatedRulesEnabled {
+		return nil
+	}
+	return &topdown.EvaluatedRuleTracker{}
+}
+
+func evaluatedRuleIDs(t *topdown.EvaluatedRuleTracker) []string {
+	if t == nil {
+		return nil
+	}
+	return t.IDs
 }
 
 // WithCipherSuites sets the list of enabled TLS 1.0–1.2 cipher suites.
@@ -962,7 +985,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		ndbCache = builtins.NDBCache{}
 	}
 
-	var evaluatedRules []string
+	tracker := s.newEvaluatedRuleTracker()
 
 	opts := []func(*rego.Rego){
 		rego.Store(s.store),
@@ -981,7 +1004,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		rego.EnablePrintStatements(s.manager.EnablePrintStatements()),
 		rego.DistributedTracingOpts(s.distributedTracingOpts),
 		rego.NDBuiltinCache(ndbCache),
-		rego.EvaluatedRules(&evaluatedRules),
+		rego.EvaluatedRuleTracker(tracker),
 	}
 
 	for _, r := range s.manager.GetWasmResolvers() {
@@ -1011,7 +1034,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 	}
 
 	var x any = results.Result
-	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, evaluatedRules, nil); err != nil {
+	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil); err != nil {
 		return nil, err
 	}
 	return &results, nil
@@ -1172,8 +1195,10 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
 
-	var evaluatedRules []string
-	evalOpts = append(evalOpts, rego.EvalEvaluated(&evaluatedRules))
+	tracker := s.newEvaluatedRuleTracker()
+	if tracker != nil {
+		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
+	}
 
 	rs, err := preparedQuery.Eval(
 		ctx,
@@ -1209,7 +1234,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		writer.Error(w, http.StatusNotFound, errV1)
 		return
 	}
-	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, evaluatedRules, nil)
+	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1608,8 +1633,10 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
 
-	var evaluatedRules []string
-	evalOpts = append(evalOpts, rego.EvalEvaluated(&evaluatedRules))
+	tracker := s.newEvaluatedRuleTracker()
+	if tracker != nil {
+		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
+	}
 
 	rs, err := preparedQuery.Eval(
 		ctx,
@@ -1660,7 +1687,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRules, nil); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1858,8 +1885,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalResponseMetadata(respMetadata),
 	}
 
-	var evaluatedRules []string
-	evalOpts = append(evalOpts, rego.EvalEvaluated(&evaluatedRules))
+	tracker := s.newEvaluatedRuleTracker()
+	if tracker != nil {
+		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
+	}
 
 	if reqMetadata != nil {
 		evalOpts = append(evalOpts, rego.EvalRequestMetadata(reqMetadata))
@@ -1918,7 +1947,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRules, customLog()); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), customLog()); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}

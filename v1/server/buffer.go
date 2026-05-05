@@ -38,7 +38,7 @@ type Info struct {
 	Metrics             metrics.Metrics
 	Trace               []*topdown.Event
 	RequestID           uint64
-	EvaluatedRules      []string // TODO: name preliminary
+	EvaluatedRules      []string
 	Custom              map[string]any
 }
 

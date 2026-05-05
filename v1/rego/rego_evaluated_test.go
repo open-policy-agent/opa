@@ -3,6 +3,8 @@ package rego
 import (
 	"context"
 	"testing"
+
+	"github.com/open-policy-agent/opa/v1/topdown"
 )
 
 func TestEvaluatedRules(t *testing.T) {
@@ -19,12 +21,12 @@ p if input.foo
 # id: rule2
 p if input.bar`
 
-		var evaluated []string
+		tracker := &topdown.EvaluatedRuleTracker{}
 		r := New(
 			Query("data.test.p"),
 			Module("test.rego", module),
 			Input(map[string]any{"foo": true}),
-			EvaluatedRules(&evaluated),
+			EvaluatedRuleTracker(tracker),
 		)
 
 		rs, err := r.Eval(context.Background())
@@ -36,12 +38,12 @@ p if input.bar`
 			t.Fatal("expected result")
 		}
 
-		if len(evaluated) != 1 {
-			t.Fatalf("expected 1 evaluated rule, got %d: %v", len(evaluated), evaluated)
+		if len(tracker.IDs) != 1 {
+			t.Fatalf("expected 1 evaluated rule, got %d: %v", len(tracker.IDs), tracker.IDs)
 		}
 
-		if evaluated[0] != "rule1" {
-			t.Fatalf("expected rule1, got %s", evaluated[0])
+		if tracker.IDs[0] != "rule1" {
+			t.Fatalf("expected rule1, got %s", tracker.IDs[0])
 		}
 	})
 
@@ -56,12 +58,12 @@ p if input.foo
 # id: rule2
 p if input.bar`
 
-		var evaluated []string
+		tracker := &topdown.EvaluatedRuleTracker{}
 		r := New(
 			Query("data.test.p"),
 			Module("test.rego", module),
 			Input(map[string]any{"foo": true, "bar": true}),
-			EvaluatedRules(&evaluated),
+			EvaluatedRuleTracker(tracker),
 		)
 
 		rs, err := r.Eval(context.Background())
@@ -77,13 +79,13 @@ p if input.bar`
 		// Only the first successfully evaluated rule is recorded because OPA stops evaluation
 		// after finding the first match. This is expected behavior.
 		// The exact rule recorded depends on rule ordering in the compiled module.
-		if len(evaluated) != 1 {
-			t.Fatalf("expected 1 evaluated rule (early-exit), got %d: %v", len(evaluated), evaluated)
+		if len(tracker.IDs) != 1 {
+			t.Fatalf("expected 1 evaluated rule (early-exit), got %d: %v", len(tracker.IDs), tracker.IDs)
 		}
 
 		// Should have either rule1 or rule2 (whichever was evaluated first)
-		if evaluated[0] != "rule1" && evaluated[0] != "rule2" {
-			t.Fatalf("expected rule1 or rule2, got %s", evaluated[0])
+		if tracker.IDs[0] != "rule1" && tracker.IDs[0] != "rule2" {
+			t.Fatalf("expected rule1 or rule2, got %s", tracker.IDs[0])
 		}
 	})
 
@@ -98,12 +100,12 @@ p if input.foo
 # id: rule2
 p if input.bar`
 
-		var evaluated []string
+		tracker := &topdown.EvaluatedRuleTracker{}
 		r := New(
 			Query("data.test.p"),
 			Module("test.rego", module),
 			Input(map[string]any{"baz": true}),
-			EvaluatedRules(&evaluated),
+			EvaluatedRuleTracker(tracker),
 		)
 
 		rs, err := r.Eval(context.Background())
@@ -116,8 +118,8 @@ p if input.bar`
 			t.Fatal("expected no result or false")
 		}
 
-		if len(evaluated) != 0 {
-			t.Fatalf("expected 0 evaluated rules, got %d: %v", len(evaluated), evaluated)
+		if len(tracker.IDs) != 0 {
+			t.Fatalf("expected 0 evaluated rules, got %d: %v", len(tracker.IDs), tracker.IDs)
 		}
 	})
 
@@ -128,12 +130,12 @@ p if input.foo
 
 p if input.bar`
 
-		var evaluated []string
+		tracker := &topdown.EvaluatedRuleTracker{}
 		r := New(
 			Query("data.test.p"),
 			Module("test.rego", module),
 			Input(map[string]any{"foo": true}),
-			EvaluatedRules(&evaluated),
+			EvaluatedRuleTracker(tracker),
 		)
 
 		rs, err := r.Eval(context.Background())
@@ -146,8 +148,8 @@ p if input.bar`
 		}
 
 		// Rules without IDs should not be recorded
-		if len(evaluated) != 0 {
-			t.Fatalf("expected 0 evaluated rules (no IDs), got %d: %v", len(evaluated), evaluated)
+		if len(tracker.IDs) != 0 {
+			t.Fatalf("expected 0 evaluated rules (no IDs), got %d: %v", len(tracker.IDs), tracker.IDs)
 		}
 	})
 
@@ -164,12 +166,12 @@ p if input.bar
 # id: rule3
 p if input.baz`
 
-		var evaluated []string
+		tracker := &topdown.EvaluatedRuleTracker{}
 		r := New(
 			Query("data.test.p"),
 			Module("test.rego", module),
 			Input(map[string]any{"foo": true, "bar": true}),
-			EvaluatedRules(&evaluated),
+			EvaluatedRuleTracker(tracker),
 		)
 
 		rs, err := r.Eval(context.Background())
@@ -185,13 +187,13 @@ p if input.baz`
 		// The rule without an ID will not be recorded (no ID to record), and rule3 won't be reached
 		// due to early exit. Depending on rule ordering, we may get rule1 or no rules.
 		// With input.foo=true and input.bar=true, typically rule1 or the rule without ID evaluates first.
-		if len(evaluated) > 1 {
-			t.Fatalf("expected at most 1 evaluated rule (early-exit), got %d: %v", len(evaluated), evaluated)
+		if len(tracker.IDs) > 1 {
+			t.Fatalf("expected at most 1 evaluated rule (early-exit), got %d: %v", len(tracker.IDs), tracker.IDs)
 		}
 
 		// If a rule was recorded, it should be one with an ID
-		if len(evaluated) == 1 && evaluated[0] != "rule1" && evaluated[0] != "rule3" {
-			t.Fatalf("expected rule1 or rule3, got %s", evaluated[0])
+		if len(tracker.IDs) == 1 && tracker.IDs[0] != "rule1" && tracker.IDs[0] != "rule3" {
+			t.Fatalf("expected rule1 or rule3, got %s", tracker.IDs[0])
 		}
 	})
 
@@ -206,7 +208,7 @@ p if input.foo`
 			Query("data.test.p"),
 			Module("test.rego", module),
 			Input(map[string]any{"foo": true}),
-			EvaluatedRules(nil),
+			EvaluatedRuleTracker(nil),
 		)
 
 		// Should not panic with nil pointer
@@ -223,12 +225,12 @@ p if input.foo`
 # id: complete_rule
 p := input.foo`
 
-		var evaluated []string
+		tracker := &topdown.EvaluatedRuleTracker{}
 		r := New(
 			Query("data.test.p"),
 			Module("test.rego", module),
 			Input(map[string]any{"foo": true}),
-			EvaluatedRules(&evaluated),
+			EvaluatedRuleTracker(tracker),
 		)
 
 		rs, err := r.Eval(context.Background())
@@ -240,12 +242,12 @@ p := input.foo`
 			t.Fatal("expected result")
 		}
 
-		if len(evaluated) != 1 {
-			t.Fatalf("expected 1 evaluated rule, got %d: %v", len(evaluated), evaluated)
+		if len(tracker.IDs) != 1 {
+			t.Fatalf("expected 1 evaluated rule, got %d: %v", len(tracker.IDs), tracker.IDs)
 		}
 
-		if evaluated[0] != "complete_rule" {
-			t.Fatalf("expected complete_rule, got %s", evaluated[0])
+		if tracker.IDs[0] != "complete_rule" {
+			t.Fatalf("expected complete_rule, got %s", tracker.IDs[0])
 		}
 	})
 
@@ -259,12 +261,12 @@ p contains x if {
 	x > 5
 }`
 
-		var evaluated []string
+		tracker := &topdown.EvaluatedRuleTracker{}
 		r := New(
 			Query("data.test.p"),
 			Module("test.rego", module),
 			Input(map[string]any{"values": []any{3, 6, 9, 2, 10}}),
-			EvaluatedRules(&evaluated),
+			EvaluatedRuleTracker(tracker),
 		)
 
 		rs, err := r.Eval(context.Background())
@@ -278,12 +280,12 @@ p contains x if {
 
 		// Multi-value rules iterate and produce multiple results
 		// The rule ID should be recorded for each successful evaluation
-		if len(evaluated) < 1 {
-			t.Fatalf("expected at least 1 evaluated rule, got %d: %v", len(evaluated), evaluated)
+		if len(tracker.IDs) < 1 {
+			t.Fatalf("expected at least 1 evaluated rule, got %d: %v", len(tracker.IDs), tracker.IDs)
 		}
 
 		// All recorded IDs should be the same rule
-		for _, id := range evaluated {
+		for _, id := range tracker.IDs {
 			if id != "multi_value_rule" {
 				t.Fatalf("expected multi_value_rule, got %s", id)
 			}
@@ -325,10 +327,10 @@ p if input.bar`
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var evaluated []string
+	tracker := &topdown.EvaluatedRuleTracker{}
 	rs, err := pq.Eval(context.Background(),
 		EvalInput(map[string]any{"foo": true}),
-		EvalEvaluated(&evaluated),
+		EvalEvaluatedRuleTracker(tracker),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -338,15 +340,15 @@ p if input.bar`
 		t.Fatal("expected result")
 	}
 
-	if len(evaluated) != 1 || evaluated[0] != "rule1" {
-		t.Fatalf("expected [rule1], got %v", evaluated)
+	if len(tracker.IDs) != 1 || tracker.IDs[0] != "rule1" {
+		t.Fatalf("expected [rule1], got %v", tracker.IDs)
 	}
 
-	// Reuse the prepared query with a fresh slice
-	var evaluated2 []string
+	// Reuse the prepared query with a fresh tracker
+	tracker2 := &topdown.EvaluatedRuleTracker{}
 	rs, err = pq.Eval(context.Background(),
 		EvalInput(map[string]any{"bar": true}),
-		EvalEvaluated(&evaluated2),
+		EvalEvaluatedRuleTracker(tracker2),
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -356,7 +358,7 @@ p if input.bar`
 		t.Fatal("expected result")
 	}
 
-	if len(evaluated2) != 1 || evaluated2[0] != "rule2" {
-		t.Fatalf("expected [rule2], got %v", evaluated2)
+	if len(tracker2.IDs) != 1 || tracker2.IDs[0] != "rule2" {
+		t.Fatalf("expected [rule2], got %v", tracker2.IDs)
 	}
 }

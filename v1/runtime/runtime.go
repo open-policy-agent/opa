@@ -708,6 +708,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {
 		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.GetConfig().NDBuiltinCacheEnabled())
+		rt.server = rt.server.WithEvaluatedRules(lp.Config().EvaluatedRules)
 	}
 
 	if rt.Params.DiagnosticAddrs != nil {

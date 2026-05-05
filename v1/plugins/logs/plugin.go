@@ -68,7 +68,7 @@ type EventV1 struct {
 	Timestamp           time.Time               `json:"timestamp"`
 	Metrics             map[string]any          `json:"metrics,omitempty"`
 	RequestID           uint64                  `json:"req_id,omitempty"`
-	EvaluatedRules      []string                `json:"evaluated_rules,omitempty"` // TODO: name preliminary
+	EvaluatedRules      []string                `json:"evaluated_rules,omitempty"`
 	RequestContext      *RequestContext         `json:"request_context,omitempty"`
 	Custom              map[string]any          `json:"custom,omitempty"`
 
@@ -313,6 +313,7 @@ type Config struct {
 	ConsoleLogs     bool                 `json:"console"`
 	Resource        *string              `json:"resource"`
 	NDBuiltinCache  bool                 `json:"nd_builtin_cache,omitempty"`
+	EvaluatedRules  bool                 `json:"evaluated_rules,omitempty"`
 	maskDecisionRef ast.Ref
 	dropDecisionRef ast.Ref
 }

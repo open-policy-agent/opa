@@ -109,7 +109,7 @@ type eval struct {
 	runtime                     *ast.Term
 	builtinErrors               *builtinErrors
 	roundTripper                CustomizeRoundTripper
-	evaluated                   *[]string // TODO: name preliminary
+	evaluated                   *EvaluatedRuleTracker
 	genvarprefix                string
 	query                       ast.Body
 	tracers                     []QueryTracer
@@ -234,20 +234,8 @@ func (e *eval) closure(query ast.Body, cpy *eval) {
 	cpy.findOne = false
 }
 
-// recordRuleEvaluated records the ID of a successfully evaluated rule.
-// TODO(stephan): name preliminary
 func (e *eval) recordRuleEvaluated(rule *ast.Rule) {
-	if e.evaluated == nil || rule == nil {
-		return
-	}
-
-	// Annotations are attached to rules during compilation, so we check rule.Annotations directly
-	for _, a := range rule.Annotations {
-		if a.ID != "" {
-			*e.evaluated = append(*e.evaluated, a.ID)
-			return
-		}
-	}
+	e.evaluated.Record(rule)
 }
 
 // childWithBindingSizeHint creates a child evaluator with bindings pre-sized for the expected number of variables.

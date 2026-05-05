@@ -65,7 +65,7 @@ type Query struct {
 	baseCache                   BaseCache
 	requestMetadata             map[string]any
 	responseMetadata            map[string]any
-	evaluated                   *[]string // TODO: name preliminary
+	evaluated                   *EvaluatedRuleTracker
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -351,10 +351,10 @@ func (q *Query) WithResponseMetadata(m map[string]any) *Query {
 	return q
 }
 
-// WithEvaluated sets a slice to record rule IDs that were successfully evaluated.
-// TODO: name preliminary
-func (q *Query) WithEvaluated(evaluated *[]string) *Query {
-	q.evaluated = evaluated
+// WithEvaluatedRuleTracker sets a tracker to record rule identifiers that were
+// successfully evaluated.
+func (q *Query) WithEvaluatedRuleTracker(t *EvaluatedRuleTracker) *Query {
+	q.evaluated = t
 	return q
 }
 
