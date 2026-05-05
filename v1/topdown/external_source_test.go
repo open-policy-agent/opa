@@ -2,6 +2,7 @@ package topdown
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -322,6 +323,85 @@ check if data.authz.permitted`)
 			t.Errorf("Expected 0 results (denied), got %d", len(qrs))
 		}
 	})
+}
+
+func TestExternalSourceDirectQuery(t *testing.T) {
+	t.Parallel()
+
+	externalModule := ast.MustParseModule(`package authz
+allow if input.user == "alice"
+deny if input.user == "bob"`)
+
+	packageRef := ast.MustParseRef("data.authz")
+	source := &countingExternalSource{refs: []ast.Ref{packageRef}, rules: externalModule.Rules}
+
+	compiler := setupCompiler(t, packageRef, source, nil)
+
+	t.Run("direct query allowed", func(t *testing.T) {
+		input := ast.MustParseTerm(`{"user": "alice"}`)
+		qrs := runQuery(t, compiler, "data.authz.allow", input)
+		if len(qrs) != 1 {
+			t.Errorf("Expected 1 result for direct external query, got %d", len(qrs))
+		}
+	})
+
+	t.Run("direct query denied", func(t *testing.T) {
+		input := ast.MustParseTerm(`{"user": "bob"}`)
+		qrs := runQuery(t, compiler, "data.authz.deny", input)
+		if len(qrs) != 1 {
+			t.Errorf("Expected 1 result for direct external query, got %d", len(qrs))
+		}
+	})
+
+	t.Run("direct query no match", func(t *testing.T) {
+		input := ast.MustParseTerm(`{"user": "charlie"}`)
+		qrs := runQuery(t, compiler, "data.authz.allow", input)
+		if len(qrs) != 0 {
+			t.Errorf("Expected 0 results, got %d", len(qrs))
+		}
+	})
+}
+
+func TestExternalSourceCompilationFailure(t *testing.T) {
+	t.Parallel()
+
+	// Rules with an unsafe variable should fail compilation
+	externalModule := ast.MustParseModule(`package authz
+allow if { x }`)
+
+	packageRef := ast.MustParseRef("data.authz")
+	source := &countingExternalSource{refs: []ast.Ref{packageRef}, rules: externalModule.Rules}
+
+	staticModule := ast.MustParseModule(`package main
+check if data.authz.allow`)
+
+	compiler := setupCompiler(t, packageRef, source, staticModule)
+
+	store := inmem.New()
+	ctx := t.Context()
+	txn, err := store.NewTransaction(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Abort(ctx, txn)
+
+	query := ast.MustParseBody("data.main.check")
+	q := NewQuery(query).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn)
+
+	_, err = q.Run(ctx)
+	if err == nil {
+		t.Fatal("Expected compilation error from external source, got nil")
+	}
+	var errs ast.Errors
+	if !errors.As(err, &errs) {
+		t.Fatalf("Expected ast.Errors, got: %T: %v", err, err)
+	}
+	if !slices.ContainsFunc(errs, func(e *ast.Error) bool { return e.Code == ast.UnsafeVarErr }) {
+		t.Errorf("Expected unsafe var error, got: %v", err)
+	}
 }
 
 func TestExternalSourceE2EWithInputOverrideNilInput(t *testing.T) {

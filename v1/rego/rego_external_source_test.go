@@ -3,6 +3,7 @@ package rego
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -316,7 +317,13 @@ allow if data.external.authz.foo("bar")`
 		if err == nil {
 			t.Fatal("Expected error when calling external function with argument, but got none")
 		}
-		t.Logf("Expected error occurred: %v", err)
+		var errs ast.Errors
+		if !errors.As(err, &errs) {
+			t.Fatalf("Expected ast.Errors, got: %T: %v", err, err)
+		}
+		if !slices.ContainsFunc(errs, func(e *ast.Error) bool { return e.Code == ast.TypeErr }) {
+			t.Errorf("Expected type error for undefined function, got: %v", err)
+		}
 	})
 
 	t.Run("call into external rule that uses function internally", func(t *testing.T) {

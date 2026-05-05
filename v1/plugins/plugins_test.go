@@ -701,6 +701,45 @@ test_rule := true`)
 		}
 	})
 
+	t.Run("stop cleans up external source plugins", func(t *testing.T) {
+		ctx := t.Context()
+		m, err := New([]byte(`{}`), "test", inmem.New())
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := m.Init(ctx); err != nil {
+			t.Fatalf("Failed to initialize manager: %v", err)
+		}
+
+		module := ast.MustParseModule(`package external.test
+test_rule := true`)
+		pkgRef := ast.MustParseRef("data.external.test")
+
+		source := &mockExternalSource{
+			refs:  []ast.Ref{pkgRef},
+			rules: module.Rules,
+		}
+
+		plugin := &testExternalSourcePlugin{manager: m}
+		m.Register("test_external_source", plugin)
+		m.RegisterExternalSource(pkgRef, source)
+
+		if err := m.Start(ctx); err != nil {
+			t.Fatalf("Failed to start manager: %v", err)
+		}
+
+		if !plugin.started {
+			t.Fatal("Expected plugin to be started")
+		}
+
+		m.Stop(ctx)
+
+		if len(m.GetExternalSources()) != 1 {
+			t.Fatalf("Expected external sources to still be registered after stop, got %d", len(m.GetExternalSources()))
+		}
+	})
+
 	t.Run("no recompilation when no sources registered", func(t *testing.T) {
 		ctx := context.Background()
 		m, err := New([]byte(`{}`), "test", inmem.New())
