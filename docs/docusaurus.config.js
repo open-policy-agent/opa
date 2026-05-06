@@ -1,21 +1,21 @@
 const { themes } = require("prism-react-renderer");
 const lightCodeTheme = themes.github;
 const darkCodeTheme = {
-    ...themes.dracula,
-    styles: [
-        ...themes.dracula.styles,
-        {
-            types: ["atrule"],
-            style: {color: "rgb(139, 233, 253)"},
-        },
-    ],
+  ...themes.dracula,
+  styles: [
+    ...themes.dracula.styles,
+    {
+      types: ["atrule"],
+      style: { color: "rgb(139, 233, 253)" },
+    },
+  ],
 };
 const semver = require("semver");
 import fs from "fs/promises";
-import {loadPages} from "./src/lib/ecosystem/loadPages.js";
-import {loadEvents} from "./src/lib/events/loadEvents.js";
-import {loadRules} from "./src/lib/projects/regal/loadRules.js";
-import {loadSurveyEventData, loadSurveyEventMetadata, loadSurveyQuestions} from "./src/lib/surveys/loadSurveyData.js";
+import { loadPages } from "./src/lib/ecosystem/loadPages.js";
+import { loadEvents } from "./src/lib/events/loadEvents.js";
+import { loadRules } from "./src/lib/projects/regal/loadRules.js";
+import { loadSurveyEventData, loadSurveyEventMetadata, loadSurveyQuestions } from "./src/lib/surveys/loadSurveyData.js";
 
 const path = require("path");
 const yaml = require("js-yaml");
