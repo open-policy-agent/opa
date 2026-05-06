@@ -20,17 +20,17 @@ platform-specific parts (fetching changed files, setting job outputs).
 Traditional approaches to conditional CI checks have significant drawbacks:
 
 | Approach                         | Drawback                                                              |
-| -------------------------------- | --------------------------------------------------------------------- |
+|----------------------------------| --------------------------------------------------------------------- |
 | `paths-filter` actions           | Limited to glob patterns, no complex logic, hard to test in isolation |
 | Shell scripts with `grep`/`find` | Fragile, hard to read, impossible to unit test                        |
-| Hardcoded `if:` conditions       | Duplicated across jobs, no single source of truth                     |
+| Hard coded `if:` conditions      | Duplicated across jobs, no single source of truth                     |
 
 Using Rego provides:
 
 - **Testability** - Unit test your check logic with `opa test` before it hits CI
 - **Readability** - Declarative rules are easier to review than imperative scripts
-- **Reusability** - Share policies across repositories as bundles
-- **Auditability** - Policy changes are versioned and reviewed like any other code
+- **Re-usability** - Share policies across repositories as bundles
+- **Audit trail** - Policy changes are versioned and reviewed like any other code
 
 ## The Pattern
 
@@ -44,9 +44,9 @@ The pattern has three components:
 Optionally, a **summary job** can use OPA to validate that all required jobs
 passed, providing a single required status check for branch protection.
 
-## Example: Monorepo Test Selection (GitHub Actions)
+## Example: Test Selection (GitHub Actions)
 
-Consider a monorepo with a frontend, backend, and shared documentation:
+Consider a repository with a frontend, backend, and shared documentation:
 
 ```
 my-project/
@@ -285,4 +285,4 @@ This pattern is used in production by the OPA project itself:
 - [OPA's PR check policy](https://github.com/open-policy-agent/opa/blob/main/build/policy/pr-check/pr_check.rego) -
   The Rego policy that drives the check selection
 - [Java OPA SDK PR checks](https://github.com/open-policy-agent/java-opa-sdk/blob/main/tools/policy/pr-check/pr_check.rego) -
-  Applies the same pattern to a Gradle monorepo with multiple subprojects
+  Applies the same pattern to a Gradle mono-repo with multiple subprojects
