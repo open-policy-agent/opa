@@ -127,6 +127,7 @@ type EvalContext struct {
 	externalCancel              topdown.Cancel // Note(philip): If non-nil, the cancellation is handled outside of this package.
 	requestMetadata             map[string]any
 	responseMetadata            map[string]any
+	evaluated                   *topdown.EvaluatedRuleTracker
 }
 
 func (e *EvalContext) RawInput() *any {
@@ -427,6 +428,14 @@ func EvalResponseMetadata(m map[string]any) EvalOption {
 	}
 }
 
+// EvalEvaluatedRuleTracker sets a tracker to record rule identifiers that
+// were successfully evaluated during query evaluation.
+func EvalEvaluatedRuleTracker(t *topdown.EvaluatedRuleTracker) EvalOption {
+	return func(e *EvalContext) {
+		e.evaluated = t
+	}
+}
+
 func (pq preparedQuery) Modules() map[string]*ast.Module {
 	mods := make(map[string]*ast.Module)
 
@@ -687,6 +696,7 @@ type Rego struct {
 	compilerHook                func(*ast.Compiler)
 	evalMode                    *ast.CompilerEvalMode
 	filter                      filter.LoaderFilter
+	evaluated                   *topdown.EvaluatedRuleTracker
 }
 
 func (r *Rego) RegoVersion() ast.RegoVersion {
@@ -1376,6 +1386,14 @@ func CompilerHook(hook func(*ast.Compiler)) func(r *Rego) {
 func EvalMode(mode ast.CompilerEvalMode) func(r *Rego) {
 	return func(r *Rego) {
 		r.evalMode = &mode
+	}
+}
+
+// EvaluatedRuleTracker returns an option that sets a tracker to record rule
+// identifiers that were successfully evaluated during query evaluation.
+func EvaluatedRuleTracker(t *topdown.EvaluatedRuleTracker) func(r *Rego) {
+	return func(r *Rego) {
+		r.evaluated = t
 	}
 }
 
@@ -2315,6 +2333,12 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithBaseCache(ectx.baseCache).
 		WithRequestMetadata(ectx.requestMetadata).
 		WithResponseMetadata(ectx.responseMetadata)
+
+	if ectx.evaluated != nil {
+		q = q.WithEvaluatedRuleTracker(ectx.evaluated)
+	} else {
+		q = q.WithEvaluatedRuleTracker(r.evaluated)
+	}
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

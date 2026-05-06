@@ -1,0 +1,60 @@
+# Verify that evaluated rule IDs appear in decision logs when rules
+# have metadata annotations with id fields, and in the response when
+# the ?ids query parameter is used.
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --set decision_logs.console=true ./policy/ &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+
+# POST to v1/data — rule with id "allow-admin" should be evaluated.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == true'
+
+# POST to v1/data with ?ids — ids should appear in response.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' 'http://localhost/v1/data/authz/allow?ids'
+jq stdout '.result == true and .ids == ["allow-admin"]'
+
+# POST to v1/data with ?ids — no rules match, field absent.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "guest"}}' 'http://localhost/v1/data/authz/allow?ids'
+jq stdout '.result == false and (has("ids") | not)'
+
+# POST to v1/data with ?ids — multiple rules evaluate (multi-value rule).
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin", "dept": "eng"}}' 'http://localhost/v1/data/authz/violations?ids'
+jq stdout '.ids | sort == ["no-admin-in-eng", "no-admin-role"]'
+
+# POST without ?ids — ids must be absent.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == true and (has("ids") | not)'
+
+kill -INT opa
+wait opa
+
+# All requests that matched allow-admin should have ids in the decision log.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .ids == ["allow-admin"])] | length == 3'
+
+-- policy/authz.rego --
+package authz
+
+default allow := false
+
+# METADATA
+# id: allow-admin
+allow if input.role == "admin"
+
+# METADATA
+# id: allow-editor
+allow if input.role == "editor"
+
+# METADATA
+# id: no-admin-role
+violations contains msg if {
+	input.role == "admin"
+	msg := "admin role is restricted"
+}
+
+# METADATA
+# id: no-admin-in-eng
+violations contains msg if {
+	input.role == "admin"
+	input.dept == "eng"
+	msg := "admin not allowed in eng"
+}

@@ -68,6 +68,7 @@ type EventV1 struct {
 	Timestamp           time.Time               `json:"timestamp"`
 	Metrics             map[string]any          `json:"metrics,omitempty"`
 	RequestID           uint64                  `json:"req_id,omitempty"`
+	IDs                 []string                `json:"ids,omitempty"`
 	RequestContext      *RequestContext         `json:"request_context,omitempty"`
 	Custom              map[string]any          `json:"custom,omitempty"`
 
@@ -207,6 +208,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 
 	if len(e.RequestedBy) > 0 {
 		event.Insert(ast.InternedTerm("requested_by"), ast.StringTerm(e.RequestedBy))
+	}
+
+	if len(e.IDs) > 0 {
+		evaluatedRules := make([]*ast.Term, len(e.IDs))
+		for i, v := range e.IDs {
+			evaluatedRules[i] = ast.StringTerm(v)
+		}
+		event.Insert(ast.InternedTerm("ids"), ast.ArrayTerm(evaluatedRules...))
 	}
 
 	// Use the timestamp JSON marshaller to ensure the format is the same as
@@ -729,6 +738,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		RequestedBy:         decision.RemoteAddr,
 		Timestamp:           decision.Timestamp,
 		RequestID:           decision.RequestID,
+		IDs:                 decision.EvaluatedRuleIDs,
 		inputAST:            decision.InputAST,
 		Custom:              decision.Custom,
 	}
@@ -1223,6 +1233,7 @@ func eventToAttrs(event EventV1) []slog.Attr {
 		attrs = append(attrs, slog.Any("request_context", event.RequestContext))
 	}
 
+	addAttrIfSliceNotEmpty(&attrs, "ids", event.IDs)
 	addAttrIfHasLen(&attrs, "custom", event.Custom)
 
 	return attrs
@@ -1342,6 +1353,8 @@ func eventToFields(event EventV1) map[string]any {
 	if event.RequestContext != nil {
 		fields["request_context"] = event.RequestContext
 	}
+
+	addIfSliceNotEmpty(fields, "ids", stringsToAny(event.IDs))
 
 	if len(event.Custom) > 0 {
 		var v any = event.Custom

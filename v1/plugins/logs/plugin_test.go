@@ -4241,3 +4241,50 @@ func TestDroppedEvents(t *testing.T) {
 		t.Fatalf("expected dropped %d but got %d", 0, dropped)
 	}
 }
+
+func TestLogEvaluatedRules(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
+
+	backend := &testPlugin{}
+	manager.Register("test_plugin", backend)
+
+	config, err := ParseConfig([]byte(`{"plugin": "test_plugin"}`), nil, []string{"test_plugin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(config, manager)
+
+	// Log decision with evaluated rules
+	if err := plugin.Log(ctx, &server.Info{
+		EvaluatedRuleIDs: []string{"rule1", "rule2", "rule3"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Log decision without evaluated rules
+	if err := plugin.Log(ctx, &server.Info{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, act := 2, len(backend.events); exp != act {
+		t.Fatalf("expected %d events, got %d", exp, act)
+	}
+
+	// Check first event has evaluated rules
+	if exp, act := 3, len(backend.events[0].IDs); exp != act {
+		t.Fatalf("expected %d evaluated rules in event 0, got %d", exp, act)
+	}
+	expectedRules := []string{"rule1", "rule2", "rule3"}
+	if diff := cmp.Diff(expectedRules, backend.events[0].IDs); diff != "" {
+		t.Errorf("unexpected evaluated rules in event 0 (-want, +got):\n%s", diff)
+	}
+
+	// Check second event has no evaluated rules
+	if exp, act := 0, len(backend.events[1].IDs); exp != act {
+		t.Fatalf("expected %d evaluated rules in event 1, got %d", exp, act)
+	}
+}

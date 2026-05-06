@@ -8198,6 +8198,61 @@ allow if {
 	assertLocationText(t, "# METADATA\n# title: rule", m.Rules[0].Annotations[0].Location)
 }
 
+func TestAnnotationsAutoEnableWithID(t *testing.T) {
+	tests := []struct {
+		note                string
+		module              string
+		processAnnotation   bool
+		expAnnotationsCount int
+	}{
+		{
+			note: "auto-enable when metadata has id field",
+			module: `package test
+# METADATA
+# id: test-rule
+allow if true
+`,
+			processAnnotation:   false,
+			expAnnotationsCount: 1,
+		},
+		{
+			note: "no auto-enable when metadata lacks id field",
+			module: `# METADATA
+# title: Test Rule
+package test
+allow if true
+`,
+			processAnnotation:   false,
+			expAnnotationsCount: 0,
+		},
+		{
+			note: "explicit ProcessAnnotation still works",
+			module: `# METADATA
+# title: Test Rule
+package test
+allow if true
+`,
+			processAnnotation:   true,
+			expAnnotationsCount: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			m, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{
+				ProcessAnnotation: tc.processAnnotation,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(m.Annotations) != tc.expAnnotationsCount {
+				t.Errorf("expected %d annotations but got %d", tc.expAnnotationsCount, len(m.Annotations))
+			}
+		})
+	}
+}
+
 func TestMaxParsingRecursionDepth(t *testing.T) {
 	tests := []struct {
 		name        string
