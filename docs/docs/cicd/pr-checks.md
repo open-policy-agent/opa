@@ -284,5 +284,5 @@ This pattern is used in production by the OPA project itself:
   Selectively runs Go, Wasm, docs, Rego, and YAML checks based on changed files
 - [OPA's PR check policy](https://github.com/open-policy-agent/opa/blob/main/build/policy/pr-check/pr_check.rego) -
   The Rego policy that drives the check selection
-- [Java OPA SDK PR checks](https://github.com/open-policy-agent/java-opa-sdk/pull/13) -
+- [Java OPA SDK PR checks](https://github.com/open-policy-agent/java-opa-sdk/blob/main/tools/policy/pr-check/pr_check.rego) -
   Applies the same pattern to a Gradle monorepo with multiple subprojects

@@ -40,7 +40,7 @@ various types of data in your continuous integration workflows:
   files are created (e.g., ensuring each `foo.js` has a corresponding
   `foo_test.js` in the appropriate directory).
 
-The [`opa eval`](../cli#eval) command provides
+The [`opa eval`](/docs/cli#eval) command provides
 several flags that are particularly useful for CI/CD scenarios:
 
 - `--fail` and `--fail-defined` - Set the exit code to 1 based on query results
@@ -97,6 +97,6 @@ Here's some examples of how we use these actions in our own CI/CD pipelines for 
 ## Other CI/CD Platforms
 
 For users of other CI/CD platforms (GitLab CI, Jenkins, Azure DevOps, etc.), you
-can download OPA directly from the [official installation page](../../docs?current-os=linux#1-download-opa).
+can download OPA directly from the [official installation page](/docs?current-os=linux#1-download-opa).
 This provides installation instructions for various operating systems and
 package managers.
