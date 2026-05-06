@@ -2,26 +2,25 @@
 title: HTTP
 ---
 <BuiltinTable category={"http"}/>
-:::info
-Similar to other built-in functions, multiple calls to the `http.send` built-in function for a given request object
-within a single policy evaluation query will always return the same value.
-:::
+`http.send` is one of several ways to load external data into OPA. Review the [External Data](/docs/external-data) page to understand the available approaches and their tradeoffs when using this built-in.
 
 :::danger
 This built-in function **must not** be used for effecting changes in
-external systems as OPA does not guarantee that the statement will be executed due
-to automatic performance optimizations that are applied during policy evaluation.
+external systems. Due to [caching behavior](#caching-behavior), `http.send` calls with the same request object
+may not result in a new outbound request on every policy evaluation.
 :::
+
+## Parameters
 
 The `request` object parameter may contain the following fields:
 
 | Field                          | Required | Type                 | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------------------ | -------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `url`                          | yes      | `string`             | HTTP URL to specify in the request (e.g., `"https://www.openpolicyagent.org"`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `url`                          | yes      | `string`             | HTTP URL to specify in the request (e.g., `"https://www.openpolicyagent.org"`). Specifies the server to connect to; if a `Host` header is set in `headers`, that value overrides the `Host` header sent but does not change the connection target.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `method`                       | yes      | `string`             | HTTP method to specify in request (e.g., `"GET"`, `"POST"`, `"PUT"`, etc.)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `body`                         | no       | `any`                | HTTP message body to include in request. The value will be serialized to JSON.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `raw_body`                     | no       | `string`             | HTTP message body to include in request. The value WILL NOT be serialized. Use this for non-JSON messages.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `headers`                      | no       | `object`             | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `headers`                      | no       | `object`             | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`). If the `Host` header is included, its value will be used as the `Host` header of the request; the `url` parameter will continue to specify the server to connect to.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `enable_redirect`              | no       | `boolean`            | Follow HTTP redirects. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `force_json_decode`            | no       | `boolean`            | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `force_yaml_decode`            | no       | `boolean`            | Decode the HTTP response message body as YAML even if the `Content-Type` header is missing. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -39,24 +38,14 @@ The `request` object parameter may contain the following fields:
 | `tls_insecure_skip_verify`     | no       | `bool`               | Allows for skipping TLS verification when calling a network endpoint. Not recommended for production.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `tls_server_name`              | no       | `string`             | Sets the hostname that is sent in the client Server Name Indication and that be will be used for server certificate validation. If this is not set, the value of the `Host` header (if present) will be used. If neither are set, the host name from the requested URL is used.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `cache`                        | no       | `boolean`            | Cache HTTP response across OPA queries. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `force_cache`                  | no       | `boolean`            | Cache HTTP response across OPA queries and override cache directives defined by the server. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `force_cache`                  | no       | `boolean`            | Cache HTTP response across separate OPA queries and override server-defined cache-control directives. Takes precedence over the `cache` field. The [cacheable status code list](#cacheable-status-codes) still applies. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `force_cache_duration_seconds` | no       | `number`             | If `force_cache` is set, this field specifies the duration in seconds for the freshness of a cached response.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `caching_mode`                 | no       | `string`             | Controls the format in which items are inserted into the inter-query cache. Allowed modes are `serialized` and `deserialized`. In the `serialized` mode, items will be serialized before inserting into the cache. This mode is helpful if memory conservation is preferred over higher latency during cache lookup. This is the default mode. In the `deserialized` mode, an item will be inserted in the cache without any serialization. This means when items are fetched from the cache, there won't be a need to decode them. This mode helps to make the cache lookup faster at the expense of more memory consumption. If this mode is enabled, the configured `caching.inter_query_builtin_cache.max_size_bytes` value will be ignored. This means an unlimited cache size will be assumed. |
 | `cache_ignored_headers`        | no       | `list`               | List of header keys from `headers` parameter that should not considered when interacting with the cache. Default is `nil`, meaning all headers will be considered. **Important:** Note that if a cache entry exists with a subset/superset of headers that are considered in this request, it will lead to a cache miss.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `raise_error`                  | no       | `bool`               | If `raise_error` is set, `http.send` will return an error that can halt policy evaluation when used in conjunction with the `strict-builtin-errors` option. Default: `true`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `max_retry_attempts`           | no       | `number`             | Number of times to retry a HTTP request when a network error is encountered. If provided, retries are performed with an exponential backoff delay. Default: `0`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
-If the `Host` header is included in `headers`, its value will be used as the `Host` header of the request. The `url` parameter will continue to specify the server to connect to.
-
-When sending HTTPS requests with client certificates at least one the following combinations must be included
-
-- `tls_client_cert` and `tls_client_key`
-- `tls_client_cert_file` and `tls_client_key_file`
-- `tls_client_cert_env_variable` and `tls_client_key_env_variable`
-
-:::info
-To validate TLS server certificates, the user must also provide trusted root CA certificates through the `tls_ca_cert`, `tls_ca_cert_file` and `tls_ca_cert_env_variable` fields. If the `tls_use_system_certs` field is `true`, the system certificate pool will be used as well as any additional CA certificates.
-:::
+## Response
 
 The `response` object parameter will contain the following fields:
 
@@ -75,8 +64,31 @@ set to `0` and `error` describing the actual error. This can be activated by set
 in the `request` object to `false`. Note that if the `strict-builtin-errors` option is not specified and `raise_error`
 field is `true` (which is the default), an error returned by `http.send` will generate an undefined result.
 
-If the `cache` field in the `request` object is `true`, `http.send` will return a cached response after it checks its
-freshness and validity.
+## HTTPS
+
+When sending HTTPS requests with client certificates at least one the following combinations must be included
+
+- `tls_client_cert` and `tls_client_key`
+- `tls_client_cert_file` and `tls_client_key_file`
+- `tls_client_cert_env_variable` and `tls_client_key_env_variable`
+
+:::info
+To validate TLS server certificates, the user must also provide trusted root CA certificates through the `tls_ca_cert`, `tls_ca_cert_file` and `tls_ca_cert_env_variable` fields. If the `tls_use_system_certs` field is `true`, the system certificate pool will be used as well as any additional CA certificates.
+:::
+
+## Caching behavior
+
+`http.send` supports two levels of caching: intra-query caching, which deduplicates requests within a single policy evaluation, and inter-query caching, which persists responses across separate OPA decisions.
+
+### Intra-query cache
+
+Multiple calls to `http.send` for a given request object within a single policy
+evaluation query (i.e. one OPA decision) will always return the same value. Responses are cached for the duration of
+that query for [status codes that are cacheable](#cacheable-status-codes), without consulting Cache-Control headers.
+
+### Inter-query cache
+
+If the `cache` field in the `request` object is `true`, `http.send` will return a cached response (shared across separate OPA evaluation queries) after `http.send` checks the cached response's freshness and validity. Inter-query cache behaviour is configured via the instance's [`caching` configuration](/docs/configuration/#caching).
 
 `http.send` uses the `Cache-Control` and `Expires` response headers to check the freshness of the cached response.
 Specifically if the [max-age](https://tools.ietf.org/html/rfc7234#section-5.2.2.8) `Cache-Control` directive is set, `http.send`
@@ -89,30 +101,22 @@ their corresponding values in the `304` response.
 
 The `force_cache` field can be used to override the cache directives defined by the server. This field is used in
 conjunction with the `force_cache_duration_seconds` field. If `force_cache` is `true`, then `force_cache_duration_seconds`
-**must** be specified and `http.send` will use this value to check the freshness of the cached response.
-
-Also, if `force_cache` is `true`, it overrides the `cache` field.
-
-`http.send` only caches responses with the following HTTP status codes: `200`, `203`, `204`, `206`, `300`, `301`,
-`404`, `405`, `410`, `414`, and `501`. This is behavior is as per https://www.rfc-editor.org/rfc/rfc7231#section-6.1 and
-is enforced when caching responses within a single query or across queries via the `cache` and `force_cache` request fields.
+**must** be specified and `http.send` will use this value to check the freshness of the cached response. When `force_cache`
+is set, it takes precedence over the `cache` request parameter field.
 
 :::info
 `http.send` uses the `Date` response header to calculate the current age of the response by comparing it with the current time.
-This value is used to determine the freshness of the cached response. As per https://tools.ietf.org/html/rfc7231#section-7.1.1.2,
-an origin server MUST NOT send a `Date` header field if it does not have a clock capable of providing a reasonable
+This value is used to determine the freshness of the cached response. As per [RFC 7231 section 7.1.1.2](https://tools.ietf.org/html/rfc7231#section-7.1.1.2), an origin server MUST NOT send a `Date` header field if it does not have a clock capable of providing a reasonable
 approximation of the current instance in Coordinated Universal Time. Hence, if `http.send` encounters a scenario where current
 age of the response is represented as a negative duration, the cached response will be considered as stale.
 :::
 
-The table below shows examples of calling `http.send`:
+### Cacheable status codes
 
-| Example                                       | Comments                                                                                                                                                                                                          |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accessing Google using System Cert Pool       | `http.send({"method": "get", "url": "https://www.google.com", "tls_use_system_certs": true })`                                                                                                                    |
-| Files containing TLS material                 | `http.send({"method": "get", "url": "https://127.0.0.1:65331", "tls_ca_cert_file": "testdata/ca.pem", "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"})`     |
-| Environment variables containing TLS material | `http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})` |
-| Unix Socket URL Format                        | `http.send({"method": "get", "url": "unix://localhost/?socket=%F2path%F2file.socket"})`                                                                                                                           |
+`http.send` only caches responses with the following HTTP status codes: `200`, `203`, `204`, `206`, `300`, `301`,
+`404`, `405`, `410`, `414`, and `501`. This behavior is as per [RFC 7231 section 6.1](https://www.rfc-editor.org/rfc/rfc7231#section-6.1) and
+is enforced when caching responses within a single query or across queries via the `cache` and `force_cache` request fields.
+Responses with status codes outside this list are never cached, whether within a query or across queries. `force_cache` does not override this restriction.
 
 ## Performance Metrics
 
@@ -123,3 +127,48 @@ When `?metrics=true` is specified in API requests, `http.send` operations expose
 | `timer_rego_builtin_http_send_ns` | Total time spent in `http.send` calls during query evaluation |
 | `counter_rego_builtin_http_send_interquery_cache_hits` | Number of inter-query cache hits for `http.send` requests. Only appears when [inter-query caching is enabled](/docs/configuration/#caching) in OPA's configuration and the `http.send` request configuration has `cache` or `force_cache` set to `true` |
 | `counter_rego_builtin_http_send_network_requests` | Number of actual network requests made, excluding cached responses |
+
+## Examples
+
+#### Accessing example.com using System Cert Pool
+
+```rego
+http.send({
+  "method": "get",
+  "url": "https://www.example.com",
+  "tls_use_system_certs": true,
+})
+```
+
+#### Files containing TLS material
+
+```rego
+http.send({
+  "method": "get",
+  "url": "https://127.0.0.1:65331",
+  "tls_ca_cert_file": "testdata/ca.pem",
+  "tls_client_cert_file": "testdata/client-cert.pem",
+  "tls_client_key_file": "testdata/client-key.pem",
+})
+```
+
+#### Environment variables containing TLS material
+
+```rego
+http.send({
+  "method": "get",
+  "url": "https://127.0.0.1:65360",
+  "tls_ca_cert_env_variable": "CLIENT_CA_ENV",
+  "tls_client_cert_env_variable": "CLIENT_CERT_ENV",
+  "tls_client_key_env_variable": "CLIENT_KEY_ENV",
+})
+```
+
+#### Unix Socket URL Format
+
+```rego
+http.send({
+  "method": "get",
+  "url": "unix://localhost/?socket=%F2path%F2file.socket",
+})
+```
