@@ -1,5 +1,6 @@
 ---
-sidebar_label: CI/CD
+sidebar_label: Overview
+sidebar_position: 1
 ---
 
 # Using OPA in CI/CD Pipelines
@@ -33,12 +34,13 @@ various types of data in your continuous integration workflows:
   thresholds or that benchmarks results are within acceptable limits.
 - **Defining dependencies between jobs** - Validate that deployment pipelines
   follow proper sequencing and dependency requirements. An example of this can
-  be found in the OPA Repo's [own PR checks](https://github.com/open-policy-agent/opa/blob/aee10e4a8deef80f3110237426a64fa5d4e229de/.github/workflows/pull-request.yaml#L476-L521).
+  be found in the OPA
+  Repo's [own PR checks](https://github.com/open-policy-agent/opa/blob/aee10e4a8deef80f3110237426a64fa5d4e229de/.github/workflows/pull-request.yaml#L476-L521).
 - **Test coverage enforcement** - Check that test files are added when code
   files are created (e.g., ensuring each `foo.js` has a corresponding
   `foo_test.js` in the appropriate directory).
 
-The [`opa eval`](./cli#eval) command provides
+The [`opa eval`](/docs/cli#eval) command provides
 several flags that are particularly useful for CI/CD scenarios:
 
 - `--fail` and `--fail-defined` - Set the exit code to 1 based on query results
@@ -48,7 +50,8 @@ several flags that are particularly useful for CI/CD scenarios:
   from other commands directly into OPA for evaluation
 - `-d` - load in JSON or YAML data files for evaluation.
 
-These flags help ensure your CI/CD pipelines respond appropriately to policy evaluation results and integrate smoothly with other tools in your pipeline.
+These flags help ensure your CI/CD pipelines respond appropriately to policy evaluation results and integrate smoothly
+with other tools in your pipeline.
 
 ## GitHub Actions Integration
 
@@ -65,25 +68,25 @@ you to run OPA policies against your codebase.
 
 ```yaml title="Example workflow checking test coverage"
 name: OPA Checks
-on: [pull_request]
+on: [ pull_request ]
 
 jobs:
   validate-configs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - name: Download OPA
-      uses: open-policy-agent/setup-opa
-      with:
-        version: edge
+      - name: Download OPA
+        uses: open-policy-agent/setup-opa
+        with:
+          version: edge
 
-    - name: Check tests results coverage remains above 70%
-      run: |
-        my test command |
-          opa eval --fail-defined \
-          --stdin-input \
-          'input.results[_].coverage < 0.7'
+      - name: Check tests results coverage remains above 70%
+        run: |
+          my test command |
+            opa eval --fail-defined \
+            --stdin-input \
+            'input.results[_].coverage < 0.7'
 ```
 
 Here's some examples of how we use these actions in our own CI/CD pipelines for OPA!
@@ -94,6 +97,6 @@ Here's some examples of how we use these actions in our own CI/CD pipelines for 
 ## Other CI/CD Platforms
 
 For users of other CI/CD platforms (GitLab CI, Jenkins, Azure DevOps, etc.), you
-can download OPA directly from the [official installation page](../docs?current-os=linux#1-download-opa).
+can download OPA directly from the [official installation page](/docs?current-os=linux#1-download-opa).
 This provides installation instructions for various operating systems and
 package managers.
