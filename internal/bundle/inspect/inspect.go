@@ -18,6 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/util"
+	"sigs.k8s.io/yaml"
 )
 
 // Info represents information about a bundle.
@@ -40,6 +41,54 @@ func FileForRegoVersion(regoVersion ast.RegoVersion, path string, includeAnnotat
 	}
 
 	return bundleOrDirInfoForRegoVersion(regoVersion, path, includeAnnotations)
+}
+
+// DataFileInfo returns an Info struct describing the given data files.
+// It accepts JSON (.json) and YAML (.yaml, .yml) files.
+func DataFileInfo(paths []string) (*Info, error) {
+	bi := &Info{
+		Namespaces: make(map[string][]string),
+	}
+
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf("error accessing path %s: %w", path, err)
+		}
+
+		if info.IsDir() {
+			return nil, fmt.Errorf("path %s is a directory, use positional argument for directories", path)
+		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".json" && ext != ".yaml" && ext != ".yml" {
+			return nil, fmt.Errorf("file %s is not a JSON or YAML data file", path)
+		}
+
+		// Read the file to validate it can be parsed
+		bs, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("error reading file %s: %w", path, err)
+		}
+
+		if ext == ".yaml" || ext == ".yml" {
+			if _, err := yaml.YAMLToJSON(bs); err != nil {
+				return nil, fmt.Errorf("error parsing YAML file %s: %w", path, err)
+			}
+		} else {
+			var x any
+			if err := util.UnmarshalJSON(bs, &x); err != nil {
+				return nil, fmt.Errorf("error parsing JSON file %s: %w", path, err)
+			}
+		}
+
+		bi.Namespaces[ast.DefaultRootDocument.String()] = append(
+			bi.Namespaces[ast.DefaultRootDocument.String()],
+			filepath.Clean(path),
+		)
+	}
+
+	return bi, nil
 }
 
 func bundleOrDirInfoForRegoVersion(regoVersion ast.RegoVersion, path string, includeAnnotations bool) (*Info, error) {
