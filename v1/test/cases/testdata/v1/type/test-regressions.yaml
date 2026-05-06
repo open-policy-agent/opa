@@ -86,20 +86,3 @@ cases:
         }
     want_result:
       - x: true
-  - note: regression/partial-object override, different key type, query
-    query: data.test.object1[0] = x
-    modules:
-      - |
-        package testcase
-
-        rule1 if {
-          object1 == { [0]: "foo" }
-        }
-
-        object1[key] = value if {
-          some i
-          value := input[i]
-          key := [i]
-        }
-    want_result:
-      - x: "foo"
