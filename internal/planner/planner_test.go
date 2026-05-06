@@ -405,16 +405,7 @@ q = 2`,
 			modules := make([]*ast.Module, len(tc.modules))
 			for i := range modules {
 				file := fmt.Sprintf("module-%d.rego", i)
-
-				// TODO: drop once future.keywords.not is enabled by default
-				caps := ast.CapabilitiesForThisVersion()
-				caps.FutureKeywords = append(caps.FutureKeywords, "not")
-
-				opts := ast.ParserOptions{
-					AllFutureKeywords: true,
-					Capabilities:      caps,
-				}
-
+				opts := ast.ParserOptions{AllFutureKeywords: true}
 				m, err := ast.ParseModuleWithOpts(file, tc.modules[i], opts)
 				if err != nil {
 					t.Fatal(err)
