@@ -5904,12 +5904,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 	variants := map[string]ast.ParserOptions{
 		"not": {},
 		"not-body": func() ast.ParserOptions {
-			// TODO: drop once future.keywords.not is enabled by default
-			caps := ast.CapabilitiesForThisVersion()
-			caps.FutureKeywords = append(caps.FutureKeywords, "not")
-
 			return ast.ParserOptions{
-				Capabilities:   caps,
 				FutureKeywords: []string{"not"},
 			}
 		}(),

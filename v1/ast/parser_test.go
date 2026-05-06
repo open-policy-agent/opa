@@ -2908,8 +2908,7 @@ func TestImport(t *testing.T) {
 func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "future", "import future", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
-	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [contains every if in not]",
-		ParserOptions{Capabilities: CapabilitiesForThisVersion().withFutureKeyword("not")}) // TODO: drop once future.keywords.not is enabled by default
+	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [contains every if in not]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "`future` imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
 
@@ -9476,8 +9475,7 @@ func TestNotImport(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			mod, err := ParseModuleWithOpts("", tc.module,
-				ParserOptions{Capabilities: CapabilitiesForThisVersion().withFutureKeyword("not")}) // TODO: drop once future.keywords.not is enabled by default
+			mod, err := ParseModule("", tc.module)
 
 			if tc.expErr != "" {
 				if err == nil {
