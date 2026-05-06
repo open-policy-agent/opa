@@ -20,7 +20,7 @@ platform-specific parts (fetching changed files, setting job outputs).
 Traditional approaches to conditional CI checks have significant drawbacks:
 
 | Approach                         | Drawback                                                              |
-|----------------------------------| --------------------------------------------------------------------- |
+| -------------------------------- | --------------------------------------------------------------------- |
 | `paths-filter` actions           | Limited to glob patterns, no complex logic, hard to test in isolation |
 | Shell scripts with `grep`/`find` | Fragile, hard to read, impossible to unit test                        |
 | Hard coded `if:` conditions      | Duplicated across jobs, no single source of truth                     |
