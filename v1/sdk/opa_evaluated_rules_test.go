@@ -200,7 +200,7 @@ xs contains "b" if false
 			}
 
 			// Verify evaluated_rules field
-			evaluatedRules, hasField := lastEntry.Fields["evaluated_rules"]
+			evaluatedRules, hasField := lastEntry.Fields["ids"]
 			if tt.wantEvaluatedRules == nil {
 				if hasField {
 					t.Fatalf("expected no evaluated_rules field, but got: %v", evaluatedRules)

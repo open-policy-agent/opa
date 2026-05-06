@@ -86,4 +86,33 @@ p if input.bar`
 			t.Fatalf("expected [rule2], got %v", tracker.IDs)
 		}
 	})
+
+	t.Run("function called multiple times is deduplicated", func(t *testing.T) {
+		mod := `package test
+
+# METADATA
+# id: is-allowed
+is_allowed(user) if user != "blocked"
+
+result if {
+	is_allowed("alice")
+	is_allowed("bob")
+	is_allowed("charlie")
+}`
+		tracker := &topdown.EvaluatedRuleTracker{}
+		rs, err := New(
+			Query("data.test.result"),
+			Module("test.rego", mod),
+			EvaluatedRuleTracker(tracker),
+		).Eval(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rs) == 0 {
+			t.Fatal("expected result")
+		}
+		if len(tracker.IDs) != 1 || tracker.IDs[0] != "is-allowed" {
+			t.Fatalf("expected [is-allowed] (deduplicated), got %v", tracker.IDs)
+		}
+	})
 }

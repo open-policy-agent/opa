@@ -15,11 +15,11 @@ jq stdout '.result == false'
 kill -INT opa
 wait opa
 
-# Decision log file should contain evaluated_rules for the admin request.
-jq -s decisions.log '[.[] | select(.evaluated_rules == ["allow-admin"])] | length == 1'
+# Decision log file should contain ids for the admin request.
+jq -s decisions.log '[.[] | select(.ids == ["allow-admin"])] | length == 1'
 
-# Decision log file should have an entry without evaluated_rules for the guest request.
-jq -s decisions.log '[.[] | select(.path == "authz/allow" and (.evaluated_rules == null))] | length == 1'
+# Decision log file should have an entry without ids for the guest request.
+jq -s decisions.log '[.[] | select(.path == "authz/allow" and (.ids == null))] | length == 1'
 
 -- config.yaml --
 plugins:

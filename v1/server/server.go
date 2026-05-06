@@ -441,8 +441,8 @@ func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	return s
 }
 
-func (s *Server) newEvaluatedRuleTracker() *topdown.EvaluatedRuleTracker {
-	if !s.evaluatedRulesEnabled && !s.hasExternalSources() {
+func (s *Server) newEvaluatedRuleTracker(force bool) *topdown.EvaluatedRuleTracker {
+	if !force && !s.evaluatedRulesEnabled && !s.hasExternalSources() {
 		return nil
 	}
 	return &topdown.EvaluatedRuleTracker{}
@@ -998,7 +998,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		ndbCache = builtins.NDBCache{}
 	}
 
-	tracker := s.newEvaluatedRuleTracker()
+	tracker := s.newEvaluatedRuleTracker(false)
 
 	opts := []func(*rego.Rego){
 		rego.Store(s.store),
@@ -1209,7 +1209,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
 
-	tracker := s.newEvaluatedRuleTracker()
+	tracker := s.newEvaluatedRuleTracker(false)
 	if tracker != nil {
 		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
 	}
@@ -1648,10 +1648,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
 
-	tracker := s.newEvaluatedRuleTracker()
-	if tracker == nil && includeEvaluatedRules {
-		tracker = &topdown.EvaluatedRuleTracker{}
-	}
+	tracker := s.newEvaluatedRuleTracker(includeEvaluatedRules)
 	if tracker != nil {
 		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
 	}
@@ -1706,7 +1703,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if includeEvaluatedRules {
-		result.EvaluatedRules = evaluatedRuleIDs(tracker)
+		result.IDs = evaluatedRuleIDs(tracker)
 	}
 
 	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil); err != nil {
@@ -1908,10 +1905,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalResponseMetadata(respMetadata),
 	}
 
-	tracker := s.newEvaluatedRuleTracker()
-	if tracker == nil && includeEvaluatedRules {
-		tracker = &topdown.EvaluatedRuleTracker{}
-	}
+	tracker := s.newEvaluatedRuleTracker(includeEvaluatedRules)
 	if tracker != nil {
 		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
 	}
@@ -1974,7 +1968,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if includeEvaluatedRules {
-		result.EvaluatedRules = evaluatedRuleIDs(tracker)
+		result.IDs = evaluatedRuleIDs(tracker)
 	}
 
 	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), customLog()); err != nil {
@@ -3208,7 +3202,7 @@ func (l decisionLogger) Log(
 		Error:              err,
 		Metrics:            m,
 		RequestID:          rctx.ReqID,
-		EvaluatedRules:     evaluatedRules,
+		EvaluatedRuleIDs:   evaluatedRules,
 		Custom:             custom,
 	}
 

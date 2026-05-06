@@ -68,7 +68,7 @@ type EventV1 struct {
 	Timestamp           time.Time               `json:"timestamp"`
 	Metrics             map[string]any          `json:"metrics,omitempty"`
 	RequestID           uint64                  `json:"req_id,omitempty"`
-	EvaluatedRules      []string                `json:"evaluated_rules,omitempty"`
+	IDs                 []string                `json:"ids,omitempty"`
 	RequestContext      *RequestContext         `json:"request_context,omitempty"`
 	Custom              map[string]any          `json:"custom,omitempty"`
 
@@ -210,12 +210,12 @@ func (e *EventV1) AST() (ast.Value, error) {
 		event.Insert(ast.InternedTerm("requested_by"), ast.StringTerm(e.RequestedBy))
 	}
 
-	if len(e.EvaluatedRules) > 0 {
-		evaluatedRules := make([]*ast.Term, len(e.EvaluatedRules))
-		for i, v := range e.EvaluatedRules {
+	if len(e.IDs) > 0 {
+		evaluatedRules := make([]*ast.Term, len(e.IDs))
+		for i, v := range e.IDs {
 			evaluatedRules[i] = ast.StringTerm(v)
 		}
-		event.Insert(ast.InternedTerm("evaluated_rules"), ast.ArrayTerm(evaluatedRules...))
+		event.Insert(ast.InternedTerm("ids"), ast.ArrayTerm(evaluatedRules...))
 	}
 
 	// Use the timestamp JSON marshaller to ensure the format is the same as
@@ -738,7 +738,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		RequestedBy:         decision.RemoteAddr,
 		Timestamp:           decision.Timestamp,
 		RequestID:           decision.RequestID,
-		EvaluatedRules:      decision.EvaluatedRules,
+		IDs:                 decision.EvaluatedRuleIDs,
 		inputAST:            decision.InputAST,
 		Custom:              decision.Custom,
 	}
@@ -1233,7 +1233,7 @@ func eventToAttrs(event EventV1) []slog.Attr {
 		attrs = append(attrs, slog.Any("request_context", event.RequestContext))
 	}
 
-	addAttrIfSliceNotEmpty(&attrs, "evaluated_rules", event.EvaluatedRules)
+	addAttrIfSliceNotEmpty(&attrs, "ids", event.IDs)
 	addAttrIfHasLen(&attrs, "custom", event.Custom)
 
 	return attrs
@@ -1354,7 +1354,7 @@ func eventToFields(event EventV1) map[string]any {
 		fields["request_context"] = event.RequestContext
 	}
 
-	addIfSliceNotEmpty(fields, "evaluated_rules", stringsToAny(event.EvaluatedRules))
+	addIfSliceNotEmpty(fields, "ids", stringsToAny(event.IDs))
 
 	if len(event.Custom) > 0 {
 		var v any = event.Custom

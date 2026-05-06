@@ -9,8 +9,9 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 Rules can now be annotated with a metadata `id` field. When any loaded policy contains
 rules with `id` annotations, the IDs of successfully evaluated rules are automatically
-included in decision log events. Additionally, the Data API supports a `?rules` query
-parameter to include evaluated rule IDs directly in the response payload.
+included in decision log events (as `ids`). Additionally, the Data API supports a `?ids`
+query parameter to include the same information directly in the response payload.
+Duplicate IDs from functions called multiple times are suppressed.
 
 ```rego
 # METADATA

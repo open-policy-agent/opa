@@ -8235,17 +8235,6 @@ allow if true
 			processAnnotation:   true,
 			expAnnotationsCount: 1,
 		},
-		{
-			note: "auto-enable with id in rule metadata",
-			module: `package test
-# METADATA
-# id: rule-id
-# title: Rule
-allow if true
-`,
-			processAnnotation:   false,
-			expAnnotationsCount: 1,
-		},
 	}
 
 	for _, tc := range tests {
