@@ -35,6 +35,33 @@ allow if input.role == "admin"
 When external rule sources are registered, rule tracking is always enabled so that
 externally-provided rules with `id` annotations are recorded.
 
+### Rule Metadata in Decision Logs
+
+Custom metadata fields from rule annotations can now be carried over into decision
+logs. When `include_rule_metadata` is enabled, the `custom` field of each decision
+log entry includes a `rule_metadata` array containing the custom annotation fields
+(plus `id`, if present) of all successfully evaluated rules.
+
+```yaml
+include_rule_metadata: true
+```
+
+```rego
+# METADATA
+# id: allow-admin
+# custom:
+#   severity: low
+allow if input.role == "admin"
+```
+
+The resulting decision log entry will contain:
+
+```json
+{"custom": {"rule_metadata": [{"id": "allow-admin", "severity": "low"}]}}
+```
+
+Embedding projects can change the default by setting `config.DefaultIncludeRuleMetadata = true`.
+
 ## 1.16.1
 
 This is a patch release addressing a regression ([#8590](https://github.com/open-policy-agent/opa/pull/8590)) in the plugin manager that may cause the service to hang on shutdown.

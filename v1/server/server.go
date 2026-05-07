@@ -150,6 +150,7 @@ type Server struct {
 	distributedTracingOpts      tracing.Options
 	ndbCacheEnabled             bool
 	evaluatedRulesEnabled       bool
+	includeRuleMetadata         bool
 	unixSocketPerm              *string
 	cipherSuites                *[]uint16
 	hooks                       hooks.Hooks
@@ -441,11 +442,22 @@ func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	return s
 }
 
+// WithIncludeRuleMetadata enables carry-over of custom metadata from evaluated
+// rule annotations into the decision log "custom" field.
+func (s *Server) WithIncludeRuleMetadata(include bool) *Server {
+	s.includeRuleMetadata = include
+	return s
+}
+
 func (s *Server) newEvaluatedRuleTracker(force bool) *topdown.EvaluatedRuleTracker {
-	if !force && !s.evaluatedRulesEnabled && !s.hasExternalSources() {
+	if !force && !s.evaluatedRulesEnabled && !s.hasExternalSources() && !s.includeRuleMetadata {
 		return nil
 	}
-	return &topdown.EvaluatedRuleTracker{}
+	t := &topdown.EvaluatedRuleTracker{}
+	if s.includeRuleMetadata {
+		t.CollectCustom = true
+	}
+	return t
 }
 
 func compilerHasRuleIDs(c *ast.Compiler) bool {
@@ -473,6 +485,25 @@ func evaluatedRuleIDs(t *topdown.EvaluatedRuleTracker) []string {
 		return nil
 	}
 	return t.IDs
+}
+
+func evaluatedRuleMetadata(t *topdown.EvaluatedRuleTracker) []map[string]any {
+	if t == nil || len(t.RuleMetadata) == 0 {
+		return nil
+	}
+	return t.RuleMetadata
+}
+
+func withRuleMetadata(custom map[string]any, t *topdown.EvaluatedRuleTracker) map[string]any {
+	rm := evaluatedRuleMetadata(t)
+	if rm == nil {
+		return custom
+	}
+	if custom == nil {
+		custom = make(map[string]any, 1)
+	}
+	custom["rule_metadata"] = rm
+	return custom
 }
 
 // WithCipherSuites sets the list of enabled TLS 1.0–1.2 cipher suites.
@@ -1047,7 +1078,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 	}
 
 	var x any = results.Result
-	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil); err != nil {
+	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, evaluatedRuleIDs(tracker), withRuleMetadata(nil, tracker)); err != nil {
 		return nil, err
 	}
 	return &results, nil
@@ -1248,7 +1279,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		writer.Error(w, http.StatusNotFound, errV1)
 		return
 	}
-	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil)
+	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, evaluatedRuleIDs(tracker), withRuleMetadata(nil, tracker))
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1706,7 +1737,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.IDs = evaluatedRuleIDs(tracker)
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), withRuleMetadata(nil, tracker)); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1971,7 +2002,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.IDs = evaluatedRuleIDs(tracker)
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), customLog()); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), withRuleMetadata(customLog(), tracker)); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}

@@ -103,6 +103,7 @@ type Config struct {
 	Caching                      json.RawMessage            `json:"caching,omitempty"`
 	NDBuiltinCache               bool                       `json:"nd_builtin_cache,omitempty"`
 	SkipAnnotationProcessing     bool                       `json:"skip_annotation_processing,omitempty"`
+	IncludeRuleMetadata          bool                       `json:"include_rule_metadata,omitempty"`
 	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
 	MetricsExport                json.RawMessage            `json:"metrics_export,omitempty"`
@@ -241,6 +242,7 @@ func (c *Config) Clone() *Config {
 	clone := &Config{
 		NDBuiltinCache:           c.NDBuiltinCache,
 		SkipAnnotationProcessing: c.SkipAnnotationProcessing,
+		IncludeRuleMetadata:      c.IncludeRuleMetadata,
 		Server:                   c.Server.Clone(),
 		Storage:                  c.Storage.Clone(),
 		Labels:                   maps.Clone(c.Labels),

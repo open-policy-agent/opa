@@ -1,0 +1,56 @@
+# Verify that custom metadata from evaluated rule annotations appears in
+# decision logs when include_rule_metadata is enabled.
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --set decision_logs.console=true --set include_rule_metadata=true ./policy/ &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+
+# Evaluate allow — triggers allow-admin rule.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == true'
+
+# Evaluate violations — triggers both violation rules.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin", "dept": "eng"}}' http://localhost/v1/data/authz/violations
+jq stdout '.result | length == 2'
+
+kill -INT opa
+wait opa
+
+# Extract the decision log for the allow query and compare rule_metadata wholesale.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow")] | .[0].custom == {"rule_metadata": [{"id": "allow-admin", "severity": "low"}]}'
+
+# Extract the decision log for violations and compare sorted rule_metadata.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/violations")] | .[0].custom.rule_metadata | sort_by(.id) == [{"id": "no-admin-in-eng", "severity": "critical", "category": "org-policy"}, {"id": "no-admin-role", "severity": "high", "category": "compliance"}]'
+
+-- policy/authz.rego --
+package authz
+
+default allow := false
+
+# METADATA
+# id: allow-admin
+# custom:
+#   severity: low
+allow if input.role == "admin"
+
+# METADATA
+# id: allow-editor
+# custom:
+#   severity: low
+allow if input.role == "editor"
+
+# METADATA
+# id: no-admin-role
+# custom:
+#   severity: high
+#   category: compliance
+violations contains "admin role is restricted" if input.role == "admin"
+
+# METADATA
+# id: no-admin-in-eng
+# custom:
+#   severity: critical
+#   category: org-policy
+violations contains "admin not allowed in eng" if {
+	input.role == "admin"
+	input.dept == "eng"
+}
