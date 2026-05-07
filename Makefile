@@ -426,10 +426,6 @@ ci-image-smoke-test-%: image-quick-%
 	  eval --fail --format raw --stdin-input 'input[0].Config.User = "1000:1000"'
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
 
-.PHONY: push-binary-edge
-push-binary-edge:
-	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --no-progress --region us-west-1
-
 .PHONY: docker-login
 docker-login:
 	@echo "Docker Login..."
@@ -443,7 +439,7 @@ push-wasm-builder-image: docker-login
 	$(MAKE) -C wasm push-builder
 
 .PHONY: deploy-ci
-deploy-ci: push-image push-manifest-list-edge push-binary-edge
+deploy-ci: push-image push-manifest-list-edge
 
 .PHONY: release-ci
 # Don't tag and push "latest" image tags if the version is a release candidate or a bugfix branch
