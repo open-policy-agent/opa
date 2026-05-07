@@ -660,6 +660,56 @@ func (n *Not) String() string {
 	return "not {" + n.Body.String() + "}"
 }
 
+func (n *Not) MarshalJSON() ([]byte, error) {
+	data := map[string]any{
+		"type":          "not",
+		"body":          n.Body,
+		"explicit_body": n.ExplicitBody,
+	}
+
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Not {
+		if n.Location != nil {
+			data["location"] = n.Location
+		}
+	}
+
+	return json.Marshal(data)
+}
+
+func (n *Not) UnmarshalJSON(bs []byte) error {
+	v := map[string]any{}
+	if err := util.UnmarshalJSON(bs, &v); err != nil {
+		return err
+	}
+
+	return unmarshalNot(n, v)
+}
+
+func unmarshalNot(n *Not, v map[string]any) error {
+	var eb bool
+	if x, ok := v["explicit_body"]; ok {
+		eb, ok = x.(bool)
+		if !ok {
+			return fmt.Errorf("ast: unable to unmarshal explicit_body field with type: %T (expected true or false)", v["explicit_body"])
+		}
+	}
+
+	b, ok := v["body"].([]any)
+	if !ok {
+		return fmt.Errorf("ast: unable to unmarshal not, invalid body field type: %T (expected list)", v["body"])
+	}
+
+	body, err := unmarshalBody(b)
+	if err != nil {
+		return fmt.Errorf("ast: unable to unmarshal not body: %w", err)
+	}
+
+	n.ExplicitBody = eb
+	n.Body = body
+
+	return nil
+}
+
 // Null represents the null value defined by JSON.
 type Null struct{}
 
@@ -3192,11 +3242,19 @@ func unmarshalExpr(expr *Expr, v map[string]any) error {
 	}
 	switch ts := v["terms"].(type) {
 	case map[string]any:
-		t, err := unmarshalTerm(ts)
-		if err != nil {
-			return err
+		if tt, ok := ts["type"]; ok && tt == "not" {
+			n := &Not{}
+			if err := unmarshalNot(n, ts); err != nil {
+				return err
+			}
+			expr.Terms = n
+		} else {
+			t, err := unmarshalTerm(ts)
+			if err != nil {
+				return err
+			}
+			expr.Terms = t
 		}
-		expr.Terms = t
 	case []any:
 		terms, err := unmarshalTermSlice(ts)
 		if err != nil {

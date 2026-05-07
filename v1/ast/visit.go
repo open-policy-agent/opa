@@ -736,6 +736,8 @@ func (vis *BeforeAfterVisitor) Walk(x any) {
 		for i := range x.Symbols {
 			vis.Walk(x.Symbols[i])
 		}
+	case *Not:
+		vis.Walk(x.Body)
 	}
 }
 
