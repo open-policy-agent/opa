@@ -291,6 +291,10 @@ type Params struct {
 	// NDBCacheEnabled allows enabling the non-deterministic builtin cache globally.
 	NDBCacheEnabled bool
 
+	// SkipAnnotationProcessing disables metadata annotation processing during policy parsing.
+	// By default, the runtime processes annotations. Set this to true to restore the old behavior.
+	SkipAnnotationProcessing bool
+
 	Brand string
 }
 
@@ -305,8 +309,11 @@ func (p *Params) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-func (p *Params) parserOptions() ast.ParserOptions {
-	return ast.ParserOptions{RegoVersion: p.regoVersion()}
+func (p *Params) parserOptions(skipAnnotations bool) ast.ParserOptions {
+	return ast.ParserOptions{
+		ProcessAnnotation: !skipAnnotations,
+		RegoVersion:       p.regoVersion(),
+	}
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -430,7 +437,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	regoVersion := params.regoVersion()
 
-	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, params.BundleLazyLoadingMode, false, false, nil, nil)
+	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, params.BundleLazyLoadingMode, !params.SkipAnnotationProcessing, false, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
@@ -522,7 +529,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithPrometheusRegister(metrics),
 		plugins.WithTracerProvider(tracerProvider),
 		plugins.WithEnableVersionCheck(params.EnableVersionCheck),
-		plugins.WithParserOptions(params.parserOptions()),
+		plugins.WithParserOptions(params.parserOptions(params.SkipAnnotationProcessing)),
 		plugins.WithDistributedTracingOpts(params.DistributedTracingOpts),
 		plugins.WithBundleActivatorPlugin(params.BundleActivatorPlugin),
 		plugins.WithHooks(params.Hooks),
@@ -984,7 +991,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 }
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
-	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.Manager.ParserOptions().RegoVersion, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, rt.Params.BundleLazyLoadingMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.Manager.ParserOptions().RegoVersion, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, rt.Params.BundleLazyLoadingMode, rt.Manager.ParserOptions().ProcessAnnotation, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 		_, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
 			Store:         rt.Store,
 			Txn:           txn,
