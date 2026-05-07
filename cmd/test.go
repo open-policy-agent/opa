@@ -317,7 +317,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 
 	var loadResult *initload.LoadPathsResult
 
-	err := pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, testParams.RegoVersion(), paths, removed, store, filter, testParams.bundleMode, false, true,
+	err := pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, ast.ParserOptions{RegoVersion: testParams.RegoVersion(), ProcessAnnotation: true}, paths, removed, store, filter, testParams.bundleMode, false,
 		func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 			if len(loaded.Files.Documents) > 0 || removed != "" {
 				if err := store.Write(ctx, txn, storage.AddOp, storage.RootPath, loaded.Files.Documents); err != nil {
