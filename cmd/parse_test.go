@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -255,6 +256,379 @@ p = 1
 
 	if len(gotLines) != len(wantLines) {
 		t.Fatalf("Expected %d lines, got %d", len(wantLines), len(gotLines))
+	}
+}
+
+func TestParseOutputWithNotImport(t *testing.T) {
+	cases := []struct {
+		format string
+		exp    string
+	}{
+		{
+			format: formats.JSON,
+			exp: `{
+  "package": {
+    "path": [
+      {
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "type": "string",
+        "value": "test"
+      }
+    ]
+  },
+  "imports": [
+    {
+      "path": {
+        "type": "ref",
+        "value": [
+          {
+            "type": "var",
+            "value": "future"
+          },
+          {
+            "type": "string",
+            "value": "keywords"
+          },
+          {
+            "type": "string",
+            "value": "not"
+          }
+        ]
+      }
+    }
+  ],
+  "rules": [
+    {
+      "body": [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "plus"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 42
+                  }
+                ]
+              }
+            ],
+            "explicit_body": false,
+            "type": "not"
+          }
+        }
+      ],
+      "head": {
+        "name": "implicit_body",
+        "value": {
+          "type": "boolean",
+          "value": true
+        },
+        "ref": [
+          {
+            "type": "var",
+            "value": "implicit_body"
+          }
+        ]
+      }
+    },
+    {
+      "body": [
+        {
+          "index": 0,
+          "terms": {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "x"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "z"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "plus"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 3,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "z"
+                  },
+                  {
+                    "type": "number",
+                    "value": 42
+                  }
+                ]
+              }
+            ],
+            "explicit_body": true,
+            "type": "not"
+          }
+        }
+      ],
+      "head": {
+        "name": "explicit_body",
+        "value": {
+          "type": "boolean",
+          "value": true
+        },
+        "ref": [
+          {
+            "type": "var",
+            "value": "explicit_body"
+          }
+        ]
+      }
+    }
+  ]
+}
+`,
+		},
+		{
+			format: formats.Pretty,
+			exp: `module
+ package
+  ref
+   data
+   "test"
+ import
+  ref
+   future
+   "keywords"
+   "not"
+  
+ rule
+  head
+   ref
+    implicit_body
+   true
+  body
+   expr index=0
+    not
+     body
+      expr index=0
+       ref
+        equal
+       call
+        ref
+         plus
+        ref
+         input
+         "x"
+        2
+       42
+ rule
+  head
+   ref
+    explicit_body
+   true
+  body
+   expr index=0
+    not
+     body
+      expr index=0
+       ref
+        assign
+       x
+       ref
+        input
+        "x"
+      expr index=1
+       ref
+        assign
+       y
+       2
+      expr index=2
+       ref
+        assign
+       z
+       call
+        ref
+         plus
+        x
+        y
+      expr index=3
+       ref
+        equal
+       z
+       42
+`,
+		},
+	}
+
+	files := map[string]string{
+		"x.rego": `package test
+
+			import future.keywords.not
+			
+			implicit_body if {
+				not input.x + 2 == 42
+			}
+			
+			explicit_body if {
+				not {
+					x := input.x
+					y := 2
+					z := x + y
+					z == 42
+				}
+			}
+		`,
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.format, func(t *testing.T) {
+			errc, stdout, stderr, _ := testParse(t, files, &parseParams{
+				format: formats.Flag(tc.format),
+			})
+			if errc != 0 {
+				t.Fatalf("Expected exit code 0, got %v", errc)
+			}
+			if len(stderr) > 0 {
+				t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+			}
+
+			if diff := cmp.Diff(tc.exp, string(stdout)); diff != "" {
+				t.Errorf("unexpected result (-want, +got):\n%s", diff)
+			}
+		})
 	}
 }
 

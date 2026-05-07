@@ -1438,6 +1438,8 @@ func (expr *Expr) IsGround() bool {
 		}
 	case *Term:
 		return ts.IsGround()
+	case *Not:
+		return ts.IsGround()
 	}
 	return true
 }

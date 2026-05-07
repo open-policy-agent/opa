@@ -50,6 +50,8 @@ func (pp *prettyPrinter) Before(x any) bool {
 		pp.writeIndent("%v %v", TypeName(x), strings.Join(extras, " "))
 	case Null, Boolean, Number, String, Var:
 		pp.writeValue(x)
+	case *Not:
+		pp.writeType(x)
 	default:
 		pp.writeType(x)
 	}

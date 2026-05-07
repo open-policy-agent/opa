@@ -2,6 +2,7 @@ package ast
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
@@ -1133,6 +1134,255 @@ p = 1`,
 				}
 			}
 
+		})
+	}
+}
+
+func TestNot_MarshalJSON(t *testing.T) {
+	rawModule := `
+		package test
+		
+		import future.keywords.not
+		
+		implicit_body if {
+			not input.x + 2 == 42
+		}
+
+		explicit_body if {
+			not {
+				x := input.x
+				y := 2
+				z := x + y
+				z == 42
+			}
+		}
+	`
+
+	module, err := ParseModule("example.rego", rawModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testCases := map[string]struct {
+		Not          *Not
+		Options      astJSON.Options
+		ExpectedJSON string
+	}{
+		"implicit body: base case": {
+			Not:          module.Rules[0].Body[0].Terms.(*Not),
+			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]},{"type":"number","value":2}]},{"type":"number","value":42}]}],"explicit_body":false,"type":"not"}`,
+		},
+		"explicit body: base case": {
+			Not:          module.Rules[1].Body[0].Terms.(*Not),
+			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"x"},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]}]},{"index":1,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"y"},{"type":"number","value":2}]},{"index":2,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"z"},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"var","value":"x"},{"type":"var","value":"y"}]}]},{"index":3,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"z"},{"type":"number","value":42}]}],"explicit_body":true,"type":"not"}`,
+		},
+		"implicit body: location excluded": {
+			Not: module.Rules[0].Body[0].Terms.(*Not),
+			Options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Not: false}},
+			},
+			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]},{"type":"number","value":2}]},{"type":"number","value":42}]}],"explicit_body":false,"type":"not"}`,
+		},
+		"explicit body: location excluded": {
+			Not: module.Rules[1].Body[0].Terms.(*Not),
+			Options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Not: false}},
+			},
+			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"x"},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]}]},{"index":1,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"y"},{"type":"number","value":2}]},{"index":2,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"z"},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"var","value":"x"},{"type":"var","value":"y"}]}]},{"index":3,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"z"},{"type":"number","value":42}]}],"explicit_body":true,"type":"not"}`,
+		},
+		"implicit body: location included": {
+			Not:          module.Rules[0].Body[0].Terms.(*Not),
+			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Not: true}}},
+			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]},{"type":"number","value":2}]},{"type":"number","value":42}]}],"explicit_body":false,"location":{"file":"example.rego","row":8,"col":3},"type":"not"}`,
+		},
+		"explicit body: location included": {
+			Not:          module.Rules[1].Body[0].Terms.(*Not),
+			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Not: true}}},
+			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"x"},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]}]},{"index":1,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"y"},{"type":"number","value":2}]},{"index":2,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"z"},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"var","value":"x"},{"type":"var","value":"y"}]}]},{"index":3,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"z"},{"type":"number","value":42}]}],"explicit_body":true,"location":{"file":"example.rego","row":11,"col":8},"type":"not"}`,
+		},
+		"explicit body: location included, also for nested expressions": {
+			Not:          module.Rules[1].Body[0].Terms.(*Not),
+			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Not: true, Expr: true}}},
+			ExpectedJSON: `{"body":[{"index":0,"location":{"file":"example.rego","row":12,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"x"},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]}]},{"index":1,"location":{"file":"example.rego","row":13,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"y"},{"type":"number","value":2}]},{"index":2,"location":{"file":"example.rego","row":14,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"z"},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"var","value":"x"},{"type":"var","value":"y"}]}]},{"index":3,"location":{"file":"example.rego","row":15,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"z"},{"type":"number","value":42}]}],"explicit_body":true,"location":{"file":"example.rego","row":11,"col":8},"type":"not"}`,
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			astJSON.SetOptions(data.Options)
+			t.Cleanup(resetJSONOptions)
+
+			bs := util.MustMarshalJSON(data.Not)
+			got := string(bs)
+			exp := data.ExpectedJSON
+
+			if got != exp {
+				t.Fatalf("expected:\n%s got\n%s", exp, got)
+			}
+		})
+	}
+}
+
+func TestNot_UnmarshalJSON(t *testing.T) {
+	rawModule := `
+		package test
+		
+		import future.keywords.not
+		
+		implicit_body if {
+			not input.x + 2 == 42
+		}
+
+		explicit_body if {
+			not {
+				x := input.x
+				y := 2
+				z := x + y
+				z == 42
+			}
+		}
+	`
+
+	module, err := ParseModule("example.rego", rawModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	implicitBodyExpr := module.Rules[0].Body[0]
+	// text is not marshalled to JSON so we just drop it in our examples
+	implicitBodyExpr.Location.Text = nil
+
+	explicitBodyExpr := module.Rules[1].Body[0]
+	explicitBodyExpr.Location.Text = nil
+
+	testCases := map[string]struct {
+		JSON         string
+		ExpectedExpr *Expr
+	}{
+		"implicit body": {
+			JSON: `{"index":0,"terms":{"type":"not","body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]},{"type":"number","value":2}]},{"type":"number","value":42}]}],"explicit_body":false}}`,
+			ExpectedExpr: func() *Expr {
+				e := implicitBodyExpr.Copy()
+				e.Location = nil
+				return e
+			}(),
+		},
+		"explicit body": {
+			JSON: `{"index":0,"terms":{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"x"},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]}]},{"index":1,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"y"},{"type":"number","value":2}]},{"index":2,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"z"},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"var","value":"x"},{"type":"var","value":"y"}]}]},{"index":3,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"z"},{"type":"number","value":42}]}],"explicit_body":true,"type":"not"}}`,
+			ExpectedExpr: func() *Expr {
+				e := explicitBodyExpr.Copy()
+				e.Location = nil
+				return e
+			}(),
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var expr Expr
+			err := json.Unmarshal([]byte(data.JSON), &expr)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !expr.Equal(data.ExpectedExpr) {
+				t.Fatalf("expected:\n%#v got\n%#v", data.ExpectedExpr, expr)
+			}
+			if data.ExpectedExpr.Location != nil {
+				if !expr.Location.Equal(data.ExpectedExpr.Location) {
+					t.Fatalf("expected location:\n%#v got\n%#v", data.ExpectedExpr.Location, expr.Location)
+				}
+			}
+		})
+	}
+}
+
+func TestNot_MarshalUnmarshalRoundTrip(t *testing.T) {
+	rawModule := `
+		package test
+
+		import future.keywords.not
+
+		implicit_body if {
+			not input.x + 2 == 42
+		}
+
+		explicit_body if {
+			not {
+				x := input.x
+				y := 2
+				z := x + y
+				z == 42
+			}
+		}
+	`
+
+	module, err := ParseModule("example.rego", rawModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testCases := map[string]struct {
+		Expr *Expr
+	}{
+		"implicit body": {
+			Expr: module.Rules[0].Body[0],
+		},
+		"explicit body": {
+			Expr: module.Rules[1].Body[0],
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			bs := util.MustMarshalJSON(data.Expr)
+
+			var expr Expr
+			err := json.Unmarshal(bs, &expr)
+			if err != nil {
+				t.Fatalf("unmarshal failed: %v\njson: %s", err, string(bs))
+			}
+
+			if !expr.Equal(data.Expr) {
+				t.Fatalf("round-trip mismatch\noriginal: %#v\ngot:      %#v", data.Expr, &expr)
+			}
+		})
+	}
+}
+
+func TestNot_UnmarshalJSON_Errors(t *testing.T) {
+	testCases := map[string]struct {
+		JSON   string
+		expErr string
+	}{
+		"body is not an array": {
+			JSON:   `{"index":0,"terms":{"type":"not","body":"invalid","explicit_body":false}}`,
+			expErr: "invalid body field type",
+		},
+		"body is missing": {
+			JSON:   `{"index":0,"terms":{"type":"not","explicit_body":false}}`,
+			expErr: "invalid body field type",
+		},
+		"explicit_body is not a bool": {
+			JSON:   `{"index":0,"terms":{"type":"not","body":[],"explicit_body":"yes"}}`,
+			expErr: "unable to unmarshal explicit_body field",
+		},
+		"body contains invalid expression": {
+			JSON:   `{"index":0,"terms":{"type":"not","body":[{"index":0,"terms":"bad"}],"explicit_body":false}}`,
+			expErr: "unable to unmarshal not body",
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var expr Expr
+			err := json.Unmarshal([]byte(data.JSON), &expr)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), data.expErr) {
+				t.Fatalf("expected error containing %q, got: %v", data.expErr, err)
+			}
 		})
 	}
 }
