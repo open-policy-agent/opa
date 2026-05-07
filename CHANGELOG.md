@@ -49,6 +49,11 @@ The resulting decision log entry will contain:
 
 Embedding projects can change the default by setting `config.DefaultIncludeRuleMetadata = true`.
 
+Note: when using `include_rule_metadata` via the configuration file, policies must be loaded
+via the bundle plugin (i.e. configured through `services` and `bundles` in the config) for
+annotations to be processed correctly. Policies loaded from command-line paths are parsed
+before the configuration is available.
+
 ## 1.16.1
 
 This is a patch release addressing a regression ([#8590](https://github.com/open-policy-agent/opa/pull/8590)) in the plugin manager that may cause the service to hang on shutdown.

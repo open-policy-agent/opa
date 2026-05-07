@@ -1,8 +1,12 @@
 # Verify that evaluated rule IDs appear in decision logs written via the
 # file_logger plugin (slog-based path).
 
-exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --config-file config.yaml ./policy/ &opa&
-retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+exec $OPA build -o bundles/bundle.tar.gz --bundle policy/
+
+http_server bundles
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --config-file config.yaml &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health?bundles'
 
 # POST to v1/data — rule with id "allow-admin" should be evaluated.
 exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
@@ -22,6 +26,17 @@ jq -s decisions.log '[.[] | select(.ids == ["allow-admin"])] | length == 1'
 jq -s decisions.log '[.[] | select(.path == "authz/allow" and (.ids == null))] | length == 1'
 
 -- config.yaml --
+include_rule_metadata: true
+services:
+  bundle-server:
+    url: "http://${HTTP_ADDR}"
+bundles:
+  test:
+    service: bundle-server
+    resource: bundle.tar.gz
+    polling:
+      min_delay_seconds: 300
+      max_delay_seconds: 300
 plugins:
   file_logger:
     path: decisions.log
@@ -40,3 +55,5 @@ allow if input.role == "admin"
 # METADATA
 # id: allow-editor
 allow if input.role == "editor"
+
+-- bundles/.gitkeep --

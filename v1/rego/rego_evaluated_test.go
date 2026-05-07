@@ -3,11 +3,12 @@ package rego
 import (
 	"testing"
 
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown"
 )
 
 func TestEvaluatedRules(t *testing.T) {
-	module := `package test
+	module := ast.MustParseModuleWithOpts(`package test
 
 # METADATA
 # id: rule1
@@ -15,13 +16,13 @@ p if input.foo
 
 # METADATA
 # id: rule2
-p if input.bar`
+p if input.bar`, ast.ParserOptions{ProcessAnnotation: true})
 
 	t.Run("records matching rule", func(t *testing.T) {
 		tracker := &topdown.EvaluatedRuleTracker{}
 		rs, err := New(
 			Query("data.test.p"),
-			Module("test.rego", module),
+			ParsedModule(module),
 			Input(map[string]any{"foo": true}),
 			EvaluatedRuleTracker(tracker),
 		).Eval(t.Context())
@@ -40,7 +41,7 @@ p if input.bar`
 		tracker := &topdown.EvaluatedRuleTracker{}
 		_, _ = New(
 			Query("data.test.p"),
-			Module("test.rego", module),
+			ParsedModule(module),
 			Input(map[string]any{"baz": true}),
 			EvaluatedRuleTracker(tracker),
 		).Eval(t.Context())
@@ -53,7 +54,7 @@ p if input.bar`
 	t.Run("nil tracker is safe", func(t *testing.T) {
 		_, err := New(
 			Query("data.test.p"),
-			Module("test.rego", module),
+			ParsedModule(module),
 			Input(map[string]any{"foo": true}),
 			EvaluatedRuleTracker(nil),
 		).Eval(t.Context())
@@ -65,7 +66,7 @@ p if input.bar`
 	t.Run("prepared query", func(t *testing.T) {
 		pq, err := New(
 			Query("data.test.p"),
-			Module("test.rego", module),
+			ParsedModule(module),
 		).PrepareForEval(t.Context())
 		if err != nil {
 			t.Fatal(err)
@@ -88,7 +89,7 @@ p if input.bar`
 	})
 
 	t.Run("function called multiple times is deduplicated", func(t *testing.T) {
-		mod := `package test
+		mod := ast.MustParseModuleWithOpts(`package test
 
 # METADATA
 # id: is-allowed
@@ -98,11 +99,12 @@ result if {
 	is_allowed("alice")
 	is_allowed("bob")
 	is_allowed("charlie")
-}`
+}`, ast.ParserOptions{ProcessAnnotation: true})
+
 		tracker := &topdown.EvaluatedRuleTracker{}
 		rs, err := New(
 			Query("data.test.result"),
-			Module("test.rego", mod),
+			ParsedModule(mod),
 			EvaluatedRuleTracker(tracker),
 		).Eval(t.Context())
 		if err != nil {

@@ -1,8 +1,12 @@
 # Verify that custom metadata from evaluated rule annotations appears in
 # decision logs when include_rule_metadata is enabled.
 
-exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --set decision_logs.console=true --set include_rule_metadata=true ./policy/ &opa&
-retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+exec $OPA build -o bundles/bundle.tar.gz --bundle policy/
+
+http_server bundles
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --config-file config.yaml &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health?bundles'
 
 # Evaluate allow — triggers allow-admin rule.
 exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
@@ -20,6 +24,21 @@ jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow")] 
 
 # Extract the decision log for violations and compare sorted rule_metadata.
 jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/violations")] | .[0].custom.rule_metadata | sort_by(.id) == [{"id": "no-admin-in-eng", "severity": "critical", "category": "org-policy"}, {"id": "no-admin-role", "severity": "high", "category": "compliance"}]'
+
+-- config.yaml --
+include_rule_metadata: true
+services:
+  bundle-server:
+    url: "http://${HTTP_ADDR}"
+bundles:
+  test:
+    service: bundle-server
+    resource: bundle.tar.gz
+    polling:
+      min_delay_seconds: 300
+      max_delay_seconds: 300
+decision_logs:
+  console: true
 
 -- policy/authz.rego --
 package authz
@@ -54,3 +73,5 @@ violations contains "admin not allowed in eng" if {
 	input.role == "admin"
 	input.dept == "eng"
 }
+
+-- bundles/.gitkeep --

@@ -76,7 +76,8 @@ xs contains "b" if false
 		},
 		"decision_logs": {
 			"console": true
-		}
+		},
+		"include_rule_metadata": true
 	}`, server.URL())
 
 	testLogger := test.New()

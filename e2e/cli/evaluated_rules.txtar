@@ -2,8 +2,12 @@
 # have metadata annotations with id fields, and in the response when
 # the ?ids query parameter is used.
 
-exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --set decision_logs.console=true ./policy/ &opa&
-retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+exec $OPA build -o bundles/bundle.tar.gz --bundle policy/
+
+http_server bundles
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --config-file config.yaml &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health?bundles'
 
 # POST to v1/data — rule with id "allow-admin" should be evaluated.
 exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
@@ -30,6 +34,21 @@ wait opa
 
 # All requests that matched allow-admin should have ids in the decision log.
 jq -s stderr '[.[] | select(.msg == "Decision Log" and .ids == ["allow-admin"])] | length == 3'
+
+-- config.yaml --
+include_rule_metadata: true
+services:
+  bundle-server:
+    url: "http://${HTTP_ADDR}"
+bundles:
+  test:
+    service: bundle-server
+    resource: bundle.tar.gz
+    polling:
+      min_delay_seconds: 300
+      max_delay_seconds: 300
+decision_logs:
+  console: true
 
 -- policy/authz.rego --
 package authz
@@ -58,3 +77,5 @@ violations contains msg if {
 	input.dept == "eng"
 	msg := "admin not allowed in eng"
 }
+
+-- bundles/.gitkeep --

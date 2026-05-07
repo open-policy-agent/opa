@@ -347,6 +347,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 
 			reader := bundle.NewCustomReader(loader).
 				WithRegoVersion(d.bundleParserOpts.RegoVersion).
+				WithProcessAnnotations(d.bundleParserOpts.ProcessAnnotation).
 				WithMetrics(m).
 				WithBundleVerificationConfig(d.bvc).
 				WithBundleEtag(etag).
