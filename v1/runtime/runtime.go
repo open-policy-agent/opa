@@ -291,10 +291,6 @@ type Params struct {
 	// NDBCacheEnabled allows enabling the non-deterministic builtin cache globally.
 	NDBCacheEnabled bool
 
-	// SkipAnnotationProcessing disables metadata annotation processing during policy parsing.
-	// By default, the runtime processes annotations. Set this to true to restore the old behavior.
-	SkipAnnotationProcessing bool
-
 	// IncludeRuleMetadataInDecisionLogs enables carry-over of custom metadata fields
 	// from evaluated rule annotations into the decision log "custom" field.
 	IncludeRuleMetadataInDecisionLogs bool
@@ -313,9 +309,9 @@ func (p *Params) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-func (p *Params) parserOptions(skipAnnotations bool) ast.ParserOptions {
+func (p *Params) parserOptions() ast.ParserOptions {
 	return ast.ParserOptions{
-		ProcessAnnotation: !skipAnnotations,
+		ProcessAnnotation: opa_config.DefaultIncludeRuleMetadata || p.IncludeRuleMetadataInDecisionLogs,
 		RegoVersion:       p.regoVersion(),
 	}
 }
@@ -441,7 +437,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	regoVersion := params.regoVersion()
 
-	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, params.BundleLazyLoadingMode, !params.SkipAnnotationProcessing, false, nil, nil)
+	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, params.BundleLazyLoadingMode, opa_config.DefaultIncludeRuleMetadata || params.IncludeRuleMetadataInDecisionLogs, false, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
@@ -533,7 +529,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithPrometheusRegister(metrics),
 		plugins.WithTracerProvider(tracerProvider),
 		plugins.WithEnableVersionCheck(params.EnableVersionCheck),
-		plugins.WithParserOptions(params.parserOptions(params.SkipAnnotationProcessing)),
+		plugins.WithParserOptions(params.parserOptions()),
 		plugins.WithDistributedTracingOpts(params.DistributedTracingOpts),
 		plugins.WithBundleActivatorPlugin(params.BundleActivatorPlugin),
 		plugins.WithHooks(params.Hooks),

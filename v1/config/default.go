@@ -5,6 +5,7 @@
 package config
 
 // DefaultIncludeRuleMetadata controls whether custom metadata from rule annotations
-// is included in decision logs by default. Embedding projects can set this to true
-// via an init() function or linker flag to change the default.
+// is included in decision logs by default. When true, this also enables annotation
+// processing during policy parsing. Embedding projects can set this to true via an
+// init() function to change the default.
 var DefaultIncludeRuleMetadata bool

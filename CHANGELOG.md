@@ -5,19 +5,6 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Runtime Defaults to Parsing Metadata Annotations
-
-The OPA runtime (server mode) now processes rule metadata annotations by default.
-Previously, annotations were only parsed when explicitly enabled or when a rule
-contained an `id` field. This ensures annotations are always available during
-evaluation, regardless of how policies are loaded (bundles, files, or watch mode).
-
-To restore the previous behavior, set `skip_annotation_processing` in the configuration:
-
-```yaml
-skip_annotation_processing: true
-```
-
 ### Evaluated Rules in Decision Logs and API Responses
 
 Rules can now be annotated with a metadata `id` field. When any loaded policy contains

@@ -450,14 +450,10 @@ func (s *Server) WithIncludeRuleMetadata(include bool) *Server {
 }
 
 func (s *Server) newEvaluatedRuleTracker(force bool) *topdown.EvaluatedRuleTracker {
-	if !force && !s.evaluatedRulesEnabled && !s.hasExternalSources() && !s.includeRuleMetadata {
-		return nil
+	if force || s.evaluatedRulesEnabled || s.includeRuleMetadata {
+		return &topdown.EvaluatedRuleTracker{CollectCustom: s.includeRuleMetadata}
 	}
-	t := &topdown.EvaluatedRuleTracker{}
-	if s.includeRuleMetadata {
-		t.CollectCustom = true
-	}
-	return t
+	return nil
 }
 
 func compilerHasRuleIDs(c *ast.Compiler) bool {
@@ -474,10 +470,6 @@ func compilerHasRuleIDs(c *ast.Compiler) bool {
 		}
 	}
 	return false
-}
-
-func (s *Server) hasExternalSources() bool {
-	return s.manager.GetExternalSources() != nil && s.manager.GetExternalSources().Len() > 0
 }
 
 func evaluatedRuleIDs(t *topdown.EvaluatedRuleTracker) []string {

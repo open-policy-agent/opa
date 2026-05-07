@@ -102,7 +102,6 @@ type Config struct {
 	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision,omitempty"`
 	Caching                      json.RawMessage            `json:"caching,omitempty"`
 	NDBuiltinCache               bool                       `json:"nd_builtin_cache,omitempty"`
-	SkipAnnotationProcessing     bool                       `json:"skip_annotation_processing,omitempty"`
 	IncludeRuleMetadata          bool                       `json:"include_rule_metadata,omitempty"`
 	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
@@ -185,11 +184,6 @@ func (c Config) NDBuiltinCacheEnabled() bool {
 	return c.NDBuiltinCache
 }
 
-// AnnotationProcessingSkipped returns true if annotation processing should be disabled.
-func (c Config) AnnotationProcessingSkipped() bool {
-	return c.SkipAnnotationProcessing
-}
-
 // GetPersistenceDirectory returns the configured persistence directory, or $PWD/.opa if none is configured
 func (c Config) GetPersistenceDirectory() (string, error) {
 	if c.PersistenceDirectory == nil {
@@ -240,12 +234,11 @@ func (c *Config) Clone() *Config {
 	}
 
 	clone := &Config{
-		NDBuiltinCache:           c.NDBuiltinCache,
-		SkipAnnotationProcessing: c.SkipAnnotationProcessing,
-		IncludeRuleMetadata:      c.IncludeRuleMetadata,
-		Server:                   c.Server.Clone(),
-		Storage:                  c.Storage.Clone(),
-		Labels:                   maps.Clone(c.Labels),
+		NDBuiltinCache:      c.NDBuiltinCache,
+		IncludeRuleMetadata: c.IncludeRuleMetadata,
+		Server:              c.Server.Clone(),
+		Storage:             c.Storage.Clone(),
+		Labels:              maps.Clone(c.Labels),
 	}
 
 	if c.Services != nil {
