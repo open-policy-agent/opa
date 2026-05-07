@@ -545,28 +545,11 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		break
 	}
 
-	if !p.po.ProcessAnnotation && hasMetadataWithID(p.s.comments) {
-		p.po.ProcessAnnotation = true
-	}
-
 	if p.po.ProcessAnnotation {
 		stmts = p.parseAnnotations(stmts)
 	}
 
 	return stmts, p.s.comments, p.s.errors
-}
-
-func hasMetadataWithID(comments []*Comment) bool {
-	for i := range comments {
-		if IsMetadataComment(comments[i]) {
-			for i++; i < len(comments) && !blockBuster(comments[i], comments[i-1]); i++ {
-				if bytes.HasPrefix(bytes.TrimSpace(comments[i].Text), []byte("id:")) {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {

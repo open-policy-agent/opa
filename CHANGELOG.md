@@ -32,7 +32,6 @@ Duplicate IDs from functions called multiple times are suppressed.
 allow if input.role == "admin"
 ```
 
-Modules containing `id` annotations will have metadata parsing enabled automatically.
 When external rule sources are registered, rule tracking is always enabled so that
 externally-provided rules with `id` annotations are recorded.
 
