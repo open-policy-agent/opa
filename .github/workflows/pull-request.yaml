@@ -494,7 +494,7 @@ jobs:
     - name: Download OPA
       uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
       with:
-        version: edge
+        version: latest
 
     - name: Test policies
       run: opa test --schema build/policy/schema --bundle build/policy
@@ -678,7 +678,7 @@ jobs:
     - name: Download OPA
       uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
       with:
-        version: edge
+        version: latest
     - name: Check job results
       run: | # zizmor: ignore[template-injection] The 'needs' var is controlled by us.
         # Create the input file with all job results
