@@ -178,6 +178,10 @@ func (a *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
+	if cmp := util.Compare(a.Labels, other.Labels); cmp != 0 {
+		return cmp
+	}
+
 	return 0
 }
 
@@ -236,6 +240,10 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 
 	if len(a.Custom) > 0 {
 		data["custom"] = a.Custom
+	}
+
+	if len(a.Labels) > 0 {
+		data["labels"] = a.Labels
 	}
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Annotations {
@@ -429,6 +437,10 @@ func (a *Annotations) Copy(node Node) *Annotations {
 		cpy.Custom = deepcopy.Map(a.Custom)
 	}
 
+	if a.Labels != nil {
+		cpy.Labels = deepcopy.Map(a.Labels)
+	}
+
 	cpy.node = node
 
 	return &cpy
@@ -525,6 +537,14 @@ func (a *Annotations) toObject() (*Object, *Error) {
 			return nil, NewError(CompileErr, a.Location, "invalid custom annotation %s", err.Error())
 		}
 		obj.Insert(InternedTerm("custom"), NewTerm(c))
+	}
+
+	if len(a.Labels) > 0 {
+		l, err := InterfaceToValue(a.Labels)
+		if err != nil {
+			return nil, NewError(CompileErr, a.Location, "invalid labels annotation %s", err.Error())
+		}
+		obj.Insert(InternedTerm("labels"), NewTerm(l))
 	}
 
 	return &obj, nil
