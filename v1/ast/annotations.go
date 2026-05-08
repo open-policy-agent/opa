@@ -27,7 +27,6 @@ type (
 	// Annotations represents metadata attached to other AST nodes such as rules.
 	Annotations struct {
 		Scope            string                       `json:"scope"`
-		ID               string                       `json:"id,omitempty"`
 		Title            string                       `json:"title,omitempty"`
 		Entrypoint       bool                         `json:"entrypoint,omitempty"`
 		Description      string                       `json:"description,omitempty"`
@@ -37,6 +36,7 @@ type (
 		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
 		Compile          *CompileAnnotation           `json:"compile,omitempty"`
 		Custom           map[string]any               `json:"custom,omitempty"`
+		Labels           map[string]any               `json:"labels,omitempty"`
 		Location         *Location                    `json:"location,omitempty"`
 
 		comments []*Comment
@@ -134,10 +134,6 @@ func (a *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
-	if cmp := strings.Compare(a.ID, other.ID); cmp != 0 {
-		return cmp
-	}
-
 	if cmp := strings.Compare(a.Title, other.Title); cmp != 0 {
 		return cmp
 	}
@@ -177,6 +173,10 @@ func (a *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
+	if cmp := util.Compare(a.Labels, other.Labels); cmp != 0 {
+		return cmp
+	}
+
 	return 0
 }
 
@@ -199,10 +199,6 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 
 	data := map[string]any{
 		"scope": a.Scope,
-	}
-
-	if a.ID != "" {
-		data["id"] = a.ID
 	}
 
 	if a.Title != "" {
@@ -235,6 +231,10 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 
 	if len(a.Custom) > 0 {
 		data["custom"] = a.Custom
+	}
+
+	if len(a.Labels) > 0 {
+		data["labels"] = a.Labels
 	}
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Annotations {
@@ -428,6 +428,10 @@ func (a *Annotations) Copy(node Node) *Annotations {
 		cpy.Custom = deepcopy.Map(a.Custom)
 	}
 
+	if a.Labels != nil {
+		cpy.Labels = deepcopy.Map(a.Labels)
+	}
+
 	cpy.node = node
 
 	return &cpy
@@ -443,10 +447,6 @@ func (a *Annotations) toObject() (*Object, *Error) {
 
 	if len(a.Scope) > 0 {
 		obj.Insert(InternedTerm("scope"), InternedTerm(a.Scope))
-	}
-
-	if len(a.ID) > 0 {
-		obj.Insert(InternedTerm("id"), StringTerm(a.ID))
 	}
 
 	if len(a.Title) > 0 {
@@ -526,6 +526,14 @@ func (a *Annotations) toObject() (*Object, *Error) {
 		obj.Insert(InternedTerm("custom"), NewTerm(c))
 	}
 
+	if len(a.Labels) > 0 {
+		l, err := InterfaceToValue(a.Labels)
+		if err != nil {
+			return nil, NewError(CompileErr, a.Location, "invalid labels annotation %s", err.Error())
+		}
+		obj.Insert(InternedTerm("labels"), NewTerm(l))
+	}
+
 	return &obj, nil
 }
 
@@ -599,10 +607,6 @@ func attachAnnotationsNodes(mod *Module) Errors {
 		if err := validateAnnotationEntrypointAttachment(a); err != nil {
 			errs = append(errs, err)
 		}
-
-		if err := validateAnnotationIDAttachment(a); err != nil {
-			errs = append(errs, err)
-		}
 	}
 
 	return errs
@@ -631,14 +635,6 @@ func validateAnnotationEntrypointAttachment(a *Annotations) *Error {
 	if a.Entrypoint && !(a.Scope == annotationScopeDocument || a.Scope == annotationScopePackage) {
 		return NewError(
 			ParseErr, a.Loc(), "annotation entrypoint applied to non-document or package scope '%v'", a.Scope)
-	}
-	return nil
-}
-
-func validateAnnotationIDAttachment(a *Annotations) *Error {
-	if a.ID != "" && a.Scope != annotationScopeRule {
-		return NewError(
-			ParseErr, a.Loc(), "annotation id applied to non-rule scope '%v'", a.Scope)
 	}
 	return nil
 }

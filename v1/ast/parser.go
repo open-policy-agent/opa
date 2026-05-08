@@ -545,28 +545,11 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		break
 	}
 
-	if !p.po.ProcessAnnotation && hasMetadataWithID(p.s.comments) {
-		p.po.ProcessAnnotation = true
-	}
-
 	if p.po.ProcessAnnotation {
 		stmts = p.parseAnnotations(stmts)
 	}
 
 	return stmts, p.s.comments, p.s.errors
-}
-
-func hasMetadataWithID(comments []*Comment) bool {
-	for i := range comments {
-		if IsMetadataComment(comments[i]) {
-			for i++; i < len(comments) && !blockBuster(comments[i], comments[i-1]); i++ {
-				if bytes.HasPrefix(bytes.TrimSpace(comments[i].Text), []byte("id:")) {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
@@ -2832,7 +2815,6 @@ func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
 // which isn't handled properly by json for some reason.
 type rawAnnotation struct {
 	Scope            string           `yaml:"scope"`
-	ID               string           `yaml:"id"`
 	Title            string           `yaml:"title"`
 	Entrypoint       bool             `yaml:"entrypoint"`
 	Description      string           `yaml:"description"`
@@ -2842,6 +2824,7 @@ type rawAnnotation struct {
 	Schemas          []map[string]any `yaml:"schemas"`
 	Compile          map[string]any   `yaml:"compile"`
 	Custom           map[string]any   `yaml:"custom"`
+	Labels           map[string]any   `yaml:"labels"`
 }
 
 type metadataParser struct {
@@ -2897,7 +2880,6 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 	result = &Annotations{
 		comments:      b.comments,
 		Scope:         raw.Scope,
-		ID:            raw.ID,
 		Entrypoint:    raw.Entrypoint,
 		Title:         raw.Title,
 		Description:   raw.Description,
@@ -2988,6 +2970,15 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 		result.Custom = make(map[string]any, len(raw.Custom))
 		for k, v := range raw.Custom {
 			if result.Custom[k], err = convertYAMLMapKeyTypes(v, nil); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if raw.Labels != nil {
+		result.Labels = make(map[string]any, len(raw.Labels))
+		for k, v := range raw.Labels {
+			if result.Labels[k], err = convertYAMLMapKeyTypes(v, nil); err != nil {
 				return nil, err
 			}
 		}

@@ -68,7 +68,7 @@ type EventV1 struct {
 	Timestamp           time.Time               `json:"timestamp"`
 	Metrics             map[string]any          `json:"metrics,omitempty"`
 	RequestID           uint64                  `json:"req_id,omitempty"`
-	IDs                 []string                `json:"ids,omitempty"`
+	RuleLabels          []map[string]any        `json:"rule_labels,omitempty"`
 	RequestContext      *RequestContext         `json:"request_context,omitempty"`
 	Custom              map[string]any          `json:"custom,omitempty"`
 
@@ -210,12 +210,11 @@ func (e *EventV1) AST() (ast.Value, error) {
 		event.Insert(ast.InternedTerm("requested_by"), ast.StringTerm(e.RequestedBy))
 	}
 
-	if len(e.IDs) > 0 {
-		evaluatedRules := make([]*ast.Term, len(e.IDs))
-		for i, v := range e.IDs {
-			evaluatedRules[i] = ast.StringTerm(v)
+	if len(e.RuleLabels) > 0 {
+		v, err := ast.InterfaceToValue(e.RuleLabels)
+		if err == nil {
+			event.Insert(ast.InternedTerm("rule_labels"), ast.NewTerm(v))
 		}
-		event.Insert(ast.InternedTerm("ids"), ast.ArrayTerm(evaluatedRules...))
 	}
 
 	// Use the timestamp JSON marshaller to ensure the format is the same as
@@ -738,7 +737,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		RequestedBy:         decision.RemoteAddr,
 		Timestamp:           decision.Timestamp,
 		RequestID:           decision.RequestID,
-		IDs:                 decision.EvaluatedRuleIDs,
+		RuleLabels:          decision.EvaluatedRuleLabels,
 		inputAST:            decision.InputAST,
 		Custom:              decision.Custom,
 	}
@@ -1233,7 +1232,7 @@ func eventToAttrs(event EventV1) []slog.Attr {
 		attrs = append(attrs, slog.Any("request_context", event.RequestContext))
 	}
 
-	addAttrIfSliceNotEmpty(&attrs, "ids", event.IDs)
+	addAttrIfSliceNotEmpty(&attrs, "rule_labels", event.RuleLabels)
 	addAttrIfHasLen(&attrs, "custom", event.Custom)
 
 	return attrs
@@ -1354,7 +1353,12 @@ func eventToFields(event EventV1) map[string]any {
 		fields["request_context"] = event.RequestContext
 	}
 
-	addIfSliceNotEmpty(fields, "ids", stringsToAny(event.IDs))
+	if len(event.RuleLabels) > 0 {
+		var v any = event.RuleLabels
+		if err := util.RoundTrip(&v); err == nil {
+			fields["rule_labels"] = v
+		}
+	}
 
 	if len(event.Custom) > 0 {
 		var v any = event.Custom

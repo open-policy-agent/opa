@@ -276,7 +276,8 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		WithMetrics(m).
 		WithBundleVerificationConfig(d.bvc).
 		WithBundleEtag(etag).
-		WithRegoVersion(d.bundleParserOpts.RegoVersion)
+		WithRegoVersion(d.bundleParserOpts.RegoVersion).
+		WithProcessAnnotations(d.bundleParserOpts.ProcessAnnotation)
 	bundleInfo, err := reader.Read()
 	if err != nil {
 		return &downloaderResponse{}, fmt.Errorf("unexpected error %w", err)

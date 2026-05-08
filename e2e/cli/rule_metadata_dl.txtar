@@ -1,0 +1,72 @@
+# Verify that labels from evaluated rule annotations appear as a top-level
+# field in decision logs.
+
+exec $OPA build -o bundles/bundle.tar.gz --bundle policy/
+
+http_server bundles
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --config-file config.yaml &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health?bundles'
+
+# Evaluate allow — triggers allow-admin rule.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == true'
+
+# Evaluate violations — triggers both violation rules; labels collected per-rule.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin", "dept": "eng"}}' http://localhost/v1/data/authz/violations
+jq stdout '.result | length == 2'
+
+kill -INT opa
+wait opa
+
+# Decision log for allow should have rule_labels with the single matching rule's labels.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow")] | .[0].rule_labels == [{"severity": "low"}]'
+
+# Decision log for violations should have one entry per evaluated rule, preserving per-rule grouping.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/violations")] | .[0].rule_labels | sort_by(.category) == [{"severity": "high", "category": "compliance"}, {"severity": "critical", "category": "org-policy"}]'
+
+-- config.yaml --
+services:
+  bundle-server:
+    url: "http://${HTTP_ADDR}"
+bundles:
+  test:
+    service: bundle-server
+    resource: bundle.tar.gz
+    polling:
+      min_delay_seconds: 300
+      max_delay_seconds: 300
+decision_logs:
+  console: true
+
+-- policy/authz.rego --
+package authz
+
+default allow := false
+
+# METADATA
+# labels:
+#   severity: low
+allow if input.role == "admin"
+
+# METADATA
+# labels:
+#   severity: low
+allow if input.role == "editor"
+
+# METADATA
+# labels:
+#   severity: high
+#   category: compliance
+violations contains "admin role is restricted" if input.role == "admin"
+
+# METADATA
+# labels:
+#   severity: critical
+#   category: org-policy
+violations contains "admin not allowed in eng" if {
+	input.role == "admin"
+	input.dept == "eng"
+}
+
+-- bundles/.gitkeep --

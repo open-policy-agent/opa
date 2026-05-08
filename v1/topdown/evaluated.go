@@ -1,13 +1,21 @@
+// Copyright 2026 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package topdown
 
-import "github.com/open-policy-agent/opa/v1/ast"
+import (
+	"encoding/json"
 
-// EvaluatedRuleTracker records rule identifiers from annotations during
-// evaluation. It extracts the ID field from each successfully evaluated
-// rule's annotations. Duplicate IDs are suppressed.
+	"github.com/open-policy-agent/opa/v1/ast"
+)
+
+// EvaluatedRuleTracker records labels from annotations during evaluation.
+// Labels from all successfully evaluated rules are aggregated. Exact
+// duplicates (same key-value pairs) are suppressed.
 type EvaluatedRuleTracker struct {
-	IDs  []string
-	seen map[string]struct{}
+	Labels []map[string]any
+	seen   map[string]struct{}
 }
 
 func (t *EvaluatedRuleTracker) Record(rule *ast.Rule) {
@@ -16,15 +24,16 @@ func (t *EvaluatedRuleTracker) Record(rule *ast.Rule) {
 	}
 
 	for _, a := range rule.Annotations {
-		if a.ID != "" {
+		if len(a.Labels) > 0 {
+			b, _ := json.Marshal(a.Labels)
+			key := string(b)
 			if t.seen == nil {
 				t.seen = make(map[string]struct{})
 			}
-			if _, dup := t.seen[a.ID]; !dup {
-				t.seen[a.ID] = struct{}{}
-				t.IDs = append(t.IDs, a.ID)
+			if _, dup := t.seen[key]; !dup {
+				t.seen[key] = struct{}{}
+				t.Labels = append(t.Labels, a.Labels)
 			}
-			return
 		}
 	}
 }

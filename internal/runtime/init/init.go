@@ -143,21 +143,20 @@ func LoadPaths(paths []string,
 	processAnnotations bool,
 	caps *ast.Capabilities,
 	fsys fs.FS) (*LoadPathsResult, error) {
-	return LoadPathsForRegoVersion(ast.RegoV0, paths, filter, asBundle, bvc, skipVerify, bundleLazyLoading, processAnnotations, false, caps, fsys)
+	return LoadPathsForRegoVersion(ast.ParserOptions{RegoVersion: ast.RegoV0, ProcessAnnotation: processAnnotations, Capabilities: caps}, paths, filter, asBundle, bvc, skipVerify, bundleLazyLoading, false, fsys)
 }
 
-func LoadPathsForRegoVersion(regoVersion ast.RegoVersion,
+func LoadPathsForRegoVersion(popts ast.ParserOptions,
 	paths []string,
 	filter loader.Filter,
 	asBundle bool,
 	bvc *bundle.VerificationConfig,
 	skipVerify bool,
 	bundleLazyLoading bool,
-	processAnnotations bool,
 	followSymlinks bool,
-	caps *ast.Capabilities,
 	fsys fs.FS) (*LoadPathsResult, error) {
 
+	caps := popts.Capabilities
 	if caps == nil {
 		caps = ast.CapabilitiesForThisVersion()
 	}
@@ -180,9 +179,9 @@ func LoadPathsForRegoVersion(regoVersion ast.RegoVersion,
 				WithSkipBundleVerification(skipVerify).
 				WithBundleLazyLoadingMode(bundleLazyLoading).
 				WithFilter(filter).
-				WithProcessAnnotation(processAnnotations).
+				WithProcessAnnotation(popts.ProcessAnnotation).
 				WithCapabilities(caps).
-				WithRegoVersion(regoVersion).
+				WithRegoVersion(popts.RegoVersion).
 				WithFollowSymlinks(followSymlinks).
 				AsBundle(path)
 			if err != nil {
@@ -198,9 +197,9 @@ func LoadPathsForRegoVersion(regoVersion ast.RegoVersion,
 	files, err := loader.NewFileLoader().
 		WithFS(fsys).
 		WithBundleLazyLoadingMode(bundleLazyLoading).
-		WithProcessAnnotation(processAnnotations).
+		WithProcessAnnotation(popts.ProcessAnnotation).
 		WithCapabilities(caps).
-		WithRegoVersion(regoVersion).
+		WithRegoVersion(popts.RegoVersion).
 		Filtered(nonBundlePaths, filter)
 
 	if err != nil {

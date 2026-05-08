@@ -4260,7 +4260,11 @@ func TestLogEvaluatedRules(t *testing.T) {
 
 	// Log decision with evaluated rules
 	if err := plugin.Log(ctx, &server.Info{
-		EvaluatedRuleIDs: []string{"rule1", "rule2", "rule3"},
+		EvaluatedRuleLabels: []map[string]any{
+			{"id": "rule1"},
+			{"id": "rule2"},
+			{"id": "rule3"},
+		},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -4275,16 +4279,20 @@ func TestLogEvaluatedRules(t *testing.T) {
 	}
 
 	// Check first event has evaluated rules
-	if exp, act := 3, len(backend.events[0].IDs); exp != act {
+	if exp, act := 3, len(backend.events[0].RuleLabels); exp != act {
 		t.Fatalf("expected %d evaluated rules in event 0, got %d", exp, act)
 	}
-	expectedRules := []string{"rule1", "rule2", "rule3"}
-	if diff := cmp.Diff(expectedRules, backend.events[0].IDs); diff != "" {
+	expectedRules := []map[string]any{
+		{"id": "rule1"},
+		{"id": "rule2"},
+		{"id": "rule3"},
+	}
+	if diff := cmp.Diff(expectedRules, backend.events[0].RuleLabels); diff != "" {
 		t.Errorf("unexpected evaluated rules in event 0 (-want, +got):\n%s", diff)
 	}
 
 	// Check second event has no evaluated rules
-	if exp, act := 0, len(backend.events[1].IDs); exp != act {
+	if exp, act := 0, len(backend.events[1].RuleLabels); exp != act {
 		t.Fatalf("expected %d evaluated rules in event 1, got %d", exp, act)
 	}
 }

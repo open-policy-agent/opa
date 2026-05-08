@@ -149,7 +149,6 @@ type Server struct {
 	allPluginsOkOnce            bool
 	distributedTracingOpts      tracing.Options
 	ndbCacheEnabled             bool
-	evaluatedRulesEnabled       bool
 	unixSocketPerm              *string
 	cipherSuites                *[]uint16
 	hooks                       hooks.Hooks
@@ -232,7 +231,6 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.partials = map[string]rego.PartialResult{}
 	s.preparedEvalQueries = newCache(pqMaxCacheSize)
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
-	s.evaluatedRulesEnabled = compilerHasRuleIDs(s.getCompiler())
 	s.manager.RegisterNDCacheTrigger(s.updateNDCache)
 
 	s.Handler = s.initHandlerAuthn(s.Handler)
@@ -441,38 +439,15 @@ func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	return s
 }
 
-func (s *Server) newEvaluatedRuleTracker(force bool) *topdown.EvaluatedRuleTracker {
-	if !force && !s.evaluatedRulesEnabled && !s.hasExternalSources() {
-		return nil
-	}
+func newEvaluatedRuleTracker() *topdown.EvaluatedRuleTracker {
 	return &topdown.EvaluatedRuleTracker{}
 }
 
-func compilerHasRuleIDs(c *ast.Compiler) bool {
-	if c == nil {
-		return false
-	}
-	for _, mod := range c.Modules {
-		for _, r := range mod.Rules {
-			for _, a := range r.Annotations {
-				if a.ID != "" {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func (s *Server) hasExternalSources() bool {
-	return s.manager.GetExternalSources() != nil && s.manager.GetExternalSources().Len() > 0
-}
-
-func evaluatedRuleIDs(t *topdown.EvaluatedRuleTracker) []string {
-	if t == nil || len(t.IDs) == 0 {
+func evaluatedRuleLabels(t *topdown.EvaluatedRuleTracker) []map[string]any {
+	if t == nil || len(t.Labels) == 0 {
 		return nil
 	}
-	return t.IDs
+	return t.Labels
 }
 
 // WithCipherSuites sets the list of enabled TLS 1.0–1.2 cipher suites.
@@ -998,8 +973,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		ndbCache = builtins.NDBCache{}
 	}
 
-	tracker := s.newEvaluatedRuleTracker(false)
-
+	tracker := newEvaluatedRuleTracker()
 	opts := []func(*rego.Rego){
 		rego.Store(s.store),
 		rego.Transaction(txn),
@@ -1047,7 +1021,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 	}
 
 	var x any = results.Result
-	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil); err != nil {
+	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, evaluatedRuleLabels(tracker), nil); err != nil {
 		return nil, err
 	}
 	return &results, nil
@@ -1115,7 +1089,6 @@ func (s *Server) reload(_ context.Context, _ storage.Transaction, evt storage.Tr
 	if evt.PolicyChanged() {
 		s.compileUnknownsCache.Purge()
 		s.compileMaskingRulesCache.Purge()
-		s.evaluatedRulesEnabled = compilerHasRuleIDs(s.getCompiler())
 	}
 }
 
@@ -1200,6 +1173,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		s.preparedEvalQueries.Insert(pqID, preparedQuery)
 	}
 
+	tracker := newEvaluatedRuleTracker()
 	evalOpts := []rego.EvalOption{
 		rego.EvalTransaction(txn),
 		rego.EvalParsedInput(input),
@@ -1207,11 +1181,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
 		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalNDBuiltinCache(ndbCache),
-	}
-
-	tracker := s.newEvaluatedRuleTracker(false)
-	if tracker != nil {
-		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
+		rego.EvalEvaluatedRuleTracker(tracker),
 	}
 
 	rs, err := preparedQuery.Eval(
@@ -1248,7 +1218,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		writer.Error(w, http.StatusNotFound, errV1)
 		return
 	}
-	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil)
+	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, evaluatedRuleLabels(tracker), nil)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1554,7 +1524,6 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
-	includeEvaluatedRules := getBoolParam(r.URL, types.ParamEvaluatedRulesV1, true)
 
 	m.Timer(metrics.RegoInputParse).Start()
 
@@ -1637,6 +1606,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		s.preparedEvalQueries.Insert(pqID, preparedQuery)
 	}
 
+	tracker := newEvaluatedRuleTracker()
 	evalOpts := []rego.EvalOption{
 		rego.EvalTransaction(txn),
 		rego.EvalParsedInput(input),
@@ -1646,11 +1616,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalInstrument(includeInstrumentation),
 		rego.EvalNDBuiltinCache(ndbCache),
-	}
-
-	tracker := s.newEvaluatedRuleTracker(includeEvaluatedRules)
-	if tracker != nil {
-		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
+		rego.EvalEvaluatedRuleTracker(tracker),
 	}
 
 	rs, err := preparedQuery.Eval(
@@ -1702,11 +1668,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	if includeEvaluatedRules {
-		result.IDs = evaluatedRuleIDs(tracker)
-	}
-
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), nil); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleLabels(tracker), nil); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1854,7 +1816,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
-	includeEvaluatedRules := getBoolParam(r.URL, types.ParamEvaluatedRulesV1, true)
 
 	pqID := "v1DataPost::"
 	if strictBuiltinErrors {
@@ -1893,6 +1854,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		s.preparedEvalQueries.Insert(pqID, preparedQuery)
 	}
 
+	tracker := newEvaluatedRuleTracker()
 	evalOpts := []rego.EvalOption{
 		rego.EvalTransaction(txn),
 		rego.EvalParsedInput(input),
@@ -1903,11 +1865,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalInstrument(includeInstrumentation),
 		rego.EvalNDBuiltinCache(ndbCache),
 		rego.EvalResponseMetadata(respMetadata),
-	}
-
-	tracker := s.newEvaluatedRuleTracker(includeEvaluatedRules)
-	if tracker != nil {
-		evalOpts = append(evalOpts, rego.EvalEvaluatedRuleTracker(tracker))
+		rego.EvalEvaluatedRuleTracker(tracker),
 	}
 
 	if reqMetadata != nil {
@@ -1967,11 +1925,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	if includeEvaluatedRules {
-		result.IDs = evaluatedRuleIDs(tracker)
-	}
-
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), customLog()); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleLabels(tracker), customLog()); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -3162,7 +3116,7 @@ func (l decisionLogger) Log(
 	ndbCache builtins.NDBCache,
 	err error,
 	m metrics.Metrics,
-	evaluatedRules []string,
+	evaluatedRuleLabels []map[string]any,
 	custom map[string]any,
 ) error {
 	if l.logger == nil {
@@ -3188,23 +3142,23 @@ func (l decisionLogger) Log(
 	}
 
 	info := &Info{
-		Txn:                txn,
-		Revision:           l.revision,
-		Bundles:            bundles,
-		Timestamp:          time.Now().UTC(),
-		DecisionID:         decisionID,
-		RemoteAddr:         rctx.ClientAddr,
-		HTTPRequestContext: httpRctx,
-		Path:               path,
-		Query:              query,
-		Input:              goInput,
-		InputAST:           astInput,
-		Results:            goResults,
-		Error:              err,
-		Metrics:            m,
-		RequestID:          rctx.ReqID,
-		EvaluatedRuleIDs:   evaluatedRules,
-		Custom:             custom,
+		Txn:                 txn,
+		Revision:            l.revision,
+		Bundles:             bundles,
+		Timestamp:           time.Now().UTC(),
+		DecisionID:          decisionID,
+		RemoteAddr:          rctx.ClientAddr,
+		HTTPRequestContext:  httpRctx,
+		Path:                path,
+		Query:               query,
+		Input:               goInput,
+		InputAST:            astInput,
+		Results:             goResults,
+		Error:               err,
+		Metrics:             m,
+		RequestID:           rctx.ReqID,
+		EvaluatedRuleLabels: evaluatedRuleLabels,
+		Custom:              custom,
 	}
 
 	if ndbCache != nil {

@@ -5,23 +5,27 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Evaluated Rules in Decision Logs and API Responses
+### Rule Labels in Decision Logs
 
-Rules can now be annotated with a metadata `id` field. When any loaded policy contains
-rules with `id` annotations, the IDs of successfully evaluated rules are automatically
-included in decision log events (as `ids`). Additionally, the Data API supports a `?ids`
-query parameter to include the same information directly in the response payload.
-Duplicate IDs from functions called multiple times are suppressed.
+Rule annotations now support a `labels` field. Labels from all successfully evaluated
+rules are collected and included in each decision log entry as a top-level `rule_labels`
+array. Each element preserves the label map from one evaluated rule.
 
 ```rego
 # METADATA
-# id: allow-admin
+# labels:
+#   severity: low
+#   team: platform
 allow if input.role == "admin"
 ```
 
-Modules containing `id` annotations will have metadata parsing enabled automatically.
-When external rule sources are registered, rule tracking is always enabled so that
-externally-provided rules with `id` annotations are recorded.
+The resulting decision log entry will contain:
+
+```json
+{"rule_labels": [{"severity": "low", "team": "platform"}]}
+```
+
+The runtime now processes metadata annotations by default.
 
 ## 1.16.1
 

@@ -1,0 +1,33 @@
+# Verify that labels from evaluated rule annotations appear as a top-level
+# field in decision logs when policies are loaded from disk (no bundle server).
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --set decision_logs.console=true ./policy/ &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+
+# Evaluate allow — triggers rule with labels.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == true'
+
+# Evaluate with no match — no labels expected.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "guest"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == false'
+
+kill -INT opa
+wait opa
+
+# Decision log for the admin request should have rule_labels.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .result == true)] | .[0].rule_labels == [{"severity": "low", "team": "platform"}]'
+
+# Decision log for the guest request should have no rule_labels.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .result == false)] | .[0] | has("rule_labels") | not'
+
+-- policy/authz.rego --
+package authz
+
+default allow := false
+
+# METADATA
+# labels:
+#   severity: low
+#   team: platform
+allow if input.role == "admin"

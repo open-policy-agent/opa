@@ -1,0 +1,60 @@
+# Verify that rule labels appear in decision logs written via the
+# file_logger plugin (slog-based path).
+
+exec $OPA build -o bundles/bundle.tar.gz --bundle policy/
+
+http_server bundles
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --config-file config.yaml &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health?bundles'
+
+# POST to v1/data — rule with labels should be evaluated.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == true'
+
+# POST to v1/data — no rules match.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "guest"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == false'
+
+kill -INT opa
+wait opa
+
+# Decision log file should contain rule_labels for the admin request.
+jq -s decisions.log '[.[] | select(.rule_labels == [{"severity": "low"}])] | length == 1'
+
+# Decision log file should have an entry without rule_labels for the guest request.
+jq -s decisions.log '[.[] | select(.path == "authz/allow" and (.rule_labels == null))] | length == 1'
+
+-- config.yaml --
+services:
+  bundle-server:
+    url: "http://${HTTP_ADDR}"
+bundles:
+  test:
+    service: bundle-server
+    resource: bundle.tar.gz
+    polling:
+      min_delay_seconds: 300
+      max_delay_seconds: 300
+plugins:
+  file_logger:
+    path: decisions.log
+decision_logs:
+  plugin: file_logger
+
+-- policy/authz.rego --
+package authz
+
+default allow := false
+
+# METADATA
+# labels:
+#   severity: low
+allow if input.role == "admin"
+
+# METADATA
+# labels:
+#   severity: low
+allow if input.role == "editor"
+
+-- bundles/.gitkeep --

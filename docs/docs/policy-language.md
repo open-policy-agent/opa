@@ -2600,18 +2600,18 @@ comment block containing the YAML document is finished
 
 ### Annotations
 
-| Name                | Type                                                        | Description                                                                                                                                            |
-| ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| scope               | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more in the [Metadata Scope section below](#metadata-scope).                                            |
-| `id`                | string                                                      | A unique identifier for the rule, used to track evaluated rules in decision logs. Read more in the [Metadata ID section below](#metadata-id).          |
-| `title`             | string                                                      | A human-readable name for the annotation target. Read more in the [Metadata Title section below](#metadata-title).                                     |
-| `description`       | string                                                      | A description of the annotation target. Read more in the [Metadata Description section below](#metadata-description).                                  |
-| `related_resources` | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more in the [Metadata Related Resources section below](#metadata-related_resources).  |
-| `authors`           | list of strings                                             | A list of authors for the annotation target. Read more in the [Metadata Authors section below](#metadata-authors).                                     |
-| `organizations`     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).            |
-| `schemas`           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).               |
-| `entrypoint`        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint). |
-| `custom`            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                       |
+| Name                | Type                                                        | Description                                                                                                                                                    |
+| ------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| scope               | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more in the [Metadata Scope section below](#metadata-scope).                                                    |
+| `labels`            | mapping of key-value pairs                                  | Arbitrary labels attached to a rule, recorded in decision logs when the rule is evaluated. Read more in the [Metadata Labels section below](#metadata-labels). |
+| `title`             | string                                                      | A human-readable name for the annotation target. Read more in the [Metadata Title section below](#metadata-title).                                             |
+| `description`       | string                                                      | A description of the annotation target. Read more in the [Metadata Description section below](#metadata-description).                                          |
+| `related_resources` | list of URLs                                                | A list of URLs pointing to related resources/documentation. Read more in the [Metadata Related Resources section below](#metadata-related_resources).          |
+| `authors`           | list of strings                                             | A list of authors for the annotation target. Read more in the [Metadata Authors section below](#metadata-authors).                                             |
+| `organizations`     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).                    |
+| `schemas`           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).                       |
+| `entrypoint`        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint).         |
+| `custom`            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                               |
 
 ### Metadata `Scope`
 
@@ -2665,20 +2665,19 @@ allow if {
 message := "welcome!" if allow
 ```
 
-### Metadata `id`
+### Metadata `labels`
 
-The `id` annotation is a string value that uniquely identifies a rule. When
-any loaded policy contains rules with `id` annotations (or when external rule
-sources are registered), the IDs of successfully evaluated rules are
-automatically recorded in decision log events. The `id` can also be returned
-in the Data API response using the `?ids` query parameter.
-
-When any module contains a metadata block with an `id` field, annotation
-parsing is enabled automatically (even if `ProcessAnnotation` was not set).
+The `labels` annotation is a map of arbitrary key-value pairs attached to a
+rule (or document). When rules with `labels` are successfully evaluated, their
+label sets are automatically recorded in decision log events under the
+`rule_labels` field. Labels from document-scoped and rule-scoped annotations
+are both collected.
 
 ```rego
 # METADATA
-# id: allow-admin
+# labels:
+#   severity: high
+#   team: platform
 allow if input.role == "admin"
 ```
 
