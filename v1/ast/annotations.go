@@ -37,6 +37,7 @@ type (
 		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
 		Compile          *CompileAnnotation           `json:"compile,omitempty"`
 		Custom           map[string]any               `json:"custom,omitempty"`
+		Labels           map[string]any               `json:"labels,omitempty"`
 		Location         *Location                    `json:"location,omitempty"`
 
 		comments []*Comment

@@ -1,5 +1,5 @@
-# Verify that custom metadata from evaluated rule annotations appears in
-# decision logs when include_rule_metadata is enabled.
+# Verify that labels from evaluated rule annotations appear as a top-level
+# field in decision logs when include_rule_metadata is enabled.
 
 exec $OPA build -o bundles/bundle.tar.gz --bundle policy/
 
@@ -12,18 +12,18 @@ retry curl -sf --unix-socket opa.sock 'http://localhost/health?bundles'
 exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
 jq stdout '.result == true'
 
-# Evaluate violations — triggers both violation rules.
+# Evaluate violations — triggers both violation rules
 exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin", "dept": "eng"}}' http://localhost/v1/data/authz/violations
 jq stdout '.result | length == 2'
 
 kill -INT opa
 wait opa
 
-# Extract the decision log for the allow query and compare rule_metadata wholesale.
-jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow")] | .[0].custom == {"rule_metadata": [{"id": "allow-admin", "severity": "low"}]}'
+# Decision log for allow should have rule_labels with the single matching rule's labels.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow")] | .[0].rule_labels == [{"severity": "low"}]'
 
-# Extract the decision log for violations and compare sorted rule_metadata.
-jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/violations")] | .[0].custom.rule_metadata | sort_by(.id) == [{"id": "no-admin-in-eng", "severity": "critical", "category": "org-policy"}, {"id": "no-admin-role", "severity": "high", "category": "compliance"}]'
+# Decision log for violations should have one entry per evaluated rule, preserving per-rule grouping.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/violations")] | .[0].rule_labels | sort_by(.category) == [{"severity": "high", "category": "compliance"}, {"severity": "critical", "category": "org-policy"}]'
 
 -- config.yaml --
 include_rule_metadata: true
@@ -47,26 +47,26 @@ default allow := false
 
 # METADATA
 # id: allow-admin
-# custom:
+# labels:
 #   severity: low
 allow if input.role == "admin"
 
 # METADATA
 # id: allow-editor
-# custom:
+# labels:
 #   severity: low
 allow if input.role == "editor"
 
 # METADATA
 # id: no-admin-role
-# custom:
+# labels:
 #   severity: high
 #   category: compliance
 violations contains "admin role is restricted" if input.role == "admin"
 
 # METADATA
 # id: no-admin-in-eng
-# custom:
+# labels:
 #   severity: critical
 #   category: org-policy
 violations contains "admin not allowed in eng" if {

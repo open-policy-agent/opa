@@ -2825,6 +2825,7 @@ type rawAnnotation struct {
 	Schemas          []map[string]any `yaml:"schemas"`
 	Compile          map[string]any   `yaml:"compile"`
 	Custom           map[string]any   `yaml:"custom"`
+	Labels           map[string]any   `yaml:"labels"`
 }
 
 type metadataParser struct {
@@ -2971,6 +2972,15 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 		result.Custom = make(map[string]any, len(raw.Custom))
 		for k, v := range raw.Custom {
 			if result.Custom[k], err = convertYAMLMapKeyTypes(v, nil); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if raw.Labels != nil {
+		result.Labels = make(map[string]any, len(raw.Labels))
+		for k, v := range raw.Labels {
+			if result.Labels[k], err = convertYAMLMapKeyTypes(v, nil); err != nil {
 				return nil, err
 			}
 		}

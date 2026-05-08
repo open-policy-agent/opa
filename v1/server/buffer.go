@@ -39,6 +39,7 @@ type Info struct {
 	Trace               []*topdown.Event
 	RequestID           uint64
 	EvaluatedRuleIDs    []string
+	EvaluatedRuleLabels []map[string]any
 	Custom              map[string]any
 }
 

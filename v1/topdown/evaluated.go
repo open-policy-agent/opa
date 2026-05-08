@@ -4,19 +4,15 @@
 
 package topdown
 
-import (
-	"maps"
-
-	"github.com/open-policy-agent/opa/v1/ast"
-)
+import "github.com/open-policy-agent/opa/v1/ast"
 
 // EvaluatedRuleTracker records rule identifiers from annotations during
 // evaluation. It extracts the ID field from each successfully evaluated
 // rule's annotations. Duplicate IDs are suppressed.
 type EvaluatedRuleTracker struct {
 	IDs           []string
-	RuleMetadata  []map[string]any
-	CollectCustom bool
+	Labels        []map[string]any
+	CollectLabels bool
 	seen          map[string]struct{}
 }
 
@@ -35,13 +31,8 @@ func (t *EvaluatedRuleTracker) Record(rule *ast.Rule) {
 				t.IDs = append(t.IDs, a.ID)
 			}
 		}
-		if t.CollectCustom && len(a.Custom) > 0 {
-			entry := make(map[string]any, len(a.Custom)+1)
-			if a.ID != "" {
-				entry["id"] = a.ID
-			}
-			maps.Copy(entry, a.Custom)
-			t.RuleMetadata = append(t.RuleMetadata, entry)
+		if t.CollectLabels && len(a.Labels) > 0 {
+			t.Labels = append(t.Labels, a.Labels)
 		}
 	}
 }

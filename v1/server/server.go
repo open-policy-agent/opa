@@ -442,8 +442,8 @@ func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	return s
 }
 
-// WithIncludeRuleMetadata enables carry-over of custom metadata from evaluated
-// rule annotations into the decision log "custom" field.
+// WithIncludeRuleMetadata enables carry-over of labels from evaluated
+// rule annotations into a top-level decision log field.
 func (s *Server) WithIncludeRuleMetadata(include bool) *Server {
 	s.includeRuleMetadata = include
 	return s
@@ -451,7 +451,7 @@ func (s *Server) WithIncludeRuleMetadata(include bool) *Server {
 
 func (s *Server) newEvaluatedRuleTracker(force bool) *topdown.EvaluatedRuleTracker {
 	if force || s.evaluatedRulesEnabled || s.includeRuleMetadata {
-		return &topdown.EvaluatedRuleTracker{CollectCustom: s.includeRuleMetadata}
+		return &topdown.EvaluatedRuleTracker{CollectLabels: s.includeRuleMetadata}
 	}
 	return nil
 }
@@ -479,23 +479,11 @@ func evaluatedRuleIDs(t *topdown.EvaluatedRuleTracker) []string {
 	return t.IDs
 }
 
-func evaluatedRuleMetadata(t *topdown.EvaluatedRuleTracker) []map[string]any {
-	if t == nil || len(t.RuleMetadata) == 0 {
+func evaluatedRuleLabels(t *topdown.EvaluatedRuleTracker) []map[string]any {
+	if t == nil || len(t.Labels) == 0 {
 		return nil
 	}
-	return t.RuleMetadata
-}
-
-func withRuleMetadata(custom map[string]any, t *topdown.EvaluatedRuleTracker) map[string]any {
-	rm := evaluatedRuleMetadata(t)
-	if rm == nil {
-		return custom
-	}
-	if custom == nil {
-		custom = make(map[string]any, 1)
-	}
-	custom["rule_metadata"] = rm
-	return custom
+	return t.Labels
 }
 
 // WithCipherSuites sets the list of enabled TLS 1.0–1.2 cipher suites.
@@ -1053,7 +1041,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		_ = logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, nil, ndbCache, err, m, nil, nil)
+		_ = logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, nil, ndbCache, err, m, nil, nil, nil)
 		return nil, err
 	}
 
@@ -1070,7 +1058,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 	}
 
 	var x any = results.Result
-	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, evaluatedRuleIDs(tracker), withRuleMetadata(nil, tracker)); err != nil {
+	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m, evaluatedRuleIDs(tracker), evaluatedRuleLabels(tracker), nil); err != nil {
 		return nil, err
 	}
 	return &results, nil
@@ -1208,14 +1196,14 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 
 		rego, err := s.makeRego(ctx, false, txn, input, urlPath, m, false, nil, opts)
 		if err != nil {
-			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil)
+			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil, nil)
 			writer.ErrorAuto(w, err)
 			return
 		}
 
 		pq, err := rego.PrepareForEval(ctx)
 		if err != nil {
-			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil)
+			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil, nil)
 			writer.ErrorAuto(w, err)
 			return
 		}
@@ -1246,7 +1234,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 
 	// Handle results.
 	if err != nil {
-		_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil)
+		_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil, nil)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1263,7 +1251,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 			messageType = types.MsgFoundUndefinedError
 		}
 		errV1 := types.NewErrorV1(types.CodeUndefinedDocument, "%v: %v", messageType, ref)
-		if err := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, errV1, m, nil, nil); err != nil {
+		if err := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, errV1, m, nil, nil, nil); err != nil {
 			writer.ErrorAuto(w, err)
 			return
 		}
@@ -1271,7 +1259,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		writer.Error(w, http.StatusNotFound, errV1)
 		return
 	}
-	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, evaluatedRuleIDs(tracker), withRuleMetadata(nil, tracker))
+	err = logger.Log(ctx, txn, urlPath, "", goInput, input, &rs[0].Expressions[0].Value, ndbCache, nil, m, evaluatedRuleIDs(tracker), evaluatedRuleLabels(tracker), nil)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1645,14 +1633,14 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 		rego, err := s.makeRego(ctx, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
 		if err != nil {
-			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil)
+			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil, nil)
 			writer.ErrorAuto(w, err)
 			return
 		}
 
 		pq, err := rego.PrepareForEval(ctx)
 		if err != nil {
-			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil)
+			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil, nil)
 			writer.ErrorAuto(w, err)
 			return
 		}
@@ -1685,7 +1673,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil)
+		_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil, nil)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1711,7 +1699,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if err := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m, nil, nil); err != nil {
+		if err := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m, nil, nil, nil); err != nil {
 			writer.ErrorAuto(w, err)
 			return
 		}
@@ -1729,7 +1717,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.IDs = evaluatedRuleIDs(tracker)
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), withRuleMetadata(nil, tracker)); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), evaluatedRuleLabels(tracker), nil); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1901,14 +1889,14 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 		rego, err := s.makeRego(ctx, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
 		if err != nil {
-			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, customLog())
+			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil, customLog())
 			writer.ErrorAuto(w, err)
 			return
 		}
 
 		pq, err := rego.PrepareForEval(ctx)
 		if err != nil {
-			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, customLog())
+			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil, customLog())
 			writer.ErrorAuto(w, err)
 			return
 		}
@@ -1943,7 +1931,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, customLog())
+		_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m, nil, nil, customLog())
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1976,7 +1964,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if err = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m, nil, customLog()); err != nil {
+		if err = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m, nil, nil, customLog()); err != nil {
 			writer.ErrorAuto(w, err)
 			return
 		}
@@ -1994,7 +1982,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.IDs = evaluatedRuleIDs(tracker)
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), withRuleMetadata(customLog(), tracker)); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m, evaluatedRuleIDs(tracker), evaluatedRuleLabels(tracker), customLog()); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -3186,6 +3174,7 @@ func (l decisionLogger) Log(
 	err error,
 	m metrics.Metrics,
 	evaluatedRules []string,
+	evaluatedRuleLabels []map[string]any,
 	custom map[string]any,
 ) error {
 	if l.logger == nil {
@@ -3211,23 +3200,24 @@ func (l decisionLogger) Log(
 	}
 
 	info := &Info{
-		Txn:                txn,
-		Revision:           l.revision,
-		Bundles:            bundles,
-		Timestamp:          time.Now().UTC(),
-		DecisionID:         decisionID,
-		RemoteAddr:         rctx.ClientAddr,
-		HTTPRequestContext: httpRctx,
-		Path:               path,
-		Query:              query,
-		Input:              goInput,
-		InputAST:           astInput,
-		Results:            goResults,
-		Error:              err,
-		Metrics:            m,
-		RequestID:          rctx.ReqID,
-		EvaluatedRuleIDs:   evaluatedRules,
-		Custom:             custom,
+		Txn:                 txn,
+		Revision:            l.revision,
+		Bundles:             bundles,
+		Timestamp:           time.Now().UTC(),
+		DecisionID:          decisionID,
+		RemoteAddr:          rctx.ClientAddr,
+		HTTPRequestContext:  httpRctx,
+		Path:                path,
+		Query:               query,
+		Input:               goInput,
+		InputAST:            astInput,
+		Results:             goResults,
+		Error:               err,
+		Metrics:             m,
+		RequestID:           rctx.ReqID,
+		EvaluatedRuleIDs:    evaluatedRules,
+		EvaluatedRuleLabels: evaluatedRuleLabels,
+		Custom:              custom,
 	}
 
 	if ndbCache != nil {
