@@ -4,12 +4,18 @@
 
 package topdown
 
-import "github.com/open-policy-agent/opa/v1/ast"
+import (
+	"encoding/json"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+)
 
 // EvaluatedRuleTracker records labels from annotations during evaluation.
-// Labels from all successfully evaluated rules are aggregated.
+// Labels from all successfully evaluated rules are aggregated. Exact
+// duplicates (same key-value pairs) are suppressed.
 type EvaluatedRuleTracker struct {
 	Labels []map[string]any
+	seen   map[string]struct{}
 }
 
 func (t *EvaluatedRuleTracker) Record(rule *ast.Rule) {
@@ -19,7 +25,15 @@ func (t *EvaluatedRuleTracker) Record(rule *ast.Rule) {
 
 	for _, a := range rule.Annotations {
 		if len(a.Labels) > 0 {
-			t.Labels = append(t.Labels, a.Labels)
+			b, _ := json.Marshal(a.Labels)
+			key := string(b)
+			if t.seen == nil {
+				t.seen = make(map[string]struct{})
+			}
+			if _, dup := t.seen[key]; !dup {
+				t.seen[key] = struct{}{}
+				t.Labels = append(t.Labels, a.Labels)
+			}
 		}
 	}
 }
