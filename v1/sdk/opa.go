@@ -172,7 +172,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		plugins.Info(runtimeInfo),
 		plugins.Logger(opa.logger),
 		plugins.ConsoleLogger(opa.console),
-		plugins.WithParserOptions(ast.ParserOptions{RegoVersion: opa.regoVersion}),
+		plugins.WithParserOptions(ast.ParserOptions{ProcessAnnotation: true, RegoVersion: opa.regoVersion}),
 		plugins.EnablePrintStatements(opa.logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: opa.logger}),
 		plugins.WithHooks(opa.hooks),
