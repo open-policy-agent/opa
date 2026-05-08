@@ -62,10 +62,10 @@ Alice is a _Director_ of the _Engineering_ department. The application sends her
 
 ```json title="input.json"
 {
-  "user": { 
-    "name": "Alice", 
-    "role": "director", 
-    "department": "engineering" 
+  "user": {
+    "name": "Alice",
+    "role": "director",
+    "department": "engineering"
   }
 }
 ```

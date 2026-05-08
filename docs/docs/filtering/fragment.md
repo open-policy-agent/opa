@@ -43,6 +43,7 @@ erDiagram
 ```
 
 ## Context data for Partial Evaluation
+
 ### Unknowns: database rows
 
 Database rows are **unknown** at policy evaluation time — OPA does not have access to the database. They are represented in Rego using the convention `input.<TABLE>.<COLUMN>`, e.g. `input.fruits.name` refers to the `name` column of the `fruits` table.

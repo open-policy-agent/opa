@@ -19,13 +19,13 @@ You will write an authorization policy, use OPA's partial evaluation to derive a
 
 We'll work with the following dataset:
 
-| name  | department  | role      | salary |
-|-------|-------------|-----------|--------|
-| Alice | engineering | director  | 130000 |
-| Bob   | engineering | engineer  |  90000 |
-| Carol | engineering | engineer  |  85000 |
-| Dave  | marketing   | director  | 120000 |
-| Eve   | marketing   | manager   |  95000 |
+| name  | department  | role     | salary |
+| ----- | ----------- | -------- | ------ |
+| Alice | engineering | director | 130000 |
+| Bob   | engineering | engineer | 90000  |
+| Carol | engineering | engineer | 85000  |
+| Dave  | marketing   | director | 120000 |
+| Eve   | marketing   | manager  | 95000  |
 
 Save the following SQL to a file named `employees.sql`:
 
@@ -48,7 +48,7 @@ sqlite3 company.db < employees.sql
 
 The rule is: Directors may see the salaries of employees in their own department.
 
-`input.employees` is declared as *unknown* — it represents database rows that OPA has not seen yet. `input.user` is *known* at query time and its values will be substituted during partial evaluation.
+`input.employees` is declared as _unknown_ — it represents database rows that OPA has not seen yet. `input.user` is _known_ at query time and its values will be substituted during partial evaluation.
 
 Save the following Rego code to a file named `policy.rego`:
 
@@ -117,10 +117,10 @@ sqlite3 company.db "SELECT name, salary FROM employees $FILTER;"
 Output — Alice sees all Engineering salaries:
 
 | name  | salary |
-|-------|--------|
+| ----- | ------ |
 | Alice | 130000 |
-| Bob   |  90000 |
-| Carol |  85000 |
+| Bob   | 90000  |
+| Carol | 85000  |
 
 Dave is a Director in Marketing, so he gets a different filter from the same policy:
 
@@ -137,9 +137,9 @@ sqlite3 company.db "SELECT name, salary FROM employees $FILTER;"
 Output — Dave sees all Marketing salaries:
 
 | name | salary |
-|------|--------|
+| ---- | ------ |
 | Dave | 120000 |
-| Eve  |  95000 |
+| Eve  | 95000  |
 
 ### 6. Non-Directors are denied
 
@@ -174,12 +174,11 @@ The application never needs to know _how_ the policy decides which salaries are 
 
 ## Handling unconditional results
 
-
-| OPA response               | Meaning             | Application action             |
-|----------------------------|---------------------|--------------------------------|
-| `{ "query": "WHERE ..." }` | Conditional allow   | Append filter to SQL query     |
-| `{ "query": "" }`          | Unconditional allow | Run query with no `WHERE`      |
-| `{}`                       | Unconditional deny  | Return zero rows, skip query   |
+| OPA response               | Meaning             | Application action           |
+| -------------------------- | ------------------- | ---------------------------- |
+| `{ "query": "WHERE ..." }` | Conditional allow   | Append filter to SQL query   |
+| `{ "query": "" }`          | Unconditional allow | Run query with no `WHERE`    |
+| `{}`                       | Unconditional deny  | Return zero rows, skip query |
 
 ## Clean up
 
