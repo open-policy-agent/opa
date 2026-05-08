@@ -2865,11 +2865,12 @@ func (s *Server) updateNDCache(enabled bool) {
 }
 
 func stringPathToDataRef(s string) (ast.Ref, error) {
-	result := ast.Ref{ast.DefaultRootDocument}
 	r, err := stringPathToRef(s)
 	if err != nil {
 		return nil, err
 	}
+	result := make(ast.Ref, 1, 1+len(r))
+	result[0] = ast.DefaultRootDocument
 	return append(result, r...), nil
 }
 

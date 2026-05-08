@@ -187,7 +187,7 @@ func convertPointsToBase64(alg string, r, s []byte) (string, error) {
 	// We serialize the outputs (r and s) into big-endian byte arrays and pad
 	// them with zeros on the left to make sure the sizes work out. Both arrays
 	// must be keyBytes long, and the output must be 2*keyBytes long.
-	rBytesPadded := make([]byte, keyBytes)
+	rBytesPadded := make([]byte, keyBytes, 2*keyBytes)
 	copy(rBytesPadded[keyBytes-len(r):], r)
 	sBytesPadded := make([]byte, keyBytes)
 	copy(sBytesPadded[keyBytes-len(s):], s)

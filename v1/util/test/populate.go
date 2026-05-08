@@ -57,7 +57,7 @@ func populateDefaultTypes(t *testing.T, fieldType reflect.Type, fieldValue refle
 			return true
 		}
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		switch fieldType.Elem().Kind() {
 		case reflect.String:
 			testString := fmt.Sprintf("test-value-%d", index)
@@ -118,7 +118,7 @@ func populateDefaultTypes(t *testing.T, fieldType reflect.Type, fieldValue refle
 			return true
 
 		case fieldType.Key().Kind() == reflect.String &&
-			fieldType.Elem().Kind() == reflect.Ptr &&
+			fieldType.Elem().Kind() == reflect.Pointer &&
 			fieldType.Elem().Elem().Kind() == reflect.Struct:
 
 			elemType := fieldType.Elem().Elem()

@@ -526,7 +526,8 @@ func prettyMetrics(w io.Writer, m metrics.Metrics, limit int) error {
 var statKeys = []string{"min", "max", "mean", "90%", "99%"}
 
 func prettyAggregatedMetrics(w io.Writer, ms map[string]any, limit int) error {
-	keys := []string{"metric"}
+	keys := make([]string, 1, 1+len(statKeys))
+	keys[0] = "metric"
 	tableMetrics := generateTableWithKeys(w, append(keys, statKeys...)...)
 	n, err := populateTableAggregatedMetrics(ms, tableMetrics, limit)
 	if err != nil {
