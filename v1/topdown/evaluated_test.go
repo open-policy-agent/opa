@@ -7,7 +7,12 @@ package topdown_test
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/storage"
+	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 	"github.com/open-policy-agent/opa/v1/topdown"
 )
 
@@ -86,4 +91,141 @@ func TestEvaluatedRuleTracker(t *testing.T) {
 			t.Fatalf("expected 0 label sets, got %d", len(tracker.Labels))
 		}
 	})
+}
+
+func TestEvaluatedRuleLabelsScopes(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		query  string
+		exp    []map[string]any
+	}{
+		{
+			note: "rule scope labels",
+			module: `package test
+
+# METADATA
+# labels:
+#   severity: high
+#   team: security
+allow if input.role == "admin"
+`,
+			query: "data.test.allow",
+			exp: []map[string]any{
+				{"severity": "high", "team": "security"},
+			},
+		},
+		{
+			note: "document scope labels apply to all rules in document",
+			module: `package test
+
+# METADATA
+# scope: document
+# labels:
+#   component: authz
+allow if input.role == "admin"
+
+allow if input.role == "superuser"
+`,
+			query: "data.test.allow",
+			exp: []map[string]any{
+				{"component": "authz"},
+			},
+		},
+		{
+			note: "rule and document scope combine",
+			module: `package test
+
+# METADATA
+# scope: document
+# labels:
+#   component: authz
+
+# METADATA
+# labels:
+#   severity: high
+allow if input.role == "admin"
+
+# METADATA
+# labels:
+#   severity: low
+allow if input.role == "viewer"
+`,
+			query: "data.test.allow",
+			exp: []map[string]any{
+				{"component": "authz"},
+				{"severity": "high"},
+			},
+		},
+		{
+			note: "no labels when rule not satisfied",
+			module: `package test
+
+# METADATA
+# labels:
+#   severity: high
+allow if input.role == "admin"
+`,
+			query: "data.test.allow",
+			input: `{"role": "guest"}`,
+			exp:   nil,
+		},
+		{
+			note: "multiple rules each contribute labels",
+			module: `package test
+
+# METADATA
+# labels:
+#   id: allow-admin
+allow if input.role == "admin"
+
+# METADATA
+# labels:
+#   id: allow-viewer
+allow if input.role == "viewer"
+`,
+			query: "data.test.allow",
+			exp: []map[string]any{
+				{"id": "allow-admin"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mod := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{ProcessAnnotation: true})
+			c := ast.NewCompiler()
+			c.Compile(map[string]*ast.Module{"test": mod})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+
+			inputStr := tc.input
+			if inputStr == "" {
+				inputStr = `{"role": "admin"}`
+			}
+			input := ast.MustParseTerm(inputStr)
+			store := inmem.New()
+			ctx := t.Context()
+			txn := storage.NewTransactionOrDie(ctx, store)
+			defer store.Abort(ctx, txn)
+
+			tracker := &topdown.EvaluatedRuleTracker{}
+			query := topdown.NewQuery(ast.MustParseBody(tc.query)).
+				WithCompiler(c).
+				WithStore(store).
+				WithTransaction(txn).
+				WithInput(input).
+				WithEvaluatedRuleTracker(tracker)
+
+			_, err := query.Run(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if diff := cmp.Diff(tc.exp, tracker.Labels, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("unexpected labels (-want, +got):\n%s", diff)
+			}
+		})
+	}
 }
