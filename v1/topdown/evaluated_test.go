@@ -98,6 +98,7 @@ func TestEvaluatedRuleLabelsScopes(t *testing.T) {
 		note   string
 		module string
 		query  string
+		input  string
 		exp    []map[string]any
 	}{
 		{
