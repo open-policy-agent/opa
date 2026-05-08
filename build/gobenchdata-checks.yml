@@ -1,0 +1,8 @@
+checks:
+  - name: ns-per-op regression
+    description: Flag if NsPerOp regresses by more than 10%
+    package: ""
+    benchmarks: []
+    diff: (current.NsPerOp - base.NsPerOp) / base.NsPerOp * 100
+    thresholds:
+      max: 10
