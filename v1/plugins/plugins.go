@@ -562,10 +562,6 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		m.parserOptions.RegoVersion = ast.DefaultRegoVersion
 	}
 
-	if parsedConfig.IncludeRuleMetadata {
-		m.parserOptions.ProcessAnnotation = true
-	}
-
 	if m.logger == nil {
 		m.logger = logging.Get()
 	}

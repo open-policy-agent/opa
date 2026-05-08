@@ -354,7 +354,7 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		"mask_rule": maskingRule.String(),
 	}
 
-	if err := logger.Log(ctx, txn, urlPath, orig.Query, orig.Input, request.Input, result.Result, ndbCache, nil, m, nil, nil, custom); err != nil {
+	if err := logger.Log(ctx, txn, urlPath, orig.Query, orig.Input, request.Input, result.Result, ndbCache, nil, m, nil, custom); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}

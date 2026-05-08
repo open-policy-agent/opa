@@ -2815,7 +2815,6 @@ func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
 // which isn't handled properly by json for some reason.
 type rawAnnotation struct {
 	Scope            string           `yaml:"scope"`
-	ID               string           `yaml:"id"`
 	Title            string           `yaml:"title"`
 	Entrypoint       bool             `yaml:"entrypoint"`
 	Description      string           `yaml:"description"`
@@ -2881,7 +2880,6 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 	result = &Annotations{
 		comments:      b.comments,
 		Scope:         raw.Scope,
-		ID:            raw.ID,
 		Entrypoint:    raw.Entrypoint,
 		Title:         raw.Title,
 		Description:   raw.Description,

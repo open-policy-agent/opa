@@ -96,7 +96,6 @@ type Config struct {
 	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision,omitempty"`
 	Caching                      json.RawMessage            `json:"caching,omitempty"`
 	NDBuiltinCache               bool                       `json:"nd_builtin_cache,omitempty"`
-	IncludeRuleMetadata          bool                       `json:"include_rule_metadata,omitempty"`
 	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
 	MetricsExport                json.RawMessage            `json:"metrics_export,omitempty"`
@@ -228,11 +227,10 @@ func (c *Config) Clone() *Config {
 	}
 
 	clone := &Config{
-		NDBuiltinCache:      c.NDBuiltinCache,
-		IncludeRuleMetadata: c.IncludeRuleMetadata,
-		Server:              c.Server.Clone(),
-		Storage:             c.Storage.Clone(),
-		Labels:              maps.Clone(c.Labels),
+		NDBuiltinCache: c.NDBuiltinCache,
+		Server:         c.Server.Clone(),
+		Storage:        c.Storage.Clone(),
+		Labels:         maps.Clone(c.Labels),
 	}
 
 	if c.Services != nil {

@@ -291,10 +291,6 @@ type Params struct {
 	// NDBCacheEnabled allows enabling the non-deterministic builtin cache globally.
 	NDBCacheEnabled bool
 
-	// IncludeRuleMetadataInDecisionLogs enables carry-over of custom metadata fields
-	// from evaluated rule annotations into the decision log "custom" field.
-	IncludeRuleMetadataInDecisionLogs bool
-
 	Brand string
 }
 
@@ -311,7 +307,7 @@ func (p *Params) regoVersion() ast.RegoVersion {
 
 func (p *Params) parserOptions() ast.ParserOptions {
 	return ast.ParserOptions{
-		ProcessAnnotation: opa_config.DefaultIncludeRuleMetadata || p.IncludeRuleMetadataInDecisionLogs,
+		ProcessAnnotation: true,
 		RegoVersion:       p.regoVersion(),
 	}
 }
@@ -714,8 +710,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	if lp := logs.Lookup(rt.Manager); lp != nil {
 		rt.server = rt.server.WithNDBCacheEnabled(rt.Params.NDBCacheEnabled || rt.Manager.GetConfig().NDBuiltinCacheEnabled())
 	}
-
-	rt.server = rt.server.WithIncludeRuleMetadata(rt.Params.IncludeRuleMetadataInDecisionLogs || rt.Manager.GetConfig().IncludeRuleMetadata || opa_config.DefaultIncludeRuleMetadata)
 
 	if rt.Params.DiagnosticAddrs != nil {
 		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)

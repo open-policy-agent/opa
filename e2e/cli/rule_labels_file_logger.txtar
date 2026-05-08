@@ -1,4 +1,4 @@
-# Verify that evaluated rule IDs appear in decision logs written via the
+# Verify that rule labels appear in decision logs written via the
 # file_logger plugin (slog-based path).
 
 exec $OPA build -o bundles/bundle.tar.gz --bundle policy/
@@ -8,7 +8,7 @@ http_server bundles
 exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --config-file config.yaml &opa&
 retry curl -sf --unix-socket opa.sock 'http://localhost/health?bundles'
 
-# POST to v1/data — rule with id "allow-admin" should be evaluated.
+# POST to v1/data — rule with labels should be evaluated.
 exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
 jq stdout '.result == true'
 
@@ -19,14 +19,13 @@ jq stdout '.result == false'
 kill -INT opa
 wait opa
 
-# Decision log file should contain ids for the admin request.
-jq -s decisions.log '[.[] | select(.ids == ["allow-admin"])] | length == 1'
+# Decision log file should contain rule_labels for the admin request.
+jq -s decisions.log '[.[] | select(.rule_labels == [{"severity": "low"}])] | length == 1'
 
-# Decision log file should have an entry without ids for the guest request.
-jq -s decisions.log '[.[] | select(.path == "authz/allow" and (.ids == null))] | length == 1'
+# Decision log file should have an entry without rule_labels for the guest request.
+jq -s decisions.log '[.[] | select(.path == "authz/allow" and (.rule_labels == null))] | length == 1'
 
 -- config.yaml --
-include_rule_metadata: true
 services:
   bundle-server:
     url: "http://${HTTP_ADDR}"
@@ -49,11 +48,13 @@ package authz
 default allow := false
 
 # METADATA
-# id: allow-admin
+# labels:
+#   severity: low
 allow if input.role == "admin"
 
 # METADATA
-# id: allow-editor
+# labels:
+#   severity: low
 allow if input.role == "editor"
 
 -- bundles/.gitkeep --

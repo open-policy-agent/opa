@@ -1036,7 +1036,6 @@ The `server` configuration sets:
 | `persistence_directory`          | `string`  | No (default `$PWD/.opa`)            | Set directory to use for persistence with options like `bundles[_].persist`.                                                                                                                                                                                                            |
 | `plugins`                        | `object`  | No (default: `{}`)                  | Location for custom plugin configuration.                                                                                                                                                                                                                                               |
 | `nd_builtin_cache`               | `boolean` | No (default: `false`)               | Enable the non-deterministic builtins caching system during policy evaluation, and include the contents of the cache in decision logs. Note that decision logs that are larger than `upload_size_limit_bytes` will drop the `nd_builtin_cache` key from the log entry before uploading. |
-| `include_rule_metadata`          | `boolean` | No (default: `false`)               | Include custom metadata from evaluated rule annotations in decision logs. When enabled, the `custom` field of each decision log entry will contain a `rule_metadata` key with the custom annotation fields of all successfully evaluated rules. Implies annotation processing.          |
 
 ## Using Environment Variables in Configuration
 

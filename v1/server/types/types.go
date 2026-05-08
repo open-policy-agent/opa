@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -209,9 +210,7 @@ func (r DataRequestV1) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	for key, val := range r.Metadata {
-		base[key] = val
-	}
+	maps.Copy(base, r.Metadata)
 
 	return json.Marshal(base)
 }
@@ -222,7 +221,6 @@ type DataResponseV1 struct {
 	Provenance  *ProvenanceV1 `json:"provenance,omitempty"`
 	Explanation TraceV1       `json:"explanation,omitempty"`
 	Metrics     MetricsV1     `json:"metrics,omitempty"`
-	IDs         []string      `json:"ids,omitempty"`
 	Result      *any          `json:"result,omitempty"`
 	Warning     *Warning      `json:"warning,omitempty"`
 
@@ -636,10 +634,6 @@ const (
 	// ParamStrictBuiltinErrors names the HTTP URL parameter that indicates the client
 	// wants built-in function errors to be treated as fatal.
 	ParamStrictBuiltinErrors = "strict-builtin-errors"
-
-	// ParamEvaluatedRulesV1 names the HTTP URL parameter that indicates the client
-	// wants evaluated rule IDs included in the response.
-	ParamEvaluatedRulesV1 = "ids"
 )
 
 // BadRequestErr represents an error condition raised if the caller passes

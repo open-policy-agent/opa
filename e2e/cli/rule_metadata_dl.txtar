@@ -1,5 +1,5 @@
 # Verify that labels from evaluated rule annotations appear as a top-level
-# field in decision logs when include_rule_metadata is enabled.
+# field in decision logs.
 
 exec $OPA build -o bundles/bundle.tar.gz --bundle policy/
 
@@ -12,7 +12,7 @@ retry curl -sf --unix-socket opa.sock 'http://localhost/health?bundles'
 exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
 jq stdout '.result == true'
 
-# Evaluate violations — triggers both violation rules
+# Evaluate violations — triggers both violation rules; labels collected per-rule.
 exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin", "dept": "eng"}}' http://localhost/v1/data/authz/violations
 jq stdout '.result | length == 2'
 
@@ -26,7 +26,6 @@ jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow")] 
 jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/violations")] | .[0].rule_labels | sort_by(.category) == [{"severity": "high", "category": "compliance"}, {"severity": "critical", "category": "org-policy"}]'
 
 -- config.yaml --
-include_rule_metadata: true
 services:
   bundle-server:
     url: "http://${HTTP_ADDR}"
@@ -46,26 +45,22 @@ package authz
 default allow := false
 
 # METADATA
-# id: allow-admin
 # labels:
 #   severity: low
 allow if input.role == "admin"
 
 # METADATA
-# id: allow-editor
 # labels:
 #   severity: low
 allow if input.role == "editor"
 
 # METADATA
-# id: no-admin-role
 # labels:
 #   severity: high
 #   category: compliance
 violations contains "admin role is restricted" if input.role == "admin"
 
 # METADATA
-# id: no-admin-in-eng
 # labels:
 #   severity: critical
 #   category: org-policy

@@ -5,37 +5,14 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Evaluated Rules in Decision Logs and API Responses
+### Rule Labels in Decision Logs
 
-Rules can now be annotated with a metadata `id` field. When any loaded policy contains
-rules with `id` annotations, the IDs of successfully evaluated rules are automatically
-included in decision log events (as `ids`). Additionally, the Data API supports a `?ids`
-query parameter to include the same information directly in the response payload.
-Duplicate IDs from functions called multiple times are suppressed.
+Rule annotations now support a `labels` field. Labels from all successfully evaluated
+rules are collected and included in each decision log entry as a top-level `rule_labels`
+array. Each element preserves the label map from one evaluated rule.
 
 ```rego
 # METADATA
-# id: allow-admin
-allow if input.role == "admin"
-```
-
-When external rule sources are registered, rule tracking is always enabled so that
-externally-provided rules with `id` annotations are recorded.
-
-### Rule Labels in Metadata and Decision Logs
-
-Rule annotations now support a `labels` field. When `include_rule_metadata` is enabled,
-labels from all successfully evaluated rules are collected and included in each decision
-log entry as a top-level `rule_labels` array. Each element preserves the label map from
-one evaluated rule.
-
-```yaml
-include_rule_metadata: true
-```
-
-```rego
-# METADATA
-# id: allow-admin
 # labels:
 #   severity: low
 #   team: platform
@@ -48,12 +25,7 @@ The resulting decision log entry will contain:
 {"rule_labels": [{"severity": "low", "team": "platform"}]}
 ```
 
-Embedding projects can change the default by setting `config.DefaultIncludeRuleMetadata = true`.
-
-Note: when using `include_rule_metadata` via the configuration file, policies must be loaded
-via the bundle plugin (i.e. configured through `services` and `bundles` in the config) for
-annotations to be processed correctly. Policies loaded from command-line paths are parsed
-before the configuration is available.
+The runtime now processes metadata annotations by default.
 
 ## 1.16.1
 

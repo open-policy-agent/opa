@@ -345,7 +345,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 			if record.Error == nil {
 				record.Results = &result.Result
 			}
-			record.EvaluatedRuleIDs = tracker.IDs
+			record.EvaluatedRuleLabels = tracker.Labels
 		},
 	)
 	if err != nil {
