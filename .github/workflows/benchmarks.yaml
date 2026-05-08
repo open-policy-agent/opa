@@ -124,9 +124,9 @@ jobs:
           fi
 
           REPORT=$(jq -r '
-            .checks[]
-            | select(.status != "pass")
-            | "| \(.name) | \(.status) | \(.diffs | length) benchmarks |"
+            .Checks | to_entries[]
+            | select(.value.Status != "pass")
+            | "| \(.key) | \(.value.Status) | \([.value.Diffs[] | select(.Status != "pass")] | length) benchmarks |"
           ' report.json)
 
           BODY=$(cat <<EOF
