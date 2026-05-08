@@ -172,6 +172,45 @@ jobs:
           name: binaries-darwin
           path: _release
 
+  deploy-edge:
+    name: Deploy Edge Prerelease
+    runs-on: ubuntu-24.04
+    needs: [ release-build, release-build-darwin ]
+    permissions:
+      contents: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download release binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: _release
+
+      - name: Create or update edge prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Delete the previous edge release if it exists
+          gh release delete edge --yes --cleanup-tag || true
+
+          # Collect all OPA binaries from the release directory
+          ASSETS=()
+          for asset in _release/*/opa_*_*; do
+            ASSETS+=("$asset")
+          done
+
+          gh release create edge \
+            --prerelease \
+            --target ${{ github.sha }} \
+            --title "Edge (latest main)" \
+            --notes "Automated prerelease from the latest main branch commit ($(git rev-parse --short HEAD))." \
+            "${ASSETS[@]}"
+
   deploy-wasm-builder:
     name: Deploy WASM Builder
     runs-on: ubuntu-24.04
