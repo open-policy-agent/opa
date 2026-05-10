@@ -78,7 +78,7 @@ func TestServerSpan(t *testing.T) {
 		if !spans[0].SpanContext.IsValid() {
 			t.Fatalf("invalid span created: %#v", spans[0].SpanContext)
 		}
-		if got, expected := spans[0].Name, "v0/data"; got != expected {
+		if got, expected := spans[0].Name, "POST v0/data"; got != expected {
 			t.Fatalf("Expected span name to be %q but got %q", expected, got)
 		}
 		if got, expected := spans[0].SpanKind.String(), "server"; got != expected {
@@ -126,7 +126,7 @@ func TestServerSpan(t *testing.T) {
 		if !spans[0].SpanContext.IsValid() {
 			t.Fatalf("invalid span created: %#v", spans[0].SpanContext)
 		}
-		if got, expected := spans[0].Name, "v1/data"; got != expected {
+		if got, expected := spans[0].Name, "GET v1/data"; got != expected {
 			t.Fatalf("Expected span name to be %q but got %q", expected, got)
 		}
 		if got, expected := spans[0].SpanKind.String(), "server"; got != expected {
@@ -644,7 +644,7 @@ allow if {
 		if !spans[0].SpanContext.IsValid() {
 			t.Fatalf("invalid span created: %#v", spans[0].SpanContext)
 		}
-		if got, expected := spans[0].Name, server.PromHandlerAPIAuthz; got != expected {
+		if got, expected := spans[0].Name, "POST "+server.PromHandlerAPIAuthz; got != expected {
 			t.Fatalf("Expected span name to be %q but got %q", expected, got)
 		}
 		if got, expected := spans[0].SpanKind.String(), "server"; got != expected {
@@ -830,13 +830,13 @@ func TestControlPlaneSpans(t *testing.T) {
 				t.Fatalf("invalid span created: %#v", span.SpanContext)
 			}
 		}
-		if got, expected := spans[0].Name, "v1/data"; got != expected {
+		if got, expected := spans[0].Name, "POST v1/data"; got != expected {
 			t.Fatalf("Expected span name to be %q but got %q", expected, got)
 		}
 		if got, expected := spans[0].SpanKind.String(), "server"; got != expected {
 			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
 		}
-		if got, expected := spans[1].Name, "HTTP POST"; got != expected {
+		if got, expected := spans[1].Name, "POST /logs"; got != expected {
 			t.Fatalf("Expected span name to be %q but got %q", expected, got)
 		}
 		if got, expected := spans[1].SpanKind.String(), "client"; got != expected {
