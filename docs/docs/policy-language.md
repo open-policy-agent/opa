@@ -1403,15 +1403,15 @@ Have a look at the other examples for
 about using this keyword.
 :::
 
-#### Improved Negation Semantics
+### Improved Negation Semantics
 
 The `future.keywords.not` import fixes a long-standing semantic issue with
 negation in Rego.
 
-##### The problem with legacy negation
+#### The problem with legacy negation
 
 Without the import, the compiler expands a negated composite expression like
-`not f(g(input.x))` into a series of sub-expressions evaluated *before* the
+`not f(g(input.x))` into a series of sub-expressions evaluated _before_ the
 `not`:
 
 ```
@@ -1426,7 +1426,7 @@ This is unintuitive: the user's intent is "the condition does not hold," but
 an undefined intermediate value causes a silent failure instead of the expected
 `not` result.
 
-##### Implicit body wrapping
+#### Implicit body wrapping
 
 With `import future.keywords.not`, composite-expression negation wraps the full
 compiler expansion in an implicit body:
@@ -1435,7 +1435,7 @@ compiler expansion in an implicit body:
 not { __local0__ = input.x; g(__local0__, __local1__); f(__local1__) }
 ```
 
-Now, if *any* sub-expression is undefined or fails, the body is unsatisfiable
+Now, if _any_ sub-expression is undefined or fails, the body is unsatisfiable
 and the `not` expression succeeds; matching the intuition that "the condition does not hold."
 
 ```json
@@ -1476,7 +1476,7 @@ Notice how if we remove the `future.keywords.not` import in the above policy, th
 This is a consequence of the `lookup()` function failing with an `undefined` value.
 :::
 
-##### Explicit negation bodies
+#### Explicit negation bodies
 
 The import also enables a `not` expression to take a curly-brace-enclosed body
 instead of a single expression:

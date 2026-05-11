@@ -1,6 +1,6 @@
 package play
 
-import future.keywords.not
+#import future.keywords.not
 
 deny contains "must be staff" if {
 	not "staff" in input.roles
