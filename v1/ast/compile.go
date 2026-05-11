@@ -1852,6 +1852,30 @@ func (c *Compiler) setAnnotationSet() {
 		c.err(err)
 	}
 	c.annotationSet = as
+
+	// Propagate subpackages-scoped labels to rules in descendant packages.
+	for _, mod := range c.Modules {
+		subPkgAnnots := as.GetSubpackagesScope(mod.Package.Path)
+		if len(subPkgAnnots) == 0 {
+			continue
+		}
+		var subPkgLabels []map[string]any
+		for _, a := range subPkgAnnots {
+			if len(a.Labels) > 0 {
+				subPkgLabels = append(subPkgLabels, a.Labels)
+			}
+		}
+		if len(subPkgLabels) == 0 {
+			continue
+		}
+		for _, rule := range mod.Rules {
+			prepend := make([]*Annotations, len(subPkgLabels))
+			for i, labels := range subPkgLabels {
+				prepend[i] = &Annotations{Labels: labels}
+			}
+			rule.Annotations = append(prepend, rule.Annotations...)
+		}
+	}
 }
 
 // checkTypes runs the type checker on all rules. The type checker builds a

@@ -544,7 +544,20 @@ func attachRuleAnnotations(mod *Module) {
 		cpy[i] = a.Copy(a.node)
 	}
 
+	// Collect package-scope labels to propagate to all rules.
+	var pkgLabels map[string]any
+	for _, a := range cpy {
+		if a.Scope == annotationScopePackage && len(a.Labels) > 0 {
+			pkgLabels = a.Labels
+			break
+		}
+	}
+
 	for _, rule := range mod.Rules {
+		if pkgLabels != nil {
+			rule.Annotations = append(rule.Annotations, &Annotations{Labels: pkgLabels})
+		}
+
 		var j int
 		var found bool
 		for i, a := range cpy {
