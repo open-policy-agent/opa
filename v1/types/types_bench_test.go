@@ -57,11 +57,12 @@ func BenchmarkAnyMergeOne(b *testing.B) {
 			anyA = append(anyA, tpe)
 		}
 		tpeB := N
-		b.ResetTimer()
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
-			result := anyA.Merge(tpeB)
-			if len(result) != len(anyA)+1 {
-				b.Fatalf("Expected length of merged result to be: %d, got: %d", len(anyA)+1, len(result))
+			for b.Loop() {
+				result := anyA.Merge(tpeB)
+				if len(result) != len(anyA)+1 {
+					b.Fatalf("Expected length of merged result to be: %d, got: %d", len(anyA)+1, len(result))
+				}
 			}
 		})
 	}
