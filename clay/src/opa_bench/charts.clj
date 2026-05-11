@@ -4,6 +4,29 @@
             [clojure.string :as str]
             [opa-bench.data :as data]))
 
+(def measure-labels
+  {"NsPerOp"    "time"
+   "AllocsPerOp" "allocations"
+   "BytesPerOp" "memory"})
+
+(defn- format-value [measure v]
+  (let [v (double v)]
+    (case measure
+      "NsPerOp"    (cond
+                     (>= v 1e9) (format "%.2fs" (/ v 1e9))
+                     (>= v 1e6) (format "%.2fms" (/ v 1e6))
+                     (>= v 1e3) (format "%.2fµs" (/ v 1e3))
+                     :else       (format "%.2fns" v))
+      "BytesPerOp" (cond
+                     (>= v 1e9) (format "%.2fGB" (/ v 1e9))
+                     (>= v 1e6) (format "%.2fMB" (/ v 1e6))
+                     (>= v 1e3) (format "%.2fKB" (/ v 1e3))
+                     :else       (format "%.0fB" v))
+      "AllocsPerOp" (cond
+                      (>= v 1e6) (format "%.2fM allocs" (/ v 1e6))
+                      (>= v 1e3) (format "%.2fK allocs" (/ v 1e3))
+                      :else       (format "%.0f allocs" v)))))
+
 (defn benchmark-chart [pkg bench-name]
   (let [bench-rows (->> data/rows
                         (filter #(and (= (:pkg %) pkg)
@@ -17,7 +40,7 @@
                            basis-val (if (zero? basis-val) 1 basis-val)]
                        {:x    (mapv #(or (:tag %) (subs (:commit %) 0 7)) rows)
                         :y    (mapv #(/ (double (:value %)) basis-val) rows)
-                        :text (mapv #(str (long (:value %))) rows)
+                        :text (mapv #(format-value measure (:value %)) rows)
                         :customdata
                         (mapv (fn [r]
                                 (let [c (data/commits (:commit r))]
@@ -28,7 +51,7 @@
                                    :url     (str "https://github.com/open-policy-agent/opa/commit/"
                                                  (:commit r))}))
                               rows)
-                        :name measure
+                        :name (measure-labels measure measure)
                         :type "scatter"
                         :mode "lines+markers"
                         :line {:shape "hvh"}
