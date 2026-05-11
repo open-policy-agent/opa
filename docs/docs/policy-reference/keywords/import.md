@@ -78,10 +78,32 @@ output := sprintf("Hello, %v", [p1.name])
   files="#package1.rego"
   command="data.package2"/>
 
+## Importing Future Keywords
+
+The `in`, `every`, `if`, `contains`, and `not` (semantic update) keywords
+have been introduced to the Rego language over time, and in order to prevent
+them from breaking policies that existed before their introduction, an opt-in mechanism
+has been necessary. The `future.keywords.*` imports facilitate this
+opt-in mechanism. With the release of OPA v1.x, the `in`, `every`, `if`, and `contains`
+keywords have become a standard part of the Rego language, and no longer require an import.
+The `not` keyword has always been a standard part of the Rego language, but has since its introduction
+received a semantic update that requires author opt-in through importing `future.keywords.not`.
+
+### Importing `future.keywords.not`
+
+[import future.keywords.not](./not) enables the `not` body syntax
+(`not { ... }`) and implicit body wrapping for single-expression negation.
+This import is independent of the [rego.v1 import](#importing-regov1).
+
+:::important
+The `future.keywords.not` import fixes a long-standing semantic issue with negation in Rego.
+Read more about it in the [Improved Negation Semantics](../../policy-language#improved-negation-semantics) section of the Policy Language overview.
+:::
+
 ## Importing `rego.v1`
 
 In [OPA 1.0](https://www.openpolicyagent.org/docs/v0-upgrade) a number of
-previously optional keywords will be required. These settings for the Rego
+previously optional keywords are required. These settings for the Rego
 language is available in pre-1.0 versions using the `import` keyword. The two
 files that follow are equivalent.
 

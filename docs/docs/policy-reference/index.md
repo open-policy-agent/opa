@@ -355,8 +355,8 @@ The reference documentation for these functions can be found under
 
 ## Reserved Names & Keywords
 
-The following words are reserved and cannot be used as variable names, rule
-names, or dot-access style reference arguments:
+The following words are reserved and cannot be used as variable names or rule
+names:
 
 - `as`
 - `contains` ([Examples](./policy-reference/keywords/contains))
@@ -394,7 +394,7 @@ rule-head-set   = "contains" term [ "if" ] | "[" term "]"
 rule-args       = term { "," term }
 rule-body       = [ "else" [ assign-operator term ] [ "if" ] ] ( "{" query "}" ) | literal
 query           = literal { ( ";" | ( [CR] LF ) ) literal }
-literal         = ( some-decl | expr | "not" expr ) { with-modifier }
+literal         = ( some-decl | expr | "not" ( expr | "{" query "}" ) ) { with-modifier }
 with-modifier   = "with" term "as" term
 some-decl       = "some" term { "," term } { "in" expr }
 expr            = term | expr-call | expr-infix | expr-every | expr-parens | unary-expr

@@ -292,8 +292,8 @@ adoption of these keywords and their usage is prevalent in the OPA
 documentation, Rego Playground, etc.
 
 In OPA v1.0 the `in`, `every`, `if` and `contains` keywords are part of the
-language by default and the `future.keywords` imports will become a no-op. A
-policy that makes use of these keywords, but doesn't import `future.keywords` is
+language by default and importing these will become a no-op. A
+policy that makes use of these keywords, but doesn't import them is
 valid in OPA v1.0 but not in older versions of OPA.
 
 ### Enforce use of `if` and `contains` keywords in rule head declarations
