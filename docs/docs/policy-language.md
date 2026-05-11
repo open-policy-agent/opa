@@ -2668,10 +2668,11 @@ message := "welcome!" if allow
 ### Metadata `labels`
 
 The `labels` annotation is a map of arbitrary key-value pairs attached to a
-rule (or document). When rules with `labels` are successfully evaluated, their
-label sets are automatically recorded in decision log events under the
-`rule_labels` field. Labels from document-scoped and rule-scoped annotations
-are both collected.
+rule (or document, package, or subpackages scope). When rules with `labels` are
+successfully evaluated, their label sets are automatically recorded in decision
+log events under the `rule_labels` field. Labels from subpackages-scoped,
+package-scoped, document-scoped, and rule-scoped annotations are all collected
+and aggregated.
 
 ```rego
 # METADATA

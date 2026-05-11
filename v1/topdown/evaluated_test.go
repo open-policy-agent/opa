@@ -95,11 +95,12 @@ func TestEvaluatedRuleTracker(t *testing.T) {
 
 func TestEvaluatedRuleLabelsScopes(t *testing.T) {
 	tests := []struct {
-		note   string
-		module string
-		query  string
-		input  string
-		exp    []map[string]any
+		note    string
+		module  string
+		modules map[string]string
+		query   string
+		input   string
+		exp     []map[string]any
 	}{
 		{
 			note: "rule scope labels",
@@ -190,13 +191,108 @@ allow if input.role == "viewer"
 				{"id": "allow-admin"},
 			},
 		},
+		{
+			note: "package scope labels inherited by rules",
+			module: `# METADATA
+# scope: package
+# labels:
+#   service: auth
+package test
+
+# METADATA
+# labels:
+#   severity: high
+allow if input.role == "admin"
+`,
+			query: "data.test.allow",
+			exp: []map[string]any{
+				{"service": "auth"},
+				{"severity": "high"},
+			},
+		},
+		{
+			note: "package and document and rule scope all combine",
+			module: `# METADATA
+# scope: package
+# labels:
+#   service: auth
+package test
+
+# METADATA
+# scope: document
+# labels:
+#   component: authz
+
+# METADATA
+# labels:
+#   severity: high
+allow if input.role == "admin"
+`,
+			query: "data.test.allow",
+			exp: []map[string]any{
+				{"service": "auth"},
+				{"component": "authz"},
+				{"severity": "high"},
+			},
+		},
+		{
+			note: "both rules fire, both severities collected",
+			module: `package test
+
+# METADATA
+# labels:
+#   severity: high
+reasons contains "admin" if "admin" in input.roles
+
+# METADATA
+# labels:
+#   severity: low
+reasons contains "viewer" if "viewer" in input.roles
+`,
+			query: "data.test.reasons",
+			input: `{"roles": ["admin", "viewer"]}`,
+			exp: []map[string]any{
+				{"severity": "high"},
+				{"severity": "low"},
+			},
+		},
+		{
+			note: "subpackages scope labels inherited by rules in child packages",
+			modules: map[string]string{
+				"parent": `# METADATA
+# scope: subpackages
+# labels:
+#   org: acme
+package test
+`,
+				"child": `package test.authz
+
+# METADATA
+# labels:
+#   severity: high
+allow if input.role == "admin"
+`,
+			},
+			query: "data.test.authz.allow",
+			exp: []map[string]any{
+				{"org": "acme"},
+				{"severity": "high"},
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			mod := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{ProcessAnnotation: true})
+			modules := make(map[string]*ast.Module)
+			if tc.modules != nil {
+				for name, src := range tc.modules {
+					modules[name] = ast.MustParseModuleWithOpts(src, ast.ParserOptions{ProcessAnnotation: true})
+				}
+			} else {
+				modules["test"] = ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{ProcessAnnotation: true})
+			}
 			c := ast.NewCompiler()
-			c.Compile(map[string]*ast.Module{"test": mod})
+			c.Compile(modules)
 			if c.Failed() {
 				t.Fatal(c.Errors)
 			}
