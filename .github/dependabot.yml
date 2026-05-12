@@ -4,6 +4,7 @@ updates:
     directories:
     - /
     - /e2e
+    - /build/tools
     schedule:
       interval: monthly
     groups:
