@@ -377,6 +377,263 @@ func TestCompileHandlerMaskingRules(t *testing.T) {
 	})
 }
 
+func TestCompileFiltersRequestUnmarshalMetadata(t *testing.T) {
+	t.Parallel()
+
+	body := `{
+		"input": {"user": "alice"},
+		"unknowns": ["input.resources"],
+		"options": {"maskRule": "masks"},
+		"snapshot_id": "t|2026-05-13T00:00:00Z|2026-05-13T00:10:00Z|s",
+		"com.example.opa/metadata": {"trace_id": "xyz-789"}
+	}`
+
+	var req CompileFiltersRequestV1
+	if err := json.Unmarshal([]byte(body), &req); err != nil {
+		t.Fatal(err)
+	}
+
+	if req.Input == nil {
+		t.Fatal("expected input")
+	}
+	if req.Unknowns == nil || len(*req.Unknowns) != 1 || (*req.Unknowns)[0] != "input.resources" {
+		t.Fatalf("unexpected unknowns: %v", req.Unknowns)
+	}
+	if req.Options.MaskRule != "masks" {
+		t.Fatalf("unexpected maskRule: %v", req.Options.MaskRule)
+	}
+
+	if req.Metadata == nil {
+		t.Fatal("expected metadata")
+	}
+	if req.Metadata["snapshot_id"] != "t|2026-05-13T00:00:00Z|2026-05-13T00:10:00Z|s" {
+		t.Fatalf("unexpected snapshot_id: %v", req.Metadata["snapshot_id"])
+	}
+	md, ok := req.Metadata["com.example.opa/metadata"].(map[string]any)
+	if !ok {
+		t.Fatal("expected com.example.opa/metadata in metadata")
+	}
+	if md["trace_id"] != "xyz-789" {
+		t.Fatalf("unexpected trace_id: %v", md["trace_id"])
+	}
+
+	// Known fields must not appear in metadata
+	for _, key := range []string{"input", "unknowns", "options", "query"} {
+		if _, ok := req.Metadata[key]; ok {
+			t.Fatalf("'%s' should not be in metadata", key)
+		}
+	}
+}
+
+func TestCompileResponseMarshalMetadata(t *testing.T) {
+	t.Parallel()
+
+	result := any("WHERE name = 'alice'")
+	resp := CompileResponseV1{
+		Result:   &result,
+		Metadata: map[string]any{"snapshot_id": "t|new-snapshot"},
+	}
+
+	data, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	if decoded["snapshot_id"] != "t|new-snapshot" {
+		t.Fatalf("expected snapshot_id in response JSON, got %v", decoded["snapshot_id"])
+	}
+	if decoded["result"] == nil {
+		t.Fatal("expected result in response JSON")
+	}
+}
+
+func TestCompileResponseMarshalMetadataNoOverride(t *testing.T) {
+	t.Parallel()
+
+	result := any("WHERE name = 'alice'")
+	resp := CompileResponseV1{
+		Result: &result,
+		Metadata: map[string]any{
+			"result":      "should-not-override",
+			"snapshot_id": "t|valid",
+		},
+	}
+
+	data, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	// "result" must not be overridden by metadata
+	if decoded["result"] != "WHERE name = 'alice'" {
+		t.Fatalf("result should not be overridden, got %v", decoded["result"])
+	}
+	if decoded["snapshot_id"] != "t|valid" {
+		t.Fatalf("expected snapshot_id, got %v", decoded["snapshot_id"])
+	}
+}
+
+func TestCompileResponseMarshalNoMetadata(t *testing.T) {
+	t.Parallel()
+
+	result := any("WHERE name = 'alice'")
+	resp := CompileResponseV1{
+		Result: &result,
+	}
+
+	data, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := decoded["snapshot_id"]; ok {
+		t.Fatal("snapshot_id should not appear without metadata")
+	}
+}
+
+func TestCompileHandlerRequestMetadata(t *testing.T) {
+	t.Parallel()
+
+	rego := `package filters
+# METADATA
+# scope: document
+# compile:
+#   unknowns: [input.fruits]
+include if input.fruits.name == "apple"
+`
+
+	var logged *Info
+	f := setup(t, rego, nil)
+	f.server = f.server.WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
+		logged = info
+		return nil
+	})
+
+	payload := map[string]any{
+		"input":                    map[string]any{"max": 1},
+		"snapshot_id":              "t|2026-05-13T00:00:00Z|2026-05-13T00:10:00Z|s",
+		"com.example.opa/metadata": map[string]any{"trace_id": "abc-123"},
+	}
+
+	req := evalReq(t, "filters/include", payload, "application/vnd.opa.sql.postgresql+json")
+	if err := f.executeRequest(req, http.StatusOK, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if logged == nil {
+		t.Fatal("expected decision log entry")
+	}
+	if logged.Custom == nil {
+		t.Fatal("expected Custom in decision log")
+	}
+
+	incoming, ok := logged.Custom["request_metadata"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected request_metadata in Custom, got %v", logged.Custom)
+	}
+
+	if incoming["snapshot_id"] != "t|2026-05-13T00:00:00Z|2026-05-13T00:10:00Z|s" {
+		t.Fatalf("expected snapshot_id in request_metadata, got %v", incoming["snapshot_id"])
+	}
+
+	md, ok := incoming["com.example.opa/metadata"].(map[string]any)
+	if !ok {
+		t.Fatal("expected com.example.opa/metadata in request_metadata")
+	}
+	if md["trace_id"] != "abc-123" {
+		t.Fatalf("expected trace_id='abc-123', got %v", md["trace_id"])
+	}
+
+	// Known fields must not leak into metadata
+	for _, key := range []string{"input", "unknowns", "options", "query"} {
+		if _, ok := incoming[key]; ok {
+			t.Fatalf("'%s' should not appear in request_metadata", key)
+		}
+	}
+
+	if _, ok := logged.Custom["response_metadata"]; ok {
+		t.Fatal("response_metadata should be absent when nothing populates it")
+	}
+}
+
+func TestCompileHandlerResponseMetadata(t *testing.T) {
+	t.Parallel()
+
+	rego := `package filters
+# METADATA
+# scope: document
+# compile:
+#   unknowns: [input.fruits]
+include if {
+    test.set_outgoing()
+    input.fruits.name == "apple"
+}
+`
+
+	var logged *Info
+	f := setup(t, rego, nil)
+	f.server = f.server.WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
+		logged = info
+		return nil
+	})
+
+	payload := map[string]any{
+		"input":       map[string]any{"max": 1},
+		"snapshot_id": "t|2026-05-13T00:00:00Z|2026-05-13T00:10:00Z|s",
+	}
+
+	req := evalReq(t, "filters/include", payload, "application/vnd.opa.sql.postgresql+json")
+	if err := f.executeRequest(req, http.StatusOK, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check the HTTP response body contains response metadata
+	var respBody map[string]any
+	if err := json.NewDecoder(f.recorder.Result().Body).Decode(&respBody); err != nil {
+		t.Fatal(err)
+	}
+
+	if respBody["version"] != "1.0" {
+		t.Fatalf("expected version='1.0' in response body, got %v", respBody["version"])
+	}
+
+	// Check decision log
+	if logged == nil {
+		t.Fatal("expected decision log entry")
+	}
+	if logged.Custom == nil {
+		t.Fatal("expected Custom in decision log")
+	}
+
+	outgoing, ok := logged.Custom["response_metadata"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected response_metadata in Custom, got %v", logged.Custom)
+	}
+	if outgoing["version"] != "1.0" {
+		t.Fatalf("expected version='1.0' in response_metadata, got %v", outgoing["version"])
+	}
+
+	// Request metadata should also be present
+	if _, ok := logged.Custom["request_metadata"].(map[string]any); !ok {
+		t.Fatal("expected request_metadata in Custom")
+	}
+}
+
 func evalReq(t testing.TB, path string, payload map[string]any, target string) *http.Request {
 	t.Helper()
 

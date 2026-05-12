@@ -88,6 +88,49 @@ type CompileFiltersRequestV1 struct {
 		TargetDialects  []string       `json:"targetDialects,omitempty"`
 		MaskRule        string         `json:"maskRule,omitempty"`
 	} `json:"options"`
+
+	// Metadata holds any additional top-level fields not defined in this struct.
+	// These fields are preserved during JSON unmarshaling, allowing wrapping
+	// projects to pass through custom key/value pairs (e.g. snapshot_id).
+	Metadata map[string]any `json:"-"`
+}
+
+var compileFiltersKnownKeys = map[string]bool{
+	"input": true, "query": true, "unknowns": true, "options": true,
+}
+
+func (r *CompileFiltersRequestV1) UnmarshalJSON(data []byte) error {
+	type Alias CompileFiltersRequestV1
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(r),
+	}
+
+	if err := util.UnmarshalJSON(data, aux); err != nil {
+		return err
+	}
+
+	var raw map[string]json.RawMessage
+	if err := util.UnmarshalJSON(data, &raw); err != nil {
+		return err
+	}
+
+	for key, val := range raw {
+		if compileFiltersKnownKeys[key] {
+			continue
+		}
+		if r.Metadata == nil {
+			r.Metadata = make(map[string]any)
+		}
+		var v any
+		if err := util.UnmarshalJSON(val, &v); err != nil {
+			return err
+		}
+		r.Metadata[key] = v
+	}
+
+	return nil
 }
 
 type compileFiltersRequest struct {
@@ -107,6 +150,37 @@ type CompileResponseV1 struct {
 	Explanation types.TraceV1     `json:"explanation,omitempty"`
 	Metrics     types.MetricsV1   `json:"metrics,omitempty"`
 	Hints       []failtracer.Hint `json:"hints,omitempty"`
+
+	Metadata map[string]any `json:"-"`
+}
+
+var compileResponseReservedFields = map[string]bool{
+	"result": true, "explanation": true, "metrics": true, "hints": true,
+}
+
+func (r CompileResponseV1) MarshalJSON() ([]byte, error) {
+	type Alias CompileResponseV1
+	data, err := json.Marshal(Alias(r))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(r.Metadata) == 0 {
+		return data, nil
+	}
+
+	var base map[string]any
+	if err := json.Unmarshal(data, &base); err != nil {
+		return nil, err
+	}
+
+	for key, val := range r.Metadata {
+		if !compileResponseReservedFields[key] {
+			base[key] = val
+		}
+	}
+
+	return json.Marshal(base)
 }
 
 func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
@@ -266,7 +340,8 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 
 	qt := failtracer.New()
 
-	filters, err := preparedCompile.Compile(ctx,
+	respMetadata := map[string]any{}
+	evalOpts := []rego.EvalOption{
 		rego.EvalTransaction(txn),
 		rego.EvalParsedInput(request.Input),
 		rego.EvalPrintHook(s.manager.PrintHook()),
@@ -274,7 +349,13 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
 		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalQueryTracer(qt),
-	)
+		rego.EvalResponseMetadata(respMetadata),
+	}
+	if orig.Metadata != nil {
+		evalOpts = append(evalOpts, rego.EvalRequestMetadata(orig.Metadata))
+	}
+
+	filters, err := preparedCompile.Compile(ctx, evalOpts...)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -338,6 +419,11 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.Timer(metrics.ServerHandler).Stop()
+
+	if len(respMetadata) > 0 {
+		result.Metadata = respMetadata
+	}
+
 	fin(w, result, contentType, m, includeMetrics(r), includeInstrumentation, pretty(r))
 
 	unk := make([]string, len(unknowns))
@@ -352,6 +438,12 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		"unknowns":  unk,
 		"type":      decisionLogType,
 		"mask_rule": maskingRule.String(),
+	}
+	if len(orig.Metadata) > 0 {
+		custom["request_metadata"] = orig.Metadata
+	}
+	if len(respMetadata) > 0 {
+		custom["response_metadata"] = respMetadata
 	}
 
 	if err := logger.Log(ctx, txn, urlPath, orig.Query, orig.Input, request.Input, result.Result, ndbCache, nil, m, nil, custom); err != nil {
