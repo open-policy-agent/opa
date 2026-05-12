@@ -432,7 +432,7 @@ jobs:
         path: _release
 
     - name: Prep tests
-      run: go install github.com/rogpeppe/go-internal/cmd/testscript@latest
+      run: cd build/tools && go install tool
 
     - name: CLI E2E tests
       run: |
