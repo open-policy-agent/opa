@@ -590,10 +590,8 @@ jobs:
       with:
         persist-credentials: false
 
-    - name: Setup OPA
-      uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
-      with:
-        version: latest
+    - name: Build OPA
+      uses: ./.github/actions/build-opa
 
     - name: Check generated docs are up to date
       run: make docs-gen-check
