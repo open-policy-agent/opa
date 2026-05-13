@@ -19,11 +19,11 @@ jq stdout '.result | length == 2'
 kill -INT opa
 wait opa
 
-# Decision log for allow should have rule_labels with the single matching rule's labels.
-jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow")] | .[0].rule_labels == [{"severity": "low"}]'
+# Decision log for allow should have rule_labels with package and rule scope merged.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow")] | .[0].rule_labels == [{"service": "authz", "severity": "low"}]'
 
-# Decision log for violations should have one entry per evaluated rule, preserving per-rule grouping.
-jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/violations")] | .[0].rule_labels | sort_by(.category) == [{"severity": "high", "category": "compliance"}, {"severity": "critical", "category": "org-policy"}]'
+# Decision log for violations should have one merged entry per evaluated rule.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/violations")] | .[0].rule_labels | sort_by(.category) == [{"service": "authz", "severity": "high", "category": "compliance"}, {"service": "authz", "severity": "critical", "category": "org-policy"}]'
 
 -- config.yaml --
 services:
@@ -40,6 +40,10 @@ decision_logs:
   console: true
 
 -- policy/authz.rego --
+# METADATA
+# scope: package
+# labels:
+#   service: authz
 package authz
 
 default allow := false

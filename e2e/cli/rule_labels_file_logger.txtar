@@ -19,11 +19,13 @@ jq stdout '.result == false'
 kill -INT opa
 wait opa
 
-# Decision log file should contain rule_labels for the admin request.
-jq -s decisions.log '[.[] | select(.rule_labels == [{"severity": "low"}])] | length == 1'
+# Decision log file should contain rule_labels merged from document and rule
+# scopes for the admin request.
+jq -s decisions.log '[.[] | select(.rule_labels == [{"component": "authz", "severity": "low"}])] | length == 1'
 
-# Decision log file should have an entry without rule_labels for the guest request.
-jq -s decisions.log '[.[] | select(.path == "authz/allow" and (.rule_labels == null))] | length == 1'
+# Decision log file for the guest request triggers the default rule; it has no
+# rule-scope labels of its own, so only the document-scope labels apply.
+jq -s decisions.log '[.[] | select(.path == "authz/allow" and (.rule_labels == [{"component": "authz"}]))] | length == 1'
 
 -- config.yaml --
 services:
@@ -46,6 +48,11 @@ decision_logs:
 package authz
 
 default allow := false
+
+# METADATA
+# scope: document
+# labels:
+#   component: authz
 
 # METADATA
 # labels:

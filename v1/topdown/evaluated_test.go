@@ -17,74 +17,12 @@ import (
 )
 
 func TestEvaluatedRuleTracker(t *testing.T) {
-	t.Run("collects labels", func(t *testing.T) {
-		tracker := &topdown.EvaluatedRuleTracker{}
-		tracker.Record(&ast.Rule{
-			Annotations: []*ast.Annotations{
-				{Labels: map[string]any{"severity": "low"}},
-			},
-		})
-		if len(tracker.Labels) != 1 {
-			t.Fatalf("expected 1 label set, got %d", len(tracker.Labels))
-		}
-		if tracker.Labels[0]["severity"] != "low" {
-			t.Fatalf("expected severity=low, got %v", tracker.Labels[0])
-		}
-	})
-
-	t.Run("deduplicates identical labels", func(t *testing.T) {
-		tracker := &topdown.EvaluatedRuleTracker{}
-		labels := map[string]any{"team": "platform", "severity": "high"}
-		tracker.Record(&ast.Rule{
-			Annotations: []*ast.Annotations{{Labels: labels}},
-		})
-		tracker.Record(&ast.Rule{
-			Annotations: []*ast.Annotations{{Labels: labels}},
-		})
-		if len(tracker.Labels) != 1 {
-			t.Fatalf("expected 1 label set (deduplicated), got %d", len(tracker.Labels))
-		}
-	})
-
-	t.Run("keeps distinct labels", func(t *testing.T) {
-		tracker := &topdown.EvaluatedRuleTracker{}
-		tracker.Record(&ast.Rule{
-			Annotations: []*ast.Annotations{
-				{Labels: map[string]any{"severity": "low"}},
-			},
-		})
-		tracker.Record(&ast.Rule{
-			Annotations: []*ast.Annotations{
-				{Labels: map[string]any{"severity": "high"}},
-			},
-		})
-		if len(tracker.Labels) != 2 {
-			t.Fatalf("expected 2 label sets, got %d", len(tracker.Labels))
-		}
-	})
-
 	t.Run("nil tracker is safe", func(t *testing.T) {
 		var tracker *topdown.EvaluatedRuleTracker
-		tracker.Record(&ast.Rule{
-			Annotations: []*ast.Annotations{
-				{Labels: map[string]any{"x": "y"}},
-			},
-		})
+		tracker.Record(&ast.Rule{})
 	})
 
-	t.Run("skips rules without labels", func(t *testing.T) {
-		tracker := &topdown.EvaluatedRuleTracker{}
-		tracker.Record(&ast.Rule{
-			Annotations: []*ast.Annotations{
-				{Custom: map[string]any{"foo": "bar"}},
-			},
-		})
-		if len(tracker.Labels) != 0 {
-			t.Fatalf("expected 0 label sets, got %d", len(tracker.Labels))
-		}
-	})
-
-	t.Run("skips rules without annotations", func(t *testing.T) {
+	t.Run("no annotation set is a no-op", func(t *testing.T) {
 		tracker := &topdown.EvaluatedRuleTracker{}
 		tracker.Record(&ast.Rule{})
 		if len(tracker.Labels) != 0 {
@@ -155,8 +93,7 @@ allow if input.role == "viewer"
 `,
 			query: "data.test.allow",
 			exp: []map[string]any{
-				{"component": "authz"},
-				{"severity": "high"},
+				{"component": "authz", "severity": "high"},
 			},
 		},
 		{
@@ -206,8 +143,7 @@ allow if input.role == "admin"
 `,
 			query: "data.test.allow",
 			exp: []map[string]any{
-				{"service": "auth"},
-				{"severity": "high"},
+				{"service": "auth", "severity": "high"},
 			},
 		},
 		{
@@ -230,9 +166,31 @@ allow if input.role == "admin"
 `,
 			query: "data.test.allow",
 			exp: []map[string]any{
-				{"service": "auth"},
-				{"component": "authz"},
-				{"severity": "high"},
+				{"service": "auth", "component": "authz", "severity": "high"},
+			},
+		},
+		{
+			note: "inner scope wins on conflicting keys",
+			module: `# METADATA
+# scope: package
+# labels:
+#   severity: low
+#   service: auth
+package test
+
+# METADATA
+# scope: document
+# labels:
+#   severity: medium
+
+# METADATA
+# labels:
+#   severity: high
+allow if input.role == "admin"
+`,
+			query: "data.test.allow",
+			exp: []map[string]any{
+				{"service": "auth", "severity": "high"},
 			},
 		},
 		{
@@ -257,6 +215,30 @@ reasons contains "viewer" if "viewer" in input.roles
 			},
 		},
 		{
+			note: "identical merged labels across rules are deduplicated",
+			module: `# METADATA
+# scope: package
+# labels:
+#   service: auth
+package test
+
+# METADATA
+# labels:
+#   severity: low
+allow if input.role == "admin"
+
+# METADATA
+# labels:
+#   severity: low
+allow if input.role == "editor"
+`,
+			query: "data.test.allow",
+			input: `{"role": "admin"}`,
+			exp: []map[string]any{
+				{"service": "auth", "severity": "low"},
+			},
+		},
+		{
 			note: "subpackages scope labels inherited by rules in child packages",
 			modules: map[string]string{
 				"parent": `# METADATA
@@ -275,8 +257,36 @@ allow if input.role == "admin"
 			},
 			query: "data.test.authz.allow",
 			exp: []map[string]any{
-				{"org": "acme"},
-				{"severity": "high"},
+				{"org": "acme", "severity": "high"},
+			},
+		},
+		{
+			note: "inner subpackages scope overrides outer subpackages scope",
+			modules: map[string]string{
+				"root": `# METADATA
+# scope: subpackages
+# labels:
+#   org: acme
+#   tier: free
+package test
+`,
+				"mid": `# METADATA
+# scope: subpackages
+# labels:
+#   tier: enterprise
+package test.authz
+`,
+				"leaf": `package test.authz.users
+
+# METADATA
+# labels:
+#   severity: high
+allow if input.role == "admin"
+`,
+			},
+			query: "data.test.authz.users.allow",
+			exp: []map[string]any{
+				{"org": "acme", "tier": "enterprise", "severity": "high"},
 			},
 		},
 	}
