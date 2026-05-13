@@ -153,9 +153,13 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       - name: Setup Clojure
-        uses: DeLaGuardo/setup-clojure@02f5a82b79a547523e664fe8a7a32ea14884d7b2 # 13.6.0
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
-          cli: latest
+          install: true
+          cache: true
+          mise_toml: |
+            [tools]
+            clojure = "1.12.5.1638"
       - name: Cache Clojure dependencies
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -168,7 +172,7 @@ jobs:
         run: rm -rf docs/*.html
       - name: update notebook
         run: |
-          clojure -M -m opa-bench.generate
+          clojure -J-Xss32m -M -m opa-bench.generate
         working-directory: clay/
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
