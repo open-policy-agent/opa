@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/agnivade/levenshtein v1.2.1
-	github.com/bytecodealliance/wasmtime-go/v43 v43.0.2
+	github.com/bytecodealliance/wasmtime-go/v44 v44.0.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/fortytw2/leaktest v1.3.0
