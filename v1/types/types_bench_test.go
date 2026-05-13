@@ -83,12 +83,13 @@ func BenchmarkAnyUnionAllUniqueTypes(b *testing.B) {
 				tpe := generateTypeWithPrefix(i, "B-")
 				anyB = append(anyB, tpe)
 			}
-			b.ResetTimer()
 			b.Run(fmt.Sprintf("%dx%d", sizeA, sizeB), func(b *testing.B) {
-				resultA2B := anyA.Union(anyB)
-				// Expect length to be A + B - 1, because the `object` type is present in both Any type sets.
-				if len(resultA2B) != (len(anyA) + len(anyB) - 1) {
-					b.Fatalf("Expected length of unioned result to be: %d, got: %d", len(anyA)+len(anyB), len(resultA2B))
+				for b.Loop() {
+					resultA2B := anyA.Union(anyB)
+					// Expect length to be A + B - 1, because the `object` type is present in both Any type sets.
+					if len(resultA2B) != (len(anyA) + len(anyB) - 1) {
+						b.Fatalf("Expected length of unioned result to be: %d, got: %d", len(anyA)+len(anyB)-1, len(resultA2B))
+					}
 				}
 			})
 		}
