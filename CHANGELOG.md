@@ -38,6 +38,11 @@ The resulting decision log entry will contain:
 
 Both the runtime and the Go SDK now process metadata annotations by default.
 
+## 1.16.2
+
+This release updates the version of Go used to build the OPA binaries and images to 1.26.3;
+addressing [a number of vulnerabilities](https://groups.google.com/g/golang-announce/c/qcCIEXso47M).
+
 ## 1.16.1
 
 This is a patch release addressing a regression ([#8590](https://github.com/open-policy-agent/opa/pull/8590)) in the plugin manager that may cause the service to hang on shutdown.
