@@ -63,7 +63,7 @@ used for comparison only. The rule reports a violation only when both sides of t
 2. References (e.g. `input.foo.bar`)
 3. An input variable — meaning a variable which has previously been assigned a value outside of the expression
 
-To provide a simple example of the the third point:
+To provide a simple example of the third point:
 
 ```rego
 rule if {
