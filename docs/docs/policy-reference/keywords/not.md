@@ -14,6 +14,11 @@ allow if {
 }
 ```
 
+:::important
+The `future.keywords.not` import fixes a long-standing semantic issue with negation in Rego.
+Read more about it in the [Improved Negation Semantics](../../policy-language#improved-negation-semantics) section of the Policy Language overview.
+:::
+
 ## Examples
 
 <PlaygroundExample dir={require.context('./_examples/not/undefined/')} />

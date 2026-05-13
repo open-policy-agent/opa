@@ -174,7 +174,7 @@ Features present in the list are enabled, while features not present are disable
 
 :::info
 It is recommended to use the `rego.v1` import instead of `future.keywords` imports, as this will ensure that your policy is compatible with the future release of [OPA v1.0](./v0-upgrade/)
-If the `rego.v1` import is present in a module, then `future.keywords` and `future.keywords.*` import is implied, and not allowed.
+If the `rego.v1` import is present in a module, then `future.keywords.in`, `future.keywords.every`, `future.keywords.if`, and `future.keywords.contains` imports are implied, and not allowed.
 :::
 
 The availability of future keywords in an OPA version can also be controlled using the capabilities file:

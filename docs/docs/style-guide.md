@@ -1031,11 +1031,11 @@ of completeness, and to provide context for older policies.
 
 ### Use explicit imports for future keywords
 
-**With the introduction of the `import rego.v1` construct in OPA v0.59.0, this is no longer needed**
+**With the introduction of the `import rego.v1` construct in OPA v0.59.0, this is no longer needed for `in`, `every`, `contains`, and `if`.**
 
 In order to evolve the Rego language without breaking existing policies, many new features require importing
 ["future" keywords](https://www.openpolicyagent.org/docs/policy-language#future-keywords), like `contains`,
-`every`, `if` and `in`. While it might seem convenient to use the "catch-all" form of `import future.keywords` to
+`every`, `if`, `in` and `not`. While it might seem convenient to use the "catch-all" form of `import future.keywords` to
 import all of the future keywords, this construct risks breaking your policies when new keywords are introduced, and
 their names happen to collide with names you've used for variables or rules.
 

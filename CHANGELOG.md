@@ -5,6 +5,41 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Improved Negation Semantics ([#8387](https://github.com/open-policy-agent/opa/issues/8387))
+
+This OPA release introduces a new [`future.keywords.not` import](https://www.openpolicyagent.org/docs/policy-language#improved-negation-semantics) 
+that fixes a long-standing semantic issue with negation in Rego.
+
+Without the import, the compiler expands a negated composite expression like
+`not f(g(input.x))` into a series of sub-expressions evaluated *before* the
+`not`:
+
+```
+__local0__ = input.x
+g(__local0__, __local1__)
+not f(__local1__)
+```
+
+If any sub-expression fails — for example, `input.x` is undefined or `g`
+produces an undefined result — the entire rule fails rather than the `not` succeeding.
+This is unintuitive: the user's intent is "the condition does not hold," but
+an undefined intermediate value causes a silent failure instead of the expected
+`not` result.
+
+With `import future.keywords.not`, composite-expression negation wraps the full compiler 
+expansion in an implicit body:
+
+```
+not { __local0__ = input.x; g(__local0__, __local1__); f(__local1__) }
+```
+
+Now, if *any* sub-expression is undefined or fails, the body is unsatisfiable
+and the `not` expression succeeds; matching the intuition that "the condition does not hold."
+
+> **_NOTE:_**
+>
+> Users are recommended to import `future.keywords.not` whenever the `not` keyword is used in a policy.
+
 ### Rule Labels in Decision Logs
 
 Rule annotations now support a `labels` field. Labels from all successfully evaluated
