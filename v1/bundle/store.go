@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -425,7 +424,6 @@ func Deactivate(opts *DeactivateOpts) error {
 }
 
 func activateBundles(opts *ActivateOpts) error {
-
 	// Build collections of bundle names, modules, and roots to erase
 	erase := map[string]struct{}{}
 	names := map[string]struct{}{}
@@ -477,9 +475,7 @@ func activateBundles(opts *ActivateOpts) error {
 
 	// Validate data in bundle does not contain paths outside the bundle's roots.
 	for _, b := range snapshotBundles {
-
 		if b.lazyLoadingMode {
-
 			for _, item := range b.Raw {
 				path := filepath.ToSlash(item.Path)
 
@@ -613,7 +609,6 @@ func doDFS(obj map[string]json.RawMessage, path string, roots []string) error {
 }
 
 func activateDeltaBundles(opts *ActivateOpts, bundles map[string]*Bundle) error {
-
 	// Check that the manifest roots and wasm resolvers in the delta bundle
 	// match with those currently in the store
 	for name, b := range bundles {
@@ -686,7 +681,6 @@ func valueToManifest(v any) (Manifest, error) {
 // erase bundles by name and roots. This will clear all policies and data at its roots and remove its
 // manifest from storage.
 func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, names map[string]struct{}, roots map[string]struct{}) (map[string]*ast.Module, error) {
-
 	if err := eraseData(ctx, store, txn, roots); err != nil {
 		return nil, err
 	}
@@ -775,7 +769,6 @@ func readModuleInfoFromStore(ctx context.Context, store storage.Store, txn stora
 }
 
 func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, parserOpts ast.ParserOptions, roots map[string]struct{}) (map[string]*ast.Module, []string, error) {
-
 	ids, err := store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, nil, err
@@ -862,8 +855,8 @@ func writeEtagToStore(opts *ActivateOpts, name, etag string) error {
 }
 
 func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn storage.Transaction, b *Bundle,
-	mf ModuleFile, storagePath string, runtimeRegoVersion ast.RegoVersion) error {
-
+	mf ModuleFile, storagePath string, runtimeRegoVersion ast.RegoVersion,
+) error {
 	var regoVersion ast.RegoVersion
 	if mf.Parsed != nil {
 		regoVersion = mf.Parsed.RegoVersion()
@@ -967,7 +960,6 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 }
 
 func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource]) error {
-
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
@@ -1010,7 +1002,6 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 }
 
 func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, externalSources *util.HasherMap[ast.Ref, ast.ExternalRuleSource]) error {
-
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
@@ -1083,67 +1074,165 @@ func lookup(path storage.Path, data map[string]any) (any, bool) {
 	return value, ok
 }
 
+// rootEntry is a (bundle, root) pair, used for the
+// sort-and-scan algorithm in hasRootsOverlap.
+type rootEntry struct {
+	bundle    string
+	canonical string // cannonicalized bundle root path
+}
+
+// displayRoot is used for cleaner error messages.
+func (e rootEntry) displayRoot() string {
+	return strings.Trim(e.canonical, "/")
+}
+
+// canonicalRoot normalizes a raw bundle root so that string prefix
+// matching correctly handles path segments.
+// Example: "/a/b/" is a prefix of "/a/b/c/" but not of "/a/bc/".
+func canonicalRoot(raw string) string {
+	trimmed := strings.Trim(raw, "/")
+	if trimmed == "" {
+		return "/"
+	}
+	return "/" + trimmed + "/"
+}
+
+// appendRootEntries appends one rootEntry per root in the `roots` slice
+// to the `entries` slice, returning the updated entries list. Bundles
+// declaring an empty root are tracked in `bundlesWithEmptyRoots` for the
+// empty-root error-message special case.
+func appendRootEntries(entries []rootEntry, bundlesWithEmptyRoots map[string]bool, name string, roots []string) []rootEntry {
+	for _, raw := range roots {
+		if raw == "" {
+			bundlesWithEmptyRoots[name] = true
+		}
+		entries = append(entries, rootEntry{
+			bundle:    name,
+			canonical: canonicalRoot(raw),
+		})
+	}
+	return entries
+}
+
+// hasRootsOverlap verifies that the roots declared by the bundles being
+// activated do not collide with each other or with any bundle already
+// present in the store.
+//
+// Intuition: We sort all paths lexicographically, then scan forward for
+// prefix matches. Prefix matches == collisions. This works because
+// shorter path prefixes will always be sorted ahead of any colliding
+// longer paths.
+//
+// We use one loop to scan for exact matches. This forms a group of known
+// conflicting paths. We then scan forward from that group until we hit
+// a path which does not have our root path as the prefix. We then generate
+// the conflict sets for all of the paths in the group against each other,
+// and then against any conflicting longer paths.
+//
+// All conflicts among the post-activation root set are reported.
+// Existing bundles in the store are assumed conflict-free with each
+// other — an invariant maintained because each was checked against the
+// store at its own activation time. Replacing a bundle takes its new
+// roots only; the store's stale view of that bundle is discarded
+// during setup so it can't produce phantom conflicts against the
+// replacement's own new roots.
 func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Transaction, newBundles map[string]*Bundle) error {
 	storeBundles, err := ReadBundleNamesFromStore(ctx, store, txn)
 	if suppressNotFound(err) != nil {
 		return err
 	}
 
-	allRoots := map[string][]string{}
+	// Flatten every root (existing + new) into one entry list. A bundle
+	// being re-activated takes its roots from newBundles only; the
+	// store's stale view of that bundle is skipped.
 	bundlesWithEmptyRoots := map[string]bool{}
+	entries := make([]rootEntry, 0, len(storeBundles)+2*len(newBundles))
 
-	// Build a map of roots for existing bundles already in the system
 	for _, name := range storeBundles {
+		if _, replaced := newBundles[name]; replaced {
+			continue
+		}
 		roots, err := ReadBundleRootsFromStore(ctx, store, txn, name)
 		if suppressNotFound(err) != nil {
 			return err
 		}
-		allRoots[name] = roots
-		if slices.Contains(roots, "") {
-			bundlesWithEmptyRoots[name] = true
-		}
+		entries = appendRootEntries(entries, bundlesWithEmptyRoots, name, roots)
 	}
-
-	// Add in any bundles that are being activated, overwrite existing roots
-	// with new ones where bundles are in both groups.
 	for name, bundle := range newBundles {
-		allRoots[name] = *bundle.Manifest.Roots
-		if slices.Contains(*bundle.Manifest.Roots, "") {
-			bundlesWithEmptyRoots[name] = true
-		}
+		entries = appendRootEntries(entries, bundlesWithEmptyRoots, name, *bundle.Manifest.Roots)
 	}
 
-	// Now check for each new bundle if it conflicts with any of the others
+	// Sort the bundle roots list.
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].canonical != entries[j].canonical {
+			return entries[i].canonical < entries[j].canonical
+		}
+		return entries[i].bundle < entries[j].bundle
+	})
+
 	collidingBundles := map[string]bool{}
 	conflictSet := map[string]bool{}
-	for name, bundle := range newBundles {
-		for otherBundle, otherRoots := range allRoots {
-			if name == otherBundle {
-				// Skip the current bundle being checked
-				continue
+	groupBundles := map[string]bool{} // reused across iterations via clear()
+
+	// Scan through the sorted list of bundle root paths iteratively,
+	// identifying conflict groups for later reporting at the end.
+	// If there's a cluster of exact path matches, we can advance the
+	// groupStart index to the end of that group after we've accounted
+	// for the conflicts.
+	for groupStart := 0; groupStart < len(entries); {
+		// Identify the group of entries sharing the
+		// exact same canonical root.
+		groupEnd := groupStart + 1
+		for groupEnd < len(entries) && entries[groupEnd].canonical == entries[groupStart].canonical {
+			groupEnd++
+		}
+
+		clear(groupBundles) // Reuse the conflict group map.
+		for k := groupStart; k < groupEnd; k++ {
+			groupBundles[entries[k].bundle] = true
+		}
+
+		// Same-root conflict: more than one bundle shares this root.
+		if len(groupBundles) > 1 {
+			for k := groupStart; k < groupEnd; k++ {
+				collidingBundles[entries[k].bundle] = true
+			}
+			conflictSet[fmt.Sprintf("root %s is in multiple bundles", entries[groupStart].displayRoot())] = true
+		}
+
+		groupCanonical := entries[groupStart].canonical
+		groupDisplay := entries[groupStart].displayRoot()
+
+		// Descendant conflicts: forward scan while the group's canonical
+		// root is a prefix of the next entry's canonical root.
+		for d := groupEnd; d < len(entries); d++ {
+			// Break if next entry isn't a conflict.
+			if !strings.HasPrefix(entries[d].canonical, groupCanonical) {
+				break
 			}
 
-			// Compare the "new" roots with other existing (or a different bundles new roots)
-			for _, newRoot := range *bundle.Manifest.Roots {
-				for _, otherRoot := range otherRoots {
-					if !RootPathsOverlap(newRoot, otherRoot) {
-						continue
-					}
-
-					collidingBundles[name] = true
-					collidingBundles[otherBundle] = true
-
-					// Different message required if the roots are same
-					if newRoot == otherRoot {
-						conflictSet[fmt.Sprintf("root %s is in multiple bundles", newRoot)] = true
-					} else {
-						paths := []string{newRoot, otherRoot}
-						sort.Strings(paths)
-						conflictSet[fmt.Sprintf("%s overlaps %s", paths[0], paths[1])] = true
-					}
+			// Pair the descendant against every group entry from a different bundle.
+			sawCrossBundleConflict := false
+			for k := groupStart; k < groupEnd; k++ {
+				if entries[k].bundle == entries[d].bundle {
+					continue
 				}
+				collidingBundles[entries[k].bundle] = true
+				sawCrossBundleConflict = true
+			}
+
+			// Only record a conflict if the descendant overlaps with an
+			// ancestor declared by a different bundle. A single bundle
+			// is allowed to declare overlapping roots in its own manifest.
+			if sawCrossBundleConflict {
+				collidingBundles[entries[d].bundle] = true
+				paths := []string{groupDisplay, entries[d].displayRoot()}
+				sort.Strings(paths)
+				conflictSet[fmt.Sprintf("%s overlaps %s", paths[0], paths[1])] = true
 			}
 		}
+
+		groupStart = groupEnd
 	}
 
 	if len(collidingBundles) == 0 {
@@ -1209,8 +1298,10 @@ func applyPatches(ctx context.Context, store storage.Store, txn storage.Transact
 // LegacyManifestStoragePath is the older unnamed bundle path for manifests to be stored.
 //
 // Deprecated: Use ManifestStoragePath and named bundles instead.
-var legacyManifestStoragePath = storage.MustParsePath("/system/bundle/manifest")
-var legacyRevisionStoragePath = append(legacyManifestStoragePath, "revision")
+var (
+	legacyManifestStoragePath = storage.MustParsePath("/system/bundle/manifest")
+	legacyRevisionStoragePath = append(legacyManifestStoragePath, "revision")
+)
 
 // LegacyWriteManifestToStore will write the bundle manifest to the older single (unnamed) bundle manifest location.
 //
