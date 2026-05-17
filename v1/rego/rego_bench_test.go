@@ -12,6 +12,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/storage"
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
+	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -464,4 +465,92 @@ local_var if {
 			}
 		})
 	}
+}
+
+// BenchmarkAggregatedLabels measures the overhead of aggregating labels
+// from rule annotations during evaluation. Both sub-benchmarks evaluate the
+// same policy; "off" runs without an EvaluatedRuleTracker, "on" attaches one
+// per evaluation so that labels from each fired rule are recorded.
+func BenchmarkAggregatedLabels(b *testing.B) {
+	ctx := b.Context()
+
+	module := ast.MustParseModuleWithOpts(`# METADATA
+# scope: package
+# labels:
+#   service: authz
+package test
+
+# METADATA
+# labels:
+#   id: allow-admin
+#   severity: high
+allow if input.role == "admin"
+
+# METADATA
+# labels:
+#   id: allow-viewer
+#   severity: low
+allow if input.role == "viewer"
+
+# METADATA
+# labels:
+#   id: allow-token
+#   severity: medium
+allow if input.token == "secret"
+
+# METADATA
+# labels:
+#   id: reason-admin
+reasons contains "admin" if "admin" in input.roles
+
+# METADATA
+# labels:
+#   id: reason-viewer
+reasons contains "viewer" if "viewer" in input.roles
+
+# METADATA
+# labels:
+#   id: reason-editor
+reasons contains "editor" if "editor" in input.roles
+`, ast.ParserOptions{ProcessAnnotation: true})
+
+	r := New(
+		ParsedQuery(ast.MustParseBody("data.test.reasons = x")),
+		ParsedModule(module),
+		GenerateJSON(noOpGenerateJSON),
+	)
+
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	input, err := ast.InterfaceToValue(map[string]any{
+		"role":  "admin",
+		"token": "secret",
+		"roles": []any{"admin", "viewer", "editor"},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.Run("off", func(b *testing.B) {
+		for b.Loop() {
+			if _, err := pq.Eval(ctx, EvalParsedInput(input)); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("on", func(b *testing.B) {
+		for b.Loop() {
+			tracker := &topdown.EvaluatedRuleTracker{}
+			if _, err := pq.Eval(ctx,
+				EvalParsedInput(input),
+				EvalEvaluatedRuleTracker(tracker),
+			); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
