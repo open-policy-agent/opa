@@ -7,11 +7,13 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/url"
+	"runtime"
 	"slices"
 	"strings"
-	"sync/atomic"
-	"unsafe"
+	"sync"
+	"weak"
 
 	"github.com/open-policy-agent/opa/internal/deepcopy"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
@@ -41,9 +43,8 @@ type (
 		Labels           map[string]any               `json:"labels,omitempty"`
 		Location         *Location                    `json:"location,omitempty"`
 
-		comments  []*Comment
-		node      Node
-		labelsKey unsafe.Pointer // *string, lazy-cached JSON key of Labels
+		comments []*Comment
+		node     Node
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -69,10 +70,11 @@ type (
 	}
 
 	AnnotationSet struct {
-		byRule    map[*Rule][]*Annotations
-		byPackage map[int]*Annotations
-		byPath    *annotationTreeNode
-		modules   []*Module // Modules this set was constructed from
+		byRule       map[*Rule][]*Annotations
+		byPackage    map[int]*Annotations
+		byPath       *annotationTreeNode
+		modules      []*Module // Modules this set was constructed from
+		mergedLabels sync.Map  // map[weak.Pointer[Rule]]*ruleLabelsEntry; lazily populated, entries cleaned up via runtime.AddCleanup when rules are GC'd
 	}
 
 	annotationTreeNode struct {
@@ -436,24 +438,8 @@ func (a *Annotations) Copy(node Node) *Annotations {
 	}
 
 	cpy.node = node
-	cpy.labelsKey = nil
 
 	return &cpy
-}
-
-// LabelsKey returns a stable JSON-encoded key derived from a.Labels suitable
-// for content-based deduplication. The key is computed lazily on first call
-// and cached for the lifetime of the Annotations.
-func (a *Annotations) LabelsKey() string {
-	if p := atomic.LoadPointer(&a.labelsKey); p != nil {
-		return *(*string)(p)
-	}
-	b, _ := json.Marshal(a.Labels)
-	key := string(b)
-	if atomic.CompareAndSwapPointer(&a.labelsKey, nil, unsafe.Pointer(&key)) {
-		return key
-	}
-	return *(*string)(atomic.LoadPointer(&a.labelsKey))
 }
 
 // toObject constructs an AST Object from the annotation.
@@ -922,6 +908,17 @@ func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
 
 	ruleAnnots := as.GetRuleScope(rule)
 
+	// Fall back to the rule's own attached annotations when the rule's source
+	// module isn't tracked by this AnnotationSet. This happens for rules
+	// supplied by an ExternalRuleSource that returns []*Rule directly: their
+	// source module is never compiled by the outer Compiler, so the set has no
+	// entries for them at any scope. attachRuleAnnotations (run at parse time)
+	// populates rule.Annotations with rule-scope and document-scope entries,
+	// which is the upper bound of what's reachable for such rules anyway.
+	if len(ruleAnnots) == 0 && len(rule.Annotations) > 0 && !slices.Contains(as.modules, rule.Module) {
+		ruleAnnots = rule.Annotations
+	}
+
 	if len(ruleAnnots) >= 1 {
 		for _, a := range ruleAnnots {
 			refs = append(refs, NewAnnotationsRef(a))
@@ -961,6 +958,62 @@ func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
 	}
 
 	return refs
+}
+
+// ruleLabelsEntry caches the merged labels and dedup key for a single rule.
+type ruleLabelsEntry struct {
+	labels map[string]any
+	key    string
+}
+
+// MergedLabels returns the inner-scope-wins merged labels for the given rule
+// along with a stable string suitable for content-based deduplication. The
+// result is computed once per rule and cached on the AnnotationSet; the cache
+// entry is dropped automatically when the rule is garbage-collected.
+//
+// labels is nil when the rule has no labels anywhere in its annotation chain;
+// in that case key is the empty string.
+func (as *AnnotationSet) MergedLabels(rule *Rule) (labels map[string]any, key string) {
+	if as == nil {
+		return nil, ""
+	}
+	k := weak.Make(rule)
+	if v, ok := as.mergedLabels.Load(k); ok {
+		e := v.(*ruleLabelsEntry)
+		return e.labels, e.key
+	}
+	merged := mergeChainLabels(as.Chain(rule))
+	e := &ruleLabelsEntry{labels: merged}
+	if len(merged) > 0 {
+		b, _ := json.Marshal(merged)
+		e.key = string(b)
+	}
+	actual, loaded := as.mergedLabels.LoadOrStore(k, e)
+	if !loaded {
+		// k is a weak.Pointer (value type) — it does not keep rule alive, so
+		// the cleanup will fire once the rule becomes unreachable elsewhere.
+		runtime.AddCleanup(rule, func(k weak.Pointer[Rule]) { as.mergedLabels.Delete(k) }, k)
+	}
+	e = actual.(*ruleLabelsEntry)
+	return e.labels, e.key
+}
+
+// mergeChainLabels folds labels from a rule's annotation chain with inner-wins
+// precedence. AnnotationSet.Chain returns entries in inner-to-outer order, so
+// we iterate in reverse to fold outer-to-inner.
+func mergeChainLabels(chain AnnotationsRefSet) map[string]any {
+	var merged map[string]any
+	for i := len(chain) - 1; i >= 0; i-- {
+		a := chain[i].Annotations
+		if a == nil || len(a.Labels) == 0 {
+			continue
+		}
+		if merged == nil {
+			merged = make(map[string]any, len(a.Labels))
+		}
+		maps.Copy(merged, a.Labels)
+	}
+	return merged
 }
 
 func (ars FlatAnnotationsRefSet) Insert(ar *AnnotationsRef) FlatAnnotationsRefSet {

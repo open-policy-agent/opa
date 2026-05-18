@@ -5,9 +5,6 @@
 package topdown
 
 import (
-	"encoding/json"
-	"maps"
-
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
@@ -38,14 +35,10 @@ func (t *EvaluatedRuleTracker) Record(rule *ast.Rule) {
 	if t == nil || t.as == nil {
 		return
 	}
-
-	merged := mergeRuleLabels(t.as.Chain(rule))
-	if len(merged) == 0 {
+	labels, key := t.as.MergedLabels(rule)
+	if len(labels) == 0 {
 		return
 	}
-
-	b, _ := json.Marshal(merged)
-	key := string(b)
 	if t.seen == nil {
 		t.seen = make(map[string]struct{})
 	}
@@ -53,23 +46,5 @@ func (t *EvaluatedRuleTracker) Record(rule *ast.Rule) {
 		return
 	}
 	t.seen[key] = struct{}{}
-	t.Labels = append(t.Labels, merged)
-}
-
-// mergeRuleLabels folds labels from a rule's annotation chain with inner-wins
-// precedence. AnnotationSet.Chain returns entries in inner-to-outer order, so
-// we iterate in reverse to fold outer-to-inner.
-func mergeRuleLabels(chain ast.AnnotationsRefSet) map[string]any {
-	var merged map[string]any
-	for i := len(chain) - 1; i >= 0; i-- {
-		a := chain[i].Annotations
-		if a == nil || len(a.Labels) == 0 {
-			continue
-		}
-		if merged == nil {
-			merged = make(map[string]any, len(a.Labels))
-		}
-		maps.Copy(merged, a.Labels)
-	}
-	return merged
+	t.Labels = append(t.Labels, labels)
 }
