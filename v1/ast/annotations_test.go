@@ -7,6 +7,7 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"testing"
 )
 
@@ -1065,6 +1066,56 @@ allow if input.role == "admin"
 	}
 	if !sawRule || !sawDoc {
 		t.Errorf("expected rule- and document-scope entries; sawRule=%v sawDoc=%v", sawRule, sawDoc)
+	}
+}
+
+// MergedLabels must work for rules whose source module isn't tracked by the
+// AnnotationSet, mirroring the Chain fallback behavior so that decision-log
+// label aggregation keeps working for ExternalRuleSource rules.
+func TestAnnotationSet_MergedLabels_ExternalRule(t *testing.T) {
+	mod := MustParseModuleWithOpts(`package test
+
+# METADATA
+# scope: document
+# labels:
+#   component: authz
+#   severity: low
+
+# METADATA
+# labels:
+#   id: allow-admin
+#   severity: high
+allow if input.role == "admin"
+`, ParserOptions{ProcessAnnotation: true})
+
+	rule := mod.Rules[0]
+
+	as, errs := BuildAnnotationSet(nil) // empty: rule is not tracked
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+
+	want := map[string]any{
+		"component": "authz",
+		"id":        "allow-admin",
+		"severity":  "high", // rule scope overrides document scope
+	}
+
+	labels, key := as.MergedLabels(rule)
+	if !maps.Equal(labels, want) {
+		t.Errorf("first call: labels = %v, want %v", labels, want)
+	}
+	if key == "" {
+		t.Error("first call: key should be non-empty for a rule with labels")
+	}
+
+	// Second call must return the cached entry.
+	labels2, key2 := as.MergedLabels(rule)
+	if !maps.Equal(labels2, want) {
+		t.Errorf("second call: labels = %v, want %v", labels2, want)
+	}
+	if key2 != key {
+		t.Errorf("second call: key changed: %q -> %q", key, key2)
 	}
 }
 
