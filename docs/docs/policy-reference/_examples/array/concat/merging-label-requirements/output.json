@@ -1,0 +1,20 @@
+{
+  "base_required_labels": [
+    "app",
+    "owner"
+  ],
+  "deny": [
+    "missing required label: \"cost-center\"",
+    "missing required label: \"environment\""
+  ],
+  "env_required_labels": [
+    "environment",
+    "cost-center"
+  ],
+  "required_labels": [
+    "app",
+    "owner",
+    "environment",
+    "cost-center"
+  ]
+}
