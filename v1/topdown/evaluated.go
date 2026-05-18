@@ -5,8 +5,6 @@
 package topdown
 
 import (
-	"encoding/json"
-
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
@@ -24,16 +22,17 @@ func (t *EvaluatedRuleTracker) Record(rule *ast.Rule) {
 	}
 
 	for _, a := range rule.Annotations {
-		if len(a.Labels) > 0 {
-			b, _ := json.Marshal(a.Labels)
-			key := string(b)
-			if t.seen == nil {
-				t.seen = make(map[string]struct{})
-			}
-			if _, dup := t.seen[key]; !dup {
-				t.seen[key] = struct{}{}
-				t.Labels = append(t.Labels, a.Labels)
-			}
+		if len(a.Labels) == 0 {
+			continue
 		}
+		key := a.LabelsKey()
+		if _, dup := t.seen[key]; dup {
+			continue
+		}
+		if t.seen == nil {
+			t.seen = make(map[string]struct{})
+		}
+		t.seen[key] = struct{}{}
+		t.Labels = append(t.Labels, a.Labels)
 	}
 }

@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync/atomic"
+	"unsafe"
 
 	"github.com/open-policy-agent/opa/internal/deepcopy"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
@@ -39,8 +41,9 @@ type (
 		Labels           map[string]any               `json:"labels,omitempty"`
 		Location         *Location                    `json:"location,omitempty"`
 
-		comments []*Comment
-		node     Node
+		comments  []*Comment
+		node      Node
+		labelsKey unsafe.Pointer // *string, lazy-cached JSON key of Labels
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -433,8 +436,24 @@ func (a *Annotations) Copy(node Node) *Annotations {
 	}
 
 	cpy.node = node
+	cpy.labelsKey = nil
 
 	return &cpy
+}
+
+// LabelsKey returns a stable JSON-encoded key derived from a.Labels suitable
+// for content-based deduplication. The key is computed lazily on first call
+// and cached for the lifetime of the Annotations.
+func (a *Annotations) LabelsKey() string {
+	if p := atomic.LoadPointer(&a.labelsKey); p != nil {
+		return *(*string)(p)
+	}
+	b, _ := json.Marshal(a.Labels)
+	key := string(b)
+	if atomic.CompareAndSwapPointer(&a.labelsKey, nil, unsafe.Pointer(&key)) {
+		return key
+	}
+	return *(*string)(atomic.LoadPointer(&a.labelsKey))
 }
 
 // toObject constructs an AST Object from the annotation.
