@@ -42,30 +42,24 @@ any kind of invariant in your policies. For example:
 Policy decisions are not limited to simple yes/no or allow/deny answers. Like
 query inputs, your policies can generate arbitrary structured data as output.
 
-Let's look at an example. Imagine you work for an organization with the following network infrastructure:
+Let's look at an example. Imagine you work for an organization with a number of servers connected to managed networks via ports:
 
 ```mermaid
 graph
     n1["net1 (private)"]
     n2["net2 (private)"]
     n3["net3 (public)"] --> Internet
-    sCI["ci"] --"p1"--> n1
-    sCI --"p2"--> n2
-    sBusy["busybox"] --"p1"--> n3
-    sApp["app"] --"p1"--> n3
-    sApp --"p2"--> n1
-    sApp --"p3"--> n2
-    sCache["cache"] --"p3"--> n2
+    sCI["ci"] --> n1
+    sCI --> n3
+    sBusy["busybox"] --> n1
+    sApp["app"] --> n1
+    sApp --> n3
+    sApp --> n2
+    sCache["cache"] --> n2
+    sDB["db"] --> n2
 ```
 
-There are three kinds of components in the system:
-
-- Servers listen on a range of ports (for different protocols such as `http`, `ssh`, etc.)
-- Networks connect servers and can be public or private. Public networks are connected to the Internet.
-- Ports attach servers to networks.
-
-All the servers, networks, and ports are provisioned using infrastructure as
-code. The infrastructure configuration is specified in this JSON representation:
+Servers communicate using protocols (such as `http`, `ssh`, etc.) over ports, which attach them to public or private networks. This infrastructure is provisioned as code, represented in JSON:
 
 ```json
 {
@@ -79,8 +73,7 @@ code. The infrastructure configuration is specified in this JSON representation:
   "networks": [
     { "id": "net1", "public": false },
     { "id": "net2", "public": false },
-    { "id": "net3", "public": true },
-    { "id": "net4", "public": true }
+    { "id": "net3", "public": true }
   ],
   "ports": [
     { "id": "p1", "network": "net1" },
@@ -932,8 +925,7 @@ For example:
   "networks": [
     { "id": "net1", "public": false },
     { "id": "net2", "public": false },
-    { "id": "net3", "public": true },
-    { "id": "net4", "public": true }
+    { "id": "net3", "public": true }
   ],
   "ports": [
     { "id": "p1", "network": "net1" },
