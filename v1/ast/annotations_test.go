@@ -1012,6 +1012,62 @@ p = true`,
 	}
 }
 
+// Rules supplied by an ExternalRuleSource are not tracked in the outer
+// compiler's AnnotationSet. Chain must fall back to rule.Annotations so that
+// labels (and other annotation-driven features) remain reachable for them.
+func TestAnnotationSet_Chain_FallbackToRuleAnnotations(t *testing.T) {
+	mod := MustParseModuleWithOpts(`package test
+
+# METADATA
+# scope: document
+# title: doc
+# labels:
+#   component: authz
+
+# METADATA
+# labels:
+#   id: allow-admin
+allow if input.role == "admin"
+`, ParserOptions{ProcessAnnotation: true})
+
+	rule := mod.Rules[0]
+	if len(rule.Annotations) != 2 {
+		t.Fatalf("expected rule.Annotations to carry rule+document scope (2 entries), got %d", len(rule.Annotations))
+	}
+
+	as, errs := BuildAnnotationSet(nil) // empty: rule is not tracked
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+
+	chain := as.Chain(rule)
+	if len(chain) != 2 {
+		t.Fatalf("expected 2 entries from rule.Annotations fallback, got %d: %v", len(chain), toJSON(chain))
+	}
+
+	var sawRule, sawDoc bool
+	for _, ref := range chain {
+		if ref.Annotations == nil {
+			t.Fatalf("expected non-nil Annotations on fallback ref, got placeholder: %v", toJSON(ref))
+		}
+		switch ref.Annotations.Scope {
+		case annotationScopeRule:
+			sawRule = true
+			if got := ref.Annotations.Labels["id"]; got != "allow-admin" {
+				t.Errorf("rule-scope id label: want %q, got %v", "allow-admin", got)
+			}
+		case annotationScopeDocument:
+			sawDoc = true
+			if got := ref.Annotations.Labels["component"]; got != "authz" {
+				t.Errorf("document-scope component label: want %q, got %v", "authz", got)
+			}
+		}
+	}
+	if !sawRule || !sawDoc {
+		t.Errorf("expected rule- and document-scope entries; sawRule=%v sawDoc=%v", sawRule, sawDoc)
+	}
+}
+
 func TestAnnotations_toObject(t *testing.T) {
 	annotations := Annotations{
 		Scope:       annotationScopeRule,

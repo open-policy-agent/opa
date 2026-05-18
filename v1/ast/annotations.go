@@ -922,6 +922,17 @@ func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
 
 	ruleAnnots := as.GetRuleScope(rule)
 
+	// Fall back to the rule's own attached annotations when the rule's source
+	// module isn't tracked by this AnnotationSet. This happens for rules
+	// supplied by an ExternalRuleSource that returns []*Rule directly: their
+	// source module is never compiled by the outer Compiler, so the set has no
+	// entries for them at any scope. attachRuleAnnotations (run at parse time)
+	// populates rule.Annotations with rule-scope and document-scope entries,
+	// which is the upper bound of what's reachable for such rules anyway.
+	if len(ruleAnnots) == 0 && len(rule.Annotations) > 0 && !slices.Contains(as.modules, rule.Module) {
+		ruleAnnots = rule.Annotations
+	}
+
 	if len(ruleAnnots) >= 1 {
 		for _, a := range ruleAnnots {
 			refs = append(refs, NewAnnotationsRef(a))
