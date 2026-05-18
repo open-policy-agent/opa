@@ -44,18 +44,17 @@ and the `not` expression succeeds; matching the intuition that "the condition do
 
 Rule annotations now support a `labels` field. Labels from all successfully evaluated
 rules are collected and included in each decision log entry as a top-level `rule_labels`
-array. Each element preserves the label map from one evaluated rule.
-
-Labels can be defined at package, document, rule, or subpackages scope. Package-scoped
-labels are inherited by all rules in the package. Subpackages-scoped labels apply to all
-rules in descendant packages. Document-scoped labels apply to all rules with the same
-name. All scopes are aggregated and deduplicated.
+array. Each element is the merged label map for one successfully evaluated rule, with
+inner-scope-wins precedence across the rule's annotation chain
+(`subpackages` < `package` < `document` < `rule`). Merged maps are deduplicated
+across rules so that identical label sets collapse to a single entry.
 
 ```rego
 # METADATA
 # scope: package
 # labels:
 #   service: authz
+#   severity: info
 package myapp
 
 # METADATA
@@ -68,8 +67,12 @@ allow if input.role == "admin"
 The resulting decision log entry will contain:
 
 ```json
-{"rule_labels": [{"service": "authz"}, {"severity": "low", "team": "platform"}]}
+{"rule_labels": [{"service": "authz", "severity": "low", "team": "platform"}]}
 ```
+
+Note how `severity: info` from the package scope is overridden by `severity: low` from
+the rule scope. Queries against `rule_labels` can now rely on each entry carrying the
+full label context for a single rule, rather than one entry per contributing scope.
 
 Both the runtime and the Go SDK now process metadata annotations by default.
 
