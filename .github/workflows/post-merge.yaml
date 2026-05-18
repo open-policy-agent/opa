@@ -203,30 +203,6 @@ jobs:
               "${S3_RELEASE_BINARY_URL}/binaries/edge/$(basename "$asset")"
           done
 
-      - name: Create or update dev prerelease
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git tag -f dev
-          git push origin dev -f
-
-          # Collect all OPA binaries from the release directory
-          ASSETS=()
-          for asset in _release/*/opa_*_*; do
-            ASSETS+=("$asset")
-          done
-
-          gh release create dev \
-            --prerelease \
-            --title "Dev (latest main)" \
-            --notes "Automated prerelease from the latest main branch commit ($(git rev-parse --short HEAD))." \
-            "${ASSETS[@]}" || {
-            gh release edit dev \
-              --title "Dev (latest main)" \
-              --notes "Automated prerelease from the latest main branch commit ($(git rev-parse --short HEAD))."
-            gh release upload dev --clobber "${ASSETS[@]}"
-          }
-
   deploy-wasm-builder:
     name: Deploy WASM Builder
     runs-on: ubuntu-24.04
