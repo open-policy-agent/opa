@@ -193,6 +193,16 @@ jobs:
           merge-multiple: true
           path: _release
 
+      - name: Push edge binaries to bucket
+        env:
+          S3_RELEASE_BINARY_URL: ${{ secrets.S3_RELEASE_BINARY_URL }} # zizmor: ignore[secrets-outside-env]
+        if: ${{ env.S3_RELEASE_BINARY_URL }}
+        run: |
+          for asset in _release/*/opa_*_*; do
+            curl -f -X PUT --data-binary @"$asset" \
+              "${S3_RELEASE_BINARY_URL}/binaries/edge/$(basename "$asset")"
+          done
+
       - name: Create or update dev prerelease
         env:
           GH_TOKEN: ${{ github.token }}
