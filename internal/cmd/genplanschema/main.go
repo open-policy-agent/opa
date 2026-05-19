@@ -42,7 +42,6 @@ func reflectSchema() ([]byte, error) {
 	root := orderedMap{
 		{"$schema", "https://json-schema.org/draft/2020-12/schema"},
 		{"$id", "https://openpolicyagent.org/schemas/ir/v1/plan.schema.json"},
-		{"ir_version", "v1"},
 		{"title", "OPA IR Plan"},
 		{"description", "JSON Schema for the IR plan produced by `opa build -t plan`. Generated from v1/ir/ir.go."},
 		{"$ref", rootRef},

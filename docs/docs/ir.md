@@ -17,9 +17,8 @@ published at
 The schema is generated from the Go type definitions in
 [`v1/ir/ir.go`](https://github.com/open-policy-agent/opa/blob/main/v1/ir/ir.go)
 and stays in sync with them via a CI drift test, so it always reflects what the
-current `opa build -t plan` actually emits. The `ir_version` field at the root
-of the schema (currently `v1`) identifies the IR contract; backward-incompatible
-changes will be published under a new path (e.g., `/v2/`).
+current `opa build -t plan` actually emits. Backward-incompatible changes to the
+IR contract will be published under a new path (e.g., `/v2/`).
 
 Use it to validate plan output, generate typed bindings in non-Go languages,
 or feed it into JSON Schema-aware tooling. Example with
