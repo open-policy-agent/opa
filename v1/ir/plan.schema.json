@@ -648,17 +648,22 @@
         "row": {
           "type": "integer"
         },
-        "Index": {
+        "index": {
           "type": "integer"
+        },
+        "Index": {
+          "type": "integer",
+          "deprecated": true,
+          "description": "Deprecated alias for `index`. Both keys are emitted by current OPA versions for backwards compatibility; will be removed in a future major release. Read `index` instead."
         },
         "target": {
           "type": "integer"
         }
       },
       "required": [
-        "Index",
         "col",
         "file",
+        "index",
         "row",
         "target"
       ],

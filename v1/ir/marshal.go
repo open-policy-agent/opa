@@ -103,6 +103,53 @@ type typedOperand struct {
 	Value Val    `json:"value"`
 }
 
+// MarshalJSON for MakeNumberRefStmt emits both "index" (the canonical key,
+// matching the casing of every other field in the IR) and "Index" (the
+// historical key, kept for backwards compatibility with consumers that
+// hard-code the original spelling). The "Index" key is deprecated and will
+// be removed in a future major release; new consumers should read "index".
+func (m *MakeNumberRefStmt) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		File        int   `json:"file"`
+		Col         int   `json:"col"`
+		Row         int   `json:"row"`
+		Index       int   `json:"index"`
+		IndexLegacy int   `json:"Index"` // deprecated; remove in next major
+		Target      Local `json:"target"`
+	}{
+		File:        m.File,
+		Col:         m.Col,
+		Row:         m.Row,
+		Index:       m.Index,
+		IndexLegacy: m.Index,
+		Target:      m.Target,
+	})
+}
+
+// UnmarshalJSON for MakeNumberRefStmt accepts either the canonical "index"
+// key or the deprecated "Index" key. When both are present, "index" wins.
+func (m *MakeNumberRefStmt) UnmarshalJSON(bs []byte) error {
+	var raw struct {
+		File        int   `json:"file"`
+		Col         int   `json:"col"`
+		Row         int   `json:"row"`
+		Index       *int  `json:"index"`
+		IndexLegacy *int  `json:"Index"`
+		Target      Local `json:"target"`
+	}
+	if err := json.Unmarshal(bs, &raw); err != nil {
+		return err
+	}
+	m.File, m.Col, m.Row, m.Target = raw.File, raw.Col, raw.Row, raw.Target
+	switch {
+	case raw.Index != nil:
+		m.Index = *raw.Index
+	case raw.IndexLegacy != nil:
+		m.Index = *raw.IndexLegacy
+	}
+	return nil
+}
+
 var stmtFactories = map[string]func() Stmt{
 	"ReturnLocalStmt":      func() Stmt { return &ReturnLocalStmt{} },
 	"CallStmt":             func() Stmt { return &CallStmt{} },

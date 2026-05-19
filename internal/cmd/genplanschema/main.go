@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -87,9 +88,15 @@ func (b *schemaBuilder) addStruct(t reflect.Type) (string, error) {
 	}
 	name := t.Name()
 	if name == "" {
-		return "", fmt.Errorf("addStruct: anonymous struct not supported")
+		return "", errors.New("addStruct: anonymous struct not supported")
 	}
 	if _, ok := b.defs[name]; ok {
+		return "#/$defs/" + name, nil
+	}
+	// Some structs ship a hand-written MarshalJSON whose JSON shape diverges
+	// from what reflection alone can infer. Override those.
+	if override, ok := structOverrides[name]; ok {
+		b.defs[name] = override()
 		return "#/$defs/" + name, nil
 	}
 	b.defs[name] = nil
@@ -131,7 +138,7 @@ func (b *schemaBuilder) collectFields(t reflect.Type, properties *orderedMap, re
 	}
 	var fields []pendingField
 
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		f := t.Field(i)
 		if !f.IsExported() {
 			continue
@@ -342,6 +349,37 @@ func (b *schemaBuilder) addStmtUnion() (string, error) {
 	}
 	b.defs[name] = orderedMap{{"oneOf", branches}}
 	return "#/$defs/" + name, nil
+}
+
+// structOverrides maps struct type names to schema builders that bypass
+// reflection. Use sparingly — only for types whose JSON form is governed by
+// a hand-written MarshalJSON whose shape reflection alone cannot infer.
+var structOverrides = map[string]func() orderedMap{
+	"MakeNumberRefStmt": makeNumberRefStmtSchema,
+}
+
+// makeNumberRefStmtSchema mirrors MakeNumberRefStmt's MarshalJSON, which
+// emits both the canonical "index" key and the deprecated "Index" key for
+// backwards compatibility. "index" is required; "Index" is permitted but
+// flagged deprecated so consumers know not to depend on it.
+func makeNumberRefStmtSchema() orderedMap {
+	return orderedMap{
+		{"type", "object"},
+		{"properties", orderedMap{
+			{"col", orderedMap{{"type", "integer"}}},
+			{"file", orderedMap{{"type", "integer"}}},
+			{"row", orderedMap{{"type", "integer"}}},
+			{"index", orderedMap{{"type", "integer"}}},
+			{"Index", orderedMap{
+				{"type", "integer"},
+				{"deprecated", true},
+				{"description", "Deprecated alias for `index`. Both keys are emitted by current OPA versions for backwards compatibility; will be removed in a future major release. Read `index` instead."},
+			}},
+			{"target", orderedMap{{"type", "integer"}}},
+		}},
+		{"required", []string{"col", "file", "index", "row", "target"}},
+		{"additionalProperties", false},
+	}
 }
 
 func sortedKeys[V any](m map[string]V) []string {
