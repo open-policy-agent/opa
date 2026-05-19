@@ -656,6 +656,19 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           },
         };
       },
+
+      async function irPlanSchema(context) {
+        return {
+          name: "ir-plan-schema",
+
+          async loadContent() {
+            const sourcePath = path.resolve(__dirname, "../v1/ir/plan.schema.json");
+            const targetDir = path.join(context.siteDir, "static/schemas/ir/v1");
+            await fs.mkdir(targetDir, { recursive: true });
+            await fs.copyFile(sourcePath, path.join(targetDir, "plan.schema.json"));
+          },
+        };
+      },
     ],
     clientModules: [
       require.resolve("./src/lib/playground.js"),
