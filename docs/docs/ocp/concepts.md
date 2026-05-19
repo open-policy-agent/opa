@@ -499,8 +499,8 @@ Secrets enable OCP to securely communicate with external systems (object storage
   - installation\_id:
   - Private\_key: Private key of the app as a PEM
 - **ssh\_key:** For Authentication with an ssh key
-  - key: Path to ssh key
-  - passphrase:
+  - key: PEM-encoded ssh private key
+  - passphrase: Optional passphrase for the ssh key
   - Fingerprints: Optional ssh key fingerprints
 - **token\_auth**: For authentication with a Bearer token or JWT token.
   - token:
