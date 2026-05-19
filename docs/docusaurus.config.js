@@ -12,10 +12,10 @@ const darkCodeTheme = {
 };
 const semver = require("semver");
 import fs from "fs/promises";
-import {loadPages} from "./src/lib/ecosystem/loadPages.js";
-import {loadEvents} from "./src/lib/events/loadEvents.js";
-import {loadRules} from "./src/lib/projects/regal/loadRules.js";
-import {loadSurveyEventData, loadSurveyEventMetadata, loadSurveyQuestions} from "./src/lib/surveys/loadSurveyData.js";
+import { loadPages } from "./src/lib/ecosystem/loadPages.js";
+import { loadEvents } from "./src/lib/events/loadEvents.js";
+import { loadRules } from "./src/lib/projects/regal/loadRules.js";
+import { loadSurveyEventData, loadSurveyEventMetadata, loadSurveyQuestions } from "./src/lib/surveys/loadSurveyData.js";
 
 const path = require("path");
 const yaml = require("js-yaml");
@@ -663,7 +663,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
 
           async loadContent() {
             const sourcePath = path.resolve(__dirname, "../v1/ir/plan.schema.json");
-              const targetDir = path.join(context.siteDir, "static/schemas/ir/v1");
+            const targetDir = path.join(context.siteDir, "static/schemas/ir/v1");
             await fs.mkdir(targetDir, { recursive: true });
             await fs.copyFile(sourcePath, path.join(targetDir, "plan.schema.json"));
           },
