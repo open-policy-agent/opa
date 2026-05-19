@@ -13,11 +13,13 @@ interpreter for Rego.
 
 A machine-readable JSON Schema (Draft 2020-12) describing the IR plan format is
 published at
-[`v1/ir/plan.schema.json`](https://github.com/open-policy-agent/opa/blob/main/v1/ir/plan.schema.json).
+[`https://openpolicyagent.org/schemas/ir/v1/plan.schema.json`](https://openpolicyagent.org/schemas/ir/v1/plan.schema.json).
 The schema is generated from the Go type definitions in
 [`v1/ir/ir.go`](https://github.com/open-policy-agent/opa/blob/main/v1/ir/ir.go)
 and stays in sync with them via a CI drift test, so it always reflects what the
-current `opa build -t plan` actually emits.
+current `opa build -t plan` actually emits. The `ir_version` field at the root
+of the schema (currently `v1`) identifies the IR contract; backward-incompatible
+changes will be published under a new path (e.g., `/v2/`).
 
 Use it to validate plan output, generate typed bindings in non-Go languages,
 or feed it into JSON Schema-aware tooling. Example with
@@ -27,7 +29,7 @@ or feed it into JSON Schema-aware tooling. Example with
 opa build -t plan -e example/allow example.rego
 tar -xzf bundle.tar.gz /plan.json
 ajv validate \
-  -s https://raw.githubusercontent.com/open-policy-agent/opa/main/v1/ir/plan.schema.json \
+  -s https://openpolicyagent.org/schemas/ir/v1/plan.schema.json \
   -d plan.json
 ```
 
