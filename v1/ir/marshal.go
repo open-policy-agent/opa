@@ -145,3 +145,25 @@ var valFactories = map[string]func() Val{
 	"string_index": func() Val { var x StringIndex; return &x },
 	"local":        func() Val { var x Local; return &x },
 }
+
+// StmtKinds returns a fresh zero-value instance of every registered Stmt
+// kind, keyed by the discriminator string used in the JSON form. Useful for
+// tools (schema generators, linters, transformers) that need to walk the
+// IR's polymorphic Stmt universe without depending on package internals.
+func StmtKinds() map[string]Stmt {
+	out := make(map[string]Stmt, len(stmtFactories))
+	for k, f := range stmtFactories {
+		out[k] = f()
+	}
+	return out
+}
+
+// ValKinds returns a fresh zero-value instance of every registered Val kind,
+// keyed by the discriminator string. See StmtKinds for usage notes.
+func ValKinds() map[string]Val {
+	out := make(map[string]Val, len(valFactories))
+	for k, f := range valFactories {
+		out[k] = f()
+	}
+	return out
+}

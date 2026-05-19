@@ -9,6 +9,31 @@ semantics of the intermediate representation (IR) used to represent these
 planned evaluation paths. Read this document if you want to write a compiler or
 interpreter for Rego.
 
+## JSON Schema
+
+A machine-readable JSON Schema (Draft 2020-12) describing the IR plan format is
+published at
+[`v1/ir/plan.schema.json`](https://github.com/open-policy-agent/opa/blob/main/v1/ir/plan.schema.json).
+The schema is generated from the Go type definitions in
+[`v1/ir/ir.go`](https://github.com/open-policy-agent/opa/blob/main/v1/ir/ir.go)
+and stays in sync with them via a CI drift test, so it always reflects what the
+current `opa build -t plan` actually emits.
+
+Use it to validate plan output, generate typed bindings in non-Go languages,
+or feed it into JSON Schema-aware tooling. Example with
+[`ajv`](https://ajv.js.org/):
+
+```bash
+opa build -t plan -e example/allow example.rego
+tar -xzf bundle.tar.gz /plan.json
+ajv validate \
+  -s https://raw.githubusercontent.com/open-policy-agent/opa/main/v1/ir/plan.schema.json \
+  -d plan.json
+```
+
+The polymorphic `Stmt` and `Val` shapes are expressed as `oneOf` over the
+`"type"` discriminator, with one branch per kind documented below.
+
 ## Structure
 
 This section explains the structure of policies compiled into the IR.
