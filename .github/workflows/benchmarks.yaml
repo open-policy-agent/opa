@@ -117,12 +117,18 @@ jobs:
             --checks.config build/gobenchdata-checks.yml \
             --json report.json
           go run go.bobheadxi.dev/gobenchdata@v1 checks report report.json
-      - name: Comment on PR if regression detected
-        if: ${{ steps.checks.outcome == 'failure' }}
+      - name: Comment on PR with benchmark results
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
+          bb build/benchmark-regression-comment.bb report.json > body.md
+
+          if [ ! -s body.md ]; then
+            echo "No regressions or notable improvements; skipping comment."
+            exit 0
+          fi
+
           PR_NUMBER=$(gh pr list --search "${COMMIT_SHA}" --state merged --json number --jq '.[0].number')
 
           if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
@@ -130,7 +136,6 @@ jobs:
             exit 0
           fi
 
-          bb build/benchmark-regression-comment.bb report.json > body.md
           gh pr comment "${PR_NUMBER}" --body-file body.md
 
   notebook:
