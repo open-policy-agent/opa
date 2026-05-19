@@ -95,42 +95,11 @@ type CompileFiltersRequestV1 struct {
 	Metadata map[string]any `json:"-"`
 }
 
-var compileFiltersKnownKeys = map[string]bool{
-	"input": true, "query": true, "unknowns": true, "options": true,
-}
-
 func (r *CompileFiltersRequestV1) UnmarshalJSON(data []byte) error {
-	type Alias CompileFiltersRequestV1
-	aux := &struct {
-		*Alias
-	}{
-		Alias: (*Alias)(r),
-	}
-
-	if err := util.UnmarshalJSON(data, aux); err != nil {
-		return err
-	}
-
-	var raw map[string]json.RawMessage
-	if err := util.UnmarshalJSON(data, &raw); err != nil {
-		return err
-	}
-
-	for key, val := range raw {
-		if compileFiltersKnownKeys[key] {
-			continue
-		}
-		if r.Metadata == nil {
-			r.Metadata = make(map[string]any)
-		}
-		var v any
-		if err := util.UnmarshalJSON(val, &v); err != nil {
-			return err
-		}
-		r.Metadata[key] = v
-	}
-
-	return nil
+	type alias CompileFiltersRequestV1
+	extra, err := types.UnmarshalExtras[CompileFiltersRequestV1](data, (*alias)(r))
+	r.Metadata = extra
+	return err
 }
 
 type compileFiltersRequest struct {
@@ -154,33 +123,14 @@ type CompileResponseV1 struct {
 	Metadata map[string]any `json:"-"`
 }
 
-var compileResponseReservedFields = map[string]bool{
-	"result": true, "explanation": true, "metrics": true, "hints": true,
+func (r CompileResponseV1) MarshalJSON() ([]byte, error) {
+	type alias CompileResponseV1
+	return types.MarshalExtras[CompileResponseV1](alias(r), r.Metadata)
 }
 
-func (r CompileResponseV1) MarshalJSON() ([]byte, error) {
-	type Alias CompileResponseV1
-	data, err := json.Marshal(Alias(r))
-	if err != nil {
-		return nil, err
-	}
-
-	if len(r.Metadata) == 0 {
-		return data, nil
-	}
-
-	var base map[string]any
-	if err := json.Unmarshal(data, &base); err != nil {
-		return nil, err
-	}
-
-	for key, val := range r.Metadata {
-		if !compileResponseReservedFields[key] {
-			base[key] = val
-		}
-	}
-
-	return json.Marshal(base)
+func init() {
+	types.RegisterJSONFields[CompileFiltersRequestV1]()
+	types.RegisterJSONFields[CompileResponseV1]()
 }
 
 func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
