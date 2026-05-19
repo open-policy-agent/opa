@@ -80,7 +80,7 @@ func (b *schemaBuilder) defsOrdered() orderedMap {
 }
 
 func (b *schemaBuilder) addStruct(t reflect.Type) (string, error) {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Struct {
@@ -145,7 +145,7 @@ func (b *schemaBuilder) collectFields(t reflect.Type, properties *orderedMap, re
 		}
 		if f.Anonymous {
 			ft := f.Type
-			for ft.Kind() == reflect.Ptr {
+			for ft.Kind() == reflect.Pointer {
 				ft = ft.Elem()
 			}
 			if ft.Kind() == reflect.Struct {
@@ -188,7 +188,7 @@ func (b *schemaBuilder) collectFields(t reflect.Type, properties *orderedMap, re
 }
 
 func (b *schemaBuilder) reflectType(t reflect.Type) (any, error) {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -393,7 +393,7 @@ func sortedKeys[V any](m map[string]V) []string {
 
 func fieldCanBeNull(t reflect.Type) bool {
 	switch t.Kind() {
-	case reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface:
+	case reflect.Slice, reflect.Map, reflect.Pointer, reflect.Interface:
 		return true
 	}
 	return false
