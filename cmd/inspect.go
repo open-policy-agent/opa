@@ -230,8 +230,8 @@ func populateNamespaces(out io.Writer, n map[string][]string) error {
 	t := generateTableWithKeys(out, "namespace", "file")
 	// only auto-merge the namespace column
 	t = t.Options(tablewriter.WithConfig(tablewriter.NewConfigBuilder().
-		ForColumn(0).Build().Row().Formatting().WithMergeMode(tw.MergeVertical). // vertical merge column 0.
-		Build().Build().Build(),                                                 //  build the table config.
+		Row().Merging().WithMode(tw.MergeVertical).ByColumnIndex([]int{0}).
+		Build().Build().Build(),
 	))
 
 	var lines [][]string
