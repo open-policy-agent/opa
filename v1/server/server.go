@@ -29,8 +29,6 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/open-policy-agent/opa/internal/json/patch"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -662,13 +660,15 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 }
 
 func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
-	if s.h2cEnabled {
-		h2s := &http2.Server{}
-		h = h2c.NewHandler(h, h2s)
-	}
 	h1s := http.Server{
 		Addr:    u.Host,
 		Handler: h,
+	}
+	if s.h2cEnabled {
+		p := new(http.Protocols)
+		p.SetHTTP1(true)
+		p.SetUnencryptedHTTP2(true)
+		h1s.Protocols = p
 	}
 
 	l := newHTTPListener(&h1s, t)
@@ -741,11 +741,13 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 		os.Remove(socketPath)
 	}
 
-	if s.h2cEnabled {
-		h2s := &http2.Server{}
-		h = h2c.NewHandler(h, h2s)
-	}
 	domainSocketServer := http.Server{Handler: h}
+	if s.h2cEnabled {
+		p := new(http.Protocols)
+		p.SetHTTP1(true)
+		p.SetUnencryptedHTTP2(true)
+		domainSocketServer.Protocols = p
+	}
 	unixListener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		return nil, nil, err
