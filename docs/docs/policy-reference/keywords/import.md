@@ -97,7 +97,7 @@ This import is independent of the [rego.v1 import](#importing-regov1).
 
 :::important
 The `future.keywords.not` import fixes a long-standing semantic issue with negation in Rego.
-Read more about it in the [Improved Negation Semantics](../../policy-language#improved-negation-semantics) section of the Policy Language overview.
+Read more about it in the [Improved Negation Semantics](./not#improved-negation-semantics) section of the `not` keyword overview.
 :::
 
 ## Importing `rego.v1`
