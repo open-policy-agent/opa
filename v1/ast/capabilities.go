@@ -108,7 +108,8 @@ type WasmABIVersion struct {
 }
 
 type CapabilitiesOptions struct {
-	regoVersion RegoVersion
+	regoVersion          RegoVersion
+	experimentalKeywords bool
 }
 
 func newCapabilitiesOptions(opts []CapabilitiesOption) CapabilitiesOptions {
@@ -124,6 +125,21 @@ type CapabilitiesOption func(*CapabilitiesOptions)
 func CapabilitiesRegoVersion(regoVersion RegoVersion) CapabilitiesOption {
 	return func(o *CapabilitiesOptions) {
 		o.regoVersion = regoVersion
+	}
+}
+
+// CapabilitiesExperimentalKeywords controls whether experimental future
+// keywords are included in the returned capabilities. When enabled, the
+// future_keywords list will include keywords that are recognized by the
+// parser but are not yet ready for general use.
+//
+// Experimental keywords are subject to change or removal without notice and
+// are not covered by OPA's compatibility guarantees. Enable this option only
+// when you intentionally want to opt in to in-progress language features
+// (for example, when writing tests for those features).
+func CapabilitiesExperimentalKeywords(yes bool) CapabilitiesOption {
+	return func(o *CapabilitiesOptions) {
+		o.experimentalKeywords = yes
 	}
 }
 
@@ -147,6 +163,9 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 	switch co.regoVersion {
 	case RegoV0, RegoV0CompatV1:
 		for kw := range allFutureKeywords {
+			if _, internal := experimentalFutureKeywords[kw]; internal && !co.experimentalKeywords {
+				continue
+			}
 			f.FutureKeywords = append(f.FutureKeywords, kw)
 		}
 
@@ -159,6 +178,9 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 		}
 	default:
 		for kw := range futureKeywords {
+			if _, internal := experimentalFutureKeywords[kw]; internal && !co.experimentalKeywords {
+				continue
+			}
 			f.FutureKeywords = append(f.FutureKeywords, kw)
 		}
 

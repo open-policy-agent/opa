@@ -2639,7 +2639,7 @@ func (p *Parser) illegal(note string, a ...any) {
 	tok := p.s.tok.String()
 
 	tokType := "token"
-	if _, ok := allFutureKeywords[tok]; ok || tokens.IsKeyword(p.s.tok) {
+	if tokens.IsKeyword(p.s.tok) || isFutureKeywordToken(p.s.tok) {
 		tokType = "keyword"
 	}
 
@@ -3180,6 +3180,8 @@ func convertYAMLMapKeyTypes(x any, path []string) (any, error) {
 // eventually become standard keywords inside of Rego.
 var futureKeywords = map[string]tokens.Token{
 	"not": tokens.Not,
+	"and": tokens.LogicalAnd,
+	"or":  tokens.LogicalOr,
 }
 
 // futureKeywordsV0 is the source of truth for future keywords that were
@@ -3192,6 +3194,22 @@ var futureKeywordsV0 = map[string]tokens.Token{
 }
 
 var allFutureKeywords map[string]tokens.Token
+
+// experimentalFutureKeywords are future keywords that exist in the parser but are
+// intentionally hidden from the default capabilities advertisement.
+// They are only activated when a policy imports them AND the active
+// capabilities explicitly list them.
+var experimentalFutureKeywords = map[string]struct{}{
+	"and": {},
+	"or":  {},
+}
+
+var allFutureKeywordTokens map[tokens.Token]struct{}
+
+func isFutureKeywordToken(tok tokens.Token) bool {
+	_, ok := allFutureKeywordTokens[tok]
+	return ok
+}
 
 func IsFutureKeyword(s string) bool {
 	return IsFutureKeywordForRegoVersion(s, RegoV1)
@@ -3295,6 +3313,11 @@ func init() {
 	allFutureKeywords = map[string]tokens.Token{}
 	maps.Copy(allFutureKeywords, futureKeywords)
 	maps.Copy(allFutureKeywords, futureKeywordsV0)
+
+	allFutureKeywordTokens = make(map[tokens.Token]struct{}, len(allFutureKeywords))
+	for _, tok := range allFutureKeywords {
+		allFutureKeywordTokens[tok] = struct{}{}
+	}
 }
 
 // enter increments the recursion depth counter and checks if it exceeds the maximum.
