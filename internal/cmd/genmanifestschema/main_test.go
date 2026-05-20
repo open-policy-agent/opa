@@ -116,6 +116,20 @@ func TestSchemaValidatesRealManifests(t *testing.T) {
 			}
 		})
 	}
+
+	// The bundle loader silently accepts unknown top-level keys, and
+	// embedders rely on this to attach custom configuration alongside the
+	// documented fields. The schema must not regress that.
+	t.Run("manifest with extra top-level keys", func(t *testing.T) {
+		raw := `{"revision": "x", "custom_app_setting": {"sp": {"enabled": true}}}`
+		var doc any
+		if err := json.Unmarshal([]byte(raw), &doc); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if err := schema.Validate(doc); err != nil {
+			t.Fatalf("expected extras to validate:\n%s", strings.TrimSpace(err.Error()))
+		}
+	})
 }
 
 func TestSchemaRejectsInvalidManifests(t *testing.T) {
@@ -159,10 +173,6 @@ func TestSchemaRejectsInvalidManifests(t *testing.T) {
 		{
 			note: "wrong value type in file_rego_versions",
 			raw:  `{"revision": "x", "file_rego_versions": {"/a.rego": "1"}}`,
-		},
-		{
-			note: "unknown top-level field",
-			raw:  `{"revision": "x", "totally_made_up": true}`,
 		},
 		{
 			note: "wasm entry with unknown field",

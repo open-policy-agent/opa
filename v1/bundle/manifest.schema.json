@@ -38,8 +38,7 @@
       },
       "required": [
         "revision"
-      ],
-      "additionalProperties": false
+      ]
     },
     "WasmResolver": {
       "type": "object",

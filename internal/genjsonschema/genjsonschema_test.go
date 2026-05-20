@@ -403,3 +403,40 @@ func TestNonStringMapKeyErrors(t *testing.T) {
 		t.Fatalf("expected map-key error, got: %v", err)
 	}
 }
+
+func TestAllowAdditionalPropertiesSkipsClosedClause(t *testing.T) {
+	b := NewBuilder(nil)
+	b.AllowAdditionalProperties(reflect.TypeOf(primitives{}))
+	if _, err := b.AddStruct(reflect.TypeOf(primitives{})); err != nil {
+		t.Fatalf("AddStruct: %v", err)
+	}
+	got := mustMarshal(t, b.DefsOrdered())
+	if strings.Contains(got, `"additionalProperties":false`) {
+		t.Fatalf("did not expect additionalProperties:false in opt-out type:\n%s", got)
+	}
+	// Sanity check: opting in by pointer type also works.
+	b2 := NewBuilder(nil)
+	b2.AllowAdditionalProperties(reflect.TypeOf(&primitives{}))
+	if _, err := b2.AddStruct(reflect.TypeOf(primitives{})); err != nil {
+		t.Fatalf("AddStruct: %v", err)
+	}
+	got2 := mustMarshal(t, b2.DefsOrdered())
+	if strings.Contains(got2, `"additionalProperties":false`) {
+		t.Fatalf("did not expect additionalProperties:false when opted in via pointer type:\n%s", got2)
+	}
+}
+
+func TestAllowAdditionalPropertiesIsPerType(t *testing.T) {
+	// Opting `outer` in must not loosen the constraint on its nested
+	// `inner` def — additionalProperties:false is the right default for
+	// sub-records.
+	b := NewBuilder(nil)
+	b.AllowAdditionalProperties(reflect.TypeOf(outer{}))
+	if _, err := b.AddStruct(reflect.TypeOf(outer{})); err != nil {
+		t.Fatalf("AddStruct: %v", err)
+	}
+	got := mustMarshal(t, b.DefsOrdered())
+	if !strings.Contains(got, `"inner":{"type":"object","properties":{"x":{"type":"integer"}},"required":["x"],"additionalProperties":false}`) {
+		t.Fatalf("expected inner to remain strict: %s", got)
+	}
+}

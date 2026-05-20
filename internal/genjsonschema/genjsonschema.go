@@ -36,14 +36,31 @@ type TypeResolver func(b *Builder, t reflect.Type) (schema any, handled bool, er
 // Builder accumulates struct definitions in $defs and offers ReflectType /
 // AddStruct entry points used by both the caller and its TypeResolver.
 type Builder struct {
-	defs     map[string]OrderedMap
-	resolver TypeResolver
+	defs                map[string]OrderedMap
+	resolver            TypeResolver
+	openAdditionalProps map[reflect.Type]bool
 }
 
 // NewBuilder returns a Builder. resolver may be nil, in which case only
 // the built-in cases are used.
 func NewBuilder(resolver TypeResolver) *Builder {
-	return &Builder{defs: map[string]OrderedMap{}, resolver: resolver}
+	return &Builder{
+		defs:                map[string]OrderedMap{},
+		resolver:            resolver,
+		openAdditionalProps: map[reflect.Type]bool{},
+	}
+}
+
+// AllowAdditionalProperties opts t out of the default `additionalProperties:
+// false` constraint, so the generated schema accepts unknown keys on that
+// struct. Use this for top-level types whose runtime decoder is lenient and
+// where embedders are known to attach custom fields (e.g. the bundle
+// Manifest).
+func (b *Builder) AllowAdditionalProperties(t reflect.Type) {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	b.openAdditionalProps[t] = true
 }
 
 // DefsOrdered returns the accumulated $defs in name-sorted order so the
@@ -150,7 +167,9 @@ func (b *Builder) reflectStructBody(t reflect.Type) (OrderedMap, error) {
 	if len(required) > 0 {
 		out = append(out, Entry{"required", required})
 	}
-	out = append(out, Entry{"additionalProperties", false})
+	if !b.openAdditionalProps[t] {
+		out = append(out, Entry{"additionalProperties", false})
+	}
 	return out, nil
 }
 

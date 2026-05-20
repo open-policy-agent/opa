@@ -33,6 +33,11 @@ func main() {
 // by `opa build`.
 func reflectSchema() ([]byte, error) {
 	b := genjsonschema.NewBuilder(manifestResolver)
+	// The bundle loader accepts unknown top-level keys (no
+	// DisallowUnknownFields), and embedders rely on this to attach custom
+	// configuration alongside the documented fields. Keep the schema in
+	// step with that contract; sub-records like WasmResolver stay strict.
+	b.AllowAdditionalProperties(reflect.TypeOf(bundle.Manifest{}))
 	rootRef, err := b.AddStruct(reflect.TypeOf(bundle.Manifest{}))
 	if err != nil {
 		return nil, err

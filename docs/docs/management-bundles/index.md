@@ -385,6 +385,12 @@ ajv validate \
   -d .manifest
 ```
 
+The top-level `Manifest` object does not set `additionalProperties: false`:
+the bundle loader has always ignored unknown top-level keys, and embedders
+that wrap OPA sometimes attach their own configuration alongside the
+documented fields. Sub-records like `WasmResolver` remain closed, since
+their shape is fully specified.
+
 Some important details for bundle files:
 
 - OPA will only load data files named `data.json` or `data.yaml` (which contain
