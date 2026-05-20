@@ -34,3 +34,4 @@ func main() {
 //go:generate build/gen-run-go.sh internal/cmd/genbuiltinmetadata/main.go builtin_metadata.json
 //go:generate build/gen-run-go.sh internal/cmd/genversionindex/main.go v1/ast/version_index.json
 //go:generate build/gen-run-go.sh internal/cmd/genplanschema/main.go v1/ir/plan.schema.json
+//go:generate build/gen-run-go.sh internal/cmd/genmanifestschema/main.go v1/bundle/manifest.schema.json
