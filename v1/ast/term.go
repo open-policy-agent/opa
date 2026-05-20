@@ -3242,13 +3242,26 @@ func unmarshalExpr(expr *Expr, v map[string]any) error {
 	}
 	switch ts := v["terms"].(type) {
 	case map[string]any:
-		if tt, ok := ts["type"]; ok && tt == "not" {
+		switch tt, _ := ts["type"].(string); tt {
+		case "not":
 			n := &Not{}
 			if err := unmarshalNot(n, ts); err != nil {
 				return err
 			}
 			expr.Terms = n
-		} else {
+		case "and":
+			a := &LogicalAnd{}
+			if err := unmarshalLogical("and", &a.Lhs, &a.Rhs, &a.ExplicitLhs, &a.ExplicitRhs, ts); err != nil {
+				return err
+			}
+			expr.Terms = a
+		case "or":
+			o := &LogicalOr{}
+			if err := unmarshalLogical("or", &o.Lhs, &o.Rhs, &o.ExplicitLhs, &o.ExplicitRhs, ts); err != nil {
+				return err
+			}
+			expr.Terms = o
+		default:
 			t, err := unmarshalTerm(ts)
 			if err != nil {
 				return err

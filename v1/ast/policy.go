@@ -289,6 +289,24 @@ type (
 		Location *Location `json:"location,omitempty"`
 	}
 
+	// LogicalAnd represents a logical conjunction (`lhs and rhs`).
+	LogicalAnd struct {
+		Lhs         Body      `json:"lhs"`
+		Rhs         Body      `json:"rhs"`
+		ExplicitLhs bool      `json:"explicit_lhs,omitempty"`
+		ExplicitRhs bool      `json:"explicit_rhs,omitempty"`
+		Location    *Location `json:"location,omitempty"`
+	}
+
+	// LogicalOr represents a logical disjunction (`lhs or rhs`).
+	LogicalOr struct {
+		Lhs         Body      `json:"lhs"`
+		Rhs         Body      `json:"rhs"`
+		ExplicitLhs bool      `json:"explicit_lhs,omitempty"`
+		ExplicitRhs bool      `json:"explicit_rhs,omitempty"`
+		Location    *Location `json:"location,omitempty"`
+	}
+
 	// With represents a modifier on an expression.
 	With struct {
 		Target   *Term     `json:"target"`
@@ -1146,7 +1164,7 @@ func (body Body) Vars(params VarVisitorParams) VarSet {
 // NewExpr returns a new Expr object.
 func NewExpr(terms any) *Expr {
 	switch terms.(type) {
-	case *SomeDecl, *Every, *Not, *Term, []*Term: // ok
+	case *SomeDecl, *Every, *Not, *LogicalAnd, *LogicalOr, *Term, []*Term: // ok
 	default:
 		panic("unreachable")
 	}
@@ -1253,6 +1271,14 @@ func (expr *Expr) Compare(other *Expr) int {
 		if cmp := Compare(t, other.Terms.(*Not)); cmp != 0 {
 			return cmp
 		}
+	case *LogicalAnd:
+		if cmp := Compare(t, other.Terms.(*LogicalAnd)); cmp != 0 {
+			return cmp
+		}
+	case *LogicalOr:
+		if cmp := Compare(t, other.Terms.(*LogicalOr)); cmp != 0 {
+			return cmp
+		}
 	}
 
 	return withSliceCompare(expr.With, other.With)
@@ -1270,6 +1296,10 @@ func (expr *Expr) sortOrder() int {
 		return 3
 	case *Not:
 		return 4
+	case *LogicalAnd:
+		return 5
+	case *LogicalOr:
+		return 6
 	}
 	return -1
 }
@@ -1304,6 +1334,10 @@ func (expr *Expr) Copy() *Expr {
 		cpy.Terms = ts.Copy()
 	case *Not:
 		cpy.Terms = ts.Copy()
+	case *LogicalAnd:
+		cpy.Terms = ts.Copy()
+	case *LogicalOr:
+		cpy.Terms = ts.Copy()
 	}
 
 	return cpy
@@ -1321,6 +1355,10 @@ func (expr *Expr) Hash() int {
 		}
 	case *Term:
 		s += ts.Value.Hash()
+	case *LogicalAnd:
+		s += ts.Hash()
+	case *LogicalOr:
+		s += ts.Hash()
 	}
 	if expr.Negated {
 		s++
@@ -1384,6 +1422,18 @@ func (expr *Expr) IsSome() bool {
 	return ok
 }
 
+// IsAnd returns true if this expression is a logical 'and' expression.
+func (expr *Expr) IsAnd() bool {
+	_, ok := expr.Terms.(*LogicalAnd)
+	return ok
+}
+
+// IsOr returns true if this expression is a logical 'or' expression.
+func (expr *Expr) IsOr() bool {
+	_, ok := expr.Terms.(*LogicalOr)
+	return ok
+}
+
 // Operator returns the name of the function or built-in this expression refers
 // to. If this expression is not a function call, returns nil.
 func (expr *Expr) Operator() Ref {
@@ -1440,6 +1490,10 @@ func (expr *Expr) IsGround() bool {
 		return ts.IsGround()
 	case *Not:
 		return ts.IsGround()
+	case *LogicalAnd:
+		return ts.Lhs.IsGround() && ts.Rhs.IsGround()
+	case *LogicalOr:
+		return ts.Lhs.IsGround() && ts.Rhs.IsGround()
 	}
 	return true
 }
@@ -1692,6 +1746,182 @@ func (q *Every) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(data)
+}
+
+func (a *LogicalAnd) String() string {
+	return formatBinaryLogical("and", a.Lhs, a.Rhs, a.ExplicitLhs, a.ExplicitRhs)
+}
+
+func (a *LogicalAnd) Loc() *Location {
+	return a.Location
+}
+
+func (a *LogicalAnd) SetLoc(l *Location) {
+	a.Location = l
+}
+
+func (a *LogicalAnd) Copy() *LogicalAnd {
+	cpy := *a
+	cpy.Lhs = a.Lhs.Copy()
+	cpy.Rhs = a.Rhs.Copy()
+	return &cpy
+}
+
+// Compare returns an integer indicating whether a is less than, equal to, or
+// greater than other. The ExplicitLhs/ExplicitRhs fields are ignored, as they
+// describe surface syntax rather than semantic content.
+func (a *LogicalAnd) Compare(other *LogicalAnd) int {
+	if cmp := a.Lhs.Compare(other.Lhs); cmp != 0 {
+		return cmp
+	}
+	return a.Rhs.Compare(other.Rhs)
+}
+
+func (a *LogicalAnd) Hash() int {
+	return a.Lhs.Hash() + a.Rhs.Hash()
+}
+
+func (a *LogicalAnd) MarshalJSON() ([]byte, error) {
+	data := map[string]any{
+		"type": "and",
+		"lhs":  a.Lhs,
+		"rhs":  a.Rhs,
+	}
+	if a.ExplicitLhs {
+		data["explicit_lhs"] = true
+	}
+	if a.ExplicitRhs {
+		data["explicit_rhs"] = true
+	}
+
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.And {
+		if a.Location != nil {
+			data["location"] = a.Location
+		}
+	}
+
+	return json.Marshal(data)
+}
+
+func (a *LogicalAnd) UnmarshalJSON(bs []byte) error {
+	v := map[string]any{}
+	if err := util.UnmarshalJSON(bs, &v); err != nil {
+		return err
+	}
+	return unmarshalLogical("and", &a.Lhs, &a.Rhs, &a.ExplicitLhs, &a.ExplicitRhs, v)
+}
+
+func (o *LogicalOr) String() string {
+	return formatBinaryLogical("or", o.Lhs, o.Rhs, o.ExplicitLhs, o.ExplicitRhs)
+}
+
+func (o *LogicalOr) Loc() *Location {
+	return o.Location
+}
+
+func (o *LogicalOr) SetLoc(l *Location) {
+	o.Location = l
+}
+
+func (o *LogicalOr) Copy() *LogicalOr {
+	cpy := *o
+	cpy.Lhs = o.Lhs.Copy()
+	cpy.Rhs = o.Rhs.Copy()
+	return &cpy
+}
+
+// Compare returns an integer indicating whether o is less than, equal to, or
+// greater than other. The ExplicitLhs/ExplicitRhs fields are ignored, as they
+// describe surface syntax rather than semantic content.
+func (o *LogicalOr) Compare(other *LogicalOr) int {
+	if cmp := o.Lhs.Compare(other.Lhs); cmp != 0 {
+		return cmp
+	}
+	return o.Rhs.Compare(other.Rhs)
+}
+
+func (o *LogicalOr) Hash() int {
+	return o.Lhs.Hash() + o.Rhs.Hash()
+}
+
+func (o *LogicalOr) MarshalJSON() ([]byte, error) {
+	data := map[string]any{
+		"type": "or",
+		"lhs":  o.Lhs,
+		"rhs":  o.Rhs,
+	}
+	if o.ExplicitLhs {
+		data["explicit_lhs"] = true
+	}
+	if o.ExplicitRhs {
+		data["explicit_rhs"] = true
+	}
+
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Or {
+		if o.Location != nil {
+			data["location"] = o.Location
+		}
+	}
+
+	return json.Marshal(data)
+}
+
+func (o *LogicalOr) UnmarshalJSON(bs []byte) error {
+	v := map[string]any{}
+	if err := util.UnmarshalJSON(bs, &v); err != nil {
+		return err
+	}
+	return unmarshalLogical("or", &o.Lhs, &o.Rhs, &o.ExplicitLhs, &o.ExplicitRhs, v)
+}
+
+func unmarshalLogical(typeName string, lhs, rhs *Body, explicitLhs, explicitRhs *bool, v map[string]any) error {
+	lhsRaw, ok := v["lhs"].([]any)
+	if !ok {
+		return fmt.Errorf("ast: unable to unmarshal %s, invalid lhs field type: %T (expected list)", typeName, v["lhs"])
+	}
+	l, err := unmarshalBody(lhsRaw)
+	if err != nil {
+		return fmt.Errorf("ast: unable to unmarshal %s lhs: %w", typeName, err)
+	}
+	*lhs = l
+
+	rhsRaw, ok := v["rhs"].([]any)
+	if !ok {
+		return fmt.Errorf("ast: unable to unmarshal %s, invalid rhs field type: %T (expected list)", typeName, v["rhs"])
+	}
+	r, err := unmarshalBody(rhsRaw)
+	if err != nil {
+		return fmt.Errorf("ast: unable to unmarshal %s rhs: %w", typeName, err)
+	}
+	*rhs = r
+
+	if x, ok := v["explicit_lhs"]; ok {
+		b, ok := x.(bool)
+		if !ok {
+			return fmt.Errorf("ast: unable to unmarshal %s explicit_lhs field with type: %T (expected true or false)", typeName, x)
+		}
+		*explicitLhs = b
+	}
+	if x, ok := v["explicit_rhs"]; ok {
+		b, ok := x.(bool)
+		if !ok {
+			return fmt.Errorf("ast: unable to unmarshal %s explicit_rhs field with type: %T (expected true or false)", typeName, x)
+		}
+		*explicitRhs = b
+	}
+
+	return nil
+}
+
+func formatBinaryLogical(op string, lhs, rhs Body, explicitLhs, explicitRhs bool) string {
+	return formatLogicalOperand(lhs, explicitLhs) + " " + op + " " + formatLogicalOperand(rhs, explicitRhs)
+}
+
+func formatLogicalOperand(b Body, explicit bool) string {
+	if explicit {
+		return "{ " + b.String() + " }"
+	}
+	return b.String()
 }
 
 func (w *With) String() string {

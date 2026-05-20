@@ -218,6 +218,12 @@ func mermaidFormatExpr(expr *Expr, index int, b *mermaidBuilder) string {
 	case *Not:
 		notID := terms.mermaidFormat(b)
 		b.edge(id, notID)
+	case *LogicalAnd:
+		andID := mermaidFormatLogical("and", terms.Lhs, terms.Rhs, b)
+		b.edge(id, andID)
+	case *LogicalOr:
+		orID := mermaidFormatLogical("or", terms.Lhs, terms.Rhs, b)
+		b.edge(id, orID)
 	}
 
 	for _, w := range expr.With {
@@ -242,6 +248,23 @@ func mermaidFormatEvery(every *Every, b *mermaidBuilder) string {
 	for i, expr := range every.Body {
 		exprID := mermaidFormatExpr(expr, i, b)
 		b.edge(bodyID, exprID)
+	}
+	return id
+}
+
+func mermaidFormatLogical(op string, lhs, rhs Body, b *mermaidBuilder) string {
+	id := b.node("rect", op)
+	lhsID := b.node("rect", "Lhs")
+	b.edge(id, lhsID)
+	for i, expr := range lhs {
+		exprID := mermaidFormatExpr(expr, i, b)
+		b.edge(lhsID, exprID)
+	}
+	rhsID := b.node("rect", "Rhs")
+	b.edge(id, rhsID)
+	for i, expr := range rhs {
+		exprID := mermaidFormatExpr(expr, i, b)
+		b.edge(rhsID, exprID)
 	}
 	return id
 }

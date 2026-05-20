@@ -147,6 +147,10 @@ func Compare(a, b any) int {
 		return a.Compare(b.(*SomeDecl))
 	case *Every:
 		return a.Compare(b.(*Every))
+	case *LogicalAnd:
+		return a.Compare(b.(*LogicalAnd))
+	case *LogicalOr:
+		return a.Compare(b.(*LogicalOr))
 	case *With:
 		return a.Compare(b.(*With))
 	case Body:
@@ -213,6 +217,10 @@ func sortOrder(x any) int {
 		return 101
 	case *Every:
 		return 102
+	case *LogicalAnd:
+		return 103
+	case *LogicalOr:
+		return 104
 	case *With:
 		return 110
 	case *Not:
