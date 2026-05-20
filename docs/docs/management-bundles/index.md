@@ -367,8 +367,7 @@ expect for policy files `/policy1.rego` and those under the folder `foo`.
 
 A machine-readable JSON Schema (Draft 2020-12) describing the manifest format
 is published at
-[
-`https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json`](https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json).
+[`https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json`](https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json).
 The schema is generated from the Go type definitions in
 [`v1/bundle/bundle.go`](https://github.com/open-policy-agent/opa/blob/main/v1/bundle/bundle.go)
 and stays in sync with them via a CI drift test, so it always reflects what the

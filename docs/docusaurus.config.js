@@ -12,10 +12,10 @@ const darkCodeTheme = {
 };
 const semver = require("semver");
 import fs from "fs/promises";
-import {loadPages} from "./src/lib/ecosystem/loadPages.js";
-import {loadEvents} from "./src/lib/events/loadEvents.js";
-import {loadRules} from "./src/lib/projects/regal/loadRules.js";
-import {loadSurveyEventData, loadSurveyEventMetadata, loadSurveyQuestions} from "./src/lib/surveys/loadSurveyData.js";
+import { loadPages } from "./src/lib/ecosystem/loadPages.js";
+import { loadEvents } from "./src/lib/events/loadEvents.js";
+import { loadRules } from "./src/lib/projects/regal/loadRules.js";
+import { loadSurveyEventData, loadSurveyEventMetadata, loadSurveyQuestions } from "./src/lib/surveys/loadSurveyData.js";
 
 const path = require("path");
 const yaml = require("js-yaml");
@@ -670,18 +670,18 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
         };
       },
 
-        async function bundleManifestSchema(context) {
-            return {
-                name: "bundle-manifest-schema",
+      async function bundleManifestSchema(context) {
+        return {
+          name: "bundle-manifest-schema",
 
-                async loadContent() {
-                    const sourcePath = path.resolve(__dirname, "../v1/bundle/manifest.schema.json");
-                    const targetDir = path.join(context.siteDir, "static/schemas/bundle/v1");
-                    await fs.mkdir(targetDir, {recursive: true});
-                    await fs.copyFile(sourcePath, path.join(targetDir, "manifest.schema.json"));
-                },
-            };
-        },
+          async loadContent() {
+            const sourcePath = path.resolve(__dirname, "../v1/bundle/manifest.schema.json");
+            const targetDir = path.join(context.siteDir, "static/schemas/bundle/v1");
+            await fs.mkdir(targetDir, { recursive: true });
+            await fs.copyFile(sourcePath, path.join(targetDir, "manifest.schema.json"));
+          },
+        };
+      },
     ],
     clientModules: [
       require.resolve("./src/lib/playground.js"),
