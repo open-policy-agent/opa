@@ -14746,7 +14746,7 @@
       "v1.16.2",
       "edge"
     ],
-    "description": "Checks that the document matches the JSON schema.",
+    "description": "Checks that the document matches the JSON schema. The `pattern` keyword is enforced using Go's RE2 regex dialect; schemas relying on ECMA-262 features that RE2 does not support (e.g. negative lookahead) will be rejected.",
     "introduced": "v0.50.0",
     "result": {
       "description": "`output` is of the form `[match, errors]`. If the document is valid given the schema, then `match` is `true`, and `errors` is an empty array. Otherwise, `match` is `false` and `errors` is an array of objects describing the error(s).",
@@ -15282,7 +15282,7 @@
       "v1.16.2",
       "edge"
     ],
-    "description": "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
+    "description": "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object. The `pattern` keyword, if present, is compiled using Go's RE2 regex dialect; schemas relying on ECMA-262 features that RE2 does not support (e.g. negative lookahead) will be rejected.",
     "introduced": "v0.50.0",
     "result": {
       "description": "`output` is of the form `[valid, error]`. If the schema is valid, then `valid` is `true`, and `error` is `null`. Otherwise, `valid` is `false` and `error` is a string describing the error.",

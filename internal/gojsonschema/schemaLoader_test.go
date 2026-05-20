@@ -205,6 +205,60 @@ func TestDraftCrossReferencing(t *testing.T) {
 	}
 }
 
+// TestSchemaLoaderValidatePatterns covers the ValidatePatterns toggle: with the
+// flag off (the default) the "pattern" keyword is parsed but not enforced, so
+// any string value is accepted; with the flag on it is compiled with Go's RE2
+// regex engine and applied during validation.
+func TestSchemaLoaderValidatePatterns(t *testing.T) {
+	schema := `{"type": "string", "pattern": "^[a-z]+$"}`
+
+	t.Run("disabled (default) accepts non-matching strings", func(t *testing.T) {
+		s, err := NewSchemaLoader().Compile(NewStringLoader(schema))
+		if err != nil {
+			t.Fatalf("unexpected schema compile error: %v", err)
+		}
+		result, err := s.Validate(NewStringLoader(`"ABC"`))
+		if err != nil {
+			t.Fatalf("unexpected validation error: %v", err)
+		}
+		if !result.Valid() {
+			t.Fatalf("expected validation to pass when ValidatePatterns is off, got errors: %v", result.Errors())
+		}
+	})
+
+	t.Run("enabled rejects non-matching strings", func(t *testing.T) {
+		sl := NewSchemaLoader()
+		sl.ValidatePatterns = true
+		s, err := sl.Compile(NewStringLoader(schema))
+		if err != nil {
+			t.Fatalf("unexpected schema compile error: %v", err)
+		}
+		result, err := s.Validate(NewStringLoader(`"ABC"`))
+		if err != nil {
+			t.Fatalf("unexpected validation error: %v", err)
+		}
+		if result.Valid() {
+			t.Fatalf("expected validation to fail when string does not match pattern")
+		}
+	})
+
+	t.Run("enabled rejects schemas with patterns RE2 cannot compile", func(t *testing.T) {
+		sl := NewSchemaLoader()
+		sl.ValidatePatterns = true
+		_, err := sl.Compile(NewStringLoader(`{"type": "string", "pattern": "^(?!nope)[a-z]+$"}`))
+		if err == nil {
+			t.Fatalf("expected schema compile to fail on Go-incompatible pattern")
+		}
+	})
+
+	t.Run("disabled tolerates schemas with patterns RE2 cannot compile", func(t *testing.T) {
+		_, err := NewSchemaLoader().Compile(NewStringLoader(`{"type": "string", "pattern": "^(?!nope)[a-z]+$"}`))
+		if err != nil {
+			t.Fatalf("expected schema compile to succeed when ValidatePatterns is off, got: %v", err)
+		}
+	})
+}
+
 const notMapInterface = "not map interface"
 
 func TestParseSchemaURL_NotMap(t *testing.T) {
