@@ -2462,7 +2462,7 @@ func TestSomeDeclExpr(t *testing.T) {
 }
 
 func TestEvery(t *testing.T) {
-	opts := ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"every"}}
+	opts := ParserOptions{FutureKeywords: []string{"every"}}
 	assertParseOneExpr(t, "simple", "every x in xs { true }",
 		&Expr{
 			Terms: &Every{

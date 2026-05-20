@@ -185,8 +185,7 @@ type ParserOptions struct {
 	FutureKeywords    []string
 	SkipRules         bool
 	// RegoVersion is the version of Rego to parse for.
-	RegoVersion        RegoVersion
-	unreleasedKeywords bool // TODO(sr): cleanup
+	RegoVersion RegoVersion
 }
 
 // EffectiveRegoVersion returns the effective RegoVersion to use for parsing.
@@ -254,14 +253,6 @@ func (p *Parser) WithFutureKeywords(kws ...string) *Parser {
 //	import future.keywords
 func (p *Parser) WithAllFutureKeywords(yes bool) *Parser {
 	p.po.AllFutureKeywords = yes
-	return p
-}
-
-// withUnreleasedKeywords allows using keywords that haven't surfaced
-// as future keywords (see above) yet, but have tests that require
-// them to be parsed
-func (p *Parser) withUnreleasedKeywords(yes bool) *Parser {
-	p.po.unreleasedKeywords = yes
 	return p
 }
 
