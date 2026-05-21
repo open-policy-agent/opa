@@ -62,6 +62,7 @@ services:
     command:
     - "run"
     - "--server"
+    - "--addr=0.0.0.0:8181"
     - "--set=decision_logs.console=true"
     - "--set=services.nginx.url=http://bundle_server"
     - "--set=bundles.nginx.service=nginx"

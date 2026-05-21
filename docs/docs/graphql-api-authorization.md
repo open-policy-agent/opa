@@ -173,6 +173,7 @@ services:
     command:
     - "run"
     - "--server"
+    - "--addr=0.0.0.0:8181"
     - "--log-format=json-pretty"
     - "--set=decision_logs.console=true"
     - "--set=services.nginx.url=http://bundle_server"
