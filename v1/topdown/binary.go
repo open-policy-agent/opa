@@ -10,7 +10,6 @@ import (
 )
 
 func builtinBinaryAnd(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	s1, err := builtins.SetOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -19,6 +18,10 @@ func builtinBinaryAnd(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	s2, err := builtins.SetOperand(operands[1].Value, 2)
 	if err != nil {
 		return err
+	}
+
+	if s1.Len() == 0 || s2.Len() == 0 {
+		return iter(ast.InternedEmptySet)
 	}
 
 	i := s1.Intersect(s2)
@@ -30,7 +33,6 @@ func builtinBinaryAnd(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 }
 
 func builtinBinaryOr(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	s1, err := builtins.SetOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -39,6 +41,14 @@ func builtinBinaryOr(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	s2, err := builtins.SetOperand(operands[1].Value, 2)
 	if err != nil {
 		return err
+	}
+
+	if s1.Len() == 0 {
+		return iter(operands[1])
+	}
+
+	if s2.Len() == 0 {
+		return iter(operands[0])
 	}
 
 	return iter(ast.NewTerm(s1.Union(s2)))
