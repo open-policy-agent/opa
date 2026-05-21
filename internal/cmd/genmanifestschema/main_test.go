@@ -121,7 +121,7 @@ func TestSchemaValidatesRealManifests(t *testing.T) {
 	// embedders rely on this to attach custom configuration alongside the
 	// documented fields. The schema must not regress that.
 	t.Run("manifest with extra top-level keys", func(t *testing.T) {
-		raw := `{"revision": "x", "custom_app_setting": {"sp": {"enabled": true}}}`
+		raw := `{"revision": "x", "custom_app_setting": {"foo": {"enabled": true}}}`
 		var doc any
 		if err := json.Unmarshal([]byte(raw), &doc); err != nil {
 			t.Fatalf("unmarshal: %v", err)
