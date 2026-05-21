@@ -147,6 +147,36 @@ func TestBuiltinJSONSchemaVerify(t *testing.T) {
 			result: ast.NewArray(ast.BooleanTerm(false), ast.StringTerm("jsonschema: has a primitive type that is NOT VALID -- given: /UNKNOWN/ Expected valid values are:[array boolean integer number null object string]")),
 			err:    false,
 		},
+		{
+			note: "string schema with valid pattern",
+			schema: ast.String(`
+			{
+				"properties": {
+					"name": {
+						"type": "string",
+						"pattern": "^[a-z]+$"
+					}
+				}
+			}
+			`),
+			result: ast.NewArray(ast.BooleanTerm(true), ast.NullTerm()),
+			err:    false,
+		},
+		{
+			note: "string schema with Go-incompatible pattern (negative lookahead)",
+			schema: ast.String(`
+			{
+				"properties": {
+					"name": {
+						"type": "string",
+						"pattern": "^(?!testing:.*)[a-z]+$"
+					}
+				}
+			}
+			`),
+			result: ast.NewArray(ast.BooleanTerm(false), ast.StringTerm("jsonschema: pattern must be a valid regex")),
+			err:    false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -263,6 +293,60 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("Invalid type. Expected: integer, given: string")},
 				)))),
 			err: false,
+		},
+		{
+			note:     "string document with matching pattern",
+			document: ast.String(`{ "name": "alice" }`),
+			schema: ast.String(`
+			{
+				"properties": {
+					"name": {
+						"type": "string",
+						"pattern": "^[a-z]+$"
+					}
+				}
+			}
+			`),
+			result: ast.NewArray(ast.BooleanTerm(true), ast.ArrayTerm()),
+			err:    false,
+		},
+		{
+			note:     "string document violating pattern",
+			document: ast.String(`{ "name": "Alice1" }`),
+			schema: ast.String(`
+			{
+				"properties": {
+					"name": {
+						"type": "string",
+						"pattern": "^[a-z]+$"
+					}
+				}
+			}
+			`),
+			result: ast.NewArray(ast.BooleanTerm(false),
+				ast.ArrayTerm(ast.NewTerm(ast.NewObject(
+					[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm("name: Does not match pattern '^[a-z]+$'")},
+					[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("pattern")},
+					[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("name")},
+					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("Does not match pattern '^[a-z]+$'")},
+				)))),
+			err: false,
+		},
+		{
+			note:     "schema with Go-incompatible pattern",
+			document: ast.String(`{ "name": "alice" }`),
+			schema: ast.String(`
+			{
+				"properties": {
+					"name": {
+						"type": "string",
+						"pattern": "^(?!testing:.*)[a-z]+$"
+					}
+				}
+			}
+			`),
+			result: ast.NullTerm().Value,
+			err:    true,
 		},
 	}
 
