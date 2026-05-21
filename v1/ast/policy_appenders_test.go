@@ -153,6 +153,70 @@ r = true`,
 		node: ast.MustParseExpr("some x, y in input.map"),
 		want: `some x, y in input.map`,
 	},
+	{
+		name: "and, implicit",
+		node: ast.MustParseExprWithOpts("x and y", ast.ParserOptions{
+			Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
+			AllFutureKeywords: true,
+		}),
+		want: `x and y`,
+	},
+	{
+		name: "and, implicit, expanded",
+		node: &ast.LogicalAnd{
+			Lhs: ast.NewBody(
+				ast.NewExpr(ast.VarTerm("a")),
+				ast.NewExpr(ast.VarTerm("x")),
+			),
+			Rhs: ast.NewBody(
+				ast.NewExpr(ast.VarTerm("b")),
+				ast.NewExpr(ast.VarTerm("y")),
+			),
+			ExplicitLhs: false,
+			ExplicitRhs: false,
+		},
+		want: `{ a; x } and { b; y }`,
+	},
+	{
+		name: "and, explicit",
+		node: ast.MustParseExprWithOpts("{ x } and { y }", ast.ParserOptions{
+			Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
+			AllFutureKeywords: true,
+		}),
+		want: `{ x } and { y }`,
+	},
+	{
+		name: "or, implicit",
+		node: ast.MustParseExprWithOpts("x or y", ast.ParserOptions{
+			Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
+			AllFutureKeywords: true,
+		}),
+		want: `x or y`,
+	},
+	{
+		name: "or, implicit, expanded",
+		node: &ast.LogicalOr{
+			Lhs: ast.NewBody(
+				ast.NewExpr(ast.VarTerm("a")),
+				ast.NewExpr(ast.VarTerm("x")),
+			),
+			Rhs: ast.NewBody(
+				ast.NewExpr(ast.VarTerm("b")),
+				ast.NewExpr(ast.VarTerm("y")),
+			),
+			ExplicitLhs: false,
+			ExplicitRhs: false,
+		},
+		want: `{ a; x } or { b; y }`,
+	},
+	{
+		name: "or, explicit",
+		node: ast.MustParseExprWithOpts("{ x } or { y }", ast.ParserOptions{
+			Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
+			AllFutureKeywords: true,
+		}),
+		want: `{ x } or { y }`,
+	},
 }
 
 func TestASTNodeTextAppendersAndLengthAllocation(t *testing.T) {

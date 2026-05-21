@@ -371,3 +371,22 @@ func (not *Not) StringLength() int {
 	// "not {...}"
 	return 6 + not.Body.StringLength()
 }
+
+func (a *LogicalAnd) StringLength() int {
+	return logicalOperandStringLength(a.Lhs, a.ExplicitLhs) +
+		5 + // " and "
+		logicalOperandStringLength(a.Rhs, a.ExplicitRhs)
+}
+
+func (o *LogicalOr) StringLength() int {
+	return logicalOperandStringLength(o.Lhs, o.ExplicitLhs) +
+		4 + // " or "
+		logicalOperandStringLength(o.Rhs, o.ExplicitRhs)
+}
+
+func logicalOperandStringLength(b Body, explicit bool) int {
+	if !explicit && len(b) == 1 {
+		return b.StringLength()
+	}
+	return b.StringLength() + 4 // "{ " + body + " }"
+}
