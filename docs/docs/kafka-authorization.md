@@ -87,6 +87,7 @@ services:
     command:
     - "run"
     - "--server"
+    - "--addr=0.0.0.0:8181"
     - "--set=decision_logs.console=true"
     - "--set=services.authz.url=http://nginx"
     - "--set=bundles.authz.service=authz"
