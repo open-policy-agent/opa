@@ -363,6 +363,34 @@ expect for policy files `/policy1.rego` and those under the folder `foo`.
 }
 ```
 
+### Manifest JSON Schema
+
+A machine-readable JSON Schema (Draft 2020-12) describing the manifest format
+is published at
+[`https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json`](https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json).
+The schema is generated from the Go type definitions in
+[`v1/bundle/bundle.go`](https://github.com/open-policy-agent/opa/blob/main/v1/bundle/bundle.go)
+and stays in sync with them via a CI drift test, so it always reflects what the
+current `opa build` actually emits. Backward-incompatible changes will be
+published under a new path (e.g., `/v2/`).
+
+Use it to validate manifests, generate typed bindings in non-Go languages, or
+feed it into JSON Schema-aware tooling. Example with [`ajv`](https://ajv.js.org/):
+
+```bash
+opa build -b bundle/
+tar -xzf bundle.tar.gz .manifest
+ajv validate \
+  -s https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json \
+  -d .manifest
+```
+
+The top-level `Manifest` object does not set `additionalProperties: false`:
+the bundle loader has always ignored unknown top-level keys, and embedders
+that wrap OPA sometimes attach their own configuration alongside the
+documented fields. Sub-records like `WasmResolver` remain closed, since
+their shape is fully specified.
+
 Some important details for bundle files:
 
 - OPA will only load data files named `data.json` or `data.yaml` (which contain
