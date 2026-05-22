@@ -301,7 +301,8 @@ func TestParseLogical_WithModifier(t *testing.T) {
 
 func TestParseLogical_ParseErrors(t *testing.T) {
 	opts := logicalParserOpts()
-	tests := []struct {
+
+	exprTests := []struct {
 		note     string
 		input    string
 		expected string
@@ -314,10 +315,81 @@ func TestParseLogical_ParseErrors(t *testing.T) {
 		{"double and operator", "x and and y", "unexpected and keyword"},
 		{"extra or-and operator", "x or and y", "unexpected and keyword"},
 		{"extra and-or operator", "x and or y", "unexpected or keyword"},
+		{"and, inside call", "f(x and y)", "unexpected and keyword"},
+		{"or, inside call", "f(x or y)", "unexpected or keyword"},
+		{"and, inside ref", "a[x and y]", "unexpected and keyword"},
+		{"or, inside ref", "a[x or y]", "unexpected or keyword"},
+		{"and, inside set comprehension head", "{x and y | x}", "unexpected and keyword"},
+		{"or, inside set comprehension head", "{x or y | x}", "unexpected or keyword"},
+		{"and, inside array comprehension head", "[x and y | x]", "unexpected and keyword"},
+		{"or, inside array comprehension head", "[x or y | x]", "unexpected or keyword"},
+		{"and, inside object comprehension head, key", "{x and y: z | x}", "unexpected and keyword"},
+		{"or, inside object comprehension head, key", "{x or y: z | x}", "unexpected or keyword"},
+		{"and, inside object comprehension head, value", "{x: y and z | x}", "unexpected and keyword"},
+		{"or, inside object comprehension head, value", "{x: y or z | x}", "unexpected or keyword"},
+		{"and, inside every value", "every x and y in z {x}", "unexpected and keyword"},
+		{"or, inside every value", "every x or y in z {x}", "unexpected or keyword"},
+		{"and, inside every domain", "every x in y and z {x}", "unexpected and keyword"},
+		{"or, inside every domain", "every x in y or z {x}", "unexpected or keyword"},
 	}
-	for _, tc := range tests {
+	for _, tc := range exprTests {
 		t.Run(tc.note, func(t *testing.T) {
 			assertParseErrorContains(t, tc.note, tc.input, tc.expected, opts)
+		})
+	}
+
+	// TODO: Error messages here are not ideal, but improving them would impact other error states; revisit and improve general error reporting
+	modTests := []struct {
+		note     string
+		input    string
+		expected string
+	}{
+		{
+			note: "and, rule value",
+			input: `package test
+				p := x and y
+			`,
+			expected: "expression cannot be used for rule head",
+		},
+		{
+			note: "or, rule value",
+			input: `package test
+				p := x or y
+			`,
+			expected: "expression cannot be used for rule head",
+		},
+		{
+			note: "and, free statement in module body",
+			input: `package test
+				x and y
+			`,
+			expected: "expression cannot be used for rule head",
+		},
+		{
+			note: "or, free statement in module body",
+			input: `package test
+				x or y
+			`,
+			expected: "expression cannot be used for rule head",
+		},
+		{
+			note: "and, in import",
+			input: `package test
+				import data.x and y
+			`,
+			expected: "var cannot be used for rule name",
+		},
+		{
+			note: "or, in import",
+			input: `package test
+				import data.x or y
+			`,
+			expected: "var cannot be used for rule name",
+		},
+	}
+	for _, tc := range modTests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseModuleErrorMessage(t, tc.note, tc.input, tc.expected, opts)
 		})
 	}
 }
