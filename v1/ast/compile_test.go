@@ -227,7 +227,7 @@ func TestOutputVarsForNode(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
-			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			opts := ParserOptions{AllFutureKeywords: true}
 			body, err := ParseBodyWithOpts(tc.query, opts)
 			if err != nil {
 				t.Fatal(err)
@@ -847,9 +847,8 @@ func TestRuleIndices(t *testing.T) {
 
 func TestRuleTreeWithVars(t *testing.T) {
 	opts := ParserOptions{
-		RegoVersion:        RegoV0,
-		AllFutureKeywords:  true,
-		unreleasedKeywords: true,
+		RegoVersion:       RegoV0,
+		AllFutureKeywords: true,
 	}
 
 	t.Run("simple single-value rule", func(t *testing.T) {
@@ -1532,7 +1531,7 @@ func TestCompilerErrorLimit(t *testing.T) {
 func TestCompilerCheckSafetyHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	popts := ParserOptions{AllFutureKeywords: true}
 	c.Modules["newMod"] = MustParseModuleWithOpts(`package a.b
 
 unboundKey[x1] = y if { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
@@ -1613,9 +1612,8 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 	for i, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			opts := ParserOptions{
-				RegoVersion:        RegoV0,
-				AllFutureKeywords:  true,
-				unreleasedKeywords: true,
+				RegoVersion:       RegoV0,
+				AllFutureKeywords: true,
 			}
 			c := NewCompiler()
 			c.Modules = getCompilerTestModules()
@@ -1641,7 +1639,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 }
 
 func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
-	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	opts := ParserOptions{AllFutureKeywords: true}
 
 	tests := []struct {
 		note string
@@ -2886,9 +2884,8 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			compiler := NewCompiler()
 			opts := ParserOptions{
-				RegoVersion:        RegoV0,
-				AllFutureKeywords:  true,
-				unreleasedKeywords: true,
+				RegoVersion:       RegoV0,
+				AllFutureKeywords: true,
 			}
 
 			compiler.Modules = map[string]*Module{
@@ -2997,9 +2994,8 @@ p := [data() | data := 1]`,
 		t.Run(tc.note, func(t *testing.T) {
 			compiler := NewCompiler()
 			opts := ParserOptions{
-				RegoVersion:        RegoV0,
-				AllFutureKeywords:  true,
-				unreleasedKeywords: true,
+				RegoVersion:       RegoV0,
+				AllFutureKeywords: true,
 			}
 
 			compiler.Modules = map[string]*Module{
@@ -4203,7 +4199,7 @@ q[1] = 1
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			opts := ParserOptions{AllFutureKeywords: true}
 			c := NewCompiler()
 			mod, err := ParseModuleWithOpts("test.rego", tc.mod, opts)
 			if err != nil {
@@ -4527,7 +4523,7 @@ func TestCompilerResolveErrors(t *testing.T) {
 }
 
 func TestCompilerRewriteTermsInHead(t *testing.T) {
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	popts := ParserOptions{AllFutureKeywords: true}
 
 	tests := []struct {
 		note string
@@ -4745,7 +4741,7 @@ x.y.w contains bar[i] if true
 }
 
 func TestCompilerRefHeadsNeedCapability(t *testing.T) {
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	popts := ParserOptions{AllFutureKeywords: true}
 	for _, tc := range []struct {
 		note string
 		mod  *Module
@@ -5069,9 +5065,8 @@ p = true if {
 
 			result := c.Modules["test.rego"]
 			exp := MustParseModuleWithOpts(tc.exp, ParserOptions{
-				AllFutureKeywords:  true,
-				unreleasedKeywords: true,
-				ProcessAnnotation:  true,
+				AllFutureKeywords: true,
+				ProcessAnnotation: true,
 			})
 
 			if result.Compare(exp) != 0 {
@@ -6441,7 +6436,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			opts := CompileOpts{ParserOptions: ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}}
+			opts := CompileOpts{ParserOptions: ParserOptions{AllFutureKeywords: true}}
 			compiler, err := CompileModulesWithOpt(map[string]string{"test.rego": tc.module}, opts)
 			if tc.wantErr != nil {
 				if err == nil {
@@ -7078,7 +7073,7 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			c := NewCompiler()
-			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			opts := ParserOptions{AllFutureKeywords: true}
 			c.Modules["test"] = module(fixture + tc.input)
 			compileStages(c, StageRewriteDynamicTerms)
 			assertNotFailed(t, c)
@@ -10293,7 +10288,7 @@ grault = deadbeef if { true }`)
 		{"mod5": mod5},
 	}
 
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	popts := ParserOptions{AllFutureKeywords: true}
 
 	// For each round, run checks.
 	tests := []func(map[string]*Module){
@@ -11356,7 +11351,7 @@ func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
 	makeTestRunner := func(tc strictnessQueryTestCase, strict bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			c := NewCompiler().WithStrict(strict)
-			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			opts := ParserOptions{AllFutureKeywords: true}
 			result, err := c.QueryCompiler().Compile(MustParseBodyWithOpts(tc.query, opts))
 
 			if strict {
@@ -12203,9 +12198,8 @@ allow if {
 
 			for i, module := range tc.modules {
 				mod, err := ParseModuleWithOpts(fmt.Sprintf("test%d.rego", i+1), module, ParserOptions{
-					ProcessAnnotation:  true,
-					AllFutureKeywords:  true,
-					unreleasedKeywords: true,
+					ProcessAnnotation: true,
+					AllFutureKeywords: true,
 				})
 				if err != nil {
 					t.Fatal(err)
@@ -12459,9 +12453,8 @@ deny if {
 	c.WithSchemas(schemaSet)
 
 	m := MustParseModuleWithOpts(exampleModule, ParserOptions{
-		ProcessAnnotation:  true,
-		AllFutureKeywords:  true,
-		unreleasedKeywords: true,
+		ProcessAnnotation: true,
+		AllFutureKeywords: true,
 	})
 	c.Compile(map[string]*Module{"testMod": m})
 	if c.Failed() {
@@ -12523,9 +12516,8 @@ deny if {
 	c.WithSchemas(schemaSet)
 
 	m := MustParseModuleWithOpts(exampleModule, ParserOptions{
-		ProcessAnnotation:  true,
-		AllFutureKeywords:  true,
-		unreleasedKeywords: true,
+		ProcessAnnotation: true,
+		AllFutureKeywords: true,
 	})
 	c.Compile(map[string]*Module{"testMod": m})
 	if !c.Failed() {
@@ -12536,7 +12528,7 @@ deny if {
 }
 
 func modules(ms ...string) []*Module {
-	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	opts := ParserOptions{AllFutureKeywords: true}
 	mods := make([]*Module, len(ms))
 	for i, m := range ms {
 		var err error
@@ -12671,9 +12663,8 @@ deny if {
 
 	c := NewCompiler().WithSchemas(schemaSet)
 	c.Compile(map[string]*Module{"testMod": MustParseModuleWithOpts(exampleModule, ParserOptions{
-		ProcessAnnotation:  true,
-		AllFutureKeywords:  true,
-		unreleasedKeywords: true,
+		ProcessAnnotation: true,
+		AllFutureKeywords: true,
 	})})
 	assertNotFailed(t, c)
 }

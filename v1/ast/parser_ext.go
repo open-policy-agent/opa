@@ -46,6 +46,16 @@ func MustParseExpr(input string) *Expr {
 	return parsed
 }
 
+// MustParseExprWithOpts returns a parsed expression.
+// If an error occurs during parsing, panic.
+func MustParseExprWithOpts(input string, opts ParserOptions) *Expr {
+	parsed, err := ParseExprWithOpts(input, opts)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
+}
+
 // MustParseImports returns a slice of imports.
 // If an error occurs during parsing, panic.
 func MustParseImports(input string) []*Import {
@@ -523,6 +533,20 @@ func ParseExpr(input string) (*Expr, error) {
 	return body[0], nil
 }
 
+// ParseExprWithOpts returns exactly one expression.
+// If multiple expressions are parsed, an error is returned.
+// It does _not_ set SkipRules: true on its own, but respects whatever ParserOptions it's been given.
+func ParseExprWithOpts(input string, popts ParserOptions) (*Expr, error) {
+	body, err := ParseBodyWithOpts(input, popts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse expression: %w", err)
+	}
+	if len(body) != 1 {
+		return nil, fmt.Errorf("expected exactly one expression but got: %v", body)
+	}
+	return body[0], nil
+}
+
 // ParsePackage returns exactly one Package.
 // If multiple statements are parsed, an error is returned.
 func ParsePackage(input string) (*Package, error) {
@@ -632,8 +656,7 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 		WithAllFutureKeywords(popts.AllFutureKeywords).
 		WithCapabilities(popts.Capabilities).
 		WithSkipRules(popts.SkipRules).
-		WithRegoVersion(popts.RegoVersion).
-		withUnreleasedKeywords(popts.unreleasedKeywords)
+		WithRegoVersion(popts.RegoVersion)
 
 	stmts, comments, errs := parser.Parse()
 	if len(errs) > 0 {

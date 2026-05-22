@@ -41,7 +41,7 @@ func (r testResolver) Resolve(ref Ref) (Value, error) {
 }
 
 func TestBaseDocEqIndexing(t *testing.T) {
-	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	opts := ParserOptions{AllFutureKeywords: true}
 
 	expectOnlyGroundRefs := func(exp bool) func(*testing.T, *IndexResult) {
 		return func(t *testing.T, res *IndexResult) {

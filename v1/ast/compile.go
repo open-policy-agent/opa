@@ -1222,10 +1222,19 @@ func (c *Compiler) buildRequiredCapabilities() {
 				if len(path) == 2 {
 					if c.moduleIsRegoV1(c.Modules[name]) {
 						for kw := range futureKeywords {
+							// Don't output experimental keywords for wildcard imports
+							// TODO: Remove on and/or release
+							if _, internal := experimentalFutureKeywords[kw]; internal {
+								continue
+							}
 							keywords[kw] = struct{}{}
 						}
 					} else {
 						for kw := range allFutureKeywords {
+							// TODO: Remove on and/or release
+							if _, internal := experimentalFutureKeywords[kw]; internal {
+								continue
+							}
 							keywords[kw] = struct{}{}
 						}
 					}

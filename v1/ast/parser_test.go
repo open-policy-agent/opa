@@ -2462,7 +2462,7 @@ func TestSomeDeclExpr(t *testing.T) {
 }
 
 func TestEvery(t *testing.T) {
-	opts := ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"every"}}
+	opts := ParserOptions{FutureKeywords: []string{"every"}}
 	assertParseOneExpr(t, "simple", "every x in xs { true }",
 		&Expr{
 			Terms: &Every{
@@ -8373,6 +8373,7 @@ func assertParseModule(t *testing.T, msg string, input string, correct *Module, 
 	if len(opts) == 1 {
 		opt = opts[0]
 	}
+
 	m, err := ParseModuleWithOpts("", input, opt)
 	if err != nil {
 		t.Errorf("Error on test \"%s\": parse error on %s: %s", msg, input, err)
@@ -8385,10 +8386,25 @@ func assertParseModule(t *testing.T, msg string, input string, correct *Module, 
 
 }
 
-func assertParseModuleError(t *testing.T, msg, input string) {
-	m, err := ParseModule("", input)
+func assertParseModuleError(t *testing.T, msg, input string, opts ...ParserOptions) {
+	t.Helper()
+	assertParseModuleErrorMessage(t, msg, input, "", opts...)
+}
+
+func assertParseModuleErrorMessage(t *testing.T, msg, input, expected string, opts ...ParserOptions) {
+	t.Helper()
+
+	opt := ParserOptions{}
+	if len(opts) == 1 {
+		opt = opts[0]
+	}
+
+	m, err := ParseModuleWithOpts("", input, opt)
 	if err == nil {
 		t.Errorf("Error on test \"%s\": expected parse error: %v (parsed)", msg, m)
+	}
+	if result := err.Error(); !strings.Contains(result, expected) {
+		t.Errorf("Error on test \"%s\": expected parse error to contain:\n\n%v\n\nbut got:\n\n%v", msg, expected, result)
 	}
 }
 
