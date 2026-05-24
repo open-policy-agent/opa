@@ -1309,6 +1309,8 @@ func (p *Parser) isAllowedRefKeywordStr(s string) bool {
 }
 
 func (p *Parser) parseLiteralExpr(negated bool) *Expr {
+	startOffset := p.s.loc.Offset
+	startLoc := p.s.Loc()
 	s := p.save()
 	expr := p.parseExpr()
 	if expr != nil {
@@ -1347,11 +1349,6 @@ func (p *Parser) parseLiteralExpr(negated bool) *Expr {
 			expr.Negated = negated
 		}
 
-		// Check for a logical `and`/`or` infix expression. The lhs is the
-		// expression we just built; fold it into the binary using precedence
-		// climbing. `with` on an implicit lhs operand is disallowed — it must
-		// either be scoped via an explicit `{...}` body or moved to apply to
-		// the whole binary expression.
 		if p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
 			if withLoc != nil {
 				kw := p.s.tok.String()
@@ -1360,6 +1357,12 @@ func (p *Parser) parseLiteralExpr(negated bool) *Expr {
 					kw, kw)
 				return nil
 			}
+
+			if expr.Location == nil {
+				startLoc.Text = p.s.Text(startOffset, p.s.lastEnd)
+				expr.SetLoc(startLoc)
+			}
+
 			outer := p.parseLogicalOrChain(NewBody(expr), false, expr.Location)
 			if outer == nil {
 				return nil
@@ -1658,9 +1661,16 @@ func (p *Parser) parseLogicalOperand() (Body, bool) {
 		return NewBody(nb), false
 	}
 
+	startOffset := p.s.loc.Offset
+	startLoc := p.s.Loc()
 	expr := p.parseExpr()
 	if expr == nil {
 		return nil, false
+	}
+
+	if expr.Location == nil {
+		startLoc.Text = p.s.Text(startOffset, p.s.lastEnd)
+		expr.SetLoc(startLoc)
 	}
 
 	if negated && p.notBodies {
