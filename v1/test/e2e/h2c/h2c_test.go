@@ -2,15 +2,12 @@ package h2c_test
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"testing"
-
-	"golang.org/x/net/http2"
 
 	"github.com/open-policy-agent/opa/v1/runtime"
 	"github.com/open-policy-agent/opa/v1/test/e2e"
@@ -19,10 +16,14 @@ import (
 var (
 	testRuntime       *e2e.TestRuntime
 	testSocketPathH2C string
+
+	h2cOnly = new(http.Protocols)
 )
 
 func TestMain(m *testing.M) {
 	flag.Parse()
+
+	h2cOnly.SetUnencryptedHTTP2(true)
 
 	testSocketPathH2C = fmt.Sprintf("/tmp/opa-h2c-test-%d.sock", os.Getpid())
 	defer os.Remove(testSocketPathH2C)
@@ -42,15 +43,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestH2CHTTPListeners(t *testing.T) {
-	client := http.Client{
-		Transport: &http2.Transport{
-			AllowHTTP: true,
-			DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
-				return net.Dial(network, addr)
-			},
-		},
-	}
-
+	client := http.Client{Transport: &http.Transport{Protocols: h2cOnly}}
 	addrs := append(testRuntime.Runtime.Addrs(), testRuntime.Runtime.DiagnosticAddrs()...)
 
 	if expected, actual := 2, len(addrs); expected != actual {
@@ -61,10 +54,11 @@ func TestH2CHTTPListeners(t *testing.T) {
 		u := "http://" + addr + "/health"
 
 		resp, err := client.Get(u)
+		t.Cleanup(closeResponseBody(resp))
+
 		if err != nil {
 			t.Fatalf("failed to GET %s: %s", u, err)
 		}
-
 		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
 			t.Errorf("resp status: expected %d, got %d", expected, actual)
 		}
@@ -78,21 +72,17 @@ func TestH2CHTTPListeners(t *testing.T) {
 
 func TestH2CUnixDomainSocket(t *testing.T) {
 	t.Run("HTTP2Client", func(t *testing.T) {
-		client := http.Client{
-			Transport: &http2.Transport{
-				AllowHTTP: true,
-				DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
-					return net.Dial("unix", testSocketPathH2C)
-				},
-			},
-		}
+		client := http.Client{Transport: &http.Transport{
+			Protocols:   h2cOnly,
+			DialContext: unixSocketDialContext(testSocketPathH2C),
+		}}
 
 		resp, err := client.Get("http://localhost/health")
+		t.Cleanup(closeResponseBody(resp))
+
 		if err != nil {
 			t.Fatalf("failed to GET /health: %s", err)
 		}
-		defer resp.Body.Close()
-
 		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
 			t.Errorf("resp status: expected %d, got %d", expected, actual)
 		}
@@ -102,20 +92,16 @@ func TestH2CUnixDomainSocket(t *testing.T) {
 	})
 
 	t.Run("HTTP1Client", func(t *testing.T) {
-		client := http.Client{
-			Transport: &http.Transport{
-				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-					return net.Dial("unix", testSocketPathH2C)
-				},
-			},
-		}
+		client := http.Client{Transport: &http.Transport{
+			DialContext: unixSocketDialContext(testSocketPathH2C),
+		}}
 
 		resp, err := client.Get("http://localhost/health")
+		t.Cleanup(closeResponseBody(resp))
+
 		if err != nil {
 			t.Fatalf("failed to GET /health: %s", err)
 		}
-		defer resp.Body.Close()
-
 		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
 			t.Errorf("resp status: expected %d, got %d", expected, actual)
 		}
@@ -155,20 +141,16 @@ func TestH2CDisabledUnixDomainSocket(t *testing.T) {
 	}
 
 	t.Run("HTTP1Client", func(t *testing.T) {
-		client := http.Client{
-			Transport: &http.Transport{
-				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-					return net.Dial("unix", socketPath)
-				},
-			},
-		}
+		client := http.Client{Transport: &http.Transport{
+			DialContext: unixSocketDialContext(socketPath),
+		}}
 
 		resp, err := client.Get("http://localhost/health")
+		t.Cleanup(closeResponseBody(resp))
+
 		if err != nil {
 			t.Fatalf("failed to GET /health: %s", err)
 		}
-		defer resp.Body.Close()
-
 		if expected, actual := http.StatusOK, resp.StatusCode; expected != actual {
 			t.Errorf("resp status: expected %d, got %d", expected, actual)
 		}
@@ -178,24 +160,30 @@ func TestH2CDisabledUnixDomainSocket(t *testing.T) {
 	})
 
 	t.Run("HTTP2ClientShouldFail", func(t *testing.T) {
-		client := http.Client{
-			Transport: &http2.Transport{
-				AllowHTTP: true,
-				DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
-					return net.Dial("unix", socketPath)
-				},
-			},
-		}
+		client := http.Client{Transport: &http.Transport{
+			Protocols:   h2cOnly,
+			DialContext: unixSocketDialContext(socketPath),
+		}}
 
 		resp, err := client.Get("http://localhost/health")
-		if err != nil {
-			t.Logf("Expected failure for HTTP/2 client when h2c disabled: %s", err)
-			return
-		}
-		defer resp.Body.Close()
+		t.Cleanup(closeResponseBody(resp))
 
-		if resp.ProtoMajor == 2 {
-			t.Errorf("HTTP/2 should not be available when h2c is disabled")
+		if err == nil {
+			t.Fatalf("Expected failure for HTTP/2 client when h2c disabled: %s", err)
 		}
 	})
+}
+
+func unixSocketDialContext(socketPath string) func(context.Context, string, string) (net.Conn, error) {
+	return func(context.Context, string, string) (net.Conn, error) {
+		return net.Dial("unix", socketPath)
+	}
+}
+
+func closeResponseBody(resp *http.Response) func() {
+	return func() {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+	}
 }
