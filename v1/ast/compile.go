@@ -4904,119 +4904,136 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	return reordered, unsafe
 }
 
+// SafetyCheckVisitorParamsWithArity installs a customVisit hook on top of
+// SafetyCheckVisitorParams that promotes vars from inside implicit operand
+// bodies of *Not, *LogicalAnd, and *LogicalOr into the visiting set. It
+// has two consumers, both of which depend on this promotion:
 func SafetyCheckVisitorParamsWithArity(arity func(Ref) int) VarVisitorParams {
 	params := SafetyCheckVisitorParams
 	params.customVisit = func(vis *VarVisitor, v any) bool {
-		return unsafeNotVars(arity, vis, v)
+		return promoteUnsafeOperandBodyVars(arity, vis, v)
 	}
 	return params
 }
 
-type ExprByVar map[Var][]*Expr
-
-func (m ExprByVar) add(v Var, e *Expr) {
-	if u, ok := m[v]; ok {
-		m[v] = append(u, e)
-	} else {
-		m[v] = []*Expr{e}
+func promoteUnsafeOperandBodyVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
+	promote := func(body Body) {
+		for v := range unsafeImplicitBodyVars(body, arity) {
+			vis.Add(v)
+		}
 	}
+	switch n := v.(type) {
+	case *Not:
+		if !n.ExplicitBody {
+			promote(n.Body)
+		}
+		return true
+	case *LogicalAnd:
+		if !n.ExplicitLhs {
+			promote(n.Lhs)
+		}
+		if !n.ExplicitRhs {
+			promote(n.Rhs)
+		}
+		return true
+	case *LogicalOr:
+		if !n.ExplicitLhs {
+			promote(n.Lhs)
+		}
+		if !n.ExplicitRhs {
+			promote(n.Rhs)
+		}
+		return true
+	}
+	return false
 }
 
-// unsafeNotVars finds unsafe var candidates within a not body's expressions.
-// all vars in a not-body that aren't also assigned in that body are considered unsafe.
-// Assigned var must also be used in som other body expr. (Note: maybe not necessary for one-expr bodies, as we then can just report all vars)
-func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
-	// FIXME: Can we do less walking here?
-
-	n, ok := v.(*Not)
-	if !ok {
-		return false
-	}
-
-	if n.ExplicitBody {
-		return true
+// unsafeImplicitBodyVars returns the set of vars from an implicit logical
+// operand/not body that are not internally satisfied. The classification
+// rule:
+//   - single-expr body: every visible var is returned (no consumer is
+//     possible within a single expression).
+//   - multi-expr body: a var is returned iff it has no binding within the
+//     body, OR it appears in exactly one body expr (no separate consumer).
+func unsafeImplicitBodyVars(body Body, arity func(Ref) int) VarSet {
+	result := NewVarSet()
+	if len(body) == 0 {
+		return result
 	}
 
 	internalVis := varVisitorPool.Get()
 	defer varVisitorPool.Put(internalVis)
 
-	// 1. Find all visible vars in body and record associated expression(s)
-	exprByVar := ExprByVar{}
-
-	for _, e := range n.Body {
-		internalVis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
+	// 1. Collect per-expr occurrences.
+	occurrences := map[Var][]*Expr{}
+	for _, e := range body {
+		internalVis.Clear().WithParams(SafetyCheckVisitorParams)
 		internalVis.Walk(e)
-
 		for v := range internalVis.Vars() {
-			exprByVar.add(v, e)
+			occurrences[v] = append(occurrences[v], e)
 		}
 	}
 
-	// If there's only one expression in the not-body, simply report all vars found
-	if len(n.Body) == 1 {
-		for v := range exprByVar {
-			vis.Add(v)
+	// Single-expr fast path: there is no other expression to consume a
+	// binding, so every visible var must come from outside the body.
+	if len(body) == 1 {
+		for v := range occurrences {
+			result.Add(v)
 		}
-		return true
+		return result
 	}
 
-	// 2. Find all variable assignments (unification, call output)
-	assignedVars := ExprByVar{}
-
-	WalkExprs(n.Body, func(expr *Expr) bool {
-		if terms, ok := expr.Terms.([]*Term); ok {
-			if expr.IsEquality() {
-				vs := outputVarsForExprEq(expr, VarSet{}, VarSet{})
-				for v := range vs {
-					assignedVars.add(v, expr)
-				}
-				return false
-			}
-
-			operator, ok := terms[0].Value.(Ref)
-			if !ok {
-				return false
-			}
-
-			ar := arity(operator)
-			if ar < 0 {
-				return false
-			}
-
-			numInputTerms := ar + 1
-			if numInputTerms >= len(terms) {
-				return false
-			}
-
-			internalVis.Clear().WithParams(VarVisitorParams{
-				SkipClosures:   true,
-				SkipSets:       true,
-				SkipObjectKeys: true,
-				SkipRefHead:    true,
-			})
-			internalVis.WalkArgs(terms[numInputTerms:])
-			for v := range internalVis.Vars() {
-				assignedVars.add(v, expr)
-			}
+	// 2. Collect bindings (eq outputs + trailing call-arg outputs).
+	bindings := map[Var]struct{}{}
+	for _, e := range body {
+		terms, ok := e.Terms.([]*Term)
+		if !ok {
+			continue
 		}
-		return false
-	})
 
-	// 3. Record all vars in the not-body that aren't also assigned
+		if e.IsEquality() {
+			for v := range outputVarsForExprEq(e, VarSet{}, VarSet{}) {
+				bindings[v] = struct{}{}
+			}
+			continue
+		}
 
-	internalVis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
-	internalVis.Walk(n.Body)
+		operator, ok := terms[0].Value.(Ref)
+		if !ok {
+			continue
+		}
 
-	for v := range internalVis.Vars() {
-		if _, ok := assignedVars[v]; !ok {
-			vis.Add(v)
-		} else if exprs, ok := exprByVar[v]; ok && len(exprs) == 1 {
-			// Assigned vars must be used by another expression to be considered safe.
-			vis.Add(v)
+		ar := arity(operator)
+		if ar < 0 {
+			continue
+		}
+
+		numInputTerms := ar + 1
+		if numInputTerms >= len(terms) {
+			continue
+		}
+
+		internalVis.Clear().WithParams(VarVisitorParams{
+			SkipClosures:   true,
+			SkipSets:       true,
+			SkipObjectKeys: true,
+			SkipRefHead:    true,
+		})
+		internalVis.WalkArgs(terms[numInputTerms:])
+		for v := range internalVis.Vars() {
+			bindings[v] = struct{}{}
 		}
 	}
 
-	return true
+	// 3. Check if each var occurrence is bound by multiple expressions
+	for v, exprs := range occurrences {
+		if _, bound := bindings[v]; !bound {
+			result.Add(v)
+		} else if len(exprs) == 1 {
+			result.Add(v)
+		}
+	}
+	return result
 }
 
 type bodySafetyTransformer struct {
@@ -5080,12 +5097,12 @@ func (xform *bodySafetyTransformer) Visit(x any) bool {
 			x.Body = xform.reorderComprehensionSafety(NewVarSet(), x.Body)
 			return true
 		case *LogicalAnd:
-			xform.reorderLogicalOperandSafety(x.ExplicitLhs, &x.Lhs)
-			xform.reorderLogicalOperandSafety(x.ExplicitRhs, &x.Rhs)
+			x.Lhs = xform.reorderComprehensionSafety(NewVarSet(), x.Lhs)
+			x.Rhs = xform.reorderComprehensionSafety(NewVarSet(), x.Rhs)
 			return true
 		case *LogicalOr:
-			xform.reorderLogicalOperandSafety(x.ExplicitLhs, &x.Lhs)
-			xform.reorderLogicalOperandSafety(x.ExplicitRhs, &x.Rhs)
+			x.Lhs = xform.reorderComprehensionSafety(NewVarSet(), x.Lhs)
+			x.Rhs = xform.reorderComprehensionSafety(NewVarSet(), x.Rhs)
 			return true
 		}
 	}
@@ -5110,32 +5127,6 @@ func (xform *bodySafetyTransformer) reorderComprehensionSafety(tv VarSet, body B
 
 	xform.unsafe.Update(u)
 	return body
-}
-
-func (xform *bodySafetyTransformer) reorderLogicalOperandSafety(explicit bool, body *Body) {
-	if explicit {
-		// Explicit bodies may introduce bindings to the local scope, but must be reordered for safety
-		*body = xform.reorderComprehensionSafety(NewVarSet(), *body)
-		return
-	}
-	// Implicit operand bodies must not introduce any new bindings
-	xform.checkImplicitLogicalOperandSafety(*body)
-}
-
-func (xform *bodySafetyTransformer) checkImplicitLogicalOperandSafety(body Body) {
-	if len(body) == 0 {
-		return
-	}
-	vis := varVisitorPool.Get().WithParams(SafetyCheckVisitorParamsWithArity(xform.arity))
-	defer varVisitorPool.Put(vis)
-	vis.WalkBody(body)
-
-	for v := range vis.Vars() {
-		if xform.globals.Contains(v) {
-			continue
-		}
-		xform.unsafe.Add(body[0], v)
-	}
 }
 
 func (xform *bodySafetyTransformer) reorderArrayComprehensionSafety(ac *ArrayComprehension) {

@@ -14757,6 +14757,64 @@ func TestCompilerAndOrImports(t *testing.T) {
 				}
 			`,
 		},
+		{
+			note: "and, implicit body, nested call expansion (multi-expr at safety time)",
+			module: `package logic
+				p if {
+					(input.x + 1) > 0 and input.y > 0
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					{
+						__local1__ = input.x
+						plus(__local1__, 1, __local0__)
+						gt(__local0__, 0)
+					} and {
+						__local2__ = input.y
+						gt(__local2__, 0)
+					}
+				}
+			`,
+		},
+		{
+			note: "or, implicit body, nested call expansion (multi-expr at safety time)",
+			module: `package logic
+				p if {
+					input.x > 0 or (input.y * 2) > 0
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					{
+						__local1__ = input.x
+						gt(__local1__, 0)
+					} or {
+						__local2__ = input.y
+						mul(__local2__, 2, __local0__)
+						gt(__local0__, 0)
+					}
+				}
+			`,
+		},
+		{
+			note: "and, implicit body, nested call with unbound user vars",
+			module: `package logic
+				p if {
+					(x + 1) > 0 and y > 0
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
 
 		{
 			note: "and, explicit body, var indirection",
