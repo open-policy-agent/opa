@@ -7735,6 +7735,20 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 		exp    string
 	}
 
+	caps := CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
+
+	opts := CompileOpts{
+		ParserOptions: ParserOptions{
+			Capabilities: caps,
+		},
+	}
+
+	popts := func(options ParserOptions) ParserOptions {
+		options.Capabilities = caps
+		options.AllFutureKeywords = true
+		return options
+	}
+
 	cases := func(rewriteCases []rewriteTest) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
@@ -7743,8 +7757,8 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				t.Run(tc.note, func(t *testing.T) {
 					t.Parallel()
 					t.Helper()
-					c := MustCompileModules(map[string]string{"test.rego": tc.module})
-					if exp, act := module(tc.exp), c.Modules["test.rego"]; !exp.Equal(act) {
+					c := MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, opts)
+					if exp, act := module(tc.exp, popts), c.Modules["test.rego"]; !exp.Equal(act) {
 						t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, act)
 					}
 				})
@@ -8655,6 +8669,78 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 			__local1__ = __local4__
 		}
 		`,
+	}}))
+
+	t.Run("not", cases([]rewriteTest{{
+		note: "single template expression, in implicit not-body",
+		module: `package test
+			import future.keywords.not
+			p if {
+				not $"{input.x}"
+			}`,
+		exp: `package test
+			p = true if { 
+				not {
+					__local2__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local2__], __local1__)
+					__local1__
+				}
+			}`,
+	}, {
+		note: "single template expression, in explicit not-body",
+		module: `package test
+			import future.keywords.not
+			p if {
+				not { $"{input.x}" }
+			}`,
+		exp: `package test
+			p = true if { 
+				not {
+					__local2__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local2__], __local1__)
+					__local1__
+				}
+			}`,
+	}}))
+
+	t.Run("logical operators", cases([]rewriteTest{{
+		note: "or",
+		module: `package test
+			import future.keywords.or
+			p if {
+				$"{input.x}" or { $"{input.y}" }
+			}`,
+		exp: `package test
+			p = true if {
+				{
+					__local4__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local4__], __local2__)
+					__local2__
+				} or {
+					__local5__ = {__local1__ | __local1__ = input.y}
+					internal.template_string([__local5__], __local3__)
+					__local3__
+				}
+			}`,
+	}, {
+		note: "and",
+		module: `package test
+			import future.keywords.and
+			p if {
+				$"{input.x}" and { $"{input.y}" }
+			}`,
+		exp: `package test
+			p = true if {
+				{
+					__local4__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local4__], __local2__)
+					__local2__
+				} and {
+					__local5__ = {__local1__ | __local1__ = input.y}
+					internal.template_string([__local5__], __local3__)
+					__local3__
+				}
+			}`,
 	}}))
 }
 

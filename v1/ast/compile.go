@@ -2511,21 +2511,6 @@ func rewriteTemplateStrings(tsr *templateStringRewriter, globals VarSet, x any) 
 			s := safe.Copy()
 			s.Update(x.KeyValueVars())
 			modrec, _, errsrec = rewriteTemplateStrings(tsr, s, x.Body)
-		case *LogicalAnd:
-			var modR bool
-			var errsR Errors
-			modrec, _, errsrec = rewriteTemplateStrings(tsr, safe, x.Lhs)
-			modR, _, errsR = rewriteTemplateStrings(tsr, safe, x.Rhs)
-			modrec = modrec || modR
-			errsrec = append(errsrec, errsR...)
-		case *LogicalOr:
-			var modR bool
-			var errsR Errors
-			modrec, _, errsrec = rewriteTemplateStrings(tsr, safe, x.Lhs)
-			modR, _, errsR = rewriteTemplateStrings(tsr, safe, x.Rhs)
-			modrec = modrec || modR
-			errsrec = append(errsrec, errsR...)
-			// FIXME: Should *Not be included here?
 		}
 		if modrec {
 			modified = true
