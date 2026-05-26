@@ -29,7 +29,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/internal/compiler"
 	"github.com/open-policy-agent/opa/internal/config"
@@ -625,7 +624,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // Serve will start a new REST API server and listen for requests. This
 // will block until either: an error occurs, the context is canceled, or
 // a SIGTERM or SIGKILL signal is sent.
-func (rt *Runtime) Serve(ctx context.Context) error {
+func (rt *Runtime) Serve(ctx context.Context) (err error) {
 	if rt.Params.Addrs == nil {
 		return errors.New("at least one address must be configured in runtime parameters")
 	}
@@ -649,18 +648,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	checkUserPrivileges(rt.logger)
-
-	// NOTE(tsandall): at some point, hopefully we can remove this because the
-	// Go runtime will just do the right thing. Until then, try to set
-	// GOMAXPROCS based on the CPU quota applied to the process.
-	undo, err := maxprocs.Set(maxprocs.Logger(func(f string, a ...any) {
-		rt.logger.Debug(f, a...)
-	}))
-	if err != nil {
-		rt.logger.WithFields(map[string]any{"err": err}).Debug("Failed to set GOMAXPROCS from CPU quota.")
-	}
-
-	defer undo()
 
 	if err := rt.Manager.Start(ctx); err != nil {
 		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start plugins.")
