@@ -245,7 +245,7 @@ func WalkVars(x any, f func(Var) bool) {
 func WalkClosures(x any, f func(any) bool) {
 	vis := NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every, *Not:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every, *Not, *LogicalAnd, *LogicalOr:
 			return f(x)
 		}
 		return false
@@ -840,7 +840,7 @@ func (vis *VarVisitor) visit(v any) bool {
 	}
 	if vis.params.SkipClosures {
 		switch v := v.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *TemplateString, *Not:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *TemplateString, *Not, *LogicalAnd, *LogicalOr:
 			return true
 		case *Expr:
 			if ev, ok := v.Terms.(*Every); ok {
