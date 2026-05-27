@@ -1766,7 +1766,22 @@ func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey s
 	}
 
 	if subSchema.AllOf != nil {
-		subSchemaArray := subSchema.AllOf
+		// Build the list of schemas to merge: resolve $refs and skip pure anyOf
+		// wrappers that carry no explicit type or structure. Such schemas have an
+		// "Undefined" type that would cause a spurious type-mismatch in mergeSchemas.
+		subSchemaArray := make([]*gojsonschema.SubSchema, 0, len(subSchema.AllOf))
+		for _, s := range subSchema.AllOf {
+			for s.RefSchema != nil {
+				s = s.RefSchema
+			}
+			if !s.Types.IsTyped() && s.AnyOf != nil && len(s.PropertiesChildren) == 0 && len(s.ItemsChildren) == 0 {
+				continue
+			}
+			subSchemaArray = append(subSchemaArray, s)
+		}
+		if len(subSchemaArray) == 0 {
+			return types.A, nil
+		}
 		allOfResult, err := mergeSchemas(subSchemaArray...)
 		if err != nil {
 			return nil, err
