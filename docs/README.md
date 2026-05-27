@@ -1,4 +1,3 @@
-TODO
 # Documentation and Website Development
 
 Please see the

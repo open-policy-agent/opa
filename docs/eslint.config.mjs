@@ -18,6 +18,7 @@ export default [
         navigator: "readonly",
         URL: "readonly",
         fetch: "readonly",
+        MutationObserver: "readonly",
       },
     },
     rules: {
