@@ -98,11 +98,8 @@ jobs:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
-      - name: Install benchlab # this fork has some improvements over rsc.io/benchlab; but we cannot `go install` it directly
-        run: |
-          git clone https://github.com/FiloSottile/rsc-cmd /tmp/rsc-cmd
-          git -C /tmp/rsc-cmd checkout 9fc40f0f0431e88dc7f088cc6238d0d6ed1d77d0
-          cd /tmp/rsc-cmd/benchlab && go install .
+      - name: Install tools
+        run: cd build/tools && go install tool
       - name: Run benchmarks
         env:
           BEFORE_SHA: ${{ github.event.before }}
