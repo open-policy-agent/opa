@@ -130,7 +130,6 @@ type Server struct {
 	certPoolFileHash            []byte
 	minTLSVersion               uint16
 	mtx                         sync.RWMutex
-	partials                    map[string]rego.PartialResult
 	preparedEvalQueries         *cache
 	store                       storage.Store
 	manager                     *plugins.Manager
@@ -226,7 +225,6 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 
-	s.partials = map[string]rego.PartialResult{}
 	s.preparedEvalQueries = newCache(pqMaxCacheSize)
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
 	s.manager.RegisterNDCacheTrigger(s.updateNDCache)
@@ -1085,7 +1083,6 @@ func (s *Server) reload(_ context.Context, _ storage.Transaction, evt storage.Tr
 	// races--the state must be accessed _after_ a txn has been opened.
 
 	// reset some cached info
-	s.partials = map[string]rego.PartialResult{}
 	s.preparedEvalQueries = newCache(pqMaxCacheSize)
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
 	if evt.PolicyChanged() {
