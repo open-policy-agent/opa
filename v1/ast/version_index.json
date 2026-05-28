@@ -1084,6 +1084,11 @@
       "Major": 0,
       "Minor": 34,
       "Patch": 0
+    },
+    "not": {
+      "Major": 1,
+      "Minor": 17,
+      "Patch": 0
     }
   }
 }

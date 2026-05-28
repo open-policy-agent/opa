@@ -3,7 +3,65 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.17.0
+
+### Fixes
+
+- ast: `and`/`or` compilation (#8695) ([#8678](https://github.com/open-policy-agent/opa/issues/8678)) authored by @johanfylling
+- docs: Add documentation for the `future.keywords.not` import (#8641) ([#8556](https://github.com/open-policy-agent/opa/issues/8556)) authored by @johanfylling
+- jsonschema: allow $ref in allOf schemas. (#8698) ([#6523](https://github.com/open-policy-agent/opa/issues/6523)) authored by @deeglaze reported by @mosiac1
+
+### Miscellaneous
+
+- Add titles to code blocks in policy-testing (authored by @charlieegan3)
+- Cleanup post-merge from previous edge release attempt (#8672) (authored by @sspaink)
+- Enable pattern validation in json.verify_schema and json.match_schema (#8686) (authored by @sspaink)
+- Generate a JSON Schema for the IR plan  (#8676) (authored by @sspaink)
+- Generate a JSON Schema for the bundle manifest (#8684) (authored by @sspaink)
+- Integrate 1.16.2 patch release (authored by @johanfylling)
+- Remove automaxprocs dependency (#8696) (authored by @anderseknert)
+- Remove direct x/net dependency (#8697) (authored by @anderseknert)
+- ast,storage/inmem: Add `inmem.NewFromASTObject` and add missing string case to `ast.InternedValue`  (#8707) (authored by @anderseknert)
+- ast: `and`/`or` parsing (#8687) (authored by @johanfylling)
+- ast: add some schema $ref tests (authored by @srenatus)
+- ast: support rule annotations from external sources, tweak performance (#8666) (authored by @srenatus)
+- benchmarks: fix PR message, skip tests (authored by @srenatus)
+- benchmarks: improve post-merge comment, move cutoff for "failure" to 25% (authored by @srenatus)
+- benchmarks: move env vars, remove zizmor-ignore comment (authored by @srenatus)
+- benchmarks: only run for go changes (authored by @srenatus)
+- benchmarks: tweak per-PR benchmark regression check based on pr-check (authored by @srenatus)
+- benchmarks: use benchlab for per-PR feedback (authored by @srenatus)
+- benchmarks: use go tool machinery, add benchstat (authored by @srenatus)
+- build(deps): bump mermaid from 11.14.0 to 11.15.0 in /docs (authored by @dependabot[bot])
+- build(deps): bump qs from 6.14.1 to 6.14.2 in /docs (#8694) (authored by @dependabot[bot])
+- build(deps): bump the dependencies group across 2 directories with 12 updates (#8674) (authored by @dependabot[bot])
+- build(deps): bump the gha-dependencies group with 2 updates (#8648) (authored by @dependabot[bot])
+- build(deps): bump webpack-dev-server from 5.2.2 to 5.2.4 in /docs (#8670) (authored by @dependabot[bot])
+- build: `go install` -> `go install tool` to control checksums (authored by @srenatus)
+- bundle: Update bundle roots conflict detection algorithm. (#8664) (authored by @philipaconrad)
+- chore: Push edge binaries to bucket (#8668) (authored by @charlieegan3)
+- deps: bump wasmtime-go (v43 -> v44) (authored by @srenatus)
+- docs(ecosystem): add OPA MCP (#8618) (authored by @OrygnsCode)
+- docs: Add explicit address binding to examples (#8688) (authored by @charlieegan3)
+- docs: Move `future.keyword.not` import details out of general policy-lang docs (#8658) (authored by @johanfylling)
+- docs: Update diagram to match index examples (#8667) (authored by @charlieegan3)
+- docs: correct ocp ssh key docs (authored by @taurelius)
+- download: use oras, not containerd (authored by @srenatus)
+- labels: aggregate from package/subpackage/document scope, update CHANGELOG (authored by @srenatus)
+- perf: avoid allocating in binary and/or when possible (#8689) (authored by @anderseknert)
+- redirects: "edge" -> "latest" (authored by @srenatus)
+- rego: Allow per-eval GenerateJSON function (#8690) (authored by @anderseknert)
+- rego: add benchmark with and without rule labels (#8665) (authored by @srenatus)
+- release-vuln-check: fix tools install (authored by @srenatus)
+- server/types: generalize request/response metadata (authored by @srenatus)
+- server: remove dead code (s.partials) (#8708) (authored by @srenatus)
+- server: wire in response/request metadata for compile handler (authored by @srenatus)
+- topdown: change `labels` aggregation and merge logic (#8656) (authored by @srenatus)
+- types: fix benchmark (authored by @srenatus)
+- website: Bring back edge release redirect (#8671) (authored by @charlieegan3)
+- workflows: fix `cache-dependency-path` warnings in nightly run (authored by @srenatus)
+- workflows: fix benchmarks workflow (replace action, avoid stackoverflow) (authored by @srenatus)
+- workflows: note improvements in benchmark comments (authored by @srenatus)
 
 ### Improved Negation Semantics ([#8387](https://github.com/open-policy-agent/opa/issues/8387))
 
