@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       go: ${{ steps.changes.outputs.go }}
+      bench: ${{ steps.changes.outputs.bench }}
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -57,11 +58,14 @@ jobs:
           'data.policy["pr-check"]' > opa_result.json
 
           go_result=$(jq -r '.changes.go // false' opa_result.json)
+          bench_result=$(jq -c '.changes.bench // []' opa_result.json)
 
           echo "go=${go_result}" >> $GITHUB_OUTPUT
+          echo "bench=${bench_result}" >> $GITHUB_OUTPUT
 
           echo "Final outputs:"
           echo "  go=${go_result}"
+          echo "  bench=${bench_result}"
 
   benchmarks:
     permissions:
@@ -81,7 +85,7 @@ jobs:
     name: Check for regressions
     runs-on: ubuntu-24.04
     needs: [check-changes]
-    if: ${{ needs.check-changes.outputs.go == 'true' }}
+    if: ${{ needs.check-changes.outputs.bench != '' && needs.check-changes.outputs.bench != '[]' }}
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -104,8 +108,9 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.event.after }}
+          BENCH_PKGS: ${{ needs.check-changes.outputs.bench }}
         run: |
-          for pkg in ./v1/rego ./v1/topdown ./v1/ast; do
+          for pkg in $(echo "$BENCH_PKGS" | jq -r '.[]'); do
             benchlab \
               -commit "$BEFORE_SHA","$AFTER_SHA" \
               -pkg "$pkg" \

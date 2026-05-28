@@ -47,6 +47,14 @@ example_gh_actions_changelist := [
 	{"filename": ".github/workflows/pull-request.yaml"},
 ]
 
+example_bench_ast_changelist := [{"filename": "v1/ast/parser.go"}]
+
+example_bench_topdown_changelist := [{"filename": "v1/topdown/eval.go"}]
+
+example_bench_rego_changelist := [{"filename": "v1/rego/rego.go"}]
+
+example_bench_no_match_changelist := [{"filename": "cmd/build.go"}]
+
 test_run_docs_check_expect if {
 	pr_check.changes.docs with input as example_docs_changelist
 }
@@ -93,4 +101,21 @@ test_run_all_tests_expect if {
 	pr_check.changes.go with input as example_all_checks_root_changelist
 	pr_check.changes.wasm with input as example_all_checks_root_changelist
 	not pr_check.changes.yaml with input as example_all_checks_root_changelist
+}
+
+test_bench_ast_only if {
+	pr_check.changes.bench == {"./v1/ast"} with input as example_bench_ast_changelist
+}
+
+test_bench_topdown_only if {
+	pr_check.changes.bench == {"./v1/topdown"} with input as example_bench_topdown_changelist
+}
+
+test_bench_rego_only if {
+	pr_check.changes.bench == {"./v1/rego"} with input as example_bench_rego_changelist
+}
+
+test_bench_no_match if {
+	pr_check.changes.go with input as example_bench_no_match_changelist
+	pr_check.changes.bench == set() with input as example_bench_no_match_changelist
 }
