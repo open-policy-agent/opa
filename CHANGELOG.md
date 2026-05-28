@@ -7,7 +7,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This release contains a mix of new features, performance improvements, and bugfixes.  Notably:
 
-- A new `future.keywords.not` import that adds updated semantics to the `not` keyword.
+- A new `future.keywords.not` import that adds improved semantics to the `not` keyword.
 - Rule Labels in Decision Logs
 
 ### Improved Negation Semantics ([#8387](https://github.com/open-policy-agent/opa/issues/8387))
