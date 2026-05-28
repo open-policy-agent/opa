@@ -81,7 +81,7 @@ jobs:
     name: Check for regressions
     runs-on: ubuntu-24.04
     needs: [check-changes]
-    # if: ${{ needs.check-changes.outputs.go == 'true' }} # TODO(sr): re-enable when this works
+    if: ${{ needs.check-changes.outputs.go == 'true' }}
     steps:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
