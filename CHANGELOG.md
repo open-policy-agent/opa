@@ -9,6 +9,7 @@ This release contains a mix of new features, performance improvements, and bugfi
 
 - A new `future.keywords.not` import that adds improved semantics to the `not` keyword.
 - Rule Labels in Decision Logs
+- Published json schema for IR and bundle manifest
 
 ### Improved Negation Semantics ([#8387](https://github.com/open-policy-agent/opa/issues/8387))
 
