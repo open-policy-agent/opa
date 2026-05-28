@@ -1543,6 +1543,19 @@ func TestInMemoryMakeDirAST(t *testing.T) {
 	}
 }
 
+func TestNewFromASTObject(t *testing.T) {
+	store := NewFromASTObject(ast.NewObject(ast.Item(ast.InternedTerm("key"), ast.InternedTerm("value"))))
+
+	value, err := storage.ReadOne(t.Context(), store, storage.MustParsePath("/key"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if v, ok := value.(ast.Value); !ok || ast.Compare(v, ast.InternedTerm("value")) != 0 {
+		t.Fatalf("expected ast.InternedTerm(\"value\") but got %T: %v", value, value)
+	}
+}
+
 func loadExpectedResult(input string) any {
 	if len(input) == 0 {
 		return nil

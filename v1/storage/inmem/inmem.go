@@ -98,6 +98,21 @@ func NewFromReaderWithOpts(r io.Reader, opts ...Opt) storage.Store {
 	return NewFromObjectWithOpts(data, opts...)
 }
 
+// NewFromASTObject returns a new in-memory store from the supplied AST object, with
+// [OptReturnASTValuesOnRead] enabled. This allows avoiding the overhead of an extra AST
+// -> map[string]any -> AST round trip for callers whose data already exists in AST form.
+// Note that data passed is **not** copied and it is the responsibility of the caller to
+// ensure either that ownership of the data is transferred fully  to the store, or when
+// that's not possible, that a deep copy of the original data is passed.
+func NewFromASTObject(data ast.Object) storage.Store {
+	return &store{
+		data:                  data,
+		triggers:              map[*handle]storage.TriggerConfig{},
+		policies:              map[string][]byte{},
+		returnASTValuesOnRead: true,
+	}
+}
+
 type store struct {
 	rmu      sync.RWMutex                      // reader-writer lock
 	wmu      sync.Mutex                        // writer lock
