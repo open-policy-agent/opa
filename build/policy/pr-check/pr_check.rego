@@ -63,7 +63,7 @@ go_root_files := [
 	"main.go",
 ]
 
-changes["docs"] if {
+changes.docs if {
 	some changed_file in input
 	startswith(changed_file.filename, "docs/")
 } else if {
@@ -71,7 +71,7 @@ changes["docs"] if {
 	changed_file.filename in docs_root_files
 }
 
-changes["go"] if {
+changes.go if {
 	some changed_file in input
 	endswith(changed_file.filename, ".go")
 } else if {
@@ -83,7 +83,7 @@ changes["go"] if {
 	changed_file.filename in go_root_files
 }
 
-changes["wasm"] if {
+changes.wasm if {
 	some changed_file in input
 	strings.any_prefix_match(changed_file.filename, wasm_change_prefixes)
 } else if {
@@ -91,7 +91,7 @@ changes["wasm"] if {
 	changed_file.filename in rego_and_wasm_change_root_files
 }
 
-changes["rego"] if {
+changes.rego if {
 	some changed_file in input
 	endswith(changed_file.filename, ".rego")
 } else if {
@@ -99,7 +99,25 @@ changes["rego"] if {
 	changed_file.filename in rego_and_wasm_change_root_files
 }
 
-changes["yaml"] if {
+changes.yaml if {
 	some changed_file in input
 	strings.any_suffix_match(changed_file.filename, yaml_change_suffixes)
+}
+
+changes.bench contains "./v1/ast" if {
+	some changed_file in input
+	startswith(changed_file.filename, "v1/ast/")
+	endswith(changed_file.filename, ".go")
+}
+
+changes.bench contains "./v1/topdown" if {
+	some changed_file in input
+	startswith(changed_file.filename, "v1/topdown/")
+	endswith(changed_file.filename, ".go")
+}
+
+changes.bench contains "./v1/rego" if {
+	some changed_file in input
+	startswith(changed_file.filename, "v1/rego/")
+	endswith(changed_file.filename, ".go")
 }
