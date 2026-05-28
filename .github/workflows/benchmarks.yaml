@@ -111,7 +111,8 @@ jobs:
               -pkg "$pkg" \
               -host local:tags=opa_wasm \
               -reps 3 \
-              -benchtime 300ms
+              -benchtime 300ms \
+              -run '^$'
           done
       - name: Comment on PR with benchmark results
         env:
@@ -126,7 +127,7 @@ jobs:
           fi
 
           {
-            echo "## Benchmark Comparison (HEAD^ vs HEAD)"
+            echo "## Benchmark Comparison (${BEFORE_SHA} vs ${AFTER_SHA})"
             echo ""
             echo '```'
             # Each benchstat file ends with a compact benchmark × host delta table;
