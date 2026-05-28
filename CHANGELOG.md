@@ -104,11 +104,11 @@ Authored by @srenatus, reported by @tsandall
 
 ### Docs, Website, Ecosystem
 
+- ecosystem: add OPA MCP ([#8618](https://github.com/open-policy-agent/opa/pull/8618)) authored by @OrygnsCode
 - docs: Add explicit address binding to examples ([#8688](https://github.com/open-policy-agent/opa/pull/8688)) authored by @charlieegan3
 - docs: Add titles to code blocks in policy-testing ([#8649](https://github.com/open-policy-agent/opa/pull/8649)) authored by @charlieegan3
 - docs: Correct OCP SSH key docs ([#8675](https://github.com/open-policy-agent/opa/pull/8675)) authored by @taurelius
 - docs: Update diagram to match index examples ([#8667](https://github.com/open-policy-agent/opa/pull/8667)) authored by @charlieegan3
-- ecosystem: add OPA MCP ([#8618](https://github.com/open-policy-agent/opa/pull/8618)) authored by @OrygnsCode
 
 ### Miscellaneous
 
