@@ -350,6 +350,26 @@ func TestAllOfSchemas(t *testing.T) {
 			expectedType:  expectedUnevenArrayType,
 			expectedError: nil,
 		},
+		{
+			note:   "allOf with single Object type through $ref",
+			schema: allOfRef,
+			expectedType: types.NewObject([]*types.StaticProperty{
+				{Key: "v", Value: types.A},
+			}, nil),
+			expectedError: nil,
+		},
+		{
+			note:   "allOf with $ref issue #6523: nested $ref in allOf resolved to correct type",
+			schema: iss6523,
+			expectedType: types.NewObject([]*types.StaticProperty{
+				{Key: "action", Value: types.S},
+				{Key: "context", Value: types.NewObject([]*types.StaticProperty{
+					{Key: "groups", Value: types.S},
+					{Key: "user", Value: types.S},
+				}, nil)},
+			}, nil),
+			expectedError: nil,
+		},
 	}
 
 	for _, tc := range tests {
