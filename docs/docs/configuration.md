@@ -1062,8 +1062,7 @@ discovery:
 The environment variables `BASE_URL` and `BEARER_TOKEN` will be substituted in when the config
 file is loaded by the OPA runtime.
 
-> If the variable is undefined then an empty string (`""`) is substituted. It will **not**
-> raise an error.
+Note: substitution does **not** take place if an environment variable is undefined.
 
 ## Setting Configuration via CLI Arguments
 
