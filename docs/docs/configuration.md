@@ -1062,7 +1062,7 @@ discovery:
 The environment variables `BASE_URL` and `BEARER_TOKEN` will be substituted in when the config
 file is loaded by the OPA runtime.
 
-Note: environment variables are **not** substituted if they are undefined.
+Note: substitution does **not** take place if an environment variable is undefined.
 
 ## Setting Configuration via CLI Arguments
 
