@@ -701,6 +701,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           "f9c26922-8a4c-4a3c-913d-08c2a53a1011,e9daf266-5a9f-410f-8069-18a57dcfb6ee,723b2ac1-807a-43c1-a2aa-bcf8311d2354,fff41a96-7ebe-4fc5-bb60-359e5d830a87,799aac5c-a157-4734-9785-9c754c7c40a0",
         "data-modal-open-on-command-k": "true",
         "data-modal-command-k-search-mode-default": "true",
+        "data-color-scheme-selector": "[data-theme='dark']",
         async: true,
       },
     ],
