@@ -13,7 +13,7 @@ Roast is an optimized JSON format for [Rego](https://www.openpolicyagent.org/doc
 as common utilities for working with both the Roast format and OPA's AST APIs.
 
 Roast is used by [Regal](https://www.openpolicyagent.org/projects/regal), where the JSON representation of Rego's AST is used input for
-static analysis [performed by Rego itself](https://www.styra.com/blog/linting-rego-with-rego/) to determine whether
+static analysis [performed by Rego itself](https://web.archive.org/web/https://www.styra.com/blog/linting-rego-with-rego/) to determine whether
 policies conform to Regal's linter rules.
 
 > [!IMPORTANT]

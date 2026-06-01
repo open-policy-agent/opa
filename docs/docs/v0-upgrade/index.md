@@ -473,7 +473,7 @@ were part of the compiler `strict` mode in OPA 0.x.
 Users with v0.x Rego projects are encouraged to follow the below process to
 upgrade their Rego code to conform to best practices, and to be compatible with
 OPA v1.0. These steps are largely based on the process outlined in this
-[detailed blog post](https://www.styra.com/blog/renovating-rego/).
+[detailed blog post](https://web.archive.org/web/https://www.styra.com/blog/renovating-rego/).
 
 Before starting the upgrade, users are recommended to ensure they have a local
 OPA binary of version 1.0 or later.

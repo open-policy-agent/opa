@@ -10,7 +10,7 @@ code:
 inventors:
 - styra
 blogs:
-- https://www.styra.com/blog/introducing-styra-load-enterprise-opa-distribution-for-data-heavy-authorization/
+- https://web.archive.org/web/https://www.styra.com/blog/introducing-styra-load-enterprise-opa-distribution-for-data-heavy-authorization/
 videos:
 - title: Start Loving Your Data-heavy Authorization
   speakers:

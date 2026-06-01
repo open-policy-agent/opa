@@ -680,7 +680,7 @@ shell_accessible contains server.id if {
 
 :::tip
 Check out this
-[blog post](https://www.styra.com/blog/how-to-express-or-in-rego/)
+[blog post](https://web.archive.org/web/https://www.styra.com/blog/how-to-express-or-in-rego/)
 that goes into much more detail on this topic showing different methods to
 express OR in idiomatic Rego for different use cases.
 :::

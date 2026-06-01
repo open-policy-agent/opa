@@ -44,7 +44,7 @@ user_roles_mapping[user] := roles if {
 
 ## Rationale
 
-Comprehensions are [awesome](https://www.styra.com/blog/five-things-you-didnt-know-about-opa/), and should be part of
+Comprehensions are [awesome](https://web.archive.org/web/https://www.styra.com/blog/five-things-you-didnt-know-about-opa/), and should be part of
 any policy author's toolbox. Using comprehensions inside of rule bodies allow for a wide variety of elegant solutions to
 otherwise hard problems. However, when used as the value directly (and unconditionally) assigned to a rule, it is almost
 always better to use a rule that generates a set or object in the rule body rather than having a comprehension do so in
@@ -145,5 +145,5 @@ rules:
 - OPA Docs: [Generating Sets](https://www.openpolicyagent.org/docs/policy-language/#generating-sets)
 - OPA Docs: [Generating Objects](https://www.openpolicyagent.org/docs/policy-language/#generating-objects)
 - OPA Docs: [Comprehensions](https://www.openpolicyagent.org/docs/policy-language/#comprehensions)
-- Styra Blog: [Five Things You Didn't Know About OPA](https://www.styra.com/blog/five-things-you-didnt-know-about-opa/)
+- Styra Blog: [Five Things You Didn't Know About OPA](https://web.archive.org/web/https://www.styra.com/blog/five-things-you-didnt-know-about-opa/)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/idiomatic/prefer-set-or-object-rule/prefer_set_or_object_rule.rego)

@@ -92,5 +92,5 @@ rules:
 
 ## Related Resources
 
-- Styra Blog: [How to express OR in Rego](https://www.styra.com/blog/how-to-express-or-in-rego/)
+- Styra Blog: [How to express OR in Rego](https://web.archive.org/web/https://www.styra.com/blog/how-to-express-or-in-rego/)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/idiomatic/equals-pattern-matching/equals_pattern_matching.rego)

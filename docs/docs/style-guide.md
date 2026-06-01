@@ -796,7 +796,7 @@ allow if {
 
 #### Related Resources
 
-- [Five things you didn't know about OPA](https://www.styra.com/blog/five-things-you-didnt-know-about-opa/).
+- [Five things you didn't know about OPA](https://web.archive.org/web/https://www.styra.com/blog/five-things-you-didnt-know-about-opa/).
 
 ## Functions
 
