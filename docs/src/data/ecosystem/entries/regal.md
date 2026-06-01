@@ -7,7 +7,7 @@ labels:
 inventors:
 - styra
 blogs:
-- https://www.styra.com/blog/guarding-the-guardrails-introducing-regal-the-rego-linter/
+- https://web.archive.org/web/https://www.styra.com/blog/guarding-the-guardrails-introducing-regal-the-rego-linter/
 - https://thenewstack.io/scaling-open-source-community-by-getting-closer-to-users/
 code:
 - https://github.com/open-policy-agent/regal
