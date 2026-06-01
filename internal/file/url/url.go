@@ -28,6 +28,10 @@ func Clean(path string) (string, error) {
 			return "", fmt.Errorf("unsupported URL scheme: %v", path)
 		}
 
+		if url.Host != "" && url.Host != "localhost" {
+			return "", fmt.Errorf("file URL host must be empty or localhost: %v", path)
+		}
+
 		path = url.Path
 
 		// Trim leading slash on Windows if present. The url.Path field returned
