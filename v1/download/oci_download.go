@@ -371,12 +371,23 @@ func (t *ociTarget) url(path string) string {
 	return fmt.Sprintf("%s://%s/v2/%s/%s", scheme, t.registry, t.repo, path)
 }
 
+// manifestMediaTypes lists the OCI and Docker manifest media types that registries
+// such as ghcr.io require in the Accept header to return manifests correctly.
+var manifestMediaTypes = strings.Join([]string{
+	"application/vnd.oci.image.manifest.v1+json",
+	"application/vnd.oci.image.index.v1+json",
+	"application/vnd.docker.distribution.manifest.v2+json",
+	"application/vnd.docker.distribution.manifest.list.v2+json",
+	"*/*",
+}, ", ")
+
 func (t *ociTarget) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
 	url := t.url("manifests/" + reference)
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
+	req.Header.Set("Accept", manifestMediaTypes)
 
 	resp, err := t.client.Do(req)
 	if err != nil {
@@ -408,12 +419,14 @@ func (t *ociTarget) Resolve(ctx context.Context, reference string) (ocispec.Desc
 func (t *ociTarget) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
 	// Use blobs endpoint for non-manifest content, manifests endpoint for manifests
 	var url string
+	isManifest := false
 	switch target.MediaType {
 	case "application/vnd.oci.image.manifest.v1+json",
 		"application/vnd.oci.image.index.v1+json",
 		"application/vnd.docker.distribution.manifest.v2+json",
 		"application/vnd.docker.distribution.manifest.list.v2+json":
 		url = t.url("manifests/" + target.Digest.String())
+		isManifest = true
 	default:
 		url = t.url("blobs/" + target.Digest.String())
 	}
@@ -421,6 +434,9 @@ func (t *ociTarget) Fetch(ctx context.Context, target ocispec.Descriptor) (io.Re
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
+	}
+	if isManifest {
+		req.Header.Set("Accept", target.MediaType)
 	}
 
 	resp, err := t.client.Do(req)
