@@ -1221,6 +1221,17 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		if expr != nil {
 			loc.Text = p.s.Text(offset, p.s.lastEnd)
 			expr.SetLoc(loc)
+			// For implicit not-body wrapping (future.keywords.not), propagate
+			// the outer `not <op>` span to the inner expression and to the
+			// Not node, so errors reported at any level include the `not`
+			// prefix; matching the un-imported form where `not f(1)` is a
+			// single Expr.
+			if not, ok := expr.Terms.(*Not); ok && !not.ExplicitBody {
+				not.Location = loc
+				for _, inner := range not.Body {
+					inner.SetLoc(loc)
+				}
+			}
 		}
 	}()
 
