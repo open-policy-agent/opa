@@ -49,67 +49,18 @@ function CopyButton() {
 
     const clone = markdownDiv.cloneNode(true);
 
-    // Strip UI-only elements before conversion
-    const selectorsToRemove = [
-      "[data-copy-exclude]", // components that opt out of copy
-      ".hash-link", // Docusaurus heading anchor icons
-      ".buttonGroup", // Docusaurus code block copy/wrap buttons
-      "[hidden]", // hidden elements
-    ];
-    for (const sel of selectorsToRemove) {
+    const TurndownService = (await import("turndown")).default;
+    const { gfm } = await import("turndown-plugin-gfm");
+    const { createMarkdownConverter, COPY_EXCLUDE_SELECTORS } = await import("@site/src/lib/pageMarkdown.js");
+
+    for (const sel of COPY_EXCLUDE_SELECTORS) {
       for (const el of clone.querySelectorAll(sel)) {
         el.remove();
       }
     }
-    const TurndownService = (await import("turndown")).default;
-    const { gfm } = await import("turndown-plugin-gfm");
 
-    const turndown = new TurndownService({
-      headingStyle: "atx",
-      codeBlockStyle: "fenced",
-    });
-
-    turndown.use(gfm);
-
-    // Always render tables as GFM, compressing multi-line cell content
-    turndown.addRule("docusaurusTable", {
-      filter(node) {
-        return node.nodeName === "TABLE";
-      },
-      replacement(_content, node) {
-        const rows = node.rows;
-        if (!rows || rows.length === 0) return _content;
-
-        const cellText = (cell) =>
-          turndown.turndown(cell.innerHTML)
-            .replace(/\n/g, " ")
-            .replace(/\|/g, "\\|")
-            .trim();
-
-        const headerCells = Array.from(rows[0].cells).map(cellText);
-        const lines = [];
-        lines.push("| " + headerCells.join(" | ") + " |");
-        lines.push("| " + headerCells.map(() => "---").join(" | ") + " |");
-
-        for (let i = 1; i < rows.length; i++) {
-          const cells = Array.from(rows[i].cells).map(cellText);
-          lines.push("| " + cells.join(" | ") + " |");
-        }
-
-        return "\n\n" + lines.join("\n") + "\n\n";
-      },
-    });
-
-    let markdown = turndown.turndown(clone.innerHTML);
-
-    // Post-process: clean up markdown artifacts
-    markdown = markdown
-      // Strip deep heading markers (####+) that leak into table cells;
-      // also removes h4+ headings elsewhere, which is acceptable
-      .replace(/#{4,}\s*/g, "")
-      // Collapse runs of 3+ blank lines to 2
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
+    const convert = createMarkdownConverter(TurndownService, gfm);
+    const markdown = convert(clone.innerHTML);
 
     try {
       await navigator.clipboard.writeText(markdown);

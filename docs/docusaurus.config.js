@@ -14,6 +14,7 @@ const semver = require("semver");
 import fs from "fs/promises";
 import { loadPages } from "./src/lib/ecosystem/loadPages.js";
 import { loadEvents } from "./src/lib/events/loadEvents.js";
+import { markdownExportPlugin } from "./src/lib/plugins/markdownExport.js";
 import { loadRules } from "./src/lib/projects/regal/loadRules.js";
 import { loadSurveyEventData, loadSurveyEventMetadata, loadSurveyQuestions } from "./src/lib/surveys/loadSurveyData.js";
 
@@ -682,6 +683,8 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           },
         };
       },
+
+      markdownExportPlugin,
     ],
     clientModules: [
       require.resolve("./src/lib/playground.js"),
