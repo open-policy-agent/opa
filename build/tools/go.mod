@@ -18,7 +18,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/josephspurrier/goversioninfo v1.7.0 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
-	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	github.com/rogpeppe/go-internal v1.15.0 // indirect
 	github.com/vbauerster/mpb/v8 v8.12.1 // indirect
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/perf v0.0.0-20260512194132-3cf34090a3db // indirect
