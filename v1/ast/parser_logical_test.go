@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -759,7 +760,7 @@ func collectChainLocs(t *testing.T, e *Expr, emit func(col int, text string)) {
 	if nodeLoc == nil {
 		t.Fatalf("chain node.Location is nil")
 	}
-	if e.Location.Col != nodeLoc.Col || e.Location.Row != nodeLoc.Row || string(e.Location.Text) != string(nodeLoc.Text) {
+	if e.Location.Col != nodeLoc.Col || e.Location.Row != nodeLoc.Row || !bytes.Equal(e.Location.Text, nodeLoc.Text) {
 		t.Errorf("chain wrapper Expr.Location %+v != node.Location %+v", e.Location, nodeLoc)
 	}
 
