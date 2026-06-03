@@ -9458,3 +9458,43 @@ func TestNotImport(t *testing.T) {
 		})
 	}
 }
+
+// TestParseNotBody_InnerExprHasLocation regression test for: GH#8717
+func TestParseNotBody_InnerExprHasLocation(t *testing.T) {
+	module := `package test
+		import future.keywords.not
+		
+		p if {
+			not f(1)
+		}
+	`
+
+	mod, err := ParseModule("test.rego", module)
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+
+	outer := mod.Rules[0].Body[0]
+	if outer.Location == nil {
+		t.Fatalf("outer Expr has nil Location")
+	}
+
+	not := outer.Terms.(*Not)
+	if not.Location == nil {
+		t.Fatalf("Not.Location is nil")
+	}
+
+	inner := not.Body[0]
+	if inner.Location == nil {
+		t.Fatalf("inner Expr inside Not.Body has nil Location")
+	}
+	if inner.Location.Col != 4 {
+		t.Errorf("Expected column to be 4 but got: %v", inner.Location.Col)
+	}
+	if inner.Location.Row != 5 {
+		t.Errorf("Expected row to be 5 but got: %v", inner.Location.Row)
+	}
+	if inner.Location.File != "test.rego" {
+		t.Errorf("Expected file to be test.rego but got: %v", inner.Location.File)
+	}
+}

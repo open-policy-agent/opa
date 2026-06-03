@@ -1221,6 +1221,13 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		if expr != nil {
 			loc.Text = p.s.Text(offset, p.s.lastEnd)
 			expr.SetLoc(loc)
+			// For implicit not-body wrapping (future.keywords.not), propagate
+			// the outer `not <op>` span to the inner expression.
+			if not, ok := expr.Terms.(*Not); ok && !not.ExplicitBody {
+				for _, inner := range not.Body {
+					inner.SetLoc(loc)
+				}
+			}
 		}
 	}()
 
@@ -1260,14 +1267,19 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 
 		if tok == tokens.Dot || tok == tokens.LBrack {
 			p.s.tok = tokens.Ident
-			return p.parseLiteralExpr(false)
+			return p.parseLiteralExpr(false, nil)
 		}
 	}
 
-	negated := isNegatedExpression(p)
+	var notLoc *Location
+	negated := isNegated(p)
+	if negated {
+		notLoc = p.s.Loc()
+		p.scan()
+	}
 
 	if negated && p.notBodies && p.s.tok == tokens.LBrace {
-		nb := p.parseNotBody()
+		nb := p.parseNotBody(notLoc)
 
 		if nb != nil && p.s.tok == tokens.With {
 			if nb.With = p.parseWith(); nb.With == nil {
@@ -1292,7 +1304,7 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 		return p.parseEvery()
 	default:
-		return p.parseLiteralExpr(negated)
+		return p.parseLiteralExpr(negated, notLoc)
 	}
 }
 
@@ -1308,7 +1320,7 @@ func (p *Parser) isAllowedRefKeywordStr(s string) bool {
 	return false
 }
 
-func (p *Parser) parseLiteralExpr(negated bool) *Expr {
+func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
 	startOffset := p.s.loc.Offset
 	startLoc := p.s.Loc()
 	s := p.save()
@@ -1343,7 +1355,14 @@ func (p *Parser) parseLiteralExpr(negated bool) *Expr {
 			// Move 'with' statement to outer not expr
 			w := expr.With
 			expr.With = nil
-			expr = NewExpr(&Not{Body: NewBody(expr), Location: p.s.Loc()})
+
+			var spanned *Location
+			if notLoc != nil {
+				// Extend the location to also include the 'not ' prefix
+				spanned = p.extendLoc(notLoc)
+			}
+
+			expr = NewExpr(&Not{Body: NewBody(expr), Location: spanned}).SetLocation(spanned)
 			expr.With = w
 		} else {
 			expr.Negated = negated
@@ -1506,18 +1525,19 @@ func (p *Parser) parseSome() *Expr {
 	return NewExpr(decl).SetLocation(decl.Location)
 }
 
-func (p *Parser) parseNotBody() *Expr {
-	loc := p.s.Loc()
-	p.scan()
+func (p *Parser) parseNotBody(notLoc *Location) *Expr {
+	p.scan() // consume `{`
 
 	body := p.parseBody(tokens.RBrace)
 	if body == nil {
 		return nil
 	}
-	p.scan()
+	p.scan() // consume `}`
 
-	not := &Not{Body: body, ExplicitBody: true, Location: loc}
-	return NewExpr(not).SetLocation(loc)
+	// Extend the location to also include the 'not ' prefix
+	spanned := p.extendLoc(notLoc)
+	not := &Not{Body: body, ExplicitBody: true, Location: spanned}
+	return NewExpr(not).SetLocation(spanned)
 }
 
 // logicalKeywordsActive reports whether the scanner currently treats `and` or
@@ -1549,19 +1569,19 @@ func (p *Parser) parseLogicalOrChain(lhsBody Body, lhsExplicit bool, lhsLoc *Loc
 		}
 		lhsBody = NewBody(andExpr)
 		lhsExplicit = false
+		lhsLoc = andExpr.Location
 	}
 
 	for p.s.tok == tokens.LogicalOr {
 		p.scan()
 
-		rhsBody, rhsExplicit := p.parseLogicalOperand()
+		rhsBody, rhsExplicit, rhsLoc := p.parseLogicalOperand()
 		if rhsBody == nil {
 			return nil
 		}
 
 		// RHS may extend into a higher-precedence `and`-chain.
 		if p.s.tok == tokens.LogicalAnd {
-			rhsLoc := rhsBody[0].Location
 			andExpr := p.parseLogicalAndChain(rhsBody, rhsExplicit, rhsLoc)
 			if andExpr == nil {
 				return nil
@@ -1570,16 +1590,18 @@ func (p *Parser) parseLogicalOrChain(lhsBody Body, lhsExplicit bool, lhsLoc *Loc
 			rhsExplicit = false
 		}
 
+		exprLoc := p.extendLoc(lhsLoc)
 		node := &LogicalOr{
 			Lhs:         lhsBody,
 			Rhs:         rhsBody,
 			ExplicitLhs: lhsExplicit,
 			ExplicitRhs: rhsExplicit,
-			Location:    lhsLoc,
+			Location:    exprLoc,
 		}
-		wrapper := NewExpr(node).SetLocation(lhsLoc)
+		wrapper := NewExpr(node).SetLocation(exprLoc)
 		lhsBody = NewBody(wrapper)
 		lhsExplicit = false
+		lhsLoc = exprLoc
 	}
 
 	return lhsBody[0]
@@ -1600,72 +1622,81 @@ func (p *Parser) parseLogicalAndChain(lhsBody Body, lhsExplicit bool, lhsLoc *Lo
 	for p.s.tok == tokens.LogicalAnd {
 		p.scan()
 
-		rhsBody, rhsExplicit := p.parseLogicalOperand()
+		rhsBody, rhsExplicit, _ := p.parseLogicalOperand()
 		if rhsBody == nil {
 			return nil
 		}
 
+		exprLoc := p.extendLoc(lhsLoc)
 		node := &LogicalAnd{
 			Lhs:         lhsBody,
 			Rhs:         rhsBody,
 			ExplicitLhs: lhsExplicit,
 			ExplicitRhs: rhsExplicit,
-			Location:    lhsLoc,
+			Location:    exprLoc,
 		}
-		wrapper := NewExpr(node).SetLocation(lhsLoc)
+		wrapper := NewExpr(node).SetLocation(exprLoc)
 		lhsBody = NewBody(wrapper)
 		lhsExplicit = false
+		lhsLoc = exprLoc
 	}
 
 	return lhsBody[0]
 }
 
-func isNegatedExpression(p *Parser) bool {
-	if p.s.tok == tokens.Not {
-		// Distinguish the `not` keyword from a ref like `not.x`.
-		s := p.save()
-		p.scanWS()
-		tok := p.s.tok
-		p.restore(s)
-		if tok != tokens.Dot && tok != tokens.LBrack {
-			p.scan()
-			return true
-		}
+// extendLoc returns a copy of start with Text re-spanned from start.Offset
+// to the scanner's current lastEnd.
+func (p *Parser) extendLoc(start *Location) *Location {
+	cpy := *start
+	cpy.Text = p.s.Text(start.Offset, p.s.lastEnd)
+	return &cpy
+}
+
+func isNegated(p *Parser) bool {
+	if p.s.tok != tokens.Not {
+		return false
 	}
-	return false
+	// Distinguish the `not` keyword from a ref like `not.x`.
+	s := p.save()
+	p.scanWS()
+	tok := p.s.tok
+	p.restore(s)
+	return tok != tokens.Dot && tok != tokens.LBrack
 }
 
 // parseLogicalOperand parses a single operand of an `and`/`or` expression.
-// Returns the operand body and whether it was parsed from an explicit `{...}`
-// body. Returns (nil, false) on parse error.
-func (p *Parser) parseLogicalOperand() (Body, bool) {
+func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 	if p.s.tok == tokens.LBrace {
 		loc := p.s.Loc()
 		p.scan()
 		body := p.parseBody(tokens.RBrace)
 		if body == nil {
-			return nil, false
+			return nil, false, nil
 		}
 		p.scan()
-		_ = loc
-		return body, true
+		return body, true, loc
 	}
 
-	negated := isNegatedExpression(p)
+	var notLoc *Location
+	negated := isNegated(p)
+	if negated {
+		notLoc = p.s.Loc()
+		p.scan()
+	}
 
 	if negated && p.notBodies && p.s.tok == tokens.LBrace {
-		nb := p.parseNotBody()
+		nb := p.parseNotBody(notLoc)
 		if nb == nil {
-			return nil, false
+			return nil, false, nil
 		}
-		return NewBody(nb), false
+		return NewBody(nb), false, nb.Location
 	}
 
 	startOffset := p.s.loc.Offset
 	startLoc := p.s.Loc()
 	expr := p.parseExpr()
 	if expr == nil {
-		return nil, false
+		return nil, false, nil
 	}
 
 	if expr.Location == nil {
@@ -1675,13 +1706,14 @@ func (p *Parser) parseLogicalOperand() (Body, bool) {
 
 	if negated && p.notBodies {
 		// Don't attach any existing 'with' statements, they belong to the and/or, not the negated expression.
-		notNode := &Not{Body: NewBody(expr), Location: expr.Location}
-		expr = NewExpr(notNode).SetLocation(expr.Location)
+		spanned := p.extendLoc(notLoc)
+		notNode := &Not{Body: NewBody(expr), Location: spanned}
+		expr = NewExpr(notNode).SetLocation(spanned)
 	} else if negated {
 		expr.Negated = true
 	}
 
-	return NewBody(expr), false
+	return NewBody(expr), false, expr.Location
 }
 
 func (p *Parser) parseEvery() *Expr {

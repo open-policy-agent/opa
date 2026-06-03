@@ -13290,15 +13290,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated call with vars, inside comprehension, unsafe assignment",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p := [x | not x := "foo" ]
-				
+
 				f(_) := true
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var x is unsafe",
+					Code:     CompileErr,
+					Message:  "var x is unsafe",
+					Location: &Location{File: "mod.rego", Row: 4, Col: 15, Text: []byte(`not x := "foo"`)},
 				},
 			},
 		},
@@ -13333,15 +13334,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated assignment",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a := 1
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe", // FIXME: Use more specific error msg: "cannot assign vars inside negated expression"
+					Code:     CompileErr,
+					Message:  "var a is unsafe", // FIXME: Use more specific error msg: "cannot assign vars inside negated expression"
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1")},
 				},
 			},
 		},
@@ -13364,15 +13366,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated assignment, call",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a := 1 + 2
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1 + 2")},
 				},
 			},
 		},
@@ -13398,15 +13401,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated assignment, call, output var",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not plus(1, 2, a)
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not plus(1, 2, a)")},
 				},
 			},
 		},
@@ -13431,15 +13435,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated equality, unsafe var",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a == 1
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a == 1")},
 				},
 			},
 		},
@@ -13447,15 +13452,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated equality, unsafe var, explicit not-body",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not { a == 1 }
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 12, Text: []byte("a == 1")},
 				},
 			},
 		},
@@ -13463,15 +13469,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated unification, unsafe var",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a = 1
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a = 1")},
 				},
 			},
 		},
@@ -13494,15 +13501,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated unification, unsafe var, call",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a = 1 + 2
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a = 1 + 2")},
 				},
 			},
 		},
@@ -13528,15 +13536,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated enumeration, unsafe var (wildcard)",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not input.a[_]
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var _ is unsafe",
+					Code:     CompileErr,
+					Message:  "var _ is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not input.a[_]")},
 				},
 			},
 		},
@@ -13639,15 +13648,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated unsafe var",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a + 2 = 3
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a + 2 = 3")},
 				},
 			},
 		},
@@ -13655,15 +13665,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated unsafe var, explicit not-body",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not { a + 2 = 3 }
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 12, Text: []byte("a + 2")},
 				},
 			},
 		},
@@ -13930,7 +13941,7 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "nested negation (comprehension), unsafe var reference",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not [42 |
 						not v = 2
@@ -13938,8 +13949,9 @@ func TestCompilerNotImport(t *testing.T) {
 				}`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var v is unsafe",
+					Code:     CompileErr,
+					Message:  "var v is unsafe",
+					Location: &Location{File: "mod.rego", Row: 6, Col: 7, Text: []byte("not v = 2")},
 				},
 			},
 		},
@@ -14140,7 +14152,7 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "explicit not-body, var indirection, unsafe var",
 			module: `package negation
 				import future.keywords.not
-		
+
 				p if {
 					not {
 						a = x
@@ -14151,16 +14163,19 @@ func TestCompilerNotImport(t *testing.T) {
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 6, Col: 7, Text: []byte("a = x")},
 				},
 				&Error{
-					Code:    CompileErr,
-					Message: "var x is unsafe",
+					Code:     CompileErr,
+					Message:  "var x is unsafe",
+					Location: &Location{File: "mod.rego", Row: 6, Col: 7, Text: []byte("a = x")},
 				},
 				&Error{
-					Code:    CompileErr,
-					Message: "var b is unsafe",
+					Code:     CompileErr,
+					Message:  "var b is unsafe",
+					Location: &Location{File: "mod.rego", Row: 7, Col: 7, Text: []byte("b = a")},
 				},
 			},
 		},
@@ -14271,18 +14286,72 @@ func TestCompilerNotImport(t *testing.T) {
 				}
 			`, popts),
 		},
+
+		{
+			note: "no import, negated undefined function (regression: GH#8717)",
+			module: `package negation
+
+					p if {
+						not f(1)
+					}
+				`,
+			expErrs: Errors{
+				&Error{
+					Code:     TypeErr,
+					Message:  "undefined function f",
+					Location: &Location{File: "mod.rego", Row: 4, Col: 7, Text: []byte("not f(1)")},
+				},
+			},
+		},
+		{
+			note: "implicit not-body, negated undefined function (regression: GH#8717)",
+			module: `package negation
+					import future.keywords.not
+
+					p if {
+						not f(1)
+					}
+				`,
+			expErrs: Errors{
+				&Error{
+					Code:     TypeErr,
+					Message:  "undefined function f",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 7, Text: []byte("not f(1)")},
+				},
+			},
+		},
+		{
+			note: "explicit not-body, negated undefined function (regression: GH#8717)",
+			module: `package negation
+					import future.keywords.not
+
+					p if {
+						not { f(1) }
+					}
+				`,
+			expErrs: Errors{
+				&Error{
+					Code:     TypeErr,
+					Message:  "undefined function f",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 13, Text: []byte("f(1)")},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
+			mod, err := ParseModuleWithOpts("mod.rego", tc.module, ParserOptions{
+				Capabilities: CapabilitiesForThisVersion(),
+			})
+			if err != nil {
+				t.Fatalf("unexpected parse error: %v", err)
+			}
 			c := NewCompiler()
-			c.Compile(map[string]*Module{"mod.rego": MustParseModuleWithOpts(tc.module,
-				ParserOptions{
-					Capabilities: CapabilitiesForThisVersion(),
-				})})
+			c.Compile(map[string]*Module{"mod.rego": mod})
 
 			if len(tc.expErrs) > 0 {
-				assertErrors(t, c.Errors, tc.expErrs, false)
+				assertErrors(t, c.Errors, tc.expErrs, true)
 			} else if len(c.Errors) > 0 {
 				if c.Failed() {
 					t.Fatalf("unexpected compile errors: %v", c.Errors)
@@ -14293,6 +14362,20 @@ func TestCompilerNotImport(t *testing.T) {
 				if diff := cmp.Diff(tc.expMod, c.Modules["mod.rego"]); diff != "" {
 					t.Errorf("unexpected module (-want, +got):\n%s", diff)
 				}
+
+				// Regression guard for the future.keywords.not location bug (GH#8717)
+				WalkExprs(c.Modules["mod.rego"], func(expr *Expr) bool {
+					not, ok := expr.Terms.(*Not)
+					if !ok {
+						return false
+					}
+					for i, inner := range not.Body {
+						if inner.Location == nil {
+							t.Errorf("Not.Body[%d] missing Location: %v", i, inner)
+						}
+					}
+					return false
+				})
 			}
 
 			for n, m := range c.Modules {

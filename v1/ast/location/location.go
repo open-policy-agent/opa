@@ -29,6 +29,9 @@ func NewLocation(text []byte, file string, row int, col int) *Location {
 
 // Equal checks if two locations are equal to each other.
 func (loc *Location) Equal(other *Location) bool {
+	if loc == nil || other == nil {
+		return loc == other
+	}
 	return loc.File == other.File &&
 		loc.Row == other.Row &&
 		loc.Col == other.Col &&

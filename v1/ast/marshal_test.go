@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -1193,17 +1194,17 @@ func TestNot_MarshalJSON(t *testing.T) {
 		"implicit body: location included": {
 			Not:          module.Rules[0].Body[0].Terms.(*Not),
 			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Not: true}}},
-			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]},{"type":"number","value":2}]},{"type":"number","value":42}]}],"explicit_body":false,"location":{"file":"example.rego","row":8,"col":3},"type":"not"}`,
+			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]},{"type":"number","value":2}]},{"type":"number","value":42}]}],"explicit_body":false,"location":{"file":"example.rego","row":7,"col":4},"type":"not"}`,
 		},
 		"explicit body: location included": {
 			Not:          module.Rules[1].Body[0].Terms.(*Not),
 			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Not: true}}},
-			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"x"},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]}]},{"index":1,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"y"},{"type":"number","value":2}]},{"index":2,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"z"},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"var","value":"x"},{"type":"var","value":"y"}]}]},{"index":3,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"z"},{"type":"number","value":42}]}],"explicit_body":true,"location":{"file":"example.rego","row":11,"col":8},"type":"not"}`,
+			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"x"},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]}]},{"index":1,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"y"},{"type":"number","value":2}]},{"index":2,"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"z"},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"var","value":"x"},{"type":"var","value":"y"}]}]},{"index":3,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"z"},{"type":"number","value":42}]}],"explicit_body":true,"location":{"file":"example.rego","row":11,"col":4},"type":"not"}`,
 		},
 		"explicit body: location included, also for nested expressions": {
 			Not:          module.Rules[1].Body[0].Terms.(*Not),
 			Options:      astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Not: true, Expr: true}}},
-			ExpectedJSON: `{"body":[{"index":0,"location":{"file":"example.rego","row":12,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"x"},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]}]},{"index":1,"location":{"file":"example.rego","row":13,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"y"},{"type":"number","value":2}]},{"index":2,"location":{"file":"example.rego","row":14,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"z"},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"var","value":"x"},{"type":"var","value":"y"}]}]},{"index":3,"location":{"file":"example.rego","row":15,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"z"},{"type":"number","value":42}]}],"explicit_body":true,"location":{"file":"example.rego","row":11,"col":8},"type":"not"}`,
+			ExpectedJSON: `{"body":[{"index":0,"location":{"file":"example.rego","row":12,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"x"},{"type":"ref","value":[{"type":"var","value":"input"},{"type":"string","value":"x"}]}]},{"index":1,"location":{"file":"example.rego","row":13,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"y"},{"type":"number","value":2}]},{"index":2,"location":{"file":"example.rego","row":14,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"assign"}]},{"type":"var","value":"z"},{"type":"call","value":[{"type":"ref","value":[{"type":"var","value":"plus"}]},{"type":"var","value":"x"},{"type":"var","value":"y"}]}]},{"index":3,"location":{"file":"example.rego","row":15,"col":5},"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"z"},{"type":"number","value":42}]}],"explicit_body":true,"location":{"file":"example.rego","row":11,"col":4},"type":"not"}`,
 		},
 	}
 
@@ -1216,8 +1217,8 @@ func TestNot_MarshalJSON(t *testing.T) {
 			got := string(bs)
 			exp := data.ExpectedJSON
 
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
+			if diff := cmp.Diff(exp, got); diff != "" {
+				t.Errorf("unexpected json: (-want, +got):\n%s", diff)
 			}
 		})
 	}
