@@ -878,6 +878,89 @@ str1 := $"{a} {b}"`,
 				Text: []byte("b := false"),
 			},
 		},
+
+		{
+			note: "negation - legacy",
+			modules: map[string]string{
+				"buffer.rego": `package test
+
+p if {
+	not f(1)
+}
+
+f(x) := x`,
+			},
+			pos: 26, // position of 'f' inside the negated expression in p
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  7,
+				Col:  1,
+				Text: []byte("f(x) := x"),
+			},
+		},
+		{
+			note: "negation - import, implicit body",
+			modules: map[string]string{
+				"buffer.rego": `package test
+import future.keywords.not
+
+p if {
+	not f(1)
+}
+
+f(x) := x`,
+			},
+			pos: 53, // position of 'f' inside the negated expression in p
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  8,
+				Col:  1,
+				Text: []byte("f(x) := x"),
+			},
+		},
+		{
+			note: "negation - import, explicit body",
+			modules: map[string]string{
+				"buffer.rego": `package test
+import future.keywords.not
+
+p if {
+	not {
+		f(1)
+	}
+}
+
+f(x) := x`,
+			},
+			pos: 57, // position of 'f' inside the negated expression in p
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  10,
+				Col:  1,
+				Text: []byte("f(x) := x"),
+			},
+		},
+		{
+			note: "negation - import, explicit body, local var",
+			modules: map[string]string{
+				"buffer.rego": `package test
+import future.keywords.not
+
+p if {
+	not {
+		x := 42
+		x != 2
+	}
+}`,
+			},
+			pos: 67, // position of 'x' inside the negated expression in p
+			exp: &ast.Location{
+				File: "buffer.rego",
+				Row:  6,
+				Col:  3,
+				Text: []byte("x"),
+			},
+		},
 	}
 
 	for _, tc := range cases {

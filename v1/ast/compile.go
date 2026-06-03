@@ -5540,6 +5540,7 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 		cpy.Terms = &Not{
 			Body:         resolveRefsInBody(globals, ignore, ts.Body),
 			ExplicitBody: ts.ExplicitBody,
+			Location:     ts.Location,
 		}
 	case *LogicalAnd:
 		cpy.Terms = &LogicalAnd{
