@@ -13,8 +13,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -155,6 +157,58 @@ func TestBundleRegoVersion(t *testing.T) {
 
 	if b.RegoVersion(ast.RegoV1) != ast.RegoV0 {
 		t.Fatal("expected v0")
+	}
+}
+
+// TestManifestNumericRegoVersionForFileDeterministic is a regression test
+// that ensures that resolving a file's rego-version is stable across
+// invocations when multiple patterns match the same path.
+//
+// The resolution for overlapping patterns is documented as undefined, but
+// it should not vary from run to run for the same manifest.
+//
+// We test this by loading up several overlapping patterns, and resolving
+// the file rego-versions multiple times. If there is any non-determinism
+// in how patterns are selected, this test should surface it.
+func TestManifestNumericRegoVersionForFileDeterministic(t *testing.T) {
+	const path = "/example/policy.rego"
+
+	// Every pattern matches path; the version value identifies which pattern
+	// the resolver selected. (glob.Compile is called without separators, so
+	// '*' crosses '/'.) numericRegoVersionForFile does not validate the
+	// version range, so distinct ints are fine for probing which pattern won.
+	patterns := map[string]int{
+		"**":                0,
+		"*":                 1,
+		"/**":               2,
+		"/example/**":       3,
+		"/example/*":        4,
+		"/example/*.rego":   5,
+		"**/policy.rego":    6,
+		"/example/policy.*": 7,
+	}
+
+	var first *int
+	for i := range 64 {
+		// Fresh manifest each iteration so the resolver runs afresh.
+		m := Manifest{FileRegoVersions: maps.Clone(patterns)}
+		got, err := m.numericRegoVersionForFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got == nil {
+			t.Fatalf("iteration %d: expected a match, got nil", i)
+		}
+		if first == nil {
+			first = got
+		} else if *got != *first {
+			t.Fatalf("rego-version for %q is not stable across runs: got %d and %d (overlapping-pattern resolution must be deterministic)", path, *first, *got)
+		}
+	}
+
+	// Check and make sure lexical sorting is in place for patterns.
+	if want := patterns[slices.Min(slices.Collect(maps.Keys(patterns)))]; first == nil || *first != want {
+		t.Fatalf("expected lexically-first matching pattern to win (version %d), got %v", want, first)
 	}
 }
 
