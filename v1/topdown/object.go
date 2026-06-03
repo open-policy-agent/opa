@@ -5,7 +5,8 @@
 package topdown
 
 import (
-	"github.com/open-policy-agent/opa/internal/ref"
+	"cmp"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
@@ -24,10 +25,7 @@ func builtinObjectUnion(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	if objA.Len() == 0 {
 		return iter(operands[1])
 	}
-	if objB.Len() == 0 {
-		return iter(operands[0])
-	}
-	if objA.Compare(objB) == 0 {
+	if objB.Len() == 0 || objA.Compare(objB) == 0 {
 		return iter(operands[0])
 	}
 
@@ -126,34 +124,27 @@ func builtinObjectFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 }
 
 func builtinObjectGet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	object, err := builtins.ObjectOperand(operands[0].Value, 1)
+	// silly micro optimization: initial ref to last item avoids
+	// later bounds checks as 1 and 0 then known to be valid indices
+	defaultValue, path, curr := operands[2], operands[1], operands[0]
+
+	object, err := builtins.ObjectOperand(curr.Value, 1)
 	if err != nil {
 		return err
 	}
 
-	// if the get key is not an array, attempt to get the top level key for the operand value in the object
-	path, ok := operands[1].Value.(*ast.Array)
+	arr, ok := path.Value.(*ast.Array)
 	if !ok {
-		if ret := object.Get(operands[1]); ret != nil {
-			return iter(ret)
+		return iter(cmp.Or(object.Get(path), defaultValue))
+	}
+
+	for i := range arr.Len() {
+		if curr = curr.Get(arr.Elem(i)); curr == nil {
+			break
 		}
-
-		return iter(operands[2])
 	}
 
-	// if the path is empty, then we skip selecting nested keys and return the whole object
-	if path.Len() == 0 {
-		return iter(operands[0])
-	}
-
-	// build an ast.Ref from the array and see if it matches within the object
-	pathRef := ref.ArrayPath(path)
-	value, err := object.Find(pathRef)
-	if err != nil {
-		return iter(operands[2])
-	}
-
-	return iter(ast.NewTerm(value))
+	return iter(cmp.Or(curr, defaultValue))
 }
 
 func builtinObjectKeys(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
