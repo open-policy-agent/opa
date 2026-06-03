@@ -9469,7 +9469,7 @@ func TestParseNotBody_InnerExprHasLocation(t *testing.T) {
 		}
 	`
 
-	mod, err := ParseModuleWithOpts("test.rego", module, ParserOptions{})
+	mod, err := ParseModule("test.rego", module)
 	if err != nil {
 		t.Fatalf("unexpected parse error: %v", err)
 	}

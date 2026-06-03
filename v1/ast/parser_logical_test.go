@@ -601,3 +601,270 @@ func TestParseLogical_RoundTripString(t *testing.T) {
 		})
 	}
 }
+
+func TestParseLogical_ChainLocations(t *testing.T) {
+	// `not` enabled so the `not { … }` explicit not-body RHS case parses.
+	opts := logicalParserOpts("not")
+
+	type chainLoc struct {
+		col  int
+		text string
+	}
+
+	tests := []struct {
+		note   string
+		input  string
+		chains []chainLoc // expected (Col, Text) on every chain wrapper, in walk order
+	}{
+		{
+			note:   "simple and",
+			input:  "x and y",
+			chains: []chainLoc{{col: 1, text: "x and y"}},
+		},
+		{
+			note:   "simple or",
+			input:  "x or y",
+			chains: []chainLoc{{col: 1, text: "x or y"}},
+		},
+		{
+			note:  "and-chain left-associative",
+			input: "x and y and z",
+			chains: []chainLoc{
+				{col: 1, text: "x and y and z"},
+				{col: 1, text: "x and y"},
+			},
+		},
+		{
+			note:  "or-chain left-associative",
+			input: "x or y or z",
+			chains: []chainLoc{
+				{col: 1, text: "x or y or z"},
+				{col: 1, text: "x or y"},
+			},
+		},
+		{
+			note:  "mixed precedence",
+			input: "x or y and z",
+			chains: []chainLoc{
+				{col: 1, text: "x or y and z"},
+				{col: 6, text: "y and z"},
+			},
+		},
+		{
+			note:  "mixed precedence — and tighter than or",
+			input: "x and y or z",
+			chains: []chainLoc{
+				{col: 1, text: "x and y or z"},
+				{col: 1, text: "x and y"},
+			},
+		},
+		{
+			note:  "mixed precedence — and-chains on both sides of or",
+			input: "x and y or z and w",
+			chains: []chainLoc{
+				{col: 1, text: "x and y or z and w"},
+				{col: 1, text: "x and y"},
+				{col: 12, text: "z and w"},
+			},
+		},
+		{
+			note:   "LHS explicit body, and",
+			input:  "{ x; y } and z",
+			chains: []chainLoc{{col: 1, text: "{ x; y } and z"}},
+		},
+		{
+			note:   "LHS explicit body, or",
+			input:  "{ x; y } or z",
+			chains: []chainLoc{{col: 1, text: "{ x; y } or z"}},
+		},
+		{
+			note:   "RHS explicit body, and",
+			input:  "x and { y; z }",
+			chains: []chainLoc{{col: 1, text: "x and { y; z }"}},
+		},
+		{
+			note:  "RHS explicit body extending into and-chain — anchors at `{`",
+			input: "a or { x; y } and z",
+			chains: []chainLoc{
+				{col: 1, text: "a or { x; y } and z"},
+				{col: 6, text: "{ x; y } and z"},
+			},
+		},
+		{
+			// Branch coverage for the `negated && notBodies && LBrace` arm
+			// of parseLogicalOperand. The constructed *Not's Location
+			// anchors at the `not` keyword and spans the full `not { ... }`
+			// text, so the surrounding chain inherits that span.
+			note:  "RHS negated explicit not-body extending into and-chain",
+			input: "a or not { x; y } and z",
+			chains: []chainLoc{
+				{col: 1, text: "a or not { x; y } and z"},
+				{col: 6, text: "not { x; y } and z"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			body, err := ParseBodyWithOpts(tc.input, opts)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if len(body) != 1 {
+				t.Fatalf("expected 1 expr in body, got %d", len(body))
+			}
+
+			var got []chainLoc
+			collectChainLocs(t, body[0], func(col int, text string) {
+				got = append(got, chainLoc{col: col, text: text})
+			})
+
+			if len(got) != len(tc.chains) {
+				t.Fatalf("expected %d chain wrappers, got %d: %+v", len(tc.chains), len(got), got)
+			}
+
+			for i, want := range tc.chains {
+				if got[i].col != want.col {
+					t.Errorf("chain[%d] Col = %d, want %d", i, got[i].col, want.col)
+				}
+				if got[i].text != want.text {
+					t.Errorf("chain[%d] Text = %q, want %q", i, got[i].text, want.text)
+				}
+			}
+		})
+	}
+}
+
+func collectChainLocs(t *testing.T, e *Expr, emit func(col int, text string)) {
+	t.Helper()
+	if e == nil {
+		return
+	}
+	var nodeLoc *Location
+	var lhs, rhs Body
+	switch terms := e.Terms.(type) {
+	case *LogicalAnd:
+		nodeLoc = terms.Location
+		lhs, rhs = terms.Lhs, terms.Rhs
+	case *LogicalOr:
+		nodeLoc = terms.Location
+		lhs, rhs = terms.Lhs, terms.Rhs
+	default:
+		return
+	}
+
+	if e.Location == nil {
+		t.Fatalf("chain wrapper Expr.Location is nil")
+	}
+	if nodeLoc == nil {
+		t.Fatalf("chain node.Location is nil")
+	}
+	if e.Location.Col != nodeLoc.Col || e.Location.Row != nodeLoc.Row || string(e.Location.Text) != string(nodeLoc.Text) {
+		t.Errorf("chain wrapper Expr.Location %+v != node.Location %+v", e.Location, nodeLoc)
+	}
+
+	emit(e.Location.Col, string(e.Location.Text))
+	for _, x := range lhs {
+		collectChainLocs(t, x, emit)
+	}
+	for _, x := range rhs {
+		collectChainLocs(t, x, emit)
+	}
+}
+
+func TestParseLogical_InnerExprHasLocation(t *testing.T) {
+	module := `package test
+		import future.keywords.and
+		import future.keywords.or
+		
+		p if {
+			f(1) and f(2)
+			f(3) or f(4)
+		}
+	`
+
+	popts := ParserOptions{
+		Capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+	}
+
+	mod, err := ParseModuleWithOpts("test.rego", module, popts)
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+
+	outer := mod.Rules[0].Body[0]
+	if outer.Location == nil {
+		t.Fatalf("outer and Expr has nil Location")
+	}
+
+	and := outer.Terms.(*LogicalAnd)
+	if and.Location == nil {
+		t.Fatalf("LogicalAnd.Location is nil")
+	}
+
+	inner := and.Lhs[0]
+	if inner.Location == nil {
+		t.Fatalf("inner Expr inside LogicalAnd.Lhs has nil Location")
+	}
+	if inner.Location.Col != 4 {
+		t.Errorf("Expected column to be 4 but got: %v", inner.Location.Col)
+	}
+	if inner.Location.Row != 6 {
+		t.Errorf("Expected row to be 6 but got: %v", inner.Location.Row)
+	}
+	if inner.Location.File != "test.rego" {
+		t.Errorf("Expected file to be test.rego but got: %v", inner.Location.File)
+	}
+
+	inner = and.Rhs[0]
+	if inner.Location == nil {
+		t.Fatalf("inner Expr inside LogicalAnd.Rhs has nil Location")
+	}
+	if inner.Location.Col != 13 {
+		t.Errorf("Expected column to be 4 but got: %v", inner.Location.Col)
+	}
+	if inner.Location.Row != 6 {
+		t.Errorf("Expected row to be 6 but got: %v", inner.Location.Row)
+	}
+	if inner.Location.File != "test.rego" {
+		t.Errorf("Expected file to be test.rego but got: %v", inner.Location.File)
+	}
+
+	outer = mod.Rules[0].Body[1]
+	if outer.Location == nil {
+		t.Fatalf("outer or Expr has nil Location")
+	}
+
+	or := outer.Terms.(*LogicalOr)
+	if and.Location == nil {
+		t.Fatalf("LogicalOr.Location is nil")
+	}
+
+	inner = or.Lhs[0]
+	if inner.Location == nil {
+		t.Fatalf("inner Expr inside LogicalOr.Lhs has nil Location")
+	}
+	if inner.Location.Col != 4 {
+		t.Errorf("Expected column to be 4 but got: %v", inner.Location.Col)
+	}
+	if inner.Location.Row != 7 {
+		t.Errorf("Expected row to be 7 but got: %v", inner.Location.Row)
+	}
+	if inner.Location.File != "test.rego" {
+		t.Errorf("Expected file to be test.rego but got: %v", inner.Location.File)
+	}
+
+	inner = or.Rhs[0]
+	if inner.Location == nil {
+		t.Fatalf("inner Expr inside LogicalOr.Lhs has nil Location")
+	}
+	if inner.Location.Col != 12 {
+		t.Errorf("Expected column to be 12 but got: %v", inner.Location.Col)
+	}
+	if inner.Location.Row != 7 {
+		t.Errorf("Expected row to be 7 but got: %v", inner.Location.Row)
+	}
+	if inner.Location.File != "test.rego" {
+		t.Errorf("Expected file to be test.rego but got: %v", inner.Location.File)
+	}
+}
