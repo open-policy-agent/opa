@@ -32,19 +32,11 @@ jobs:
           go-version: ${{ steps.go_version.outputs.go_version }}
           cache-dependency-path: opa/go.sum
 
-      - name: Get latest Regal release tag
-        id: regal_release
-        run: |
-          tag=$(gh api repos/open-policy-agent/regal/releases/latest --jq '.tag_name')
-          echo "tag=$tag" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Check out Regal ${{ steps.regal_release.outputs.tag }}
+      - name: Check out Regal main
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: open-policy-agent/regal
-          ref: ${{ steps.regal_release.outputs.tag }}
+          ref: main
           persist-credentials: false
           path: regal
 
