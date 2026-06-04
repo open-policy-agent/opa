@@ -15,3 +15,28 @@ sidebar_label: Objects
   in `{ "foo/bar~": "baz" }`.
 - The `json` string `paths` may be an array of string path segments rather than a `/` separated string. For example
   the path `a/b/c` can be passed in as `["a", "b", "c"]`.
+
+## Examples
+
+### `object.get`
+
+`object.get` looks up a key in an object and returns a supplied default when
+the key is missing, avoiding the undefined result that a direct lookup would
+produce.
+
+<PlaygroundExample dir={require.context('../_examples/object/get/get-with-default')} />
+
+### `object.keys`
+
+`object.keys` returns the set of top-level keys of an object, which is useful
+for checking that a required set of fields is present.
+
+<PlaygroundExample dir={require.context('../_examples/object/keys/list-keys')} />
+
+### `object.union`
+
+`object.union` merges two objects into one. When the same key appears in both,
+the value from the second object wins, making it a natural fit for layering
+overrides on top of defaults.
+
+<PlaygroundExample dir={require.context('../_examples/object/union/merge-defaults')} />

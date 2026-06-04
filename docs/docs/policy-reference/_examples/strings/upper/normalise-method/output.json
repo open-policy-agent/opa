@@ -1,0 +1,9 @@
+{
+  "allow": true,
+  "allowed_methods": [
+    "GET",
+    "HEAD",
+    "OPTIONS"
+  ],
+  "method": "GET"
+}

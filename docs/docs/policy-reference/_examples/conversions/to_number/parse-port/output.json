@@ -1,0 +1,4 @@
+{
+  "port": 80,
+  "privileged_port": true
+}

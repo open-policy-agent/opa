@@ -1,0 +1,24 @@
+{
+  "flat_tags": [
+    "app",
+    "web",
+    "env",
+    "prod",
+    "team",
+    "platform"
+  ],
+  "grouped_tags": [
+    [
+      "app",
+      "web"
+    ],
+    [
+      "env",
+      "prod"
+    ],
+    [
+      "team",
+      "platform"
+    ]
+  ]
+}

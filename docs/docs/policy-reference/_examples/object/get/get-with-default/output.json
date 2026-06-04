@@ -1,0 +1,11 @@
+{
+  "name": "alice",
+  "team": "unassigned",
+  "user": {
+    "name": "alice",
+    "roles": [
+      "dev",
+      "ops"
+    ]
+  }
+}

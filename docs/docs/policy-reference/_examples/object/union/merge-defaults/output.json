@@ -1,0 +1,13 @@
+{
+  "defaults": {
+    "replicas": 1,
+    "tier": "standard"
+  },
+  "merged": {
+    "replicas": 3,
+    "tier": "standard"
+  },
+  "overrides": {
+    "replicas": 3
+  }
+}

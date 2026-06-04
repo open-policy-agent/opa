@@ -1,0 +1,1 @@
+Splitting a structured identifier

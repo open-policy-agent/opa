@@ -46,3 +46,20 @@ about it in the [keywords section](/docs/policy-reference/keywords/contains).
 <PlaygroundExample dir={require.context('../_examples/strings/contains/email-validation')} />
 
 <PlaygroundExample dir={require.context('../_examples/strings/contains/content-moderation')} />
+
+### `upper`
+
+`upper` returns a copy of a string with every character converted to upper
+case (`lower` does the same for lower case). Normalising case is a common step
+before comparing user input against an allow-list, so that values differing
+only in case are treated the same.
+
+<PlaygroundExample dir={require.context('../_examples/strings/upper/normalise-method')} />
+
+### `split`
+
+`split` breaks a string into an array of substrings on a separator. It is
+useful for taking apart structured identifiers such as image references or
+resource paths.
+
+<PlaygroundExample dir={require.context('../_examples/strings/split/image-reference')} />

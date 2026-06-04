@@ -1,0 +1,14 @@
+{
+  "priorities": [
+    "low",
+    "medium",
+    "high",
+    "critical"
+  ],
+  "priorities_desc": [
+    "critical",
+    "high",
+    "medium",
+    "low"
+  ]
+}
