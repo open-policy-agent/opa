@@ -23,6 +23,7 @@ export default function Card({ item }) {
           {item.link_text || "Learn more"}
         </Link>
       )}
+      {item.dateAdded && <div className={styles.dateAdded}>Added {item.dateAdded}</div>}
     </div>
   );
 }
