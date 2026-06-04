@@ -857,12 +857,10 @@ func (num Number) Equal(other Value) bool {
 // Compare compares num to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (num Number) Compare(other Value) int {
-	// Optimize for the common case, as calling Compare allocates on heap.
 	if otherNum, yes := other.(Number); yes {
 		return NumberCompare(num, otherNum)
 	}
-
-	return Compare(num, other)
+	return valueTypeCompare(num, other)
 }
 
 // Find returns the current value or a not found error.
@@ -974,7 +972,7 @@ func (str String) Compare(other Value) int {
 		return 1
 	}
 
-	return Compare(str, other)
+	return valueTypeCompare(str, other)
 }
 
 // Find returns the current value or a not found error.
@@ -1059,7 +1057,7 @@ func (ts *TemplateString) Compare(other Value) int {
 
 		return 0
 	}
-	return Compare(ts, other)
+	return valueTypeCompare(ts, other)
 }
 
 func (ts *TemplateString) Find(path Ref) (Value, error) {
@@ -1171,7 +1169,7 @@ func (v Var) Compare(other Value) int {
 	if otherVar, ok := other.(Var); ok {
 		return strings.Compare(string(v), string(otherVar))
 	}
-	return Compare(v, other)
+	return valueTypeCompare(v, other)
 }
 
 // Find returns the current value or a not found error.
@@ -1364,8 +1362,7 @@ func (ref Ref) Compare(other Value) int {
 	if o, ok := other.(Ref); ok {
 		return termSliceCompare(ref, o)
 	}
-
-	return Compare(ref, other)
+	return valueTypeCompare(ref, other)
 }
 
 // Find returns the current value or a "not found" error.
@@ -1634,16 +1631,7 @@ func (arr *Array) Compare(other Value) int {
 		return termSliceCompare(arr.elems, b.elems)
 	}
 
-	sortA := sortOrder(arr)
-	sortB := sortOrder(other)
-
-	if sortA < sortB {
-		return -1
-	} else if sortB < sortA {
-		return 1
-	}
-
-	return Compare(arr, other)
+	return valueTypeCompare(arr, other)
 }
 
 // Find returns the value at the index or an out-of-range error.
@@ -1927,15 +1915,11 @@ func (s *set) sortedKeys() []*Term {
 // Compare compares s to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (s *set) Compare(other Value) int {
-	o1 := sortOrder(s)
-	o2 := sortOrder(other)
-	if o1 < o2 {
-		return -1
-	} else if o1 > o2 {
-		return 1
+	if t, ok := other.(*set); ok {
+		return slices.CompareFunc(s.sortedKeys(), t.sortedKeys(), TermValueCompare)
 	}
-	t := other.(*set)
-	return termSliceCompare(s.sortedKeys(), t.sortedKeys())
+
+	return valueTypeCompare(s, other)
 }
 
 // Find returns the set or dereferences the element itself.
@@ -2204,12 +2188,8 @@ func (l *lazyObj) force() Object {
 }
 
 func (l *lazyObj) Compare(other Value) int {
-	o1 := sortOrder(l)
-	o2 := sortOrder(other)
-	if o1 < o2 {
-		return -1
-	} else if o2 < o1 {
-		return 1
+	if c := valueTypeCompare(l, other); c != 0 {
+		return c
 	}
 	return l.force().Compare(other)
 }
@@ -2414,12 +2394,8 @@ func (obj *object) Compare(other Value) int {
 	if x, ok := other.(*lazyObj); ok {
 		other = x.force()
 	}
-	o1 := sortOrder(obj)
-	o2 := sortOrder(other)
-	if o1 < o2 {
-		return -1
-	} else if o2 < o1 {
-		return 1
+	if c := valueTypeCompare(obj, other); c != 0 {
+		return c
 	}
 	a := obj
 	b := other.(*object)
@@ -2431,27 +2407,14 @@ func (obj *object) Compare(other Value) int {
 		minLen = len(bkeys)
 	}
 	for i := range minLen {
-		keysCmp := Compare(akeys[i].key, bkeys[i].key)
-		if keysCmp < 0 {
-			return -1
+		if c := akeys[i].key.Value.Compare(bkeys[i].key.Value); c != 0 {
+			return c
 		}
-		if keysCmp > 0 {
-			return 1
-		}
-		valA := akeys[i].value
-		valB := bkeys[i].value
-		valCmp := Compare(valA, valB)
-		if valCmp != 0 {
-			return valCmp
+		if c := akeys[i].value.Value.Compare(bkeys[i].value.Value); c != 0 {
+			return c
 		}
 	}
-	if len(akeys) < len(bkeys) {
-		return -1
-	}
-	if len(bkeys) < len(akeys) {
-		return 1
-	}
-	return 0
+	return len(akeys) - len(bkeys)
 }
 
 // Find returns the value at the key or undefined.
@@ -2506,7 +2469,7 @@ func KeyHashEqual(x, y Value) bool {
 		}
 	}
 
-	return Compare(x, y) == 0
+	return x.Compare(y) == 0
 }
 
 // Hash returns the hash code for the Value.
@@ -2906,13 +2869,19 @@ func (ac *ArrayComprehension) Copy() *ArrayComprehension {
 
 // Equal returns true if ac is equal to other.
 func (ac *ArrayComprehension) Equal(other Value) bool {
-	return Compare(ac, other) == 0
+	return ac.Compare(other) == 0
 }
 
 // Compare compares ac to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (ac *ArrayComprehension) Compare(other Value) int {
-	return Compare(ac, other)
+	if bc, ok := other.(*ArrayComprehension); ok {
+		if c := ac.Term.Value.Compare(bc.Term.Value); c != 0 {
+			return c
+		}
+		return ac.Body.Compare(bc.Body)
+	}
+	return valueTypeCompare(ac, other)
 }
 
 // Find returns the current value or a not found error.
@@ -2967,13 +2936,22 @@ func (oc *ObjectComprehension) Copy() *ObjectComprehension {
 
 // Equal returns true if oc is equal to other.
 func (oc *ObjectComprehension) Equal(other Value) bool {
-	return Compare(oc, other) == 0
+	return oc.Compare(other) == 0
 }
 
 // Compare compares oc to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (oc *ObjectComprehension) Compare(other Value) int {
-	return Compare(oc, other)
+	if bc, ok := other.(*ObjectComprehension); ok {
+		if c := oc.Key.Value.Compare(bc.Key.Value); c != 0 {
+			return c
+		}
+		if c := oc.Value.Value.Compare(bc.Value.Value); c != 0 {
+			return c
+		}
+		return oc.Body.Compare(bc.Body)
+	}
+	return valueTypeCompare(oc, other)
 }
 
 // Find returns the current value or a not found error.
@@ -3025,13 +3003,19 @@ func (sc *SetComprehension) Copy() *SetComprehension {
 
 // Equal returns true if sc is equal to other.
 func (sc *SetComprehension) Equal(other Value) bool {
-	return Compare(sc, other) == 0
+	return sc.Compare(other) == 0
 }
 
 // Compare compares sc to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (sc *SetComprehension) Compare(other Value) int {
-	return Compare(sc, other)
+	if oc, ok := other.(*SetComprehension); ok {
+		if c := sc.Term.Value.Compare(oc.Term.Value); c != 0 {
+			return c
+		}
+		return sc.Body.Compare(oc.Body)
+	}
+	return valueTypeCompare(sc, other)
 }
 
 // Find returns the current value or a not found error.
@@ -3074,7 +3058,10 @@ func (c Call) Copy() Call {
 // Compare compares c to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (c Call) Compare(other Value) int {
-	return Compare(c, other)
+	if oc, ok := other.(Call); ok {
+		return termSliceCompare(c, oc)
+	}
+	return valueTypeCompare(c, other)
 }
 
 // Find returns the current value or a not found error.

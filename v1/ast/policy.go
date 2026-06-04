@@ -562,7 +562,7 @@ func (imp *Import) Compare(other *Import) int {
 	} else if other == nil {
 		return 1
 	}
-	if cmp := Compare(imp.Path, other.Path); cmp != 0 {
+	if cmp := imp.Path.Value.Compare(other.Path.Value); cmp != 0 {
 		return cmp
 	}
 
@@ -906,10 +906,10 @@ func (head *Head) Compare(other *Head) int {
 	} else if !head.Assign && other.Assign {
 		return 1
 	}
-	if cmp := Compare(head.Args, other.Args); cmp != 0 {
+	if cmp := termSliceCompare(head.Args, other.Args); cmp != 0 {
 		return cmp
 	}
-	if cmp := Compare(head.Reference, other.Reference); cmp != 0 {
+	if cmp := termSliceCompare(head.Reference, other.Reference); cmp != 0 {
 		return cmp
 	}
 	if cmp := VarCompare(head.Name, other.Name); cmp != 0 {
@@ -1218,7 +1218,6 @@ func (expr *Expr) Equal(other *Expr) bool {
 // Otherwise, the expression terms are compared normally. If both expressions
 // have the same terms, the modifiers are compared.
 func (expr *Expr) Compare(other *Expr) int {
-
 	if expr == nil {
 		if other == nil {
 			return 0
@@ -1252,7 +1251,7 @@ func (expr *Expr) Compare(other *Expr) int {
 
 	switch t := expr.Terms.(type) {
 	case *Term:
-		if cmp := Compare(t.Value, other.Terms.(*Term).Value); cmp != 0 {
+		if cmp := t.Value.Compare(other.Terms.(*Term).Value); cmp != 0 {
 			return cmp
 		}
 	case []*Term:
@@ -1268,7 +1267,7 @@ func (expr *Expr) Compare(other *Expr) int {
 			return cmp
 		}
 	case *Not:
-		if cmp := Compare(t, other.Terms.(*Not)); cmp != 0 {
+		if cmp := t.Compare(other.Terms.(*Not)); cmp != 0 {
 			return cmp
 		}
 	case *LogicalAnd:

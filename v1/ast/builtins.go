@@ -3662,11 +3662,12 @@ func (b *Builtin) Call(operands ...*Term) *Term {
 
 // Ref returns a Ref that refers to the built-in function.
 func (b *Builtin) Ref() Ref {
-	parts := strings.Split(b.Name, ".")
-	ref := make(Ref, len(parts))
-	ref[0] = VarTerm(parts[0])
-	for i := 1; i < len(parts); i++ {
-		ref[i] = InternedTerm(parts[i])
+	numParts := strings.Count(b.Name, ".") + 1
+	curr, remaining, ok := strings.Cut(b.Name, ".")
+	ref := append(make(Ref, 0, numParts), VarTerm(curr))
+	for ok {
+		curr, remaining, ok = strings.Cut(remaining, ".")
+		ref = append(ref, InternedTerm(curr))
 	}
 	return ref
 }

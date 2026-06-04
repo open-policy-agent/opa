@@ -9,27 +9,27 @@ import "github.com/open-policy-agent/opa/v1/ast"
 type compareFunc func(a, b ast.Value) bool
 
 func compareGreaterThan(a, b ast.Value) bool {
-	return ast.Compare(a, b) > 0
+	return a.Compare(b) > 0
 }
 
 func compareGreaterThanEq(a, b ast.Value) bool {
-	return ast.Compare(a, b) >= 0
+	return a.Compare(b) >= 0
 }
 
 func compareLessThan(a, b ast.Value) bool {
-	return ast.Compare(a, b) < 0
+	return a.Compare(b) < 0
 }
 
 func compareLessThanEq(a, b ast.Value) bool {
-	return ast.Compare(a, b) <= 0
+	return a.Compare(b) <= 0
 }
 
 func compareNotEq(a, b ast.Value) bool {
-	return ast.Compare(a, b) != 0
+	return a.Compare(b) != 0
 }
 
 func compareEq(a, b ast.Value) bool {
-	return ast.Compare(a, b) == 0
+	return a.Compare(b) == 0
 }
 
 func builtinCompare(cmp compareFunc) BuiltinFunc {

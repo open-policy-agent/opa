@@ -1675,7 +1675,7 @@ func TestFmtVarTerm(t *testing.T) {
 		index:        54321,
 	}
 
-	res := e.fmtVarTerm()
+	res := e.fmtVar()
 
 	if res != "foobar_term_12345_54321" {
 		t.Fatalf("Expected foobar_term_12345_54321 but got %s", res)
@@ -1699,6 +1699,6 @@ func BenchmarkFormatVarTerm(b *testing.B) {
 	}
 
 	for b.Loop() {
-		_ = e.fmtVarTerm()
+		_ = e.fmtVar()
 	}
 }
