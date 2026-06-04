@@ -14,8 +14,11 @@ const vendors = [
       "Policy-as-Code Laboratories provides strategic planning and integration consulting for OPA and Rego across the PaC ecosystem (Cloud, Kubernetes, OpenShift, and legacy platforms).",
     link: "https://paclabs.io/opa_support.html?utm_source=opa&utm_content=opa-support",
     link_text: "Learn more",
+    dateAdded: "2023-08-25",
   },
 ];
+
+const sortedVendors = [...vendors].sort((a, b) => a.dateAdded.localeCompare(b.dateAdded));
 
 export default function Support() {
   return (
@@ -24,12 +27,17 @@ export default function Support() {
       description="Commercial Support Options for Open Policy Agent"
     >
       <Heading as="h1">Open Policy Agent Support</Heading>
-      <p className="margin-bottom--lg">
+      <p>
         Below is a list of companies that offer commercial support and other enterprise offerings for Open Policy Agent.
+        Companies add themselves via pull request and listings are ordered by the date they were added.
+      </p>
+      <p className="margin-bottom--lg">
+        This list is not vetted by the OPA project maintainers and inclusion is not an endorsement. Evaluate offerings
+        to find the right fit for your needs.
       </p>
 
       <CardGrid justifyCenter={false}>
-        {vendors.map((item, idx) => <Card key={idx} item={item} />)}
+        {sortedVendors.map((item, idx) => <Card key={idx} item={item} />)}
       </CardGrid>
     </StandaloneLayout>
   );
