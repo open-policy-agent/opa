@@ -107,3 +107,39 @@ func BenchmarkObjectUnionNSlow(b *testing.B) {
 		}
 	}
 }
+
+// 72.64 ns/op	      56 B/op	       2 allocs/op
+// 45.49 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkObjectGetFound(b *testing.B) {
+	obj := ast.MustParseTerm(`{"a": {"b": {"c": {"d": 1}}}}`)
+	arr := ast.ArrayTerm(ast.InternedTerm("a"), ast.InternedTerm("b"), ast.InternedTerm("c"), ast.InternedTerm("d"))
+	def := ast.NullTerm()
+
+	ops := []*ast.Term{obj, arr, def}
+	exp := eqIter(ast.InternedTerm(1))
+	bcx := BuiltinContext{}
+
+	for b.Loop() {
+		if err := builtinObjectGet(bcx, ops, exp); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// 48.15 ns/op	      32 B/op	       1 allocs/op
+// 36.74 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkObjectGetNotFound(b *testing.B) {
+	obj := ast.MustParseTerm(`{"a": {"b": {"c": {"d": 1}}}}`)
+	arr := ast.ArrayTerm(ast.InternedTerm("a"), ast.InternedTerm("b"), ast.InternedTerm("c"), ast.InternedTerm("e"))
+	def := ast.NullTerm()
+
+	ops := []*ast.Term{obj, arr, def}
+	exp := eqIter(def)
+	bcx := BuiltinContext{}
+
+	for b.Loop() {
+		if err := builtinObjectGet(bcx, ops, exp); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
