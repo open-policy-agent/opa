@@ -215,7 +215,7 @@ func mergeWithOverwrite(objA, objB ast.Object) ast.Object {
 // Modifies obj with any new keys from other, and recursively
 // merges any keys where the values are both objects.
 func mergewithOverwriteInPlace(dst, src ast.Object, frozenKeys map[*ast.Term]struct{}) {
-	if src.Len() == 0 || dst.Compare(src) == 0 {
+	if src.Len() == 0 {
 		return
 	}
 
