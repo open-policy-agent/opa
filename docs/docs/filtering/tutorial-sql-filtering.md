@@ -53,12 +53,11 @@ The rule is: Directors may see the salaries of employees in their own department
 Save the following Rego code to a file named `policy.rego`:
 
 ```rego title="policy.rego"
-package authz
-
 # METADATA
-# scope: document
+# scope: package
 # compile:
 #   unknowns: [input.employees]
+package filters
 
 include if {
     input.user.role == "director"
@@ -79,7 +78,7 @@ OPA is now listening on `http://localhost:8181`.
 In another terminal, call the compile endpoint with the logged-in user as input. Alice is a Director in Engineering:
 
 ```shell
-curl -s -X POST http://localhost:8181/v1/compile/authz/include \
+curl -s -X POST http://localhost:8181/v1/compile/filters/include \
   -H "Content-Type: application/json" \
   -H "Accept: application/vnd.opa.sql.sqlite+json" \
   -d '{"input": {"user": {"name": "alice", "role": "director", "department": "engineering"}}}'
@@ -105,7 +104,7 @@ The response:
 Extract the filter and use it in a SQL query:
 
 ```shell
-FILTER=$(curl -s -X POST http://localhost:8181/v1/compile/authz/include \
+FILTER=$(curl -s -X POST http://localhost:8181/v1/compile/filters/include \
   -H "Content-Type: application/json" \
   -H "Accept: application/vnd.opa.sql.sqlite+json" \
   -d '{"input": {"user": {"name": "alice", "role": "director", "department": "engineering"}}}' \
@@ -125,7 +124,7 @@ Output — Alice sees all Engineering salaries:
 Dave is a Director in Marketing, so he gets a different filter from the same policy:
 
 ```shell
-FILTER=$(curl -s -X POST http://localhost:8181/v1/compile/authz/include \
+FILTER=$(curl -s -X POST http://localhost:8181/v1/compile/filters/include \
   -H "Content-Type: application/json" \
   -H "Accept: application/vnd.opa.sql.sqlite+json" \
   -d '{"input": {"user": {"name": "dave", "role": "director", "department": "marketing"}}}' \
@@ -146,7 +145,7 @@ Output — Dave sees all Marketing salaries:
 Bob is an Engineer, not a Director. The `input.user.role == "director"` condition is known and false, so no rule body can ever be satisfied — the policy unconditionally denies:
 
 ```shell
-curl -s -X POST http://localhost:8181/v1/compile/authz/include \
+curl -s -X POST http://localhost:8181/v1/compile/filters/include \
   -H "Content-Type: application/json" \
   -H "Accept: application/vnd.opa.sql.sqlite+json" \
   -d '{"input": {"user": {"name": "bob", "role": "engineer", "department": "engineering"}}}'

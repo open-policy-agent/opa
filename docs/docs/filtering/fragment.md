@@ -17,7 +17,7 @@ Not every construct is supported for every target.
 For a step-by-step walkthrough of evaluating a Rego policy _partially_, see [Evaluating a data filter policy](./partial-evaluation).
 :::
 
-## What is Partial Evaluation? {#what-is-partial-evaluation}
+## What is Partial Evaluation?
 
 The translation of data policies into queries (like SQL WHERE clauses) is driven by _partial evaluation (PE)_ of a Rego query.
 
@@ -51,12 +51,11 @@ Database rows are **unknown** at policy evaluation time — OPA does not have ac
 The **METADATA annotation** on the policy package declares which `input` paths are unknown. OPA uses this to know which parts of the policy to leave as conditions rather than evaluate:
 
 ```rego title="policy.rego"
-package filters
-
 # METADATA
-# scope: document
+# scope: package
 # compile:
 #   unknowns: [input.fruits]
+package filters
 
 include if input.fruits.name == "banana"
 ```

@@ -39,20 +39,15 @@ sequenceDiagram
 
 Consider an `employees` database table with salary information. The question is: **whose salaries can a Director see?**
 
-The rule is: Directors may see the salaries of employees in their own department. When Alice (Engineering Director) lists employees, the highlighted rows are what she should see:
+The rule is: Directors may see the salaries of employees in their own department. When Alice (Engineering Director) lists employees, the *italicized* rows are what she should see:
 
-<table>
-  <thead>
-    <tr><th>name</th><th>department</th><th>role</th><th>salary</th></tr>
-  </thead>
-  <tbody>
-    <tr style={{backgroundColor: 'var(--ifm-color-warning-contrast-background)'}}><td>Alice</td><td>engineering</td><td>director</td><td>130000</td></tr>
-    <tr style={{backgroundColor: 'var(--ifm-color-warning-contrast-background)'}}><td>Bob</td><td>engineering</td><td>engineer</td><td>90000</td></tr>
-    <tr style={{backgroundColor: 'var(--ifm-color-warning-contrast-background)'}}><td>Carol</td><td>engineering</td><td>engineer</td><td>85000</td></tr>
-    <tr style={{backgroundColor: 'transparent'}}><td>Dave</td><td>marketing</td><td>director</td><td>120000</td></tr>
-    <tr style={{backgroundColor: 'transparent'}}><td>Eve</td><td>marketing</td><td>manager</td><td>95000</td></tr>
-  </tbody>
-</table>
+| name    | department      | role        | salary   |
+|---------|-----------------|-------------|----------|
+| *Alice* | *engineering*   | *director*  | *130000* |
+| *Bob*   | *engineering*   | *engineer*  | *90000*  |
+| *Carol* | *engineering*   | *engineer*  | *85000*  |
+| Dave    | marketing       | director    | 120000   |
+| Eve     | marketing       | manager     | 95000    |
 
 OPA can be used to derive the needed SQL filter at run time, leveraging OPA's [partial evaluation](./filtering/partial-evaluation) feature.
 
@@ -73,22 +68,21 @@ Alice is a _Director_ of the _Engineering_ department. The application sends her
 **2. OPA evaluates the policy**
 
 ```rego title="policy.rego"
-package authz
-
 # METADATA
-# scope: document
+# scope: package
 # compile:
 #   unknowns: [input.employees]
+package filters
 
 include if {
     input.user.role == "director"                        # known: true for Alice, consumed
-    input.employees.department == input.user.department  # ¹unknown == ²known → SQL condition
+    input.employees.department == input.user.department  # unknown == known → SQL condition
 }
 ```
 
-¹ The value of `input.employees.department` is _unknown_ during partial policy evaluation — it refers to a table column in the database.
-
-² The value of `input.user.department` is known during partial policy evaluation — it resolves to the value `"engineering"` from the `input` document.
+OPA partially evaluates this policy and constructs the SQL condition as follows: 
+* The value of `input.employees.department` is _unknown_ during partial policy evaluation — it refers to a table column in the database.
+* The value of `input.user.department` is known during partial policy evaluation — it resolves to the value `"engineering"` from the `input` document.
 
 **3. OPA returns a SQL filter**
 
