@@ -3081,9 +3081,11 @@ func generateJSON(term *ast.Term, ectx *EvalContext) (any, error) {
 }
 
 func (r *Rego) planQuery(queries []ast.Body, evalQueryType queryType) (*ir.Policy, error) {
+	// We sort the list of module names here to ensure a deterministic
+	// output ordering for the planner.
 	modules := make([]*ast.Module, 0, len(r.compiler.Modules))
-	for _, module := range r.compiler.Modules {
-		modules = append(modules, module)
+	for _, name := range util.KeysSorted(r.compiler.Modules) {
+		modules = append(modules, r.compiler.Modules[name])
 	}
 
 	decls := make(map[string]*ast.Builtin, len(r.builtinDecls)+len(ast.BuiltinMap))
