@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD041 -->
 
-`array.reverse` returns a new array with the same elements in reverse order.
-The original array is left unchanged. This is handy when a list is built up in
-one direction but needs to be reported or evaluated in the other, for example
-showing priorities from highest to lowest.
+Severity levels are listed from lowest to highest here, but a report needs them
+the other way around so the most urgent item comes first. This example reverses
+the priority list to present it from highest to lowest without changing the
+original order it was defined in.

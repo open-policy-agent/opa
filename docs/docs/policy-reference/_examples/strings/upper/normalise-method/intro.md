@@ -1,5 +1,6 @@
 <!-- markdownlint-disable MD041 -->
 
-`upper` returns the input string with every character in upper case.
-Normalising case is a common first step before comparing user-supplied values
-against an allow-list, so that `get`, `GET`, and `Get` are all treated the same.
+An HTTP method can arrive in any case, so `get`, `GET`, and `Get` should all be
+treated the same. This example upper-cases the incoming method before checking
+it against an allow-list, so the comparison does not depend on how the caller
+happened to write it.

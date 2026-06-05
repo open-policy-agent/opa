@@ -1,6 +1,6 @@
 {
-  "name": "alice",
-  "team": "unassigned",
+  "fallback_team": "dev",
+  "team": "dev",
   "user": {
     "name": "alice",
     "roles": [

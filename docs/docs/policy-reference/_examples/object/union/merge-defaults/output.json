@@ -6,8 +6,5 @@
   "merged": {
     "replicas": 3,
     "tier": "standard"
-  },
-  "overrides": {
-    "replicas": 3
   }
 }
