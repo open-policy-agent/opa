@@ -3,5 +3,5 @@
   "showData": false,
   "showTitles": false,
   "titleSize": 5,
-  "command": "data.graph_reachable_example.result"
+  "command": "data.examples.graph.reachable.result"
 }

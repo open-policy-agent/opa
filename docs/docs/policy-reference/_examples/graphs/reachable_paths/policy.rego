@@ -1,15 +1,39 @@
-package graph_reachable_paths_example
+package examples.graph.reachable_paths
 
-path_data := {
-        "aTop": [],
-        "cMiddle": ["aTop"],
-        "bBottom": ["cMiddle"],
-        "dIgnored": [],
+# METADATA
+# description: |
+#   graph.reachable_paths returns all paths from the starting nodes to reachable nodes.
+#   Useful for audit logs, debugging, or tracing dependency/approval chains.
+test_simple_paths if {
+    g := {
+        "a": ["b", "c"],
+        "b": ["d"],
+        "c": ["d"],
+        "d": []
+    }
+
+    paths := graph.reachable_paths(g, {"a"})
+    count(paths) >= 2
 }
 
-all_paths[root] := paths if {
-        path_data[root]
-        paths := graph.reachable_paths(path_data, {root})
+# METADATA
+# description: |
+#   Example: Finding all possible approval chains in an organization.
+test_approval_chains if {
+    approval_graph := {
+        "manager": ["director"],
+        "director": ["vp"],
+        "vp": []
+    }
+
+    paths := graph.reachable_paths(approval_graph, {"manager"})
+    count(paths) > 0
 }
 
-result contains all_paths[entity_name]
+# Used by the documentation site to show output
+result := graph.reachable_paths({
+    "aTop": [],
+    "cMiddle": ["aTop"],
+    "bBottom": ["cMiddle"],
+    "dIgnored": []
+}, {"bBottom"})

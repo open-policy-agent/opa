@@ -1,1 +1,1 @@
-Graph Reachable Paths
+graph.reachable_paths

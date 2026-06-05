@@ -1,3 +1,4 @@
 <!-- markdownlint-disable MD041 -->
 
-It may be useful to find all reachable paths from a root element. `graph.reachable_paths` can be used for this. Note that cyclical paths will terminate on the repeated node. If an element references a nonexistent element, the path will be terminated, and excludes the nonexistent node.
+`graph.reachable_paths` returns the actual paths (as arrays) instead of just the reachable nodes.
+Note that cyclical paths terminate on the repeated node.
