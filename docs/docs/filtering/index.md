@@ -39,15 +39,15 @@ sequenceDiagram
 
 Consider an `employees` database table with salary information. The question is: **whose salaries can a Director see?**
 
-The rule is: Directors may see the salaries of employees in their own department. When Alice (Engineering Director) lists employees, the *italicized* rows are what she should see:
+The rule is: Directors may see the salaries of employees in their own department. When Alice (Engineering Director) lists employees, the _italicized_ rows are what she should see:
 
-| name    | department      | role        | salary   |
-|---------|-----------------|-------------|----------|
-| *Alice* | *engineering*   | *director*  | *130000* |
-| *Bob*   | *engineering*   | *engineer*  | *90000*  |
-| *Carol* | *engineering*   | *engineer*  | *85000*  |
-| Dave    | marketing       | director    | 120000   |
-| Eve     | marketing       | manager     | 95000    |
+| name    | department    | role       | salary   |
+| ------- | ------------- | ---------- | -------- |
+| _Alice_ | _engineering_ | _director_ | _130000_ |
+| _Bob_   | _engineering_ | _engineer_ | _90000_  |
+| _Carol_ | _engineering_ | _engineer_ | _85000_  |
+| Dave    | marketing     | director   | 120000   |
+| Eve     | marketing     | manager    | 95000    |
 
 OPA can be used to derive the needed SQL filter at run time, leveraging OPA's [partial evaluation](./filtering/partial-evaluation) feature.
 
@@ -80,9 +80,10 @@ include if {
 }
 ```
 
-OPA partially evaluates this policy and constructs the SQL condition as follows: 
-* The value of `input.employees.department` is _unknown_ during partial policy evaluation — it refers to a table column in the database.
-* The value of `input.user.department` is known during partial policy evaluation — it resolves to the value `"engineering"` from the `input` document.
+OPA partially evaluates this policy and constructs the SQL condition as follows:
+
+- The value of `input.employees.department` is _unknown_ during partial policy evaluation — it refers to a table column in the database.
+- The value of `input.user.department` is known during partial policy evaluation — it resolves to the value `"engineering"` from the `input` document.
 
 **3. OPA returns a SQL filter**
 
