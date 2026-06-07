@@ -663,9 +663,11 @@ func (c *Compiler) compilePlan(context.Context) error {
 	}
 
 	// Prepare modules and builtins for the planner.
+	// We sort the list of module names here to ensure a deterministic
+	// output ordering for the planner.
 	modules := make([]*ast.Module, 0, len(c.compiler.Modules))
-	for _, module := range c.compiler.Modules {
-		modules = append(modules, module)
+	for _, name := range util.KeysSorted(c.compiler.Modules) {
+		modules = append(modules, c.compiler.Modules[name])
 	}
 
 	builtins := make(map[string]*ast.Builtin, len(c.capabilities.Builtins))

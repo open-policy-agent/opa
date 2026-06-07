@@ -104,6 +104,11 @@ from the title, you may wish to set `sidebar_position`.
 You may also wish to update `src/lib/sidebars.js` to place your new page in the
 correct location.
 
+## Formatting your changes
+
+Make sure to format your changes correctly by running `dprint fmt` in the `docs`
+folder. This will fix any formatting issues.
+
 ## Testing your changes
 
 Once you have made your updates, the next step is to test that they look as
