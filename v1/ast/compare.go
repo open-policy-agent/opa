@@ -342,19 +342,15 @@ func TermValueEqual(a, b *Term) bool {
 
 func ValueEqual(a, b Value) bool {
 	switch v := a.(type) {
-	case Null:
-		return v.Equal(b)
-	case Boolean:
-		return v.Equal(b)
+	case Null, Boolean, String, Var:
+		return v == b
 	case Number:
-		return v.Equal(b)
-	case String:
-		return v.Equal(b)
-	case Var:
 		return v.Equal(b)
 	case Ref:
 		return v.Equal(b)
 	case *Array:
+		return v.Equal(b)
+	case *Not:
 		return v.Equal(b)
 	case *TemplateString:
 		return v.Equal(b)

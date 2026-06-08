@@ -9,7 +9,20 @@ cases:
         p if {
         	1 in {1}
         }
-    data: { }
+    data: {}
+    want_result:
+      - x: true
+  - note: aggregates/member check set with with both key and value
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          # a set "key" is also its value
+          "foo", "foo" in {"foo", "bar"}
+        }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member simple, array
@@ -21,7 +34,7 @@ cases:
         p if {
         	1 in [1]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member simple, object
@@ -33,7 +46,7 @@ cases:
         p if {
         	1 in {"foo": 1}
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member object with key
@@ -45,7 +58,7 @@ cases:
         p if {
         	"foo", 1 in {"foo": 1}
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member array with index
@@ -57,7 +70,7 @@ cases:
         p if {
         	1, "two" in ["one", "two", "three"]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member array with index, nested
@@ -69,7 +82,7 @@ cases:
         p if {
         	1, 2 in [2] in [false, true]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member array with index, nested, associativity without parens
@@ -81,7 +94,7 @@ cases:
         p if {
         	(0, 2 in [2]) in [true]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member object with key, nested, associativity without parens
@@ -93,7 +106,7 @@ cases:
         p if {
         	("foo", 2 in {"foo": 2}) in [true]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member object with key, nested
@@ -105,7 +118,7 @@ cases:
         p if {
         	"foo", (2 in {"bar": 2}) in {"foo": true}
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member simple false, set
@@ -117,7 +130,7 @@ cases:
         p := x if {
         	x := 1 in {2}
         }
-    data: { }
+    data: {}
     want_result:
       - x: false
   - note: aggregates/member simple false, array
@@ -129,7 +142,7 @@ cases:
         p := x if {
         	x := 1 in [2]
         }
-    data: { }
+    data: {}
     want_result:
       - x: false
   - note: aggregates/member simple false, object
@@ -141,7 +154,7 @@ cases:
         p := x if {
         	x := 1 in {"foo": 2}
         }
-    data: { }
+    data: {}
     want_result:
       - x: false
   - note: aggregates/member chained
@@ -153,7 +166,7 @@ cases:
         p if {
         	{1, 2} in [{1, 2}] in [true]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member with vars
@@ -167,7 +180,7 @@ cases:
         	xs := ["foo", "bar"]
         	x in xs
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member with not
@@ -179,7 +192,7 @@ cases:
         p if {
         	not "foo" in ["fox"]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member operator precedence with other infix operator (+)
@@ -191,7 +204,7 @@ cases:
         p if {
         	(1 + 1) in [2]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member operator precedence in list (set)
@@ -204,7 +217,7 @@ cases:
         	x := {1, 1 in [2]}
         	x == {1, false}
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member operator precedence in list with parens (set)
@@ -217,7 +230,7 @@ cases:
         	x := {(1, 1 in [2])}
         	x == {false}
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member operator precedence in list (array)
@@ -230,7 +243,7 @@ cases:
         	x := [1, 1 in [2]]
         	x == [1, false]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member operator precedence in list with parens (array)
@@ -243,7 +256,7 @@ cases:
         	x := [(1, 1 in [2])]
         	x == [false]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member operator precedence in list (fun args)
@@ -257,7 +270,7 @@ cases:
         }
 
         f(_, _) := true
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member operator precedence in list with parens (fun args)
@@ -271,7 +284,7 @@ cases:
         }
 
         f(_) := true
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member composite containee
@@ -283,7 +296,7 @@ cases:
         p if {
         	{"foo": {"baz": 2000}} in [{"foo": {"baz": 2000}}]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member non-collection string
@@ -295,7 +308,7 @@ cases:
         p := x if {
         	x := 1 in "foo"
         }
-    data: { }
+    data: {}
     want_result:
       - x: false
   - note: aggregates/member non-collection number
@@ -307,7 +320,7 @@ cases:
         p := x if {
         	x := "foo" in 1
         }
-    data: { }
+    data: {}
     want_result:
       - x: false
   - note: aggregates/member with key in non-collection (number)
@@ -319,7 +332,7 @@ cases:
         p := x if {
         	x := (1, "foo" in 1)
         }
-    data: { }
+    data: {}
     want_result:
       - x: false
   - note: aggregates/member+some simple, array
@@ -331,7 +344,7 @@ cases:
         p contains x if {
         	some x in [1, 2, 3]
         }
-    data: { }
+    data: {}
     want_result:
       - x:
           - 1
@@ -346,7 +359,7 @@ cases:
         p if {
         	some "foo" in ["foo"]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member+some containee is call
@@ -358,7 +371,7 @@ cases:
         p if {
         	some numbers.range(1, 1) in [[1]]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member+some non-ground composite containee
@@ -370,7 +383,7 @@ cases:
         p := x if {
         	some {"foo": x} in [{"foo": 100}, {"what": "ever"}]
         }
-    data: { }
+    data: {}
     want_result:
       - x: 100
   - note: aggregates/member+some non-ground composite containee, multiple bindings
@@ -382,7 +395,7 @@ cases:
         p := x if {
         	some {"foo": x, "what": y} in [{"foo": 100, "what": "ever"}]
         }
-    data: { }
+    data: {}
     want_result:
       - x: 100
   - note: aggregates/member+some ground composite containee
@@ -394,7 +407,7 @@ cases:
         p if {
         	some {"foo": 100} in [{"foo": 100}]
         }
-    data: { }
+    data: {}
     want_result:
       - x: true
   - note: aggregates/member+some ground composite containee (false)
@@ -406,7 +419,7 @@ cases:
         p if {
         	some {"foo": 0} in [{"foo": 100}]
         }
-    data: { }
+    data: {}
     want_result: []
   - note: aggregates/member+some+key non-ground value
     query: data.test.p = x
@@ -417,7 +430,7 @@ cases:
         p := x if {
         	some "foo", x in {"foo": 100, "what": "ever"}
         }
-    data: { }
+    data: {}
     want_result:
       - x: 100
   - note: aggregates/member+some+key non-ground key
@@ -429,7 +442,7 @@ cases:
         p := x if {
         	some x, "ever" in {"foo": 100, "what": "ever"}
         }
-    data: { }
+    data: {}
     want_result:
       - x: what
   - note: aggregates/member+some+key non-ground key+value
@@ -441,7 +454,7 @@ cases:
         p[k] := v if {
         	some k, v in {"foo": 100, "what": "ever"}
         }
-    data: { }
+    data: {}
     want_result:
       - x:
           foo: 100
@@ -455,7 +468,7 @@ cases:
         p := x if {
         	some {"foo": x}, "ever" in {{"foo": 100}: "ever"}
         }
-    data: { }
+    data: {}
     want_result:
       - x: 100
   - note: aggregates/member+some+ref
@@ -522,7 +535,7 @@ cases:
         p contains [k, v] if {
         	some k, v in input with input.foo as "bar"
         }
-    data: { }
+    data: {}
     want_result:
       - x:
           - - foo

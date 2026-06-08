@@ -380,14 +380,11 @@ func (term *Term) Copy() *Term {
 // Equal returns true if this term equals the other term. Equality is
 // defined for each kind of term, and does not compare the Location.
 func (term *Term) Equal(other *Term) bool {
-	if term == nil && other != nil {
-		return false
-	}
-	if term != nil && other == nil {
-		return false
-	}
 	if term == other {
 		return true
+	}
+	if term == nil || other == nil {
+		return false
 	}
 
 	return ValueEqual(term.Value, other.Value)
