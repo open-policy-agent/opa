@@ -8,6 +8,13 @@ inventors:
 - independent
 code:
 - https://github.com/OrygnsCode/opa-mcp-server
+- https://www.npmjs.com/package/@orygn/opa-mcp
+- https://hub.docker.com/r/orygn/opa-mcp
+- https://smithery.ai/server/@orygn/opa-mcp
+videos:
+- https://youtu.be/ByHocQDkB8M
+blogs:
+- https://www.linkedin.com/pulse/llms-bad-writing-rego-policies-heres-why-what-i-built-daniel-okwor-fjnzc/
 docs_features:
   learning-rego:
     note: |
@@ -38,8 +45,8 @@ docs_features:
 OPA MCP is a Model Context Protocol server that gives MCP-compatible
 clients a structured interface to Rego. It wraps the OPA CLI (opa fmt,
 opa check, opa eval, opa test, opa build, opa sign), the OPA REST API,
-and the Regal linter, exposing 32 tools with stable error codes and
-schema-validated input/output.
+the Regal linter, and Conftest, exposing 50+ tools with stable error codes
+and schema-validated input/output.
 
 Higher-level helpers (rego_explain_decision, rego_describe_policy,
 rego_generate_test_skeleton, rego_suggest_fix) compose the primitives
