@@ -78,7 +78,7 @@ const Index = (props) => {
         </div>
       </div>
 
-      <p className={styles.cncfContainer}>
+      <div className={styles.cncfContainer}>
         Open Policy Agent is a <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a> Graduated project.
 
         <div className={styles.cncfLogo}>
@@ -90,7 +90,7 @@ const Index = (props) => {
             }}
           />
         </div>
-      </p>
+      </div>
 
       <div className={styles.container}>
         <div className={styles.featuresContainer}>

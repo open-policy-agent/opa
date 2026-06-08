@@ -311,13 +311,6 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
           sidebarPath: require.resolve("./src/lib/sidebar-auto.js"),
         },
       ],
-      [
-        require.resolve("@easyops-cn/docusaurus-search-local"),
-        {
-          indexPages: true,
-          explicitSearchResultPath: true,
-        },
-      ],
       () => ({
         name: "raw-loader",
         configureWebpack() {
@@ -688,6 +681,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
     ],
     clientModules: [
       require.resolve("./src/lib/playground.js"),
+      require.resolve("./src/lib/kapa.js"),
     ],
     stylesheets: [
       {
@@ -698,6 +692,34 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
       {
         src: "https://unpkg.com/@antonz/codapi@0.19.8/dist/snippet.js",
         defer: true,
+      },
+      {
+        src: "https://widget.kapa.ai/kapa-widget.bundle.js",
+        "data-website-id": "5c4af137-a024-4ba2-9488-826f1055852c",
+        "data-project-name": "Open Policy Agent",
+        "data-project-logo": "https://openpolicyagent.org/img/nav/logo.png",
+        "data-search-mode-enabled": "true",
+        // Source UUIDs come from https://app.kapa.ai/422cffb8-2750-48c9-9659-7e8d40b9d5d2/sources
+        "data-search-source-ids-include":
+          "f9c26922-8a4c-4a3c-913d-08c2a53a1011,e9daf266-5a9f-410f-8069-18a57dcfb6ee,723b2ac1-807a-43c1-a2aa-bcf8311d2354,fff41a96-7ebe-4fc5-bb60-359e5d830a87,799aac5c-a157-4734-9785-9c754c7c40a0",
+        "data-modal-open-on-command-k": "true",
+        "data-modal-command-k-search-mode-default": "true",
+        "data-deep-thinking-button-hover-background-color": "#f1f8f1",
+        "data-deep-thinking-button-hover-color": "#2e7d32",
+        "data-deep-thinking-button-enabled-background-color": "#e8f5e9",
+        "data-deep-thinking-button-enabled-color": "#2e7d32",
+        "data-deep-thinking-button-enabled-hover-background-color": "#c8e6c9",
+        "data-deep-thinking-button-enabled-hover-color": "#1b5e20",
+        "data-deep-thinking-button-hover-background-color-dark": "#1e3320",
+        "data-deep-thinking-button-hover-color-dark": "#81c784",
+        "data-deep-thinking-button-enabled-background-color-dark": "#1a3d1c",
+        "data-deep-thinking-button-enabled-color-dark": "#a5d6a7",
+        "data-deep-thinking-button-enabled-hover-background-color-dark": "#245427",
+        "data-deep-thinking-button-enabled-hover-color-dark": "#c8e6c9",
+        "data-modal-title": "OPA Chat and Search",
+        "data-color-scheme-selector": "[data-theme='dark']",
+
+        async: true,
       },
     ],
   }

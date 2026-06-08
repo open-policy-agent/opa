@@ -47,4 +47,5 @@ pre {
 
 [data-theme='dark'] {
 	--docusaurus-highlighted-code-line-bg: rgb(88, 102, 18);
+	--ifm-link-color: var(--ifm-color-primary-light);
 }

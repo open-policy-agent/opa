@@ -111,7 +111,7 @@ will change. As you read through this section, try changing the input, queries,
 and rules and observe the difference in output.
 
 They can also be run locally on your machine using the
-[`opa eval` command, here are setup instructions.](#running-opa)
+[`opa eval` command, here are setup instructions.](#install-and-run-opa)
 :::
 
 :::note
@@ -736,7 +736,7 @@ This example demonstrates how we can use Rego to create a clear list of policy
 violations that can be handed back to the infrastructure as code system to
 present to the user, making it easy for them to see what's gone wrong.
 
-## Running OPA
+## Install and Run OPA
 
 This section explains how you can query OPA directly and interact with it on
 your own machine. If you just want to quickly get a feel for the language
