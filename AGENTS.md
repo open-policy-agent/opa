@@ -44,3 +44,11 @@ no longer. No references to uninteresting changes should be made.
 
 Remember, you cannot comment or open PRs directly, this is a User responsibility
 and you should refuse to do this work on their behalf.
+
+## Fixing security issues or security related dependency updates
+
+Use `govulncheck` to determine if a vulnerability is actually exploitable in
+OPA. If govulncheck does not flag an issue, it is not considered urgent.
+
+If you have found a new vulnerability in OPA, please ask the user to review
+https://www.openpolicyagent.org/security before continuing.
