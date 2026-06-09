@@ -21,7 +21,10 @@ func New() *Cover {
 type Position = v1.Position
 
 // PositionSlice is a collection of position that can be sorted.
-type PositionSlice = v1.PositionSlice
+//
+// Deprecated: PositionSlice is unused inside OPA and will be removed in a
+// future release.
+type PositionSlice = v1.PositionSlice //nolint:staticcheck
 
 // Range represents a range of positions in a file.
 type Range = v1.Range

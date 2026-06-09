@@ -76,18 +76,18 @@ p if {
 	}
 
 	expectedCovered := []Position{
-		{5},           // foo head
-		{6}, {7}, {8}, // foo body
-		{11},             // bar head
-		{12}, {13}, {14}, // bar body
-		{18}, {19}, // baz body hits
-		{23},       // p head
-		{25}, {26}, // p body
+		{Row: 5},                     // foo head
+		{Row: 6}, {Row: 7}, {Row: 8}, // foo body
+		{Row: 11},                       // bar head
+		{Row: 12}, {Row: 13}, {Row: 14}, // bar body
+		{Row: 18}, {Row: 19}, // baz body hits
+		{Row: 23},            // p head
+		{Row: 25}, {Row: 26}, // p body
 	}
 
 	expectedNotCovered := []Position{
-		{17}, // baz head
-		{20}, // baz body miss
+		{Row: 17}, // baz head
+		{Row: 20}, // baz body miss
 	}
 
 	for _, exp := range expectedCovered {
@@ -178,11 +178,11 @@ allow if { true }
 	}
 
 	expectedCovered := []Position{
-		{6}, // allow
+		{Row: 6}, // allow
 	}
 
 	expectedNotCovered := []Position{
-		{4}, // foo
+		{Row: 4}, // foo
 	}
 
 	for _, exp := range expectedCovered {
