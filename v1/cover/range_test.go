@@ -79,7 +79,7 @@ func TestRangeOf(t *testing.T) {
 	got := rangeOf(loc)
 	want := Range{
 		Start: Position{Row: 3, Col: 10},
-		End:   Position{Row: 3, Col: 14},
+		End:   Position{Row: 3, Col: 15},
 	}
 	if got != want {
 		t.Fatalf("Expected %+v but got %+v", want, got)

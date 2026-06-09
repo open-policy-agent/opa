@@ -211,29 +211,29 @@ func TestLocationEnd(t *testing.T) {
 		"single-line text": {
 			loc:    &Location{Text: []byte("false"), Row: 3, Col: 10},
 			expRow: 3,
-			expCol: 14,
+			expCol: 15,
 		},
 		"multi-line text": {
 			loc:    &Location{Text: []byte("a\nbc"), Row: 5, Col: 2},
 			expRow: 6,
-			expCol: 2,
+			expCol: 3,
 		},
 		"multi-byte runes count as one column each": {
 			// "café" is 5 bytes but 4 runes; the scanner advances Col
 			// per rune (see scanner.next), so End must too.
 			loc:    &Location{Text: []byte("café"), Row: 1, Col: 1},
 			expRow: 1,
-			expCol: 4,
+			expCol: 5,
 		},
 		"multi-byte runes across a newline": {
 			loc:    &Location{Text: []byte("café\nñ"), Row: 1, Col: 1},
 			expRow: 2,
-			expCol: 1,
+			expCol: 2,
 		},
 		"single multi-byte rune": {
 			loc:    &Location{Text: []byte("é"), Row: 1, Col: 1},
 			expRow: 1,
-			expCol: 1,
+			expCol: 2,
 		},
 		"nil receiver": {
 			loc:    nil,
