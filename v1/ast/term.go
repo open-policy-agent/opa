@@ -874,7 +874,7 @@ func (num Number) Find(path Ref) (Value, error) {
 // Hash returns the hash code for the Value.
 func (num Number) Hash() int {
 	if len(num) < 4 {
-		if i, err := strconv.Atoi(string(num)); err == nil {
+		if i, ok := util.Atoi(string(num)); ok {
 			return i
 		}
 	}
@@ -892,11 +892,7 @@ func (num Number) Int() (int, bool) {
 
 // Int64 returns the int64 representation of num if possible.
 func (num Number) Int64() (int64, bool) {
-	i, err := json.Number(num).Int64()
-	if err != nil {
-		return 0, false
-	}
-	return i, true
+	return util.Atoi64(string(num))
 }
 
 // Float64 returns the float64 representation of num if possible.
