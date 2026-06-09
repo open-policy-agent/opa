@@ -3091,8 +3091,7 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 		var comment *Comment
 		match := yamlLineErrRegex.FindStringSubmatch(err.Error())
 		if len(match) == 2 {
-			index, err2 := strconv.Atoi(match[1])
-			if err2 == nil {
+			if index, ok := util.Atoi(match[1]); ok {
 				if index >= len(b.comments) {
 					comment = b.comments[len(b.comments)-1]
 				} else {
