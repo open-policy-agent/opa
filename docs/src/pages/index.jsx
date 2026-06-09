@@ -184,7 +184,7 @@ const Index = (props) => {
               { label: "API", value: "app" },
               { label: "Envoy", value: "envoy" },
               { label: "Kubernetes", value: "k8s" },
-              { label: "GenAI", value: "ai" },
+              { label: "AI Tool Calling", value: "ai" },
             ]}
           >
             <TabItem value="app">
