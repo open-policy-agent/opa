@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"unicode/utf8"
 
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -90,6 +91,44 @@ func (loc *Location) StringLength() (n int) {
 		}
 	}
 	return n
+}
+
+// HasFile reports whether loc carries a non-empty File. Safe to call on a
+// nil receiver.
+func (loc *Location) HasFile() bool {
+	return loc != nil && loc.File != ""
+}
+
+// End returns the row and column of the last character of loc.Text. Columns
+// are counted per rune to match the scanner. For empty or single-rune text
+// the end equals (Row, Col). Returns (0, 0) when loc is nil.
+func (loc *Location) End() (row, col int) {
+	if loc == nil {
+		return 0, 0
+	}
+
+	row, col = loc.Row, loc.Col
+	if len(loc.Text) == 0 {
+		return row, col
+	}
+
+	var prev rune
+	first := true
+	for i := 0; i < len(loc.Text); {
+		r, size := utf8.DecodeRune(loc.Text[i:])
+		if !first {
+			if prev == '\n' {
+				row++
+				col = 1
+			} else {
+				col++
+			}
+		}
+		prev = r
+		first = false
+		i += size
+	}
+	return row, col
 }
 
 // Compare returns -1, 0, or 1 to indicate if this loc is less than, equal to,
