@@ -21,8 +21,9 @@ const vendors = [
     icon: require.context("./assets/logos/depkeep.png").default,
     note:
       "DepKeep provides enterprise open-source support, maintenance, and security fixes for critical dependencies used in production systems. It helps teams keep open-source infrastructure secure, stable, and production-ready.",
-    link: "https://depkeep.com",
+    link: "https://depkeep.com/services/opa",
     link_text: "Learn more",
+    dateAdded: "2026-06-10",
   },
 ];
 
