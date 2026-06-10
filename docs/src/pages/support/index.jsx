@@ -16,6 +16,14 @@ const vendors = [
     link_text: "Learn more",
     dateAdded: "2023-08-25",
   },
+  {
+    title: "DepKeep",
+    icon: require.context("./assets/logos/depkeep.png").default,
+    note:
+      "DepKeep provides enterprise open-source support, maintenance, and security fixes for critical dependencies used in production systems. It helps teams keep open-source infrastructure secure, stable, and production-ready.",
+    link: "https://depkeep.com",
+    link_text: "Learn more",
+  },
 ];
 
 const sortedVendors = [...vendors].sort((a, b) => a.dateAdded.localeCompare(b.dateAdded));
