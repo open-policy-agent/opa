@@ -19,6 +19,16 @@ updates:
     cooldown:
       default-days: 7
   - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: monthly
+    groups:
+      website:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+  - package-ecosystem: npm
     directory: /e2e/api/compile/prisma
     schedule:
       interval: monthly
