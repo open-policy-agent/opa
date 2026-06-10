@@ -9,7 +9,7 @@ code:
 videos:
 - https://www.youtube.com/watch?v=BpMttxuPv6Y
 tutorials:
-- /projects/regal/editor-support#visual-studio-code
+- https://www.openpolicyagent.org/projects/regal/editor-support#visual-studio-code
 software:
 - editors
 inventors:
