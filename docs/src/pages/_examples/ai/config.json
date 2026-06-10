@@ -2,5 +2,5 @@
   "showInput": true,
   "showData": false,
   "showTitles": false,
-  "command": "data.ai.chat.deny"
+  "command": "data.coding.tools.deny"
 }

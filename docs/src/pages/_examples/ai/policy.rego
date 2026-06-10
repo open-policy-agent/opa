@@ -1,25 +1,27 @@
-package ai.chat
+package coding.tools
 
-deny contains message if {
-	every pattern in all_accessible_models {
-		not regex.match(pattern, input.parsed_body.model)
-	}
-
-	message := sprintf(
-		"Model '%s' is not in your accessible models: %s",
-		[input.parsed_body.model, concat(", ", all_accessible_models)],
-	)
+deny contains $"Tool {tc.tool} is not allowed" if {
+	some tc in input.tool_calls
+	tc.tool in _disallowed_tools
 }
 
-# model_access is a mapping of role to patterns which match models
-# that users might be accessing.
-model_access := {
-	"interns": {"model-1"},
-	"testers": {"model-1", `^model-\d+-stage$`},
-	"data-analysts": {"model-1", `^model-\d+-internal$`},
+deny contains $"WebFetch can only load from HTTPS URLs" if {
+	some tc in input.tool_calls
+	tc.tool == "WebFetch"
+	not startswith(tc.params.url, "https://")
 }
 
-all_accessible_models contains m if {
-	some group in input.user.groups
-	some m in model_access[group]
+deny contains $"WebSearch cannot load more than {_max_results} results" if {
+	some tc in input.tool_calls
+	tc.tool == "WebSearch"
+	tc.params.num_results > _max_results
 }
+
+deny contains $"Tool timeout cannot be more than 10s" if {
+	some tc in input.tool_calls
+	tc.params.timeout > 10000
+}
+
+_disallowed_tools := {"Bash", "Write", "Edit"}
+
+_max_results := 10
