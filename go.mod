@@ -55,7 +55,7 @@ require (
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/ini.v1 v1.67.2
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	oras.land/oras-go/v2 v2.6.0
+	oras.land/oras-go/v2 v2.6.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
