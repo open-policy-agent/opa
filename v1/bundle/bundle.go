@@ -130,6 +130,9 @@ func NewFile(name, hash, alg string) FileInfo {
 
 // Manifest represents the manifest from a bundle. The manifest may contain
 // metadata such as the bundle revision.
+//
+// Schema mirror: manifest.proto + manifest_proto_test.go. Update both when
+// adding/renaming/removing fields; never reuse a proto field number.
 type Manifest struct {
 	Revision      string         `json:"revision"`
 	Roots         *[]string      `json:"roots,omitempty"`

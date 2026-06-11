@@ -27,6 +27,18 @@ When contributing please consider the following pointers:
   lightweight, and easily embedded. Vendoring may make features _easier_ to
   implement however they come with their own cost for both OPA developers and
   OPA users (e.g., vendoring conflicts, security, debugging, etc.)
+- **Wire-format schemas:** The IR plan and bundle manifest each have two
+  published schemas: a JSON Schema generated from the Go types (drift-tested),
+  and a hand-authored `.proto` (Edition 2023) checked for consistency with the
+  Go types. When adding, renaming, or removing fields on `ir.Policy`,
+  `ir.Stmt` / `ir.Val` kinds, or `bundle.Manifest`, update the matching
+  `.proto` (`v1/ir/plan.proto` or `v1/bundle/manifest.proto`) in the same
+  change set. Proto field numbers and `oneof` case numbers are a permanent
+  wire-format commitment — never reuse a number for a different field, and
+  mark removed fields with `reserved`. The consistency tests
+  (`v1/ir/plan_proto_test.go`, `v1/bundle/manifest_proto_test.go`) catch
+  drift; `buf breaking` (when configured in CI) catches wire-incompatible
+  changes.
 - **AI Tooling**: You can use generative AI tooling to assist your work on OPA,
   but please review our project's [AI Guidelines](#ai-guidelines) below before doing so to
   help us help you.

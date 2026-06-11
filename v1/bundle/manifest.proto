@@ -1,0 +1,46 @@
+// Copyright 2026 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+edition = "2023";
+
+package opa.bundle.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/open-policy-agent/opa/v1/bundle/v1pb";
+
+// Manifest mirrors `bundle.Manifest` in v1/bundle/bundle.go.
+message Manifest {
+  // Bundle revision string.
+  string revision = 1;
+
+  // Root paths the bundle owns.
+  repeated string roots = 2;
+
+  // Wasm resolvers attached to the bundle. JSON key is `wasm`.
+  repeated WasmResolver wasm = 3;
+
+  // Global Rego version for the bundle. Currently 0 (RegoV0) or 1 (RegoV1).
+  int32 rego_version = 4;
+
+  // Per-file Rego version overrides keyed by file path.
+  map<string, int32> file_rego_versions = 5;
+
+  // Free-form metadata object. Modeled as `Struct` because the Go field
+  // is `map[string]any`.
+  google.protobuf.Struct metadata = 6;
+}
+
+// WasmResolver mirrors `bundle.WasmResolver` in v1/bundle/bundle.go.
+message WasmResolver {
+  // Entrypoint policy ref this resolver targets.
+  string entrypoint = 1;
+
+  // Path to the wasm module within the bundle.
+  string module = 2;
+
+  // Rego annotations attached to the entrypoint. Opaque in this schema —
+  // see the OPA documentation for the full annotation shape.
+  repeated google.protobuf.Struct annotations = 3;
+}
