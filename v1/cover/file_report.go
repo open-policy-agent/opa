@@ -46,12 +46,7 @@ func (fr *FileReport) isRangeCovered(r Range) bool {
 	if fr == nil {
 		return false
 	}
-	for _, covered := range fr.Covered {
-		if covered.contains(r) {
-			return true
-		}
-	}
-	return false
+	return rangeContainedIn(r, fr.Covered)
 }
 
 // isRangeNotCovered returns true if r is contained within any not-covered range.
@@ -59,8 +54,12 @@ func (fr *FileReport) isRangeNotCovered(r Range) bool {
 	if fr == nil {
 		return false
 	}
-	for _, notCovered := range fr.NotCovered {
-		if notCovered.contains(r) {
+	return rangeContainedIn(r, fr.NotCovered)
+}
+
+func rangeContainedIn(r Range, ranges []Range) bool {
+	for _, candidate := range ranges {
+		if candidate.contains(r) {
 			return true
 		}
 	}
