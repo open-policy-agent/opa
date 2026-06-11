@@ -58,8 +58,9 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 		notCovered := map[Range]struct{}{}
 		ast.WalkRules(module, func(x *ast.Rule) bool {
 			if x.Head.Location.HasFile() {
-				if !report.IsCovered(x.Location.File, x.Location.Row) {
-					notCovered[rangeOf(x.Head.Location)] = struct{}{}
+				headRange := rangeOf(x.Head.Location)
+				if !report.Files[x.Head.Location.File].isRangeCovered(headRange) {
+					notCovered[headRange] = struct{}{}
 				}
 			}
 			return false
