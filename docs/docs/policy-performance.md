@@ -925,8 +925,8 @@ deployment. When running OPA in a container with a hard memory limit, set the
 below that limit. `GOMEMLIMIT` is a soft cap the Go garbage collector treats as a
 target. Without it set, the heap can grow to roughly twice the live heap before GC
 runs (the `GOGC=100` default). When OPA holds a large amount of data, that permanent
-heap can be a significant fraction of the memory limit, and the doubling can OOM-kill
-the pod before GC catches up. Setting `GOMEMLIMIT` too close to the live heap has the
+heap can be a significant fraction of the memory limit, and the doubling can cause an
+Out Of Memory (OOM) kill before GC catches up. Setting `GOMEMLIMIT` too close to the live heap has the
 opposite cost. The GC runs more often, increasing CPU usage and request latency. The
 right value is a tradeoff for your workload. See the
 [Kubernetes deployment guide](./deploy/k8s) for an example.

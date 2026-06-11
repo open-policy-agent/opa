@@ -223,7 +223,7 @@ Deployment manifest. This deployment has the following features:
   should be tuned to your needs.
 - Sets `GOMEMLIMIT` to a value below `resources.limits.memory` so the Go GC has
   headroom for non-heap runtime memory (stacks, runtime metadata, etc.). The exact
-  value is a tradeoff: closer to the limit risks OOM, further below increases GC
+  value is a tradeoff: closer to the limit risks Out Of Memory (OOM), further below increases GC
   CPU overhead and request latency.
   See [Resource Utilization](../policy-performance/#resource-utilization) for more information.
 - Loads the OPA configuration from the secret created above.

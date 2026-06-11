@@ -251,7 +251,7 @@ Next, use the file below to deploy OPA as an admission controller.
 If you set a memory _limit_ in a containerized deployment environment, you may
 also want to set `GOMEMLIMIT` to a value below that limit so the Go garbage
 collector treats it as a soft cap. This is a tradeoff: a tighter `GOMEMLIMIT`
-reduces OOM risk but increases GC CPU overhead and request latency. Benchmark
+reduces Out Of Memory (OOM) risk but increases GC CPU overhead and request latency. Benchmark
 with your policies, data, and load to find the right value. See the
 [Kubernetes deployment guide](../deploy/k8s) for an example.
 :::
