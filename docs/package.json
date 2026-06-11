@@ -17,7 +17,7 @@
     "@docusaurus/theme-mermaid": "^3.10.1",
     "@floating-ui/react": "^0.27.19",
     "@iconify/react": "^6.0.2",
-    "@mermaid-js/layout-elk": "^0.2.1",
+    "@mermaid-js/layout-elk": "^0.1.9",
     "eslint": "^10.4.1",
     "glob": "^13.0.6",
     "js-yaml": "^4.2.0",
