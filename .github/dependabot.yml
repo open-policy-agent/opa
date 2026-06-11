@@ -28,6 +28,11 @@ updates:
           - "*"
     cooldown:
       default-days: 7
+    # Remove when @docusaurus/theme-mermaid widens its peer range to accept
+    # @mermaid-js/layout-elk >=0.2.0.
+    ignore:
+      - dependency-name: "@mermaid-js/layout-elk"
+        versions: [">=0.2.0"]
   - package-ecosystem: npm
     directory: /e2e/api/compile/prisma
     schedule:

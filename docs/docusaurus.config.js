@@ -508,7 +508,6 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
 
           async loadContent() {
             const capabilitiesDir = path.resolve(__dirname, "../capabilities");
-            let sortedVersions = [];
 
             const dirents = await fs.readdir(capabilitiesDir, { withFileTypes: true });
 
@@ -518,7 +517,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
 
             const validVersions = versionStrings.filter(v => semver.valid(v));
 
-            sortedVersions = semver.sort(validVersions);
+            const sortedVersions = semver.sort(validVersions);
 
             return { versions: sortedVersions };
           },
