@@ -33,9 +33,9 @@ When contributing please consider the following pointers:
   Go types. When adding, renaming, or removing fields on `ir.Policy`,
   `ir.Stmt` / `ir.Val` kinds, or `bundle.Manifest`, update the matching
   `.proto` (`v1/ir/plan.proto` or `v1/bundle/manifest.proto`) in the same
-  change set. Proto field numbers and `oneof` case numbers are a permanent
-  wire-format commitment — never reuse a number for a different field, and
-  mark removed fields with `reserved`. The consistency tests
+  change set. Field numbers and `oneof` case numbers in the `.proto` are
+  a permanent wire-format commitment — never reuse a number for a
+  different field, and mark removed fields with `reserved`. The consistency tests
   (`v1/ir/plan_proto_test.go`, `v1/bundle/manifest_proto_test.go`) catch
   drift; `buf breaking` (when configured in CI) catches wire-incompatible
   changes.
