@@ -41,6 +41,32 @@ func (fr *FileReport) IsNotCovered(row int) bool {
 	return false
 }
 
+// isRangeCovered returns true if r is contained within any covered range.
+func (fr *FileReport) isRangeCovered(r Range) bool {
+	if fr == nil {
+		return false
+	}
+	for _, covered := range fr.Covered {
+		if covered.contains(r) {
+			return true
+		}
+	}
+	return false
+}
+
+// isRangeNotCovered returns true if r is contained within any not-covered range.
+func (fr *FileReport) isRangeNotCovered(r Range) bool {
+	if fr == nil {
+		return false
+	}
+	for _, notCovered := range fr.NotCovered {
+		if notCovered.contains(r) {
+			return true
+		}
+	}
+	return false
+}
+
 // locCovered returns the number of unique rows of code covered by tests
 func (fr *FileReport) locCovered() int {
 	return uniqueRowCount(fr.Covered)

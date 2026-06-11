@@ -59,6 +59,17 @@ func (r Range) Compare(other Range) int {
 	return r.End.Col - other.End.Col
 }
 
+// contains returns true if other is fully contained within r.
+func (r Range) contains(other Range) bool {
+	otherStartsWithin := r.Start.Row < other.Start.Row ||
+		(r.Start.Row == other.Start.Row && r.Start.Col <= other.Start.Col)
+
+	otherEndsWithin := r.End.Row > other.End.Row ||
+		(r.End.Row == other.End.Row && r.End.Col >= other.End.Col)
+
+	return otherStartsWithin && otherEndsWithin
+}
+
 // rangeOf returns a Range for loc, deriving the end row/col from loc.Text via
 // (*ast.Location).End.
 func rangeOf(loc *ast.Location) Range {

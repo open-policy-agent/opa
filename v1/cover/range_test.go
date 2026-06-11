@@ -86,6 +86,42 @@ func TestRangeOf(t *testing.T) {
 	}
 }
 
+func TestRangeContains(t *testing.T) {
+	t.Parallel()
+
+	mk := func(sr, sc, er, ec int) Range {
+		return Range{
+			Start: Position{Row: sr, Col: sc},
+			End:   Position{Row: er, Col: ec},
+		}
+	}
+
+	tests := map[string]struct {
+		outer Range
+		inner Range
+		exp   bool
+	}{
+		"exact match":               {outer: mk(3, 1, 3, 5), inner: mk(3, 1, 3, 5), exp: true},
+		"inner fully inside":        {outer: mk(3, 1, 3, 10), inner: mk(3, 3, 3, 7), exp: true},
+		"inner at start boundary":   {outer: mk(3, 1, 3, 10), inner: mk(3, 1, 3, 5), exp: true},
+		"inner at end boundary":     {outer: mk(3, 1, 3, 10), inner: mk(3, 5, 3, 10), exp: true},
+		"inner starts before outer": {outer: mk(3, 3, 3, 10), inner: mk(3, 1, 3, 7), exp: false},
+		"inner ends after outer":    {outer: mk(3, 1, 3, 7), inner: mk(3, 3, 3, 10), exp: false},
+		"entirely before":           {outer: mk(3, 5, 3, 10), inner: mk(3, 1, 3, 4), exp: false},
+		"entirely after":            {outer: mk(3, 1, 3, 4), inner: mk(3, 5, 3, 10), exp: false},
+		"multi-row outer":           {outer: mk(2, 1, 5, 10), inner: mk(3, 1, 4, 5), exp: true},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if got := tc.outer.contains(tc.inner); got != tc.exp {
+				t.Fatalf("Expected %v but got %v", tc.exp, got)
+			}
+		})
+	}
+}
+
 func TestUniqueRowCount(t *testing.T) {
 	mkRange := func(startRow, endRow int) Range {
 		return Range{
