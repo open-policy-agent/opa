@@ -15,6 +15,7 @@
     "@docusaurus/plugin-google-gtag": "^3.10.1",
     "@docusaurus/preset-classic": "^3.10.1",
     "@docusaurus/theme-mermaid": "^3.10.1",
+    "@eslint/js": "^10.0.1",
     "@floating-ui/react": "^0.27.19",
     "@iconify/react": "^6.0.2",
     "@mermaid-js/layout-elk": "^0.1.9",
@@ -30,7 +31,7 @@
     "turndown-plugin-gfm": "^1.0.2"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "devDependencies": {
     "baseline-browser-mapping": "^2.10.33"
