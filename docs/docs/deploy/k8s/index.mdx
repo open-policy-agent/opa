@@ -221,6 +221,11 @@ Deployment manifest. This deployment has the following features:
 - Runs with 3 replicas. This number can be adjusted to suit your needs.
 - Runs in a guaranteed service class with 1 CPU and 1Gi of memory. This again
   should be tuned to your needs.
+- Sets `GOMEMLIMIT` to a value below `resources.limits.memory` so the Go GC has
+  headroom for non-heap runtime memory (stacks, runtime metadata, etc.). The exact
+  value is a tradeoff: closer to the limit risks Out Of Memory (OOM), further below increases GC
+  CPU overhead and request latency.
+  See [Resource Utilization](../policy-performance/#resource-utilization) for more information.
 - Loads the OPA configuration from the secret created above.
 - Has health and liveness checks using the OPA `/health` endpoints.
 - Uses pod anti-affinity to prefer that OPA pods are not scheduled on the same
@@ -261,6 +266,11 @@ spec:
           - "--config-file=/run/secrets/opa-config.yaml"
           ports:
             - containerPort: 8181
+          env:
+            # Soft cap a little below the hard memory limit imposed by the
+            # container runtime, so the Go GC has headroom.
+            - name: GOMEMLIMIT
+              value: "900MiB"
           resources:
             requests:
               memory: "1Gi"
