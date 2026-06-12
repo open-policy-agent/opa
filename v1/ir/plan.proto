@@ -198,7 +198,10 @@ message CallDynamicStmt {
 
 // CallStmt mirrors `ir.CallStmt` in v1/ir/ir.go.
 message CallStmt {
-  string func = 1;
+  // Renamed from `func` (Go field `CallStmt.Func`, JSON-tagged `func`)
+  // to avoid colliding with reserved keywords in target languages,
+  // mirroring the Func.return → result rename above.
+  string function = 1;
   repeated Operand args = 2;
   int32 result = 3;
 }

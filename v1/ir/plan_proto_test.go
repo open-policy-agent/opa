@@ -54,7 +54,10 @@ func TestPlanProtoConsistency(t *testing.T) {
 		stmtMsg("BlockStmt", reflect.TypeOf(ir.BlockStmt{})),
 		stmtMsg("BreakStmt", reflect.TypeOf(ir.BreakStmt{})),
 		stmtMsg("CallDynamicStmt", reflect.TypeOf(ir.CallDynamicStmt{})),
-		stmtMsg("CallStmt", reflect.TypeOf(ir.CallStmt{})),
+		// CallStmt.Func → proto "function" (avoids reserved-keyword
+		// collision; mirrors Func.return → result).
+		stmtMsg("CallStmt", reflect.TypeOf(ir.CallStmt{}),
+			withFieldOverride(map[string]string{"func": "function"})),
 		stmtMsg("DotStmt", reflect.TypeOf(ir.DotStmt{})),
 		stmtMsg("EqualStmt", reflect.TypeOf(ir.EqualStmt{})),
 		stmtMsg("IsArrayStmt", reflect.TypeOf(ir.IsArrayStmt{})),
@@ -345,6 +348,9 @@ func loadPlanCodec(t *testing.T) *protoroundtrip.Codec {
 	codec.SkipProtoFields(reflect.TypeOf(ir.BuiltinFunc{}), "decl")
 	codec.SetFieldNameOverride(reflect.TypeOf(ir.Func{}), map[string]string{
 		"return": "result",
+	})
+	codec.SetFieldNameOverride(reflect.TypeOf(ir.CallStmt{}), map[string]string{
+		"func": "function",
 	})
 	codec.SetFieldNameOverride(reflect.TypeOf(ir.MakeNumberRefStmt{}), map[string]string{
 		"Index": "index",
