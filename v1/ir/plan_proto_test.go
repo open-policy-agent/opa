@@ -96,11 +96,12 @@ func TestPlanProtoConsistency(t *testing.T) {
 		{Name: "Static", GoType: reflect.TypeOf(ir.Static{})},
 		{Name: "Plans", GoType: reflect.TypeOf(ir.Plans{})},
 		{Name: "Funcs", GoType: reflect.TypeOf(ir.Funcs{})},
-		// BuiltinFunc.Decl is *types.Function — opaque.
+		// BuiltinFunc.Decl has no proto counterpart by design — see
+		// the comment on `BuiltinFunc` in plan.proto.
 		{
-			Name:              "BuiltinFunc",
-			GoType:            reflect.TypeOf(ir.BuiltinFunc{}),
-			OpaqueProtoFields: []string{"decl"},
+			Name:         "BuiltinFunc",
+			GoType:       reflect.TypeOf(ir.BuiltinFunc{}),
+			SkipGoFields: []string{"Decl"},
 		},
 		{Name: "Plan", GoType: reflect.TypeOf(ir.Plan{})},
 		// Func.Return → proto "result" (avoids reserved-keyword collision).
@@ -257,8 +258,8 @@ func TestPlanProtoRoundTripYAMLSuite(t *testing.T) {
 }
 
 // roundTripCmpOpts returns the cmp.Options that ignore wire-format-irrelevant
-// fields (debug-only Location internals, opaque BuiltinFunc.Decl) and
-// equate nil with empty for slices and maps.
+// fields (debug-only Location internals, BuiltinFunc.Decl absent from proto)
+// and equate nil with empty for slices and maps.
 func roundTripCmpOpts() []cmp.Option {
 	return []cmp.Option{
 		cmpopts.IgnoreUnexported(ir.Location{}),
@@ -345,7 +346,7 @@ func loadPlanCodec(t *testing.T) *protoroundtrip.Codec {
 	codec.RegisterRoot(reflect.TypeOf(ir.StringConst{}), "StringConst")
 	codec.RegisterRoot(reflect.TypeOf(ir.Operand{}), "Operand")
 
-	codec.SkipProtoFields(reflect.TypeOf(ir.BuiltinFunc{}), "decl")
+	codec.SkipGoFields(reflect.TypeOf(ir.BuiltinFunc{}), "Decl")
 	codec.SetFieldNameOverride(reflect.TypeOf(ir.Func{}), map[string]string{
 		"return": "result",
 	})

@@ -63,11 +63,16 @@ type MessageSpec struct {
 	// Index Go field maps to proto field "index").
 	FieldNameOverride map[string]string
 	// OpaqueProtoFields names proto fields whose Go counterpart isn't
-	// reflectable into proto (e.g. BuiltinFunc.decl wrapping
-	// types.Function). The check requires the Go field to exist with a
-	// structural type — opaque is "no type check feasible", not "no Go
-	// field expected".
+	// reflectable into proto (e.g. types.Function fields modeled as
+	// google.protobuf.Struct). The check requires the Go field to exist
+	// with a structural type — opaque is "no type check feasible", not
+	// "no Go field expected".
 	OpaqueProtoFields []string
+	// SkipGoFields names Go fields (by Go field name, not JSON name)
+	// that have no proto counterpart by design — e.g. ir.BuiltinFunc.Decl
+	// is intentionally absent from the proto because consumers consult
+	// their own registry for builtin signatures.
+	SkipGoFields []string
 }
 
 // OneofSpec asserts that the named oneof on MessageName has exactly the
@@ -211,6 +216,10 @@ func checkMessage(t *testing.T, declared map[string]protoreflect.MessageDescript
 	for _, et := range m.SkipEmbeddedTypes {
 		skipEmbedded[et] = true
 	}
+	skipGo := map[string]bool{}
+	for _, n := range m.SkipGoFields {
+		skipGo[n] = true
+	}
 
 	type expected struct {
 		protoName string
@@ -231,6 +240,9 @@ func checkMessage(t *testing.T, declared map[string]protoreflect.MessageDescript
 		for i := range rt.NumField() {
 			f := rt.Field(i)
 			if !f.IsExported() {
+				continue
+			}
+			if skipGo[f.Name] {
 				continue
 			}
 			if f.Anonymous {
@@ -261,6 +273,13 @@ func checkMessage(t *testing.T, declared map[string]protoreflect.MessageDescript
 		}
 	}
 	collect(m.GoType, m.GoType.Name())
+
+	// Validate SkipGoFields entries point at real Go fields.
+	for _, n := range m.SkipGoFields {
+		if !goFieldExists(m.GoType, n) {
+			t.Errorf("%s: SkipGoFields entry %q does not match any Go field", m.Name, n)
+		}
+	}
 
 	opaque := map[string]bool{}
 	for _, n := range m.OpaqueProtoFields {
@@ -349,6 +368,31 @@ func goJSONNameExists(rt reflect.Type, target string) bool {
 		}
 		if name == target {
 			return true
+		}
+	}
+	return false
+}
+
+func goFieldExists(rt reflect.Type, target string) bool {
+	if rt.Kind() != reflect.Struct {
+		return false
+	}
+	for i := range rt.NumField() {
+		f := rt.Field(i)
+		if !f.IsExported() {
+			continue
+		}
+		if f.Name == target {
+			return true
+		}
+		if f.Anonymous {
+			ft := f.Type
+			for ft.Kind() == reflect.Pointer {
+				ft = ft.Elem()
+			}
+			if ft.Kind() == reflect.Struct && goFieldExists(ft, target) {
+				return true
+			}
 		}
 	}
 	return false

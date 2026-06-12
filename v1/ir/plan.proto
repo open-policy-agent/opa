@@ -6,8 +6,6 @@ edition = "2023";
 
 package opa.ir.v1;
 
-import "google/protobuf/struct.proto";
-
 option go_package = "github.com/open-policy-agent/opa/v1/ir/v1pb";
 
 // Policy mirrors `ir.Policy` in v1/ir/ir.go.
@@ -25,11 +23,14 @@ message Static {
 }
 
 // BuiltinFunc mirrors `ir.BuiltinFunc` in v1/ir/ir.go.
+//
+// `ir.BuiltinFunc.Decl` (the function's `types.Function` signature) is
+// intentionally not modeled. Consumers that execute plans need their
+// own builtin registry to dispatch host-language implementations, and
+// that registry is the source of truth for signatures — bundling
+// `Decl` here would be redundant and prone to drift.
 message BuiltinFunc {
   string name = 1;
-  // BuiltinFunc declaration. Opaque in this schema — `types.Function`
-  // ships its own custom marshaling and is out of scope.
-  google.protobuf.Struct decl = 2;
 }
 
 // Plans mirrors `ir.Plans` in v1/ir/ir.go.

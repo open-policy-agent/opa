@@ -31,6 +31,9 @@ type Codec struct {
 	fieldOverrides map[reflect.Type]map[string]string
 	// skipProtoFields[T]: proto fields ignored on encode AND decode (opaque).
 	skipProtoFields map[reflect.Type]map[string]bool
+	// skipGoFields[T]: Go fields (by Go field name) with no proto
+	// counterpart; encoded as no-op, decoded as zero value.
+	skipGoFields map[reflect.Type]map[string]bool
 	// skipEmbedded[T]: embedded Go types NOT flattened into T (handled
 	// elsewhere — typically promoted to an envelope).
 	skipEmbedded map[reflect.Type]map[reflect.Type]bool
@@ -59,6 +62,7 @@ func NewCodec(file protoreflect.FileDescriptor) *Codec {
 		rootMsgs:        map[reflect.Type]string{},
 		fieldOverrides:  map[reflect.Type]map[string]string{},
 		skipProtoFields: map[reflect.Type]map[string]bool{},
+		skipGoFields:    map[reflect.Type]map[string]bool{},
 		skipEmbedded:    map[reflect.Type]map[reflect.Type]bool{},
 		envelopes:       map[reflect.Type]EnvelopeSpec{},
 	}
@@ -82,6 +86,22 @@ func (c *Codec) SkipProtoFields(t reflect.Type, names ...string) {
 	if m == nil {
 		m = map[string]bool{}
 		c.skipProtoFields[unwrapPointer(t)] = m
+	}
+	for _, n := range names {
+		m[n] = true
+	}
+}
+
+// SkipGoFields names Go fields (by Go field name) on t that have no
+// proto counterpart by design — encoded as no-op, decoded as zero
+// value. Used for fields the proto schema deliberately omits, such as
+// ir.BuiltinFunc.Decl (signatures live in the consumer's builtin
+// registry, not the wire format).
+func (c *Codec) SkipGoFields(t reflect.Type, names ...string) {
+	m := c.skipGoFields[unwrapPointer(t)]
+	if m == nil {
+		m = map[string]bool{}
+		c.skipGoFields[unwrapPointer(t)] = m
 	}
 	for _, n := range names {
 		m[n] = true
@@ -182,6 +202,7 @@ func lookupMessage(file protoreflect.FileDescriptor, name string) protoreflect.M
 func (c *Codec) encodeStruct(rv reflect.Value, msg *dynamicpb.Message, envelopeFields *envelopeContext) error {
 	t := rv.Type()
 	skipFields := c.skipProtoFields[t]
+	skipGo := c.skipGoFields[t]
 	overrides := c.fieldOverrides[t]
 	skipEmbeds := c.skipEmbedded[t]
 	md := msg.Descriptor()
@@ -189,6 +210,9 @@ func (c *Codec) encodeStruct(rv reflect.Value, msg *dynamicpb.Message, envelopeF
 	for i := range t.NumField() {
 		f := t.Field(i)
 		if !f.IsExported() {
+			continue
+		}
+		if skipGo[f.Name] {
 			continue
 		}
 		fv := rv.Field(i)
@@ -510,12 +534,16 @@ func (c *Codec) decodeStruct(msg protoreflect.Message, rv reflect.Value, envelop
 	t := rv.Type()
 	overrides := c.fieldOverrides[t]
 	skipFields := c.skipProtoFields[t]
+	skipGo := c.skipGoFields[t]
 	skipEmbeds := c.skipEmbedded[t]
 	md := msg.Descriptor()
 
 	for i := range t.NumField() {
 		f := t.Field(i)
 		if !f.IsExported() {
+			continue
+		}
+		if skipGo[f.Name] {
 			continue
 		}
 		fv := rv.Field(i)
