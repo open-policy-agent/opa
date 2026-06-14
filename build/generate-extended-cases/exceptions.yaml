@@ -1,1 +1,2 @@
 # Exception Format is <test name>: <reason>
+"logic_op/**": "No planner support"

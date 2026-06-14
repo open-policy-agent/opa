@@ -1,0 +1,110 @@
+---
+cases:
+  - note: "logic_op/or/basic: lhs true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          true or false
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: rhs true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          false or true
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: both true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          true or true
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: both false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          false or false
+        }
+    want_result: []
+  - note: "logic_op/or/basic: lhs succeeds via input"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.role == "admin" or input.role == "user"
+        }
+    input:
+      role: "admin"
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: rhs succeeds via input"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.role == "admin" or input.role == "user"
+        }
+    input:
+      role: "user"
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: neither side succeeds via input"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.role == "admin" or input.role == "user"
+        }
+    input:
+      role: "guest"
+    want_result: []
+  - note: "logic_op/or/basic: lhs undefined ref, rhs true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.missing or true
+        }
+    want_result:
+      - x: true

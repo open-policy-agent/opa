@@ -1,3 +1,4 @@
 # Exception Format is <test name>: <reason>
 "data/toplevel integer": "https://github.com/open-policy-agent/opa/issues/3711"
 "data/nested integer": "https://github.com/open-policy-agent/opa/issues/3711"
+"logic_op/**": "No planner support"

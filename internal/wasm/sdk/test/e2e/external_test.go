@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gobwas/glob"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
@@ -34,6 +35,13 @@ var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to
 
 var exceptions map[string]string
 
+type exceptionPattern struct {
+	g glob.Glob
+	r string
+}
+
+var exceptionGlobs []exceptionPattern
+
 func TestMain(m *testing.M) {
 	exceptions = map[string]string{}
 
@@ -46,6 +54,19 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Println("Unable to parse exceptions file: " + err.Error())
 		os.Exit(1)
+	}
+
+	for pattern, reason := range exceptions {
+		if !strings.Contains(pattern, "*") {
+			continue
+		}
+
+		g, err := glob.Compile(pattern, '/')
+		if err != nil {
+			fmt.Printf("Invalid glob pattern %q in exceptions file: %v\n", pattern, err)
+			os.Exit(1)
+		}
+		exceptionGlobs = append(exceptionGlobs, exceptionPattern{g: g, r: reason})
 	}
 
 	addTestSleepBuiltin()
@@ -121,6 +142,13 @@ func shouldSkip(t *testing.T, tc cases.TestCase) bool {
 	if reason, ok := exceptions[tc.Note]; ok {
 		t.Log("Skipping test case: " + reason)
 		return true
+	}
+
+	for _, p := range exceptionGlobs {
+		if p.g.Match(tc.Note) {
+			t.Log("Skipping test case: " + p.r)
+			return true
+		}
 	}
 
 	return false
