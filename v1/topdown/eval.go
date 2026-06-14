@@ -545,6 +545,30 @@ func (e *eval) evalStep(iter evalIterator) error {
 				return err
 			})
 
+		case *ast.LogicalAnd:
+			ea := evalLogicalAnd{
+				e:   e,
+				and: terms,
+			}
+			err = ea.eval(func(e *eval) error {
+				defined = true
+				err := iter(e)
+				e.traceRedo(expr)
+				return err
+			})
+
+		case *ast.LogicalOr:
+			eo := evalLogicalOr{
+				e:  e,
+				or: terms,
+			}
+			err = eo.eval(func(e *eval) error {
+				defined = true
+				err := iter(e)
+				e.traceRedo(expr)
+				return err
+			})
+
 		default: // guard-rail for adding extra (Expr).Terms types
 			return fmt.Errorf("got %T terms: %[1]v", terms)
 		}
@@ -601,6 +625,24 @@ func (e *eval) evalStep(iter evalIterator) error {
 			not: terms,
 		}
 		err = en.eval(func(e *eval) error {
+			return iter(e)
+		})
+
+	case *ast.LogicalAnd:
+		ea := evalLogicalAnd{
+			e:   e,
+			and: terms,
+		}
+		err = ea.eval(func(e *eval) error {
+			return iter(e)
+		})
+
+	case *ast.LogicalOr:
+		eo := evalLogicalOr{
+			e:  e,
+			or: terms,
+		}
+		err = eo.eval(func(e *eval) error {
 			return iter(e)
 		})
 
@@ -4328,6 +4370,157 @@ func (e evalNot) evalPartial(iter evalIterator) error {
 	}
 
 	return e.e.evalNotPartial(expr, unNegate, ast.Complement, supportTerms, iter)
+}
+
+type evalLogicalAnd struct {
+	e   *eval
+	and *ast.LogicalAnd
+}
+
+func (e evalLogicalAnd) eval(iter evalIterator) error {
+	if e.e.partial() && (e.e.unknown(e.and.Lhs, e.e.bindings) || e.e.unknown(e.and.Rhs, e.e.bindings)) {
+		return e.evalPartial(iter)
+	}
+
+	lhsDefined, err := evalLogicalOperand(e.e, e.and.Lhs)
+	if err != nil {
+		return err
+	}
+	if !lhsDefined {
+		return nil
+	}
+
+	rhsDefined, err := evalLogicalOperand(e.e, e.and.Rhs)
+	if err != nil {
+		return err
+	}
+	if !rhsDefined {
+		return nil
+	}
+
+	return iter(e.e)
+}
+
+func (e evalLogicalAnd) evalPartial(iter evalIterator) error {
+	// Plug and save the expression to produce a valid, but non-optimized PE result
+	expr := e.e.query[e.e.index]
+	return e.e.saveExpr(e.plug(expr), e.e.bindings, func() error {
+		return iter(e.e)
+	})
+}
+
+func (e evalLogicalAnd) plug(expr *ast.Expr) *ast.Expr {
+	cpy := expr.Copy()
+	and := cpy.Terms.(*ast.LogicalAnd)
+	plugLogicalBody(e.e, and.Lhs)
+	plugLogicalBody(e.e, and.Rhs)
+	cpy.Terms = and
+	return cpy
+}
+
+type evalLogicalOr struct {
+	e  *eval
+	or *ast.LogicalOr
+}
+
+func (e evalLogicalOr) eval(iter evalIterator) error {
+	if e.e.partial() && (e.e.unknown(e.or.Lhs, e.e.bindings) || e.e.unknown(e.or.Rhs, e.e.bindings)) {
+		return e.evalPartial(iter)
+	}
+
+	lhsDefined, err := evalLogicalOperand(e.e, e.or.Lhs)
+	if err != nil {
+		return err
+	}
+	if lhsDefined {
+		return iter(e.e)
+	}
+
+	rhsDefined, err := evalLogicalOperand(e.e, e.or.Rhs)
+	if err != nil {
+		return err
+	}
+	if !rhsDefined {
+		return nil
+	}
+
+	return iter(e.e)
+}
+
+func (e evalLogicalOr) evalPartial(iter evalIterator) error {
+	// Plug and save the expression to produce a valid, but non-optimized PE result
+	expr := e.e.query[e.e.index]
+	return e.e.saveExpr(e.plug(expr), e.e.bindings, func() error {
+		return iter(e.e)
+	})
+}
+
+func (e evalLogicalOr) plug(expr *ast.Expr) *ast.Expr {
+	cpy := expr.Copy()
+	or := cpy.Terms.(*ast.LogicalOr)
+	plugLogicalBody(e.e, or.Lhs)
+	plugLogicalBody(e.e, or.Rhs)
+	cpy.Terms = or
+	return cpy
+}
+
+// evalLogicalOperand runs body as a closed scope that contributes at most one
+// success. Returns whether the body succeeded; bindings introduced inside body
+// do not propagate to the caller.
+func evalLogicalOperand(parent *eval, body ast.Body) (bool, error) {
+	child := evalPool.Get()
+	defer evalPool.Put(child)
+
+	parent.closure(body, child)
+	child.findOne = true
+
+	if parent.traceEnabled {
+		child.traceEnter(body)
+	}
+
+	defined := false
+	err := child.eval(func(*eval) error {
+		if parent.traceEnabled {
+			child.traceExit(body)
+			child.traceRedo(body)
+		}
+		defined = true
+		return nil
+	})
+
+	// findOne raises an earlyExitError once the iter callback fires; that's
+	// our signal to stop, not an error to propagate to the caller.
+	if err := suppressEarlyExit(err); err != nil {
+		return false, err
+	}
+
+	return defined, nil
+}
+
+// plugLogicalBody namespaces variable references inside the operand body of
+// a LogicalAnd/LogicalOr expression for partial evaluation.
+func plugLogicalBody(e *eval, body ast.Body) {
+	for i := range body {
+		switch t := body[i].Terms.(type) {
+		case *ast.Term:
+			body[i].Terms = e.bindings.PlugNamespaced(t, e.caller.bindings)
+		case []*ast.Term:
+			for j := 1; j < len(t); j++ { // don't plug operator, t[0]
+				t[j] = e.bindings.PlugNamespaced(t[j], e.caller.bindings)
+			}
+		case *ast.Every:
+			ev := evalEvery{e: e, every: t, expr: body[i]}
+			body[i] = ev.plug(body[i])
+		case *ast.Not:
+			plugLogicalBody(e, t.Body)
+		case *ast.LogicalAnd:
+			plugLogicalBody(e, t.Lhs)
+			plugLogicalBody(e, t.Rhs)
+		case *ast.LogicalOr:
+			plugLogicalBody(e, t.Lhs)
+			plugLogicalBody(e, t.Rhs)
+		}
+	}
 }
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
