@@ -1,0 +1,1 @@
+Check day of week for deployment policies

@@ -130,3 +130,19 @@ in nanoseconds since the Unix epoch. This is useful for comparing
 timestamps or calculating time differences.
 
 <PlaygroundExample dir={require.context('../_examples/time/now_ns/past')} />
+
+### `date`
+
+`time.date` is Rego's built-in function that returns the year, month, and day
+from a nanosecond timestamp. This is useful for date-based access control or
+maintenance window enforcement.
+
+<PlaygroundExample dir={require.context("../_examples/time/date/extract_date")} />
+
+### `weekday`
+
+`time.weekday` is Rego's built-in function that returns the day of the week
+as a string (e.g., "Monday", "Tuesday") from a nanosecond timestamp.
+This is useful for enforcing deployment freezes on weekends or scheduling policies.
+
+<PlaygroundExample dir={require.context("../_examples/time/weekday/check_weekday")} />
