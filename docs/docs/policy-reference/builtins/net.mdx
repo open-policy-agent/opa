@@ -13,6 +13,24 @@ See [these docs on the `net` package](https://pkg.go.dev/net@go1.17.3#hdr-Name_R
 Note that the cgo-based resolver is often **preferable**: It will take advantage of host-based DNS caching in place.
 This built-in function only caches DNS lookups within _a single_ policy evaluation.
 
+#### Examples of `net.cidr_contains`
+
+The `net.cidr_contains(cidr, cidr_or_ip)` function checks if a CIDR range or IP address is contained within another CIDR range.
+
+<PlaygroundExample dir={require.context("../_examples/net/cidr_contains")} />
+
+#### Examples of `net.cidr_intersects`
+
+The `net.cidr_intersects(cidr1, cidr2)` function checks whether two CIDR ranges share any IP addresses.
+
+<PlaygroundExample dir={require.context("../_examples/net/cidr_intersects")} />
+
+#### Examples of `net.cidr_merge`
+
+The `net.cidr_merge(cidrs)` function merges a list of CIDR ranges into the smallest set of non-overlapping ranges.
+
+<PlaygroundExample dir={require.context("../_examples/net/cidr_merge")} />
+
 #### Examples of `net.cidr_contains_matches`
 
 The `output := net.cidr_contains_matches(a, b)` function allows callers to supply
