@@ -331,8 +331,6 @@ Check OPA's decision logs to view the inputs received by OPA from Gloo Edge and 
 kubectl logs deployment/opa -n gloo-system
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 This tutorial showed how you can use OPA with [Gloo Edge](https://docs.solo.io/gloo-edge/latest/) to apply security policies for upstream services and how to create and test a policy that would allow `GET` or `POST` requests based on your user role.

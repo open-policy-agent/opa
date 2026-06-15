@@ -512,9 +512,7 @@ request will be denied and the producer will output an error message.
 Not authorized to access topics: [click-stream]
 ```
 
-## Wrap Up
-
-Congratulations on finishing the tutorial!
+## Summary
 
 At this point you have learned how to enforce fine-grained access control
 over Kafka topics. In addition, you have seen how to break down policies into

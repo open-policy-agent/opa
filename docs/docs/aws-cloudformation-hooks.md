@@ -288,8 +288,7 @@ should now find an item describing that the hook denied the request, and its rea
 }
 ```
 
-The first CloudFormation Hook policy using OPA is now enforced. Update the
-template so that it passes the policy requirement:
+The policy is now enforced. Update the template so that it passes the policy requirement:
 
 **s3bucket.yaml**
 

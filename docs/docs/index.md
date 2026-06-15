@@ -1250,10 +1250,6 @@ go run main.go example.rego 'data.example.violation' < input.json
 
 ## Next Steps
 
-Congratulations on completing the introduction to OPA. You have learned the core
-concepts behind OPA's policy language as well as how to get OPA and run it on
-your own.
-
 If you have more questions about how to write policies in Rego check out:
 
 - The [Policy Reference](./docs/policy-reference) page for reference documentation on built-in functions.

@@ -354,9 +354,7 @@ Check that `alice` can see her own salary.
 curl --user alice:password "localhost:5000/finance/salary/alice?token=$ALICE_TOKEN"
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 You learned a number of things about API authorization with OPA:
 

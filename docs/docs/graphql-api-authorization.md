@@ -505,9 +505,7 @@ Check that `alice` can see her own salary.
 gql-query alice:password "localhost:5000/?token=$ALICE_TOKEN" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 You learned a number of things about API authorization with OPA:
 

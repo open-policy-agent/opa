@@ -353,8 +353,7 @@ prevented by the policy):
 docker run --security-opt seccomp:unconfined hello-world
 ```
 
-Congratulations! You have successfully prevented containers from running without
-seccomp!
+Containers without a seccomp profile are now blocked.
 
 The rest of the tutorial shows how you can grant fine-grained access to specific
 clients.
@@ -441,5 +440,3 @@ Because the configured user is `"alice"`, the request will succeed:
 ```shell
 docker run hello-world
 ```
-
-That's it!

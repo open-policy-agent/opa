@@ -560,9 +560,7 @@ Error from server (BadRequest): error when creating "ingress-ok.yaml": admission
 path "/" is already defined in ingress production/ingress-ok
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 This tutorial showed how you can leverage OPA to enforce admission control
 decisions in Kubernetes clusters without modifying or recompiling any

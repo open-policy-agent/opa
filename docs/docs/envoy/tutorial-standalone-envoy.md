@@ -543,9 +543,7 @@ Deleting cluster "opa-envoy" ...
 Deleted nodes: ["opa-envoy-control-plane"]
 ```
 
-## Wrap Up
-
-Congratulations on finishing the tutorial !
+## Summary
 
 This tutorial showed how to use OPA as an External authorization service to
 enforce custom policies by leveraging Envoy’s External authorization filter.

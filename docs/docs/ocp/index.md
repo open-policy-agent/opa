@@ -31,7 +31,7 @@ receive the policies and data they need to make decisions. OCP provides:
 - [OCP on GitHub](https://github.com/open-policy-agent/opa-control-plane) -
   explore OCP the code, contribute and file issues.
 
-## Kick the tires
+## Quick Start
 
 Follow this section to get a quick example running on your laptop. By following
 these instructions, you will be able to:

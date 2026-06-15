@@ -419,9 +419,7 @@ elevation ticket when the mock API has a non-empty `tickets` object. So when the
 elevated users, there will be no prompt for a ticket. This can be done using the Rego
 [`count` aggregate](./policy-reference/builtins/aggregates).
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 You learned a number of things about SSH with OPA:
 

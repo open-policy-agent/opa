@@ -711,9 +711,7 @@ opa exec --decision terraform/analysis/authz \
   tfplan_large.json
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 You learned a number of things about Terraform Testing with OPA:
 
@@ -904,9 +902,7 @@ This should return one of the two resources. The security group created by the m
 }
 ```
 
-## Module Wrap Up
-
-Congratulations on finishing the tutorial!
+## Summary
 
 You learned OPA can be used to determine if a proposed configuration is authorized.
 

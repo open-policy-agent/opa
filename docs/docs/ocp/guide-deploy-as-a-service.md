@@ -5,7 +5,7 @@ sidebar_label: "Tutorial: Deploy as a Service"
 
 # Deploy as a Service to Kubernetes, AWS…
 
-This example expands on [Kick the tires](./#kick-the-tires),
+This example expands on [Quick Start](./#quick-start),
 illustrating a more comprehensive and realistic configuration. This will
 showcase a practical, more complete server configuration and demonstrate its
 operational aspects.
