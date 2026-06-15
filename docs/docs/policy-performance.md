@@ -898,10 +898,10 @@ are embedding OPA as a library, it is your responsibility to dispatch concurrent
 to different Goroutines/threads. If you are running the OPA server, it will parallelize
 concurrent requests and use as many cores as possible. You can limit the number of
 cores that OPA can consume by setting the [`GOMAXPROCS`](https://pkg.go.dev/runtime)
-environment variable. Since Go 1.25, OPA auto-detects the cgroup CPU quota and sets
-`GOMAXPROCS` accordingly, with a minimum of 2. For containers with very low CPU
-limits, if setting `GOMAXPROCS=1`, benchmark OPA's memory and GC performance to
-ensure your latency requirements are met.
+environment variable. OPA uses the [`automaxprocs`](https://github.com/uber-go/automaxprocs) library to automatically detect the
+cgroup CPU quota and set `GOMAXPROCS` accordingly, with a minimum of 1. For containers
+with very low CPU limits, if setting `GOMAXPROCS=1`, benchmark OPA's memory and GC
+performance to ensure your latency requirements are met.
 
 Memory usage scales with the size of the policy (i.e., Rego) and data (e.g., JSON) that you
 load into OPA. Raw JSON data loaded into OPA uses approximately 20x more memory compared to the
@@ -920,16 +920,16 @@ By default, OPA stores policy and data in-memory. OPA's disk storage feature all
 
 Memory usage depends on your specific policies, data, and request load. Benchmark
 OPA with [`opa bench`](#benchmarking-queries) to determine the memory needed for your
-deployment. When running OPA in a container with a hard memory limit, set the
-[`GOMEMLIMIT`](https://pkg.go.dev/runtime) environment variable to a value slightly
-below that limit. `GOMEMLIMIT` is a soft cap the Go garbage collector treats as a
-target. Without it set, the heap can grow to roughly twice the live heap before GC
-runs (the `GOGC=100` default). When OPA holds a large amount of data, that permanent
-heap can be a significant fraction of the memory limit, and the doubling can cause an
-Out Of Memory (OOM) kill before GC catches up. Setting `GOMEMLIMIT` too close to the live heap has the
-opposite cost. The GC runs more often, increasing CPU usage and request latency. The
-right value is a tradeoff for your workload. See the
-[Kubernetes deployment guide](./deploy/k8s) for an example.
+deployment. OPA uses the [`automemlimit`](https://github.com/KimMachineGun/automemlimit)
+library to automatically set `GOMEMLIMIT` to 90% of the cgroup memory limit when one is
+present. If `GOMEMLIMIT` is already set in the environment, it is left unchanged.
+`GOMEMLIMIT` is a soft cap the Go garbage collector treats as a target. Without it set,
+the heap can grow to roughly twice the live heap before GC runs (the `GOGC=100` default).
+When OPA holds a large amount of data, that permanent heap can be a significant fraction
+of the memory limit, and the doubling can cause an Out Of Memory (OOM) kill before GC
+catches up. Setting `GOMEMLIMIT` too close to the live heap has the opposite cost. The GC
+runs more often, increasing CPU usage and request latency. The right value is a tradeoff
+for your workload.
 
 ## Optimization Levels
 
