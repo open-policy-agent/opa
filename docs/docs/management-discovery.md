@@ -280,9 +280,11 @@ bundle before activating it. The format of the `.signatures.json` file and the v
 regular bundles. Since the discovered configuration ignores changes to the `discovery` section, any key used for
 signature verification of a discovery bundle **CANNOT** be modified via discovery.
 
-> 🚨 It is recommended to sign discovery bundles because those bundles
-> include the keys used to verify the non-discovery bundles. However, OPA does not enforce that recommendation. You may use
-> unsigned discovery bundles that themselves require non-discovery bundles to be signed.
+:::warning
+It is recommended to sign discovery bundles because those bundles
+include the keys used to verify the non-discovery bundles. However, OPA does not enforce that recommendation. You may use
+unsigned discovery bundles that themselves require non-discovery bundles to be signed.
+:::
 
 To enable signature verification for discovery bundles, add the `signing` field to your discovery configuration and define the verification key:
 

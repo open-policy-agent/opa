@@ -74,7 +74,9 @@ If the log level is set to `debug` the request and response message bodies will 
 The default log format is json and intended for production use. For more human readable
 formats use "json-pretty" or "text".
 
-> **Note:** The `text` log format is not performance optimized or intended for production use.
+:::note
+The `text` log format is not performance optimized or intended for production use.
+:::
 
 ### Volume Mounts
 

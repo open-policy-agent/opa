@@ -145,14 +145,18 @@ containers:
 ```
 </EvergreenCodeBlock>
 
-> 💡 Consider specifying CPU and memory resource requests and limits for the OPA and other containers to prevent
-> deployments from resource starvation.
-> OPA automatically sets `GOMAXPROCS` via [`automaxprocs`](https://github.com/uber-go/automaxprocs) and `GOMEMLIMIT`
-> via [`automemlimit`](https://github.com/KimMachineGun/automemlimit) based on cgroup limits. Both can be overridden
-> by setting the environment variables explicitly.
->
-> 💡 The OPA-Envoy plugin can be configured to listen on a UNIX Domain Socket. A complete example of such a setup
-> can be found [in the opa-envoy-plugin examples](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/envoy-uds).
+::: tip
+Consider specifying CPU and memory resource requests and limits for the OPA and other containers to prevent
+deployments from resource starvation.
+OPA automatically sets `GOMAXPROCS` via [`automaxprocs`](https://github.com/uber-go/automaxprocs) and `GOMEMLIMIT`
+via [`automemlimit`](https://github.com/KimMachineGun/automemlimit) based on cgroup limits. Both can be overridden
+by setting the environment variables explicitly.
+:::
+
+::: tip
+The OPA-Envoy plugin can be configured to listen on a UNIX Domain Socket. A complete example of such a setup
+can be found [in the opa-envoy-plugin examples](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/envoy-uds).
+:::
 
 ### Load Generator and Measurement Tool
 

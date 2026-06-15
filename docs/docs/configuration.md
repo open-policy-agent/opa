@@ -863,10 +863,12 @@ included in the actual bundle gzipped tarball.
 | `discovery.signing.exclude_files`                | `array`                        | No                  | Files in the bundle to exclude during verification.                                                                                                                        |
 | `discovery.persist`                              | `bool`                         | No                  | Persist activated discovery bundle to disk.                                                                                                                                |
 
-> ⚠️ The plugin trigger mode configured on the discovery plugin will be inherited by the bundle, decision log
-> and status plugins. For example, if the discovery plugin is configured to use the manual trigger mode, all other
-> plugins will use manual triggering as well. If any of the plugins explicitly specify a different mode (for ex. periodic),
-> OPA will generate a configuration error.
+:::warning
+The plugin trigger mode configured on the discovery plugin will be inherited by the bundle, decision log
+and status plugins. For example, if the discovery plugin is configured to use the manual trigger mode, all other
+plugins will use manual triggering as well. If any of the plugins explicitly specify a different mode (for ex. periodic),
+OPA will generate a configuration error.
+:::
 
 The following `discovery` configuration fields are supported but deprecated:
 
