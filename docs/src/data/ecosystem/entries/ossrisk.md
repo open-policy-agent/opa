@@ -9,10 +9,8 @@ inventors:
 - depkeep
 code:
 - https://github.com/depkeep/ossrisk
-- https://www.npmjs.com/package/ossrisk
 tutorials:
 - https://github.com/depkeep/ossrisk#policy-as-code-opa
-- https://github.com/depkeep/ossrisk/blob/main/examples/policies/supply-chain.rego
 software:
 - npm
 - pypi
