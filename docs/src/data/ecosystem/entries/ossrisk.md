@@ -9,7 +9,6 @@ inventors:
 - depkeep
 code:
 - https://github.com/depkeep/ossrisk
-- https://www.npmjs.com/package/ossrisk
 tutorials:
 - https://github.com/depkeep/ossrisk#policy-as-code-opa
 software:
