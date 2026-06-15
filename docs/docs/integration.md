@@ -464,6 +464,15 @@ The Go API is made available to allow other projects to build policy functionali
 applications. Browse <EcosystemFeatureLink feature="go-integration">Go
 integrations</EcosystemFeatureLink> in the OPA Ecosystem for inspiration.
 
+### Intermediate Representation (IR)
+
+Policies may be compiled into evaluation plans using an intermediate representation format, suitable for custom
+compilers and evaluators.
+
+See [OPA IR docs](./ir) for more details, or to evaluate IR plans directly in your application, see
+[Swift-OPA](https://github.com/open-policy-agent/swift-opa) for Swift and
+[java-opa-sdk](https://github.com/open-policy-agent/java-opa-sdk) for Java.
+
 ### WebAssembly (Wasm)
 
 Policies can be evaluated as compiled Wasm binaries. See [OPA Wasm docs](./wasm) for more details.
@@ -471,13 +480,6 @@ Policies can be evaluated as compiled Wasm binaries. See [OPA Wasm docs](./wasm)
 There are a number of projects already built on OPA's Wasm support. Take a look
 in <EcosystemFeatureLink feature="wasm-integration">Wasm
 integrations</EcosystemFeatureLink> in the OPA Ecosystem for more details.
-
-### Intermediate Representation (IR)
-
-Policies may be compiled into evaluation plans using an intermediate representation format, suitable for custom
-compilers and evaluators.
-
-See [OPA IR docs](./ir) for more details.
 
 ## Comparison
 
