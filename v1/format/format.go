@@ -1212,7 +1212,13 @@ func (w *writer) writeWith(with *ast.With, comments []*ast.Comment, indented boo
 	w.write(" as ")
 	comments, err = w.writeTerm(with.Value, comments)
 	if err != nil {
-		return comments, err
+		// An unexpectedCommentError from writeTerm signals that it fell
+		// back to writing the term's original unformatted text — the value
+		// was written successfully, so don't abort the surrounding chain
+		// of `with` clauses (issue #8765).
+		if !errors.As(err, &unexpectedCommentError{}) {
+			return comments, err
+		}
 	}
 	return comments, nil
 }
