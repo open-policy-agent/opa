@@ -79,11 +79,11 @@ policy.rego:9: rego_parse_error: illegal token
                    ^
 ```
 
-At this point, further processing isn't possible, and the error must be fixed before we can proceed.
+At this point, further processing isn't possible, and the error must be fixed before proceeding.
 
 #### Compilation
 
-While we may not think of Rego as a "compiled language", any policy passes through a compilation step before it can be
+While Rego may not seem like a "compiled language", any policy passes through a compilation step before it can be
 evaluated. During compilation, OPA will run several stages of analysis on the policy (which is now an AST) to ensure
 that it's valid. This includes things like checking that functions are called with the right number of arguments,
 that types are used correctly, or that variables are defined before they're used. A typical example of a compilation
@@ -95,7 +95,7 @@ package policy
 x := y
 ```
 
-Since `y` isn't defined in our policy, the compiler considers it unsafe:
+Since `y` isn't defined in the policy, the compiler considers it unsafe:
 
 ```txt
 1 error occurred: policy.rego:3: rego_unsafe_var_error: var y is unsafe
@@ -134,14 +134,14 @@ startswith("100", 1)
 ```
 
 As the `startswith` function expects two strings — and this is known by the compiler — this would fail during
-compilation. But if we replace the `1` with a value from `input`:
+compilation. If the `1` is replaced with a value from `input`:
 
 ```rego
 startswith("100", input.x)
 ```
 
-The compiler can't know the value of `input.x`. During evaluation, we _do_ know the value of `input.x`,
-but does it mean we want a malformed value to stop policy evaluation entirely? Probably not! By default, evaluation
+The compiler can't know the value of `input.x`. At evaluation time, the value is known, but a
+malformed value does not stop policy evaluation entirely. By default, evaluation
 will simply consider that case to be _undefined_, and move on with evaluating the rest of the policy.
 
 **Tip:** If you're using `opa eval` to evaluate policies, you can pass the `--strict-builtin-errors` flag to have

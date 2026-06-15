@@ -8,7 +8,7 @@ This page covers how to write policies for the content of the requests that are 
 
 ## Writing Policies
 
-Let's start with an example policy that restricts access to an endpoint based on a user's role and permissions.
+Start with an example policy that restricts access to an endpoint based on a user's role and permissions.
 
 ```rego
 package envoy.authz
@@ -213,7 +213,7 @@ When Envoy receives a policy decision, it expects a JSON object with the followi
 - `query_parameters_to_remove` (optional): is an array containing the names of string query parameters to be removed.
 - `query_parameters_to_set` (optional): an object mapping parameter names to values (string) or arrays of values (for multiple values with the same key)
 
-To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet. Notice that we are using partial object rules so that any variables with undefined values simply have no key in the `result` object.
+To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet. Note that partial object rules are used so that any variables with undefined values simply have no key in the `result` object.
 
 ```rego
 result["allowed"] := allow

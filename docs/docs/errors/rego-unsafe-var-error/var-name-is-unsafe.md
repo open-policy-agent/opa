@@ -32,13 +32,13 @@ allow if user_is_admin
 user_is_developer if "developer" in input.user.roles
 ```
 
-Not that easy! But luckily we won't have to, as the compiler does it for us:
+Not that easy! The compiler handles this automatically:
 
 ```shell
 1 error occurred: policy.rego:8: rego_unsafe_var_error: var user_is_admin is unsafe
 ```
 
-Of course! We had forgotten to provide an actual `user_is_admin` rule before we used it, and hence why it's
+Of course! The `user_is_admin` rule was not defined before use, and hence why it's
 considered unsafe.
 
 Sometimes, the location of the errors isn't as clear-cut, even when reading the errors.
@@ -67,15 +67,15 @@ foo.rego:6: rego_unsafe_var_error: var title_upper is unsafe
 ```
 
 Since `users` is unsafe, every variable that depend on `users` is _also_ considered unsafe. This means that _all_ the
-variables in our `allow` rule will be considered unsafe, and we'll have to do some investigative work to figure out
+variables in the `allow` rule will be considered unsafe, requiring some investigation to figure out
 what the actual root cause was. Whether this should be needed or not is
-[up for debate](https://github.com/open-policy-agent/opa/issues/6393), and perhaps we'll be able to skip this in future
+[up for debate](https://github.com/open-policy-agent/opa/issues/6393), and this limitation may be removed in future
 OPA versions.
 
 ## How To Fix It
 
-Once you've found the unsafe variable (the compiler should help here, as we see
-above), first we must figure out _why_ it's considered unsafe. There are two
+Once the unsafe variable is found (the compiler should help here, as shown
+above), determine _why_ it is considered unsafe. There are two
 main reasons that a variable is considered unsafe:
 
 - You have a typo in the policy pointing the compiler to the wrong place.
@@ -94,9 +94,9 @@ compilation.
 
 ## More Information
 
-Remember how we said earlier that the compiler won't consider a reference like `input.usrname` (note the typo!)
-unsafe, even though we clearly intended to say `input.username`? Wouldn't it be great if we had some way to tell the
-OPA compiler what the `input` object should look like, and have it include that in this type of check? Luckily, there
-is! The desired structure (i.e. the _schema_) of both `input` and `data` may be provided to the compiler via OPA's
+Recall that the compiler won't consider a reference like `input.usrname` (note the typo!)
+unsafe, even though the intent was `input.username`. Schema annotations provide a way to tell the
+OPA compiler what the `input` object should look like, and have it include that in this type of check.
+The desired structure (i.e. the _schema_) of both `input` and `data` may be provided to the compiler via OPA's
 [JSON schema capability](https://www.openpolicyagent.org/docs/policy-language/#schema), thus extending the
 compiler and the type checker with this information. It'll take some work to set up, but it's well worth it!

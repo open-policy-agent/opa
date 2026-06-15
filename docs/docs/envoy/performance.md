@@ -110,7 +110,7 @@ layered_runtime:
 
 ### OPA-Envoy Plugin
 
-Now let's deploy OPA as an External Authorization server. Below is a sample configuration for the OPA-Envoy container:
+Now deploy OPA as an External Authorization server. Below is a sample configuration for the OPA-Envoy container:
 
 <EvergreenCodeBlock>
 ```yaml

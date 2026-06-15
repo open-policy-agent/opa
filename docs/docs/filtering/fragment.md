@@ -31,7 +31,7 @@ When only _known_ values are used, **you can use all of Rego.**
 
 ## Example Preamble
 
-In our running example, we'll assume a table `fruits` with columns `name`, `colour`, and `price`. These **unknown values** are represented with `input.<TABLE>.<COLUMN>` e.g. `input.fruits.name`
+In the running example, assume a table `fruits` with columns `name`, `colour`, and `price`. These **unknown values** are represented with `input.<TABLE>.<COLUMN>` e.g. `input.fruits.name`
 
 ```mermaid
 erDiagram
@@ -42,7 +42,7 @@ erDiagram
     }
 ```
 
-Our data filters also depend on user information. These **known values** are represented with `input.user`
+The data filters also depend on user information. These **known values** are represented with `input.user`
 
 ```json
 {

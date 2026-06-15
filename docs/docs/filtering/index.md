@@ -6,7 +6,7 @@ sidebar_position: 1
 
 Data Filtering is a common use case for authorization that goes beyond "allow or deny?".
 It is often related to searching (or listing) multiple entities.
-Here, we start with a problem exposition before going into the details of data filtering with OPA in the next sections.
+This page starts with a problem exposition before going into the details of data filtering with OPA in the next sections.
 
 ## Evaluation vs Search
 

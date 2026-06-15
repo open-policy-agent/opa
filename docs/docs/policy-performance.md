@@ -304,7 +304,7 @@ the policy should generate a document like this:
 ```
 
 Since multiple ports could be exposed on a single interface, the policy must use a <GlossaryTooltip term="comprehensions">comprehension</GlossaryTooltip> to
-aggregate the port values by the interface names. To implement this logic in Rego, we would write:
+aggregate the port values by the interface names. To implement this logic in Rego:
 
 ```rego
 some i
@@ -317,7 +317,7 @@ However, with comprehension indexing, the query remains O(n) because OPA only co
 _once_. In this case, the comprehension is evaluated and all possible values of `ports` are computed
 at once. These values are indexed by the assignments of `intf`.
 
-To implement the policy above we could write:
+To implement the policy above:
 
 ```rego
 package example
@@ -428,7 +428,7 @@ When the sort criteria is not provided `total_time_ns` has the highest sort prio
 while `line` has the lowest.
 
 The `num_gen_expr` represents the number of expressions generated for a given statement on a particular line. For example,
-let's take the following policy:
+take the following policy:
 
 ```rego
 package test
@@ -441,7 +441,7 @@ p if {
 }
 ```
 
-If we profile the above policy we would get something like the following output:
+Profiling the above policy produces something like the following output:
 
 ```
 +----------+----------+----------+--------------+-------------+
@@ -455,8 +455,7 @@ If we profile the above policy we would get something like the following output:
 +----------+----------+----------+--------------+-------------+
 ```
 
-The first entry indicates that line `test.rego:8` has a `EVAL/REDO` count of `3`. If we look at the expression on line `test.rego:8`
-i.e. `x = a + b * c` it's not immediately clear why this line has a `EVAL/REDO` count of `3`. But we also notice that there
+The first entry indicates that line `test.rego:8` has a `EVAL/REDO` count of `3`. Looking at the expression on line `test.rego:8`, i.e. `x = a + b * c`, it is not immediately clear why this line has a `EVAL/REDO` count of `3`. Note also that there
 are `3` generated expressions (i.e. `NUM GEN EXPR`) at line `test.rego:8`. This is because the compiler rewrites the above policy to
 something like below:
 
@@ -844,7 +843,7 @@ DataRbacTestUserHasRoleDev                          229 ± 0%
 DataRbacTestUserHasRoleNegative                     235 ± 0%
 ```
 
-If later on a change was introduced that altered the performance we can run again:
+If a change is later introduced that alters performance, run again:
 
 ```bash
 opa test -v --bench --count 10 --format gobench ./rbac.rego ./rbac_test.rego | tee ./new.txt
@@ -859,7 +858,7 @@ PASS: 2/2
 
 (Repeated 10 times)
 
-Then we can compare the results via:
+Compare the results via:
 
 ```bash
 benchstat ./old.txt ./new.txt

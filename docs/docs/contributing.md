@@ -25,13 +25,12 @@ Overflow.
 
 ## I'd like to contribute code
 
-If you have found a bug and would like to work on a fix, **we always encourage you
-file a [GitHub Issue](https://github.com/open-policy-agent/opa/issues)** to talk
-about the problem and the solution you have in mind. This allows you to get
+If you have found a bug and would like to work on a fix, **filing a [GitHub Issue](https://github.com/open-policy-agent/opa/issues)** is always encouraged. It allows you to talk
+about the problem and the solution you have in mind, and to get
 feedback from maintainers before committing time to something that might already
 have a solution or might not be the right approach.
 
-If you have an idea for a new feature, we also **request that you file an
+If you have an idea for a new feature, **file an
 issue** to discuss it first. This again allows you to get feedback from
 the maintainer team and the community before you start working on it.
 
@@ -47,7 +46,7 @@ aren't sure what to work on!
 
 If you are ready to start contributing code, please see the
 [Contributing Code](./contrib-code/) guide for pointers on how to get
-started. Please note we have some restrictions around the use of AI tooling
+started. Please note there are some restrictions around the use of AI tooling
 which are documented here.
 
 ## I'd like to help improve the documentation

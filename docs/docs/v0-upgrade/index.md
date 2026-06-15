@@ -55,7 +55,7 @@ working with in different parts of their systems. Select the scenario that best
 matches your setup to find the recommended upgrade path.
 
 If you are in doubt, [Scenario 1](#scenario-1-v0x-producer-v0x-consumer) is the most common starting
-point and we recommended you start there.
+point and is the recommended place to start.
 
 |                   | v0.x Consumer                                                  | Mix Consumer                                        | v1.0 Consumer                                                  |
 | ----------------- | -------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
@@ -270,8 +270,8 @@ Once you have all consumers and producers running at v1.0 then you have
 completed the upgrade to OPA v1.0. If you are using `--v0-compatible`
 functionality, the next task is to upgrade the Rego loaded into OPAs to Rego v1.
 
-Regardless of whether you are now upgrading your Rego, we encourage users to
-use `opa check`, `opa check --strict` and to lint their Rego projects if you
+Regardless of whether you are now upgrading your Rego, run `opa check`,
+`opa check --strict` and lint your Rego projects if you
 have not already done so to identify issues.
 
 ## Changes to Rego in OPA v1.0

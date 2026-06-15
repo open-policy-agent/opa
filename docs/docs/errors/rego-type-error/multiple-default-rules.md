@@ -52,7 +52,7 @@ package example
 default allow := true
 ```
 
-We would see an error like this when using the two files:
+Using the two files produces an error like this:
 
 ```shell
 $ opa eval data.example.allow -d example1.rego -d example2.rego

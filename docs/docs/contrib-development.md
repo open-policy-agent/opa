@@ -3,7 +3,7 @@ title: Development
 ---
 
 This page details the process for getting up and running locally for OPA
-development. If you're a first time contributor, we recommend you read through
+development. First-time contributors are encouraged to read through
 the [Contributing to OPA](./contrib-code) page first.
 
 OPA is written in the [Go](https://go.dev/) programming language.
@@ -126,8 +126,8 @@ Pull Request, please mention it in the discussion.
 ## Benchmarks
 
 Several packages in this repository implement benchmark tests. To execute the
-benchmarks you can run `make perf` in the top-level directory. We use the Go
-benchmarking framework for all benchmarks.
+benchmarks, run `make perf` in the top-level directory. The Go
+benchmarking framework is used for all benchmarks.
 
 ## Dependencies
 

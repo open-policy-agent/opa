@@ -42,7 +42,7 @@ any kind of invariant in your policies. For example:
 Policy decisions are not limited to simple yes/no or allow/deny answers. Like
 query inputs, your policies can generate arbitrary structured data as output.
 
-Let's look at an example. Imagine you work for an organization with a number of servers connected to managed networks via ports:
+The following example illustrates this. Imagine you work for an organization with a number of servers connected to managed networks via ports:
 
 ```mermaid
 graph
@@ -94,7 +94,7 @@ The policy needs to be enforced when servers, networks, and ports are
 provisioned and the compliance team wants to periodically audit the system to
 find servers that violate the policy.
 
-Let's explore how OPA can help implement this policy.
+The following section explores how OPA can help implement this policy.
 
 ## Writing Policy with Rego
 
@@ -607,7 +607,7 @@ the language guide for more information.
 
 When you join multiple expressions together in a query you are expressing
 logical AND. To express logical OR in Rego you define multiple rules with the
-same name. Let's look at an example.
+same name. The following example illustrates this.
 
 Imagine you wanted to know if any servers expose protocols that give clients
 shell access. To determine this you could define a complete rule that declares
@@ -688,8 +688,8 @@ express OR in idiomatic Rego for different use cases.
 
 ### Complete Example
 
-The sections above explain the core concepts in Rego. To put it all together
-let's review the desired policy in natural language:
+The sections above explain the core concepts in Rego. To put it all together,
+review the desired policy in natural language:
 
 > 1. Servers reachable from the Internet must not expose the insecure 'http' protocol.
 > 2. Servers are not allowed to expose the 'telnet' protocol.

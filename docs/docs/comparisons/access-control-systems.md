@@ -246,7 +246,7 @@ and selected resources. You write `allow` and `deny` statements to enforce which
 execute which API calls on which resources under certain conditions.
 By default all API access requests are implicitly denied (i.e., not allowed). Policy statements
 can explicitly allow or deny API requests. If a request is both allowed and denied, it is always denied.
-Let's assume that the following [customer managed policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html#customer-managed-policies) is defined in AWS:
+Assume that the following [customer managed policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html#customer-managed-policies) is defined in AWS:
 
 ```json
 {

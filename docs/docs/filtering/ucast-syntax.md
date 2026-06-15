@@ -10,7 +10,7 @@ The data filtering support makes use of the [Universal Conditions AST (UCAST)](h
 
 UCAST allows 3 types of nodes in the tree:
 
-- **Document-level Condition** nodes: Used to apply an operator to the entire document/table, e.g. the EXISTS operator in SQL. These types of nodes are _not used_ by any of our interpreters.
+- **Document-level Condition** nodes: Used to apply an operator to the entire document/table, e.g. the EXISTS operator in SQL. These types of nodes are _not used_ by any of the interpreters.
 - **Compound Condition** nodes: Used to apply an operator across N-many child nodes.
 - **Field Condition** nodes: Used to apply an operator to a field and an optional value.
 

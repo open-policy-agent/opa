@@ -540,7 +540,7 @@ containers := [
 
 </details>
 
-The simplest reference contains no variables. For example, the following reference returns the hostname of the second server in the first site document from our example data:
+The simplest reference contains no variables. For example, the following reference returns the hostname of the second server in the first site document from the example data:
 
 ```rego
 package references
@@ -586,7 +586,7 @@ the example above this is `sites`. The root document may be:
 
 References can include variables as keys. References written this way are used to select a value from every element in a collection.
 
-The following reference will select the hostnames of all the servers in our
+The following reference will select the hostnames of all the servers in the
 example data:
 
 ```rego
@@ -1486,8 +1486,8 @@ result := true if {
 <RunSnippet files="#bitcoin.rego" command="data.negation.result"/>
 
 :::info
-The `undefined` result above is expected because we did not define a default
-value for `no_bitcoin_miners_using_negation`. Since the body of the rule fails
+The `undefined` result above is expected because no default value was defined
+for `no_bitcoin_miners_using_negation`. Since the body of the rule fails
 to match, there is no value generated.
 :::
 
@@ -1890,7 +1890,7 @@ result := true if {
 <RunSnippet files="#imports.rego" command="data.authz.result"/>
 
 It's also possible to use `with` multiple times in the same query. `dev` role
-allows `GET`, even for an unknown user in our policy.
+allows `GET`, even for an unknown user in the policy.
 
 ```rego
 package authz
@@ -3460,7 +3460,7 @@ with the input document for the rule `whocan`.
 
 Rego has a gradual type system meaning that types can be partially known statically. For example, an object could have certain fields whose types are known and others that are unknown statically. OPA type checks what it knows statically and leaves the unknown parts to be type checked at runtime. An OPA object type has two parts: the static part with the type information known statically, and a dynamic part, which can be nil (meaning everything is known statically) or non-nil and indicating what is unknown.
 
-When deriving a type from a schema, the compiler tries to match what is known and unknown in the schema. For example, an `object` that has no specified fields becomes the Rego type `Object{Any: Any}`. However, currently `additionalProperties` and `additionalItems` are ignored. When a schema is fully specified, we derive a type with its dynamic part set to nil, meaning that we take a strict interpretation in order to get the most out of static type checking. This is the case even if `additionalProperties` is set to `true` in the schema. In the future, we will take this feature into account when deriving Rego types.
+When deriving a type from a schema, the compiler tries to match what is known and unknown in the schema. For example, an `object` that has no specified fields becomes the Rego type `Object{Any: Any}`. However, currently `additionalProperties` and `additionalItems` are ignored. When a schema is fully specified, the dynamic part is set to nil, meaning that a strict interpretation is used in order to get the most out of static type checking. This is the case even if `additionalProperties` is set to `true` in the schema. In the future, this feature will be taken into account when deriving Rego types.
 
 When overriding existing types, the dynamicity of the overridden prefix is preserved.
 

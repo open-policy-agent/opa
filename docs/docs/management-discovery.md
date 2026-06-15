@@ -160,9 +160,9 @@ default them to the value from the boot configuration.
 
 ### Example
 
-Let's see an example of how the discovery feature can be used to dynamically
+The following example shows how the discovery feature can be used to dynamically
 configure an OPA to download one of two bundles based on a label in the boot
-configuration. Let's say the label `region` indicates the region in which the
+configuration. Assume the label `region` indicates the region in which the
 OPA is running and it's value will decide the bundle to download.
 
 Below is a policy file which generates an OPA configuration.
@@ -280,7 +280,7 @@ bundle before activating it. The format of the `.signatures.json` file and the v
 regular bundles. Since the discovered configuration ignores changes to the `discovery` section, any key used for
 signature verification of a discovery bundle **CANNOT** be modified via discovery.
 
-> 🚨 We recommend that if you are using discovery you should be signing the discovery bundles because those bundles
+> 🚨 It is recommended to sign discovery bundles because those bundles
 > include the keys used to verify the non-discovery bundles. However, OPA does not enforce that recommendation. You may use
 > unsigned discovery bundles that themselves require non-discovery bundles to be signed.
 

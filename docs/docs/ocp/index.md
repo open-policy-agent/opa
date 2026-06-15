@@ -42,7 +42,7 @@ these instructions, you will be able to:
 - Configure OPA to use the OCP build bundle
 - Test the policy's enforcement and observe its effects.
 
-This example is designed for rapid iteration and learning, making it ideal for new users who want to understand OCP's fundamental concepts and operational flow in a controlled, personal setting. We'll focus on simplicity and clarity, ensuring that each step is easy to follow and the outcomes are immediately visible.
+This example is designed for rapid iteration and learning, making it ideal for new users who want to understand OCP's fundamental concepts and operational flow in a controlled, personal setting. The focus is on simplicity and clarity, ensuring that each step is easy to follow and the outcomes are immediately visible.
 
 ## 1. Install binary
 
@@ -67,7 +67,7 @@ sources:
     - rules/rules.rego
 ```
 
-We also will want to define a simple policy for this bundle. Add the following
+Define a simple policy for this bundle. Add the following
 to `./files/sources/hello-world/rules/rules.rego`
 
 ```rego title="files/sources/hello-world/rules/rules.rego"
@@ -92,7 +92,7 @@ opactl build
 
 ## 4. Configure OPA to use the bundle
 
-You could set up a simple server to serve up the bundle, but for now we can just use OPA to watch the bundle. Run this in your working directory:
+You could set up a simple server to serve up the bundle, but for now, use OPA to watch the bundle. Run this in your working directory:
 
 ```shell
 opa run -s -w ./bundles/hello-world/bundle.tar.gz

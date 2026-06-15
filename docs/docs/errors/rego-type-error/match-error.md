@@ -53,7 +53,7 @@ user2 := {"name": "jane"}
 same_user if user1 == user2
 ```
 
-We're clearly comparing two objects, so should this really be a match error? The compiler would say yes:
+Two objects are being compared here. Should this really be a match error? The compiler would say yes:
 
 ```txt
 1 error occurred: policy.rego:8: rego_type_error: match error
@@ -61,7 +61,7 @@ We're clearly comparing two objects, so should this really be a match error? The
     right : object<name: string>
 ```
 
-The reason for this is that while we may have objects on both sides, the type checker compares _recursively_. In doing
+The reason is that while objects appear on both sides, the type checker compares _recursively_. In doing
 this it'll see that one object has an attribute (`age`) that the other doesn't, and hence considered to be of
 different type after all. This is sometimes considered
 [confusing](https://github.com/open-policy-agent/opa/issues/2132), but given that it also allows catching some bugs at

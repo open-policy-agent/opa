@@ -89,7 +89,7 @@ admin(group) if group in ["admin", "sudo"]
 <RunSnippet files="#input.negation1.json" command="data.negation.restricted"/>
 
 :::important
-Notice how if we remove the `future.keywords.not` import in the above policy, the `restricted` rule starts failing.
+Notice that removing the `future.keywords.not` import in the above policy causes the `restricted` rule to start failing.
 This is a consequence of the `lookup()` function failing with an `undefined` value.
 :::
 

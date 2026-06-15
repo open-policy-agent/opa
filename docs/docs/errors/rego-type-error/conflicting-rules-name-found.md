@@ -65,7 +65,7 @@ While overloading functions on arity might work in some languages, it is not sup
 ## How To Fix It
 
 Use a composite type, like objects, to return multiple values — like a boolean and a set of strings — from a rule.
-In the example below, we've added a `decision` rule, which compiles its value from both the boolean `deny` rule and
+In the example below, a `decision` rule has been added, which compiles its value from both the boolean `deny` rule and
 the `reasons` set-generating rule:
 
 ```rego

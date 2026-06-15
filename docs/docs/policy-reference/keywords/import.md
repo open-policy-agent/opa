@@ -5,15 +5,14 @@ title: 'Rego Keyword Examples: import'
 
 In Rego, the `import` keyword is used to include references in the current file
 from other places, namely other Rego packages. However, the `import` keyword is
-also used to change the Rego syntax available in the current file. Let's cover
-this case first.
+also used to change the Rego syntax available in the current file. This case is covered first.
 
 ## Importing packages
 
 Most importantly, the `import` keyword is used to make the rules defined in one
 package, available in another.
 
-Imagine we have a package, `package1`, that defines a rule `name` like this:
+Consider a package, `package1`, that defines a rule `name` like this:
 
 ```rego
 package package1
@@ -25,8 +24,7 @@ name := "World"
 
 <RunSnippet id="package1.rego"/>
 
-Now, if we'd like to use the `name` rule in another package, `package2`, we
-could do something like this:
+To use the `name` rule in another package, `package2`, write something like this:
 
 ```rego
 package package2
@@ -43,7 +41,7 @@ output := sprintf("Hello, %v", [data.package1.name])
 
 While this will work, it's better to use an import at the top of the file to
 save repetition and declare the dependency upfront for readers of the policy.
-We can achieve the same result like this:
+The same result can be achieved like this:
 
 ```rego
 package package2

@@ -245,7 +245,7 @@ http/example/authz/authz.rego
 In this example, the bundle contains one policy file (`authz.rego`) and two
 data files (`roles/bindings/data.json` and `roles/permissions/data.json`).
 A data file in the root of the bundle will be loaded into the `data` Document at
-the root. For example, here we can see that the `foo` key is inserted at the
+the root. For example, the `foo` key is inserted at the
 root of the `data` document:
 
 ```sh
@@ -417,8 +417,8 @@ to generate bundles that are scoped to a subset of OPA's policy and
 data cache.
 
 :::danger
-We recommend that whenever possible, you implement policy and data
-aggregation centrally, however, in some cases that's not possible
+Whenever possible, implement policy and data
+aggregation centrally. In some cases that's not possible
 (e.g., due to latency requirements.).
 When using multiple sources there are **no** ordering guarantees for which bundle loads first and
 takes over some root. If multiple bundles conflict, but are loaded at different
@@ -503,8 +503,8 @@ roles/bindings/data.json
 ```
 
 The signatures file is a JSON file with an array of JSON Web Tokens (JWTs) that encapsulate the signatures for the bundle.
-Currently, you will be limited to one signature, as shown below. In the future, we may add support to include multiple
-signatures to sign different files within the bundle.
+Currently, you will be limited to one signature, as shown below. In the future, support for multiple signatures may be added
+to sign different files within the bundle.
 
 ```json
 {
@@ -632,8 +632,8 @@ bundle.RegisterVerifier("custom", &CustomVerifier{})
 ## Delta Bundles
 
 A regular _snapshot_ bundle represents the entirety of OPA’s policy and data cache. When a new _snapshot_ bundle is
-downloaded, OPA will erase and overwrite all the policy and data in its cache before activating the new bundle. We can
-optionally scope the bundle to a subset of OPA’s policy and data cache by defining the `roots` in the bundle's `.manifest` file.
+downloaded, OPA will erase and overwrite all the policy and data in its cache before activating the new bundle. The bundle can
+optionally be scoped to a subset of OPA’s policy and data cache by defining the `roots` in the bundle’s `.manifest` file.
 
 Although OPA [caches](#caching) snapshot bundles to avoid unnecessary retransmission,
 servers must still retransmit the entire snapshot when any change occurs. If you need
@@ -1330,7 +1330,7 @@ The bundle container is composed of 3 layers:
 - the bundle tarball layer - the actual bundle tarball
 - the configuration layer - currently empty
 
-For OCI compatible registries an _**oci**_ folder is created in the [persistence directory](./configuration/#miscellaneous). If this value is not set, because the OCI downloader plugin requires a storage path, the system's temporary folder location will be used instead. This folder should be maintained by the user. We recommend backing-up or cleaning up this folder periodically as this acts as a local cache for the OCI downloader.
+For OCI compatible registries an _**oci**_ folder is created in the [persistence directory](./configuration/#miscellaneous). If this value is not set, because the OCI downloader plugin requires a storage path, the system's temporary folder location will be used instead. This folder should be maintained by the user. Back up or clean up this folder periodically as this acts as a local cache for the OCI downloader.
 
 **Current Limitations**
 The OCI Downloader plugin used by OPA has a couple of limitation:
@@ -1354,7 +1354,7 @@ commands:
 
 - `opa build <path_to_src>` will allow you to build a bundle tarball from your OPA policy and data files
 
-Now that we have the tarball we will need to provide a config manifest to the ORAS CLI and the tarball itself:
+Provide a config manifest to the ORAS CLI and the tarball itself:
 
 - `oras push <registry>/<org>/<repo>:<tag> --manifest-config <you_config_json>:application/vnd.oci.image.config.v1+json <the_tarball_obtained_from_opa_build>:application/vnd.oci.image.layer.v1.tar+gzip`
 
@@ -1366,11 +1366,11 @@ One of the easiest method of managing your policy bundles is to store your code 
 
 #### Example
 
-In this example we are using the [ghcr.io](https://ghcr.io) OCI registry as the upstream repository and the OPA and ORAS CLI as our build and publishing tool.
+In this example, the [ghcr.io](https://ghcr.io) OCI registry is used as the upstream repository and the OPA and ORAS CLI as the build and publishing tool.
 
 ##### Starting from scratch
 
-Let's set up a basic policy example structured as:
+Set up a basic policy example structured as:
 
 ```
 └── src
@@ -1380,7 +1380,7 @@ Let's set up a basic policy example structured as:
         └── hello.rego
 ```
 
-Here our _hello.rego_ file contains a very simple example:
+The _hello.rego_ file contains a very simple example:
 
 ```rego
 package policies.play
@@ -1414,7 +1414,7 @@ And the _data.json_ file is empty json:
 
 ###### Building your policy
 
-To build my bundle tarball I'm going to use the OPA CLI and run the following command:
+To build the bundle tarball, use the OPA CLI and run the following command:
 
 ```bash
 opa build .src/
@@ -1422,19 +1422,19 @@ opa build .src/
 
 ###### Pushing the container to a remote registry
 
-I'll prepare an empty config.json file that contains:
+Prepare an empty config.json file that contains:
 
 ```
 {}
 ```
 
-To push the build image to an upstream registry we first need to login using:
+To push the build image to an upstream registry, first log in using:
 
 ```bash
 oras login ghcr.io
 ```
 
-And now we can push our policy using:
+Push the policy using:
 
 ```bash
 oras push ghcr.io/someorg/policy-hello:1.0.0 --config config.json:application/vnd.oci.image.config.v1+json bundle.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
@@ -1442,9 +1442,9 @@ oras push ghcr.io/someorg/policy-hello:1.0.0 --config config.json:application/vn
 
 ###### Spin up the policy with OPA CLI
 
-Now that our image is pushed we prepare the OPA configuration.
+With the image pushed, prepare the OPA configuration.
 
-In this example the configuration.yaml looks like this as the pushed image is private we need credentials for OPA to download it:
+In this example the configuration.yaml looks like this. The pushed image is private, so credentials are needed for OPA to download it:
 
 ```yaml
 services:
@@ -1466,9 +1466,9 @@ bundles:
       max_delay_seconds: 120
 ```
 
-In the above configuration we pinned the configuration to use the 1.0.0 tag of the image. OPA will identify this image by the tag and the descriptor SHA. If the SHA of the image is changed upstream, OPA will redownload and activate the changes.
+In the above configuration, the 1.0.0 tag of the image is pinned. OPA will identify this image by the tag and the descriptor SHA. If the SHA of the image is changed upstream, OPA will redownload and activate the changes.
 
-If we run the _opa CLI_ with this configuration using the command it will open an interactive terminal (REPL) where we can see the loaded bundle:
+Running the _opa CLI_ with this configuration opens an interactive terminal (REPL) showing the loaded bundle:
 
 ```bash
 opa run -c configuration.yaml
@@ -1489,7 +1489,7 @@ The terminal should show that the bundle has been loaded and activated:
 > exit
 ```
 
-We can now start OPA as a server using:
+Start OPA as a server using:
 
 ```bash
 opa run --server --set default_decision=policies -c configuration.yaml
