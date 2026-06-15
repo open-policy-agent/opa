@@ -796,7 +796,7 @@ PASS: 2/2
 #### Example: Benchmark RBAC unit tests and compare with `benchstat`
 
 The benchmark output formats default to `pretty`, but support a `gobench` format which complies with the
-[Golang Benchmark Data Format](https://go.googlesource.com/proposal/+/master/design/14313-benchmark-format.md).
+[Go Benchmark Data Format](https://go.googlesource.com/proposal/+/master/design/14313-benchmark-format.md).
 This allows for usage of tools like [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat?utm_source=godoc) to gain additional
 insight into the benchmark results and to diff between benchmark results.
 

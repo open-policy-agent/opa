@@ -1063,7 +1063,7 @@ If your instance of OPA runs inside GCP, you'll be able to authenticate using GC
 
 ##### JWT Bearer Grant Type
 
-Use this for [authenticating](https://docs.cloud.google.com/storage/docs/authentication) _external_ clients, i.e. OPAs running outside the GCP environment.
+Use this for [authenticating](https://docs.cloud.google.com/storage/docs/authentication) _external_ clients, i.e. OPA instances running outside the GCP environment.
 
 1. Search for "credentials" in the top search box and choose "Credentials - APIs and Services".
 2. Click "Create Credentials" followed by "Service Account."
@@ -1285,17 +1285,17 @@ Also note in particular how the `thumbprint` property is required for Azure. The
 
 ![Certificate thumbprint](./assets/thumbprint.png)
 
-### Nginx
+### NGINX
 
-Nginx offers a simple but competent bundle server for those who prefer to host their own. A great choice for local testing.
+NGINX offers a simple but competent bundle server for those who prefer to host their own. A great choice for local testing.
 
 | Feature                | Supported                                                                                                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Caching headers        | Yes                                                                                                                                                                                                                                                                            |
 | Authentication methods | [Bearer Token](https://www.openpolicyagent.org/docs/latest/configuration/#bearer-token) <sup>1</sup><br/> [OAuth2 Client Credentials JWT authentication](https://www.openpolicyagent.org/docs/latest/configuration/#oauth2-client-credentials-jwt-authentication) <sup>2</sup> |
 
-<sup>1</sup>Nginx does not support bearer token authentication, but it does support [basic auth](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/). This can be achieved by setting `services[_].credentials.bearer.scheme` to `Basic` in the OPA configuration, and simply provide the base64 encoded credentials as the token.<br/>
-<sup>2</sup>Only available with Nginx Plus.
+<sup>1</sup>NGINX does not support bearer token authentication, but it does support [basic auth](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/). This can be achieved by setting `services[_].credentials.bearer.scheme` to `Basic` in the OPA configuration, and simply provide the base64 encoded credentials as the token.<br/>
+<sup>2</sup>Only available with NGINX Plus.
 
 #### Upload Bundle
 
@@ -1362,7 +1362,7 @@ Using an empty(`{}`) `manifest-config` json file should be sufficient to be able
 
 #### Maintaining a policy-as-code repository
 
-One of the easiest method of managing your policy bundles is to store your code base in a hosted repository service like Github or Gitlab and set up an automated way to build and publish your code as a container to the desired registry using a CI(ex. Github Action).
+One of the easiest method of managing your policy bundles is to store your code base in a hosted repository service like GitHub or GitLab and set up an automated way to build and publish your code as a container to the desired registry using a CI(ex. GitHub Action).
 
 #### Example
 

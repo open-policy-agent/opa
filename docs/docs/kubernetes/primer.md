@@ -327,7 +327,7 @@ The first part of the rule you already understand:
 - Line (1) checks if the `input` is an Ingress
 - Line (2) iterates over all the rules in the `input` ingress and looks up the `host` field for each of its rules.
 
-**Existing K8s Resources** Line (3) iterates over ingresses that already exist in Kubernetes. `data` is a global variable where (among other things) OPA has a record of the current resources inside Kubernetes. The line `oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[_].host` finds all ingresses in all namespaces, iterates over all the `rules` inside each of those and assigns the `host` field to the variable `oldhost`. Whenever `newhost == oldhost`, there's a conflict, and the OPA rule includes an appropriate error message into the `deny` set.
+**Existing Kubernetes Resources** Line (3) iterates over ingresses that already exist in Kubernetes. `data` is a global variable where (among other things) OPA has a record of the current resources inside Kubernetes. The line `oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[_].host` finds all ingresses in all namespaces, iterates over all the `rules` inside each of those and assigns the `host` field to the variable `oldhost`. Whenever `newhost == oldhost`, there's a conflict, and the OPA rule includes an appropriate error message into the `deny` set.
 
 In this case the rule uses explicit variable names `namespace` and `name` for iteration so that it can use those variables again when constructing the error message in line (7).
 

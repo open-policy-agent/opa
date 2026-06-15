@@ -6,7 +6,7 @@ sidebar_label: Overview
 # OPA Control Plane: Overview
 
 OPA Control Plane (OCP) simplifies how you manage policies for your OPA
-deployments. It provides a centralized management system to control how OPAs
+deployments. It provides a centralized management system to control how OPA instances
 receive the policies and data they need to make decisions. OCP provides:
 
 - **Git-based Policy Management.** Build bundles based on Rego from multiple Git
@@ -15,7 +15,7 @@ receive the policies and data they need to make decisions. OCP provides:
   policies build-time using HTTP push and pull datasources.
 - **Highly-Available & Scalable Bundle Serving.** Distribute bundles to cloud
   object storage like AWS S3, Google Cloud Storage, or Azure Blob Storage and
-  ensure your OPAs can quickly and reliably serve policy decisions.
+  ensure your OPA instances can quickly and reliably serve policy decisions.
 - **Global and hierarchical policies.** Enforce organization-wide rules by
   defining global policies that get injected into bundles at build-time based on
   label selectors. Global policies can override other policies based on custom

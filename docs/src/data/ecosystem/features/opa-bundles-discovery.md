@@ -1,6 +1,6 @@
 ---
 title: Discovery Bundles
-description: Distribute flexible configuration to OPAs
+description: Distribute flexible configuration to OPA instances
 category: production
 ---
 

@@ -169,7 +169,7 @@ Next, build an OPA bundle.
 opa build policy.rego
 ```
 
-Serve the OPA bundle created above using Nginx.
+Serve the OPA bundle created above using NGINX.
 
 ```bash
 docker run --rm --name bundle-server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest

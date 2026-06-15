@@ -10,7 +10,7 @@ service, or tool with OPA.
 When integrating with OPA there are two interfaces to consider:
 
 - **Evaluation**: OPA's interface for asking for policy decisions. Integrating OPA is primarily focused on integrating an application, service, or tool with OPA's policy evaluation interface. This integration results in policy decisions being decoupled from that application, service, or tool.
-- **Management**: OPA's interface for deploying policies, understanding status, uploading logs, and so on. This integration is typically the same across all OPA instances, regardless what software the evaluation interface is integrated with. Distributing policy, retrieving status, and storing logs in the same way across all OPAs provides a unified management plane for policy across many different software systems.
+- **Management**: OPA's interface for deploying policies, understanding status, uploading logs, and so on. This integration is typically the same across all OPA instances, regardless what software the evaluation interface is integrated with. Distributing policy, retrieving status, and storing logs in the same way across all OPA instances provides a unified management plane for policy across many different software systems.
 
 This page focuses predominantly on different ways to integrate with OPA's policy evaluation interface and how they compare. For more information about the management interface:
 

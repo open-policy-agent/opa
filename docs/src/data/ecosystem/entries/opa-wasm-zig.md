@@ -19,4 +19,4 @@ docs_features:
 '
 ---
 
-A Zig library to use OPA policies compiled to WASM.
+A Zig library to use OPA policies compiled to Wasm.

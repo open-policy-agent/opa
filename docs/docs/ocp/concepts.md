@@ -220,7 +220,7 @@ This takes only the `data.utils.validation` subtree and mounts it at `data.app.v
 
 ## Stacks
 
-Stacks enforce that certain policies are distributed to OPAs managed by OCP. When OCP builds bundles it identifies the applicable stacks (via [Selectors](#selectors)) and then adds the required sources (declared via `requirements`) to the bundle. Consider using stacks if:
+Stacks enforce that certain policies are distributed to OPA instances managed by OCP. When OCP builds bundles it identifies the applicable stacks (via [Selectors](#selectors)) and then adds the required sources (declared via `requirements`) to the bundle. Consider using stacks if:
 
 - You have ephemeral OPA deployments that need to have a consistent set of policies applied (e.g., CI/CD pipelines, Kubernetes clusters, etc.)
 - You have global or hierarchical rules implementing organization-wide policies that you want to enforce automatically in many OPA deployments.

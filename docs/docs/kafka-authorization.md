@@ -23,7 +23,7 @@ rules to reuse logic and improve overall readability.
 
 This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/) to run Kafka, ZooKeeper, and OPA.
 
-Additionally, Nginx is used for serving policy and data bundles to OPA. This component is however easily replaceable
+Additionally, NGINX is used for serving policy and data bundles to OPA. This component is however easily replaceable
 by any other bundle server [implementation](./management-bundles/#implementations).
 
 ## Steps
@@ -48,7 +48,7 @@ allow := true
 ```
 
 With the policy in place, build a bundle from the contents of the `policies` directory and place it in the `bundles`
-directory. The `bundles` directory will later be mounted into the Nginx container in order to distribute policy updates
+directory. The `bundles` directory will later be mounted into the NGINX container in order to distribute policy updates
 to OPA.
 
 ```shell
@@ -68,7 +68,7 @@ mv opa-authorizer-${version}-all.jar plugin/
 
 For more information on how to configure the OPA plugin for Kafka, see the plugin [repository](https://github.com/StyraOSS/opa-kafka-plugin).
 
-Next, create a `docker-compose.yaml` file that runs OPA, Nginx, ZooKeeper, and Kafka.
+Next, create a `docker-compose.yaml` file that runs OPA, NGINX, ZooKeeper, and Kafka.
 
 <EvergreenCodeBlock>
 
@@ -364,7 +364,7 @@ supplies a JSON representation of the operation, resource, client, and principal
 
 <RunSnippet id="input.json"/>
 
-The `./bundles` directory is mounted into the Docker container running Nginx.
+The `./bundles` directory is mounted into the Docker container running NGINX.
 When the bundle under this directory change, OPA is notified via the bundle API,
 and the policies are automatically reloaded.
 

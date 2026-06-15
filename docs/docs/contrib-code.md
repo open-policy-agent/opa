@@ -151,7 +151,7 @@ their own commit and added to the PR.
 
 If your Pull Request is small though, it is acceptable to squash changes during
 the review process. Use your judgement about what constitutes a small Pull
-Request. If you aren't sure, send a message to the OPA slack or post a comment
+Request. If you aren't sure, send a message to the OPA Slack or post a comment
 on the Pull Request.
 
 ## Vulnerability scanning
