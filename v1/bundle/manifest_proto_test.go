@@ -6,6 +6,7 @@ package bundle
 
 import (
 	"context"
+	"net/url"
 	"reflect"
 	"testing"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/util/test/protoroundtrip"
 	"github.com/open-policy-agent/opa/v1/util/test/protoschemacheck"
 )
@@ -28,8 +31,43 @@ func TestManifestProtoConsistency(t *testing.T) {
 			{
 				Name:   "WasmResolver",
 				GoType: reflect.TypeOf(WasmResolver{}),
-				// ast.Annotations has its own custom JSON marshaling; opaque.
-				OpaqueProtoFields: []string{"annotations"},
+			},
+			{
+				Name:   "Annotations",
+				GoType: reflect.TypeOf(ast.Annotations{}),
+				// `comments` and `node` are unexported on the Go side
+				// and skipped by protoschemacheck's json-tag walk.
+			},
+			{
+				Name:   "SchemaAnnotation",
+				GoType: reflect.TypeOf(ast.SchemaAnnotation{}),
+				// ast.Ref is []*Term in Go; modeled as canonical-form
+				// string in proto. *any Definition modeled as
+				// google.protobuf.Value. Neither admits a reflect-level
+				// type match against a proto string field.
+				OpaqueProtoFields: []string{"path", "schema"},
+			},
+			{
+				Name:   "CompileAnnotation",
+				GoType: reflect.TypeOf(ast.CompileAnnotation{}),
+				// Same Ref → string mapping as SchemaAnnotation.
+				OpaqueProtoFields: []string{"unknowns", "mask_rule"},
+			},
+			{
+				Name:   "AuthorAnnotation",
+				GoType: reflect.TypeOf(ast.AuthorAnnotation{}),
+			},
+			{
+				Name:   "RelatedResourceAnnotation",
+				GoType: reflect.TypeOf(ast.RelatedResourceAnnotation{}),
+				// url.URL → string via its String() method.
+				OpaqueProtoFields: []string{"ref"},
+			},
+			{
+				Name:   "Location",
+				GoType: reflect.TypeOf(location.Location{}),
+				// `Text`, `Offset`, `Tabs` are tagged `json:"-"` and
+				// skipped by the json-tag walk.
 			},
 		},
 	})
@@ -88,9 +126,64 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 				},
 			},
 		},
+		{
+			note: "wasm resolver with annotations",
+			manifest: Manifest{
+				Revision: "abc123",
+				WasmResolvers: []WasmResolver{{
+					Entrypoint: "http/example/authz/allow",
+					Module:     "/policy.wasm",
+					Annotations: []*ast.Annotations{{
+						Scope:         "rule",
+						Title:         "Allow rule",
+						Description:   "Permits authorized requests",
+						Entrypoint:    true,
+						Organizations: []string{"acme"},
+						Authors: []*ast.AuthorAnnotation{
+							{Name: "Alice", Email: "alice@example.com"},
+						},
+						Custom: map[string]any{"sla": "p99-100ms"},
+						Labels: map[string]any{"team": "platform"},
+					}},
+				}},
+			},
+		},
+		{
+			note: "annotations with refs, schemas, compile, location",
+			manifest: Manifest{
+				Revision: "abc123",
+				WasmResolvers: []WasmResolver{{
+					Entrypoint: "http/example/authz/allow",
+					Module:     "/policy.wasm",
+					Annotations: []*ast.Annotations{{
+						Scope: "package",
+						RelatedResources: []*ast.RelatedResourceAnnotation{
+							{Ref: mustParseURL("https://example.com/docs"), Description: "design doc"},
+						},
+						Schemas: []*ast.SchemaAnnotation{
+							{
+								Path:       ast.MustParseRef("input.user"),
+								Schema:     ast.MustParseRef("schema.user"),
+								Definition: ptrAny(map[string]any{"type": "object"}),
+							},
+						},
+						Compile: &ast.CompileAnnotation{
+							Unknowns: []ast.Ref{ast.MustParseRef("input.x"), ast.MustParseRef("input.y")},
+							MaskRule: ast.MustParseRef("data.policy.mask"),
+						},
+						Location: &location.Location{File: "policy.rego", Row: 3, Col: 1},
+					}},
+				}},
+			},
+		},
 	}
 
-	opts := []cmp.Option{cmpopts.EquateEmpty()}
+	opts := []cmp.Option{
+		cmpopts.EquateEmpty(),
+		// ast.Annotations carries unexported `comments` and `node` that
+		// aren't part of the wire shape; ignore them in the diff.
+		cmpopts.IgnoreUnexported(ast.Annotations{}),
+	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -119,6 +212,18 @@ func normalizeRoots(m *Manifest) {
 	}
 }
 
+func mustParseURL(s string) url.URL {
+	u, err := url.Parse(s)
+	if err != nil {
+		panic(err)
+	}
+	return *u
+}
+
+func ptrAny(v any) *any {
+	return &v
+}
+
 func loadManifestCodec(t *testing.T) *protoroundtrip.Codec {
 	t.Helper()
 	c := protocompile.Compiler{
@@ -133,6 +238,49 @@ func loadManifestCodec(t *testing.T) *protoroundtrip.Codec {
 	codec := protoroundtrip.NewCodec(files[0])
 	codec.RegisterRoot(reflect.TypeOf(Manifest{}), "Manifest")
 	codec.RegisterRoot(reflect.TypeOf(WasmResolver{}), "WasmResolver")
-	codec.SkipProtoFields(reflect.TypeOf(WasmResolver{}), "annotations")
+	codec.RegisterRoot(reflect.TypeOf(ast.Annotations{}), "Annotations")
+	codec.RegisterRoot(reflect.TypeOf(ast.SchemaAnnotation{}), "SchemaAnnotation")
+	codec.RegisterRoot(reflect.TypeOf(ast.CompileAnnotation{}), "CompileAnnotation")
+	codec.RegisterRoot(reflect.TypeOf(ast.AuthorAnnotation{}), "AuthorAnnotation")
+	codec.RegisterRoot(reflect.TypeOf(ast.RelatedResourceAnnotation{}), "RelatedResourceAnnotation")
+	codec.RegisterRoot(reflect.TypeOf(location.Location{}), "Location")
+
+	// ast.Ref ↔ canonical dotted form. Empty refs round-trip through "".
+	codec.RegisterScalarConverter(reflect.TypeOf(ast.Ref{}), protoroundtrip.ScalarConverter{
+		Encode: func(rv reflect.Value) (string, error) {
+			ref := rv.Interface().(ast.Ref)
+			if len(ref) == 0 {
+				return "", nil
+			}
+			return ref.String(), nil
+		},
+		Decode: func(s string) (reflect.Value, error) {
+			if s == "" {
+				return reflect.ValueOf(ast.Ref(nil)), nil
+			}
+			ref, err := ast.ParseRef(s)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			return reflect.ValueOf(ref), nil
+		},
+	})
+
+	// url.URL ↔ its String() form. url.Parse("") returns the zero URL
+	// without error, so empty strings round-trip naturally.
+	codec.RegisterScalarConverter(reflect.TypeOf(url.URL{}), protoroundtrip.ScalarConverter{
+		Encode: func(rv reflect.Value) (string, error) {
+			u := rv.Interface().(url.URL)
+			return u.String(), nil
+		},
+		Decode: func(s string) (reflect.Value, error) {
+			u, err := url.Parse(s)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			return reflect.ValueOf(*u), nil
+		},
+	})
+
 	return codec
 }

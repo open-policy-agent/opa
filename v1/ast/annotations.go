@@ -234,6 +234,10 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 		data["schemas"] = a.Schemas
 	}
 
+	if a.Compile != nil {
+		data["compile"] = a.Compile
+	}
+
 	if len(a.Custom) > 0 {
 		data["custom"] = a.Custom
 	}

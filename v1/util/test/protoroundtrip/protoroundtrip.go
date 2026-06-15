@@ -39,6 +39,22 @@ type Codec struct {
 	skipEmbedded map[reflect.Type]map[reflect.Type]bool
 	// envelopes wraps a body type T in an envelope proto message.
 	envelopes map[reflect.Type]EnvelopeSpec
+	// scalarConverters[T]: Go type ↔ proto string conversions (e.g.
+	// ast.Ref ↔ canonical dotted form, url.URL ↔ url string).
+	scalarConverters map[reflect.Type]ScalarConverter
+}
+
+// ScalarConverter converts a Go value to/from a proto string field.
+// Used when the Go field's type doesn't trivially map to a proto string
+// (ast.Ref is `[]*Term`, url.URL is a struct) but the on-the-wire form
+// is a string.
+type ScalarConverter struct {
+	// Encode converts the Go value (already pointer/interface deref'd by
+	// the caller) to its string wire form.
+	Encode func(reflect.Value) (string, error)
+	// Decode parses a string wire value into a Go value of the registered
+	// type. The returned reflect.Value is assigned via Set.
+	Decode func(string) (reflect.Value, error)
 }
 
 // EnvelopeSpec wraps a body Go type in an envelope proto message during
@@ -58,13 +74,14 @@ type EnvelopeSpec struct {
 // and Set*/Skip* methods before calling Encode/Decode.
 func NewCodec(file protoreflect.FileDescriptor) *Codec {
 	return &Codec{
-		file:            file,
-		rootMsgs:        map[reflect.Type]string{},
-		fieldOverrides:  map[reflect.Type]map[string]string{},
-		skipProtoFields: map[reflect.Type]map[string]bool{},
-		skipGoFields:    map[reflect.Type]map[string]bool{},
-		skipEmbedded:    map[reflect.Type]map[reflect.Type]bool{},
-		envelopes:       map[reflect.Type]EnvelopeSpec{},
+		file:             file,
+		rootMsgs:         map[reflect.Type]string{},
+		fieldOverrides:   map[reflect.Type]map[string]string{},
+		skipProtoFields:  map[reflect.Type]map[string]bool{},
+		skipGoFields:     map[reflect.Type]map[string]bool{},
+		skipEmbedded:     map[reflect.Type]map[reflect.Type]bool{},
+		envelopes:        map[reflect.Type]EnvelopeSpec{},
+		scalarConverters: map[reflect.Type]ScalarConverter{},
 	}
 }
 
@@ -124,6 +141,13 @@ func (c *Codec) SkipEmbedded(t reflect.Type, embedded ...reflect.Type) {
 // RegisterEnvelope wraps body type t in the envelope described by spec.
 func (c *Codec) RegisterEnvelope(t reflect.Type, spec EnvelopeSpec) {
 	c.envelopes[unwrapPointer(t)] = spec
+}
+
+// RegisterScalarConverter registers a converter for Go type t. When a
+// proto string field's Go counterpart has type t, encode calls
+// conv.Encode and decode calls conv.Decode.
+func (c *Codec) RegisterScalarConverter(t reflect.Type, conv ScalarConverter) {
+	c.scalarConverters[unwrapPointer(t)] = conv
 }
 
 // Encode serializes v (a value or pointer-to-value) as proto wire-format bytes.
@@ -334,6 +358,13 @@ func (c *Codec) encodeScalarOrMessage(rv reflect.Value, fd protoreflect.FieldDes
 	case protoreflect.BoolKind:
 		return protoreflect.ValueOfBool(rv.Bool()), nil
 	case protoreflect.StringKind:
+		if conv, ok := c.scalarConverters[rv.Type()]; ok {
+			s, err := conv.Encode(rv)
+			if err != nil {
+				return protoreflect.Value{}, fmt.Errorf("scalar converter for %s: %w", rv.Type(), err)
+			}
+			return protoreflect.ValueOfString(s), nil
+		}
 		return protoreflect.ValueOfString(rv.String()), nil
 	case protoreflect.BytesKind:
 		bs := []byte{}
@@ -358,6 +389,12 @@ func (c *Codec) encodeScalarOrMessage(rv reflect.Value, fd protoreflect.FieldDes
 		// or empty interface fields.
 		if string(fd.Message().FullName()) == "google.protobuf.Struct" {
 			return c.encodeStructpb(rv, scratch)
+		}
+		// Special-case google.protobuf.Value for free-form Go any /
+		// map[string]any / scalar fields where the top-level may be a
+		// non-object JSON value.
+		if string(fd.Message().FullName()) == "google.protobuf.Value" {
+			return c.encodeValuepb(rv, scratch)
 		}
 		// General message-typed field: rv is a Go struct (or nil).
 		if !rv.IsValid() {
@@ -492,6 +529,22 @@ func (*Codec) encodeStructpb(rv reflect.Value, scratch protoreflect.Value) (prot
 		return protoreflect.Value{}, fmt.Errorf("structpb: %w", err)
 	}
 	return protoreflect.ValueOfMessage(s.ProtoReflect()), nil
+}
+
+// encodeValuepb converts an arbitrary Go value (typically the underlying
+// of an `any` field) to a google.protobuf.Value. Used for SchemaAnnotation.Definition
+// where the wire shape is a single JSON value (scalar, list, or object),
+// not a map.
+func (*Codec) encodeValuepb(rv reflect.Value, _ protoreflect.Value) (protoreflect.Value, error) {
+	if !rv.IsValid() || (rv.Kind() == reflect.Interface && rv.IsNil()) {
+		nullVal := structpb.NewNullValue()
+		return protoreflect.ValueOfMessage(nullVal.ProtoReflect()), nil
+	}
+	val, err := structpb.NewValue(rv.Interface())
+	if err != nil {
+		return protoreflect.Value{}, fmt.Errorf("structpb value: %w", err)
+	}
+	return protoreflect.ValueOfMessage(val.ProtoReflect()), nil
 }
 
 // envelopeContext tracks which field names live on a parent envelope
@@ -674,7 +727,21 @@ func (c *Codec) decodeScalarOrMessage(v protoreflect.Value, fd protoreflect.Fiel
 	case protoreflect.BoolKind:
 		rv.SetBool(v.Bool())
 	case protoreflect.StringKind:
-		rv.SetString(v.String())
+		if conv, ok := c.scalarConverters[rv.Type()]; ok {
+			decoded, err := conv.Decode(v.String())
+			if err != nil {
+				return fmt.Errorf("scalar converter for %s: %w", rv.Type(), err)
+			}
+			if decoded.Type() != rv.Type() {
+				if !decoded.Type().ConvertibleTo(rv.Type()) {
+					return fmt.Errorf("scalar converter for %s returned %s; not convertible", rv.Type(), decoded.Type())
+				}
+				decoded = decoded.Convert(rv.Type())
+			}
+			rv.Set(decoded)
+		} else {
+			rv.SetString(v.String())
+		}
 	case protoreflect.BytesKind:
 		rv.SetBytes(v.Bytes())
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind,
@@ -701,6 +768,9 @@ func (c *Codec) decodeScalarOrMessage(v protoreflect.Value, fd protoreflect.Fiel
 func (c *Codec) decodeMessage(sub protoreflect.Message, fd protoreflect.FieldDescriptor, rv reflect.Value) error {
 	if string(fd.Message().FullName()) == "google.protobuf.Struct" {
 		return c.decodeStructpb(sub, rv)
+	}
+	if string(fd.Message().FullName()) == "google.protobuf.Value" {
+		return c.decodeValuepb(sub, rv)
 	}
 
 	// Is this an envelope? Check by message name.
@@ -869,6 +939,28 @@ func (*Codec) decodeStructpb(sub protoreflect.Message, rv reflect.Value) error {
 		out.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
 	}
 	rv.Set(out)
+	return nil
+}
+
+// decodeValuepb converts a google.protobuf.Value back to a Go any.
+// Mirrors decodeStructpb but for the single-value variant.
+func (*Codec) decodeValuepb(sub protoreflect.Message, rv reflect.Value) error {
+	val := &structpb.Value{}
+	bs, err := proto.Marshal(sub.Interface())
+	if err != nil {
+		return fmt.Errorf("structpb value marshal: %w", err)
+	}
+	if err := proto.Unmarshal(bs, val); err != nil {
+		return fmt.Errorf("structpb value unmarshal: %w", err)
+	}
+	asInterface := val.AsInterface()
+	if rv.Kind() != reflect.Interface {
+		return fmt.Errorf("expected interface for google.protobuf.Value, got %s", rv.Kind())
+	}
+	if asInterface == nil {
+		return nil
+	}
+	rv.Set(reflect.ValueOf(asInterface))
 	return nil
 }
 
