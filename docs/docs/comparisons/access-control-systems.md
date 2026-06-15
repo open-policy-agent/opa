@@ -2,8 +2,7 @@
 title: Access Control Systems
 ---
 
-Often the easiest way to understand a new tool or language is by comparing it to
-what you already know. This page shows how policies from several existing policy
+Comparing a new tool or language to what you already know can help build familiarity. This page shows how policies from several existing policy
 systems can be implemented with the Open Policy Agent and Rego.
 
 :::tip
@@ -237,7 +236,7 @@ allow if {
 In OPA, there's nothing special about users and objects. You can attach
 attributes to anything. And the attributes can themselves be structured JSON objects
 and have attributes on attributes on attributes, etc. Because OPA was designed to work
-with arbitrarily nested JSON data, it supports incredibly rich ABAC policies.
+with arbitrarily nested JSON data, it supports expressive ABAC policies.
 
 ## Amazon Web Services IAM
 

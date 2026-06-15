@@ -7,8 +7,7 @@ image: /img/opa-errors.png
 # OPA Errors Guide
 
 This guide is designed to help you understand the most common errors you'll encounter when working with OPA. Each
-document provides examples of the error, why it's an error, and how to fix it. A perfect companion for your debugging
-session!
+document provides examples of the error, why it's an error, and how to fix it.
 
 The errors currently documented are:
 
@@ -102,7 +101,7 @@ Since `y` isn't defined in the policy, the compiler considers it unsafe:
 ```
 
 **Tip:** when using `opa eval`, you can pass the `--strict` flag to enable additional compiler checks — like unused
-variables or function arguments. This is a great way to spot mistakes and errors as soon as possible, and is highly
+variables or function arguments. This helps catch mistakes and errors early, and is highly
 recommended.
 
 #### Evaluation

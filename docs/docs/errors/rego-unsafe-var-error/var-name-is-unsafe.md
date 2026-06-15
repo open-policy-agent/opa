@@ -88,8 +88,7 @@ there too.
 If the variable name and definition are correct, the issue is likely that the
 definition of the rule has not been loaded into OPA. One thing to keep in mind
 is that all OPA commands that accept a file may just as well be provided a
-directory, which will be loaded recursively. This is often the best way to
-ensure all the files you may depend on are loaded and available during
+directory, which will be loaded recursively. This ensures all the files you may depend on are loaded and available during
 compilation.
 
 ## More Information

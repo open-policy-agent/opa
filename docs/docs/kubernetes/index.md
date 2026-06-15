@@ -51,7 +51,7 @@ If you want to kick the tires:
   [demo/agilebank](https://github.com/open-policy-agent/gatekeeper/tree/master/demo/agilebank)
   directories for examples policies and setup scripts.
 
-**Recommendation**: OPA Gatekeeper is **the go-to project** for using OPA for
+**Recommendation**: OPA Gatekeeper is **the recommended project** for using OPA for
 Kubernetes admission control. Plain OPA and Kube-mgmt (see below) are alternatives
 that can be reached for if you want to use the management features of OPA, such as
 status logs, decision logs, and bundles.

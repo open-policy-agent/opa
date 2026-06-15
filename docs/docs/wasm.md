@@ -378,5 +378,5 @@ Sets are represented as JSON arrays.
 ## Ecosystem Projects
 
 <EcosystemEmbed feature="wasm-integration">
-Wasm is a great way to integrate OPA into applications where the Go SDK is unavailable.
+Wasm can be used to integrate OPA into applications where the Go SDK is unavailable.
 </EcosystemEmbed>

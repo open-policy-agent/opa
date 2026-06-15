@@ -17,7 +17,7 @@ document models such as JSON.
 
 Use Rego for defining policy that is easy to read and write.
 
-Rego focuses on providing powerful support for referencing nested documents and
+Rego focuses on providing support for referencing nested documents and
 ensuring that queries are correct and unambiguous.
 
 Rego is declarative so policy authors can focus on what queries should return
@@ -3680,7 +3680,7 @@ In particular the following features are not yet supported:
 - enum
 - if/then/else
 
-A note of caution: overriding is a powerful capability that must be used carefully. For example, the user is allowed to write:
+A note of caution: overriding is a flexible capability that must be used carefully. For example, the user is allowed to write:
 
 ```
 # METADATA

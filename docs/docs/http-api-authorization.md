@@ -2,7 +2,7 @@
 title: "HTTP APIs"
 ---
 
-Anything that exposes an HTTP API (whether an individual microservice or an application as a whole) needs to control who can run those APIs and when. OPA makes it easy to write fine-grained, context-aware policies to implement API authorization.
+Anything that exposes an HTTP API (whether an individual microservice or an application as a whole) needs to control who can run those APIs and when. OPA supports writing fine-grained, context-aware policies for API authorization.
 
 ## Goals
 

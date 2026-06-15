@@ -6,8 +6,7 @@ GraphQL APIs have become a popular way for clients to query the information
 they require from a range of data sources.
 Generally, services providing a [GraphQL](https://graphql.org/) API must
 authorize calls to control data access and mutations.
-OPA makes it easy to write fine-grained, context-aware policies to implement
-GraphQL query authorization.
+OPA supports writing fine-grained, context-aware policies to implement GraphQL query authorization.
 
 In this tutorial, you'll use a simple GraphQL server that accepts any GraphQL query that you issue, and echoes the OPA decision back as text.
 OPA will fetch policy bundles from a simple bundle server.

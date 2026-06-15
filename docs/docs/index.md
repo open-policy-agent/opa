@@ -364,7 +364,7 @@ ssh_server if {
 
 #### FOR SOME and FOR ALL
 
-While plain iteration serves as a powerful building block, Rego also features ways
+While plain iteration is a fundamental building block, Rego also features ways
 to express _FOR SOME_ and _FOR ALL_ more explicitly.
 
 ##### FOR SOME (`some`)
@@ -897,7 +897,7 @@ shasum -c $BINARY_NAME.sha256
 ### 2. Try `opa eval`
 
 The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli#eval).
-It is a swiss-army knife that you can use to evaluate arbitrary Rego expressions and policies.
+It can be used to evaluate arbitrary Rego expressions and policies.
 `opa eval` supports a large number of options for controlling evaluation.
 Commonly used flags include:
 

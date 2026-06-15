@@ -1075,7 +1075,7 @@ Use this for [authenticating](https://docs.cloud.google.com/storage/docs/authent
 
 ##### Testing Authentication
 
-The easiest way of testing GCP metadata token or JWT bearer grant type authentication is simply to set up OPA with config for these and run the server.
+To test GCP metadata token or JWT bearer grant type authentication, set up OPA with the relevant config and run the server.
 
 #### Upload Bundle
 
@@ -1287,7 +1287,7 @@ Also note in particular how the `thumbprint` property is required for Azure. The
 
 ### NGINX
 
-NGINX offers a simple but competent bundle server for those who prefer to host their own. A great choice for local testing.
+NGINX offers a simple but competent bundle server for those who prefer to host their own and is also suitable for local testing.
 
 | Feature                | Supported                                                                                                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -1521,7 +1521,7 @@ Content-Length: 24
 ## Ecosystem Projects
 
 <EcosystemEmbed feature="opa-bundles">
-The Bundle API is great way to manage your policies and data. The following
+The Bundle API supports managing policies and data. The following
 projects all make use of this API if you're looking for inspiration or examples
 of how to use it.
 </EcosystemEmbed>

@@ -4,7 +4,7 @@ sidebar_position: 2
 title: Deploying OPA on Docker
 ---
 
-Docker makes OPA easy to deploy in different types of environments.
+Docker can be used to deploy OPA in different types of environments.
 
 This section explains how to use the official OPA Docker images. If this is your
 first time deploying OPA and you plan to use one of the Docker images, it is
