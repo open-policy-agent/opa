@@ -116,13 +116,13 @@ They can also be run locally on your machine using the
 
 :::note
 This section covers the building blocks of writing policies in Rego. You can see
-how these concepts come together to solve our network security policy in the
+how these concepts come together to solve the network security policy in the
 [Complete Example](#complete-example).
 :::
 
 ### Basic Syntax
 
-To implement our security policy, we first need to access and examine the
+To implement the security policy, the first step is to access and examine the
 infrastructure data. When OPA evaluates policies, it binds data provided in the
 query to a global variable called `input`. You can refer to specific parts of
 the input data using the `.` (dot) operator.
@@ -162,7 +162,7 @@ output := input.foobar
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
 The most simple policy decisions are made by writing expressions that perform
-logical operations on the input data. For example, we can check if a server has
+logical operations on the input data. For example, to check if a server has
 a specific ID using an equality check with `==`.
 
 ```rego
@@ -373,7 +373,7 @@ to express _FOR SOME_ and _FOR ALL_ more explicitly.
 and will bind its variables (key, value position) to the collection items.
 It introduces new bindings to the evaluation of the rest of the rule body.
 
-Using `some`, we can express the rules introduced above in different ways:
+Using `some`, the rules introduced above can be expressed in different ways:
 
 ```rego
 package servers
@@ -447,7 +447,7 @@ logic statements. Rules can either be "complete" or "partial".
 #### Complete Rules
 
 Complete rules are if-then statements that assign a single value to a variable.
-Every rule consists of a <GlossaryTooltip term="rule-head">head</GlossaryTooltip> and a <GlossaryTooltip term="rule-body">body</GlossaryTooltip>. In Rego we say the rule head
+Every rule consists of a <GlossaryTooltip term="rule-head">head</GlossaryTooltip> and a <GlossaryTooltip term="rule-body">body</GlossaryTooltip>. In Rego, the rule head
 is true _if_ the rule body is true for some set of variable assignments.
 
 ```rego
@@ -526,8 +526,7 @@ Constants defined like this can be queried just like any other values:
 count(input.servers[0].protocols) < max_allowed_protocols
 ```
 
-If OPA cannot find variable assignments that satisfy the rule body, we say that
-the rule is undefined. For example, if the `input` provided to OPA does not
+If OPA cannot find variable assignments that satisfy the rule body, the rule is undefined. For example, if the `input` provided to OPA does not
 include a public network then `exists_public_network` will be undefined (which is
 not the same as false.) Below, OPA is given a different set of input networks
 (none of which are public):
@@ -574,7 +573,7 @@ public_network contains net.id if {
 
 <RunSnippet id="public_network_set.rego" files="#input.json" command="data.example"/>
 
-Using the `in` keyword we can use this list to test if some other value is in
+Using the `in` keyword, this list can be used to test if some other value is in
 the set defined by `public_network`:
 
 ```rego
@@ -696,7 +695,7 @@ let's review the desired policy in natural language:
 > 2. Servers are not allowed to expose the 'telnet' protocol.
 
 At a high-level the policy needs to identify servers that violate some
-conditions. To implement this policy we could define rules called `violation`
+conditions. To implement this policy, define rules called `violation`
 that generate a set of servers that are in violation. For example:
 
 ```rego
@@ -732,7 +731,7 @@ public_servers contains server if { # a server exists in the public_servers set 
 
 <RunSnippet files="#input.json" command="data.example.violation"/>
 
-This example demonstrates how we can use Rego to create a clear list of policy
+This example demonstrates how Rego can create a clear list of policy
 violations that can be handed back to the infrastructure as code system to
 present to the user, making it easy for them to see what's gone wrong.
 
@@ -849,7 +848,7 @@ mkdir C:\Tools\OPA
 move opa.exe C:\Tools\OPA\
 ```
 
-Now we can add this to our `PATH`:
+Add this to your `PATH`:
 
 Control Panel → System → Advanced system settings → Environment Variables
 

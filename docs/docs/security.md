@@ -58,7 +58,7 @@ openssl genrsa -out private.key 2048
 openssl req -new -x509 -sha256 -key private.key -out public.crt -days 1
 ```
 
-> We have generated a self-signed certificate for example purposes here. DO NOT
+> A self-signed certificate has been generated for example purposes here. DO NOT
 > rely on self-signed certificates outside of development without understanding
 > the risks.
 
@@ -83,7 +83,7 @@ curl -k https://localhost:8181/v1/data
 ```
 
 :::info
-We have to use cURL's `-k/--insecure` flag because we are using a self-signed certificate.
+cURL's `-k/--insecure` flag is required because a self-signed certificate is used.
 :::
 
 ## Interface Binding
@@ -411,17 +411,17 @@ identity_rights contains right if {  # Right is in the identity_rights set if...
 
 ### TLS-based Authentication Example
 
-To set up authentication based on mutual TLS, we will need three certificates:
+To set up authentication based on mutual TLS, three certificates are needed:
 
 1. the CA cert (self-signed),
 2. the server cert (signed by the CA), and
 3. the client cert (signed by the CA).
 
-We use `openssl` to create the example certificates and keys used in this demo. In production, creation of certificates
+`openssl` is used to create the example certificates and keys in this demo. In production, creation of certificates
 and keys should be handled by an automated process out of scope for this tutorial.
 
-Note that we also create an extra client cert (client-2). While this certificate is signed by the same CA, it's identity
-is different. We'll use this to show our authorization policy in action.
+Note that an extra client cert (client-2) is also created. While this certificate is signed by the same CA, its identity
+is different. This cert demonstrates the authorization policy in action.
 
 ```bash
 # CA
@@ -489,7 +489,7 @@ openssl req -new -key server-key.pem -out csr.pem -subj "/CN=server" -config req
 openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -days 10 -extensions v3_req -extfile req.cnf -sha256
 ```
 
-We also create an example authorization policy file, called `check.rego`. This example `system.authz` policy will check
+An example authorization policy file, `check.rego`, is also created. This example `system.authz` policy will check
 the certificate ID against a list of allowed paths as defined in a simple Access Control List.
 
 :::danger
@@ -522,7 +522,7 @@ allow := {"allowed": true} if {
 }
 ```
 
-Now, we're ready to starting the server with `-authentication=tls` and the
+Start the server with `-authentication=tls` and the
 certificate-related parameters:
 
 ```console
@@ -537,10 +537,10 @@ $ opa run -s \
 {"addrs":["https://127.0.0.1:8181"],"diagnostic-addrs":[],"level":"info","msg":"Initializing server.","time":"2023-01-04T10:31:12Z"}
 ```
 
-We can use `curl` to validate our TLS-based authentication setup:
+Use `curl` to validate the TLS-based authentication setup:
 
-First, we use the client certificate that was signed by the CA, and has a subject
-matching our authorization policy:
+First, use the client certificate that was signed by the CA, with a subject
+matching the authorization policy:
 
 ```console
 $ curl --key client-key-1.pem \
@@ -551,13 +551,13 @@ $ curl --key client-key-1.pem \
 {"result":{}}
 ```
 
-Note that we're passing the CA cert to curl -- this is done to have curl accept
-the server's certificate, which has been signed by our CA cert.
+Note that the CA cert is passed to curl -- this is done to have curl accept
+the server's certificate, which has been signed by the CA cert.
 
-Since we've set up an IP SAN, we may also `curl https://127.0.0.1:8181/v1/data`
-directly. (To keep our examples focused, we'll do that from here on.)
+Since an IP SAN is configured, `curl https://127.0.0.1:8181/v1/data`
+also works directly.
 
-Using a valid certificate whose subject will be declined by our authorization
+Using a valid certificate whose subject will be declined by the authorization
 policy:
 
 ```console
@@ -571,7 +571,7 @@ $ curl --key client-key-2.pem \
 }
 ```
 
-Finally, we'll attempt to query without a client certificate:
+Finally, query without a client certificate:
 
 ```console
 $ curl --cacert ca.pem https://127.0.0.1:8181/v1/data

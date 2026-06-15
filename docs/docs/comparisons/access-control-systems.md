@@ -3,12 +3,12 @@ title: Access Control Systems
 ---
 
 Often the easiest way to understand a new tool or language is by comparing it to
-what you already know. Here we show how policies from several existing policy
+what you already know. This page shows how policies from several existing policy
 systems can be implemented with the Open Policy Agent and Rego.
 
 :::tip
 Looking for comparisons between OPA's Rego language and languages like Go, Java
-and Python? Head to our [language comparison](../comparisons/languages)
+and Python? See the [language comparison](../comparisons/languages)
 documentation.
 :::
 
@@ -25,7 +25,7 @@ Once you provide RBAC with both those assignments, RBAC tells you
 how to make an authorization decision. A user is authorized for
 all those permissions assigned to any of the roles she is assigned to.
 
-For example, we might have the following user/role assignments:
+For example, consider the following user/role assignments:
 
 | User    | Role          |
 | ------- | ------------- |
@@ -115,7 +115,7 @@ in each pair below would violate SOD.
 
 OPA's API does not yet let you enforce SOD by rejecting improper role-assignments,
 but it does let you express SOD constraints and ask for all SOD violations,
-as shown below. (Here we assume the statements below are added to the RBAC
+as shown below. (The statements below are assumed to be added to the RBAC
 statements above.)
 
 ```rego
@@ -152,7 +152,7 @@ It has three main components:
 - Attributes for objects
 - Logic dictating which attribute combinations are authorized
 
-For example, we might know the following attributes for our users
+For example, consider the following attributes for users
 
 - alice
   - joined the company 15 years ago
@@ -161,7 +161,7 @@ For example, we might know the following attributes for our users
   - joined the company 5 years ago
   - is an analyst
 
-We would also have attributes for the objects, in this case stock ticker symbols.
+Attributes for the objects, in this case stock ticker symbols, are also needed.
 
 - MSFT
   - is sold on NASDAQ

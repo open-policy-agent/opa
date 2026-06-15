@@ -79,7 +79,7 @@ API that produces OPA bundle files. The compile API is recommended.
 
 There is a JavaScript SDK available that simplifies the process of loading and
 evaluating compiled policies. If you want to evaluate Rego policies inside
-JavaScript we recommend you use the
+JavaScript, it is recommended to use the
 [Javascript SDK](https://github.com/open-policy-agent/npm-opa-wasm).
 There is also an
 [example NodeJS application](https://github.com/open-policy-agent/npm-opa-wasm/tree/main/examples/nodejs-app)

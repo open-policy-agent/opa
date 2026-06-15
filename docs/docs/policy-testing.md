@@ -14,7 +14,7 @@ and reduce the amount of time it takes to modify rules as requirements evolve.
 
 ## Getting Started
 
-Let's use an example to get started. The file below implements a simple
+The following example demonstrates getting started. The file below implements a simple
 policy that allows new users to be created and users to access their own
 profile.
 

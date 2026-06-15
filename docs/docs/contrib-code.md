@@ -2,7 +2,7 @@
 title: Contributing Code
 ---
 
-We are thrilled that you're interested in contributing to OPA! This document
+Thanks for your interest in contributing to OPA! This document
 outlines some of the important guidelines when getting started as a new
 contributor.
 
@@ -28,7 +28,7 @@ When contributing please consider the following pointers:
   implement however they come with their own cost for both OPA developers and
   OPA users (e.g., vendoring conflicts, security, debugging, etc.)
 - **AI Tooling**: You can use generative AI tooling to assist your work on OPA,
-  but please review our project's [AI Guidelines](#ai-guidelines) below before doing so to
+  but please review the project's [AI Guidelines](#ai-guidelines) below before doing so to
   help us help you.
 
 :::tip
@@ -121,7 +121,7 @@ off by a human author.
 The OPA maintainers reserve the right to request additional information about
 patches and reject PRs where code origin cannot be verified.
 
-See more in our [AI Guidelines](#ai-guidelines).
+See more in the [AI Guidelines](#ai-guidelines).
 :::
 
 ## Code Review
@@ -180,9 +180,8 @@ in the `.trivyignore` file.
 
 ## AI Guidelines
 
-We are really excited for you to contribute to OPA! In order for us (the OPA
-maintainers) to help you effectively, we have some guidelines that we request
-you follow:
+Contributing to OPA is encouraged! In order for the OPA
+maintainers to help effectively, there are some guidelines to follow:
 
 1. Follow the
    [Linux Foundation Guidelines](https://www.linuxfoundation.org/legal/generative-ai)
@@ -207,15 +206,15 @@ you follow:
      members who took the time to review your code and provide you with personal
      feedback is considered disrespectful and will have your PR rejected.
 
-3. Don't be afraid to get it wrong! We are friendly, and will answer questions
-   you might have about contributing to our project. You can always:
+3. Don't be afraid to get it wrong! The team is friendly and will answer questions
+   you might have about contributing to the project. Options include:
 
    - Ask for clarification of a review comment if you don't understand it.
    - Ask for input on a technical implementation, ideally before investing your
      time into it.
    - Correct maintainers when you think they've misunderstood something.
 
-   Together we can learn and build a better OPA!
+   Together the community can learn and build a better OPA!
 
 ## Contribution process
 

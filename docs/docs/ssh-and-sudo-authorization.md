@@ -4,7 +4,7 @@ title: SSH and sudo
 
 Host-level access controls are an important part of every organization's
 security strategy. Using [Linux-PAM](https://tldp.org/HOWTO/User-Authentication-HOWTO/x115.html) and OPA
-we can extend policy-based access control to SSH and sudo.
+policy-based access control can be extended to SSH and sudo.
 
 ## Goals
 
@@ -12,16 +12,16 @@ This tutorial shows how you can use OPA and Linux-PAM to enforce fine-grained,
 host-level access controls over SSH and sudo.
 
 Linux-PAM can be configured to delegate authorization decisions to plugins
-(shared libraries). In this case, we have created an OPA-based plugin that can
+(shared libraries). An OPA-based plugin has been created that can
 be configured to authorize SSH and sudo access. The OPA-based Linux-PAM plugin
 used in this tutorial can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib/tree/main/pam_opa).
 
-For this tutorial, our desired policy is:
+For this tutorial, the desired policy is:
 
 - Admins can SSH into any host and run sudo commands.
 - Normal users can SSH into hosts that they have _contributed_ to and run sudo commands.
 
-Furthermore, we'll assume we have the following set of users and hosts:
+The following set of users and hosts is assumed:
 
 - `frontend-dev` is a developer who contributes to the app running on the `frontend` host.
 - `backend-dev` is a developer who contributes to the app running on the `backend` host.
@@ -44,7 +44,7 @@ with OPA. The dummy SSH hosts are just containers running sshd inside.
 ### 1. Bootstrap the tutorial environment using Docker Compose
 
 First, create a `tutorial-docker-compose.yaml` file that runs OPA and the containers that
-represent our backend and frontend hosts.
+represent the backend and frontend hosts.
 
 <EvergreenCodeBlock>
 ```yaml title="tutorial-docker-compose.yaml"

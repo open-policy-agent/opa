@@ -37,7 +37,7 @@ OPA supports different ways to evaluate policies.
 
 ### Integrating with the REST API
 
-To integrate with OPA outside of Go, we recommend you deploy OPA as a host-level
+To integrate with OPA outside of Go, deploy OPA as a host-level
 daemon or sidecar container. Running OPA locally on the same host as your
 application or service helps ensure policy decisions are fast and highly-available.
 
@@ -418,7 +418,7 @@ The `rego.PreparedEvalQuery#Eval` function returns a _result set_ that contains
 the query results. If the result set is empty it indicates the query could not
 be satisfied. Each element in the result set contains a set of _variable
 bindings_ and a set of expression values. The query from above includes a single
-variable `x` so we can lookup the value and interpret it to enforce the policy
+variable `x` to look up the value and interpret it to enforce the policy
 decision.
 
 ```go
