@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/fsnotify/fsnotify"
 	prometheus_sdk "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -662,6 +663,10 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 		rt.logger.WithFields(map[string]any{"err": mpErr}).Debug("Failed to set GOMAXPROCS from CPU quota.")
 	}
 	defer undo()
+
+	if _, mlErr := memlimit.SetGoMemLimitWithOpts(memlimit.WithLogger(logging.AsSlogLoggerWithPinnedLevel(rt.logger, logging.Debug))); mlErr != nil {
+		rt.logger.WithFields(map[string]any{"err": mlErr}).Debug("Failed to set GOMEMLIMIT from cgroup memory limit.")
+	}
 
 	if err := rt.Manager.Start(ctx); err != nil {
 		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start plugins.")
