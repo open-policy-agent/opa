@@ -30,5 +30,4 @@ live in `package ossrisk` and add human-readable messages to a `deny` set, and
 any violation fails the scan. This enables cross-signal rules a severity
 threshold cannot express - for example "no strong-copyleft licenses in direct
 dependencies" or "block packages that add install scripts under a brand-new
-publisher" (the event-stream takeover pattern). The JSON output is a stable
-contract, so it also works piped into conftest.
+publisher" (the event-stream takeover pattern).
