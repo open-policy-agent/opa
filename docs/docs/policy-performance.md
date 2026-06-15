@@ -898,10 +898,10 @@ are embedding OPA as a library, it is your responsibility to dispatch concurrent
 to different Goroutines/threads. If you are running the OPA server, it will parallelize
 concurrent requests and use as many cores as possible. You can limit the number of
 cores that OPA can consume by setting the [`GOMAXPROCS`](https://pkg.go.dev/runtime)
-environment variable. Since Go 1.25, OPA auto-detects the cgroup CPU quota and sets
-`GOMAXPROCS` accordingly, with a minimum of 2. For containers with very low CPU
-limits, if setting `GOMAXPROCS=1`, benchmark OPA's memory and GC performance to
-ensure your latency requirements are met.
+environment variable. OPA uses the `automaxprocs` library to automatically detect the
+cgroup CPU quota and set `GOMAXPROCS` accordingly, with a minimum of 1. For containers
+with very low CPU limits, if setting `GOMAXPROCS=1`, benchmark OPA's memory and GC
+performance to ensure your latency requirements are met.
 
 Memory usage scales with the size of the policy (i.e., Rego) and data (e.g., JSON) that you
 load into OPA. Raw JSON data loaded into OPA uses approximately 20x more memory compared to the
