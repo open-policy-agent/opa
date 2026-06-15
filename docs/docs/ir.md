@@ -9,6 +9,10 @@ semantics of the intermediate representation (IR) used to represent these
 planned evaluation paths. Read this document if you want to write a compiler or
 interpreter for Rego.
 
+To evaluate IR plans directly in your application, see
+[Swift-OPA](https://github.com/open-policy-agent/swift-opa) for Swift and
+[java-opa-sdk](https://github.com/open-policy-agent/java-opa-sdk) for Java.
+
 ## JSON Schema
 
 A machine-readable JSON Schema (Draft 2020-12) describing the IR plan format is
