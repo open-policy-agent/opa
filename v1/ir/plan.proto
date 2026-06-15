@@ -7,6 +7,7 @@ edition = "2023";
 package opa.ir.v1;
 
 option go_package = "github.com/open-policy-agent/opa/v1/ir/v1pb";
+option java_multiple_files = true;
 
 // Policy mirrors `ir.Policy` in v1/ir/ir.go.
 message Policy {

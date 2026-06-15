@@ -9,6 +9,7 @@ package opa.bundle.v1;
 import "google/protobuf/struct.proto";
 
 option go_package = "github.com/open-policy-agent/opa/v1/bundle/v1pb";
+option java_multiple_files = true;
 
 // Manifest mirrors `bundle.Manifest` in v1/bundle/bundle.go.
 message Manifest {
