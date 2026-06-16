@@ -15,7 +15,7 @@ operational aspects.
 - **Deployment Environment:**
   - Running the OCP server within Kubernetes
 - **Database Integration:**
-  - Connecting the OCP server to an external database. For this example, we will set up a PostgreSQL database within the Kubernetes environment, but a more likely solution would be a managed SQL database.
+  - Connecting the OCP server to an external database. For this example, a PostgreSQL database is set up within the Kubernetes environment, but a more likely solution would be a managed SQL database.
 - **Source control integration**:
   - This example will utilize git as the source of the policies
 - **Advanced Bundle Management:**
@@ -37,9 +37,9 @@ The rest of this section will just highlight portions of the full manifests to e
 
 ## Database Integration
 
-As mentioned we will use a PostgreSQL deployment/service for this example, but for a production install you will likely want to use an external/managed database. Example configuration can be found in the [Database Configuration](./configuration.md#database-configuration) section.
+As mentioned, this example uses a PostgreSQL deployment/service, but for a production install you will likely want to use an external/managed database. Example configuration can be found in the [Database Configuration](./configuration.md#database-configuration) section.
 
-The configuration to connect to the database will be in a configuration file. In our example it will look like this:
+The configuration to connect to the database will be in a configuration file. In this example it will look like this:
 
 ```yaml
 database:

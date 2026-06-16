@@ -638,8 +638,7 @@ jobs:
         vale --version
 
     - name: Run Vale spell check
-      run: vale --config=.vale.ini .
-      working-directory: docs
+      run: make docs-spell-check
 
   benchmarks:
     name: Benchmarks

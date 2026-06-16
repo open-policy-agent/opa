@@ -4,7 +4,7 @@ title: Docker
 
 Docker’s out-of-the-box authorization model is all or nothing. But many users
 require finer-grained access control and Docker’s plugin infrastructure allows
-us to do so.
+for this.
 
 This is an excellent opportunity to see how to policy enable an existing
 service.
