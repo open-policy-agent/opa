@@ -39,7 +39,7 @@ cases:
         p if {
           { q with input.x as 1 } and input.x == 5
         }
-        
+
         q if {
           input.x < 2
         }
