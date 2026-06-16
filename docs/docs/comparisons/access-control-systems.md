@@ -114,8 +114,7 @@ in each pair below would violate SOD.
 
 OPA's API does not yet let you enforce SOD by rejecting improper role-assignments,
 but it does let you express SOD constraints and ask for all SOD violations,
-as shown below. (The statements below are assumed to be added to the RBAC
-statements above.)
+as shown below. (The statements below extend the RBAC statements above.)
 
 ```rego
 # Pairs of roles that no user can be assigned to simultaneously

@@ -226,7 +226,7 @@ sites := [
 
 <RunSnippet id="data.rego"/>
 
-Then iterate over all the key/value pairs of that app-to-hostname mapping (just like it is possible to iterate over all key/value pairs of a hardcoded JSON object). You can also iterate over just the keys or just the values or you can look up the value for a key or lookup all the keys for a single value.
+It is then possible to iterate over all the key/value pairs of that app-to-hostname mapping (just like all key/value pairs of a hardcoded JSON object). You can also iterate over just the keys or just the values, or look up the value for a key or all the keys for a single value.
 
 ```rego
 package example
@@ -265,7 +265,7 @@ Functions allow you to factor out common logic that has infinitely-many input/ou
 
 To achieve automatic iteration, there is an additional syntactic requirement on a rule that is NOT present for a function: `safety`. See the FAQ entry on safety for technical details. Every rule must be `safe`, which guarantees that OPA can figure out a finite list of possible values for every variable in the body and head of a rule.
 
-Using rules is recommended where possible; use functions when rules do not work.
+Use rules where possible; use functions when rules do not work.
 
 ## Safety
 

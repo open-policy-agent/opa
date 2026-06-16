@@ -1294,7 +1294,7 @@ NGINX offers a simple but competent bundle server for those who prefer to host t
 | Caching headers        | Yes                                                                                                                                                                                                                                                                            |
 | Authentication methods | [Bearer Token](https://www.openpolicyagent.org/docs/latest/configuration/#bearer-token) <sup>1</sup><br/> [OAuth2 Client Credentials JWT authentication](https://www.openpolicyagent.org/docs/latest/configuration/#oauth2-client-credentials-jwt-authentication) <sup>2</sup> |
 
-<sup>1</sup>NGINX does not support bearer token authentication, but it does support [basic auth](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/). This can be achieved by setting `services[_].credentials.bearer.scheme` to `Basic` in the OPA configuration, and provide the base64 encoded credentials as the token.<br/>
+<sup>1</sup>NGINX does not support bearer token authentication, but it does support [basic auth](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/). This can be achieved by setting `services[_].credentials.bearer.scheme` to `Basic` in the OPA configuration, and providing the base64 encoded credentials as the token.<br/>
 <sup>2</sup>Only available with NGINX Plus.
 
 #### Upload Bundle

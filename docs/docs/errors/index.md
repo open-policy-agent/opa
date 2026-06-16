@@ -125,7 +125,7 @@ policy.rego:3: eval_conflict_error: complete rules must not produce multiple out
 ```
 
 Important to know is that not all "errors" at this stage will be reported as errors! Some things that would be
-considered an error during compilation, like passing the wrong type of value in a function argument, would result in undefined.
+considered an error during compilation, like passing the wrong type of value in a function argument, would instead leave the result undefined at evaluation time.
 
 ```rego
 startswith("100", 1)

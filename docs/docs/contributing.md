@@ -25,9 +25,7 @@ Overflow.
 
 ## I'd like to contribute code
 
-If you have found a bug and would like to work on a fix, **filing a [GitHub Issue](https://github.com/open-policy-agent/opa/issues)** is always encouraged. It allows you to talk
-about the problem and the solution you have in mind, and to get
-feedback from maintainers before committing time to something that might already
+If you have found a bug and would like to work on a fix, **filing a [GitHub Issue](https://github.com/open-policy-agent/opa/issues)** is always encouraged. It is a good way to discuss the problem and your proposed solution, and gather feedback from maintainers before committing time to something that might already
 have a solution or might not be the right approach.
 
 If you have an idea for a new feature, **file an

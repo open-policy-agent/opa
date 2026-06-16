@@ -32,7 +32,7 @@ allow if user_is_admin
 user_is_developer if "developer" in input.user.roles
 ```
 
-Not that easy! The compiler handles this automatically:
+Fortunately the compiler reports it automatically:
 
 ```shell
 1 error occurred: policy.rego:8: rego_unsafe_var_error: var user_is_admin is unsafe
@@ -88,8 +88,8 @@ there too.
 If the variable name and definition are correct, the issue is likely that the
 definition of the rule has not been loaded into OPA. One thing to keep in mind
 is that all OPA commands that accept a file can also be provided a
-directory, which will be loaded recursively. This ensures all the files you may depend on are loaded and available during
-compilation.
+directory, which will be loaded recursively. This is often the best way to ensure all the files you may depend on are
+loaded and available during compilation.
 
 ## More Information
 

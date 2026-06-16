@@ -132,7 +132,7 @@ include if input.products.price == "free"
 </SideBySideColumn>
 <SideBySideColumn>
 The expression's <abbr title="left-hand side">LHS</abbr> is known, "low", which is not different from "low".
-An expression with all known parts that evaluates to false makes us give up on this rule path (regardless of eventual extra expressions following),
+When all parts of an expression are known and it evaluates to false, this rule path is abandoned (regardless of any further expressions),
 and the set of conditions aggregated for this rule body is discarded.
 
 Partial evaluation continues with the next rule body.

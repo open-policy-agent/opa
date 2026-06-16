@@ -1729,7 +1729,7 @@ OPA uses the `Accept` header to denote the target response format.
 
 #### Example Request
 
-With OPA running with this policy, compile the query `data.filters.include` into SQL filters:
+With OPA running with this policy, the following request compiles the query `data.filters.include` into SQL filters:
 
 ```rego
 package filters

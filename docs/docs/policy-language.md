@@ -2025,7 +2025,7 @@ allow if {
 
 <RunSnippet command="data.example.allow"/>
 
-Running this with the following input:
+If this is run with the following input:
 
 ```json
 {
@@ -3383,7 +3383,7 @@ In general, consider the existing Rego type:
 object{a: object{b: object{c: C, d: D, e: E}}}
 ```
 
-Overriding this type with the following type (derived from a schema annotation of the form `a.b.e: schema-for-E1`):
+If this type is overridden with the following type (derived from a schema annotation of the form `a.b.e: schema-for-E1`):
 
 ```
 object{a: object{b: object{e: E1}}}
@@ -3397,7 +3397,7 @@ object{a: object{b: object{c: C, d: D, e: E1}}}
 
 Notice that `b` still has its fields `c` and `d`, so overriding has a merging effect as well. Moreover, the type of expression `a.b.e` is now `E1` instead of `E`.
 
-Overriding can also add new paths to an existing type. Overriding the initial type with the following:
+Overriding can also add new paths to an existing type. If the initial type is overridden with the following:
 
 ```
 object{a: object{b: object{f: F}}}

@@ -181,7 +181,7 @@ in the `.trivyignore` file.
 ## AI Guidelines
 
 Contributing to OPA is encouraged! In order for the OPA
-maintainers to help effectively, there are some guidelines to follow:
+maintainers to help effectively, please follow these guidelines:
 
 1. Follow the
    [Linux Foundation Guidelines](https://www.linuxfoundation.org/legal/generative-ai)
@@ -207,7 +207,7 @@ maintainers to help effectively, there are some guidelines to follow:
      feedback is considered disrespectful and will have your PR rejected.
 
 3. Don't be afraid to get it wrong! The team is friendly and will answer questions
-   you might have about contributing to the project. Options include:
+   you might have about contributing to the project. You can always:
 
    - Ask for clarification of a review comment if you don't understand it.
    - Ask for input on a technical implementation, ideally before investing your

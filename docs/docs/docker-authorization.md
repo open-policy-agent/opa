@@ -64,8 +64,7 @@ allow := true
 ```
 
 This policy defines a single rule named `allow` that always produces the
-decision `true`. Once all the components are running, return to
-the policy.
+decision `true`. The tutorial returns to this policy once all the components are running.
 
 ### 2. Create policy bundle and OPA configuration
 

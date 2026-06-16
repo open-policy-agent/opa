@@ -555,7 +555,7 @@ Note that the CA cert is passed to curl -- this is done to have curl accept
 the server's certificate, which has been signed by the CA cert.
 
 Since an IP SAN is configured, `curl https://127.0.0.1:8181/v1/data`
-also works directly.
+also works directly. The remaining examples use this shorter form to stay focused.
 
 Using a valid certificate whose subject will be declined by the authorization
 policy:

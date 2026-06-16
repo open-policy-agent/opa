@@ -88,7 +88,7 @@ valid_semantic_version_tag if {
 }
 ```
 
-To check compatibility with different versions of OPA:
+The policy's compatibility with different versions of OPA can be checked as follows:
 
 ```bash
 # OK!

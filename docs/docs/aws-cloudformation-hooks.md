@@ -249,7 +249,7 @@ Resources:
     Type: AWS::S3::Bucket
 ```
 
-Since the S3 bucket doesn't have an `AccessControl` attribute, it is denied by the hook.
+Since the S3 bucket doesn't have an `AccessControl` attribute, it should be denied by the hook.
 Deploy a template by creating a **stack**:
 
 ```shell
@@ -426,8 +426,8 @@ for this in all rules. Instead, the router appends `.delete` to the package name
 operations, so that a request to delete e.g. an S3 bucket would invoke the `data.aws.s3.bucket.delete` package (if it
 exists).
 
-Additionally, some simple input validation is done at this stage, to avoid repeating it in each resource
-specific policies.
+Additionally, some simple input validation is done at this stage, to avoid repeating it in each
+resource-specific policy.
 
 Modify the original policy to verify S3 bucket resources only:
 

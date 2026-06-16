@@ -163,7 +163,7 @@ output := input.foobar
 
 The most simple policy decisions are made by writing expressions that perform
 logical operations on the input data. For example, to check if a server has
-a specific ID using an equality check with `==`.
+a specific ID, use an equality check with `==`.
 
 ```rego
 package servers
