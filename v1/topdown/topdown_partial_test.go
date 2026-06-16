@@ -4316,6 +4316,64 @@ q if { input.x = 7 }`},
 				}`},
 			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and true`},
 		},
+
+		{
+			note:                 "copy propagation: and safety needs extra expr",
+			experimentalKeywords: true,
+			query:                `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p if {
+				  x = data.y[c]
+				  x.z = 1 and x.z != 2
+				}
+				`,
+			},
+			unknowns: []string{`data.y`},
+			wantQueries: []string{
+				`x1 = data.y[c1]; x1.z = 1 and {__local0__1 = x1.z; neq(__local0__1, 2)}`,
+			},
+		},
+		{
+			note:                 "copy propagation: or safety needs extra expr",
+			experimentalKeywords: true,
+			query:                `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p if {
+				  x = data.y[c]
+				  x.z = 1 or x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`data.y`},
+			// Copy-prop inlines x1 into both operand bodies — unlike the `and`
+			// case above, both operands are plain `=` so there's no rewrite
+			// barrier — but still re-adds the binding at body level.
+			wantQueries: []string{
+				`data.y[c1].z = 1 or data.y[c1].z = 2; x1 = data.y[c1]`,
+			},
+		},
+		{
+			note:                 "copy propagation: and safety needs extra expr - no live var overlap",
+			experimentalKeywords: true,
+			query:                `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p if {
+				  x = input.y[c]
+				  x.z = 1 and x.z != 2
+				}
+				`,
+			},
+			unknowns: []string{`input.y`},
+			wantQueries: []string{
+				`x1 = input.y[c1]; x1.z = 1 and {__local0__1 = x1.z; neq(__local0__1, 2)}`,
+			},
+		},
 	}
 
 	ctx := t.Context()
