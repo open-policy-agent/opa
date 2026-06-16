@@ -4317,6 +4317,112 @@ q if { input.x = 7 }`},
 			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and true`},
 		},
 
+		// nested chains, data-ref unknowns, multi-expr explicit bodies
+		{
+			note:                 "and: nested left-leaning, all unknown",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.a > 0 and input.b > 0 and input.c > 0
+				}`},
+			wantQueries: []string{`{
+					__local0__1 = input.a
+					gt(__local0__1, 0)
+				} and {
+					__local1__1 = input.b
+					gt(__local1__1, 0)
+				} and {
+					__local2__1 = input.c
+					gt(__local2__1, 0)
+				}`},
+		},
+		{
+			note:                 "or: nested left-leaning, all unknown",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.a > 0 or input.b > 0 or input.c > 0
+				}`},
+			wantQueries: []string{`{
+					__local0__1 = input.a
+					gt(__local0__1, 0)
+				} or {
+					__local1__1 = input.b
+					gt(__local1__1, 0)
+				} or {
+					__local2__1 = input.c
+					gt(__local2__1, 0)
+				}`},
+		},
+		{
+			note:                 "and: mixed data and input unknowns",
+			experimentalKeywords: true,
+			unknowns:             []string{"input", "data.foo"},
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					data.foo.x > 0 and input.y > 0
+				}`},
+			wantQueries: []string{`{
+					__local0__1 = data.foo.x
+					gt(__local0__1, 0)
+				} and {
+					__local1__1 = input.y
+					gt(__local1__1, 0)
+				}`},
+		},
+		{
+			note:                 "and: explicit body multi-expr, unknowns inside",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ input.x > 0; input.x < 10 } and true
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0); __local1__1 = input.x; lt(__local1__1, 10)} and true`},
+		},
+
+		// and/or nested inside other outer constructs
+		{
+			note:                 "every: body contains and with unknowns",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every x in [1, 2, 3] { x > 0 and x > input }
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
+					gt(__local1__, 0) and { __local3__ = input; gt(__local1__, __local3__) }
+				}`},
+		},
+		{
+			note:                 "array comprehension: body contains or with unknowns",
+			experimentalKeywords: true,
+			query:                "data.test.p = x",
+			modules: []string{`package test
+				p := [n | n = input.xs[i]; n > 0 or n < 0]`},
+			wantQueries: []string{`x = [n1 | n1 = input.xs[i1]; gt(n1, 0) or lt(n1, 0)]`},
+		},
+		{
+			note:                 "set comprehension: body contains or with unknowns",
+			experimentalKeywords: true,
+			query:                "data.test.p = x",
+			modules: []string{`package test
+				p := {n | n = input.xs[i]; n > 0 or n < 0}`},
+			wantQueries: []string{`x = {n1 | n1 = input.xs[i1]; gt(n1, 0) or lt(n1, 0)}`},
+		},
+		{
+			note:                 "object comprehension: body contains and with unknowns",
+			experimentalKeywords: true,
+			query:                "data.test.p = x",
+			modules: []string{`package test
+				p := {k: v | v := input[k]; v > 0 and v < 10}`},
+			wantQueries: []string{`x = {k1: __local0__1 | __local0__1 = input[k1]; gt(__local0__1, 0) and lt(__local0__1, 10)}`},
+		},
+
+		// copy-propagation
 		{
 			note:                 "copy propagation: and safety needs extra expr",
 			experimentalKeywords: true,
