@@ -51,7 +51,7 @@ any of these stages will stop the evaluation process and have the error(s) repor
 
 The first stage is **parsing**. In this step, OPA takes the raw Rego policy and parses it into an abstract syntax tree
 (AST), which is then handed to the compiler. Errors at this stage are normally syntax errors, meaning the Rego provided
-in a policy simply isn't valid. An example of this might be forgetting to terminate a string with a closing quote:
+in a policy isn't valid. An example of this might be forgetting to terminate a string with a closing quote:
 
 ```rego
 package policy
@@ -125,8 +125,7 @@ policy.rego:3: eval_conflict_error: complete rules must not produce multiple out
 ```
 
 Important to know is that not all "errors" at this stage will be reported as errors! Some things that would be
-considered an error during compilation, like passing the wrong type of value in a function argument, would simply
-result in evaluation being undefined during evaluation time.
+considered an error during compilation, like passing the wrong type of value in a function argument, would result in undefined.
 
 ```rego
 startswith("100", 1)
@@ -141,7 +140,7 @@ startswith("100", input.x)
 
 The compiler can't know the value of `input.x`. At evaluation time, the value is known, but a
 malformed value does not stop policy evaluation entirely. By default, evaluation
-will simply consider that case to be _undefined_, and move on with evaluating the rest of the policy.
+will consider that case to be _undefined_, and move on with evaluating the rest of the policy.
 
 **Tip:** If you're using `opa eval` to evaluate policies, you can pass the `--strict-builtin-errors` flag to have
 an error from a built-in function halt evaluation and have the error reported. Additionally, the

@@ -72,7 +72,7 @@ the policy.
 For the purpose of this example, [NGINX](https://www.openpolicyagent.org/docs/management-bundles#nginx) is used
 to serve bundles from the same machine Docker is running on.
 
-With nginx running, simply build the policy bundle placed into the nginx web root directory.
+With nginx running, build the policy bundle placed into the nginx web root directory.
 
 ```shell
 opa build --bundle --output /var/www/html/bundle.tar.gz .

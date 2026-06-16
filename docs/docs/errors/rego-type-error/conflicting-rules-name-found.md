@@ -93,7 +93,7 @@ reasons contains reason if {
 }
 ```
 
-For the case of functions, simply ensure that the same arity is used for all declarations of the function. Use the
+For the case of functions, ensure that the same arity is used for all declarations of the function. Use the
 wildcard operator (`_`) for arguments that are unused in any given declaration:
 
 ```rego

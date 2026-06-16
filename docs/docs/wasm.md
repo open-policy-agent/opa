@@ -334,7 +334,7 @@ to `eval` or `opa_eval`. But that memory was never truly available for
 queries in the first place. The very first call to `opa_heap_ptr_set`
 (either before `eval` or which `opa_eval` calls internally) resets the heap
 and leaks any free blocks on the heap. In versions of the ABI prior to
-1.3 this memory was simply lost. Note, however, that multiple queries
+1.3 this memory was lost. Note, however, that multiple queries
 would not continue to leak memory since they would always reset the heap
 pointer to the same value. The Wasm engine would only leak further
 memory if there were subsequent calls to `opa_value_add_path` or

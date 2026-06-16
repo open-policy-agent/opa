@@ -66,6 +66,6 @@ search for the other definitions.
 
 ## How To Fix It
 
-Fixing this error is usually simple: just remove one of the repeated `default` definitions if they are setting the same
+Fixing this error is usually straightforward: remove one of the repeated `default` definitions if they are setting the same
 default value. If the intention is to set different default values, this is trickier, but perhaps you'd be better served
 by two different rules.

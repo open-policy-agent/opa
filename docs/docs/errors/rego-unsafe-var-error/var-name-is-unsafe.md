@@ -5,7 +5,7 @@ image: /img/opa-errors.png
 
 # `rego_unsafe_var_error`: var `{name}` is unsafe
 
-This is one of the most common errors reported by OPA. When a variable is "unsafe" it simply means that OPA wasn't able
+This is one of the most common errors reported by OPA. When a variable is "unsafe" it means that OPA wasn't able
 to determine where to find it. This is commonly caused by misspelling the name of the variable, or perhaps by
 referencing a rule or function that doesn't (yet) exist. Note that this check happens at _compile time_. This means that
 references like `input.username` will not be considered unsafe even when there is no `username` attribute in the `input`
@@ -38,7 +38,7 @@ Not that easy! The compiler handles this automatically:
 1 error occurred: policy.rego:8: rego_unsafe_var_error: var user_is_admin is unsafe
 ```
 
-Of course! The `user_is_admin` rule was not defined before use, and hence why it's
+The `user_is_admin` rule was not defined before use, which is why it's
 considered unsafe.
 
 Sometimes, the location of the errors isn't as clear-cut, even when reading the errors.
@@ -87,7 +87,7 @@ there too.
 
 If the variable name and definition are correct, the issue is likely that the
 definition of the rule has not been loaded into OPA. One thing to keep in mind
-is that all OPA commands that accept a file may just as well be provided a
+is that all OPA commands that accept a file can also be provided a
 directory, which will be loaded recursively. This ensures all the files you may depend on are loaded and available during
 compilation.
 

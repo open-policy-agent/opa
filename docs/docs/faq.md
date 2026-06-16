@@ -167,7 +167,7 @@ result := trim_and_split("  hello.world  ")
 
 <RunSnippet command="data.functions.result"/>
 
-The other way to factor out common logic is with a _rule_. Rules differ in that (i) they support automatic iteration and (ii) they are only defined for finitely many inputs. (Those obviously go hand-in-hand.) For example, you could define a rule that maps an application to the hostnames that app is running on:
+The other way to factor out common logic is with a _rule_. Rules differ in that (i) they support automatic iteration and (ii) they are only defined for finitely many inputs. (Those go hand-in-hand.) For example, you could define a rule that maps an application to the hostnames that app is running on:
 
 ```rego
 package rules
@@ -259,7 +259,7 @@ result.where contains k if {
 
 <RunSnippet files="#data.rego" command="data.example.result"/>
 
-Obviously with the `trim_and_split` function it is not possible to ask for all the inputs/outputs since there are infinitely many. It is not possible to provide 1 input and ask for all the other inputs that make the function return true, again, because there could be infinitely many. The only option with a function is to provide all the inputs and ask for the output.
+With the `trim_and_split` function it is not possible to ask for all the inputs/outputs since there are infinitely many. It is not possible to provide 1 input and ask for all the other inputs that make the function return true, again, because there could be infinitely many. The only option with a function is to provide all the inputs and ask for the output.
 
 Functions allow you to factor out common logic that has infinitely-many input/output pairs; rules allow you to factor out common logic with finitely many input/outputs and allow you to iterate over them in the same way as native JSON objects.
 
@@ -400,7 +400,7 @@ deny if { ... }
 deny if { ... }
 ```
 
-If you assume all of the rules you write are correct, then you know that every rejection the policy produces should truly be rejected. However, there could be requests that are allowed that you may not truly want allowed, but you simply neglected to write the rule for. For operations, this is often a useful style of policy authoring because it allows you to incrementally tighten the controls for a system from wherever that system starts. For security, this style is less appropriate because it allows unknown bad actions to occur.
+If you assume all of the rules you write are correct, then you know that every rejection the policy produces should truly be rejected. However, there could be requests that are allowed that you may not truly want allowed, but you have not yet written the rule for. For operations, this is often a useful style of policy authoring because it allows you to incrementally tighten the controls for a system from wherever that system starts. For security, this style is less appropriate because it allows unknown bad actions to occur.
 
 **Default deny**. This style of policy rejects every request by default. The rules you write dictate which requests should be allowed.
 

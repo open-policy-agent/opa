@@ -138,7 +138,7 @@ All `go` commands from the [Makefile](https://github.com/open-policy-agent/opa/b
 module mode by setting `GO111MODULE=on`.
 
 To update a dependency ensure that `GO111MODULE` is either on, or the repository
-qualifies for `auto` to enable module mode. Then simply use `go get ..` to get
+qualifies for `auto` to enable module mode. Then use `go get ..` to get
 the version desired. This should update the [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) and (potentially)
 [go.sum](https://github.com/open-policy-agent/opa/blob/main/go.sum) files.
 

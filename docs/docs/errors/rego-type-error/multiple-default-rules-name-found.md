@@ -70,5 +70,5 @@ $ opa run -s *.rego
 In almost all cases, if you have an error like this: `multiple default rules data.policy.allow found`,
 searching for `default allow` in your Rego files will show up the various duplicates.
 
-Just remember that they could be spread across multiple files, and you want to make sure to check only
+Remember that they could be spread across multiple files, and you want to make sure to check only
 within the package in the error message, `policy` in the example above.

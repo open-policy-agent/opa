@@ -255,7 +255,7 @@ test_image_safety if {                                    # line 3
 
 **Different Package**. On line 1 the `package` directive puts these tests in a different package than admission control policy itself. This is the recommended best practice.
 
-**Import**. On line 2 `import data.kubernetes.admission` allows us to reference the admission control policy using the name `admission` everywhere in the test package. `import` is not strictly necessary--it simply sets up an alias; you could instead reference `data.kubernetes.admission` inside the rules.
+**Import**. On line 2 `import data.kubernetes.admission` allows us to reference the admission control policy using the name `admission` everywhere in the test package. `import` is not strictly necessary--it sets up an alias; you could instead reference `data.kubernetes.admission` inside the rules.
 
 **Unit Test**. On line 3 `test_image_safety` defines a unittest. If the rule evaluates to true the test passes; otherwise it fails. When you use the OPA test runner, anything in any package starting with `test` is treated as a test.
 
@@ -507,7 +507,7 @@ policies that have been loaded into OPA.
 
 As the administrator responsible for deploying OPA, you have full control over
 the `system.main` decision (i.e., it is just another Rego policy.) A basic
-implementation of the `system.main` policy simply evaluates all deny rules that
+implementation of the `system.main` policy evaluates all deny rules that
 have been loaded into OPA and unions the results:
 
 ```rego

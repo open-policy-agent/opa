@@ -59,8 +59,8 @@ the variable `msg` is assigned instead.
 
 Based on the examples above, there are two main ways to fix this error:
 
-- Remove the assignments of unused variables. In the first example, simply remove the line `user := input.user`.
-  The other option is of course to use the variable that was assigned. Often orphaned variables like this are the result
+- Remove the assignments of unused variables. In the first example, remove the line `user := input.user`.
+  The other option is to use the variable that was assigned. Often orphaned variables like this are the result
   a refactoring and can be safely removed if they aren't making the rule more readable.
 - Check for typos and mis-named variables. As well as normal typos, it's also easy to make mistakes and swap variables
   for alternative names. For example, sometimes `msg` instead of `message` or `user` instead of `username`.

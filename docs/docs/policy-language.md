@@ -2049,7 +2049,7 @@ allow if {
 
 <RunSnippet files="#input.bob.json" command="data.example.allow"/>
 
-Without the default definition, the `allow` document would simply be undefined for the same input.
+Without the default definition, the `allow` document would be undefined for the same input.
 
 When the `default` keyword is used, the rule syntax is restricted to:
 
@@ -3284,7 +3284,7 @@ allow if {
 }
 ```
 
-This is obviously redundant and error-prone. To avoid this problem,
+This is redundant and error-prone. To avoid this problem,
 define the annotation once on a rule with scope `document`:
 
 ```rego

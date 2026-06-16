@@ -5,7 +5,7 @@ image: /img/opa-errors.png
 
 # `rego_type_error`: match error
 
-Just like the category suggests, this error is emitted by the _type checker_ during the compilation stage. This error
+As the category suggests, this error is emitted by the _type checker_ during the compilation stage. This error
 is commonly triggered by comparing two values of different types, like a string and an integer (`"1" == 1`). In order
 for the error to be reported, the compiler must be able to determine the types involved in the expression.
 
@@ -69,7 +69,7 @@ compile time, it's likely the right behavior.
 
 ## How To Fix It
 
-Fixing this is simple: just change the types to match on both sides of a comparison. For the few cases where one
+Fixing this requires changing the types to match on both sides of a comparison. For the few cases where one
 _really_ wants to compare two values of different types, a helper function can be used to "wash" off the type
 information from the comparison:
 

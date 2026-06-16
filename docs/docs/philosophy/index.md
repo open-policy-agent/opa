@@ -15,8 +15,7 @@ they are. Authorization and more generally policy often utilize the results of
 authentication (the username, user attributes, groups, claims), but makes
 decisions based on far more information than just who the user is. Generalizing
 away from authorization back to policy makes the distinction even clearer
-because some policy decisions have nothing to do with users, e.g. policy simply
-describes invariants that must hold in a software system (e.g. all binaries must
+because some policy decisions have nothing to do with users, e.g. policy describes invariants that must hold in a software system (e.g. all binaries must
 come from a trusted source).
 
 Today policy is often a hard-coded feature of the software service it actually
