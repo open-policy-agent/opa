@@ -4441,6 +4441,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		wantSupportASTs          []*ast.Module
 		ignoreOrder              bool
 		notBodyOnly              bool
+		experimentalKeywords     bool // opt in to experimental and/or keywords
 	}{
 		{
 			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
@@ -6061,6 +6062,62 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				),
 			},
 		},
+
+		// inner and/or, with unknowns
+		// TODO: PE optimization in #8680
+
+		{
+			note:                 "not (and): unknown inside",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					not { input.x > 0 and true }
+				}`},
+			wantQueries: []string{`not {
+					{ __local0__1 = input.x; gt(__local0__1, 0) } and true
+				}`},
+		},
+		{
+			note:                 "not (or): unknowns in both operands",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					not { input.x > 0 or input.y > 0 }
+				}`},
+			wantQueries: []string{`not {
+					{ __local0__1 = input.x; gt(__local0__1, 0) } or { __local1__1 = input.y; gt(__local1__1, 0) }
+				}`},
+		},
+		{
+			note:                 "not (and): unknown lhs, rhs static false ",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					not { input.x > 0 and false }
+				}`},
+			wantQueries: []string{`not {
+					{__local0__1 = input.x; gt(__local0__1, 0)} and false
+				}`},
+		},
+		{
+			note:                 "not (or): unknown rhs, lhs static true",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					not {true or input.y > 0}
+				}`},
+			wantQueries: []string{`not {
+					true or {__local0__1 = input.y; gt(__local0__1, 0)}
+				}`},
+		},
 	}
 
 	ctx := t.Context()
@@ -6081,6 +6138,12 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 					continue
 				}
 
+				casePopts := popts
+				if tc.experimentalKeywords {
+					casePopts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+					casePopts.FutureKeywords = append(append([]string{}, popts.FutureKeywords...), "and", "or")
+				}
+
 				params := fixtureParams{
 					note:          tc.note,
 					query:         tc.query,
@@ -6088,7 +6151,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 					moduleASTs:    tc.moduleASTs,
 					data:          tc.data,
 					input:         tc.input,
-					parserOptions: popts,
+					parserOptions: casePopts,
 				}
 
 				prepareTest(ctx, t, params, func(ctx context.Context, t *testing.T, f fixture) {
@@ -6145,7 +6208,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 					}
 
 					for i := range tc.wantQueries {
-						expectedQueries = append(expectedQueries, ast.MustParseBodyWithOpts(tc.wantQueries[i], popts))
+						expectedQueries = append(expectedQueries, ast.MustParseBodyWithOpts(tc.wantQueries[i], casePopts))
 					}
 
 					queriesA, queriesB := bodySet(partials), bodySet(expectedQueries)
@@ -6163,7 +6226,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 						expectedSupport = tc.wantSupportASTs
 					} else {
 						for i := range tc.wantSupport {
-							expectedSupport = append(expectedSupport, ast.MustParseModuleWithOpts(tc.wantSupport[i], popts))
+							expectedSupport = append(expectedSupport, ast.MustParseModuleWithOpts(tc.wantSupport[i], casePopts))
 						}
 					}
 					supportA, supportB := moduleSet(support), moduleSet(expectedSupport)
