@@ -6302,6 +6302,182 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 	}
 }
 
+// TestTopDownPartialEvalLogicalRoundTrip verifies semantic equivalence between
+// the original and/or modules and their residuals. For each case it runs PE
+// with input unknown to produce residual bodies, wraps them in a fresh module,
+// then evaluates both modules against concrete inputs and asserts the results
+// agree. Catches semantic regressions in evalLogicalAnd/Or.evalPartial that
+// the literal-text wantQueries assertions might miss (e.g., the residual
+// stringifies but evaluates to a different value).
+func TestTopDownPartialEvalLogicalRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	popts := ast.ParserOptions{
+		Capabilities:   ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
+		FutureKeywords: []string{"and", "or"},
+	}
+
+	cases := []struct {
+		note   string
+		module string
+		inputs []string
+	}{
+		{
+			note: "and: both unknowns",
+			module: `package test
+				p if {
+					input.x > 0 and input.y > 0
+				}`,
+			inputs: []string{
+				`{"x": 1, "y": 2}`,   // both true -> defined
+				`{"x": -1, "y": 2}`,  // lhs false -> undefined
+				`{"x": 1, "y": -2}`,  // rhs false -> undefined
+				`{"x": -1, "y": -2}`, // both false -> undefined
+			},
+		},
+		{
+			note: "or: both unknowns",
+			module: `package test
+				p if {
+					input.x > 0 or input.y > 0
+				}`,
+			inputs: []string{
+				`{"x": 1, "y": 2}`,   // both true -> defined (single result)
+				`{"x": -1, "y": 2}`,  // lhs false -> defined via rhs
+				`{"x": 1, "y": -2}`,  // rhs false -> defined via lhs
+				`{"x": -1, "y": -2}`, // both false -> undefined
+			},
+		},
+		{
+			note: "and: explicit body operands",
+			module: `package test
+				p if {
+					{ a := input.x; a > 0} and {b := input.y; b > 0 }
+				}`,
+			inputs: []string{
+				`{"x": 1, "y": 2}`,
+				`{"x": -1, "y": 2}`,
+				`{"x": 1, "y": -2}`,
+				`{"x": -1, "y": -2}`,
+			},
+		},
+		{
+			note: "or: explicit body operands",
+			module: `package test
+				p if {
+					{ a := input.x; a > 0 } or { b := input.y; b > 0 }
+				}`,
+			inputs: []string{
+				`{"x": 1, "y": 2}`,
+				`{"x": -1, "y": 2}`,
+				`{"x": 1, "y": -2}`,
+				`{"x": -1, "y": -2}`,
+			},
+		},
+	}
+
+	ctx := t.Context()
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			residualModule := residualModuleFor(t, ctx, tc.module, popts)
+
+			for _, inp := range tc.inputs {
+				t.Run("input="+inp, func(t *testing.T) {
+					orig := pIsDefined(t, ctx, tc.module, "test", inp, popts)
+					residual := pIsDefined(t, ctx, residualModule, "test_residual", inp, popts)
+					if orig != residual {
+						t.Errorf("round-trip mismatch for input %s: orig=%v residual=%v\nresidual module:\n%s",
+							inp, orig, residual, residualModule)
+					}
+				})
+			}
+		})
+	}
+}
+
+func residualModuleFor(t *testing.T, ctx context.Context, module string, popts ast.ParserOptions) string {
+	t.Helper()
+
+	compiler, err := ast.CompileModulesWithOpt(
+		map[string]string{"test.rego": module},
+		ast.CompileOpts{ParserOptions: popts})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	queryBody, err := compiler.QueryCompiler().Compile(
+		ast.MustParseBodyWithOpts("data.test.p = true", popts))
+	if err != nil {
+		t.Fatalf("compile query: %v", err)
+	}
+
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	partials, _, err := NewQuery(queryBody).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
+		PartialRun(ctx)
+	if err != nil {
+		t.Fatalf("PartialRun: %v", err)
+	}
+
+	var sb strings.Builder
+	sb.WriteString("package test_residual\n\n")
+	for _, body := range partials {
+		sb.WriteString("p if {\n")
+		for _, expr := range body {
+			sb.WriteString("\t" + expr.String() + "\n")
+		}
+		sb.WriteString("}\n")
+	}
+	return sb.String()
+}
+
+func pIsDefined(t *testing.T, ctx context.Context, module, pkg, inputJSON string, popts ast.ParserOptions) bool {
+	t.Helper()
+
+	// An empty residual module (no `p` rule) means PE proved p is unconditionally
+	// undefined; short-circuit to false without going through the compiler
+	if pkg == "test_residual" && !strings.Contains(module, "p if") {
+		return false
+	}
+
+	compiler, err := ast.CompileModulesWithOpt(
+		map[string]string{pkg + ".rego": module},
+		ast.CompileOpts{ParserOptions: popts})
+	if err != nil {
+		t.Fatalf("compile %s: %v\nmodule:\n%s", pkg, err, module)
+	}
+
+	queryBody, err := compiler.QueryCompiler().Compile(
+		ast.MustParseBodyWithOpts("data."+pkg+".p", popts))
+	if err != nil {
+		t.Fatalf("compile query: %v", err)
+	}
+
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	rs, err := NewQuery(queryBody).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(ast.MustParseTerm(inputJSON)).
+		Run(ctx)
+	if err != nil {
+		t.Fatalf("query Run: %v", err)
+	}
+	return len(rs) > 0
+}
+
 func replaceWildcardsInBodySet(s bodySet) {
 	for i := range s {
 		x, _ := ast.TransformVars(s[i], func(v ast.Var) (ast.Value, error) {
