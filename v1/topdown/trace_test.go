@@ -1510,6 +1510,68 @@ Redo data.test = _                                   {_: {"p": true}}
 	}
 }
 
+func TestPrettyTraceLogical(t *testing.T) {
+	t.Parallel()
+
+	module := `package test
+
+	p if {
+		{true; 2 > 1} and true
+		false or false
+	}`
+
+	ctx := t.Context()
+	compiler, err := ast.CompileModulesWithOpt(
+		map[string]string{"test.rego": module},
+		ast.CompileOpts{ParserOptions: logicalParserOptions()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tracer := NewBufferTracer()
+	query := NewQuery(ast.MustParseBody("data.test.p = _")).
+		WithCompiler(compiler).
+		WithStore(inmem.New()).
+		WithQueryTracer(tracer)
+
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := `Enter data.test.p = _
+| Eval data.test.p = _
+| Index data.test.p (matched 1 rule, early exit)
+| Enter data.test.p
+| | Eval { true; gt(2, 1) } and true
+| | Enter true; gt(2, 1)
+| | | Eval true
+| | | Eval gt(2, 1)
+| | | Exit true; gt(2, 1) early
+| | Redo true; gt(2, 1)
+| | | Redo gt(2, 1)
+| | | Redo true
+| | Enter true
+| | | Eval true
+| | | Exit true early
+| | Redo true
+| | | Redo true
+| | Eval false or false
+| | Enter false
+| | | Eval false
+| | | Fail false
+| | Enter false
+| | | Eval false
+| | | Fail false
+| | Fail false or false
+| | Redo { true; gt(2, 1) } and true
+| Fail data.test.p = _
+`
+
+	var buf bytes.Buffer
+	PrettyTrace(&buf, removeUnifyOps(*tracer))
+	compareBuffers(t, expected, buf.String())
+}
+
 func TestTraceLogicalAnd(t *testing.T) {
 	t.Parallel()
 
