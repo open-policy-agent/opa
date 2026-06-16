@@ -4394,7 +4394,7 @@ q if { input.x = 7 }`},
 					every x in [1, 2, 3] { x > 0 and x > input }
 				}`},
 			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
-					gt(__local1__, 0) and { __local3__ = input; gt(__local1__, __local3__) }
+					gt(__local1__1, 0) and { __local3__1 = input; gt(__local1__1, __local3__1) }
 				}`},
 		},
 		{
@@ -6501,12 +6501,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 }
 
 // TestTopDownPartialEvalLogicalRoundTrip verifies semantic equivalence between
-// the original and/or modules and their residuals. For each case it runs PE
-// with input unknown to produce residual bodies, wraps them in a fresh module,
-// then evaluates both modules against concrete inputs and asserts the results
-// agree. Catches semantic regressions in evalLogicalAnd/Or.evalPartial that
-// the literal-text wantQueries assertions might miss (e.g., the residual
-// stringifies but evaluates to a different value).
+// the original and/or modules and their residuals.
 func TestTopDownPartialEvalLogicalRoundTrip(t *testing.T) {
 	t.Parallel()
 

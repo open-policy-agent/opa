@@ -4274,6 +4274,12 @@ func (e *evalEvery) plugBody(body ast.Body) {
 			body[i] = e.plug(body[i])
 		case *ast.Not:
 			e.plugBody(t.Body)
+		case *ast.LogicalAnd:
+			e.plugBody(t.Lhs)
+			e.plugBody(t.Rhs)
+		case *ast.LogicalOr:
+			e.plugBody(t.Lhs)
+			e.plugBody(t.Rhs)
 		}
 	}
 }
