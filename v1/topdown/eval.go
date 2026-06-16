@@ -4677,15 +4677,27 @@ func containsNestedRefOrCall(vis *nestedCheckVisitor, expr *ast.Expr) bool {
 	}
 
 	if n, ok := expr.Terms.(*ast.Not); ok {
-		for _, nExpr := range n.Body {
-			if containsNestedRefOrCall(vis, nExpr) {
-				return true
-			}
-		}
-		return false
+		return containsNestedRefOrCallInBody(vis, n.Body)
+	}
+
+	if a, ok := expr.Terms.(*ast.LogicalAnd); ok {
+		return containsNestedRefOrCallInBody(vis, a.Lhs) || containsNestedRefOrCallInBody(vis, a.Rhs)
+	}
+
+	if o, ok := expr.Terms.(*ast.LogicalOr); ok {
+		return containsNestedRefOrCallInBody(vis, o.Lhs) || containsNestedRefOrCallInBody(vis, o.Rhs)
 	}
 
 	return containsNestedRefOrCallInTerm(vis, expr.Terms.(*ast.Term))
+}
+
+func containsNestedRefOrCallInBody(vis *nestedCheckVisitor, body ast.Body) bool {
+	for _, expr := range body {
+		if containsNestedRefOrCall(vis, expr) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsNestedRefOrCallInTerm(vis *nestedCheckVisitor, term *ast.Term) bool {

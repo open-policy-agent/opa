@@ -41,6 +41,7 @@ func TestTopDownPartialEval(t *testing.T) {
 		wantSupport              []string
 		wantSupportASTs          []*ast.Module
 		ignoreOrder              bool
+		experimentalKeywords     bool // opt in to experimental and/or keywords
 	}{
 		{
 			note:        "empty",
@@ -4157,12 +4158,174 @@ default q := false
 q if { input.x = 7 }`},
 			wantQueries: []string{"input.x = 7"},
 		},
+
+		// and/or baseline (no unknowns: truth-table)
+
+		{
+			note:                 "and: no unknowns, both true",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					true and true
+				}`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:                 "and: no unknowns, lhs false",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					false and true
+				}`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:                 "and: no unknowns, rhs false",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					true and false
+				}`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:                 "or: no unknowns, lhs true",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					true or false
+				}`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:                 "or: no unknowns, rhs true",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					false or true
+				}`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:                 "or: no unknowns, both true (single result)",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					true or true
+				}`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:                 "or: no unknowns, both false",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					false or false
+				}`},
+			wantQueries: []string{}, // unconditionally false
+		},
+
+		// and/or baseline (simple unknowns: save the whole expression)
+		// TODO: PE optimization in #8680
+
+		{
+			note:                 "and: unknown lhs only",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 and true
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and true`},
+		},
+		{
+			note:                 "and: unknown rhs only",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					true and input.y > 0
+				}`},
+			wantQueries: []string{`true and {__local0__1 = input.y; gt(__local0__1, 0)}`},
+		},
+		{
+			note:                 "and: unknowns in both",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 and input.y > 0
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and {__local1__1 = input.y; gt(__local1__1, 0)}`},
+		},
+		{
+			note:                 "or: unknown lhs only",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 or false
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or false`},
+		},
+		{
+			note:                 "or: unknown rhs only",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					false or input.y > 0
+				}`},
+			wantQueries: []string{`false or {__local0__1 = input.y; gt(__local0__1, 0)}`},
+		},
+		{
+			note:                 "or: unknowns in both",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 or input.y > 0
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or {__local1__1 = input.y; gt(__local1__1, 0)}`},
+		},
+		// Baseline does NOT simplify even when one operand is statically true
+		{
+			note:                 "or: unknown lhs, rhs known-true (no simplification at this layer)",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 or true
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or true`},
+		},
+		{
+			note:                 "and: unknown lhs, rhs known-true (no simplification at this layer)",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 and true
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and true`},
+		},
 	}
 
 	ctx := t.Context()
 
 	for _, tc := range tests {
 		popts := ast.ParserOptions{}
+		if tc.experimentalKeywords {
+			popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+			popts.FutureKeywords = []string{"and", "or"}
+		}
 
 		params := fixtureParams{
 			note:          tc.note,
