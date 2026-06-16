@@ -241,7 +241,7 @@ EOF
 opa build -b .
 ```
 
-We will now serve the OPA bundle using NGINX.
+We will now serve the OPA bundle using Nginx.
 
 ```bash
 docker run --rm --name bundle-server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest

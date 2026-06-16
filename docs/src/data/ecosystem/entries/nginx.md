@@ -1,5 +1,5 @@
 ---
-title: NGINX
+title: Nginx
 labels:
   category: gateway
   layer: network

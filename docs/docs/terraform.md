@@ -696,7 +696,7 @@ In addition to loading policies from the local filesystem, `opa exec` can fetch 
 opa build policy/
 ```
 
-Next, serve the bundle via NGINX:
+Next, serve the bundle via Nginx:
 
 ```bash
 docker run --rm --name bundle_server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest

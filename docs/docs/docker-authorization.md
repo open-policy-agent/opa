@@ -38,7 +38,7 @@ This tutorial requires:
 - Docker Engine 18.06.0-ce or newer
 - Docker API version 1.38 or newer
 - `root` or `sudo` access
-- NGINX, or any capable [bundle](https://www.openpolicyagent.org/docs/management-bundles) server
+- Nginx, or any capable [bundle](https://www.openpolicyagent.org/docs/management-bundles) server
 
 The tutorial has been tested on the following platforms:
 
@@ -68,10 +68,10 @@ decision `true`. The tutorial returns to this policy once all the components are
 
 ### 2. Create policy bundle and OPA configuration
 
-For the purpose of this example, [NGINX](https://www.openpolicyagent.org/docs/management-bundles#nginx) is used
+For the purpose of this example, [Nginx](https://www.openpolicyagent.org/docs/management-bundles#nginx) is used
 to serve bundles from the same machine Docker is running on.
 
-With nginx running, build the policy bundle placed into the nginx web root directory.
+With Nginx running, build the policy bundle placed into the Nginx web root directory.
 
 ```shell
 opa build --bundle --output /var/www/html/bundle.tar.gz .
@@ -148,7 +148,7 @@ package docker.authz
 allow := false
 ```
 
-Rebuild the bundle and save it in the NGINX document root directory.
+Rebuild the bundle and save it in the Nginx document root directory.
 
 ```shell
 opa build --bundle --output /var/www/html/bundle.tar.gz .
@@ -203,7 +203,7 @@ seccomp_unconfined if {
 
 <RunSnippet id="authz.rego" />
 
-Again, rebuild the bundle and save it in the NGINX document root directory.
+Again, rebuild the bundle and save it in the Nginx document root directory.
 
 ```shell
 opa build --bundle --output /var/www/html/bundle.tar.gz .
