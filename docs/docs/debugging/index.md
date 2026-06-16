@@ -27,8 +27,7 @@ Read more about the supported editors of this debugging method in the
 
 ## OPA REPL and Playground
 
-Often it can take a few tries to get a Rego policy correct, the OPA REPL and Playground are great tools for
-reducing the feedback loop when debugging policies.
+Often it can take a few tries to get a Rego policy correct, the OPA REPL and Playground help reduce the feedback loop when debugging policies.
 
 The REPL can be run locally and loaded with the policy and data files you are working on:
 
@@ -38,7 +37,7 @@ opa run [policy-files] [data-files]
 
 The [Rego Playground](http://play.openpolicyagent.org) is a web-based Rego development environment that can be
 used to test policies with different inputs and data. If you are interested in asking for help in the
-[OPA Slack](https://slack.openpolicyagent.org), the playground is a great way to share your policy and data with
+[OPA Slack](https://slack.openpolicyagent.org), the playground can be used to share your policy and data with
 others.
 
 ## Using the `print` Built-in Function
@@ -69,7 +68,7 @@ debugging OPA in these environments.
 
 ### OPA Logs
 
-OPA logs are a great place to start when debugging issues. The logs can be used to understand what OPA is doing
+OPA logs are a useful starting point when debugging issues. The logs can be used to understand what OPA is doing
 at any given time. Common issues such as failing to load in policy or data bundles will be shown here.
 
 You can also enable debug logging to get more detailed information about what OPA is doing with `--log-level debug`.

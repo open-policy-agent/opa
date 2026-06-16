@@ -2,7 +2,7 @@
 title: "HTTP APIs"
 ---
 
-Anything that exposes an HTTP API (whether an individual microservice or an application as a whole) needs to control who can run those APIs and when. OPA makes it easy to write fine-grained, context-aware policies to implement API authorization.
+Anything that exposes an HTTP API (whether an individual microservice or an application as a whole) needs to control who can run those APIs and when. OPA supports writing fine-grained, context-aware policies for API authorization.
 
 ## Goals
 
@@ -11,7 +11,7 @@ request that you issue and echoes the OPA decision back as text. OPA will fetch
 policy bundles from a simple bundle server. Both OPA, the bundle server and the
 web server will be run as containers.
 
-For this tutorial, our desired policy is:
+For this tutorial, the desired policy is:
 
 - People can see their own salaries (`GET /finance/salary/{user}` is permitted for `{user}`)
 - A manager can see their direct reports' salaries (`GET /finance/salary/{user}` is permitted for `{user}`'s manager)
@@ -206,7 +206,7 @@ curl --user bob:password localhost:5000/finance/salary/charlie
 ### 6. Change the policy
 
 Suppose the organization now includes an HR department. The organization wants
-members of HR to be able to see any salary. Let's extend the policy to handle
+members of HR to be able to see any salary. Extend the policy to handle
 this.
 
 ```rego title="example-hr.rego"
@@ -233,7 +233,7 @@ The updated bundle will automatically be served by the bundle server, but note t
 configured `max_delay_seconds` for the new bundle to be downloaded by OPA. If you plan to make frequent policy
 changes you might want to adjust this value in `docker-compose.yaml` accordingly.
 
-For the sake of the tutorial we included `manager_of` and `hr` data directly
+For the sake of the tutorial, `manager_of` and `hr` data are included directly
 inside the policies. In real-world scenarios that information would be imported
 from external data sources.
 
@@ -252,7 +252,7 @@ curl --user david:password localhost:5000/finance/salary/david
 
 OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.decode`.
 To get a sense of one way the subordinate and HR data might be communicated in the
-real world, let's try a similar exercise utilizing the JWT utilities of OPA.
+real world, try a similar exercise utilizing the JWT utilities of OPA.
 
 ```rego title="example-jwt.rego"
 package httpapi.authz
@@ -309,7 +309,7 @@ Build a new bundle for the new policy.
 opa build example-jwt.rego
 ```
 
-For convenience, we'll want to store user tokens in environment variables (they're really long).
+For convenience, store user tokens in environment variables (they are long).
 
 ```shell
 export ALICE_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM"
@@ -319,10 +319,10 @@ export BETTY_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYmV0dHkiLCJ
 export DAVID_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiZGF2aWQiLCJhenAiOiJkYXZpZCIsInN1Ym9yZGluYXRlcyI6W10sImhyIjp0cnVlfQ.Q6EiWzU1wx1g6sdWQ1r4bxT1JgSHUpVXpINMqMaUDMU"
 ```
 
-These tokens encode the same information as the policies we did before (`bob` is `alice`'s manager, `betty` is `charlie`'s, `david` is the only HR member, etc).
+These tokens encode the same information as the earlier policies (`bob` is `alice`'s manager, `betty` is `charlie`'s, `david` is the only HR member, etc).
 If you want to inspect their contents, start up the OPA REPL and execute `io.jwt.decode(<token here>, [header, payload, signature])` or open the example above in the Playground.
 
-Let's try a few queries (note: you may need to escape the `?` characters in the queries for your shell):
+Try a few queries (note: you may need to escape the `?` characters in the queries for your shell):
 
 Check that `charlie` can't see `bob`'s salary.
 
@@ -354,9 +354,7 @@ Check that `alice` can see her own salary.
 curl --user alice:password "localhost:5000/finance/salary/alice?token=$ALICE_TOKEN"
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 You learned a number of things about API authorization with OPA:
 

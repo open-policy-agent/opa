@@ -6227,6 +6227,98 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			},
 		},
 
+		// Nesting inside every-body
+		{
+			note:        "every+negation: implicit body, concrete-bound outer var",
+			notBodyOnly: true,
+			query:       "data.test.p",
+			modules: []string{`package test
+				p if {
+					z = 42
+					every y in input.xs {
+						not f(z, y)
+					}
+				}
+				f(_, _) := true`},
+			wantQueries: []string{
+				`every __local0__1, __local1__1 in input.xs { 
+					not data.test.f(42, __local1__1)
+				}`,
+			},
+		},
+		{
+			note:  "every+negation: implicit body, unknown-bound outer var",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if {
+					x = input.foo
+					every y in [1, 2] {
+						not f(x, y)
+					}
+				}
+				f(_, _) := false`},
+			wantQueries: []string{
+				`every __local0__1, __local1__1 in [1, 2] { 
+					not data.test.f(input.foo, __local1__1) 
+				}
+				x1 = input.foo`,
+			},
+		},
+		{
+			note:        "every+negation: explicit body, concrete-bound outer var",
+			notBodyOnly: true,
+			query:       "data.test.p",
+			modules: []string{`package test
+				p if {
+					z = 42
+					every y in input.xs {
+						not { f(z, y) }
+					}
+				}
+				f(_, _) := true`},
+			wantQueries: []string{
+				`every __local0__1, __local1__1 in input.xs { 
+					not { data.test.f(42, __local1__1) } 
+				}`,
+			},
+		},
+		{
+			note:        "every+negation: explicit body, unknown-bound outer var",
+			notBodyOnly: true,
+			query:       "data.test.p",
+			modules: []string{`package test
+				p if {
+					x = input.foo
+					every y in [1, 2] {
+						not { f(x, y) }
+					}
+				}
+				f(_, _) := false`},
+			wantQueries: []string{
+				`every __local0__1, __local1__1 in [1, 2] { 
+					not { data.test.f(input.foo, __local1__1) } 
+				}
+				x1 = input.foo`,
+			},
+		},
+		{
+			note:  "every+negation: implicit body, comparison expression",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if {
+					v = input.threshold
+					every y in [1, 2] {
+						not v == y
+					}
+				}`},
+			wantQueries: []string{
+				`every __local0__1, __local1__1 in [1, 2] { 
+					not input.threshold = __local1__1
+				}
+				v1 = input.threshold`,
+			},
+		},
+
 		// inner and/or, with unknowns
 		// TODO: PE optimization in #8680
 

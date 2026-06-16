@@ -28,7 +28,7 @@ obj := {k: v |
 }
 ```
 
-In this example, we are attempting to create an object like `{"foo": 1, "foo": 2}` which contains duplicate keys.
+In this example, the policy attempts to create an object like `{"foo": 1, "foo": 2}` which contains duplicate keys.
 This issue is also commonly seen with partial rules constructing objects. For example:
 
 ```rego
@@ -125,7 +125,7 @@ Instead of the output being:
 }
 ```
 
-We're trying to create an impossible output like this:
+The policy is trying to create an impossible output like this:
 
 ```json
 {
@@ -146,8 +146,7 @@ construct objects, ensure that there are not duplicated values. If you're using
 `some x in y` in rules to create values for an object, this is a common source of this error as any more than one
 value in `y` could result in duplicate keys.
 
-Sometimes, you might need to restructure your policy to avoid this error. For example, in the policy above, we could
-change it to work like this:
+Sometimes, the policy needs to be restructured to avoid this error. For example, the policy above can be rewritten to work like this:
 
 ```rego
 package policy

@@ -26,7 +26,7 @@ import DistributedDiagram from './assets/DistributedDiagram';
 
 <DistributedDiagram/>
 
-To control and observe a set of OPAs, each OPA can be configured to connect to
+To control and observe a set of OPA instances, each OPA can be configured to connect to
 management APIs that enable:
 
 - Policy distribution ([Bundles](./management-bundles))
@@ -35,7 +35,7 @@ management APIs that enable:
 - Dynamic agent configuration ([Discovery](./management-discovery))
 
 By configuring and implementing these management APIs you can unify control and
-visibility over OPAs in your environments. OPA does not provide a control plane
+visibility over OPA instances in your environments. OPA does not provide a control plane
 service out-of-the-box.
 
 import ControlPlaneDiagram from './assets/ControlPlaneDiagram';

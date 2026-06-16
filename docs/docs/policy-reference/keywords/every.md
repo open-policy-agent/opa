@@ -10,7 +10,7 @@ keyword makes this
 [universal quantification](/docs/policy-language#universal-quantification-for-all)
 easier.
 
-Here we show two equivalent rules achieve universal quantification, note how
+The following two equivalent rules achieve universal quantification. Note how
 much easier to read the one using `every` is.
 
 ```rego
@@ -31,7 +31,7 @@ allow2 if {
 <sub>
 `allow2` works by generating a set of 'results' testing elements from the
 array `[1,2,3]`. The resulting set is tested against `{true}` to verify all
-elements are `true`. As we can see `every` is a much better option!
+elements are `true`. `every` is a much better option!
 </sub>
 
 ## Examples

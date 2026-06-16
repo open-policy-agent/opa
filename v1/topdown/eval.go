@@ -4252,24 +4252,30 @@ func (e *evalEvery) save(iter unifyIterator) error {
 func (e *evalEvery) plug(expr *ast.Expr) *ast.Expr {
 	cpy := expr.Copy()
 	every := cpy.Terms.(*ast.Every)
-	for i := range every.Body {
-		switch t := every.Body[i].Terms.(type) {
-		case *ast.Term:
-			every.Body[i].Terms = e.e.bindings.PlugNamespaced(t, e.e.caller.bindings)
-		case []*ast.Term:
-			for j := 1; j < len(t); j++ { // don't plug operator, t[0]
-				t[j] = e.e.bindings.PlugNamespaced(t[j], e.e.caller.bindings)
-			}
-		case *ast.Every:
-			every.Body[i] = e.plug(every.Body[i])
-		}
-	}
+	e.plugBody(every.Body)
 
 	every.Key = e.e.bindings.PlugNamespaced(every.Key, e.e.caller.bindings)
 	every.Value = e.e.bindings.PlugNamespaced(every.Value, e.e.caller.bindings)
 	every.Domain = e.e.bindings.PlugNamespaced(every.Domain, e.e.caller.bindings)
 	cpy.Terms = every
 	return cpy
+}
+
+func (e *evalEvery) plugBody(body ast.Body) {
+	for i := range body {
+		switch t := body[i].Terms.(type) {
+		case *ast.Term:
+			body[i].Terms = e.e.bindings.PlugNamespaced(t, e.e.caller.bindings)
+		case []*ast.Term:
+			for j := 1; j < len(t); j++ { // don't plug operator, t[0]
+				t[j] = e.e.bindings.PlugNamespaced(t[j], e.e.caller.bindings)
+			}
+		case *ast.Every:
+			body[i] = e.plug(body[i])
+		case *ast.Not:
+			e.plugBody(t.Body)
+		}
+	}
 }
 
 type evalNot struct {

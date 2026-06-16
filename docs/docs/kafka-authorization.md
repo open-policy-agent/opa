@@ -23,14 +23,14 @@ rules to reuse logic and improve overall readability.
 
 This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/) to run Kafka, ZooKeeper, and OPA.
 
-Additionally, we'll use Nginx for serving policy and data bundles to OPA. This component is however easily replaceable
+Additionally, Nginx is used for serving policy and data bundles to OPA. This component is however easily replaceable
 by any other bundle server [implementation](./management-bundles/#implementations).
 
 ## Steps
 
 ### 1. Bootstrap the tutorial environment using Docker Compose
 
-First, let's create some directories. We'll create one for our policy files, a second one for built bundles, and a third
+First, create some directories: one for policy files, a second for built bundles, and a third
 one or the OPA authorizer plugin.
 
 ```bash
@@ -207,8 +207,8 @@ chmod +x create_cert.sh
 ./create_cert.sh
 ```
 
-We should now find a new `cert` directory created by the script,
-containing the server and client certificates we'll need for TLS
+A new `cert` directory should now be created by the script,
+containing the server and client certificates needed for TLS
 authentication.
 
 Note: Do not rely on these SSL certificates in real-world scenarios.
@@ -226,7 +226,7 @@ you may launch the containers for this tutorial.
 docker-compose --project-name opa-kafka-tutorial up
 ```
 
-Now that the tutorial environment is running, we can define an authorization policy using OPA and test it.
+Now that the tutorial environment is running, define an authorization policy using OPA and test it.
 
 ### 2. Define a policy to restrict consumer access to topics containing Personally Identifiable Information (PII)
 
@@ -512,9 +512,7 @@ request will be denied and the producer will output an error message.
 Not authorized to access topics: [click-stream]
 ```
 
-## Wrap Up
-
-Congratulations on finishing the tutorial!
+## Summary
 
 At this point you have learned how to enforce fine-grained access control
 over Kafka topics. In addition, you have seen how to break down policies into

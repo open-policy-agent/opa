@@ -6,14 +6,13 @@ GraphQL APIs have become a popular way for clients to query the information
 they require from a range of data sources.
 Generally, services providing a [GraphQL](https://graphql.org/) API must
 authorize calls to control data access and mutations.
-OPA makes it easy to write fine-grained, context-aware policies to implement
-GraphQL query authorization.
+OPA supports writing fine-grained, context-aware policies to implement GraphQL query authorization.
 
 In this tutorial, you'll use a simple GraphQL server that accepts any GraphQL query that you issue, and echoes the OPA decision back as text.
 OPA will fetch policy bundles from a simple bundle server.
 OPA, the bundle server, and the GraphQL server will run as separate containers.
 
-For this tutorial, we have the following example scenario:
+For this tutorial, the following example scenario is used:
 
 - Staff can see their own salaries (`query user($id: <user>) { salary }` is permitted for `<user>`)
 - A manager can see their direct reports' salaries (`query user($id: <user>) { salary }` is permitted for `<user>`'s manager)
@@ -25,15 +24,15 @@ Using GraphQL in Rego via the
 [GraphQL built-in functions](./policy-reference/builtins/graphql)
 can involve some cumbersome code-sharing, for example when sharing custom
 `@directive` definitions between schemas used in different rules.
-We recommend you evaluate the range of available functions and review your
+Evaluate the range of available functions and review your
 GraphQL feature use to form a plan before embarking on major migrations.
 :::
 
 ## Steps
 
-### 1. Define our GraphQL schema
+### 1. Define the GraphQL schema
 
-Most modern GraphQL frameworks encourage starting with a schema, so we'll follow suit, and begin by defining the schema for this example.
+Most modern GraphQL frameworks encourage starting with a schema. Begin by defining the schema for this example.
 
 ```graphql title="schema.gql"
 type Employee {
@@ -53,20 +52,20 @@ type Query {
 Every GraphQL service has a `query` type, and may or may not have a `mutation` type.
 These types are special because they define the entry points of _every_ GraphQL query for the API covered by that schema.
 
-For our example above, we've defined exactly one query entry point, the parameterized query `employeeByID(id: String!)`.
+In the example above, exactly one query entry point is defined, the parameterized query `employeeByID(id: String!)`.
 
 ### 2. Create a policy bundle
 
 GraphQL APIs allow surprising flexibility in how queries can be constructed, which makes writing policies for them a bit more challenging than for a REST API, which usually has a more fixed structure.
 
-To protect a particular endpoint or field, we need to see if they are referenced in the incoming GraphQL query.
-By using `graphql.parse`, we can extract an [abstract syntax tree][wikipedia-ast] (AST) from the incoming query, and then walk down the tree to its leaves to see if our endpoint is the target of the query.
+To protect a particular endpoint or field, check whether they are referenced in the incoming GraphQL query.
+Using `graphql.parse`, an [abstract syntax tree][wikipedia-ast] (AST) can be extracted from the incoming query, and then the tree can be walked to its leaves to see if the endpoint is the target of the query.
 
-We can then use separate rules to enforce conditions around the `salary` field, and who is allowed to access it.
+Separate rules can then enforce conditions around the `salary` field, and who is allowed to access it.
 
 The policy below does all of the above in parts:
 
-- Obtains the query AST (and validates it against our schema with `graphql.parse`).
+- Obtains the query AST (and validates it against the schema with `graphql.parse`).
 - Recursive traversal with `walk()` to obtain chunks of the AST with queries of interest present.
   - Selection of nodes of interest by name and structure.
 - Salary field selected.
@@ -245,7 +244,7 @@ await axios
 
 ### 4. Check that `alice` can see her own salary
 
-We'll define a quick shell function to make the following examples cleaner on the command line:
+Define a quick shell function to make the following examples cleaner on the command line:
 
 ```shell
 gql-query() {
@@ -303,7 +302,7 @@ gql-query bob:password "localhost:6000/" '{"query":"query { employeeByID(id: \"c
 
 Suppose the organization now includes an HR department.
 The organization wants members of HR to be able to see any salary.
-Let's extend the policy to handle this.
+Extend the policy to handle this.
 
 ```rego title="example-hr.rego"
 package graphqlapi.authz
@@ -328,7 +327,7 @@ mv bundle.tar.gz ./bundles
 The updated bundle will automatically be served by the bundle server, but note that it might take up to the configured `max_delay_seconds` for the new bundle to be downloaded by OPA.
 If you plan to make frequent policy changes you might want to adjust this value in `docker-compose.yaml` accordingly.
 
-For the sake of the tutorial we included `manager_of` and `hr` data directly inside the policies.
+For the sake of the tutorial, `manager_of` and `hr` data is included directly inside the policies.
 In real-world scenarios that information would be imported from external data sources.
 
 ### 7. Check that the new policy works
@@ -345,7 +344,7 @@ gql-query david:password "localhost:6000/" '{"query":"query { employeeByID(id: \
 ### 8. (Optional) Use JSON Web Tokens to communicate policy data
 
 OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.decode`.
-To get a sense of one way the subordinate and HR data might be communicated in the real world, let's try a similar exercise utilizing the JWT utilities of OPA.
+To get a sense of one way the subordinate and HR data might be communicated in the real world, try a similar exercise utilizing the JWT utilities of OPA.
 
 ```rego title="example-jwt.rego"
 package graphqlapi.authz
@@ -460,7 +459,7 @@ opa build example-jwt.rego example-hr.rego
 mv bundle.tar.gz ./bundles
 ```
 
-For convenience, we'll want to store user tokens in environment variables (they're really long).
+For convenience, store user tokens in environment variables (the token strings are long).
 
 ```shell
 export ALICE_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM"
@@ -470,10 +469,10 @@ export BETTY_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYmV0dHkiLCJ
 export DAVID_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiZGF2aWQiLCJhenAiOiJkYXZpZCIsInN1Ym9yZGluYXRlcyI6W10sImhyIjp0cnVlfQ.Q6EiWzU1wx1g6sdWQ1r4bxT1JgSHUpVXpINMqMaUDMU"
 ```
 
-These tokens encode the same information as the policies we did before (`bob` is `alice`'s manager, `betty` is `charlie`'s, `david` is the only HR member, etc).
+These tokens encode the same information as the earlier policies (`bob` is `alice`'s manager, `betty` is `charlie`'s, `david` is the only HR member, etc).
 If you want to inspect their contents, start up the OPA REPL and execute `io.jwt.decode(<token here>, [header, payload, signature])` or open the example above in the Playground.
 
-Let's try a few queries (note: you may need to escape the `?` characters in the queries for your shell):
+Try a few queries (note: you may need to escape the `?` characters in the queries for your shell):
 
 Check that `charlie` can't see `bob`'s salary.
 
@@ -505,9 +504,7 @@ Check that `alice` can see her own salary.
 gql-query alice:password "localhost:5000/?token=$ALICE_TOKEN" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 You learned a number of things about API authorization with OPA:
 

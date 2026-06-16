@@ -5,7 +5,7 @@ sidebar_label: "Tutorial: Deploy as a Service"
 
 # Deploy as a Service to Kubernetes, AWS…
 
-This example expands on [Kick the tires](./#kick-the-tires),
+This example expands on [Quick Start](./#quick-start),
 illustrating a more comprehensive and realistic configuration. This will
 showcase a practical, more complete server configuration and demonstrate its
 operational aspects.
@@ -15,7 +15,7 @@ operational aspects.
 - **Deployment Environment:**
   - Running the OCP server within Kubernetes
 - **Database Integration:**
-  - Connecting the OCP server to an external database. For this example, we will set up a PostgreSQL database within the Kubernetes environment, but a more likely solution would be a managed SQL database.
+  - Connecting the OCP server to an external database. For this example, a PostgreSQL database is set up within the Kubernetes environment, but a more likely solution would be a managed SQL database.
 - **Source control integration**:
   - This example will utilize git as the source of the policies
 - **Advanced Bundle Management:**
@@ -37,9 +37,9 @@ The rest of this section will just highlight portions of the full manifests to e
 
 ## Database Integration
 
-As mentioned we will use a PostgreSQL deployment/service for this example, but for a production install you will likely want to use an external/managed database. Example configuration can be found in the [Database Configuration](./configuration.md#database-configuration) section.
+As mentioned, this example uses a PostgreSQL deployment/service, but for a production install you will likely want to use an external/managed database. Example configuration can be found in the [Database Configuration](./configuration.md#database-configuration) section.
 
-The configuration to connect to the database will be in a configuration file. In our example it will look like this:
+The configuration to connect to the database will be in a configuration file. In this example it will look like this:
 
 ```yaml
 database:
@@ -171,7 +171,7 @@ env:
 
 ## Shared Datasource
 
-One of the powerful concepts in OCP is the ability to share policies and data across multiple bundles. To do this we create another [source](./concepts.md#sources) for this and require it in the bundle. We will set up an HTTP datasource to share, but you could just as easily do this for rego. Full datasource configuration can be found [in the Concepts documentation](./concepts.md#sources), but for our purposes we will call out to httpbin using a bearer token (other authn can be found [in the Secrets section](./concepts.md#secrets)):
+One notable concept in OCP is the ability to share policies and data across multiple bundles. To do this we create another [source](./concepts.md#sources) for this and require it in the bundle. We will set up an HTTP datasource to share, but you could just as easily do this for rego. Full datasource configuration can be found [in the Concepts documentation](./concepts.md#sources), but for our purposes we will call out to httpbin using a bearer token (other authn can be found [in the Secrets section](./concepts.md#secrets)):
 
 ```yaml
 sources:

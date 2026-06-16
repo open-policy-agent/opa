@@ -25,10 +25,10 @@ There are two version tracks for the OPA project:
 2. Stable (vX.Y.Z)
 
 A new version of OPA is scheduled to release on the last Friday of every month. At the beginning of that week,
-we will create a release candidate branch (`release-<major>.<minor>-rc.0`) from the main branch and create a release
-candidate tag (`v<major>.<minor>.0-rc.0`) based on the release candidate branch for pre-release. Once the pre-release
+a release candidate branch (`release-<major>.<minor>-rc.0`) will be created from the main branch and a release
+candidate tag (`v<major>.<minor>.0-rc.0`) will be created based on the release candidate branch for pre-release. Once the pre-release
 is published, users are encouraged to try out the features, bug fixes in the release candidate. If regressions or bugs
-are detected, they need to get fixed before cutting the stable release. We do not recommend using OPA release
+are detected, they need to get fixed before cutting the stable release. It is not recommended to use OPA release
 candidates in a production environment. The stable release that comes out after the release candidate may be identical
 to the release candidate if no other features or bug fixes are introduced to the main branch in between.
 
@@ -48,7 +48,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
    ```
 
    Note: This stage can fail if you have not registered an [SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
-   on your Github account.
+   on your GitHub account.
 
 1. Create a release branch off of `main`, to ensure you don't mangle your
    fork while creating the release:

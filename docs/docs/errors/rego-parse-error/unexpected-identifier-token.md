@@ -83,5 +83,5 @@ Typically, the way to resolve this to find and correct misplaced whitespace
 using the location in the error message.
 
 This can be tricky in larger files and often happens when moving code between
-files. We recommend migrating functions and rules incrementally to reduce the
+files. Migrating functions and rules incrementally is recommended to reduce the
 risk of this happening.

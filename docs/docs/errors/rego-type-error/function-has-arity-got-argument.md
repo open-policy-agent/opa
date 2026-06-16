@@ -48,7 +48,7 @@ When compiled, this will result in the following error:
 ## How To Fix It
 
 In order to find the function that's being called with the wrong arity, you first need to find the line number
-in the error message - `16` in the example above. On that line, we need to update the function call to pass the
+in the error message - `16` in the example above. On that line, update the function call to pass the
 correct number of arguments. The example above might be fixed like so:
 
 ```rego

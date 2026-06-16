@@ -7,8 +7,7 @@ image: /img/opa-errors.png
 # OPA Errors Guide
 
 This guide is designed to help you understand the most common errors you'll encounter when working with OPA. Each
-document provides examples of the error, why it's an error, and how to fix it. A perfect companion for your debugging
-session!
+document provides examples of the error, why it's an error, and how to fix it.
 
 The errors currently documented are:
 
@@ -52,7 +51,7 @@ any of these stages will stop the evaluation process and have the error(s) repor
 
 The first stage is **parsing**. In this step, OPA takes the raw Rego policy and parses it into an abstract syntax tree
 (AST), which is then handed to the compiler. Errors at this stage are normally syntax errors, meaning the Rego provided
-in a policy simply isn't valid. An example of this might be forgetting to terminate a string with a closing quote:
+in a policy isn't valid. An example of this might be forgetting to terminate a string with a closing quote:
 
 ```rego
 package policy
@@ -79,11 +78,11 @@ policy.rego:9: rego_parse_error: illegal token
                    ^
 ```
 
-At this point, further processing isn't possible, and the error must be fixed before we can proceed.
+At this point, further processing isn't possible, and the error must be fixed before proceeding.
 
 #### Compilation
 
-While we may not think of Rego as a "compiled language", any policy passes through a compilation step before it can be
+While Rego may not seem like a "compiled language", any policy passes through a compilation step before it can be
 evaluated. During compilation, OPA will run several stages of analysis on the policy (which is now an AST) to ensure
 that it's valid. This includes things like checking that functions are called with the right number of arguments,
 that types are used correctly, or that variables are defined before they're used. A typical example of a compilation
@@ -95,14 +94,14 @@ package policy
 x := y
 ```
 
-Since `y` isn't defined in our policy, the compiler considers it unsafe:
+Since `y` isn't defined in the policy, the compiler considers it unsafe:
 
 ```txt
 1 error occurred: policy.rego:3: rego_unsafe_var_error: var y is unsafe
 ```
 
 **Tip:** when using `opa eval`, you can pass the `--strict` flag to enable additional compiler checks — like unused
-variables or function arguments. This is a great way to spot mistakes and errors as soon as possible, and is highly
+variables or function arguments. This helps catch mistakes and errors early, and is highly
 recommended.
 
 #### Evaluation
@@ -126,23 +125,22 @@ policy.rego:3: eval_conflict_error: complete rules must not produce multiple out
 ```
 
 Important to know is that not all "errors" at this stage will be reported as errors! Some things that would be
-considered an error during compilation, like passing the wrong type of value in a function argument, would simply
-result in evaluation being undefined during evaluation time.
+considered an error during compilation, like passing the wrong type of value in a function argument, would instead leave the result undefined at evaluation time.
 
 ```rego
 startswith("100", 1)
 ```
 
 As the `startswith` function expects two strings — and this is known by the compiler — this would fail during
-compilation. But if we replace the `1` with a value from `input`:
+compilation. If the `1` is replaced with a value from `input`:
 
 ```rego
 startswith("100", input.x)
 ```
 
-The compiler can't know the value of `input.x`. During evaluation, we _do_ know the value of `input.x`,
-but does it mean we want a malformed value to stop policy evaluation entirely? Probably not! By default, evaluation
-will simply consider that case to be _undefined_, and move on with evaluating the rest of the policy.
+The compiler can't know the value of `input.x`. At evaluation time, the value is known, but a
+malformed value does not stop policy evaluation entirely. By default, evaluation
+will consider that case to be _undefined_, and move on with evaluating the rest of the policy.
 
 **Tip:** If you're using `opa eval` to evaluate policies, you can pass the `--strict-builtin-errors` flag to have
 an error from a built-in function halt evaluation and have the error reported. Additionally, the

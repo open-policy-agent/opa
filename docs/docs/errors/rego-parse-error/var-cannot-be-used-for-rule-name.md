@@ -50,7 +50,7 @@ internal_user email if {
 
 ## How To Fix It
 
-If caused by a missing import like the `if` keyword, simply add the import at
+If caused by a missing import like the `if` keyword, add the import at
 the top of your package. Other cases are likely caused by having forgotten to
 add an assignment operator between the rule name and the value to assign. Once
 you have identified the cause, fix the syntax error or adding the missing import

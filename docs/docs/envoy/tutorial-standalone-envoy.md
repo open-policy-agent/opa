@@ -11,8 +11,8 @@ policies over the HTTP request body.
 
 ## Overview
 
-In this tutorial we'll see how to use OPA as an External
-Authorization service for the Envoy proxy. We'll do this by:
+In this tutorial, OPA is used as an External
+Authorization service for the Envoy proxy. The tutorial covers:
 
 - Running a local Kubernetes cluster
 - Creating a simple authorization policy in Rego and serving it via the Bundle API
@@ -24,7 +24,7 @@ are co-located in the same pod.
 
 ## Running a local Kubernetes cluster
 
-To start a local Kubernetes cluster to run our demo, we'll be using
+To start a local Kubernetes cluster to run the demo, use
 [kind](https://kind.sigs.k8s.io/).
 
 :::info
@@ -64,7 +64,7 @@ NAME                       STATUS   ROLES           AGE     VERSION
 opa-envoy-control-plane   Ready    control-plane   2m35s   v1.33.1
 ```
 
-## Creating & Serving our Policy Bundle
+## Creating & Serving the Policy Bundle
 
 This tutorial assumes you have some Rego knowledge, in summary the policy below does the following:
 
@@ -124,8 +124,8 @@ Create a file called `policy.rego` with the above content and store it in a Conf
 kubectl create configmap authz-policy --from-file policy.rego
 ```
 
-Now that the policy is stored in a ConfigMap, we can spin up an HTTP server to make it
-available as a Bundle to OPA when it's making decisions for our application:
+Now that the policy is stored in a ConfigMap, spin up an HTTP server to make it
+available as a Bundle to OPA when it's making decisions for the application:
 
 ```yaml
 # bundle-server.yaml
@@ -195,7 +195,7 @@ Create a file called `bundle-server.yaml` with the above content and apply it to
 kubectl apply -f bundle-server.yaml
 ```
 
-Once the deployment is running, we can check that the bundle is available by running:
+Once the deployment is running, check that the bundle is available by running:
 
 ```shell
 kubectl port-forward service/bundle-server 8080:80
@@ -214,12 +214,12 @@ from inside the cluster from now on.
 
 ## Deploying an application with Envoy and OPA sidecars
 
-In this tutorial, we are manually configuring the Envoy proxy sidecar to intermediate
-HTTP traffic from clients and our application. Envoy will consult OPA to
+In this tutorial, the Envoy proxy sidecar is manually configured to intermediate
+HTTP traffic from clients and the application. Envoy will consult OPA to
 make authorization decisions for each request by sending `CheckRequest` messages over
 a gRPC connection.
 
-We will use the following Envoy configuration to achieve this. In summary, this
+The following Envoy configuration achieves this. In summary, this
 configures Envoy to:
 
 - Listen on port `8000` for HTTP traffic
@@ -308,13 +308,13 @@ Create a `ConfigMap` containing the above configuration by running:
 kubectl create configmap proxy-config --from-file envoy.yaml
 ```
 
-Our application will be configured using a `Deployment` and `Service`.
+The application is configured using a `Deployment` and `Service`.
 There are a few things to note:
 
 - the pods have an `initContainer` that configures the `iptables` rules to
   redirect traffic to the Envoy proxy.
 - the `demo-test-server` container is a simple user store using in-memory state.
-- the `envoy` container is configured to use the `proxy-config` `ConfigMap` we
+- the `envoy` container is configured to use the `proxy-config` `ConfigMap`
   created earlier.
 - The OPA container is configured to download policy bundles from
   the in-cluster bundle server (`bundle-server.default.svc.cluster.local`).
@@ -432,7 +432,7 @@ example-app-74b4bc88-5d4wh       3/3     Running   0          1m
 
 ## See the Policy in Action
 
-Run a shell inside the cluster to use for testing. We will use this in-cluster
+Run a shell inside the cluster to use for testing. Use this in-cluster
 shell for the rest of the tutorial.
 
 ```shell
@@ -440,7 +440,7 @@ kubectl run curl --restart=Never -it --rm --image curlimages/curl:8.1.2 -- sh
 ```
 
 Set two tokens for two users, Alice and Bob with different permissions.
-As defined by our policy:
+As defined by the policy:
 
 ```shell
 export ALICE_TOKEN="eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyMjQxMDgxNTM5LCAibmJmIjogMTUxNDg1MTEzOSwgInJvbGUiOiAiZ3Vlc3QiLCAic3ViIjogIllXeHBZMlU9In0.Uk5hgUqMuUfDLvBLnlXMD0-X53aM_Hlziqg3vhOsCc8"
@@ -515,7 +515,7 @@ server: envoy
 
 ### Creating People: Conflict
 
-Our policy also blocks users from creating users with the same name, test that
+The policy also blocks users from creating users with the same name. Test that
 functionality with this request:
 
 ```shell
@@ -543,9 +543,7 @@ Deleting cluster "opa-envoy" ...
 Deleted nodes: ["opa-envoy-control-plane"]
 ```
 
-## Wrap Up
-
-Congratulations on finishing the tutorial !
+## Summary
 
 This tutorial showed how to use OPA as an External authorization service to
 enforce custom policies by leveraging Envoy’s External authorization filter.

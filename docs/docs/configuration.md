@@ -441,7 +441,7 @@ request OPA will re-read the credentials from the file and use them for authenti
 #### Using SSO Profile Credentials
 
 If specifying `sso_credentials`, OPA will expect to find an sso profile configured as explained in [SSO Profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html) and stored in the [config](https://docs.aws.amazon.com/sdkref/latest/guide/file-format.html) file on disk.
-On each request, Opa will try to use cached token acquired credentials using the SSO credentials. In case the current token has expired, OPA will try to refresh the token using the SSO refresh token, assuming the SSO session is still valid. New token will be cached in memory.
+On each request, OPA will try to use cached token acquired credentials using the SSO credentials. In case the current token has expired, OPA will try to refresh the token using the SSO refresh token, assuming the SSO session is still valid. New token will be cached in memory.
 
 | Field                                                           | Type     | Required | Description                                                                                                                                                                                                                                                    |
 | --------------------------------------------------------------- | -------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -657,7 +657,7 @@ signing requests to other AWS services.
 
 A special case is that bearer authentication works differently to normal service authentication. The OCI downloader base64-encodes the credentials for you so that they need to be supplied in plain text.
 
-For _GHCR_ (Github Container Registry) you can use a developer PAT (personal access token) when downloading a private image. These can be supplied as:
+For _GHCR_ (GitHub Container Registry) you can use a developer PAT (personal access token) when downloading a private image. These can be supplied as:
 
 ```yaml
 credentials:
@@ -863,10 +863,12 @@ included in the actual bundle gzipped tarball.
 | `discovery.signing.exclude_files`                | `array`                        | No                  | Files in the bundle to exclude during verification.                                                                                                                        |
 | `discovery.persist`                              | `bool`                         | No                  | Persist activated discovery bundle to disk.                                                                                                                                |
 
-> ⚠️ The plugin trigger mode configured on the discovery plugin will be inherited by the bundle, decision log
-> and status plugins. For example, if the discovery plugin is configured to use the manual trigger mode, all other
-> plugins will use manual triggering as well. If any of the plugins explicitly specify a different mode (for ex. periodic),
-> OPA will generate a configuration error.
+:::warning
+The plugin trigger mode configured on the discovery plugin will be inherited by the bundle, decision log
+and status plugins. For example, if the discovery plugin is configured to use the manual trigger mode, all other
+plugins will use manual triggering as well. If any of the plugins explicitly specify a different mode (for ex. periodic),
+OPA will generate a configuration error.
+:::
 
 The following `discovery` configuration fields are supported but deprecated:
 

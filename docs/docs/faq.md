@@ -89,7 +89,7 @@ ratelimit := 4 if {
 
 ## Which Equality Operator Should I Use?
 
-Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`. We recommend using assignment (`:=`) and comparison (`==`) whenever possible for policies that are easier to read and write.
+Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`. Using assignment (`:=`) and comparison (`==`) is recommended whenever possible for policies that are easier to read and write.
 
 ```rego
 # Assignment: declare local variable x and give it value 7
@@ -167,7 +167,7 @@ result := trim_and_split("  hello.world  ")
 
 <RunSnippet command="data.functions.result"/>
 
-The other way to factor out common logic is with a _rule_. Rules differ in that (i) they support automatic iteration and (ii) they are only defined for finitely many inputs. (Those obviously go hand-in-hand.) For example, you could define a rule that maps an application to the hostnames that app is running on:
+The other way to factor out common logic is with a _rule_. Rules differ in that (i) they support automatic iteration and (ii) they are only defined for finitely many inputs. (Those go hand-in-hand.) For example, you could define a rule that maps an application to the hostnames that app is running on:
 
 ```rego
 package rules
@@ -226,7 +226,7 @@ sites := [
 
 <RunSnippet id="data.rego"/>
 
-And then we can iterate over all the key/value pairs of that app-to-hostname mapping (just like we could iterate over all key/value pairs of a hardcoded JSON object). You can also iterate over just the keys or just the values or you can look up the value for a key or lookup all the keys for a single value.
+It is then possible to iterate over all the key/value pairs of that app-to-hostname mapping (just like all key/value pairs of a hardcoded JSON object). You can also iterate over just the keys or just the values, or look up the value for a key or all the keys for a single value.
 
 ```rego
 package example
@@ -259,13 +259,13 @@ result.where contains k if {
 
 <RunSnippet files="#data.rego" command="data.example.result"/>
 
-Obviously with the `trim_and_split` function we cannot ask for all the inputs/outputs since there are infinitely many. We can't provide 1 input and ask for all the other inputs that make the function return true, again, because there could be infinitely many. The only thing we can do with a function is provide it all the inputs and ask for the output.
+With the `trim_and_split` function it is not possible to ask for all the inputs/outputs since there are infinitely many. It is not possible to provide 1 input and ask for all the other inputs that make the function return true, again, because there could be infinitely many. The only option with a function is to provide all the inputs and ask for the output.
 
 Functions allow you to factor out common logic that has infinitely-many input/output pairs; rules allow you to factor out common logic with finitely many input/outputs and allow you to iterate over them in the same way as native JSON objects.
 
 To achieve automatic iteration, there is an additional syntactic requirement on a rule that is NOT present for a function: `safety`. See the FAQ entry on safety for technical details. Every rule must be `safe`, which guarantees that OPA can figure out a finite list of possible values for every variable in the body and head of a rule.
 
-We recommend using rules where possible and using functions when rules do not work.
+Use rules where possible; use functions when rules do not work.
 
 ## Safety
 
@@ -305,7 +305,7 @@ p[x] { some x; not q[x]; r[x] }
 
 Safety has one implication about negation: you don't iterate over values NOT in a rule like `q`. Instead, you iterate over values in another rule like `r` and then use negation to CHECK whether if that value is NOT in `q`.
 
-Embedded terms like `not p[q[_]]` sometimes produce difficult to decipher error messages. We recommend pulling the embedded terms out into the rule--the meaning is the same and often creates easier to read error messages:
+Embedded terms like `not p[q[_]]` sometimes produce difficult to decipher error messages. Pulling the embedded terms out into the rule is recommended -- the meaning is the same and often creates easier to read error messages:
 
 ```rego
 x := q[_]
@@ -386,7 +386,7 @@ runtime.env.PROD_CERTIFICATE
 
 ## How do I Write Policies Securely?
 
-Depending on the use case and the integration with OPA that you are using, the style of policy you choose can impact your overall security posture. Below we show three styles of authoring policy and compare them.
+Depending on the use case and the integration with OPA that you are using, the style of policy you choose can impact your overall security posture. The following compares three styles of authoring policy.
 
 **Default allow**. This style of policy allows every request by default. The rules you write dictate which requests should be rejected.
 
@@ -400,7 +400,7 @@ deny if { ... }
 deny if { ... }
 ```
 
-If you assume all of the rules you write are correct, then you know that every rejection the policy produces should truly be rejected. However, there could be requests that are allowed that you may not truly want allowed, but you simply neglected to write the rule for. For operations, this is often a useful style of policy authoring because it allows you to incrementally tighten the controls for a system from wherever that system starts. For security, this style is less appropriate because it allows unknown bad actions to occur.
+If you assume all of the rules you write are correct, then you know that every rejection the policy produces should truly be rejected. However, there could be requests that are allowed that you may not truly want allowed, but you have not yet written the rule for. For operations, this is often a useful style of policy authoring because it allows you to incrementally tighten the controls for a system from wherever that system starts. For security, this style is less appropriate because it allows unknown bad actions to occur.
 
 **Default deny**. This style of policy rejects every request by default. The rules you write dictate which requests should be allowed.
 

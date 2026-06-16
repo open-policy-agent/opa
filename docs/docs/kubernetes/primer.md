@@ -9,7 +9,7 @@ has its own docs.
 
 ## Writing Policies
 
-To get started, let's look at a common policy: ensure all images come from a
+To get started, consider a common policy: ensure all images come from a
 trusted registry.
 
 ```rego showLineNumbers=true
@@ -31,7 +31,7 @@ In **line 1** the `package kubernetes.admission` declaration gives the (hierarch
 
 ### Deny Rules
 
-For admission control, you write `deny` statements. Order does not matter. (OPA is far more flexible than this, but we recommend writing just `deny` statements to start.) In **line 2**, the _head_ of the rule `deny contains msg if` says that the admission control request should be rejected and the user handed the error message `msg` if the conditions in the _body_ (the statements between the `{}`) are true.
+Typically `deny` rules are used for admission control; their order does not change the result. Rego rules can implement all sorts of different logic, but for admission control starting with `deny` rules is recommended. In **line 2**, the _head_ of the rule `deny contains msg if` says that the admission control request should be rejected and the user handed the error message `msg` if the conditions in the _body_ (the statements between the `{}`) are true.
 
 `deny` is the _set_ of error messages that should be returned to the user. Each rule you write adds to that set of error messages.
 
@@ -99,7 +99,7 @@ result := admission.deny
 
 In OPA, `input` is a reserved, global variable whose value is the Kubernetes AdmissionReview object that the API server hands to any admission control webhook.
 
-AdmissionReview objects have many fields. The rule above uses `input.request.kind`, which includes the usual group/version/kind information. The rule also uses `input.request.object`, which is the YAML that the user provided to `kubectl` (augmented with defaults, timestamps, etc.). The full `input` object is 50+ lines of YAML, so below we show just the relevant parts.
+AdmissionReview objects have many fields. The rule above uses `input.request.kind`, which includes the usual group/version/kind information. The rule also uses `input.request.object`, which is the YAML that the user provided to `kubectl` (augmented with defaults, timestamps, etc.). The full `input` object is 50+ lines of YAML, so only the relevant parts are shown below.
 
 ```yaml
 apiVersion: admission.k8s.io/v1
@@ -255,13 +255,13 @@ test_image_safety if {                                    # line 3
 
 **Different Package**. On line 1 the `package` directive puts these tests in a different package than admission control policy itself. This is the recommended best practice.
 
-**Import**. On line 2 `import data.kubernetes.admission` allows us to reference the admission control policy using the name `admission` everywhere in the test package. `import` is not strictly necessary--it simply sets up an alias; you could instead reference `data.kubernetes.admission` inside the rules.
+**Import**. On line 2 `import data.kubernetes.admission` allows us to reference the admission control policy using the name `admission` everywhere in the test package. `import` is not strictly necessary--it sets up an alias; you could instead reference `data.kubernetes.admission` inside the rules.
 
 **Unit Test**. On line 3 `test_image_safety` defines a unittest. If the rule evaluates to true the test passes; otherwise it fails. When you use the OPA test runner, anything in any package starting with `test` is treated as a test.
 
-**Assignment**. On line 4 `unsafe_image` is the input we want to use for the test. Ideally this would be a real AdmissionReview object, though those are so long that in this example we hand-rolled a partial input.
+**Assignment**. On line 4 `unsafe_image` is the input to use for the test. Ideally this would be a real AdmissionReview object, though those are so long that in this example, a hand-rolled partial input is used.
 
-**Dot for packages**. On line 5 we use the Dot operator on a package. `admission.deny[expected]` runs the `deny` rule(s) in package `admission` and checks if the message is contained in the set defined by `deny`.
+**Dot for packages**. On line 5, the Dot operator is used on a package. `admission.deny[expected]` runs the `deny` rule(s) in package `admission` and checks if the message is contained in the set defined by `deny`.
 
 **Test Input**. Also on line 5 the stanza `with input as unsafe_image` sets the value of `input` to be `unsafe_image` while evaluating `admission.deny[expected]`.
 
@@ -278,7 +278,7 @@ The image-repository example shows an example where you can make a policy decisi
 
 For example, it’s possible to accidentally configure two Kubernetes ingresses so that one steals traffic from the other. The policy that prevents conflicting ingresses needs to compare the ingress that’s being created/updated with all of the existing ingresses. Just knowing the new/updated ingress isn't enough information to make an allow/deny decision.
 
-Below is a partial example of the input OPA sees when someone creates an ingress. To avoid conflicts, we want to prevent two ingresses from having the same `request.object.spec.rules.host`. If OPA has only this one ingress configuration it doesn't have enough information to make an allow/deny decision; it also needs the configurations for all of the existing ingresses.
+Below is a partial example of the input OPA sees when someone creates an ingress. To avoid conflicts, the goal is to prevent two ingresses from having the same `request.object.spec.rules.host`. If OPA has only this one ingress configuration it doesn't have enough information to make an allow/deny decision; it also needs the configurations for all of the existing ingresses.
 
 ```yaml
 apiVersion: admission.k8s.io/v1
@@ -327,7 +327,7 @@ The first part of the rule you already understand:
 - Line (1) checks if the `input` is an Ingress
 - Line (2) iterates over all the rules in the `input` ingress and looks up the `host` field for each of its rules.
 
-**Existing K8s Resources** Line (3) iterates over ingresses that already exist in Kubernetes. `data` is a global variable where (among other things) OPA has a record of the current resources inside Kubernetes. The line `oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[_].host` finds all ingresses in all namespaces, iterates over all the `rules` inside each of those and assigns the `host` field to the variable `oldhost`. Whenever `newhost == oldhost`, there's a conflict, and the OPA rule includes an appropriate error message into the `deny` set.
+**Existing Kubernetes Resources** Line (3) iterates over ingresses that already exist in Kubernetes. `data` is a global variable where (among other things) OPA has a record of the current resources inside Kubernetes. The line `oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[_].host` finds all ingresses in all namespaces, iterates over all the `rules` inside each of those and assigns the `host` field to the variable `oldhost`. Whenever `newhost == oldhost`, there's a conflict, and the OPA rule includes an appropriate error message into the `deny` set.
 
 In this case the rule uses explicit variable names `namespace` and `name` for iteration so that it can use those variables again when constructing the error message in line (7).
 
@@ -507,7 +507,7 @@ policies that have been loaded into OPA.
 
 As the administrator responsible for deploying OPA, you have full control over
 the `system.main` decision (i.e., it is just another Rego policy.) A basic
-implementation of the `system.main` policy simply evaluates all deny rules that
+implementation of the `system.main` policy evaluates all deny rules that
 have been loaded into OPA and unions the results:
 
 ```rego

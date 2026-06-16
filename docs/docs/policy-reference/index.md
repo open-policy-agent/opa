@@ -9,7 +9,7 @@ import BuiltinLegacyRedirect from "@site/src/components/BuiltinLegacyRedirect";
 <BuiltinLegacyRedirect/>
 
 This page is a reference for details of the Rego language and its syntax. See
-our guided [Policy Language](./policy-language) page for a walked introduction.
+the guided [Policy Language](./policy-language) page for a walked introduction.
 There are also detailed sections for
 [built-in functions](./policy-reference/builtins) as well as examples for
 specific keywords such as

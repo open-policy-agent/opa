@@ -19,7 +19,7 @@ feature set. Examples of when this applies:
 
 - You run a service for customers who supply their own Rego.
 - You use OPA as part of a managed platform and need to run a mix of v0.x and
-  v1.0 OPAs based on customer demands.
+  v1.0 OPA instances based on customer demands.
 
 Users with control over their Rego and OPA deployments are instead encouraged
 to migrate their Rego to be compatible with OPA v1.0 using the below tooling options:

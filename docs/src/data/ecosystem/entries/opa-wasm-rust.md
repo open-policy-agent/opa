@@ -20,4 +20,4 @@ docs_features:
 '
 ---
 
-A crate to use OPA policies compiled to WASM.
+A crate to use OPA policies compiled to Wasm.
