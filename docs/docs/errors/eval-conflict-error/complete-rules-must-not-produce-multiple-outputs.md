@@ -16,7 +16,7 @@ multiple outputs, or "return values".
 
 ## Examples
 
-The most trivial example of this would be to simply — and unconditionally — assign two different values to a rule:
+The clearest example of this is to unconditionally assign two different values to a rule:
 
 ```rego
 package policy
@@ -62,7 +62,7 @@ should be considered a best practice to account for this type of scenario in you
 
 ## How To Fix It
 
-To fix this — simply ensure that the conditions for a rule to be assigned a conflicting value are mutually exclusive.
+To fix this, ensure that the conditions for a rule to be assigned a conflicting value are mutually exclusive.
 A common way to do this is to use negation (i.e. `not`) in one of the rule bodies:
 
 ```rego

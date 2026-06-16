@@ -56,7 +56,7 @@ JWTs have a limited size in practice, so if your organization has too many user 
 
 ## Option 2: Overload `input`
 
-Often policies require external data that's not available to the authentication system, ruling out JWTs. The calling system can include external data as part of `input` (necessitating of course that the policy is written accordingly).
+Often policies require external data that's not available to the authentication system, ruling out JWTs. The calling system can include external data as part of `input` (necessitating that the policy is written accordingly).
 
 For example, suppose your policy says that only a file's owner may delete it. The authentication system does not track resource-ownership, but the system responsible for files certainly does.
 
@@ -124,7 +124,7 @@ The lag between a data update and OPA having the update is the sum of the lag fo
 
 ### Size limitations
 
-OPA stores the entire datasource at once in memory. Obviously this can be a problem with large external data sets. Because the centralized server handles both policy and data it can prune data to just that which is needed for the policies.
+OPA stores the entire datasource at once in memory. This can be a problem with large external data sets. Because the centralized server handles both policy and data it can prune data to just that which is needed for the policies.
 
 <!-- **Security**
 * Don't expose OPA's API except through localhost
@@ -176,7 +176,7 @@ The total lag between the external data source being updated and OPA being updat
 
 ### Size limitations
 
-The entirety of the external data source is stored in memory, which can obviously be a problem with large external data sources. But unlike the bundle API, this approach does allow updates to data.
+The entirety of the external data source is stored in memory, which can be a problem with large external data sources. But unlike the bundle API, this approach does allow updates to data.
 
 <!--
 **Security**

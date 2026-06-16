@@ -43,8 +43,10 @@ sequenceDiagram
     Envoy->>+Client: Response (HTTP)
 ```
 
-> 💡 The OPA-Envoy plugin is frequently deployed in Kubernetes environments as a sidecar container however it can also
-> be used in other environments as a standalone process running next to Envoy.
+:::tip
+The OPA-Envoy plugin is frequently deployed in Kubernetes environments as a sidecar container however it can also
+be used in other environments as a standalone process running next to Envoy.
+:::
 
 ## Configuration
 

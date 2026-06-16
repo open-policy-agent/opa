@@ -14,7 +14,7 @@ and reduce the amount of time it takes to modify rules as requirements evolve.
 
 ## Getting Started
 
-Let's use an example to get started. The file below implements a simple
+The following example demonstrates getting started. The file below implements a simple
 policy that allows new users to be created and users to access their own
 profile.
 
@@ -32,7 +32,7 @@ allow if {
 }
 ```
 
-To test this policy, we will create a separate Rego file that contains test cases.
+To test this policy, create a separate Rego file that contains test cases.
 
 ```rego title="example_test.rego"
 package authz_test
@@ -159,7 +159,7 @@ FAIL: 1/1
 ```
 
 The test failed because it expected users with **write** permission to implicitly also have the **read** permission, an expectation the function under test didn't meet.
-By including the failing expression and its local variable assignments in the test report, we make troubleshooting easier for the developer, as it's immediately apparent what assertion and combination of parameters caused the test to fail.
+The test report includes the failing expression and its local variable assignments, making it immediately apparent what assertion and combination of parameters caused the failure.
 
 ## Test Format
 
@@ -603,7 +603,7 @@ It is also possible that [rule indexing](./policy-performance/#use-indexed-state
 has determined some path unnecessary for evaluation, thereby affecting the lines
 reported as covered.
 
-If we run the coverage report on the original **example.rego** file without
+If the coverage report is run on the original **example.rego** file without
 `test_get_user_allowed` from **example_test**.rego the report will indicate
 that line 8 is not covered.
 

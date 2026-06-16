@@ -5,13 +5,12 @@ sidebar_position: 1
 
 # Using OPA in CI/CD Pipelines
 
-OPA is a great tool for implementing policy-as-code guardrails in
+OPA supports implementing policy-as-code guardrails in
 <abbr title="continuous integration/continuous deployment">CI/CD</abbr>
 pipelines. With OPA, you can automatically verify configurations, validate
 outputs, and enforce organizational policies before code reaches production. OPA
-serves as a powerful 'swiss army knife' for implementing custom checks required
-by your organization that might be difficult to implement in a script or in
-another tool.
+can implement custom checks required by your organization that might be
+difficult to implement in a script or in another tool.
 
 For users looking to parse and validate configuration files or Infrastructure as
 Code (IaC) committed to git, [Conftest](https://www.conftest.dev) is typically
@@ -19,8 +18,8 @@ the better choice as it supports many file formats (HCL, Jsonnet etc.).
 However, OPA's `eval` command excels at connecting other tools and making checks
 against runtime data, as it can only parse JSON and YAML formats.
 
-OPA as a CLI tool provides powerful capabilities for testing and validating
-various types of data in your continuous integration workflows:
+OPA's CLI supports testing and validating various types of data in your
+continuous integration workflows:
 
 - **Repository governance** - Use OPA to call GitHub APIs to validate commit
   message formats and pull request metadata compliance.
@@ -89,7 +88,7 @@ jobs:
             'input.results[_].coverage < 0.7'
 ```
 
-Here's some examples of how we use these actions in our own CI/CD pipelines for OPA!
+Here are some examples of how these actions are used in OPA's CI/CD pipelines:
 
 - [Pull Request Workflow File](https://github.com/open-policy-agent/opa/blob/main/.github/workflows/pull-request.yaml)
 - [PR Where Action was Introduced](https://github.com/open-policy-agent/opa/pull/8183/files#diff-a8619735ff14304aa0514284f86ff5145b0a6bae2e76a37faeb0ad899a3d8db4R27-R30)

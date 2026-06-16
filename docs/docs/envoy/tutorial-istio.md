@@ -206,9 +206,7 @@ curl --user bob:password -i http://$SERVICE_HOST/productpage
 curl --user bob:password -i http://$SERVICE_HOST/api/v1/products
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial !
+## Summary
 
 This tutorial showed how Istio's [AuthorizationPolicy API](https://istio.io/latest/docs/tasks/security/authorization/authz-custom/)
 can be configured to use OPA as an External authorization service.

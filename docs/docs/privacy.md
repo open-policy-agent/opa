@@ -29,7 +29,7 @@ Host: api.github.com
 User-Agent: OPA-Version-Checker
 ```
 
-No data about your OPA instance is sent in the request. OPA simply retrieves
+No data about your OPA instance is sent in the request. OPA retrieves
 information about the latest release. The GitHub API responds with release
 information including the tag name and release notes URL. OPA uses this
 information to determine if a newer version is available and constructs a

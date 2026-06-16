@@ -446,7 +446,7 @@ Here is the expected contents of `tfplan.json`.
 }
 ```
 
-The JSON plan output produced by terraform contains a lot of information. For this tutorial, we will be interested by:
+The JSON plan output produced by terraform contains a lot of information. For this tutorial, the relevant fields are:
 
 - `.resource_changes`: array containing all the actions that terraform will apply on the infrastructure.
 - `.resource_changes[].type`: the type of resource (e.g. `aws_instance` , `aws_iam` ...)
@@ -595,7 +595,7 @@ opa exec --decision terraform/analysis/authz --bundle policy/ tfplan.json
 ```
 
 If you're curious, you can ask for the score that the policy used to make the authorization decision.
-In our example, it is 11 (10 for the creation of the auto-scaling group and 1 for the creation of the server).
+In this example, it is 11 (10 for the creation of the auto-scaling group and 1 for the creation of the server).
 
 ```shell
 opa exec --decision terraform/analysis/score --bundle policy/ tfplan.json
@@ -696,7 +696,7 @@ In addition to loading policies from the local filesystem, `opa exec` can fetch 
 opa build policy/
 ```
 
-Next, serve the bundle via NGINX:
+Next, serve the bundle via Nginx:
 
 ```bash
 docker run --rm --name bundle_server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest
@@ -711,9 +711,7 @@ opa exec --decision terraform/analysis/authz \
   tfplan_large.json
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 You learned a number of things about Terraform Testing with OPA:
 
@@ -805,7 +803,7 @@ terraform show -json tfplan.binary > tfplan2.json
 The policy evaluates if a security group is valid based on the contents of it's description:
 
 - Resources can be specified under the root module or in child modules
-- We want to evaluate against the combined group of these resources
+- The policy evaluates against the combined group of these resources
 - This example is scoped to the planned changes section of the JSON representation
 
 The policy uses the walk keyword to explore the json structure, and uses conditions to filter for the specific paths where resources would be found.
@@ -904,9 +902,7 @@ This should return one of the two resources. The security group created by the m
 }
 ```
 
-## Module Wrap Up
-
-Congratulations on finishing the tutorial!
+## Summary
 
 You learned OPA can be used to determine if a proposed configuration is authorized.
 

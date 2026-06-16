@@ -12,8 +12,8 @@ You will develop an intuition for what valid masking rules look like, and how to
 
 ## What is Column Masking?
 
-For our data filtering use case, a row might be returned from the database that has a sensitive column present.
-We still want the application to be able to display everything it can to the user, but ideally hiding or modifying the sensitive values before display.
+In the data filtering use case, a row might be returned from the database that has a sensitive column present.
+The application should still be able to display everything it can to the user, but the sensitive values should be hidden or modified before display.
 
 ## Format of a Column Masks Object
 
@@ -66,9 +66,9 @@ Note that the value keyed under `users.id` is **empty**, which implies "show val
 
 ## Creating a default-deny style masking policy
 
-For our running example, we will be adding column masking to a support ticket application, where the fields of a tickets that a user can see is determined by their role.
+In the running example, column masking is added to a support ticket application, where the fields of a ticket that a user can see are determined by their role.
 
-Our masking policy will mask the `tickets.description` field with the dummy value `"<description>"` by default, and will allow the real value through for users with the `admin` role.
+The masking policy masks the `tickets.description` field with the dummy value `"<description>"` by default, and allows the real value through for users with the `admin` role.
 
 Roles are provided to EOPA via `roles/data.json`, and the SQL tables contain tickets and assignees.
 
@@ -88,7 +88,7 @@ erDiagram
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-We will be generating data filters and column masks for the `data.filters.include` rule, which marks `data.filters.masks` as its masking rule with the `custom.mask_rule` key, as shown below.
+Data filters and column masks are generated for the `data.filters.include` rule, which marks `data.filters.masks` as its masking rule with the `custom.mask_rule` key, as shown below.
 
 <Tabs>
 <TabItem value="rego" label="filters.rego" default>
@@ -201,9 +201,9 @@ Content-Type: application/json
 
 ## Creating a default-allow style masking policy
 
-For this example, we will keep the support ticket application setup from before. We are still limiting which fields of a tickets that a user can see, based on their role.
+For this example, the support ticket application setup from before is reused. The policy still limits which fields of a ticket that a user can see, based on their role.
 
-Our masking policy will allow the real value through all roles _except_ the `reader` role. The `reader` role will see the every `tickets.description` field set to `"<description>"`.
+The masking policy allows the real value through all roles _except_ the `reader` role. The `reader` role will see the every `tickets.description` field set to `"<description>"`.
 
 <Tabs>
 <TabItem value="rego" label="filters.rego" default>

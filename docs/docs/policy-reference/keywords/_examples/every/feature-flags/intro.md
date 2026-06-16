@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD041 -->
 
-Here we use the `every` keyword to validate that an example session has all the
+The `every` keyword is used here to validate that an example session has all the
 required feature flags for a request.
 
 `test_speedy_checkout` is false in the `input.json`, this will need to be true

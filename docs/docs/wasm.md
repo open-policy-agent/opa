@@ -16,7 +16,7 @@ As described on [https://webassembly.org/](https://webassembly.org/)
 
 OPA is able to compile Rego policies into executable Wasm modules that can be
 evaluated with different inputs and external data. This is _not_ running the OPA
-server in Wasm, nor is this just cross-compiled Golang code. The compiled Wasm
+server in Wasm, nor is this just cross-compiled Go code. The compiled Wasm
 module is a planned evaluation path for the source policy and query.
 
 ## Current Status
@@ -79,7 +79,7 @@ API that produces OPA bundle files. The compile API is recommended.
 
 There is a JavaScript SDK available that simplifies the process of loading and
 evaluating compiled policies. If you want to evaluate Rego policies inside
-JavaScript we recommend you use the
+JavaScript, it is recommended to use the
 [Javascript SDK](https://github.com/open-policy-agent/npm-opa-wasm).
 There is also an
 [example NodeJS application](https://github.com/open-policy-agent/npm-opa-wasm/tree/main/examples/nodejs-app)
@@ -312,7 +312,7 @@ heap pointer. The calling convention is as follows:
      and clear any memory left from `eval` or `opa_eval` calls.
   2. Call `opa_heap_blocks_restore` to reinstate the heap stashed heap memory.
   3. Call `opa_malloc`/`opa_json_parse`/`opa_free` to create the "path" and
-     "value" arguments (in WASM value form) as usual.
+     "value" arguments (in Wasm value form) as usual.
   4. Call `opa_value_add_path` or `opa_value_remove_path` as usual.
   5. Call `opa_value_free` on the "path" argument to release it as usual.
   6. Call `opa_heap_blocks_stash` to stash any free heap blocks to
@@ -334,9 +334,9 @@ to `eval` or `opa_eval`. But that memory was never truly available for
 queries in the first place. The very first call to `opa_heap_ptr_set`
 (either before `eval` or which `opa_eval` calls internally) resets the heap
 and leaks any free blocks on the heap. In versions of the ABI prior to
-1.3 this memory was simply lost. Note, however, that multiple queries
+1.3 this memory was lost. Note, however, that multiple queries
 would not continue to leak memory since they would always reset the heap
-pointer to the same value. The WASM engine would only leak further
+pointer to the same value. The Wasm engine would only leak further
 memory if there were subsequent calls to `opa_value_add_path` or
 `opa_value_remove_path` followed by more queries. ABI 1.3 introduced the
 calling convention using `opa_heap_blocks_stash` and
@@ -378,5 +378,5 @@ Sets are represented as JSON arrays.
 ## Ecosystem Projects
 
 <EcosystemEmbed feature="wasm-integration">
-Wasm is a great way to integrate OPA into applications where the Go SDK is unavailable.
+Wasm can be used to integrate OPA into applications where the Go SDK is unavailable.
 </EcosystemEmbed>

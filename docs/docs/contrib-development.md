@@ -3,7 +3,7 @@ title: Development
 ---
 
 This page details the process for getting up and running locally for OPA
-development. If you're a first time contributor, we recommend you read through
+development. First-time contributors are encouraged to read through
 the [Contributing to OPA](./contrib-code) page first.
 
 OPA is written in the [Go](https://go.dev/) programming language.
@@ -126,8 +126,8 @@ Pull Request, please mention it in the discussion.
 ## Benchmarks
 
 Several packages in this repository implement benchmark tests. To execute the
-benchmarks you can run `make perf` in the top-level directory. We use the Go
-benchmarking framework for all benchmarks.
+benchmarks, run `make perf` in the top-level directory. The Go
+benchmarking framework is used for all benchmarks.
 
 ## Dependencies
 
@@ -138,7 +138,7 @@ All `go` commands from the [Makefile](https://github.com/open-policy-agent/opa/b
 module mode by setting `GO111MODULE=on`.
 
 To update a dependency ensure that `GO111MODULE` is either on, or the repository
-qualifies for `auto` to enable module mode. Then simply use `go get ..` to get
+qualifies for `auto` to enable module mode. Then use `go get ..` to get
 the version desired. This should update the [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) and (potentially)
 [go.sum](https://github.com/open-policy-agent/opa/blob/main/go.sum) files.
 
@@ -176,9 +176,9 @@ performant, that's great! Some things should however be considered before you su
 OPA uses Github Actions defined in the [.github/workflows](https://github.com/open-policy-agent/opa/tree/main/.github/workflows)
 directory.
 
-### Github Action Secrets
+### GitHub Action Secrets
 
-The following secrets are used by the Github Action workflows:
+The following secrets are used by the GitHub Action workflows:
 
 | Name                       | Description                                                                                                                                                     |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -186,7 +186,7 @@ The following secrets are used by the Github Action workflows:
 | AWS_ACCESS_KEY_ID          | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. Optional -- If not provided the release upload steps are skipped.                     |
 | AWS_SECRET_ACCESS_KEY      | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. Optional -- If not provided the release upload steps are skipped.                     |
 | DOCKER_IMAGE               | Full docker image name (with org) to tag and publish OPA images. Optional -- If not provided the image defaults to `openpolicyagent/opa`.                       |
-| DOCKER_WASM_BUILDER_IMAGE  | Full docker image name (with org) to tag and publish WASM builder images. Optional -- If not provided the image defaults to `openpolicyagent/opa-wasm-builder`. |
+| DOCKER_WASM_BUILDER_IMAGE  | Full docker image name (with org) to tag and publish Wasm builder images. Optional -- If not provided the image defaults to `openpolicyagent/opa-wasm-builder`. |
 | DOCKER_USER                | Docker username for uploading release images. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped.                   |
 | DOCKER_PASSWORD            | Docker password or API token for the configured `DOCKER_USER`. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped.  |
 | SLACK_NOTIFICATION_WEBHOOK | Slack webhook for sending notifications. Optional -- If not provided the notification steps are skipped.                                                        |
@@ -194,7 +194,7 @@ The following secrets are used by the Github Action workflows:
 
 ### Periodic Workflows
 
-Some of the Github Action workflows are triggered on a schedule, and not included in the
+Some of the GitHub Action workflows are triggered on a schedule, and not included in the
 post-merge, pull-request, etc actions. These are reserved for time consuming or potentially
 non-deterministic jobs (race detection tests, fuzzing, etc).
 

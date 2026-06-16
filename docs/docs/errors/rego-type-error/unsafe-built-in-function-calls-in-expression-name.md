@@ -22,5 +22,5 @@ thought it would be a good idea to put certain restrictions in place.
 ## How To Fix It
 
 Check the capabilities configuration provided to OPA when executed, and the `--capabilities` flag in particular.
-If you're encountering this on the Rego Playground, simply run the policy on your own machine using e.g. `opa eval`
+If you're encountering this on the Rego Playground, run the policy on your own machine using e.g. `opa eval`
 or `opa run` instead.

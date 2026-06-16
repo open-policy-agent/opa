@@ -10,7 +10,7 @@ invoked before a resource is created, updated or deleted.
 
 AWS currently supports hooks written in either Java or Python, and provides a
 [sample repository](https://github.com/aws-cloudformation/aws-cloudformation-samples), which includes example hooks
-written in both languages. Since we'd rather use OPA for this purpose, we'd need some code to process the requests
+written in both languages. Since OPA is preferred for this purpose, some code is needed to process the requests
 handled by the hook and send them forward to OPA for policy decisions via its
 [REST API](https://www.openpolicyagent.org/docs/rest-api) using
 the [OPA AWS CloudFormation Hook](https://github.com/StyraOSS/opa-aws-cloudformation-hook).
@@ -19,10 +19,10 @@ the [OPA AWS CloudFormation Hook](https://github.com/StyraOSS/opa-aws-cloudforma
 
 This tutorial shows how to deploy an AWS CloudFormation Hook that forwards requests to OPA for policy decisions,
 allowing us to use policy to determine whether a request to create, update or delete a resource should be
-allowed or denied. We'll learn how to author policies that take the input structure of CloudFormation Templates into
+allowed or denied. This tutorial covers authoring policies that take the input structure of CloudFormation Templates into
 account, and some special considerations to be aware of in this environment.
 
-In addition, this tutorial shows how we can leverage dynamic policy composition to group and structure our policies in a
+In addition, this tutorial shows how dynamic policy composition can group and structure policies in a
 way that follows the domain to which they apply.
 
 ## Prerequisites
@@ -106,7 +106,7 @@ The hook is now installed, configured and activated!
 
 ### 3. Learn the Domain
 
-Before we proceed to write our first policy, let's take a closer look at the data we'll be working with.
+Before writing the first policy, take a closer look at the data used in this tutorial.
 
 #### AWS CloudFormation Templates
 
@@ -167,9 +167,9 @@ Any request denied will be logged in [AWS CloudWatch](https://aws.amazon.com/clo
 
 ### 4. Write a CloudFormation Hook Policy
 
-With knowledge of the domain and the data model, we're ready to write our first CloudFormation Hook policy. Since we'll
-have a single OPA endpoint servicing requests for all types of resources, we'll use the
-[default decision](./configuration/#miscellaneous) policy, which by default queries the `system.main` rule. Let's add a
+With knowledge of the domain and the data model, it is time to write the first CloudFormation Hook policy. Since
+a single OPA endpoint services requests for all types of resources, the tutorial uses the
+[default decision](./configuration/#miscellaneous) policy, which by default queries the `system.main` rule. Add a
 simple policy to block an S3 Bucket unless it has an `AccessControl` attribute set to `Private`:
 
 ```rego
@@ -197,8 +197,8 @@ bucket_is_private if {
 }
 ```
 
-Since we know that CloudFormation Templates may contain only the bare minimum of information, we can't assume that there
-will be an `AccessControl` attribute present in the input at all. Using negation of boolean rules inside of our `deny`
+Since CloudFormation Templates may contain only the bare minimum of information, it is not safe to assume that there
+will be an `AccessControl` attribute present in the input at all. Using negation of boolean rules inside the `deny`
 rules help alleviate the problem of values potentially being undefined. Compare to the following deny rule, which might
 look correct at a first glance:
 
@@ -240,7 +240,7 @@ block_public_acls if {
 
 ### 5. Policy Enforcement Testing
 
-With the above policy loaded into OPA, we may proceed to try it out. Let's deploy the minimal S3 Bucket from the
+With the above policy loaded into OPA, deploy the minimal S3 Bucket from the
 previous template example. Save the below minimal template to a file called `s3bucket.yaml`:
 
 ```yaml
@@ -249,15 +249,15 @@ Resources:
     Type: AWS::S3::Bucket
 ```
 
-Since our S3 bucket doesn't have an `AccessControl` attribute, it should be denied by the hook. We
-deploy a template by creating a **stack**:
+Since the S3 bucket doesn't have an `AccessControl` attribute, it should be denied by the hook.
+Deploy a template by creating a **stack**:
 
 ```shell
 aws cloudformation create-stack --stack-name cfn-s3 --template-body file://s3bucket.yaml
 ```
 
 The output of the above command will simply be a confirmation that the stack was deployed. It won't tell us whether the
-deployment was successful or not. In order to know that, we'll need to check the stack events:
+deployment was successful or not. In order to know that, check the stack events:
 
 ```shell
 aws cloudformation describe-stack-events --stack-name cfn-s3
@@ -288,8 +288,7 @@ should now find an item describing that the hook denied the request, and its rea
 }
 ```
 
-Congratulations! You've just successfully enforced your first CloudFormation Hook policy using OPA. Let's update the
-template so that it passes our policy requirement:
+The policy is now enforced. Update the template so that it passes the policy requirement:
 
 **s3bucket.yaml**
 
@@ -301,14 +300,14 @@ Resources:
       AccessControl: Private
 ```
 
-Even though our stack did not create an S3 bucket (as the change got rolled back), the **stack** still exists.
-In order to try again, we'll first need to delete the existing stack:
+Even though the stack did not create an S3 bucket (as the change got rolled back), the **stack** still exists.
+To try again, first delete the existing stack:
 
 ```shell
 aws cloudformation delete-stack --stack-name cfn-s3
 ```
 
-Now, let's try again:
+Try again:
 
 ```shell
 aws cloudformation create-stack --stack-name cfn-s3 --template-body file://s3bucket.yaml
@@ -335,7 +334,7 @@ a bit later.
 }
 ```
 
-Note: once our stack is successfully deployed, we can use the `update-stack` command after we've made changes to our
+Note: once the stack is successfully deployed, the `update-stack` command can be used after changes are made to
 templates:
 
 ```shell
@@ -346,11 +345,11 @@ aws cloudformation update-stack --stack-name cfn-s3 --template-body file://s3buc
 
 ### Dynamic Policy Composition
 
-Having a single policy file for all rules will quickly become unwieldy. Could we improve this somehow? One way of doing
+Having a single policy file for all rules will quickly become unwieldy. Is there room for improvement? One way of doing
 that would be to use dynamic policy composition, where a single main policy acts as a "router", and forwards queries to
 other packages based on attributes from the input. A natural attribute to use for CloudFormation templates might for
-example be the resource type, allowing us to group our policies by the resource type they're meant to act on. Let's
-take a look at what such a main policy might look like:
+example be the resource type, allowing policies to be grouped by the resource type they are meant to act on.
+Here is what such a main policy might look like:
 
 ```rego title="main.rego"
 # METADATA
@@ -422,15 +421,15 @@ The above policy will invoke the `route` rule to determine which package should 
 `input.resource.type`, transforming a value such as `AWS::S3::Bucket` into a call to the `data.aws.s3.bucket` package,
 where each rule named `deny` will be evaluated, and the result aggregated into the final decision.
 
-Since most of our policies will only deal with `CREATE` or `UPDATE` actions, we'd rather want to avoid having to check
-for this in all of our rules. Instead, we'll have the router append `.delete` to the package name for `DELETE`
+Since most policies only deal with `CREATE` or `UPDATE` actions, it is better to avoid checking
+for this in all rules. Instead, the router appends `.delete` to the package name for `DELETE`
 operations, so that a request to delete e.g. an S3 bucket would invoke the `data.aws.s3.bucket.delete` package (if it
 exists).
 
-Additionally, we'll also do some simple input validation at this stage, so that we may avoid doing so in our resource
-specific policies.
+Additionally, some simple input validation is done at this stage, to avoid repeating it in each
+resource-specific policy.
 
-We can now modify our original policy to verify S3 bucket resources only:
+Modify the original policy to verify S3 bucket resources only:
 
 ```rego
 package aws.s3.bucket
@@ -444,7 +443,7 @@ bucket_is_private if {
 }
 ```
 
-Note how we no longer need the `bucket_create_or_update` rule, as that is already asserted by the main policy.
+Note that the `bucket_create_or_update` rule is no longer needed, as that is already asserted by the main policy.
 Quite an improvement in terms of readability, and a good foundation for further policy authoring. If you'd like to see
 more examples of policy utilizing this pattern, check out the
 [policy directory](https://github.com/StyraOSS/opa-aws-cloudformation-hook/tree/main/examples/policy) in the OPA AWS

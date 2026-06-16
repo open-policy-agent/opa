@@ -2,10 +2,10 @@
 title: Contributing Documentation
 ---
 
-Contributing to our documentation is one of the best ways to get started
+Contributing to the documentation is one of the best ways to get started
 contributing to the OPA project. The OPA documentation is often the first place
 people go for help and so any improvements can be very impactful.
-**Thank you in advance for contributing to our documentation!**
+**Thank you in advance for contributing to the documentation!**
 
 ## Local Development
 

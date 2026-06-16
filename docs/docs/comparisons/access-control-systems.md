@@ -2,13 +2,12 @@
 title: Access Control Systems
 ---
 
-Often the easiest way to understand a new tool or language is by comparing it to
-what you already know. Here we show how policies from several existing policy
+Comparing a new tool or language to what you already know can help build familiarity. This page shows how policies from several existing policy
 systems can be implemented with the Open Policy Agent and Rego.
 
 :::tip
 Looking for comparisons between OPA's Rego language and languages like Go, Java
-and Python? Head to our [language comparison](../comparisons/languages)
+and Python? See the [language comparison](../comparisons/languages)
 documentation.
 :::
 
@@ -25,7 +24,7 @@ Once you provide RBAC with both those assignments, RBAC tells you
 how to make an authorization decision. A user is authorized for
 all those permissions assigned to any of the roles she is assigned to.
 
-For example, we might have the following user/role assignments:
+For example, consider the following user/role assignments:
 
 | User    | Role          |
 | ------- | ------------- |
@@ -115,8 +114,7 @@ in each pair below would violate SOD.
 
 OPA's API does not yet let you enforce SOD by rejecting improper role-assignments,
 but it does let you express SOD constraints and ask for all SOD violations,
-as shown below. (Here we assume the statements below are added to the RBAC
-statements above.)
+as shown below. (The statements below extend the RBAC statements above.)
 
 ```rego
 # Pairs of roles that no user can be assigned to simultaneously
@@ -152,7 +150,7 @@ It has three main components:
 - Attributes for objects
 - Logic dictating which attribute combinations are authorized
 
-For example, we might know the following attributes for our users
+For example, consider the following attributes for users
 
 - alice
   - joined the company 15 years ago
@@ -161,7 +159,7 @@ For example, we might know the following attributes for our users
   - joined the company 5 years ago
   - is an analyst
 
-We would also have attributes for the objects, in this case stock ticker symbols.
+Attributes for the objects, in this case stock ticker symbols, are also needed.
 
 - MSFT
   - is sold on NASDAQ
@@ -237,7 +235,7 @@ allow if {
 In OPA, there's nothing special about users and objects. You can attach
 attributes to anything. And the attributes can themselves be structured JSON objects
 and have attributes on attributes on attributes, etc. Because OPA was designed to work
-with arbitrarily nested JSON data, it supports incredibly rich ABAC policies.
+with arbitrarily nested JSON data, it supports expressive ABAC policies.
 
 ## Amazon Web Services IAM
 
@@ -246,7 +244,7 @@ and selected resources. You write `allow` and `deny` statements to enforce which
 execute which API calls on which resources under certain conditions.
 By default all API access requests are implicitly denied (i.e., not allowed). Policy statements
 can explicitly allow or deny API requests. If a request is both allowed and denied, it is always denied.
-Let's assume that the following [customer managed policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html#customer-managed-policies) is defined in AWS:
+Assume that the following [customer managed policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html#customer-managed-policies) is defined in AWS:
 
 ```json
 {

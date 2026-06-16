@@ -472,7 +472,7 @@ This statement is **undefined** if `source` is a scalar value or empty collectio
 
 The OPA repository contains a [test suite](https://github.com/open-policy-agent/opa/tree/main/v1/test/cases/testdata/v1)
 that is used internally to validate both the Go interpreter and the Wasm
-compiler. If you are implementing your own compiler or interpreter we highly
+compiler. If you are implementing your own compiler or interpreter, we highly
 recommend integrating the test suite into your own development environment so
 that your implementation can be verified to conform with OPA's.
 

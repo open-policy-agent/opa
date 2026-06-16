@@ -5,4 +5,4 @@ is more complicated than just checking an email matches a pattern, but since a R
 policy is often a first point of contact, doing a pattern based test on emails is
 still a good idea as it can help surface issues to users early if they make a mistake.
 
-`regex.match` is the best way to validate emails in Rego.
+Use `regex.match` to validate emails in Rego.

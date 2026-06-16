@@ -48,7 +48,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
    ```
 
    Note: This stage can fail if you have not registered an [SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
-   on your Github account.
+   on your GitHub account.
 
 1. Create a release branch off of `main`, to ensure you don't mangle your
    fork while creating the release:

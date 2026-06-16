@@ -55,7 +55,7 @@ working with in different parts of their systems. Select the scenario that best
 matches your setup to find the recommended upgrade path.
 
 If you are in doubt, [Scenario 1](#scenario-1-v0x-producer-v0x-consumer) is the most common starting
-point and we recommended you start there.
+point and is the recommended place to start.
 
 |                   | v0.x Consumer                                                  | Mix Consumer                                        | v1.0 Consumer                                                  |
 | ----------------- | -------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
@@ -174,7 +174,7 @@ bundles. This upgrade path cannot continue until this is possible.
 ### Next
 
 Upgrade producers to v1.0 and continue the upgrade from that point. Generally, it's recommended to
-upgrade producers first, however depending on your existing OPAs v1.0 consumers deployments, you may prefer to
+upgrade producers first, however depending on your existing v1.0 OPA consumer deployments, you may prefer to
 upgrade all your producers to v1.0 rather than to downgrade consumers.
 
 ### Scenario 5: Mix Producer, Mix Consumer
@@ -201,7 +201,7 @@ Please gradually upgrade producers to v1.0 until all producers are v1.0 ([Scenar
 ### Scenario 6: v1.0 Producer, Mix Consumer
 
 All consumers can be run without flags, as the bundle will contain
-attributes to inform v1.0 OPAs to accept v0.x modules.
+attributes to inform v1.0 OPA instances to accept v0.x modules.
 
 #### How to Run
 
@@ -222,7 +222,7 @@ the next and final step.
 ### Scenario 7: v0.x Producer, v1.0 Consumer
 
 All consumers are v1.0, but producers are v0.x. This scenario might occur when
-OPAs used for evaluation are upgraded before the policy bundling system.
+OPA instances used for evaluation are upgraded before the policy bundling system.
 
 #### Pre-requisites
 
@@ -268,10 +268,10 @@ Upgrade producers to v1.0 ([Scenario 9](#scenario-9-v10-producer-v10-consumer)),
 
 Once you have all consumers and producers running at v1.0 then you have
 completed the upgrade to OPA v1.0. If you are using `--v0-compatible`
-functionality, the next task is to upgrade the Rego loaded into OPAs to Rego v1.
+functionality, the next task is to upgrade the Rego loaded into OPA instances to Rego v1.
 
-Regardless of whether you are now upgrading your Rego, we encourage users to
-use `opa check`, `opa check --strict` and to lint their Rego projects if you
+Regardless of whether you are now upgrading your Rego, run `opa check`,
+`opa check --strict` and lint your Rego projects if you
 have not already done so to identify issues.
 
 ## Changes to Rego in OPA v1.0

@@ -3,8 +3,8 @@ title: SSH and sudo
 ---
 
 Host-level access controls are an important part of every organization's
-security strategy. Using [Linux-PAM](https://tldp.org/HOWTO/User-Authentication-HOWTO/x115.html) and OPA
-we can extend policy-based access control to SSH and sudo.
+security strategy. With [Linux-PAM](https://tldp.org/HOWTO/User-Authentication-HOWTO/x115.html) and OPA,
+policy-based access control can be extended to SSH and sudo.
 
 ## Goals
 
@@ -12,16 +12,16 @@ This tutorial shows how you can use OPA and Linux-PAM to enforce fine-grained,
 host-level access controls over SSH and sudo.
 
 Linux-PAM can be configured to delegate authorization decisions to plugins
-(shared libraries). In this case, we have created an OPA-based plugin that can
+(shared libraries). An OPA-based plugin has been created that can
 be configured to authorize SSH and sudo access. The OPA-based Linux-PAM plugin
 used in this tutorial can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib/tree/main/pam_opa).
 
-For this tutorial, our desired policy is:
+For this tutorial, the desired policy is:
 
 - Admins can SSH into any host and run sudo commands.
 - Normal users can SSH into hosts that they have _contributed_ to and run sudo commands.
 
-Furthermore, we'll assume we have the following set of users and hosts:
+The following set of users and hosts is assumed:
 
 - `frontend-dev` is a developer who contributes to the app running on the `frontend` host.
 - `backend-dev` is a developer who contributes to the app running on the `backend` host.
@@ -31,8 +31,6 @@ Authentication (verifying user identity) is outside the scope of OPA's
 responsibility so this tutorial relies on identities being statically
 defined. In real-world scenarios authentication can be delegated to SSH itself
 (`authorized_keys`) or other identity management systems.
-
-Let's get started.
 
 ## Prerequisites
 
@@ -44,7 +42,7 @@ with OPA. The dummy SSH hosts are just containers running sshd inside.
 ### 1. Bootstrap the tutorial environment using Docker Compose
 
 First, create a `tutorial-docker-compose.yaml` file that runs OPA and the containers that
-represent our backend and frontend hosts.
+represent the backend and frontend hosts.
 
 <EvergreenCodeBlock>
 ```yaml title="tutorial-docker-compose.yaml"
@@ -92,7 +90,7 @@ services:
 
 The `tutorial-docker-compose.yaml` file requires two other local files:
 `frontend_host_id.json` and `backend_host_id.json`. These files are mounted
-into the containers representing our hosts. The content of the file provides
+into the containers representing the hosts. The content of the file provides
 _context_ that the PAM module provides as input when executing queries
 against OPA.
 
@@ -103,7 +101,7 @@ echo '{"host_id": "frontend"}' > frontend_host_id.json
 echo '{"host_id": "backend"}' > backend_host_id.json
 ```
 
-> In real-world scenarios, these files could contain arbitrary information that we want to expose to the policy.
+> In real-world scenarios, these files could contain arbitrary information to expose to the policy.
 
 Finally, run `docker-compose` to pull and run the containers.
 
@@ -112,7 +110,7 @@ docker-compose -f tutorial-docker-compose.yaml up
 ```
 
 This tutorial uses a special Docker image named `openpolicyagent/demo-pam` to simulate an SSH server.
-This image contains pre-created Linux accounts for our users, and the required PAM module is
+This image contains pre-created Linux accounts for the users, and the required PAM module is
 pre-configured inside the `sudo` and `sshd` files in `/etc/pam.d/`.
 
 ### 2. Create a Bundle for the policies and data
@@ -147,8 +145,7 @@ include some default values, such as the username making the request. See
 [this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_opa/pam#authz)
 to get a better understanding of what the `input` to the authorization policy will look like.
 
-Unlike the _pull_ policy, we'll create separate _authz_ policies
-for SSH and `sudo` for more fine-grained control.
+Unlike the _pull_ policy, the _authz_ policies for SSH and `sudo` are kept separate for more fine-grained control.
 In production, it makes more sense to have this separation for _display_ and _pull_ as well.
 
 Create the SSH authorization policy. It should allow admins to SSH into all hosts,
@@ -211,7 +208,7 @@ errors contains "Request denied by administrative policy" if {
 }
 ```
 
-Now we need to create the data that represents our roles, hots, and contributors into OPA.
+Create the data that represents the roles, hosts, and contributors in OPA.
 
 Create a folder called roles, and the following data file.
 
@@ -270,7 +267,7 @@ Now you should have the following file structure setup.
 
 ### 3. SSH and sudo as a user with the `admin` role
 
-First, let's try to access the hosts as the `ops` user. Recall, the `ops` user
+First, try to access the hosts as the `ops` user. Recall, the `ops` user
 has been granted the `admin` role (via the `PUT /data/roles` request above) and
 users with the `admin` role can login to any host and perform sudo commands.
 
@@ -292,7 +289,7 @@ configuration. For more details see
 
 ### 4. SSH as a user without the `admin` role
 
-Let's try a user without the admin role. Recall, that a non-admin user can SSH
+Try a user without the admin role. Recall, that a non-admin user can SSH
 into any host that they have _contributed to_.
 
 The `frontend-dev` user contributed code to the `frontend` host so they should be
@@ -320,7 +317,7 @@ Suppose you have a ticketing system for elevation, where you generate tickets fo
 that need elevated rights, send the ticket to the user, and expire those tickets when
 their rights should be removed.
 
-Let's mock the current state of this simple ticketing system's API with some data.
+Mock the current state of this simple ticketing system's API with some data.
 
 ```shell
 mkdir elevate
@@ -336,9 +333,9 @@ EOF
 This means that for now, if the `frontend-dev` user can provide ticket number `1234`,
 they should be able to SSH into all servers.
 
-Let's write policy to ensure that this happens.
+Write policy to ensure that this happens.
 
-First, we need to make the PAM module take input from the user.
+First, make the PAM module take input from the user.
 
 **display.rego**:
 
@@ -355,7 +352,7 @@ display_spec := [
 ]
 ```
 
-Then we need to make sure that the authorization takes this input into account.
+Then make sure that the authorization takes this input into account.
 
 **sudo_authz_elevated.rego**:
 
@@ -374,7 +371,7 @@ allow if {
 }
 ```
 
-Now we need to build a new bundle for OPA to use.
+Now build a new bundle for OPA to use.
 
 ```shell
 opa build -b .
@@ -389,12 +386,12 @@ ssh -p 2222 frontend-dev@localhost \
 sudo ls /
 ```
 
-You should be prompted with the message that we defined in our _display_ policy
+You should be prompted with the message defined in the _display_ policy
 for both the SSH and `sudo` authorization cycles.
 This happens because the _display_ policy is shared by the PAM configurations of SSH and `sudo`.
 In production, it is more practical to use separate policy packages for each PAM configuration.
 
-We have not defined the SSH _authz_ policy to work with elevation, so you can enter any value
+The SSH _authz_ policy has not been defined to work with elevation, so you can enter any value
 into the prompt that comes up for SSH.
 
 For `sudo`, enter the ticket number `1234` to get access.
@@ -418,13 +415,11 @@ opa build -b .
 You will find that running `sudo ls /` as the `frontend-dev` user is disallowed again.
 
 It is possible to configure the _display_ policy to only make the PAM module prompt for the
-elevation ticket when our mock API has a non-empty `tickets` object. So when there are no
+elevation ticket when the mock API has a non-empty `tickets` object. So when there are no
 elevated users, there will be no prompt for a ticket. This can be done using the Rego
 [`count` aggregate](./policy-reference/builtins/aggregates).
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 You learned a number of things about SSH with OPA:
 
