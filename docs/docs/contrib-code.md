@@ -29,7 +29,7 @@ When contributing please consider the following pointers:
   OPA users (e.g., vendoring conflicts, security, debugging, etc.)
 - **AI Tooling**: You can use generative AI tooling to assist your work on OPA,
   but please review the project's [AI Guidelines](#ai-guidelines) below before doing so to
-  help us help you.
+  help maintainers help you.
 
 :::tip
 Looking for developer environment set-up? Head over to the

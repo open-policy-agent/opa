@@ -5,7 +5,7 @@ title: "Tutorial: Ingress Validation"
 This tutorial shows how to deploy OPA as an admission controller from scratch.
 It covers the OPA-Kubernetes version that uses kube-mgmt.
 The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper) has its own docs.
-For the purpose of the tutorial we will deploy two policies that ensure:
+For the purpose of the tutorial, two policies will be deployed that ensure:
 
 - Ingress hostnames must be on `allowlist` on the Namespace containing the Ingress.
 - Two ingresses in different namespaces must not have the same hostname.
@@ -18,7 +18,7 @@ the other. This means that it's not possible to enforce these policies during
 admission control 100% of the time. There will be a small window of time
 (usually on the order of milliseconds) when the eventually consistent cache
 inside of OPA (or any other admission controller) is out-of-date. To catch
-these violations we recommend you periodically audit the state of the cluster
+these violations it is recommended to periodically audit the state of the cluster
 against your policies. Offline auditing is one of the features provided by the
 [OPA Gatekeeper](https://github.com/open-policy-agent/gatekeeper) project.
 :::
@@ -26,7 +26,7 @@ against your policies. Offline auditing is one of the features provided by the
 ## Prerequisites
 
 This tutorial requires Kubernetes 1.20 or later. To run the tutorial locally ensure you start a cluster with Kubernetes
-version 1.20+, we recommend using [minikube](https://kubernetes.io/docs/setup/) or
+version 1.20+, for example [minikube](https://kubernetes.io/docs/setup/) or
 [KIND](https://kind.sigs.k8s.io/).
 
 ## Steps

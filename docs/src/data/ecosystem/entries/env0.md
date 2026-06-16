@@ -37,4 +37,4 @@ docs_features:
       OPA. See docs [here](https://docs.envzero.com/guides/integrations/plugins/opa-plugin).
 ---
 
-env0 is the best way to deploy and manage IaC - Terraform, OpenTofu, CloudFormation, Pulumi, Kubernetes, and more. Our platform integrates with OPA to allow its users to streamline cloud governance, automate policy enforcement, and maintain control over cloud deployments while enabling managed self-service.
+env0 is the best way to deploy and manage IaC - Terraform, OpenTofu, CloudFormation, Pulumi, Kubernetes, and more. The env0 platform integrates with OPA to allow its users to streamline cloud governance, automate policy enforcement, and maintain control over cloud deployments while enabling managed self-service.

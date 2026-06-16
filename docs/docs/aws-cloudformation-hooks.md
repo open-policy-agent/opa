@@ -18,7 +18,7 @@ the [OPA AWS CloudFormation Hook](https://github.com/StyraOSS/opa-aws-cloudforma
 ## Goals
 
 This tutorial shows how to deploy an AWS CloudFormation Hook that forwards requests to OPA for policy decisions,
-allowing us to use policy to determine whether a request to create, update or delete a resource should be
+allowing policy to determine whether a request to create, update or delete a resource should be
 allowed or denied. This tutorial covers authoring policies that take the input structure of CloudFormation Templates into
 account, and some special considerations to be aware of in this environment.
 
