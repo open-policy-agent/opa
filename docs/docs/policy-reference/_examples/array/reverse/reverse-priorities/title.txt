@@ -1,1 +1,1 @@
-Reversing the order of an array
+Validating a teardown plan runs in reverse order

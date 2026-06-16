@@ -1,8 +1,7 @@
 {
-  "image": "registry.example.com/team/app:v1.2.3",
   "parts": [
     "registry.example.com/team/app",
-    "v1.2.3"
+    "1.4.0"
   ],
   "repository": "registry.example.com/team/app",
   "segments": [
@@ -10,5 +9,6 @@
     "team",
     "app"
   ],
-  "tag": "v1.2.3"
+  "tag": "1.4.0",
+  "version_ok": true
 }

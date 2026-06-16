@@ -1,14 +1,15 @@
 {
-  "priorities": [
-    "low",
-    "medium",
-    "high",
-    "critical"
+  "expected_teardown": [
+    "verify",
+    "deploy",
+    "configure",
+    "provision"
   ],
-  "priorities_desc": [
-    "critical",
-    "high",
-    "medium",
-    "low"
+  "teardown_valid": true,
+  "up_steps": [
+    "provision",
+    "configure",
+    "deploy",
+    "verify"
   ]
 }

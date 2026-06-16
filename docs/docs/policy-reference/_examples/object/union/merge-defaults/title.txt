@@ -1,1 +1,1 @@
-Layering overrides on defaults
+Applying workload overrides to baseline settings

@@ -1,1 +1,1 @@
-Flattening nested arrays
+Gathering permissions from nested groups

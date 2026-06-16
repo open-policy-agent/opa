@@ -1,1 +1,1 @@
-Splitting a structured identifier
+Validating a container image reference

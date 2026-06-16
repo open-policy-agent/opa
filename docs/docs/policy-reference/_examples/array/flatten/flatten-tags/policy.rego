@@ -1,7 +1,10 @@
 package play
 
-# Tags collected as [key, value] pairs, one pair per group.
-grouped_tags := [["app", "web"], ["env", "prod"], ["team", "platform"]]
+# groups_permissions is a list of lists: one list per group the user belongs to.
+user_groups := ["eng", "devops"]
 
-# Flatten the pairs into a single list so every tag can be checked in one pass.
-flat_tags := array.flatten(grouped_tags)
+groups_permissions := [data.groups[g].permissions | some g in user_groups]
+# e.g. [["read","write"], ["deploy","read"]]
+
+# Flatten into a single list so we can check for a specific permission.
+all_permissions := array.flatten(groups_permissions)

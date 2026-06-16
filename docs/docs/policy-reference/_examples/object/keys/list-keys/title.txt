@@ -1,1 +1,1 @@
-Listing the keys of an object
+Enforcing lowercase configuration keys

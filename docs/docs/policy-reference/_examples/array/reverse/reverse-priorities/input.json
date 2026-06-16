@@ -1,0 +1,3 @@
+{
+  "teardown": ["verify", "deploy", "configure", "provision"]
+}

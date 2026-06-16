@@ -1,0 +1,10 @@
+{
+  "groups": {
+    "eng": {
+      "permissions": ["read", "write"]
+    },
+    "devops": {
+      "permissions": ["deploy", "read"]
+    }
+  }
+}

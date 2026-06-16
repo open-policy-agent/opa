@@ -1,17 +1,13 @@
 {
+  "all_lowercase": true,
   "config": {
     "image": "app:v1",
     "port": 8080,
     "replicas": 3
   },
-  "has_required": true,
-  "present_keys": [
+  "config_keys": [
     "image",
     "port",
-    "replicas"
-  ],
-  "required_keys": [
-    "image",
     "replicas"
   ]
 }

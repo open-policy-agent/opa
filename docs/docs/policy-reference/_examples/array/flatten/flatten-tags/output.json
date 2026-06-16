@@ -1,24 +1,22 @@
 {
-  "flat_tags": [
-    "app",
-    "web",
-    "env",
-    "prod",
-    "team",
-    "platform"
+  "all_permissions": [
+    "read",
+    "write",
+    "deploy",
+    "read"
   ],
-  "grouped_tags": [
+  "groups_permissions": [
     [
-      "app",
-      "web"
+      "read",
+      "write"
     ],
     [
-      "env",
-      "prod"
-    ],
-    [
-      "team",
-      "platform"
+      "deploy",
+      "read"
     ]
+  ],
+  "user_groups": [
+    "eng",
+    "devops"
   ]
 }
