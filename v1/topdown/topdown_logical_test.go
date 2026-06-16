@@ -9,10 +9,40 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/types"
 )
+
+var touchCounters sync.Map // map[string]*atomic.Int64
+
+func init() {
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: "test.touch",
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.B,
+		),
+	})
+
+	RegisterBuiltinFunc("test.touch", func(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+		label := string(operands[0].Value.(ast.String))
+		counter, _ := touchCounters.LoadOrStore(label, &atomic.Int64{})
+		counter.(*atomic.Int64).Add(1)
+		return iter(ast.BooleanTerm(true))
+	})
+}
+
+func touchCount(label string) int {
+	counter, ok := touchCounters.Load(label)
+	if !ok {
+		return 0
+	}
+	return int(counter.(*atomic.Int64).Load())
+}
 
 // logicalParserOptions opts in to the experimental `and` / `or` keywords.
 func logicalParserOptions() ast.ParserOptions {
@@ -258,6 +288,133 @@ func runLogicalCase(t *testing.T, module string, expectedNotes []string, expectF
 		if !slices.Equal(notes, expectedNotes) {
 			t.Errorf("unexpected prints, expected %q, got %q", expectedNotes, notes)
 		}
+	}
+
+	if t.Failed() || testing.Verbose() {
+		PrettyTrace(os.Stderr, *tr)
+	}
+}
+
+func TestTopDownLogicalAndShortCircuit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note      string
+		label     string // unique per case so subcases can run in parallel
+		module    string
+		wantTouch int
+	}{
+		{
+			note:  "lhs false: rhs builtin not invoked",
+			label: "and-shortcircuit-lhs-false",
+			module: `package test
+				import future.keywords.and
+				p if {
+					false and test.touch("and-shortcircuit-lhs-false")
+				}`,
+			wantTouch: 0,
+		},
+		{
+			note:  "lhs true: rhs builtin invoked exactly once",
+			label: "and-shortcircuit-lhs-true",
+			module: `package test
+				import future.keywords.and
+				p if {
+					true and test.touch("and-shortcircuit-lhs-true")
+				}`,
+			wantTouch: 1,
+		},
+		{
+			note:  "lhs undefined ref: rhs builtin not invoked",
+			label: "and-shortcircuit-lhs-undefined",
+			module: `package test
+				import future.keywords.and
+				p if {
+					input.missing and test.touch("and-shortcircuit-lhs-undefined")
+				}`,
+			wantTouch: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+			runTouchCase(t, tc.label, tc.module, tc.wantTouch)
+		})
+	}
+}
+
+func TestTopDownLogicalOrShortCircuit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note      string
+		label     string
+		module    string
+		wantTouch int
+	}{
+		{
+			note:  "lhs true: rhs builtin not invoked",
+			label: "or-shortcircuit-lhs-true",
+			module: `package test
+				import future.keywords.or
+				p if {
+					true or test.touch("or-shortcircuit-lhs-true")
+				}`,
+			wantTouch: 0,
+		},
+		{
+			note:  "lhs false: rhs builtin invoked exactly once",
+			label: "or-shortcircuit-lhs-false",
+			module: `package test
+				import future.keywords.or
+				p if {
+					false or test.touch("or-shortcircuit-lhs-false")
+				}`,
+			wantTouch: 1,
+		},
+		{
+			note:  "lhs undefined ref: rhs builtin invoked exactly once",
+			label: "or-shortcircuit-lhs-undefined",
+			module: `package test
+				import future.keywords.or
+				p if {
+					input.missing or test.touch("or-shortcircuit-lhs-undefined")
+				}`,
+			wantTouch: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+			runTouchCase(t, tc.label, tc.module, tc.wantTouch)
+		})
+	}
+}
+
+func runTouchCase(t *testing.T, label, module string, wantTouch int) {
+	t.Helper()
+
+	ctx := t.Context()
+	c := ast.NewCompiler()
+	mod := ast.MustParseModuleWithOpts(module, logicalParserOptions())
+	c.Compile(map[string]*ast.Module{"test": mod})
+	if c.Failed() {
+		t.Fatal(c.Errors)
+	}
+
+	tr := NewBufferTracer()
+	query := NewQuery(ast.MustParseBody("data.test.p = x")).
+		WithCompiler(c).
+		WithQueryTracer(tr)
+
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := touchCount(label); got != wantTouch {
+		t.Errorf("test.touch(%q) call count: got %d, want %d", label, got, wantTouch)
 	}
 
 	if t.Failed() || testing.Verbose() {
