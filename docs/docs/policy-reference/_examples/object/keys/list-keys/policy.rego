@@ -1,17 +1,10 @@
 package play
 
-config := {
-	"image": "app:v1",
-	"replicas": 3,
-	"port": 8080,
-}
+# The naming convention requires every configuration key to be lowercase.
+config_keys := object.keys(input.config)
 
-# object.keys returns the set of top-level keys.
-config_keys := object.keys(config)
+# Collect the keys that break the convention.
+invalid_keys := {key | some key in config_keys; lower(key) != key}
 
-# Every key must be lowercase. Compare each key to its lowered form.
-all_lowercase if {
-	every k in config_keys {
-		lower(k) == k
-	}
-}
+# The config is valid only when no offending keys remain.
+keys_valid := count(invalid_keys) == 0

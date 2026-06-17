@@ -1,10 +1,10 @@
 package play
 
-# groups_permissions is a list of lists: one list per group the user belongs to.
-user_groups := ["eng", "devops"]
+# In an RBAC system a user belongs to several groups, each with its own list of
+# permissions. Collect the permission list for every group the user is in.
+groups_permissions := [input.groups[g].permissions | some g in input.user_groups]
+# e.g. [["read", "write"], ["deploy", "read"]]
 
-groups_permissions := [data.groups[g].permissions | some g in user_groups]
-# e.g. [["read","write"], ["deploy","read"]]
-
-# Flatten into a single list so we can check for a specific permission.
+# Flatten the list of lists into a single array so the policy can check for a
+# specific permission.
 all_permissions := array.flatten(groups_permissions)

@@ -1,4 +1,5 @@
 {
+  "user_groups": ["eng", "devops"],
   "groups": {
     "eng": {
       "permissions": ["read", "write"]

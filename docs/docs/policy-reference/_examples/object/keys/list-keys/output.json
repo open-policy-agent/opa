@@ -1,13 +1,12 @@
 {
-  "all_lowercase": true,
-  "config": {
-    "image": "app:v1",
-    "port": 8080,
-    "replicas": 3
-  },
   "config_keys": [
+    "Replicas",
     "image",
-    "port",
-    "replicas"
-  ]
+    "maxPort"
+  ],
+  "invalid_keys": [
+    "Replicas",
+    "maxPort"
+  ],
+  "keys_valid": false
 }

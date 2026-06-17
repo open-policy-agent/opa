@@ -1,0 +1,7 @@
+{
+  "config": {
+    "image": "app:v1",
+    "Replicas": 3,
+    "maxPort": 8080
+  }
+}
