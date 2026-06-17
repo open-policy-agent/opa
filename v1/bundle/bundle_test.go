@@ -492,6 +492,46 @@ func TestReadWithManifest(t *testing.T) {
 	}
 }
 
+func TestReadRejectsDuplicateManifests(t *testing.T) {
+	pbBytes, err := marshalManifestProto(&Manifest{Revision: "from-proto"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		note  string
+		files [][2]string
+	}{
+		{
+			note: "json + proto manifest",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "from-json"}`},
+				{"/.manifest.pb", string(pbBytes)},
+			},
+		},
+		{
+			note: "two json manifests at different paths (HasSuffix shadowing)",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "from-root"}`},
+				{"/sub/release.manifest", `{"revision": "from-sub"}`},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			buf := archive.MustWriteTarGz(tc.files)
+			_, err := NewReader(buf).Read()
+			if err == nil {
+				t.Fatal("expected error for duplicate manifests, got nil")
+			}
+			if !strings.Contains(err.Error(), "multiple manifest files") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestManifestMetadata(t *testing.T) {
 	files := [][2]string{
 		{"/.manifest", `{
@@ -1297,6 +1337,168 @@ func TestRoundtrip(t *testing.T) {
 	}
 }
 
+func TestWriterRejectsMixedPlanManifestFormats(t *testing.T) {
+	manifest := Manifest{Roots: &[]string{""}, Revision: "r"}
+
+	t.Run("proto manifest with JSON plan", func(t *testing.T) {
+		b := Bundle{
+			Manifest: manifest,
+			PlanModules: []PlanModuleFile{{
+				Path: PlanFile, URL: PlanFile, Raw: []byte("{}"),
+			}},
+		}
+		b.SetManifestProto(true)
+		var buf bytes.Buffer
+		err := NewWriter(&buf).Write(b)
+		if err == nil || !strings.Contains(err.Error(), "proto manifest but JSON plan") {
+			t.Fatalf("expected mixed-format error, got: %v", err)
+		}
+	})
+
+	t.Run("JSON manifest with proto plan", func(t *testing.T) {
+		b := Bundle{
+			Manifest: manifest,
+			PlanModules: []PlanModuleFile{{
+				Path: PlanProtoFile, URL: PlanProtoFile, Raw: []byte{0x00},
+			}},
+		}
+		var buf bytes.Buffer
+		err := NewWriter(&buf).Write(b)
+		if err == nil || !strings.Contains(err.Error(), "JSON manifest but proto plan") {
+			t.Fatalf("expected mixed-format error, got: %v", err)
+		}
+	})
+
+	t.Run("empty manifest exempts proto plan", func(t *testing.T) {
+		b := Bundle{
+			Manifest: Manifest{},
+			PlanModules: []PlanModuleFile{{
+				Path: PlanProtoFile, URL: PlanProtoFile, Raw: []byte{0x00},
+			}},
+		}
+		var buf bytes.Buffer
+		if err := NewWriter(&buf).Write(b); err != nil {
+			t.Fatalf("expected empty-manifest write to succeed, got: %v", err)
+		}
+	})
+
+	t.Run("uniform proto succeeds", func(t *testing.T) {
+		b := Bundle{
+			Manifest: manifest,
+			PlanModules: []PlanModuleFile{{
+				Path: PlanProtoFile, URL: PlanProtoFile, Raw: []byte{0x00},
+			}},
+		}
+		b.SetManifestProto(true)
+		var buf bytes.Buffer
+		if err := NewWriter(&buf).Write(b); err != nil {
+			t.Fatalf("expected uniform-proto write to succeed, got: %v", err)
+		}
+	})
+}
+
+func TestRoundtripWithProtoManifestSigned(t *testing.T) {
+
+	bundle := Bundle{
+		Data: map[string]any{
+			"foo": map[string]any{
+				"bar": []any{json.Number("1"), json.Number("2"), json.Number("3")},
+			},
+		},
+		PlanModules: []PlanModuleFile{
+			{
+				Path: PlanProtoFile,
+				URL:  PlanProtoFile,
+				Raw:  []byte("plan-proto-bytes"),
+			},
+		},
+		Manifest: Manifest{
+			Roots:    &[]string{""},
+			Revision: "quickbrownfaux",
+			Metadata: map[string]any{"version": "v1", "hello": "world"},
+		},
+	}
+	bundle.SetManifestProto(true)
+
+	if err := bundle.GenerateSignature(NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	var buf bytes.Buffer
+	if err := NewWriter(&buf).Write(bundle); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
+	bundle2, err := NewReader(&buf).WithBundleVerificationConfig(vc).Read()
+	if err != nil {
+		t.Fatalf("verify failed for proto-manifest bundle: %v", err)
+	}
+
+	if bundle2.Manifest.Revision != bundle.Manifest.Revision {
+		t.Fatalf("manifest not preserved through proto round-trip: got revision %q", bundle2.Manifest.Revision)
+	}
+	if !reflect.DeepEqual(bundle2.Signatures, bundle.Signatures) {
+		t.Fatal("expected signatures to be same after read")
+	}
+}
+
+func TestReadProtoManifestPreservesFormatIntent(t *testing.T) {
+	src := Bundle{
+		Data: map[string]any{},
+		Manifest: Manifest{
+			Roots:    &[]string{""},
+			Revision: "abc",
+		},
+	}
+	src.SetManifestProto(true)
+
+	var buf bytes.Buffer
+	if err := NewWriter(&buf).Write(src); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := NewReader(&buf).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded.manifestProto {
+		t.Fatal("Reader did not propagate manifestProto onto the loaded bundle")
+	}
+
+	var out bytes.Buffer
+	if err := NewWriter(&out).Write(loaded); err != nil {
+		t.Fatal(err)
+	}
+	gr, err := gzip.NewReader(&out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := tar.NewReader(gr)
+	var sawProto, sawJSON bool
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		switch h.Name {
+		case "/.manifest.pb":
+			sawProto = true
+		case "/.manifest":
+			sawJSON = true
+		}
+	}
+	if !sawProto {
+		t.Error("re-written bundle missing /.manifest.pb")
+	}
+	if sawJSON {
+		t.Error("re-written bundle silently downgraded to /.manifest")
+	}
+}
+
 func TestRoundtripWithPlanModules(t *testing.T) {
 
 	b := Bundle{
@@ -1802,6 +2004,75 @@ func TestMergeCorruptManifest(t *testing.T) {
 	if err == nil || err.Error() != "bundle manifest not initialized" {
 		t.Fatal("unexpected error:", err)
 	}
+}
+
+func TestMergeRejectsMixedFormats(t *testing.T) {
+	rootEmpty := &[]string{""}
+
+	t.Run("mixed plan formats", func(t *testing.T) {
+		jsonBundle := &Bundle{
+			Manifest: Manifest{Roots: rootEmpty},
+			PlanModules: []PlanModuleFile{{
+				Path: PlanFile, URL: PlanFile, Raw: []byte("{}"),
+			}},
+		}
+		protoBundle := &Bundle{
+			Manifest: Manifest{Roots: rootEmpty},
+			PlanModules: []PlanModuleFile{{
+				Path: PlanProtoFile, URL: PlanProtoFile, Raw: []byte{0x00},
+			}},
+		}
+		_, err := Merge([]*Bundle{jsonBundle, protoBundle})
+		if err == nil {
+			t.Fatal("expected error for mixed plan formats, got nil")
+		}
+		if !strings.Contains(err.Error(), "mixed plan formats") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("mixed manifest formats", func(t *testing.T) {
+		jsonManifestBundle := &Bundle{
+			Manifest: Manifest{Roots: rootEmpty, Revision: "j"},
+		}
+		protoManifestBundle := &Bundle{
+			Manifest: Manifest{Roots: rootEmpty, Revision: "p"},
+		}
+		protoManifestBundle.SetManifestProto(true)
+
+		_, err := Merge([]*Bundle{jsonManifestBundle, protoManifestBundle})
+		if err == nil {
+			t.Fatal("expected error for mixed manifest formats, got nil")
+		}
+		if !strings.Contains(err.Error(), "mixed manifest formats") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("uniform proto inputs propagate flag", func(t *testing.T) {
+		a := &Bundle{
+			Manifest: Manifest{Roots: &[]string{"a"}, Revision: "a"},
+			PlanModules: []PlanModuleFile{{
+				Path: PlanProtoFile, URL: PlanProtoFile, Raw: []byte{0x00},
+			}},
+		}
+		a.SetManifestProto(true)
+		b := &Bundle{
+			Manifest: Manifest{Roots: &[]string{"b"}, Revision: "b"},
+			PlanModules: []PlanModuleFile{{
+				Path: PlanProtoFile, URL: PlanProtoFile, Raw: []byte{0x01},
+			}},
+		}
+		b.SetManifestProto(true)
+
+		merged, err := Merge([]*Bundle{a, b})
+		if err != nil {
+			t.Fatalf("expected uniform-format merge to succeed, got %v", err)
+		}
+		if !merged.manifestProto {
+			t.Fatal("merged bundle should carry manifestProto=true forward from inputs")
+		}
+	})
 }
 
 func TestMerge(t *testing.T) {

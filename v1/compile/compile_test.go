@@ -104,6 +104,16 @@ func TestCompilerInitErrors(t *testing.T) {
 			c:    New().WithTarget("plan"),
 			want: errors.New("plan compilation requires at least one entrypoint"),
 		},
+		{
+			note: "unsupported plan format",
+			c:    New().WithPlanFormat("xml"),
+			want: fmt.Errorf("unsupported plan format %q (want one of %v)", "xml", PlanFormats),
+		},
+		{
+			note: "plan format requires plan target",
+			c:    New().WithPlanFormat(PlanFormatProto),
+			want: fmt.Errorf("plan format %q is only valid with target %q", PlanFormatProto, TargetPlan),
+		},
 	}
 
 	for _, tc := range tests {
@@ -1010,6 +1020,39 @@ func TestCompilerLoadFilesystemWithEnablePrintStatementsTrue(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCompilerProtoPlanIsDeterministic(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+			package test
+			import rego.v1
+
+			allow if { input.user == "alice" }
+			deny  if { input.user == "mallory" }
+		`,
+	}
+
+	// Single root keeps Static.Files (source paths) stable across builds.
+	test.WithTempFS(files, func(root string) {
+		build := func() []byte {
+			compiler := New().
+				WithPaths(root).
+				WithTarget(TargetPlan).
+				WithPlanFormat(PlanFormatProto).
+				WithEntrypoints("test/allow", "test/deny")
+			if err := compiler.Build(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			return append([]byte(nil), compiler.Bundle().PlanModules[0].Raw...)
+		}
+
+		a := build()
+		b := build()
+		if !bytes.Equal(a, b) {
+			t.Fatalf("plan.pb bytes differ across builds (len %d vs %d)", len(a), len(b))
+		}
+	})
 }
 
 func TestCompilerLoadHonorsFilter(t *testing.T) {

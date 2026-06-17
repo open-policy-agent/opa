@@ -41,3 +41,6 @@ docs/website/data/versions
 
 # generated when building windows binary to add icon and product version
 resource.syso
+
+# generated when building proto codegen plugin (see Makefile generate-proto)
+build/tools/bin/

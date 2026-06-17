@@ -7,6 +7,7 @@ tool (
 	github.com/rogpeppe/go-internal/cmd/testscript
 	golang.org/x/perf/cmd/benchstat
 	golang.org/x/vuln/cmd/govulncheck
+	google.golang.org/protobuf/cmd/protoc-gen-go
 	rsc.io/cmd/benchlab
 )
 
@@ -27,6 +28,7 @@ require (
 	golang.org/x/telemetry v0.0.0-20260421165255-392afab6f40e // indirect
 	golang.org/x/tools v0.44.0 // indirect
 	golang.org/x/vuln v1.3.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	rsc.io/cmd/benchlab v0.0.0-20260520161042-9fc40f0f0431 // indirect
 )
 

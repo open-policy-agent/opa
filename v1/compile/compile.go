@@ -19,6 +19,8 @@ import (
 	"sort"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/planner"
@@ -50,6 +52,15 @@ const (
 	TargetPlan = "plan"
 )
 
+// Plan output formats. Only meaningful when Target == TargetPlan.
+const (
+	PlanFormatJSON  = "json"
+	PlanFormatProto = "proto"
+)
+
+// PlanFormats contains the list of plan output formats supported by the compiler.
+var PlanFormats = []string{PlanFormatJSON, PlanFormatProto}
+
 // Targets contains the list of targets supported by the compiler.
 var Targets = []string{
 	TargetRego,
@@ -73,6 +84,7 @@ type Compiler struct {
 	useRegoAnnotationEntrypoints bool                       // allow compiler to late-bind entrypoints from annotated rules in policies.
 	optimizationLevel            int                        // how aggressive should optimization be
 	target                       string                     // target type (wasm, rego, etc.)
+	planFormat                   string                     // plan output format (json or proto)
 	output                       *io.Writer                 // output stream to write bundle to
 	entrypointrefs               []*ast.Term                // validated entrypoints computed from default decision or manually supplied entrypoints
 	compiler                     *ast.Compiler              // rego ast compiler used for semantic checks and rewriting
@@ -97,6 +109,7 @@ func New() *Compiler {
 		asBundle:          false,
 		optimizationLevel: 0,
 		target:            TargetRego,
+		planFormat:        PlanFormatJSON,
 		debug:             debug.Discard(),
 		regoVersion:       ast.DefaultRegoVersion,
 	}
@@ -155,6 +168,12 @@ func (c *Compiler) WithOptimizationLevel(n int) *Compiler {
 // WithTarget sets the output target type to use.
 func (c *Compiler) WithTarget(t string) *Compiler {
 	c.target = t
+	return c
+}
+
+// WithPlanFormat sets the wire-format (json or proto) for plan-target builds.
+func (c *Compiler) WithPlanFormat(f string) *Compiler {
+	c.planFormat = f
 	return c
 }
 
@@ -315,6 +334,13 @@ func (c *Compiler) Build(ctx context.Context) error {
 		return errors.New("rego-version not set")
 	}
 
+	if !slices.Contains(PlanFormats, c.planFormat) {
+		return fmt.Errorf("unsupported plan format %q (want one of %v)", c.planFormat, PlanFormats)
+	}
+	if c.planFormat != PlanFormatJSON && c.target != TargetPlan {
+		return fmt.Errorf("plan format %q is only valid with target %q", c.planFormat, TargetPlan)
+	}
+
 	if err := c.init(); err != nil {
 		return err
 	}
@@ -374,14 +400,31 @@ func (c *Compiler) Build(ctx context.Context) error {
 			return err
 		}
 
-		bs, err := json.Marshal(c.policy)
+		var (
+			bs       []byte
+			planPath string
+			err      error
+		)
+		switch c.planFormat {
+		case PlanFormatProto:
+			// Deterministic for byte-identical plan.pb across builds.
+			pbPolicy, perr := ir.PolicyToProto(c.policy)
+			if perr != nil {
+				return perr
+			}
+			bs, err = proto.MarshalOptions{Deterministic: true}.Marshal(pbPolicy)
+			planPath = bundle.PlanProtoFile
+		case PlanFormatJSON:
+			bs, err = json.Marshal(c.policy)
+			planPath = bundle.PlanFile
+		}
 		if err != nil {
 			return err
 		}
 
 		c.bundle.PlanModules = append(c.bundle.PlanModules, bundle.PlanModuleFile{
-			Path: bundle.PlanFile,
-			URL:  bundle.PlanFile,
+			Path: planPath,
+			URL:  planPath,
 			Raw:  bs,
 		})
 	case TargetRego:
@@ -395,6 +438,8 @@ func (c *Compiler) Build(ctx context.Context) error {
 	if c.metadata != nil {
 		c.bundle.Manifest.Metadata = *c.metadata
 	}
+
+	c.bundle.SetManifestProto(c.target == TargetPlan && c.planFormat == PlanFormatProto)
 
 	if err := c.bundle.FormatModulesWithOptions(bundle.BundleFormatOptions{
 		RegoVersion:               c.regoVersion,
