@@ -4278,6 +4278,38 @@ func TestActivate_DefaultRegoVersion(t *testing.T) {
 	}
 }
 
+// Regression test for https://github.com/open-policy-agent/opa/issues/8797.
+func TestActivate_PreservesPerModuleRegoVersionWithLeadingSlashID(t *testing.T) {
+	ctx := t.Context()
+	store := mock.New()
+
+	v1Module := `package test
+
+p contains 42 if { true }`
+
+	policyID := "/test/policy.rego"
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	if err := store.UpsertPolicy(ctx, txn, policyID, []byte(v1Module)); err != nil {
+		t.Fatalf("UpsertPolicy failed: %v", err)
+	}
+	if err := write(ctx, store, txn, moduleRegoVersionPath(policyID), int64(ast.RegoV1.Int())); err != nil {
+		t.Fatalf("writing rego_version failed: %v", err)
+	}
+	if err := store.Commit(ctx, txn); err != nil {
+		t.Fatalf("commit failed: %v", err)
+	}
+
+	mustActivate(t, store, &ActivateOpts{
+		Compiler:      ast.NewCompiler().WithDefaultRegoVersion(ast.RegoV0CompatV1),
+		ParserOptions: ast.ParserOptions{RegoVersion: ast.RegoV0},
+		Bundles: map[string]*Bundle{
+			"other": {
+				Manifest: Manifest{Roots: &[]string{"other"}},
+			},
+		},
+	})
+}
+
 func TestDeactivate_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {
 		note              string
