@@ -4384,6 +4384,83 @@ q if { input.x = 7 }`},
 			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0); __local1__1 = input.x; lt(__local1__1, 10)} and true`},
 		},
 
+		{
+			note:                 "and (every): unknown inside",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; every i in x { i in x; i < input.y } } and true 
+				}`},
+			wantQueries: []string{`{ 
+					__local0__1 = input.x
+					__local3__1 = __local0__1
+					every __local1__1, __local2__1 in __local3__1 {
+						internal.member_2(__local2__1, __local0__1)
+						__local4__1 = input.y
+						lt(__local2__1, __local4__1)
+					}
+				} and true`},
+		},
+		{
+			note:                 "or (every): unknown inside",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; every i in x { i in x; i < input.y } } or true 
+				}`},
+			wantQueries: []string{`{ 
+					__local0__1 = input.x
+					__local3__1 = __local0__1
+					every __local1__1, __local2__1 in __local3__1 {
+						internal.member_2(__local2__1, __local0__1)
+						__local4__1 = input.y
+						lt(__local2__1, __local4__1)
+					}
+				} or true`},
+		},
+		{
+			note:                 "and (array comprehension): unknown inside",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; [y | y := input.y; y < x] } and true 
+				}`},
+			wantQueries: []string{`{ 
+					__local0__1 = input.x
+					[__local1__ | __local1__ = input.y; lt(__local1__, __local0__1)]
+				} and true`},
+		},
+		{
+			note:                 "and (set comprehension): unknown inside",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; {y | y := input.y; y < x} } and true 
+				}`},
+			wantQueries: []string{`{ 
+					__local0__1 = input.x
+					{__local1__ | __local1__ = input.y; lt(__local1__, __local0__1)}
+				} and true`},
+		},
+		{
+			note:                 "every (set comprehension): unknown inside",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every a in input.z { a == 1; x := input.x; {y | y := input.y; y < x} } 
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.z { 
+					__local1__1 = 1
+					__local2__1 = input.x
+					{__local3__ | __local3__ = input.y; lt(__local3__, __local2__1)}
+				}`},
+		},
+
 		// and/or nested inside other outer constructs
 		{
 			note:                 "every: body contains and with unknowns",
@@ -6373,6 +6450,28 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			wantQueries: []string{`not {
 					true or {__local0__1 = input.y; gt(__local0__1, 0)}
 				}`},
+		},
+		{
+			note:                 "and (not): unknown inside",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; not x > 0 } and true 
+				}`},
+			wantQueries: []string{`{ __local0__1 = input.x; not gt(__local0__1, 0) } and true`},
+		},
+		{
+			note:                 "or (not): unknown inside",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; not x > 0 } or true 
+				}`},
+			wantQueries: []string{`{ __local0__1 = input.x; not gt(__local0__1, 0) } or true`},
 		},
 	}
 

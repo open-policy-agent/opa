@@ -4399,6 +4399,7 @@ func (e evalLogicalAnd) eval(iter evalIterator) error {
 		return err
 	}
 	if !lhsDefined {
+		// short-circuit: RHS is not evaluated if LHS is undefined
 		return nil
 	}
 
@@ -4445,6 +4446,7 @@ func (e evalLogicalOr) eval(iter evalIterator) error {
 		return err
 	}
 	if lhsDefined {
+		// short-circuit: RHS is not evaluated if LHS is defined
 		return iter(e.e)
 	}
 
