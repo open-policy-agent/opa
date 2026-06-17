@@ -5,6 +5,13 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+> **_NOTE:_**
+> OPA's outbound HTTP requests (bundle, discovery, decision log, status, `http.send`, AWS KMS/ECR)
+> previously sent `User-Agent: Open Policy Agent/<version> (<os>, <arch>)`, which is not a valid
+> RFC 9110 `User-Agent` value because the `product` token cannot contain spaces. The header is now
+> `Open-Policy-Agent/<version> (<os>, <arch>)`. Server-side log filters or WAF rules that
+> exact-match the old string will need to be updated.
+
 ## 1.17.0
 
 This release contains a mix of new features, performance improvements, and bugfixes.  Notably:
