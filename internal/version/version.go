@@ -33,4 +33,4 @@ func Write(ctx context.Context, store storage.Store, txn storage.Transaction) er
 }
 
 // UserAgent defines the current OPA instances User-Agent default header value.
-var UserAgent = fmt.Sprintf("Open Policy Agent/%s (%s, %s)", version.Version, runtime.GOOS, runtime.GOARCH)
+var UserAgent = fmt.Sprintf("Open-Policy-Agent/%s (%s, %s)", version.Version, runtime.GOOS, runtime.GOARCH)
