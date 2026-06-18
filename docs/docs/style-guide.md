@@ -323,7 +323,7 @@ deny contains "User is anonymous" if not authenticated_user
 authenticated_user if input.user_id != "anonymous"
 ```
 
-In the above case, the `authenticated_user` rule will fail **both** in the the undefined case, and if defined
+In the above case, the `authenticated_user` rule will fail **both** in the undefined case, and if defined
 but equal to "anonymous". Since the result of the helper rule is negated in the `deny` rule, both
 cases are covered.
 
