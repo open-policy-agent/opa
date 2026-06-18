@@ -2030,8 +2030,8 @@ p[r] := 2 if { r := "foo" }`,
 		"rego_type_error: package badrules.s conflicts with rule s defined at mod1.rego:10",
 		"rego_type_error: package badrules.s conflicts with rule s defined at mod1.rego:9",
 		"rego_type_error: package badrules.t conflicts with rule t defined at mod1.rego:11",
-		"rego_type_error: rule data.badrules.s conflicts with [data.badrules.s.q]",
-		"rego_type_error: rule data.badrules.t conflicts with [data.badrules.t.q]",
+		"rego_type_error: rule data.badrules.s conflicts with:\n  rule data.badrules.s.q at mod2b.rego:3",
+		"rego_type_error: rule data.badrules.t conflicts with:\n  rule data.badrules.t.q at mod2c.rego:3",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
@@ -2191,7 +2191,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q.r if { true }`,
 				`package pkg
 				p.q.r.s if { true }`),
-			err: "rego_type_error: rule data.pkg.p.q.r conflicts with [data.pkg.p.q.r.s]",
+			err: "rego_type_error: rule data.pkg.p.q.r conflicts with:\n  rule data.pkg.p.q.r.s at mod1.rego:2",
 		},
 		{
 			note: "single-value with other rule overlap",
@@ -2200,7 +2200,15 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q.r if { true }
 				p.q.r.s if { true }
 				p.q.r.t if { true }`),
-			err: "rego_type_error: rule data.pkg.p.q.r conflicts with [data.pkg.p.q.r.s data.pkg.p.q.r.t]",
+			err: "rego_type_error: rule data.pkg.p.q.r conflicts with:\n  rule data.pkg.p.q.r.s at mod0.rego:3\n  rule data.pkg.p.q.r.t at mod0.rego:4",
+		},
+		{
+			note: "single-value with other rule overlap, unknown key",
+			modules: modules(
+				`package pkg
+				p := x if { x := 1 }
+				p.r[s] := 2 if { s := "foo" }`),
+			err: "rego_type_error: rule data.pkg.p conflicts with:\n  rule data.pkg.p.r[s] at mod0.rego:3",
 		},
 		{
 			note: "single-value with other partial object (same ref) overlap",
@@ -2275,7 +2283,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p contains v if { v := ["a", "b"][_] }
 				p.q := 42
 				`),
-			err: "rego_type_error: rule data.pkg.p conflicts with [data.pkg.p.q]",
+			err: "rego_type_error: rule data.pkg.p conflicts with:\n  rule data.pkg.p.q at mod0.rego:3",
 		},
 		{
 			note: "multi-value rule with other rule (ref) overlap",
@@ -2284,7 +2292,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p contains v if { v := ["a", "b"][_] }
 				p.q.r if { true }
 				`),
-			err: "rego_type_error: rule data.pkg.p conflicts with [data.pkg.p.q.r]",
+			err: "rego_type_error: rule data.pkg.p conflicts with:\n  rule data.pkg.p.q.r at mod0.rego:3",
 		},
 		{
 			note: "multi-value rule (dots in head) with other rule (ref) overlap",
@@ -2294,7 +2302,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q contains v if { v := ["a", "b"][_] }
 				p.q.r if { true }
 				`),
-			err: "rule data.pkg.p.q conflicts with [data.pkg.p.q.r]",
+			err: "rule data.pkg.p.q conflicts with:\n  rule data.pkg.p.q.r at mod0.rego:4",
 		},
 		{
 			note: "multi-value rule (dots and var in head) with other rule (ref) overlap",
@@ -2312,7 +2320,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p(x) := x
 				p.q.r if { true }
 				`),
-			err: "rego_type_error: rule data.pkg.p conflicts with [data.pkg.p.q.r]",
+			err: "rego_type_error: rule data.pkg.p conflicts with:\n  rule data.pkg.p.q.r at mod0.rego:3",
 		},
 		{
 			note: "function with other rule (ref) overlap",
@@ -2321,7 +2329,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p(x) := x
 				p.q.r if { true }
 				`),
-			err: "rego_type_error: rule data.pkg.p conflicts with [data.pkg.p.q.r]",
+			err: "rego_type_error: rule data.pkg.p conflicts with:\n  rule data.pkg.p.q.r at mod0.rego:3",
 		},
 		{
 			note: "function (ref) with other rule (ref) overlap",
@@ -2330,7 +2338,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q(x) := x
 				p.q.r if { true }
 				`),
-			err: "rego_type_error: rule data.pkg.p.q conflicts with [data.pkg.p.q.r]",
+			err: "rego_type_error: rule data.pkg.p.q conflicts with:\n  rule data.pkg.p.q.r at mod0.rego:3",
 		},
 		{
 			note: "function within dynamic extent of rule",
@@ -2339,7 +2347,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				a[x].c := i if some i, x in ["one", "two"]
 				a.b.d(x) := x
 				`),
-			err: "rego_type_error: rule data.pkg.a[x].c conflicts with [data.pkg.a.b.d]",
+			err: "rego_type_error: rule data.pkg.a[x].c conflicts with:\n  rule data.pkg.a.b.d at mod0.rego:3",
 		},
 		{
 			note: "function within dynamic extent of rule (different packages)",
@@ -2349,7 +2357,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				`package pkg.a.b
 				d(x) := x
 				`),
-			err: "rego_type_error: rule data.pkg.a[x].c conflicts with [data.pkg.a.b.d]",
+			err: "rego_type_error: rule data.pkg.a[x].c conflicts with:\n  rule data.pkg.a.b.d at mod1.rego:2",
 		},
 		{
 			note: "function within dynamic extent, deeper nesting",
@@ -2358,7 +2366,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p[x].q if x := "a"
 				p.r.s.t(x) := x
 				`),
-			err: "rego_type_error: rule data.pkg.p[x].q conflicts with [data.pkg.p.r.s.t]",
+			err: "rego_type_error: rule data.pkg.p[x].q conflicts with:\n  rule data.pkg.p.r.s.t at mod0.rego:3",
 		},
 		{
 			note: "non-function rule within dynamic extent (no conflict)",
@@ -2418,7 +2426,7 @@ func TestCompilerCheckRulePkgConflicts(t *testing.T) {
 					q := 1`),
 			err: []string{
 				"rego_type_error: package test.p conflicts with rule p defined at mod0.rego:2",
-				"rego_type_error: rule data.test.p conflicts with [data.test.p.q]",
+				"rego_type_error: rule data.test.p conflicts with:\n  rule data.test.p.q at mod1.rego:2",
 			},
 		},
 		{
@@ -2430,7 +2438,7 @@ func TestCompilerCheckRulePkgConflicts(t *testing.T) {
 					q := 1`),
 			err: []string{
 				"rego_type_error: package test.p conflicts with rule p defined at mod0.rego:2",
-				"rego_type_error: rule data.test.p conflicts with [data.test.p.q]",
+				"rego_type_error: rule data.test.p conflicts with:\n  rule data.test.p.q at mod1.rego:2",
 			},
 		},
 	}
