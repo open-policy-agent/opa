@@ -4285,7 +4285,7 @@ func TestActivate_PreservesPerModuleRegoVersionWithLeadingSlashID(t *testing.T) 
 
 	v1Module := `package test
 
-p contains 42 if { true }`
+p contains 42`
 
 	policyID := "/test/policy.rego"
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
