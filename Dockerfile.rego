@@ -1,3 +1,4 @@
+# regal ignore:directory-package-mismatch
 package docker
 
 # Deny base images that are not from the approved chainguard namespace.
