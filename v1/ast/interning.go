@@ -271,6 +271,17 @@ func HasInternedIntNumberTerm(i int) bool {
 	return i >= -1 && i < len(intNumberTerms)
 }
 
+// InternedStringTermFromNumber returns an interned string term whose value is
+// the number's decimal string representation, if that string is interned.
+// Returns nil otherwise.
+//
+// This is an optimisation for the base-10 format_int fast path: for numbers
+// like Number("99") the string we want to output is exactly string(n), so we
+// can skip strconv.ParseInt and look up the result directly.
+func InternedStringTermFromNumber(n Number) *Term {
+	return internedStringTerms[string(n)]
+}
+
 // Returns an interned string term representing the integer value i, if
 // interned. If not, creates a new StringTerm for the integer value.
 func InternedIntegerString(i int) *Term {
