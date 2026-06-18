@@ -135,6 +135,11 @@ func builtinFormatInt(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	case ast.Number("8"):
 		format = "%o"
 	case ast.Number("10"):
+		// Fast path: for numbers whose decimal string is already interned (e.g.
+		// "0"–"100"), we can skip strconv.ParseInt entirely.
+		if term := ast.InternedStringTermFromNumber(input); term != nil {
+			return iter(term)
+		}
 		if i, ok := input.Int(); ok {
 			return iter(ast.InternedIntegerString(i))
 		}
