@@ -31,7 +31,7 @@ When only _known_ values are used, **you can use all of Rego.**
 
 ## Example Preamble
 
-In our running example, we'll assume a table `fruits` with columns `name`, `colour`, and `price`.
+In this running example, assume a table `fruits` exists with columns `name`, `colour`, and `price`.
 
 ```mermaid
 erDiagram
