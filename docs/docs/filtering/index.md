@@ -39,15 +39,15 @@ sequenceDiagram
 
 Consider an `employees` database table with salary information. The question is: **whose salaries can a Director see?**
 
-The rule is: Directors may see the salaries of employees in their own department. When Alice (Engineering Director) lists employees, the _italicized_ rows are what she should see:
+The rule is: Directors may see the salaries of employees in their own department. When Alice (Engineering Director) lists employees, she should see rows 1-3 (the Engineering employees):
 
-| name    | department    | role       | salary   |
-| ------- | ------------- | ---------- | -------- |
-| _Alice_ | _engineering_ | _director_ | _130000_ |
-| _Bob_   | _engineering_ | _engineer_ | _90000_  |
-| _Carol_ | _engineering_ | _engineer_ | _85000_  |
-| Dave    | marketing     | director   | 120000   |
-| Eve     | marketing     | manager    | 95000    |
+| id  | name    | department    | role       | salary   |
+| --- | ------- | ------------- | ---------- | -------- |
+| _1_ | _Alice_ | _engineering_ | _director_ | _130000_ |
+| _2_ | _Bob_   | _engineering_ | _engineer_ | _90000_  |
+| _3_ | _Carol_ | _engineering_ | _engineer_ | _85000_  |
+| 4   | Dave    | marketing     | director   | 120000   |
+| 5   | Eve     | marketing     | manager    | 95000    |
 
 OPA can be used to derive the needed SQL filter at run time, leveraging OPA's [partial evaluation](./filtering/partial-evaluation) feature.
 
