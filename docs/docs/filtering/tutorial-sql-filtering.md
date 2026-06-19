@@ -17,7 +17,7 @@ You will write an authorization policy, use OPA's partial evaluation to derive a
 
 ### 1. Create and populate the database
 
-We'll work with the following dataset:
+This tutorial works with the following dataset:
 
 | name  | department  | role     | salary |
 | ----- | ----------- | -------- | ------ |
