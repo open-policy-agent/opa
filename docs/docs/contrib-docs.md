@@ -2,10 +2,10 @@
 title: Contributing Documentation
 ---
 
-Contributing to our documentation is one of the best ways to get started
+Contributing to the documentation is one of the best ways to get started
 contributing to the OPA project. The OPA documentation is often the first place
 people go for help and so any improvements can be very impactful.
-**Thank you in advance for contributing to our documentation!**
+**Thank you in advance for contributing to the documentation!**
 
 ## Local Development
 
@@ -103,6 +103,11 @@ from the title, you may wish to set `sidebar_position`.
 
 You may also wish to update `src/lib/sidebars.js` to place your new page in the
 correct location.
+
+## Formatting your changes
+
+Make sure to format your changes correctly by running `dprint fmt` in the `docs`
+folder. This will fix any formatting issues.
 
 ## Testing your changes
 

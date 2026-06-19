@@ -4,7 +4,7 @@ sidebar_position: 2
 ---
 
 To understand how SQL WHERE clauses can be derived from a partially evaluated Rego policy, it's beneficial to have a basic idea about how _partial evaluation_ (PE) works.
-In this walk-through of a PE run, we'll start with a basic filter policy:
+This walk-through of a PE run starts with a basic filter policy:
 
 ```rego title="filters.rego"
 # METADATA
@@ -31,7 +31,7 @@ include if {
 include if input.products.price == "free"
 ```
 
-In this walkthrough, we'll go through the policy in the same way the evaluator does, and use the following input:
+This walkthrough follows the policy in the same way the evaluator does, using the following input:
 
 ```json
 {
@@ -96,7 +96,7 @@ include if input.products.price == "free"
 </SideBySideColumn>
 <SideBySideColumn>
 The expression `input.users.name == user` uses `user`, which is _known_, "dana".
-The <abbr title="left-hand side">LHS</abbr> `input.users.name` is part of the _unknowns_ (`input.users`), so the expression contributes to our conditions:
+The <abbr title="left-hand side">LHS</abbr> `input.users.name` is part of the _unknowns_ (`input.users`), so the expression contributes to the conditions:
 
 ```rego
 input.users.name == "dana"
@@ -131,9 +131,9 @@ include if input.products.price == "free"
 
 </SideBySideColumn>
 <SideBySideColumn>
-Our expression's <abbr title="left-hand side">LHS</abbr> is known, "low", which is not different from "low".
-An expression with all known parts that evaluates to false makes us give up on this rule path (regardless of eventual extra expressions following),
-and we discard the set of conditions aggregated for this rule body.
+The expression's <abbr title="left-hand side">LHS</abbr> is known, "low", which is not different from "low".
+When all parts of an expression are known and it evaluates to false, this rule path is abandoned (regardless of any further expressions),
+and the set of conditions aggregated for this rule body is discarded.
 
 Partial evaluation continues with the next rule body.
 </SideBySideColumn>
@@ -165,7 +165,7 @@ include if input.products.price == "free"
 
 </SideBySideColumn>
 <SideBySideColumn>
-Evaluating our second rule body, we again get a condition from the comparison with `user`, which is `input.user`, and known to be "dana":
+The second rule body is evaluated. A condition is again derived from the comparison with `user`, which is `input.user`, and known to be "dana":
 
 ```rego
 input.users.name == "dana"
@@ -267,13 +267,13 @@ include if input.products.price == "free"
 <SideBySideColumn>
 As with every new rule body, the set of conditions is _reset_.
 
-This expression includes one unknown and one literal, so it adds a condition to our set:
+This expression includes one unknown and one literal, so it adds a condition to the set:
 
 ```rego
 input.products.price == "free"
 ```
 
-There are no further expressions, so this condition also contributes to our PE result.
+There are no further expressions, so this condition also contributes to the PE result.
 </SideBySideColumn>
 </SideBySideContainer>
 
@@ -281,7 +281,7 @@ There are no further expressions, so this condition also contributes to our PE r
 
 <SideBySideContainer>
 <SideBySideColumn>
-We're now done with the partial evaluation of our `data.filters.include` rule with the given (known) inputs.
+The partial evaluation of `data.filters.include` with the given (known) inputs is now complete.
 It has yielded two sets of conditions, **A** and **B**, which form the basis of translation into SQL queries.
 </SideBySideColumn>
 

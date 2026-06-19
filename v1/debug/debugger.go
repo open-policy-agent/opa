@@ -674,7 +674,7 @@ func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts th
 		return skipAction, state, nil
 	}
 
-	if s.properties.StopOnEntry && !state.entered && e.Location != nil && e.Location.File != "" {
+	if s.properties.StopOnEntry && !state.entered && e.Location.HasFile() {
 		state.entered = true
 		s.d.logger.Info("Thread %d stopped at entry", t.id)
 		s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "entry", stackIndex: stackIndex, stackEvent: e})
@@ -687,7 +687,7 @@ func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts th
 		return breakAction, state, nil
 	}
 
-	if e.Location != nil && e.Location.File != "" {
+	if e.Location.HasFile() {
 		for _, bp := range s.breakpoints.allForFilePath(e.Location.File) {
 			if bp.Location().Row == e.Location.Row {
 				// if the last event also caused a breakpoint AND we're still on the same line, skip this breakpoint.

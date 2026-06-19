@@ -10,7 +10,7 @@ service, or tool with OPA.
 When integrating with OPA there are two interfaces to consider:
 
 - **Evaluation**: OPA's interface for asking for policy decisions. Integrating OPA is primarily focused on integrating an application, service, or tool with OPA's policy evaluation interface. This integration results in policy decisions being decoupled from that application, service, or tool.
-- **Management**: OPA's interface for deploying policies, understanding status, uploading logs, and so on. This integration is typically the same across all OPA instances, regardless what software the evaluation interface is integrated with. Distributing policy, retrieving status, and storing logs in the same way across all OPAs provides a unified management plane for policy across many different software systems.
+- **Management**: OPA's interface for deploying policies, understanding status, uploading logs, and so on. This integration is typically the same across all OPA instances, regardless what software the evaluation interface is integrated with. Distributing policy, retrieving status, and storing logs in the same way across all OPA instances provides a unified management plane for policy across many different software systems.
 
 This page focuses predominantly on different ways to integrate with OPA's policy evaluation interface and how they compare. For more information about the management interface:
 
@@ -37,7 +37,7 @@ OPA supports different ways to evaluate policies.
 
 ### Integrating with the REST API
 
-To integrate with OPA outside of Go, we recommend you deploy OPA as a host-level
+To integrate with OPA outside of Go, deploy OPA as a host-level
 daemon or sidecar container. Running OPA locally on the same host as your
 application or service helps ensure policy decisions are fast and highly-available.
 
@@ -418,7 +418,7 @@ The `rego.PreparedEvalQuery#Eval` function returns a _result set_ that contains
 the query results. If the result set is empty it indicates the query could not
 be satisfied. Each element in the result set contains a set of _variable
 bindings_ and a set of expression values. The query from above includes a single
-variable `x` so we can lookup the value and interpret it to enforce the policy
+variable `x` to look up the value and interpret it to enforce the policy
 decision.
 
 ```go
@@ -464,6 +464,15 @@ The Go API is made available to allow other projects to build policy functionali
 applications. Browse <EcosystemFeatureLink feature="go-integration">Go
 integrations</EcosystemFeatureLink> in the OPA Ecosystem for inspiration.
 
+### Intermediate Representation (IR)
+
+Policies may be compiled into evaluation plans using an intermediate representation format, suitable for custom
+compilers and evaluators.
+
+See [OPA IR docs](./ir) for more details, or to evaluate IR plans directly in your application, see
+[Swift-OPA](https://github.com/open-policy-agent/swift-opa) for Swift and
+[java-opa-sdk](https://github.com/open-policy-agent/java-opa-sdk) for Java.
+
 ### WebAssembly (Wasm)
 
 Policies can be evaluated as compiled Wasm binaries. See [OPA Wasm docs](./wasm) for more details.
@@ -471,13 +480,6 @@ Policies can be evaluated as compiled Wasm binaries. See [OPA Wasm docs](./wasm)
 There are a number of projects already built on OPA's Wasm support. Take a look
 in <EcosystemFeatureLink feature="wasm-integration">Wasm
 integrations</EcosystemFeatureLink> in the OPA Ecosystem for more details.
-
-### Intermediate Representation (IR)
-
-Policies may be compiled into evaluation plans using an intermediate representation format, suitable for custom
-compilers and evaluators.
-
-See [OPA IR docs](./ir) for more details.
 
 ## Comparison
 

@@ -1222,10 +1222,19 @@ func (c *Compiler) buildRequiredCapabilities() {
 				if len(path) == 2 {
 					if c.moduleIsRegoV1(c.Modules[name]) {
 						for kw := range futureKeywords {
+							// Don't output experimental keywords for wildcard imports
+							// TODO: Remove on and/or release
+							if _, internal := experimentalFutureKeywords[kw]; internal {
+								continue
+							}
 							keywords[kw] = struct{}{}
 						}
 					} else {
 						for kw := range allFutureKeywords {
+							// TODO: Remove on and/or release
+							if _, internal := experimentalFutureKeywords[kw]; internal {
+								continue
+							}
 							keywords[kw] = struct{}{}
 						}
 					}
@@ -1757,7 +1766,22 @@ func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey s
 	}
 
 	if subSchema.AllOf != nil {
-		subSchemaArray := subSchema.AllOf
+		// Build the list of schemas to merge: resolve $refs and skip pure anyOf
+		// wrappers that carry no explicit type or structure. Such schemas have an
+		// "Undefined" type that would cause a spurious type-mismatch in mergeSchemas.
+		subSchemaArray := make([]*gojsonschema.SubSchema, 0, len(subSchema.AllOf))
+		for _, s := range subSchema.AllOf {
+			for s.RefSchema != nil {
+				s = s.RefSchema
+			}
+			if !s.Types.IsTyped() && s.AnyOf != nil && len(s.PropertiesChildren) == 0 && len(s.ItemsChildren) == 0 {
+				continue
+			}
+			subSchemaArray = append(subSchemaArray, s)
+		}
+		if len(subSchemaArray) == 0 {
+			return types.A, nil
+		}
 		allOfResult, err := mergeSchemas(subSchemaArray...)
 		if err != nil {
 			return nil, err
@@ -2710,6 +2734,20 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
 				case *Not:
 					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+				case *LogicalAnd:
+					var modR bool
+					var errsR Errors
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Lhs)
+					modR, errsR = rewritePrintCalls(gen, getArity, safe, x.Rhs)
+					modrec = modrec || modR
+					errsrec = append(errsrec, errsR...)
+				case *LogicalOr:
+					var modR bool
+					var errsR Errors
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Lhs)
+					modR, errsR = rewritePrintCalls(gen, getArity, safe, x.Rhs)
+					modrec = modrec || modR
+					errsrec = append(errsrec, errsR...)
 				}
 				if modrec {
 					modified = true
@@ -2802,6 +2840,16 @@ func erasePrintCalls(node any) bool {
 			modrec, x.Body = erasePrintCallsInBody(x.Body)
 		case *Not:
 			modrec, x.Body = erasePrintCallsInBody(x.Body)
+		case *LogicalAnd:
+			modL, lhs := erasePrintCallsInBody(x.Lhs)
+			modR, rhs := erasePrintCallsInBody(x.Rhs)
+			x.Lhs, x.Rhs = lhs, rhs
+			modrec = modL || modR
+		case *LogicalOr:
+			modL, lhs := erasePrintCallsInBody(x.Lhs)
+			modR, rhs := erasePrintCallsInBody(x.Rhs)
+			x.Lhs, x.Rhs = lhs, rhs
+			modrec = modL || modR
 		}
 		if modrec {
 			modified = true
@@ -3094,6 +3142,12 @@ func rewriteRegoMetadataCalls(metadataChainVar *Var, metadataRuleVar *Var, body 
 			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		case *Not:
 			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+		case *LogicalAnd:
+			errs = append(errs, rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Lhs, rewrittenVars)...)
+			errs = append(errs, rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Rhs, rewrittenVars)...)
+		case *LogicalOr:
+			errs = append(errs, rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Lhs, rewrittenVars)...)
+			errs = append(errs, rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Rhs, rewrittenVars)...)
 		}
 		return true
 	})
@@ -4850,119 +4904,136 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	return reordered, unsafe
 }
 
+// SafetyCheckVisitorParamsWithArity installs a customVisit hook on top of
+// SafetyCheckVisitorParams that promotes vars from inside implicit operand
+// bodies of *Not, *LogicalAnd, and *LogicalOr into the visiting set. It
+// has two consumers, both of which depend on this promotion:
 func SafetyCheckVisitorParamsWithArity(arity func(Ref) int) VarVisitorParams {
 	params := SafetyCheckVisitorParams
 	params.customVisit = func(vis *VarVisitor, v any) bool {
-		return unsafeNotVars(arity, vis, v)
+		return promoteUnsafeOperandBodyVars(arity, vis, v)
 	}
 	return params
 }
 
-type ExprByVar map[Var][]*Expr
-
-func (m ExprByVar) add(v Var, e *Expr) {
-	if u, ok := m[v]; ok {
-		m[v] = append(u, e)
-	} else {
-		m[v] = []*Expr{e}
+func promoteUnsafeOperandBodyVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
+	promote := func(body Body) {
+		for v := range unsafeImplicitBodyVars(body, arity) {
+			vis.Add(v)
+		}
 	}
+	switch n := v.(type) {
+	case *Not:
+		if !n.ExplicitBody {
+			promote(n.Body)
+		}
+		return true
+	case *LogicalAnd:
+		if !n.ExplicitLhs {
+			promote(n.Lhs)
+		}
+		if !n.ExplicitRhs {
+			promote(n.Rhs)
+		}
+		return true
+	case *LogicalOr:
+		if !n.ExplicitLhs {
+			promote(n.Lhs)
+		}
+		if !n.ExplicitRhs {
+			promote(n.Rhs)
+		}
+		return true
+	}
+	return false
 }
 
-// unsafeNotVars finds unsafe var candidates within a not body's expressions.
-// all vars in a not-body that aren't also assigned in that body are considered unsafe.
-// Assigned var must also be used in som other body expr. (Note: maybe not necessary for one-expr bodies, as we then can just report all vars)
-func unsafeNotVars(arity func(Ref) int, vis *VarVisitor, v any) bool {
-	// FIXME: Can we do less walking here?
-
-	n, ok := v.(*Not)
-	if !ok {
-		return false
-	}
-
-	if n.ExplicitBody {
-		return true
+// unsafeImplicitBodyVars returns the set of vars from an implicit logical
+// operand/not body that are not internally satisfied. The classification
+// rule:
+//   - single-expr body: every visible var is returned (no consumer is
+//     possible within a single expression).
+//   - multi-expr body: a var is returned iff it has no binding within the
+//     body, OR it appears in exactly one body expr (no separate consumer).
+func unsafeImplicitBodyVars(body Body, arity func(Ref) int) VarSet {
+	result := NewVarSet()
+	if len(body) == 0 {
+		return result
 	}
 
 	internalVis := varVisitorPool.Get()
 	defer varVisitorPool.Put(internalVis)
 
-	// 1. Find all visible vars in body and record associated expression(s)
-	exprByVar := ExprByVar{}
-
-	for _, e := range n.Body {
-		internalVis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
+	// 1. Collect per-expr occurrences.
+	occurrences := map[Var][]*Expr{}
+	for _, e := range body {
+		internalVis.Clear().WithParams(SafetyCheckVisitorParams)
 		internalVis.Walk(e)
-
 		for v := range internalVis.Vars() {
-			exprByVar.add(v, e)
+			occurrences[v] = append(occurrences[v], e)
 		}
 	}
 
-	// If there's only one expression in the not-body, simply report all vars found
-	if len(n.Body) == 1 {
-		for v := range exprByVar {
-			vis.Add(v)
+	// Single-expr fast path: there is no other expression to consume a
+	// binding, so every visible var must come from outside the body.
+	if len(body) == 1 {
+		for v := range occurrences {
+			result.Add(v)
 		}
-		return true
+		return result
 	}
 
-	// 2. Find all variable assignments (unification, call output)
-	assignedVars := ExprByVar{}
-
-	WalkExprs(n.Body, func(expr *Expr) bool {
-		if terms, ok := expr.Terms.([]*Term); ok {
-			if expr.IsEquality() {
-				vs := outputVarsForExprEq(expr, VarSet{}, VarSet{})
-				for v := range vs {
-					assignedVars.add(v, expr)
-				}
-				return false
-			}
-
-			operator, ok := terms[0].Value.(Ref)
-			if !ok {
-				return false
-			}
-
-			ar := arity(operator)
-			if ar < 0 {
-				return false
-			}
-
-			numInputTerms := ar + 1
-			if numInputTerms >= len(terms) {
-				return false
-			}
-
-			internalVis.Clear().WithParams(VarVisitorParams{
-				SkipClosures:   true,
-				SkipSets:       true,
-				SkipObjectKeys: true,
-				SkipRefHead:    true,
-			})
-			internalVis.WalkArgs(terms[numInputTerms:])
-			for v := range internalVis.Vars() {
-				assignedVars.add(v, expr)
-			}
+	// 2. Collect bindings (eq outputs + trailing call-arg outputs).
+	bindings := map[Var]struct{}{}
+	for _, e := range body {
+		terms, ok := e.Terms.([]*Term)
+		if !ok {
+			continue
 		}
-		return false
-	})
 
-	// 3. Record all vars in the not-body that aren't also assigned
+		if e.IsEquality() {
+			for v := range outputVarsForExprEq(e, VarSet{}, VarSet{}) {
+				bindings[v] = struct{}{}
+			}
+			continue
+		}
 
-	internalVis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
-	internalVis.Walk(n.Body)
+		operator, ok := terms[0].Value.(Ref)
+		if !ok {
+			continue
+		}
 
-	for v := range internalVis.Vars() {
-		if _, ok := assignedVars[v]; !ok {
-			vis.Add(v)
-		} else if exprs, ok := exprByVar[v]; ok && len(exprs) == 1 {
-			// Assigned vars must be used by another expression to be considered safe.
-			vis.Add(v)
+		ar := arity(operator)
+		if ar < 0 {
+			continue
+		}
+
+		numInputTerms := ar + 1
+		if numInputTerms >= len(terms) {
+			continue
+		}
+
+		internalVis.Clear().WithParams(VarVisitorParams{
+			SkipClosures:   true,
+			SkipSets:       true,
+			SkipObjectKeys: true,
+			SkipRefHead:    true,
+		})
+		internalVis.WalkArgs(terms[numInputTerms:])
+		for v := range internalVis.Vars() {
+			bindings[v] = struct{}{}
 		}
 	}
 
-	return true
+	// 3. Check if each var occurrence is bound by multiple expressions
+	for v, exprs := range occurrences {
+		if _, bound := bindings[v]; !bound {
+			result.Add(v)
+		} else if len(exprs) == 1 {
+			result.Add(v)
+		}
+	}
+	return result
 }
 
 type bodySafetyTransformer struct {
@@ -5025,6 +5096,14 @@ func (xform *bodySafetyTransformer) Visit(x any) bool {
 		case *Not:
 			x.Body = xform.reorderComprehensionSafety(NewVarSet(), x.Body)
 			return true
+		case *LogicalAnd:
+			x.Lhs = xform.reorderComprehensionSafety(NewVarSet(), x.Lhs)
+			x.Rhs = xform.reorderComprehensionSafety(NewVarSet(), x.Rhs)
+			return true
+		case *LogicalOr:
+			x.Lhs = xform.reorderComprehensionSafety(NewVarSet(), x.Lhs)
+			x.Rhs = xform.reorderComprehensionSafety(NewVarSet(), x.Rhs)
+			return true
 		}
 	}
 	return false
@@ -5068,11 +5147,18 @@ func (xform *bodySafetyTransformer) reorderSetComprehensionSafety(sc *SetCompreh
 // this expression.
 func unsafeVarsInClosures(e *Expr, vis *VarVisitor) {
 	WalkClosures(e, func(x any) bool {
-		if ev, ok := x.(*Every); ok {
-			vis.WalkBody(ev.Body)
-			return true
+		switch x := x.(type) {
+		case *Every:
+			vis.WalkBody(x.Body)
+		case *LogicalAnd:
+			vis.WalkBody(x.Lhs)
+			vis.WalkBody(x.Rhs)
+		case *LogicalOr:
+			vis.WalkBody(x.Lhs)
+			vis.WalkBody(x.Rhs)
+		default:
+			vis.Walk(x)
 		}
-		vis.Walk(x)
 		return true
 	})
 }
@@ -5148,6 +5234,9 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet, output VarS
 		return outputVarsForExprCall(expr, ar, safe, terms, vis, output)
 	case *Every:
 		return outputVarsForTerms(terms.Domain, safe, output)
+	case *LogicalAnd, *LogicalOr:
+		// and/or expressions do not contribute bindings to the enclosing body.
+		return VarSet{}
 	default:
 		panic("illegal expression")
 	}
@@ -5451,6 +5540,23 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 		cpy.Terms = &Not{
 			Body:         resolveRefsInBody(globals, ignore, ts.Body),
 			ExplicitBody: ts.ExplicitBody,
+			Location:     ts.Location,
+		}
+	case *LogicalAnd:
+		cpy.Terms = &LogicalAnd{
+			Lhs:         resolveRefsInBody(globals, ignore, ts.Lhs),
+			Rhs:         resolveRefsInBody(globals, ignore, ts.Rhs),
+			ExplicitLhs: ts.ExplicitLhs,
+			ExplicitRhs: ts.ExplicitRhs,
+			Location:    ts.Location,
+		}
+	case *LogicalOr:
+		cpy.Terms = &LogicalOr{
+			Lhs:         resolveRefsInBody(globals, ignore, ts.Lhs),
+			Rhs:         resolveRefsInBody(globals, ignore, ts.Rhs),
+			ExplicitLhs: ts.ExplicitLhs,
+			ExplicitRhs: ts.ExplicitRhs,
+			Location:    ts.Location,
 		}
 	}
 	for _, w := range cpy.With {
@@ -5760,6 +5866,8 @@ func rewriteDynamics(f *equalityFactory, body Body) Body {
 			result = rewriteDynamicsEveryExpr(f, expr, result)
 		case expr.IsNot():
 			result = rewriteDynamicsNotExpr(f, expr, result)
+		case expr.IsAnd(), expr.IsOr():
+			result = rewriteDynamicsLogicalExpr(f, expr, result)
 		default:
 			result = rewriteDynamicsTermExpr(f, expr, result)
 		}
@@ -5798,6 +5906,19 @@ func rewriteDynamicsEveryExpr(f *equalityFactory, expr *Expr, result Body) Body 
 func rewriteDynamicsNotExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	n := expr.Terms.(*Not)
 	n.Body = rewriteDynamics(f, n.Body)
+	result.Append(expr)
+	return result
+}
+
+func rewriteDynamicsLogicalExpr(f *equalityFactory, expr *Expr, result Body) Body {
+	switch t := expr.Terms.(type) {
+	case *LogicalAnd:
+		t.Lhs = rewriteDynamics(f, t.Lhs)
+		t.Rhs = rewriteDynamics(f, t.Rhs)
+	case *LogicalOr:
+		t.Lhs = rewriteDynamics(f, t.Lhs)
+		t.Rhs = rewriteDynamics(f, t.Rhs)
+	}
 	result.Append(expr)
 	return result
 }
@@ -6012,6 +6133,14 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 		result = append(result, expr)
 	case *Not:
 		terms.Body = rewriteExprTermsInBody(gen, terms.Body)
+		result = append(result, expr)
+	case *LogicalAnd:
+		terms.Lhs = rewriteExprTermsInBody(gen, terms.Lhs)
+		terms.Rhs = rewriteExprTermsInBody(gen, terms.Rhs)
+		result = append(result, expr)
+	case *LogicalOr:
+		terms.Lhs = rewriteExprTermsInBody(gen, terms.Lhs)
+		terms.Rhs = rewriteExprTermsInBody(gen, terms.Rhs)
 		result = append(result, expr)
 	}
 	return
@@ -6326,6 +6455,8 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		case body[i].IsNot() && body[i].Terms.(*Not).ExplicitBody:
 			// Only explicit not bodies are allowed to declare vars
 			expr, errs = rewriteNotStatement(g, stack, body[i], errs, strict)
+		case body[i].IsAnd() || body[i].IsOr():
+			expr, errs = rewriteLogicalStatement(g, stack, body[i], errs, strict)
 		default:
 			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs, strict)
 		}
@@ -6576,6 +6707,37 @@ func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, expr *E
 	not.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, not.Body, errs, strict)
 
 	return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
+}
+
+func rewriteLogicalStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
+	e := expr.Copy()
+
+	switch t := e.Terms.(type) {
+	case *LogicalAnd:
+		if t.ExplicitLhs {
+			t.Lhs, errs = rewriteLogicalOperandBody(g, stack, t.Lhs, errs, strict)
+		}
+		if t.ExplicitRhs {
+			t.Rhs, errs = rewriteLogicalOperandBody(g, stack, t.Rhs, errs, strict)
+		}
+	case *LogicalOr:
+		if t.ExplicitLhs {
+			t.Lhs, errs = rewriteLogicalOperandBody(g, stack, t.Lhs, errs, strict)
+		}
+		if t.ExplicitRhs {
+			t.Rhs, errs = rewriteLogicalOperandBody(g, stack, t.Rhs, errs, strict)
+		}
+	}
+
+	return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
+}
+
+func rewriteLogicalOperandBody(g *localVarGenerator, stack *localDeclaredVars, body Body, errs Errors, strict bool) (Body, Errors) {
+	stack.Push()
+	defer stack.Pop()
+
+	used := NewVarSet()
+	return rewriteDeclaredVarsInBody(g, stack, used, body, errs, strict)
 }
 
 func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {

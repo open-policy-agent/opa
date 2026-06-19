@@ -1587,6 +1587,80 @@ main = time.now_ns()
 
 }
 
+func TestDecisionLoggingWithRuleLabels(t *testing.T) {
+
+	ctx := t.Context()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+# METADATA
+# labels:
+#   severity: high
+#   team: platform
+main := true if input.role == "admin"
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Input: map[string]any{"role": "admin"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := testLogger.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 log entry, got %d", len(entries))
+	}
+
+	labels, ok := entries[0].Fields["rule_labels"]
+	if !ok {
+		t.Fatal("expected rule_labels field in decision log entry")
+	}
+
+	labelsSlice, ok := labels.([]any)
+	if !ok {
+		t.Fatalf("expected rule_labels to be a slice, got %T", labels)
+	}
+
+	exp := []any{map[string]any{"severity": "high", "team": "platform"}}
+	if diff := cmp.Diff(exp, labelsSlice); diff != "" {
+		t.Errorf("unexpected rule_labels (-want, +got):\n%s", diff)
+	}
+}
+
 func TestDecisionLoggingWithMasking(t *testing.T) {
 
 	ctx := t.Context()

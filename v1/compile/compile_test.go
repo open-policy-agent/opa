@@ -2362,6 +2362,56 @@ func TestCompilerPlanTarget(t *testing.T) {
 	}
 }
 
+// TestCompilerPlanTargetDeterministicModuleOrder is a regression test that
+// checks that the plan target's output does not depend on randomized Go
+// map iteration order.
+//
+// To exercise this, we build the plan target with a fixed set of modules,
+// each providing rules in the same package, and compile the target several
+// times in a row. Because the planner is sensitive to module ordering in its
+// inputs, any differences in the output plan files indicates that the
+// compiler is providing the modules in a non-deterministic order, such as
+// when using the c.compiler.Modules map directly.
+func TestCompilerPlanTargetDeterministicModuleOrder(t *testing.T) {
+	const numModules = 40
+
+	files := map[string]string{}
+	for i := range numModules {
+		files[fmt.Sprintf("mod%03d.rego", i)] = fmt.Sprintf(
+			"package authz\nimport rego.v1\nallow if input.x == %d\n", i)
+	}
+
+	planBytes := func() []byte {
+		t.Helper()
+		var out []byte
+		// Use the in-memory FS so module file paths are stable across builds.
+		test.WithTestFS(files, true, func(root string, fsys fs.FS) {
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("plan").
+				WithEntrypoints("authz/allow")
+			if err := compiler.Build(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			if len(compiler.bundle.PlanModules) == 0 {
+				t.Fatal("expected to find compiled plan module")
+			}
+			out = slices.Clone(compiler.bundle.PlanModules[0].Raw)
+		})
+		return out
+	}
+
+	want := planBytes()
+	// Build several more times. Go randomizes map iteration order for each map
+	// instance, so unstable module ordering should surface here.
+	for i := range 16 {
+		if got := planBytes(); !bytes.Equal(want, got) {
+			t.Fatalf("plan bytes differ across builds on iteration %d:\nwant=%s\n\ngot=%s", i, want, got)
+		}
+	}
+}
+
 func TestCompilerPlanTargetPruneUnused(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test

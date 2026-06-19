@@ -55,6 +55,8 @@ type NodeToggle struct {
 	Annotations    bool
 	AnnotationsRef bool
 	Not            bool
+	And            bool
+	Or             bool
 }
 
 // configuredJSONOptions synchronizes access to the global JSON options

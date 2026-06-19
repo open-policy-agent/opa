@@ -4,7 +4,6 @@ labels:
   type: poweredbyopa
   layer: application
 code:
-- https://www.useboomerang.io/
 - https://github.com/boomerang-io
 inventors:
 - ibm

@@ -14,7 +14,7 @@ and reduce the amount of time it takes to modify rules as requirements evolve.
 
 ## Getting Started
 
-Let's use an example to get started. The file below implements a simple
+The following example demonstrates getting started. The file below implements a simple
 policy that allows new users to be created and users to access their own
 profile.
 
@@ -32,7 +32,7 @@ allow if {
 }
 ```
 
-To test this policy, we will create a separate Rego file that contains test cases.
+To test this policy, create a separate Rego file that contains test cases.
 
 ```rego title="example_test.rego"
 package authz_test
@@ -159,7 +159,7 @@ FAIL: 1/1
 ```
 
 The test failed because it expected users with **write** permission to implicitly also have the **read** permission, an expectation the function under test didn't meet.
-By including the failing expression and its local variable assignments in the test report, we make troubleshooting easier for the developer, as it's immediately apparent what assertion and combination of parameters caused the test to fail.
+The test report includes the failing expression and its local variable assignments, making it immediately apparent what assertion and combination of parameters caused the failure.
 
 ## Test Format
 
@@ -202,9 +202,7 @@ by zero condition) the test result is marked as an `ERROR`. Tests prefixed with
 `todo_` will be reported as `SKIPPED`. Otherwise, the test result is marked as
 `PASS`.
 
-**pass_fail_error_test.rego**:
-
-```rego
+```rego title="pass_fail_error_test.rego"
 package example_test
 
 import data.example
@@ -295,9 +293,7 @@ opa test --format=json pass_fail_error_test.rego
 A test rule can define multiple test cases for evaluation.
 Test cases are declared by adding their name(s) to the rule as variables in its head's reference, and are evaluated through regular enumeration.
 
-**example_test.rego**:
-
-```rego
+```rego title="example_test.rego"
 package example_test
 
 test_concat[note] if {
@@ -337,9 +333,7 @@ FAIL: 1/1
 
 Just as in regular evaluation, test-case data doesn't need to be declared as inline Rego, but can be loaded from JSON and YAML data files:
 
-**file_example_test.rego**:
-
-```rego
+```rego title="file_example_test.rego"
 package example_test
 
 import data.test_cases
@@ -352,9 +346,7 @@ test_concat[note] if {
 }
 ```
 
-**file_example_test.yaml**:
-
-```yaml
+```yaml title="file_example_test.yaml"
 test_cases:
   empty + empty:
     a: []
@@ -384,9 +376,7 @@ FAIL: 1/1
 Test cases can be nested by declaring multiple test case name variables in the head reference.
 This is useful when e.g. the same set of test cases can be used for asserting the same behaviour across slightly different circumstances:
 
-**nested_example_test.rego**:
-
-```rego
+```rego title="nested_example_test.rego"
 package example_test
 
 test_sign_token[note][alg] if {
@@ -492,9 +482,7 @@ PASS: 1/1
 
 Below is an example to replace a **rule without arguments**.
 
-**authz.rego**:
-
-```rego
+```rego title="authz.rego"
 package authz
 
 allow1 if allow2
@@ -502,9 +490,7 @@ allow1 if allow2
 allow2 if 2 == 1
 ```
 
-**authz_test.rego**:
-
-```rego
+```rego title="authz_test.rego"
 package authz_test
 
 import data.authz
@@ -523,9 +509,7 @@ PASS: 1/1
 
 Here is an example to replace a rule's **built-in function** with a user-defined function.
 
-**authz.rego**:
-
-```rego
+```rego title="authz.rego"
 package authz
 
 import data.jwks.cert
@@ -535,9 +519,7 @@ allow if {
 }
 ```
 
-**authz_test.rego**:
-
-```rego
+```rego title="authz_test.rego"
 package authz_test
 
 import data.authz
@@ -576,9 +558,7 @@ of the function's arguments.
 Note that it's also possible to replace one built-in function by another; or a non-built-in
 function by a built-in function.
 
-**authz.rego**:
-
-```rego
+```rego title="authz.rego"
 package authz
 
 replace_rule if {
@@ -590,9 +570,7 @@ replace(label) if {
 }
 ```
 
-**authz_test.rego**:
-
-```rego
+```rego title="authz_test.rego"
 package authz_test
 
 import data.authz
@@ -625,7 +603,7 @@ It is also possible that [rule indexing](./policy-performance/#use-indexed-state
 has determined some path unnecessary for evaluation, thereby affecting the lines
 reported as covered.
 
-If we run the coverage report on the original **example.rego** file without
+If the coverage report is run on the original **example.rego** file without
 `test_get_user_allowed` from **example_test**.rego the report will indicate
 that line 8 is not covered.
 
@@ -633,7 +611,7 @@ that line 8 is not covered.
 opa test --coverage --format=json example.rego example_test.rego
 ```
 
-```json
+```json title="output"
 {
   "files": {
     "example.rego": {

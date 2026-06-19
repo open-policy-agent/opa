@@ -369,6 +369,9 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	if q.partialNamespace == "" {
 		q.partialNamespace = "partial" // lazily initialize partial namespace
 	}
+	if q.evaluated != nil && q.compiler != nil {
+		q.evaluated.WithAnnotationSet(q.compiler.GetAnnotationSet())
+	}
 	if q.seed == nil {
 		q.seed = rand.Reader
 	}
@@ -566,6 +569,10 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 			Code:    InternalErr,
 			Message: "compiler has errors",
 		}
+	}
+
+	if q.evaluated != nil && q.compiler != nil {
+		q.evaluated.WithAnnotationSet(q.compiler.GetAnnotationSet())
 	}
 
 	if q.seed == nil {

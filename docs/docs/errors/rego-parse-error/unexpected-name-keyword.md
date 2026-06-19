@@ -55,7 +55,7 @@ identified by the error message. The latter is more tricky as the code will need
 functionality.
 
 A common cause for such misunderstandings is expressing or in Rego, if you think this case might apply, there's a great
-[blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) on this topic here you might want to check out.
+[blog post](https://web.archive.org/web/https://www.styra.com/blog/how-to-express-or-in-rego/) on this topic here you might want to check out.
 
 Failing that, the best place to start is to review the OPA documentation on Rego, see this page for an
 [explanation of Rego's keywords](https://www.openpolicyagent.org/docs/policy-language).

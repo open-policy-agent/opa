@@ -9,7 +9,7 @@ code:
 videos:
 - https://www.youtube.com/watch?v=BpMttxuPv6Y
 tutorials:
-- https://docs.styra.com/regal/editor-support#visual-studio-code
+- https://www.openpolicyagent.org/projects/regal/editor-support#visual-studio-code
 software:
 - editors
 inventors:
@@ -27,7 +27,7 @@ docs_features:
       The extension provides support for debugging Rego policies using the
       native VS Code debugging interface. This is based on Regal's Debug
       Adapter, see the
-      [VS Code documentation](https://docs.styra.com/regal/editor-support#visual-studio-code)
+      [VS Code documentation](/projects/regal/editor-support#visual-studio-code)
       to get started.
 ---
 
@@ -35,5 +35,5 @@ The [vscode-opa extension](https://marketplace.visualstudio.com/items?itemName=t
 is a Visual Studio Code extension that provides support for the Rego language
 and OPA functionality. The extension includes syntax highlighting, and first
 class support for the Regal
-[Language Server](https://docs.styra.com/regal/language-server) and
-[Debug Adapter](https://docs.styra.com/regal/debug-adapter).
+[Language Server](/projects/regal/language-server) and
+[Debug Adapter](/projects/regal/debug-adapter).

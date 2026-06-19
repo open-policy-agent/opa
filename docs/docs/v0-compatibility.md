@@ -19,15 +19,15 @@ feature set. Examples of when this applies:
 
 - You run a service for customers who supply their own Rego.
 - You use OPA as part of a managed platform and need to run a mix of v0.x and
-  v1.0 OPAs based on customer demands.
+  v1.0 OPA instances based on customer demands.
 
 Users with control over their Rego and OPA deployments are instead encouraged
 to migrate their Rego to be compatible with OPA v1.0 using the below tooling options:
 
 1. The `rego.v1` import makes OPA apply all restrictions that are enforced by default in OPA v1.0.
-   If a Rego module imports `rego.v1`, it means applicable `future.keywords` imports are implied. It is illegal to import both `rego.v1` and `future.keywords` in the same module.
-2. The `--v0-v1` flag on the `opa fmt` command will rewrite existing modules to use the `rego.v1` import instead of `future.keywords` imports.
-3. The `--v0-v1` flag on the `opa check` command will check that either the `rego.v1` import or applicable `future.keywords` imports are present if any of the `in`, `every`, `if` and `contains` keywords are used in a module.
+   If a Rego module imports `rego.v1`, it means applicable `future.keywords` imports are implied. It is illegal to import both `rego.v1` and any of `future.keywords.in`, `future.keywords.every`, `future.keywords.if`, and `future.keywords.contains` in the same module.
+2. The `--v0-v1` flag on the `opa fmt` command will rewrite existing modules to use the `rego.v1` import instead of applicable `future.keywords.*` imports.
+3. The `--v0-v1` flag on the `opa check` command will check that either the `rego.v1` import or applicable `future.keywords.*` imports are present if any of the `in`, `every`, `if` and `contains` keywords are used in a module.
 
 ### v0.x compatibility mode in the OPA binary
 

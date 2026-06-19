@@ -11,7 +11,7 @@ The purpose of this tutorial is to show how OPA could be used with Gloo Edge to 
 
 ## Prerequisites
 
-This tutorial requires Kubernetes 1.14 or later. To run the tutorial locally, we recommend using [minikube](https://minikube.sigs.k8s.io/docs/start/) in version v1.0+ with Kubernetes 1.14+.
+This tutorial requires Kubernetes 1.14 or later. To run the tutorial locally, [minikube](https://minikube.sigs.k8s.io/docs/start/) (version v1.0+) with Kubernetes 1.14+ is recommended.
 
 The tutorial also requires [Helm](https://helm.sh/docs/intro/install/) to install Gloo Edge on a Kubernetes cluster.
 
@@ -85,7 +85,7 @@ kubectl port-forward deployment/gateway-proxy 8080:8080
 ```
 
 The `VirtualService` created in the previous step forwards requests to [httpbin.org](http://httpbin.org)
-Let's test that Gloo works properly by running the below command in the first terminal.
+Test that Gloo works properly by running the below command in the first terminal.
 
 ```bash
 curl -XGET -Is localhost:8080/get | head -n 1
@@ -163,13 +163,13 @@ The sample input can be seen below using Alice's token, Alice should be able to 
 
 <RunSnippet id="input.json"/>
 
-Next we build an OPA bundle.
+Next, build an OPA bundle.
 
 ```bash
 opa build policy.rego
 ```
 
-And now we serve the OPA bundle created above using Nginx.
+Serve the OPA bundle created above using Nginx.
 
 ```bash
 docker run --rm --name bundle-server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest
@@ -251,7 +251,7 @@ spec:
 
 ### 7. Configure Gloo Edge to use OPA
 
-To use OPA as a custom auth server, we need to add the `extauth` attribute as described below:
+To use OPA as a custom auth server, add the `extauth` attribute as described below:
 
 **gloo.yaml**
 
@@ -282,7 +282,7 @@ spec:
         customAuth: {}
 ```
 
-Then apply the patch to our `VirtualService` as shown below:
+Then apply the patch to the `VirtualService` as shown below:
 
 ```bash
 kubectl patch vs httpbin --type=merge --patch "$(cat vs-patch.yaml)"
@@ -290,28 +290,28 @@ kubectl patch vs httpbin --type=merge --patch "$(cat vs-patch.yaml)"
 
 ### 8. Exercise the OPA Policy
 
-Before we exercise the policy, for convenience sake, we will want to store Alice and Bob's tokens in environment variables as such:
+Before exercising the policy, store Alice and Bob's tokens in environment variables:
 
 ```bash
 export ALICE_TOKEN="eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyMjQxMDgxNTM5LCAibmJmIjogMTUxNDg1MTEzOSwgInJvbGUiOiAiZ3Vlc3QiLCAic3ViIjogIllXeHBZMlU9In0.Uk5hgUqMuUfDLvBLnlXMD0-X53aM_Hlziqg3vhOsCc8"
 export BOB_TOKEN="eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyMjQxMDgxNTM5LCAibmJmIjogMTUxNDg1MTEzOSwgInJvbGUiOiAiYWRtaW4iLCAic3ViIjogIlltOWkifQ.5qsm7rRTvqFHAgiB6evX0a_hWnGbWquZC0HImVQPQo8"
 ```
 
-Now let's verify that OPA only allows **Alice** to perform `GET` requests.
+Verify that OPA only allows **Alice** to perform `GET` requests.
 
 ```bash
 curl -XGET -Is -H "Authorization: Bearer $ALICE_TOKEN" localhost:8080/get
 HTTP/1.1 200 OK
 ```
 
-And with a `POST` request, we get:
+With a `POST` request, the result is:
 
 ```bash
 curl http -XPOST -Is -H "Authorization: Bearer $ALICE_TOKEN" localhost:8080/post
 HTTP/1.1 403 Forbidden
 ```
 
-And for **Bob**, we should be able to `GET` and `POST`:
+For **Bob**, both `GET` and `POST` should succeed:
 
 ```bash
 curl -XGET -Is -H "Authorization: Bearer $BOB_TOKEN" localhost:8080/get
@@ -331,8 +331,6 @@ Check OPA's decision logs to view the inputs received by OPA from Gloo Edge and 
 kubectl logs deployment/opa -n gloo-system
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial!
+## Summary
 
 This tutorial showed how you can use OPA with [Gloo Edge](https://docs.solo.io/gloo-edge/latest/) to apply security policies for upstream services and how to create and test a policy that would allow `GET` or `POST` requests based on your user role.

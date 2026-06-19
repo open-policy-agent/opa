@@ -7,7 +7,7 @@ software:
 - spiffe
 - spire
 blogs:
-- https://www.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa/
+- https://web.archive.org/web/https://www.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa/
 code:
 - https://github.com/spiffe/spire/blob/v1.0.2/doc/authorization_policy_engine.md
 tutorials:
@@ -17,7 +17,7 @@ docs_features:
   envoy:
     note: |
       SPIRE can be used to integrate with Envoy and OPA. See a
-      [blog here](https://www.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa/)
+      [blog here](https://web.archive.org/web/https://www.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa/)
       to learn more.
   rest-api-integration:
     note: |

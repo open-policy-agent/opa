@@ -162,7 +162,7 @@ func walk(v Visitor, x any) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every, *Not:
+		case *Term, *SomeDecl, *Every, *Not, *LogicalAnd, *LogicalOr:
 			Walk(w, ts)
 		case []*Term:
 			for i := range ts {
@@ -215,6 +215,14 @@ func walk(v Visitor, x any) {
 		Walk(w, x.Value)
 		Walk(w, x.Domain)
 		Walk(w, x.Body)
+	case *Not:
+		Walk(w, x.Body)
+	case *LogicalAnd:
+		Walk(w, x.Lhs)
+		Walk(w, x.Rhs)
+	case *LogicalOr:
+		Walk(w, x.Lhs)
+		Walk(w, x.Rhs)
 	case *SomeDecl:
 		for i := range x.Symbols {
 			Walk(w, x.Symbols[i])
@@ -237,7 +245,7 @@ func WalkVars(x any, f func(Var) bool) {
 func WalkClosures(x any, f func(any) bool) {
 	vis := NewGenericVisitor(func(x any) bool {
 		switch x := x.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every, *Not:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every, *Not, *LogicalAnd, *LogicalOr:
 			return f(x)
 		}
 		return false
@@ -397,7 +405,7 @@ func (tv *typeVisitor[T]) walk(x any, visit func(x T) bool) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every, *Not:
+		case *Term, *SomeDecl, *Every, *Not, *LogicalAnd, *LogicalOr:
 			tv.walk(ts, visit)
 		case []*Term:
 			for i := range ts {
@@ -466,6 +474,12 @@ func (tv *typeVisitor[T]) walk(x any, visit func(x T) bool) {
 		}
 	case *Not:
 		tv.walk(x.Body, visit)
+	case *LogicalAnd:
+		tv.walkBody(x.Lhs, visit)
+		tv.walkBody(x.Rhs, visit)
+	case *LogicalOr:
+		tv.walkBody(x.Lhs, visit)
+		tv.walkBody(x.Rhs, visit)
 	}
 }
 
@@ -536,7 +550,7 @@ func (vis *GenericVisitor) Walk(x any) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every, *Not:
+		case *Term, *SomeDecl, *Every, *Not, *LogicalAnd, *LogicalOr:
 			vis.Walk(ts)
 		case []*Term:
 			for i := range ts {
@@ -605,6 +619,12 @@ func (vis *GenericVisitor) Walk(x any) {
 		}
 	case *Not:
 		vis.Walk(x.Body)
+	case *LogicalAnd:
+		vis.Walk(x.Lhs)
+		vis.Walk(x.Rhs)
+	case *LogicalOr:
+		vis.Walk(x.Lhs)
+		vis.Walk(x.Rhs)
 	}
 }
 
@@ -673,7 +693,7 @@ func (vis *BeforeAfterVisitor) Walk(x any) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every, *Not:
+		case *Term, *SomeDecl, *Every, *Not, *LogicalAnd, *LogicalOr:
 			vis.Walk(ts)
 		case []*Term:
 			for i := range ts {
@@ -738,6 +758,12 @@ func (vis *BeforeAfterVisitor) Walk(x any) {
 		}
 	case *Not:
 		vis.Walk(x.Body)
+	case *LogicalAnd:
+		vis.Walk(x.Lhs)
+		vis.Walk(x.Rhs)
+	case *LogicalOr:
+		vis.Walk(x.Lhs)
+		vis.Walk(x.Rhs)
 	}
 }
 
@@ -814,7 +840,7 @@ func (vis *VarVisitor) visit(v any) bool {
 	}
 	if vis.params.SkipClosures {
 		switch v := v.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *TemplateString, *Not:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *TemplateString, *Not, *LogicalAnd, *LogicalOr:
 			return true
 		case *Expr:
 			if ev, ok := v.Terms.(*Every); ok {
@@ -940,7 +966,7 @@ func (vis *VarVisitor) Walk(x any) {
 		vis.WalkArgs(x)
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *Term, *SomeDecl, *Every, *Not:
+		case *Term, *SomeDecl, *Every, *Not, *LogicalAnd, *LogicalOr:
 			vis.Walk(ts)
 		case []*Term:
 			for i := range ts {
@@ -1007,6 +1033,12 @@ func (vis *VarVisitor) Walk(x any) {
 		}
 	case *Not:
 		vis.Walk(x.Body)
+	case *LogicalAnd:
+		vis.WalkBody(x.Lhs)
+		vis.WalkBody(x.Rhs)
+	case *LogicalOr:
+		vis.WalkBody(x.Lhs)
+		vis.WalkBody(x.Rhs)
 	}
 }
 

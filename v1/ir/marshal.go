@@ -103,6 +103,53 @@ type typedOperand struct {
 	Value Val    `json:"value"`
 }
 
+// MarshalJSON for MakeNumberRefStmt emits both "index" (the canonical key,
+// matching the casing of every other field in the IR) and "Index" (the
+// historical key, kept for backwards compatibility with consumers that
+// hard-code the original spelling). The "Index" key is deprecated and will
+// be removed in a future major release; new consumers should read "index".
+func (m *MakeNumberRefStmt) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		File        int   `json:"file"`
+		Col         int   `json:"col"`
+		Row         int   `json:"row"`
+		Index       int   `json:"index"`
+		IndexLegacy int   `json:"Index"` // deprecated; remove in next major
+		Target      Local `json:"target"`
+	}{
+		File:        m.File,
+		Col:         m.Col,
+		Row:         m.Row,
+		Index:       m.Index,
+		IndexLegacy: m.Index,
+		Target:      m.Target,
+	})
+}
+
+// UnmarshalJSON for MakeNumberRefStmt accepts either the canonical "index"
+// key or the deprecated "Index" key. When both are present, "index" wins.
+func (m *MakeNumberRefStmt) UnmarshalJSON(bs []byte) error {
+	var raw struct {
+		File        int   `json:"file"`
+		Col         int   `json:"col"`
+		Row         int   `json:"row"`
+		Index       *int  `json:"index"`
+		IndexLegacy *int  `json:"Index"`
+		Target      Local `json:"target"`
+	}
+	if err := json.Unmarshal(bs, &raw); err != nil {
+		return err
+	}
+	m.File, m.Col, m.Row, m.Target = raw.File, raw.Col, raw.Row, raw.Target
+	switch {
+	case raw.Index != nil:
+		m.Index = *raw.Index
+	case raw.IndexLegacy != nil:
+		m.Index = *raw.IndexLegacy
+	}
+	return nil
+}
+
 var stmtFactories = map[string]func() Stmt{
 	"ReturnLocalStmt":      func() Stmt { return &ReturnLocalStmt{} },
 	"CallStmt":             func() Stmt { return &CallStmt{} },
@@ -144,4 +191,26 @@ var valFactories = map[string]func() Val{
 	"bool":         func() Val { var x Bool; return &x },
 	"string_index": func() Val { var x StringIndex; return &x },
 	"local":        func() Val { var x Local; return &x },
+}
+
+// StmtKinds returns a fresh zero-value instance of every registered Stmt
+// kind, keyed by the discriminator string used in the JSON form. Useful for
+// tools (schema generators, linters, transformers) that need to walk the
+// IR's polymorphic Stmt universe without depending on package internals.
+func StmtKinds() map[string]Stmt {
+	out := make(map[string]Stmt, len(stmtFactories))
+	for k, f := range stmtFactories {
+		out[k] = f()
+	}
+	return out
+}
+
+// ValKinds returns a fresh zero-value instance of every registered Val kind,
+// keyed by the discriminator string. See StmtKinds for usage notes.
+func ValKinds() map[string]Val {
+	out := make(map[string]Val, len(valFactories))
+	for k, f := range valFactories {
+		out[k] = f()
+	}
+	return out
 }

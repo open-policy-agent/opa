@@ -95,7 +95,7 @@ func TestProcessWatcherUpdateForRegoVersion(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = ProcessWatcherUpdateForRegoVersion(t.Context(), regoVersion, paths, "", store, filter, false, false, f)
+		err = ProcessWatcherUpdateForRegoVersion(t.Context(), ast.ParserOptions{RegoVersion: regoVersion, ProcessAnnotation: true}, paths, "", store, filter, false, false, f)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

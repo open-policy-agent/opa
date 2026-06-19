@@ -13,7 +13,7 @@
     "@open-policy-agent/ucast-prisma": "^0.1.6",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
-    "pg": "^8.20.0"
+    "pg": "^8.21.0"
   },
   "devDependencies": {
     "prisma": "^7.8.0"

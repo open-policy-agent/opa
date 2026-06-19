@@ -5,7 +5,8 @@
 package topdown
 
 import (
-	"github.com/open-policy-agent/opa/internal/ref"
+	"cmp"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
@@ -24,22 +25,32 @@ func builtinObjectUnion(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	if objA.Len() == 0 {
 		return iter(operands[1])
 	}
-	if objB.Len() == 0 {
-		return iter(operands[0])
-	}
-	if objA.Compare(objB) == 0 {
+	if objB.Len() == 0 || objA.Compare(objB) == 0 {
 		return iter(operands[0])
 	}
 
-	r := mergeWithOverwrite(objA, objB)
-
-	return iter(ast.NewTerm(r))
+	return iter(ast.NewTerm(mergeWithOverwrite(objA, objB)))
 }
 
 func builtinObjectUnionN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	arr, err := builtins.ArrayOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
+	}
+
+	n := arr.Len()
+	if n == 0 {
+		return iter(ast.InternedEmptyObject)
+	}
+
+	first := arr.Elem(0)
+	obj, ok := first.Value.(ast.Object)
+	if !ok {
+		return builtins.NewOperandElementErr(1, arr, first.Value, "object")
+	}
+
+	if n == 1 {
+		return iter(first)
 	}
 
 	// Because we need merge-with-overwrite behavior, we can iterate
@@ -54,20 +65,23 @@ func builtinObjectUnionN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	//   Want Output: {"a": {"c": 3}}
 
 	// First pass: count total keys for pre-allocation
-	totalSize := 0
-	for i := range arr.Len() {
-		o, ok := arr.Elem(i).Value.(ast.Object)
+	totalSize := obj.Len()
+	for i := 1; i < n; i++ {
+		elem := arr.Elem(i)
+		o, ok := elem.Value.(ast.Object)
 		if !ok {
-			return builtins.NewOperandElementErr(1, arr, arr.Elem(i).Value, "object")
+			return builtins.NewOperandElementErr(1, arr, elem.Value, "object")
 		}
 		totalSize += o.Len()
 	}
 
 	result := ast.NewObjectWithCapacity(totalSize)
 	frozenKeys := make(map[*ast.Term]struct{}, totalSize)
-	for i := arr.Len() - 1; i >= 0; i-- {
-		o := arr.Elem(i).Value.(ast.Object) // Already validated above
-		mergewithOverwriteInPlace(result, o, frozenKeys)
+
+	for i := n - 1; i >= 0; i-- {
+		if o := arr.Elem(i).Value.(ast.Object); o.Len() > 0 {
+			mergewithOverwriteInPlace(result, o, frozenKeys)
+		}
 	}
 
 	return iter(ast.NewTerm(result))
@@ -126,34 +140,27 @@ func builtinObjectFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 }
 
 func builtinObjectGet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	object, err := builtins.ObjectOperand(operands[0].Value, 1)
+	// silly micro optimization: initial ref to last item avoids
+	// later bounds checks as 1 and 0 then known to be valid indices
+	defaultValue, path, curr := operands[2], operands[1], operands[0]
+
+	object, err := builtins.ObjectOperand(curr.Value, 1)
 	if err != nil {
 		return err
 	}
 
-	// if the get key is not an array, attempt to get the top level key for the operand value in the object
-	path, ok := operands[1].Value.(*ast.Array)
+	arr, ok := path.Value.(*ast.Array)
 	if !ok {
-		if ret := object.Get(operands[1]); ret != nil {
-			return iter(ret)
+		return iter(cmp.Or(object.Get(path), defaultValue))
+	}
+
+	for i := range arr.Len() {
+		if curr = curr.Get(arr.Elem(i)); curr == nil {
+			break
 		}
-
-		return iter(operands[2])
 	}
 
-	// if the path is empty, then we skip selecting nested keys and return the whole object
-	if path.Len() == 0 {
-		return iter(operands[0])
-	}
-
-	// build an ast.Ref from the array and see if it matches within the object
-	pathRef := ref.ArrayPath(path)
-	value, err := object.Find(pathRef)
-	if err != nil {
-		return iter(operands[2])
-	}
-
-	return iter(ast.NewTerm(value))
+	return iter(cmp.Or(curr, defaultValue))
 }
 
 func builtinObjectKeys(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -207,37 +214,47 @@ func mergeWithOverwrite(objA, objB ast.Object) ast.Object {
 
 // Modifies obj with any new keys from other, and recursively
 // merges any keys where the values are both objects.
-func mergewithOverwriteInPlace(obj, other ast.Object, frozenKeys map[*ast.Term]struct{}) {
-	other.Foreach(func(k, v *ast.Term) {
-		v2 := obj.Get(k)
-		// The key didn't exist in other, keep the original value.
-		if v2 == nil {
-			nestedObj, ok := v.Value.(ast.Object)
-			if !ok {
-				// v is not an object
-				obj.Insert(k, v)
-			} else {
-				// Copy the nested object so the original object would not be modified
-				nestedObjCopy := nestedObj.Copy()
-				obj.Insert(k, ast.NewTerm(nestedObjCopy))
-			}
+func mergewithOverwriteInPlace(dst, src ast.Object, frozenKeys map[*ast.Term]struct{}) {
+	if src.Len() == 0 {
+		return
+	}
 
-			return
-		}
-		// The key exists in both. Merge or reject change.
-		updateValueObj, ok2 := v.Value.(ast.Object)
-		originalValueObj, ok1 := v2.Value.(ast.Object)
-		// Both are objects? Merge recursively.
-		if ok1 && ok2 {
-			// Check to make sure that this key isn't frozen before merging.
-			if _, ok := frozenKeys[v2]; !ok {
-				mergewithOverwriteInPlace(originalValueObj, updateValueObj, frozenKeys)
-			}
+	src.Foreach(func(k, v *ast.Term) {
+		if v2 := dst.Get(k); v2 == nil {
+			// key not in dst, insert from src
+			dst.Insert(k, copyIfObject(v))
 		} else {
-			// Else, original value wins. Freeze the key.
-			frozenKeys[v2] = struct{}{}
+			// key in both, merge or reject change
+			srcObj, ok2 := v.Value.(ast.Object)
+			dstObj, ok1 := v2.Value.(ast.Object)
+			// both are objects? Merge recursively.
+			if ok1 && ok2 {
+				// Check to make sure that this key isn't frozen before merging.
+				if _, ok := frozenKeys[v2]; !ok {
+					mergewithOverwriteInPlace(dstObj, srcObj, frozenKeys)
+				}
+			} else {
+				// Else, original value wins. Freeze the key.
+				frozenKeys[v2] = struct{}{}
+			}
 		}
 	})
+}
+
+// copyIfObject returns term in which objects are copied recursively
+// other values are returned as-is. This is much cheaper than .Copy()
+// and sufficient for the use case of merging, as sets and arrays are
+// overwritten rather than merged.
+func copyIfObject(term *ast.Term) *ast.Term {
+	switch val := term.Value.(type) {
+	case ast.Object:
+		cpy, _ := val.Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
+			return k, copyIfObject(v), nil
+		})
+		return ast.NewTerm(cpy)
+	default:
+		return term
+	}
 }
 
 func init() {

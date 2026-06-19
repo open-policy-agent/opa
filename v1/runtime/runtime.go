@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/fsnotify/fsnotify"
 	prometheus_sdk "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -306,7 +307,10 @@ func (p *Params) regoVersion() ast.RegoVersion {
 }
 
 func (p *Params) parserOptions() ast.ParserOptions {
-	return ast.ParserOptions{RegoVersion: p.regoVersion()}
+	return ast.ParserOptions{
+		ProcessAnnotation: true,
+		RegoVersion:       p.regoVersion(),
+	}
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -428,9 +432,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	regoVersion := params.regoVersion()
-
-	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, params.BundleLazyLoadingMode, false, false, nil, nil)
+	loaded, err := initload.LoadPathsForRegoVersion(params.parserOptions(), params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, params.BundleLazyLoadingMode, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
@@ -624,7 +626,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // Serve will start a new REST API server and listen for requests. This
 // will block until either: an error occurs, the context is canceled, or
 // a SIGTERM or SIGKILL signal is sent.
-func (rt *Runtime) Serve(ctx context.Context) error {
+func (rt *Runtime) Serve(ctx context.Context) (err error) {
 	if rt.Params.Addrs == nil {
 		return errors.New("at least one address must be configured in runtime parameters")
 	}
@@ -649,17 +651,22 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	checkUserPrivileges(rt.logger)
 
-	// NOTE(tsandall): at some point, hopefully we can remove this because the
-	// Go runtime will just do the right thing. Until then, try to set
-	// GOMAXPROCS based on the CPU quota applied to the process.
-	undo, err := maxprocs.Set(maxprocs.Logger(func(f string, a ...any) {
+	// automaxprocs was removed in #8696 in favour of Go 1.25's built-in cgroup CPU
+	// quota detection, but the built-in has a minimum of 2 vs automaxprocs's minimum
+	// of 1, causing unexpected memory pressure in containers with low CPU limits.
+	// #8771 was added for guidance on using GOMEMLIMIT but we have also
+	// restored automaxprocs for low-cpu defaults users expect.
+	undo, mpErr := maxprocs.Set(maxprocs.Logger(func(f string, a ...any) {
 		rt.logger.Debug(f, a...)
 	}))
-	if err != nil {
-		rt.logger.WithFields(map[string]any{"err": err}).Debug("Failed to set GOMAXPROCS from CPU quota.")
+	if mpErr != nil {
+		rt.logger.WithFields(map[string]any{"err": mpErr}).Debug("Failed to set GOMAXPROCS from CPU quota.")
 	}
-
 	defer undo()
+
+	if _, mlErr := memlimit.SetGoMemLimitWithOpts(memlimit.WithLogger(logging.AsSlogLoggerWithPinnedLevel(rt.logger, logging.Debug))); mlErr != nil {
+		rt.logger.WithFields(map[string]any{"err": mlErr}).Debug("Failed to set GOMEMLIMIT from cgroup memory limit.")
+	}
 
 	if err := rt.Manager.Start(ctx); err != nil {
 		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start plugins.")
@@ -984,7 +991,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 }
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
-	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.Manager.ParserOptions().RegoVersion, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, rt.Params.BundleLazyLoadingMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.Manager.ParserOptions(), paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, rt.Params.BundleLazyLoadingMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 		_, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
 			Store:         rt.Store,
 			Txn:           txn,

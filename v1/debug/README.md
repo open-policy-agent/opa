@@ -13,7 +13,7 @@ breakpoints, and variable scopes.
 > The Debug API current actively supported in two clients
 > [VS Code](https://github.com/open-policy-agent/vscode-opa) and
 > [Neovim](https://github.com/rinx/nvim-dap-rego/tree/main). Both
-> [Regal's Debug Adapter](https://docs.styra.com/regal/debug-adapter) as the
+> [Regal's Debug Adapter](https://www.openpolicyagent.org/projects/regal/debug-adapter) as the
 > backend, which is based on this API.
 
 > [!WARNING]

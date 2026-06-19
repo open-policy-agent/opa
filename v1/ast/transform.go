@@ -199,6 +199,24 @@ func Transform(t Transformer, x any) (any, error) {
 			if err != nil {
 				return nil, err
 			}
+		case *LogicalAnd:
+			ts.Lhs, err = transformBody(t, ts.Lhs)
+			if err != nil {
+				return nil, err
+			}
+			ts.Rhs, err = transformBody(t, ts.Rhs)
+			if err != nil {
+				return nil, err
+			}
+		case *LogicalOr:
+			ts.Lhs, err = transformBody(t, ts.Lhs)
+			if err != nil {
+				return nil, err
+			}
+			ts.Rhs, err = transformBody(t, ts.Rhs)
+			if err != nil {
+				return nil, err
+			}
 		}
 		for i, w := range y.With {
 			w, err := Transform(t, w)

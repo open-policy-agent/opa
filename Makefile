@@ -26,7 +26,7 @@ CONDITIONAL_WASM_TAG := -tags=opa_wasm
 endif
 override GO_TAGS := $(GO_TAGS) $(CONDITIONAL_WASM_TAG)
 
-GOLANGCI_LINT_VERSION := v2.9.0
+GOLANGCI_LINT_VERSION := v2.12.2
 YAML_LINT_VERSION := 0.29.0
 YAML_LINT_FORMAT ?= auto
 
@@ -95,7 +95,7 @@ release-dir:
 .PHONY: generate
 generate: wasm-lib-build
 ifeq ($(GOOS),windows)
-	GOOS=linux go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0
+	cd build/tools && CGO_ENABLED=0 GOOS=linux go install tool
 endif
 	$(GO) generate
 

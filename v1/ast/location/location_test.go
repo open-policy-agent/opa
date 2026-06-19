@@ -183,6 +183,75 @@ func TestLocationString(t *testing.T) {
 	}
 }
 
+func TestLocationHasFile(t *testing.T) {
+	tests := map[string]struct {
+		loc *Location
+		exp bool
+	}{
+		"nil receiver": {loc: nil, exp: false},
+		"empty file":   {loc: &Location{Row: 1, Col: 1}, exp: false},
+		"with file":    {loc: &Location{File: "x.rego", Row: 1, Col: 1}, exp: true},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := tc.loc.HasFile(); got != tc.exp {
+				t.Fatalf("Expected %v but got %v", tc.exp, got)
+			}
+		})
+	}
+}
+
+func TestLocationEnd(t *testing.T) {
+	tests := map[string]struct {
+		loc    *Location
+		expRow int
+		expCol int
+	}{
+		"single-line text": {
+			loc:    &Location{Text: []byte("false"), Row: 3, Col: 10},
+			expRow: 3,
+			expCol: 15,
+		},
+		"multi-line text": {
+			loc:    &Location{Text: []byte("a\nbc"), Row: 5, Col: 2},
+			expRow: 6,
+			expCol: 3,
+		},
+		"multi-byte runes count as one column each": {
+			// "café" is 5 bytes but 4 runes; the scanner advances Col
+			// per rune (see scanner.next), so End must too.
+			loc:    &Location{Text: []byte("café"), Row: 1, Col: 1},
+			expRow: 1,
+			expCol: 5,
+		},
+		"multi-byte runes across a newline": {
+			loc:    &Location{Text: []byte("café\nñ"), Row: 1, Col: 1},
+			expRow: 2,
+			expCol: 2,
+		},
+		"single multi-byte rune": {
+			loc:    &Location{Text: []byte("é"), Row: 1, Col: 1},
+			expRow: 1,
+			expCol: 2,
+		},
+		"nil receiver": {
+			loc:    nil,
+			expRow: 0,
+			expCol: 0,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			row, col := tc.loc.End()
+			if row != tc.expRow || col != tc.expCol {
+				t.Fatalf("Expected (%d, %d) but got (%d, %d)", tc.expRow, tc.expCol, row, col)
+			}
+		})
+	}
+}
+
 // Verify zero allocations for Location.AppendText.
 func BenchmarkLocationAppendText(b *testing.B) {
 	locs := []*Location{

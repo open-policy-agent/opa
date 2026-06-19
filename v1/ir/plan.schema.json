@@ -1,0 +1,1782 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpolicyagent.org/schemas/ir/v1/plan.schema.json",
+  "title": "OPA IR Plan",
+  "description": "JSON Schema for the IR plan produced by `opa build -t plan`. Generated from v1/ir/ir.go.",
+  "$ref": "#/$defs/Policy",
+  "$defs": {
+    "ArrayAppendStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "array": {
+          "type": "integer"
+        },
+        "value": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "array",
+        "col",
+        "file",
+        "row",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "AssignIntStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "integer"
+        },
+        "value": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "target",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "AssignVarOnceStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/Operand"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "source",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "AssignVarStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/Operand"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "source",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "Block": {
+      "type": "object",
+      "properties": {
+        "stmts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Stmt"
+          }
+        }
+      },
+      "required": [
+        "stmts"
+      ],
+      "additionalProperties": false
+    },
+    "BlockStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "blocks": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Block"
+          }
+        }
+      },
+      "required": [
+        "blocks",
+        "col",
+        "file",
+        "row"
+      ],
+      "additionalProperties": false
+    },
+    "BreakStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "index": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "index",
+        "row"
+      ],
+      "additionalProperties": false
+    },
+    "BuiltinFunc": {
+      "type": "object",
+      "properties": {
+        "decl": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "BuiltinFunc declaration; opaque in this schema."
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "decl",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "CallDynamicStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "args": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer"
+          }
+        },
+        "path": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Operand"
+          }
+        },
+        "result": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "args",
+        "col",
+        "file",
+        "path",
+        "result",
+        "row"
+      ],
+      "additionalProperties": false
+    },
+    "CallStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "args": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Operand"
+          }
+        },
+        "func": {
+          "type": "string"
+        },
+        "result": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "args",
+        "col",
+        "file",
+        "func",
+        "result",
+        "row"
+      ],
+      "additionalProperties": false
+    },
+    "DotStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "key": {
+          "$ref": "#/$defs/Operand"
+        },
+        "source": {
+          "$ref": "#/$defs/Operand"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "key",
+        "row",
+        "source",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "EqualStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "a": {
+          "$ref": "#/$defs/Operand"
+        },
+        "b": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "col",
+        "file",
+        "row"
+      ],
+      "additionalProperties": false
+    },
+    "Func": {
+      "type": "object",
+      "properties": {
+        "blocks": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Block"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "params": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer"
+          }
+        },
+        "path": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "return": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "blocks",
+        "name",
+        "params",
+        "return"
+      ],
+      "additionalProperties": false
+    },
+    "Funcs": {
+      "type": "object",
+      "properties": {
+        "funcs": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Func"
+          }
+        }
+      },
+      "required": [
+        "funcs"
+      ],
+      "additionalProperties": false
+    },
+    "IsArrayStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "IsDefinedStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "source": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "IsObjectStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "IsSetStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "IsUndefinedStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "source": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "LenStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/Operand"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "source",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "MakeArrayStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "capacity": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "capacity",
+        "col",
+        "file",
+        "row",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "MakeNullStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "MakeNumberIntStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "integer"
+        },
+        "value": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "target",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "MakeNumberRefStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "index": {
+          "type": "integer"
+        },
+        "Index": {
+          "type": "integer",
+          "deprecated": true,
+          "description": "Deprecated alias for `index`. Both keys are emitted by current OPA versions for backwards compatibility; will be removed in a future major release. Read `index` instead."
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "index",
+        "row",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "MakeObjectStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "MakeSetStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "NopStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row"
+      ],
+      "additionalProperties": false
+    },
+    "NotEqualStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "a": {
+          "$ref": "#/$defs/Operand"
+        },
+        "b": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "col",
+        "file",
+        "row"
+      ],
+      "additionalProperties": false
+    },
+    "NotStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "block": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Block"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "block",
+        "col",
+        "file",
+        "row"
+      ],
+      "additionalProperties": false
+    },
+    "ObjectInsertOnceStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "key": {
+          "$ref": "#/$defs/Operand"
+        },
+        "object": {
+          "type": "integer"
+        },
+        "value": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "key",
+        "object",
+        "row",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "ObjectInsertStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "key": {
+          "$ref": "#/$defs/Operand"
+        },
+        "object": {
+          "type": "integer"
+        },
+        "value": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "key",
+        "object",
+        "row",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "ObjectMergeStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "a": {
+          "type": "integer"
+        },
+        "b": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "col",
+        "file",
+        "row",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "Operand": {
+      "$ref": "#/$defs/Val"
+    },
+    "Plan": {
+      "type": "object",
+      "properties": {
+        "blocks": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Block"
+          }
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "blocks",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "Plans": {
+      "type": "object",
+      "properties": {
+        "plans": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Plan"
+          }
+        }
+      },
+      "required": [
+        "plans"
+      ],
+      "additionalProperties": false
+    },
+    "Policy": {
+      "type": "object",
+      "properties": {
+        "funcs": {
+          "$ref": "#/$defs/Funcs"
+        },
+        "plans": {
+          "$ref": "#/$defs/Plans"
+        },
+        "static": {
+          "$ref": "#/$defs/Static"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ResetLocalStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "ResultSetAddStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "value": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "ReturnLocalStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "source": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "ScanStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "block": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Block"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "type": "integer"
+        },
+        "source": {
+          "type": "integer"
+        },
+        "value": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "block",
+        "col",
+        "file",
+        "key",
+        "row",
+        "source",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "SetAddStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "set": {
+          "type": "integer"
+        },
+        "value": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "col",
+        "file",
+        "row",
+        "set",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "Static": {
+      "type": "object",
+      "properties": {
+        "builtin_funcs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BuiltinFunc"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StringConst"
+          }
+        },
+        "strings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StringConst"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Stmt": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ArrayAppendStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/ArrayAppendStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "AssignIntStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/AssignIntStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "AssignVarOnceStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/AssignVarOnceStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "AssignVarStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/AssignVarStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "BlockStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/BlockStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "BreakStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/BreakStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "CallDynamicStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/CallDynamicStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "CallStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/CallStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "DotStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/DotStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "EqualStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/EqualStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "IsArrayStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/IsArrayStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "IsDefinedStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/IsDefinedStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "IsObjectStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/IsObjectStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "IsSetStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/IsSetStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "IsUndefinedStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/IsUndefinedStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "LenStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/LenStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "MakeArrayStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/MakeArrayStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "MakeNullStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/MakeNullStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "MakeNumberIntStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/MakeNumberIntStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "MakeNumberRefStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/MakeNumberRefStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "MakeObjectStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/MakeObjectStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "MakeSetStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/MakeSetStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "NopStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/NopStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "NotEqualStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/NotEqualStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "NotStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/NotStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ObjectInsertOnceStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/ObjectInsertOnceStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ObjectInsertStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/ObjectInsertStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ObjectMergeStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/ObjectMergeStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ResetLocalStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/ResetLocalStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ResultSetAddStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/ResultSetAddStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ReturnLocalStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/ReturnLocalStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ScanStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/ScanStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "SetAddStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/SetAddStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "WithStmt"
+            },
+            "stmt": {
+              "$ref": "#/$defs/WithStmt"
+            }
+          },
+          "required": [
+            "type",
+            "stmt"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "StringConst": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "Val": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "bool"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "local"
+            },
+            "value": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "string_index"
+            },
+            "value": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "WithStmt": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "block": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Block"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "local": {
+          "type": "integer"
+        },
+        "path": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer"
+          }
+        },
+        "value": {
+          "$ref": "#/$defs/Operand"
+        }
+      },
+      "required": [
+        "block",
+        "col",
+        "file",
+        "local",
+        "path",
+        "row",
+        "value"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

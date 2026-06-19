@@ -5,7 +5,7 @@ image: /img/opa-errors.png
 
 # `rego_type_error`: match error
 
-Just like the category suggests, this error is emitted by the _type checker_ during the compilation stage. This error
+As the category suggests, this error is emitted by the _type checker_ during the compilation stage. This error
 is commonly triggered by comparing two values of different types, like a string and an integer (`"1" == 1`). In order
 for the error to be reported, the compiler must be able to determine the types involved in the expression.
 
@@ -53,7 +53,7 @@ user2 := {"name": "jane"}
 same_user if user1 == user2
 ```
 
-We're clearly comparing two objects, so should this really be a match error? The compiler would say yes:
+Two objects are being compared here. Should this really be a match error? The compiler would say yes:
 
 ```txt
 1 error occurred: policy.rego:8: rego_type_error: match error
@@ -61,7 +61,7 @@ We're clearly comparing two objects, so should this really be a match error? The
     right : object<name: string>
 ```
 
-The reason for this is that while we may have objects on both sides, the type checker compares _recursively_. In doing
+The reason is that while objects appear on both sides, the type checker compares _recursively_. In doing
 this it'll see that one object has an attribute (`age`) that the other doesn't, and hence considered to be of
 different type after all. This is sometimes considered
 [confusing](https://github.com/open-policy-agent/opa/issues/2132), but given that it also allows catching some bugs at
@@ -69,7 +69,7 @@ compile time, it's likely the right behavior.
 
 ## How To Fix It
 
-Fixing this is simple: just change the types to match on both sides of a comparison. For the few cases where one
+Fixing this requires changing the types to match on both sides of a comparison. For the few cases where one
 _really_ wants to compare two values of different types, a helper function can be used to "wash" off the type
 information from the comparison:
 

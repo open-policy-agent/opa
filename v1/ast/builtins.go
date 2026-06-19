@@ -3077,7 +3077,7 @@ var GraphQLSchemaIsValid = &Builtin{
 // and returns error string for all other inputs.
 var JSONSchemaVerify = &Builtin{
 	Name:        "json.verify_schema",
-	Description: "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
+	Description: "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object. The `pattern` keyword, if present, is compiled using Go's RE2 regex dialect; schemas relying on ECMA-262 features that RE2 does not support (e.g. negative lookahead) will be rejected.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
@@ -3097,7 +3097,7 @@ var JSONSchemaVerify = &Builtin{
 // and returns non-empty array with error objects otherwise.
 var JSONMatchSchema = &Builtin{
 	Name:        "json.match_schema",
-	Description: "Checks that the document matches the JSON schema.",
+	Description: "Checks that the document matches the JSON schema. The `pattern` keyword is enforced using Go's RE2 regex dialect; schemas relying on ECMA-262 features that RE2 does not support (e.g. negative lookahead) will be rejected.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("document", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
@@ -3662,11 +3662,12 @@ func (b *Builtin) Call(operands ...*Term) *Term {
 
 // Ref returns a Ref that refers to the built-in function.
 func (b *Builtin) Ref() Ref {
-	parts := strings.Split(b.Name, ".")
-	ref := make(Ref, len(parts))
-	ref[0] = VarTerm(parts[0])
-	for i := 1; i < len(parts); i++ {
-		ref[i] = InternedTerm(parts[i])
+	numParts := strings.Count(b.Name, ".") + 1
+	curr, remaining, ok := strings.Cut(b.Name, ".")
+	ref := append(make(Ref, 0, numParts), VarTerm(curr))
+	for ok {
+		curr, remaining, ok = strings.Cut(remaining, ".")
+		ref = append(ref, InternedTerm(curr))
 	}
 	return ref
 }

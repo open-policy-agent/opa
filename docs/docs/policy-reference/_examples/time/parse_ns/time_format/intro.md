@@ -1,3 +1,3 @@
 <!-- markdownlint-disable MD041 -->
 
-In OPA, we can parse a simple YYYY-MM-DD timestamp as follows:
+In OPA, a simple YYYY-MM-DD timestamp can be parsed as follows:

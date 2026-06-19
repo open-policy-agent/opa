@@ -28,7 +28,7 @@ production users that have added themselves (in alphabetical order):
   environment for microservice API authorization. OPA is deployed per-host and
   inside of their Slauth (AAA) system. Policies are tagged and categorized
   (e.g., platform, service, etc.) and distributed via S3. Custom log infrastructure
-  consumes decision logs. For more information see this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=nvRTO8xjmrg).
+  consumes decision logs.
 
 * Bisnode (Dun & Bradstreet) uses OPA for a wide range of use cases,
   including microservice authorization, fine grained kubernetes authorization,
@@ -50,8 +50,7 @@ production users that have added themselves (in alphabetical order):
 * [Capital One](https://www.capitalone.com/) uses OPA to enforce a variety of
   admission control policies across their Kubernetes clusters including image
   registry allowlisting, label requirements, resource requirements, container
-  privileges, etc. For more information see this talk from [KubeCon US 2018](https://www.youtube.com/watch?v=CDDsjMOtJ-c&t=6m35s)
-  and this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=vkvWZuqSk5M).
+  privileges, etc. For more information see this talk from [KubeCon US 2018](https://www.youtube.com/watch?v=CDDsjMOtJ-c&t=6m35s).
 
 * [Chef](https://www.chef.io/) integrates OPA to implement IAM-style
   access control and enumerate user->resource permissions in Chef
@@ -166,7 +165,7 @@ production users that have added themselves (in alphabetical order):
 * [Pinterest](https://www.pinterest.com/) uses OPA to solve multiple policy-related use cases
   including access control in Kafka, Envoy, and Jenkins! At peak, their Kafka-OPA
   integration handles ~400K QPS without caching. With caching the system
-  handles ~8.5M QPS. For more information see this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=LhgxFICWsA8).
+  handles ~8.5M QPS.
 
 * [Pix4D](https://www.pix4d.com/) uses OPA to run and define RBAC authorization policies for
   the users of its cloud platform. Defining the policies in OPA ensures a single source of
@@ -216,8 +215,7 @@ production users that have added themselves (in alphabetical order):
 * [Tripadvisor](https://tripadvisor.com/) uses OPA to enforce
   admission control policies in Kubernetes. In the process of rolling out OPA,
   they created an integration testing framework that verifies clusters are accepting
-  and rejecting the right objects when OPA is deployed. For more information see
-  this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=X09c1eXvCFM).
+  and rejecting the right objects when OPA is deployed.
 
 * [Very Good Security (VGS)](https://www.vgs.io/) integrates OPA to
   implement a fine-grained permission system and enumerate

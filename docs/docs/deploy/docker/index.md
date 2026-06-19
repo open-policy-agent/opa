@@ -4,11 +4,11 @@ sidebar_position: 2
 title: Deploying OPA on Docker
 ---
 
-Docker makes OPA easy to deploy in different types of environments.
+Docker can be used to deploy OPA in different types of environments.
 
 This section explains how to use the official OPA Docker images. If this is your
-first time deploying OPA and you plan to use one of the Docker images, we
-recommend you review this section to familiarize yourself with the basics.
+first time deploying OPA and you plan to use one of the Docker images, it is
+recommended that you review this section to familiarize yourself with the basics.
 
 OPA releases are available as images on Docker Hub
 ([`openpolicyagent/opa`](https://hub.docker.com/r/openpolicyagent/opa/)).
@@ -18,7 +18,7 @@ OPA releases are available as images on Docker Hub
 If you start OPA outside of Docker without any arguments, it prints a list of
 available commands. By default, the official OPA Docker image executes the `run`
 command which starts an instance of OPA as an interactive shell. This is nice
-for development, however, for deployments, we want to run OPA as a server.
+for development, however, for deployments, run OPA as a server.
 
 The `run` command accepts a `--server` (or `-s`) flag that starts OPA as a
 server. See `--help` for more information on other arguments. The most important
@@ -31,7 +31,7 @@ command line arguments for OPA's server mode are:
 By default, OPA listens for normal HTTP connections on `localhost:8181`. To make
 OPA listen for HTTPS connections, see [Security](../../security).
 
-We can run OPA as a server using Docker:
+Run OPA as a server using Docker:
 
 ```bash
 docker run -p 8181:8181 openpolicyagent/opa \
@@ -39,7 +39,7 @@ docker run -p 8181:8181 openpolicyagent/opa \
 ```
 
 :::info
-We have to use `--addr` here to bind to all interfaces to ensure OPA is
+Use `--addr` to bind to all interfaces to ensure OPA is
 accessible from outside the container. This is not necessary when running OPA
 in other environments.
 
@@ -74,7 +74,9 @@ If the log level is set to `debug` the request and response message bodies will 
 The default log format is json and intended for production use. For more human readable
 formats use "json-pretty" or "text".
 
-> **Note:** The `text` log format is not performance optimized or intended for production use.
+:::note
+The `text` log format is not performance optimized or intended for production use.
+:::
 
 ### Volume Mounts
 
@@ -115,8 +117,8 @@ The Docker Hub repository contains tags for every release of OPA. For more
 information on each release see the [GitHub Releases](https://github.com/open-policy-agent/opa/releases) page.
 
 The "latest" tag refers to the most recent release. The latest tag is convenient
-if you want to quickly try out OPA however for production deployments, we
-recommend using an explicit version tag.
+if you want to quickly try out OPA however for production deployments, it is
+recommended to use an explicit version tag.
 
 Development builds are also available on Docker Hub. For each version the
 `{version}-dev` tag refers the most recent development build for that version.
@@ -147,7 +149,7 @@ First, create a ConfigMap containing a test policy.
 
 In this case, the policy file does not contain sensitive information so it's
 fine to store as a ConfigMap. If the file contained sensitive information, then
-we recommend you store it as a Secret.
+store it as a Secret.
 
 ```rego title="example.rego"
 package example

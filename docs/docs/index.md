@@ -42,30 +42,24 @@ any kind of invariant in your policies. For example:
 Policy decisions are not limited to simple yes/no or allow/deny answers. Like
 query inputs, your policies can generate arbitrary structured data as output.
 
-Let's look at an example. Imagine you work for an organization with the following network infrastructure:
+The following example illustrates this. Imagine you work for an organization with a number of servers connected to managed networks via ports:
 
 ```mermaid
 graph
     n1["net1 (private)"]
     n2["net2 (private)"]
     n3["net3 (public)"] --> Internet
-    sCI["ci"] --"p1"--> n1
-    sCI --"p2"--> n2
-    sBusy["busybox"] --"p1"--> n3
-    sApp["app"] --"p1"--> n3
-    sApp --"p2"--> n1
-    sApp --"p3"--> n2
-    sCache["cache"] --"p3"--> n2
+    sCI["ci"] --> n1
+    sCI --> n3
+    sBusy["busybox"] --> n1
+    sApp["app"] --> n1
+    sApp --> n3
+    sApp --> n2
+    sCache["cache"] --> n2
+    sDB["db"] --> n2
 ```
 
-There are three kinds of components in the system:
-
-- Servers listen on a range of ports (for different protocols such as `http`, `ssh`, etc.)
-- Networks connect servers and can be public or private. Public networks are connected to the Internet.
-- Ports attach servers to networks.
-
-All the servers, networks, and ports are provisioned using infrastructure as
-code. The infrastructure configuration is specified in this JSON representation:
+Servers communicate using protocols (such as `http`, `ssh`, etc.) over ports, which attach them to public or private networks. This infrastructure is provisioned as code, represented in JSON:
 
 ```json
 {
@@ -79,8 +73,7 @@ code. The infrastructure configuration is specified in this JSON representation:
   "networks": [
     { "id": "net1", "public": false },
     { "id": "net2", "public": false },
-    { "id": "net3", "public": true },
-    { "id": "net4", "public": true }
+    { "id": "net3", "public": true }
   ],
   "ports": [
     { "id": "p1", "network": "net1" },
@@ -101,7 +94,7 @@ The policy needs to be enforced when servers, networks, and ports are
 provisioned and the compliance team wants to periodically audit the system to
 find servers that violate the policy.
 
-Let's explore how OPA can help implement this policy.
+The following section explores how OPA can help implement this policy.
 
 ## Writing Policy with Rego
 
@@ -118,18 +111,18 @@ will change. As you read through this section, try changing the input, queries,
 and rules and observe the difference in output.
 
 They can also be run locally on your machine using the
-[`opa eval` command, here are setup instructions.](#running-opa)
+[`opa eval` command, here are setup instructions.](#install-and-run-opa)
 :::
 
 :::note
 This section covers the building blocks of writing policies in Rego. You can see
-how these concepts come together to solve our network security policy in the
+how these concepts come together to solve the network security policy in the
 [Complete Example](#complete-example).
 :::
 
 ### Basic Syntax
 
-To implement our security policy, we first need to access and examine the
+To implement the security policy, the first step is to access and examine the
 infrastructure data. When OPA evaluates policies, it binds data provided in the
 query to a global variable called `input`. You can refer to specific parts of
 the input data using the `.` (dot) operator.
@@ -169,8 +162,8 @@ output := input.foobar
 <RunSnippet files="#input.json" command="data.servers.output"/>
 
 The most simple policy decisions are made by writing expressions that perform
-logical operations on the input data. For example, we can check if a server has
-a specific ID using an equality check with `==`.
+logical operations on the input data. For example, to check if a server has
+a specific ID, use an equality check with `==`.
 
 ```rego
 package servers
@@ -371,7 +364,7 @@ ssh_server if {
 
 #### FOR SOME and FOR ALL
 
-While plain iteration serves as a powerful building block, Rego also features ways
+While plain iteration is a fundamental building block, Rego also features ways
 to express _FOR SOME_ and _FOR ALL_ more explicitly.
 
 ##### FOR SOME (`some`)
@@ -380,7 +373,7 @@ to express _FOR SOME_ and _FOR ALL_ more explicitly.
 and will bind its variables (key, value position) to the collection items.
 It introduces new bindings to the evaluation of the rest of the rule body.
 
-Using `some`, we can express the rules introduced above in different ways:
+Using `some`, the rules introduced above can be expressed in different ways:
 
 ```rego
 package servers
@@ -454,7 +447,7 @@ logic statements. Rules can either be "complete" or "partial".
 #### Complete Rules
 
 Complete rules are if-then statements that assign a single value to a variable.
-Every rule consists of a <GlossaryTooltip term="rule-head">head</GlossaryTooltip> and a <GlossaryTooltip term="rule-body">body</GlossaryTooltip>. In Rego we say the rule head
+Every rule consists of a <GlossaryTooltip term="rule-head">head</GlossaryTooltip> and a <GlossaryTooltip term="rule-body">body</GlossaryTooltip>. In Rego, the rule head
 is true _if_ the rule body is true for some set of variable assignments.
 
 ```rego
@@ -533,8 +526,7 @@ Constants defined like this can be queried just like any other values:
 count(input.servers[0].protocols) < max_allowed_protocols
 ```
 
-If OPA cannot find variable assignments that satisfy the rule body, we say that
-the rule is undefined. For example, if the `input` provided to OPA does not
+If OPA cannot find variable assignments that satisfy the rule body, the rule is undefined. For example, if the `input` provided to OPA does not
 include a public network then `exists_public_network` will be undefined (which is
 not the same as false.) Below, OPA is given a different set of input networks
 (none of which are public):
@@ -581,7 +573,7 @@ public_network contains net.id if {
 
 <RunSnippet id="public_network_set.rego" files="#input.json" command="data.example"/>
 
-Using the `in` keyword we can use this list to test if some other value is in
+Using the `in` keyword, this list can be used to test if some other value is in
 the set defined by `public_network`:
 
 ```rego
@@ -615,7 +607,7 @@ the language guide for more information.
 
 When you join multiple expressions together in a query you are expressing
 logical AND. To express logical OR in Rego you define multiple rules with the
-same name. Let's look at an example.
+same name. The following example illustrates this.
 
 Imagine you wanted to know if any servers expose protocols that give clients
 shell access. To determine this you could define a complete rule that declares
@@ -687,7 +679,7 @@ shell_accessible contains server.id if {
 
 :::tip
 Check out this
-[blog post](https://www.styra.com/blog/how-to-express-or-in-rego/)
+[blog post](https://web.archive.org/web/https://www.styra.com/blog/how-to-express-or-in-rego/)
 that goes into much more detail on this topic showing different methods to
 express OR in idiomatic Rego for different use cases.
 :::
@@ -696,14 +688,14 @@ express OR in idiomatic Rego for different use cases.
 
 ### Complete Example
 
-The sections above explain the core concepts in Rego. To put it all together
-let's review the desired policy in natural language:
+The sections above explain the core concepts in Rego. To put it all together,
+review the desired policy in natural language:
 
 > 1. Servers reachable from the Internet must not expose the insecure 'http' protocol.
 > 2. Servers are not allowed to expose the 'telnet' protocol.
 
 At a high-level the policy needs to identify servers that violate some
-conditions. To implement this policy we could define rules called `violation`
+conditions. To implement this policy, define rules called `violation`
 that generate a set of servers that are in violation. For example:
 
 ```rego
@@ -739,11 +731,11 @@ public_servers contains server if { # a server exists in the public_servers set 
 
 <RunSnippet files="#input.json" command="data.example.violation"/>
 
-This example demonstrates how we can use Rego to create a clear list of policy
+This example demonstrates how Rego can create a clear list of policy
 violations that can be handed back to the infrastructure as code system to
 present to the user, making it easy for them to see what's gone wrong.
 
-## Running OPA
+## Install and Run OPA
 
 This section explains how you can query OPA directly and interact with it on
 your own machine. If you just want to quickly get a feel for the language
@@ -856,7 +848,7 @@ mkdir C:\Tools\OPA
 move opa.exe C:\Tools\OPA\
 ```
 
-Now we can add this to our `PATH`:
+Add this to your `PATH`:
 
 Control Panel → System → Advanced system settings → Environment Variables
 
@@ -905,7 +897,7 @@ shasum -c $BINARY_NAME.sha256
 ### 2. Try `opa eval`
 
 The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli#eval).
-It is a swiss-army knife that you can use to evaluate arbitrary Rego expressions and policies.
+It can be used to evaluate arbitrary Rego expressions and policies.
 `opa eval` supports a large number of options for controlling evaluation.
 Commonly used flags include:
 
@@ -932,8 +924,7 @@ For example:
   "networks": [
     { "id": "net1", "public": false },
     { "id": "net2", "public": false },
-    { "id": "net3", "public": true },
-    { "id": "net4", "public": true }
+    { "id": "net3", "public": true }
   ],
   "ports": [
     { "id": "p1", "network": "net1" },
@@ -1258,10 +1249,6 @@ go run main.go example.rego 'data.example.violation' < input.json
 ```
 
 ## Next Steps
-
-Congratulations on completing the introduction to OPA. You have learned the core
-concepts behind OPA's policy language as well as how to get OPA and run it on
-your own.
 
 If you have more questions about how to write policies in Rego check out:
 

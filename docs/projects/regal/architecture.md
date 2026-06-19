@@ -11,8 +11,8 @@ sidebar_label: Architecture
 
 Or "How does Regal work?"
 
-As you might have [read](https://www.styra.com/blog/guarding-the-guardrails-introducing-regal-the-rego-linter/), Regal
-[uses Rego for linting Rego](https://www.styra.com/blog/linting-rego-with-rego/) — or rather, Rego policies turned into
+As you might have [read](https://web.archive.org/web/https://www.styra.com/blog/guarding-the-guardrails-introducing-regal-the-rego-linter/), Regal
+[uses Rego for linting Rego](https://web.archive.org/web/https://www.styra.com/blog/linting-rego-with-rego/) — or rather, Rego policies turned into
 a JSON representation of their abstract syntax tree (AST).
 
 ## High-level Overview
@@ -45,7 +45,7 @@ The main entrypoint for Rego rule evaluation is unsurprisingly found in
 rule from the [Go](https://github.com/open-policy-agent/regal/blob/main/pkg/linter/linter.go) application.
 
 The `report` rule in turn uses
-[dynamic policy composition](https://www.styra.com/blog/dynamic-policy-composition-for-opa/) to query all rules named
+[dynamic policy composition](https://web.archive.org/web/https://www.styra.com/blog/dynamic-policy-composition-for-opa/) to query all rules named
 `report` under `data.regal.rules[category][title]` for built-in rules, and `data.custom.regal.rules[category][title]`
 for custom rules. The violations reported from each rule is added to the `report` set and sent back to the application,
 which will compile a final report and present it to the user.

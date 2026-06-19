@@ -12,7 +12,7 @@ This tutorial shows how Istio's AuthorizationPolicy can be configured to delegat
 ## Prerequisites
 
 This tutorial requires Kubernetes 1.20 or later. To run the tutorial locally ensure you start a cluster with Kubernetes
-version 1.20+, we recommend using [minikube](https://kubernetes.io/docs/setup/) or
+version 1.20+, for example [minikube](https://kubernetes.io/docs/setup/) or
 [KIND](https://kind.sigs.k8s.io/).
 
 The tutorial also requires Istio v1.19.0 or later. It assumes you have Istio deployed on top of Kubernetes.
@@ -206,9 +206,7 @@ curl --user bob:password -i http://$SERVICE_HOST/productpage
 curl --user bob:password -i http://$SERVICE_HOST/api/v1/products
 ```
 
-## Wrap Up
-
-Congratulations for finishing the tutorial !
+## Summary
 
 This tutorial showed how Istio's [AuthorizationPolicy API](https://istio.io/latest/docs/tasks/security/authorization/authz-custom/)
 can be configured to use OPA as an External authorization service.

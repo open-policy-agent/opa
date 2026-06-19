@@ -8,7 +8,7 @@ This page covers how to write policies for the content of the requests that are 
 
 ## Writing Policies
 
-Let's start with an example policy that restricts access to an endpoint based on a user's role and permissions.
+Start with an example policy that restricts access to an endpoint based on a user's role and permissions.
 
 ```rego
 package envoy.authz
@@ -65,7 +65,7 @@ The above policy uses the `io.jwt.decode_verify` builtin function to parse and v
 information about the user making the request. It uses other builtins like `glob.match`, `lower`, `base64url.decode` etc.
 OPA has 150+ builtins detailed in the [policy reference](../policy-reference).
 
-The dot notation seen in multiple places in the policy for ex. `input.parsed_body.firstname` simply descends through
+The dot notation seen in multiple places in the policy for ex. `input.parsed_body.firstname` descends through
 the hierarchy to access the requested value. The dot (.) operator never throws any errors; if the path does not exist
 the value of the expression is `undefined`.
 
@@ -213,7 +213,7 @@ When Envoy receives a policy decision, it expects a JSON object with the followi
 - `query_parameters_to_remove` (optional): is an array containing the names of string query parameters to be removed.
 - `query_parameters_to_set` (optional): an object mapping parameter names to values (string) or arrays of values (for multiple values with the same key)
 
-To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet. Notice that we are using partial object rules so that any variables with undefined values simply have no key in the `result` object.
+To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet. Note that partial object rules are used so that any variables with undefined values have no key in the `result` object.
 
 ```rego
 result["allowed"] := allow

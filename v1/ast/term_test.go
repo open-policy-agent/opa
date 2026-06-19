@@ -12,7 +12,7 @@ import (
 	"math/rand"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -986,7 +986,7 @@ func TestSetConcurrentReads(t *testing.T) {
 		s.Add(numbers[i])
 	}
 	// In-place sort on numbers.
-	sort.Sort(termSlice(numbers))
+	slices.SortFunc(numbers, TermValueCompare)
 
 	// Check if race condition on key sorting is present.
 	var wg sync.WaitGroup
@@ -1028,7 +1028,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 		o.Insert(numbers[i], NullTerm())
 	}
 	// In-place sort on numbers.
-	sort.Sort(termSlice(numbers))
+	slices.SortFunc(numbers, TermValueCompare)
 
 	// Check if race condition on key sorting is present.
 	var wg sync.WaitGroup

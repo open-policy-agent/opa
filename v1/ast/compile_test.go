@@ -227,7 +227,7 @@ func TestOutputVarsForNode(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
-			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			opts := ParserOptions{AllFutureKeywords: true}
 			body, err := ParseBodyWithOpts(tc.query, opts)
 			if err != nil {
 				t.Fatal(err)
@@ -847,9 +847,8 @@ func TestRuleIndices(t *testing.T) {
 
 func TestRuleTreeWithVars(t *testing.T) {
 	opts := ParserOptions{
-		RegoVersion:        RegoV0,
-		AllFutureKeywords:  true,
-		unreleasedKeywords: true,
+		RegoVersion:       RegoV0,
+		AllFutureKeywords: true,
 	}
 
 	t.Run("simple single-value rule", func(t *testing.T) {
@@ -1532,7 +1531,7 @@ func TestCompilerErrorLimit(t *testing.T) {
 func TestCompilerCheckSafetyHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	popts := ParserOptions{AllFutureKeywords: true}
 	c.Modules["newMod"] = MustParseModuleWithOpts(`package a.b
 
 unboundKey[x1] = y if { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
@@ -1600,28 +1599,33 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		{"with-2", `data.a.b.d.t with input.x as x; x = 1`, `x = 1; data.a.b.d.t with input.x as x`},
 		{"with-nop", "data.somedoc[x] with input as true", "data.somedoc[x] with input as true"},
 		{"ref-head", `s = [["foo"], ["bar"]]; x = y[0]; y = s[_]; contains(x, "oo")`, `
-		s = [["foo"], ["bar"]];
-		y = s[_];
-		x = y[0];
-		contains(x, "oo")
-	`},
+			s = [["foo"], ["bar"]];
+			y = s[_];
+			x = y[0];
+			contains(x, "oo")
+		`},
 		{"userfunc", `split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)`, `data.a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
 		{"every", `every _ in [] { x != 1 }; x = 1`, `__local4__ = []; x = 1; every __local3__, _ in __local4__ { x != 1}`},
 		{"every-domain", `every _ in xs { true }; xs = [1]`, `xs = [1]; __local4__ = xs; every __local3__, _ in __local4__ { true }`},
+		{"and, implicit body", `x and y; x = true; y = false`, `x = true; y = false; x and y`},
+		{"or, implicit body", `x or y; x = true; y = false`, `x = true; y = false; x or y`},
+		{"and, explicit body", `{ x } and { y }; x = true; y = false`, `x = true; y = false; { x } and { y }`},
+		{"or, explicit body", `{ x } or { y }; x = true; y = false`, `x = true; y = false; { x } or { y }`},
+		{"and, explicit body, internal reordering", `{ 1 == z; z = 3 } and { 2 == z; z = 3 }`, `{ z = 3; equal(1, z) } and { z = 3; equal(2, z) }`},
+		{"or, explicit body, internal reordering", `{ 1 == z; z = 3 } or { 2 == z; z = 3 }`, `{ z = 3; equal(1, z) } or { z = 3; equal(2, z) }`},
 	}
 
 	for i, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			opts := ParserOptions{
-				RegoVersion:        RegoV0,
-				AllFutureKeywords:  true,
-				unreleasedKeywords: true,
+				Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+				AllFutureKeywords: true,
 			}
 			c := NewCompiler()
 			c.Modules = getCompilerTestModules()
 			c.Modules["reordering"] = MustParseModuleWithOpts(fmt.Sprintf(
 				`package test
-				p { %s }`, tc.body), opts)
+				p if { %s }`, tc.body), opts)
 
 			compileStages(c, StageCheckSafetyRuleBodies)
 
@@ -1641,7 +1645,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 }
 
 func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
-	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	opts := ParserOptions{AllFutureKeywords: true}
 
 	tests := []struct {
 		note string
@@ -1764,6 +1768,32 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"object-key-comprehension", "p if { { {p|x}: 0 } }", "{x,}"},
 		{"set-value-comprehension", "p if { {1, {p|x}} }", "{x,}"},
 		{"every", "p if { every y in [10] { x > y } }", "{x,}"},
+		{"and, implicit body", `p if { x and y }`, "{x,y,}"},
+		{"or, implicit body", `p if { x or y }`, "{x,y,}"},
+		{"and, implicit body unification", `p if { x = 1 and y = 2 }`, "{x,y,}"},
+		{"or, implicit body unification", `p if { x = 1 or y = 2 }`, "{x,y,}"},
+		{"and, implicit body builtin call output", `p if { count(input.foo, x) and split("a/b", "/", y) }`, "{x,y,}"},
+		{"or, implicit body builtin call output", `p if { count(input.foo, x) or split("a/b", "/", y) }`, "{x,y,}"},
+		{"and, implicit body builtin call output, lhs only", `p if { count(input.foo, x) and y > 0 }`, "{x,y,}"},
+		{"or, implicit body builtin call output, lhs only", `p if { count(input.foo, x) or y > 0 }`, "{x,y,}"},
+		{"and, implicit body ref var binding", `p if { input.foo[x] and input.bar[y] }`, "{x,y,}"},
+		{"or, implicit body ref var binding", `p if { input.foo[x] or input.bar[y] }`, "{x,y,}"},
+		{"and, implicit body ref var binding, lhs only", `p if { input.foo[x] and y > 0 }`, "{x,y,}"},
+		{"or, implicit body ref var binding, lhs only", `p if { input.foo[x] or y > 0 }`, "{x,y,}"},
+		{"and, explicit body", `p if { a := true; x := true; {x; y} and {a; b} }`, "{b,y,}"},
+		{"or, explicit body", `p if { a := true; x := true; {x; y} or {a; b} }`, "{b,y,}"},
+		{"and, LHS assignment does not bind to RHS", `p if { { x := 42 } and x < 100 }`, "{x,}"},
+		{"or, LHS assignment does not bind ot RHS", `p if { { x := 42 } or x < 100 }`, "{x,}"},
+		{"and, LHS unification does not bind to RHS", `p if { { x = 42 } and x < 100 }`, "{x,}"},
+		{"or, LHS unification does not bind ot RHS", `p if { { x = 42 } or x < 100 }`, "{x,}"},
+		{"and, RHS assignment does not bind to LHS", `p if { x < 100 and { x := 42 } }`, "{x,}"},
+		{"or, RHS assignment does not bind to LHS", `p if { x < 100 or { x := 42 } }`, "{x,}"},
+		{"and, RHS unification does not bind to LHS", `p if { x < 100 and { x = 42 } }`, "{x,}"},
+		{"or, RHS unification does not bind to LHS", `p if { x < 100 or { x = 42 } }`, "{x,}"},
+		{"and, assignment does not bind to outer scope", `p if { {x := 1} and {y := 2}; x == 1; y == 2 }`, "{x,y,}"},
+		{"or, assignment does not bind to outer scope", `p if { {x := 1} or {y := 2}; x == 1; y == 2 }`, "{x,y,}"},
+		{"and, unification does not bind to outer scope", `p if { {x = 1} and {y = 2}; x == 1; y == 2 }`, "{x,y,}"},
+		{"or, unification does not bind to outer scope", `p if { {x = 1} or {y = 2}; x == 1; y == 2 }`, "{x,y,}"},
 	}
 
 	makeErrMsg := func(varName string) string {
@@ -1784,16 +1814,20 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			sort.Strings(expected)
 
 			// Compile test module.
+			opts := ParserOptions{
+				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+				FutureKeywords: []string{"and", "or"},
+			}
 
 			c := NewCompiler()
 			c.Modules = map[string]*Module{
-				"newMod": MustParseModule(fmt.Sprintf(`
+				"newMod": MustParseModuleWithOpts(fmt.Sprintf(`
 
 				%v
 
 				%v
 
-				`, moduleBegin, tc.moduleContent)),
+				`, moduleBegin, tc.moduleContent), opts),
 			}
 
 			compileStages(c, StageCheckSafetyRuleBodies)
@@ -2886,9 +2920,8 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			compiler := NewCompiler()
 			opts := ParserOptions{
-				RegoVersion:        RegoV0,
-				AllFutureKeywords:  true,
-				unreleasedKeywords: true,
+				RegoVersion:       RegoV0,
+				AllFutureKeywords: true,
 			}
 
 			compiler.Modules = map[string]*Module{
@@ -2997,9 +3030,8 @@ p := [data() | data := 1]`,
 		t.Run(tc.note, func(t *testing.T) {
 			compiler := NewCompiler()
 			opts := ParserOptions{
-				RegoVersion:        RegoV0,
-				AllFutureKeywords:  true,
-				unreleasedKeywords: true,
+				RegoVersion:       RegoV0,
+				AllFutureKeywords: true,
 			}
 
 			compiler.Modules = map[string]*Module{
@@ -3469,6 +3501,63 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 			},
 		},
 		{
+			note: "not-local assignments",
+			module: `package test
+				import future.keywords.not
+				p {
+					not { input := 1; data := 2 }
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 12),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 2"), "", 4, 24),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "and-local assignments",
+			module: `package test
+				import future.keywords.and
+				p {
+					{ input := 1 } and { data := 2 }
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 8),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 2"), "", 4, 27),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "or-local assignments",
+			module: `package test
+				import future.keywords.or
+				p {
+					{ input := 1 } or { data := 2 }
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 8),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 2"), "", 4, 26),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+		{
 			note: "nested override",
 			module: `package test
 				p {
@@ -3566,7 +3655,13 @@ func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocat
 		return func(t *testing.T) {
 			compiler := NewCompiler().WithStrict(strict)
 			compiler.Modules = map[string]*Module{
-				"test": MustParseModuleWithOpts(tc.module, ParserOptions{RegoVersion: RegoV0}),
+				"test": MustParseModuleWithOpts(tc.module, ParserOptions{
+					RegoVersion: RegoV0,
+					Capabilities: CapabilitiesForThisVersion(
+						CapabilitiesRegoVersion(RegoV0),
+						CapabilitiesExperimentalKeywords(true),
+					),
+				}),
 			}
 			compileStages(compiler, "")
 
@@ -4203,7 +4298,7 @@ q[1] = 1
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			opts := ParserOptions{AllFutureKeywords: true}
 			c := NewCompiler()
 			mod, err := ParseModuleWithOpts("test.rego", tc.mod, opts)
 			if err != nil {
@@ -4527,7 +4622,7 @@ func TestCompilerResolveErrors(t *testing.T) {
 }
 
 func TestCompilerRewriteTermsInHead(t *testing.T) {
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	popts := ParserOptions{AllFutureKeywords: true}
 
 	tests := []struct {
 		note string
@@ -4745,7 +4840,7 @@ x.y.w contains bar[i] if true
 }
 
 func TestCompilerRefHeadsNeedCapability(t *testing.T) {
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	popts := ParserOptions{AllFutureKeywords: true}
 	for _, tc := range []struct {
 		note string
 		mod  *Module
@@ -5069,9 +5164,8 @@ p = true if {
 
 			result := c.Modules["test.rego"]
 			exp := MustParseModuleWithOpts(tc.exp, ParserOptions{
-				AllFutureKeywords:  true,
-				unreleasedKeywords: true,
-				ProcessAnnotation:  true,
+				AllFutureKeywords: true,
+				ProcessAnnotation: true,
 			})
 
 			if result.Compare(exp) != 0 {
@@ -6441,7 +6535,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			opts := CompileOpts{ParserOptions: ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}}
+			opts := CompileOpts{ParserOptions: ParserOptions{AllFutureKeywords: true}}
 			compiler, err := CompileModulesWithOpt(map[string]string{"test.rego": tc.module}, opts)
 			if tc.wantErr != nil {
 				if err == nil {
@@ -7078,7 +7172,7 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			c := NewCompiler()
-			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			opts := ParserOptions{AllFutureKeywords: true}
 			c.Modules["test"] = module(fixture + tc.input)
 			compileStages(c, StageRewriteDynamicTerms)
 			assertNotFailed(t, c)
@@ -7641,6 +7735,20 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 		exp    string
 	}
 
+	caps := CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
+
+	opts := CompileOpts{
+		ParserOptions: ParserOptions{
+			Capabilities: caps,
+		},
+	}
+
+	popts := func(options ParserOptions) ParserOptions {
+		options.Capabilities = caps
+		options.AllFutureKeywords = true
+		return options
+	}
+
 	cases := func(rewriteCases []rewriteTest) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Parallel()
@@ -7649,8 +7757,8 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				t.Run(tc.note, func(t *testing.T) {
 					t.Parallel()
 					t.Helper()
-					c := MustCompileModules(map[string]string{"test.rego": tc.module})
-					if exp, act := module(tc.exp), c.Modules["test.rego"]; !exp.Equal(act) {
+					c := MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, opts)
+					if exp, act := module(tc.exp, popts), c.Modules["test.rego"]; !exp.Equal(act) {
 						t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, act)
 					}
 				})
@@ -8561,6 +8669,78 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 			__local1__ = __local4__
 		}
 		`,
+	}}))
+
+	t.Run("not", cases([]rewriteTest{{
+		note: "single template expression, in implicit not-body",
+		module: `package test
+			import future.keywords.not
+			p if {
+				not $"{input.x}"
+			}`,
+		exp: `package test
+			p = true if { 
+				not {
+					__local2__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local2__], __local1__)
+					__local1__
+				}
+			}`,
+	}, {
+		note: "single template expression, in explicit not-body",
+		module: `package test
+			import future.keywords.not
+			p if {
+				not { $"{input.x}" }
+			}`,
+		exp: `package test
+			p = true if { 
+				not {
+					__local2__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local2__], __local1__)
+					__local1__
+				}
+			}`,
+	}}))
+
+	t.Run("logical operators", cases([]rewriteTest{{
+		note: "or",
+		module: `package test
+			import future.keywords.or
+			p if {
+				$"{input.x}" or { $"{input.y}" }
+			}`,
+		exp: `package test
+			p = true if {
+				{
+					__local4__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local4__], __local2__)
+					__local2__
+				} or {
+					__local5__ = {__local1__ | __local1__ = input.y}
+					internal.template_string([__local5__], __local3__)
+					__local3__
+				}
+			}`,
+	}, {
+		note: "and",
+		module: `package test
+			import future.keywords.and
+			p if {
+				$"{input.x}" and { $"{input.y}" }
+			}`,
+		exp: `package test
+			p = true if {
+				{
+					__local4__ = {__local0__ | __local0__ = input.x}
+					internal.template_string([__local4__], __local2__)
+					__local2__
+				} and {
+					__local5__ = {__local1__ | __local1__ = input.y}
+					internal.template_string([__local5__], __local3__)
+					__local3__
+				}
+			}`,
 	}}))
 }
 
@@ -10293,7 +10473,7 @@ grault = deadbeef if { true }`)
 		{"mod5": mod5},
 	}
 
-	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	popts := ParserOptions{AllFutureKeywords: true}
 
 	// For each round, run checks.
 	tests := []func(map[string]*Module){
@@ -11356,7 +11536,7 @@ func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
 	makeTestRunner := func(tc strictnessQueryTestCase, strict bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			c := NewCompiler().WithStrict(strict)
-			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			opts := ParserOptions{AllFutureKeywords: true}
 			result, err := c.QueryCompiler().Compile(MustParseBodyWithOpts(tc.query, opts))
 
 			if strict {
@@ -12203,9 +12383,8 @@ allow if {
 
 			for i, module := range tc.modules {
 				mod, err := ParseModuleWithOpts(fmt.Sprintf("test%d.rego", i+1), module, ParserOptions{
-					ProcessAnnotation:  true,
-					AllFutureKeywords:  true,
-					unreleasedKeywords: true,
+					ProcessAnnotation: true,
+					AllFutureKeywords: true,
 				})
 				if err != nil {
 					t.Fatal(err)
@@ -12459,9 +12638,8 @@ deny if {
 	c.WithSchemas(schemaSet)
 
 	m := MustParseModuleWithOpts(exampleModule, ParserOptions{
-		ProcessAnnotation:  true,
-		AllFutureKeywords:  true,
-		unreleasedKeywords: true,
+		ProcessAnnotation: true,
+		AllFutureKeywords: true,
 	})
 	c.Compile(map[string]*Module{"testMod": m})
 	if c.Failed() {
@@ -12523,9 +12701,8 @@ deny if {
 	c.WithSchemas(schemaSet)
 
 	m := MustParseModuleWithOpts(exampleModule, ParserOptions{
-		ProcessAnnotation:  true,
-		AllFutureKeywords:  true,
-		unreleasedKeywords: true,
+		ProcessAnnotation: true,
+		AllFutureKeywords: true,
 	})
 	c.Compile(map[string]*Module{"testMod": m})
 	if !c.Failed() {
@@ -12536,7 +12713,7 @@ deny if {
 }
 
 func modules(ms ...string) []*Module {
-	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	opts := ParserOptions{AllFutureKeywords: true}
 	mods := make([]*Module, len(ms))
 	for i, m := range ms {
 		var err error
@@ -12671,9 +12848,8 @@ deny if {
 
 	c := NewCompiler().WithSchemas(schemaSet)
 	c.Compile(map[string]*Module{"testMod": MustParseModuleWithOpts(exampleModule, ParserOptions{
-		ProcessAnnotation:  true,
-		AllFutureKeywords:  true,
-		unreleasedKeywords: true,
+		ProcessAnnotation: true,
+		AllFutureKeywords: true,
 	})})
 	assertNotFailed(t, c)
 }
@@ -13114,15 +13290,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated call with vars, inside comprehension, unsafe assignment",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p := [x | not x := "foo" ]
-				
+
 				f(_) := true
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var x is unsafe",
+					Code:     CompileErr,
+					Message:  "var x is unsafe",
+					Location: &Location{File: "mod.rego", Row: 4, Col: 15, Text: []byte(`not x := "foo"`)},
 				},
 			},
 		},
@@ -13157,15 +13334,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated assignment",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a := 1
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe", // FIXME: Use more specific error msg: "cannot assign vars inside negated expression"
+					Code:     CompileErr,
+					Message:  "var a is unsafe", // FIXME: Use more specific error msg: "cannot assign vars inside negated expression"
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1")},
 				},
 			},
 		},
@@ -13188,15 +13366,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated assignment, call",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a := 1 + 2
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1 + 2")},
 				},
 			},
 		},
@@ -13222,15 +13401,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated assignment, call, output var",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not plus(1, 2, a)
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not plus(1, 2, a)")},
 				},
 			},
 		},
@@ -13255,15 +13435,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated equality, unsafe var",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a == 1
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a == 1")},
 				},
 			},
 		},
@@ -13271,15 +13452,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated equality, unsafe var, explicit not-body",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not { a == 1 }
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 12, Text: []byte("a == 1")},
 				},
 			},
 		},
@@ -13287,15 +13469,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated unification, unsafe var",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a = 1
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a = 1")},
 				},
 			},
 		},
@@ -13318,15 +13501,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated unification, unsafe var, call",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a = 1 + 2
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a = 1 + 2")},
 				},
 			},
 		},
@@ -13352,15 +13536,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated enumeration, unsafe var (wildcard)",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not input.a[_]
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var _ is unsafe",
+					Code:     CompileErr,
+					Message:  "var _ is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not input.a[_]")},
 				},
 			},
 		},
@@ -13463,15 +13648,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated unsafe var",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not a + 2 = 3
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a + 2 = 3")},
 				},
 			},
 		},
@@ -13479,15 +13665,16 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "negated unsafe var, explicit not-body",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not { a + 2 = 3 }
 				}
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 12, Text: []byte("a + 2")},
 				},
 			},
 		},
@@ -13754,7 +13941,7 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "nested negation (comprehension), unsafe var reference",
 			module: `package negation
 				import future.keywords.not
-				
+
 				p if {
 					not [42 |
 						not v = 2
@@ -13762,8 +13949,9 @@ func TestCompilerNotImport(t *testing.T) {
 				}`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var v is unsafe",
+					Code:     CompileErr,
+					Message:  "var v is unsafe",
+					Location: &Location{File: "mod.rego", Row: 6, Col: 7, Text: []byte("not v = 2")},
 				},
 			},
 		},
@@ -13964,7 +14152,7 @@ func TestCompilerNotImport(t *testing.T) {
 			note: "explicit not-body, var indirection, unsafe var",
 			module: `package negation
 				import future.keywords.not
-		
+
 				p if {
 					not {
 						a = x
@@ -13975,16 +14163,19 @@ func TestCompilerNotImport(t *testing.T) {
 			`,
 			expErrs: Errors{
 				&Error{
-					Code:    CompileErr,
-					Message: "var a is unsafe",
+					Code:     CompileErr,
+					Message:  "var a is unsafe",
+					Location: &Location{File: "mod.rego", Row: 6, Col: 7, Text: []byte("a = x")},
 				},
 				&Error{
-					Code:    CompileErr,
-					Message: "var x is unsafe",
+					Code:     CompileErr,
+					Message:  "var x is unsafe",
+					Location: &Location{File: "mod.rego", Row: 6, Col: 7, Text: []byte("a = x")},
 				},
 				&Error{
-					Code:    CompileErr,
-					Message: "var b is unsafe",
+					Code:     CompileErr,
+					Message:  "var b is unsafe",
+					Location: &Location{File: "mod.rego", Row: 7, Col: 7, Text: []byte("b = a")},
 				},
 			},
 		},
@@ -14095,18 +14286,72 @@ func TestCompilerNotImport(t *testing.T) {
 				}
 			`, popts),
 		},
+
+		{
+			note: "no import, negated undefined function (regression: GH#8717)",
+			module: `package negation
+
+					p if {
+						not f(1)
+					}
+				`,
+			expErrs: Errors{
+				&Error{
+					Code:     TypeErr,
+					Message:  "undefined function f",
+					Location: &Location{File: "mod.rego", Row: 4, Col: 7, Text: []byte("not f(1)")},
+				},
+			},
+		},
+		{
+			note: "implicit not-body, negated undefined function (regression: GH#8717)",
+			module: `package negation
+					import future.keywords.not
+
+					p if {
+						not f(1)
+					}
+				`,
+			expErrs: Errors{
+				&Error{
+					Code:     TypeErr,
+					Message:  "undefined function f",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 7, Text: []byte("not f(1)")},
+				},
+			},
+		},
+		{
+			note: "explicit not-body, negated undefined function (regression: GH#8717)",
+			module: `package negation
+					import future.keywords.not
+
+					p if {
+						not { f(1) }
+					}
+				`,
+			expErrs: Errors{
+				&Error{
+					Code:     TypeErr,
+					Message:  "undefined function f",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 13, Text: []byte("f(1)")},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
+			mod, err := ParseModuleWithOpts("mod.rego", tc.module, ParserOptions{
+				Capabilities: CapabilitiesForThisVersion(),
+			})
+			if err != nil {
+				t.Fatalf("unexpected parse error: %v", err)
+			}
 			c := NewCompiler()
-			c.Compile(map[string]*Module{"mod.rego": MustParseModuleWithOpts(tc.module,
-				ParserOptions{
-					Capabilities: CapabilitiesForThisVersion(),
-				})})
+			c.Compile(map[string]*Module{"mod.rego": mod})
 
 			if len(tc.expErrs) > 0 {
-				assertErrors(t, c.Errors, tc.expErrs, false)
+				assertErrors(t, c.Errors, tc.expErrs, true)
 			} else if len(c.Errors) > 0 {
 				if c.Failed() {
 					t.Fatalf("unexpected compile errors: %v", c.Errors)
@@ -14117,10 +14362,1279 @@ func TestCompilerNotImport(t *testing.T) {
 				if diff := cmp.Diff(tc.expMod, c.Modules["mod.rego"]); diff != "" {
 					t.Errorf("unexpected module (-want, +got):\n%s", diff)
 				}
+
+				// Regression guard for the future.keywords.not location bug (GH#8717)
+				WalkExprs(c.Modules["mod.rego"], func(expr *Expr) bool {
+					not, ok := expr.Terms.(*Not)
+					if !ok {
+						return false
+					}
+					for i, inner := range not.Body {
+						if inner.Location == nil {
+							t.Errorf("Not.Body[%d] missing Location: %v", i, inner)
+						}
+					}
+					return false
+				})
 			}
 
 			for n, m := range c.Modules {
 				t.Logf("compiled module %s:\n\n%v\n\n%s", n, m, mermaidGraph(m))
+			}
+		})
+	}
+}
+
+func TestCompilerAndOrRegoVersionParity(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+		module      string
+	}{
+		{
+			note:        "v0",
+			regoVersion: RegoV0,
+			module: `package logic
+				p {
+					x := 1
+					y := 2
+					z := 3
+					x and y or z
+				}
+			`,
+		},
+		{
+			note:        "v1",
+			regoVersion: RegoV1,
+			module: `package logic
+				p if {
+					x := 1
+					y := 2
+					z := 3
+					x and y or z
+				}
+			`,
+		},
+	}
+
+	const expectedBody = `__local0__ = 1; __local1__ = 2; __local2__ = 3; __local0__ and __local1__ or __local2__`
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			popts := ParserOptions{
+				RegoVersion: tc.regoVersion,
+				Capabilities: CapabilitiesForThisVersion(
+					CapabilitiesRegoVersion(tc.regoVersion),
+					CapabilitiesExperimentalKeywords(true),
+				),
+				FutureKeywords: []string{"and", "or"},
+			}
+
+			c := NewCompiler()
+			c.Compile(map[string]*Module{
+				"mod.rego": MustParseModuleWithOpts(tc.module, popts),
+			})
+			if c.Failed() {
+				t.Fatalf("unexpected compile errors: %v", c.Errors)
+			}
+
+			if got := c.Modules["mod.rego"].Rules[0].Body.String(); got != expectedBody {
+				t.Fatalf("compiled body diverged from cross-version baseline:\n  want: %s\n  got:  %s", expectedBody, got)
+			}
+		})
+	}
+}
+
+func TestCompilerAndOrImports(t *testing.T) {
+	popts := ParserOptions{
+		Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+		FutureKeywords: []string{"and", "or"},
+	}
+
+	tests := []struct {
+		note    string
+		module  string
+		expMod  any
+		expErrs Errors
+	}{
+		{
+			note: "and, or, simple",
+			module: `package logic
+
+				p if {
+					x := 1
+					y := 2
+					z := 3
+					x and y or z
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					__local1__ = 2
+					__local2__ = 3
+					__local0__ and __local1__ or __local2__ 
+				}`,
+		},
+		{
+			note: "and, assignment, forbidden in implicit body",
+			module: `package logic
+				p if {
+					x := 1 and y := 2
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "or, assignment, forbidden in implicit body",
+			module: `package logic
+				p if {
+					x := 1 or y := 2
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "and, unification, forbidden in implicit body",
+			module: `package logic
+				p if {
+					x = 1 and y = 2
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "or, unification, forbidden in implicit body",
+			module: `package logic
+				p if {
+					x = 1 or y = 2
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "and, call output, forbidden in implicit body",
+			module: `package logic
+				p if {
+					count(input.x, x) and count(input.y, y)
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "or, call output, forbidden in implicit body",
+			module: `package logic
+				p if {
+					count(input.x, x) or count(input.y, y)
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "and, ref var unification, forbidden in implicit body",
+			module: `package logic
+				p if {
+					input[x] and input[y]
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "or, ref var unification, forbidden in implicit body",
+			module: `package logic
+				p if {
+					input[x] or input[y]
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "and, explicit body, assignment",
+			module: `package logic
+				p if {
+					true and { 
+						x := 2
+						x > 1
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					true and { 
+						__local0__ = 2
+						gt(__local0__, 1) 
+					} 
+				}
+			`,
+		},
+		{
+			note: "or, explicit body, assignment",
+			module: `package logic
+				p if {
+					true or { 
+						x := 2
+						x > 1
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					true or { 
+						__local0__ = 2
+						gt(__local0__, 1) 
+					} 
+				}
+			`,
+		},
+		{
+			note: "and, explicit body, assignment, local bind override",
+			module: `package logic
+				p if {
+					x := 1
+					x and { 
+						x := 2
+						x > 1
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					__local0__ and { 
+						__local1__ = 2
+						gt(__local1__, 1) 
+					} 
+				}
+			`,
+		},
+		{
+			note: "or, explicit body, assignment, local bind override",
+			module: `package logic
+				p if {
+					x := 1
+					x or { 
+						x := 2
+						x > 1
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					__local0__ or { 
+						__local1__ = 2
+						gt(__local1__, 1) 
+					} 
+				}
+			`,
+		},
+		{
+			note: "and, explicit body, unification, no local bind override",
+			module: `package logic
+				p if {
+					x := 1
+					x and { 
+						x = 2
+						x > 1
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					__local0__ and { 
+						__local0__ = 2
+						gt(__local0__, 1) 
+					} 
+				}
+			`,
+		},
+		{
+			note: "or, explicit body, unification, no local bind override",
+			module: `package logic
+				p if {
+					x := 1
+					x or { 
+						x = 2
+						x > 1
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					__local0__ or { 
+						__local0__ = 2
+						gt(__local0__, 1) 
+					} 
+				}
+			`,
+		},
+
+		{
+			note: "and, local assignment not visible in outer scope",
+			module: `package logic
+				p := [x, y] if {
+					{ x := 1 } and { y := 2 }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "or, local assignment not visible in outer scope",
+			module: `package logic
+				p := [x, y] if {
+					{ x := 1 } or { y := 2 }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "and, local unification not visible in outer scope",
+			module: `package logic
+				p := [x, y] if {
+					{ x = 1 } and { y = 2 }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "or, local unification not visible in outer scope",
+			module: `package logic
+				p := [x, y] if {
+					{ x = 1 } or { y = 2 }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "and, local ref unification not visible in outer scope",
+			module: `package logic
+				p := [x, y] if {
+					{ input[x] = 1 } and { input[y] = 2 }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "or, local ref unification not visible in outer scope",
+			module: `package logic
+				p := [x, y] if {
+					{ input[x] = 1 } or { input[y] = 2 }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "and, local call unification not visible in outer scope",
+			module: `package logic
+				p := [x, y] if {
+					{ count(input.x, x) } and { count(input.y, y) }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "or, local call unification not visible in outer scope",
+			module: `package logic
+				p := [x, y] if {
+					{ count(input.x, x) } or { count(input.y, y) }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+
+		{
+			note: "and, implicit body, expression expansion",
+			module: `package logic
+				p if {
+					input.x > 1 and input.y < 2
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					{ 
+						__local0__ = input.x
+						gt(__local0__, 1) 
+					} and {
+						__local1__ = input.y
+						lt(__local1__, 2)
+					}
+				}
+			`,
+		},
+		{
+			note: "or, implicit body, expression expansion",
+			module: `package logic
+				p if {
+					input.x > 1 or input.y < 2
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					{ 
+						__local0__ = input.x
+						gt(__local0__, 1) 
+					} or {
+						__local1__ = input.y
+						lt(__local1__, 2)
+					}
+				}
+			`,
+		},
+		{
+			note: "and, implicit body, nested call expansion (multi-expr at safety time)",
+			module: `package logic
+				p if {
+					(input.x + 1) > 0 and input.y > 0
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					{
+						__local1__ = input.x
+						plus(__local1__, 1, __local0__)
+						gt(__local0__, 0)
+					} and {
+						__local2__ = input.y
+						gt(__local2__, 0)
+					}
+				}
+			`,
+		},
+		{
+			note: "or, implicit body, nested call expansion (multi-expr at safety time)",
+			module: `package logic
+				p if {
+					input.x > 0 or (input.y * 2) > 0
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					{
+						__local1__ = input.x
+						gt(__local1__, 0)
+					} or {
+						__local2__ = input.y
+						mul(__local2__, 2, __local0__)
+						gt(__local0__, 0)
+					}
+				}
+			`,
+		},
+		{
+			note: "and, implicit body, nested call with unbound user vars",
+			module: `package logic
+				p if {
+					(x + 1) > 0 and y > 0
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+
+		{
+			note: "and, explicit body, var indirection",
+			module: `package logic
+				p if {
+					true and {
+						a = 1
+						b = a
+						a + 1 = 2
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					true and { 
+						a = 1
+						b = a
+						plus(a, 1, __local0__)
+						__local0__ = 2
+					}
+				}
+			`,
+		},
+		{
+			note: "or, explicit body, var indirection",
+			module: `package logic
+				p if {
+					true or {
+						a = 1
+						b = a
+						a + 1 = 2
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					true or { 
+						a = 1
+						b = a
+						plus(a, 1, __local0__)
+						__local0__ = 2
+					}
+				}
+			`,
+		},
+		{
+			note: "and, explicit body, var indirection, unsafe",
+			module: `package logic
+				p if {
+					true and {
+						a = x
+						b = a
+						a + 1 = 2
+					}
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var b is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+			},
+		},
+		{
+			note: "or, explicit body, var indirection, unsafe",
+			module: `package logic
+				p if {
+					true or {
+						a = x
+						b = a
+						a + 1 = 2
+					}
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var a is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var b is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+			},
+		},
+		{
+			note: "and, explicit body, var indirection, outer safe ref",
+			module: `package logic
+				p if {
+					x = 1
+					true and {
+						a = x
+						b = a
+						a + 1 = 2
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					x = 1
+					true and { 
+						a = x
+						b = a
+						plus(a, 1, __local0__)
+						__local0__ = 2
+					}
+				}
+			`,
+		},
+		{
+			note: "or, explicit body, var indirection, outer safe ref",
+			module: `package logic
+				p if {
+					x = 1
+					true or {
+						a = x
+						b = a
+						a + 1 = 2
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					x = 1
+					true or { 
+						a = x
+						b = a
+						plus(a, 1, __local0__)
+						__local0__ = 2
+					}
+				}
+			`,
+		},
+
+		{
+			note: "and, nested, implicit bodies",
+			module: `package logic
+				p if {
+					x := 1
+					x and true and x
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					__local0__ and true and __local0__ 
+				}
+			`,
+		},
+		{
+			note: "or, nested, implicit bodies",
+			module: `package logic
+				p if {
+					x := 1
+					x or true or x
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					__local0__ or true or __local0__ 
+				}
+			`,
+		},
+		{
+			note: "and, nested, explicit bodies",
+			module: `package logic
+				p if {
+					x := 1
+					x and { true and x }
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					__local0__ and { true and __local0__ } 
+				}
+			`,
+		},
+		{
+			note: "or, nested, explicit bodies",
+			module: `package logic
+				p if {
+					x := 1
+					x or { true or x }
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					__local0__ or { true or __local0__ } 
+				}
+			`,
+		},
+		{
+			note: "and, nested, explicit bodies, inner bind",
+			module: `package logic
+				p if {
+					x := 1
+					x and { 
+						y := 2 
+						x and y 
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					__local0__ = 1
+					__local0__ and {
+						__local1__ = 2
+						__local0__ and __local1__
+					}
+				}
+			`,
+		},
+		{
+			note: "or, nested, explicit bodies, inner bind",
+			module: `package logic
+				p if {
+					x := 1
+					x or { 
+						y := 2 
+						x or y 
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					__local0__ = 1
+					__local0__ or {
+						__local1__ = 2
+						__local0__ or __local1__
+					}
+				}
+			`,
+		},
+		{
+			note: "and, nested, explicit bodies, inner bind override",
+			module: `package logic
+				p if {
+					x := 1
+					x and { 
+						x := 2
+						y := 3 
+						x and y 
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					__local0__ = 1
+					__local0__ and {
+						__local1__ = 2
+						__local2__ = 3
+						__local1__ and __local2__
+					}
+				}
+			`,
+		},
+		{
+			note: "or, nested, explicit bodies, inner bind override",
+			module: `package logic
+				p if {
+					x := 1
+					x or { 
+						x := 2
+						y := 3 
+						x or y 
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					__local0__ = 1
+					__local0__ or {
+						__local1__ = 2
+						__local2__ = 3
+						__local1__ or __local2__
+					}
+				}
+			`,
+		},
+
+		{
+			note: "and, with",
+			module: `package logic
+				p if {
+					true and f(42) with input.x as 1
+				}
+				
+				f(x) := x + input.x
+			`,
+			expMod: `package logic
+				p = true if {
+					true and data.logic.f(42) with input.x as 1
+				}
+				
+				f(__local0__) := __local1__ if {
+					__local2__ = input.x
+					plus(__local0__, __local2__, __local1__)
+				}
+			`,
+		},
+		{
+			note: "or, with",
+			module: `package logic
+				p if {
+					true or f(42) with input.x as 1
+				}
+				
+				f(x) := x + input.x
+			`,
+			expMod: `package logic
+				p = true if {
+					true or data.logic.f(42) with input.x as 1
+				}
+				
+				f(__local0__) := __local1__ if {
+					__local2__ = input.x
+					plus(__local0__, __local2__, __local1__)
+				}
+			`,
+		},
+		{
+			note: "and, with, inner LHS",
+			module: `package logic
+				p if {
+					{ f(42) with input.x as 1 } and true
+				}
+				
+				f(x) := x + input.x
+			`,
+			expMod: `package logic
+				p = true if {
+					{ data.logic.f(42) with input.x as 1 } and true
+				}
+				
+				f(__local0__) := __local1__ if {
+					__local2__ = input.x
+					plus(__local0__, __local2__, __local1__)
+				}
+			`,
+		},
+		{
+			note: "or, with, inner LHS",
+			module: `package logic
+				p if {
+					{ f(42) with input.x as 1 } or true
+				}
+				
+				f(x) := x + input.x
+			`,
+			expMod: `package logic
+				p = true if {
+					{ data.logic.f(42) with input.x as 1 } or true
+				}
+				
+				f(__local0__) := __local1__ if {
+					__local2__ = input.x
+					plus(__local0__, __local2__, __local1__)
+				}
+			`,
+		},
+		{
+			note: "and, with, inner RHS",
+			module: `package logic
+				p if {
+					true and { f(42) with input.x as 1 }
+				}
+				
+				f(x) := x + input.x
+			`,
+			expMod: `package logic
+				p = true if {
+					true and { data.logic.f(42) with input.x as 1 }
+				}
+				
+				f(__local0__) := __local1__ if {
+					__local2__ = input.x
+					plus(__local0__, __local2__, __local1__)
+				}
+			`,
+		},
+		{
+			note: "or, with, inner RHS",
+			module: `package logic
+				p if {
+					true or { f(42) with input.x as 1 }
+				}
+				
+				f(x) := x + input.x
+			`,
+			expMod: `package logic
+				p = true if {
+					true or { data.logic.f(42) with input.x as 1 }
+				}
+				
+				f(__local0__) := __local1__ if {
+					__local2__ = input.x
+					plus(__local0__, __local2__, __local1__)
+				}
+			`,
+		},
+
+		{
+			note: "and, outer negation",
+			module: `package logic
+				import future.keywords.not 
+				p if {
+					x := 1
+					not {
+						y := 2
+						x != y and x < y
+					}
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package logic
+				p = true if {
+					__local0__ = 1
+					not {
+						__local1__ = 2
+						neq(__local0__, __local1__) and lt(__local0__, __local1__)
+					}
+				}
+			`, ParserOptions{
+				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+				FutureKeywords: []string{"and", "or", "not"},
+			}),
+		},
+		{
+			note: "or, outer negation",
+			module: `package logic
+				import future.keywords.not 
+				p if {
+					x := 1
+					not {
+						y := 2
+						x != y or x < y
+					}
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package logic
+				p = true if {
+					__local0__ = 1
+					not {
+						__local1__ = 2
+						neq(__local0__, __local1__) or lt(__local0__, __local1__)
+					}
+				}
+			`, ParserOptions{
+				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+				FutureKeywords: []string{"and", "or", "not"},
+			}),
+		},
+		{
+			note: "and, LHS negation",
+			module: `package logic
+				p if {
+					x := 1
+					not x != 2 and x < 2
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					{ not neq(__local0__, 2) } and lt(__local0__, 2) 
+				}
+			`,
+		},
+		{
+			note: "or, LHS negation",
+			module: `package logic
+				p if {
+					x := 1
+					not x != 2 or x < 2
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					{ not neq(__local0__, 2) } or lt(__local0__, 2) 
+				}
+			`,
+		},
+		{
+			note: "and, RHS negation",
+			module: `package logic
+				p if {
+					x := 1
+					x != 2 and not x < 2
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					neq(__local0__, 2) and { not lt(__local0__, 2) }
+				}
+			`,
+		},
+		{
+			note: "or, RHS negation",
+			module: `package logic
+				p if {
+					x := 1
+					x != 2 or not x < 2
+				}
+			`,
+			expMod: `package logic
+				p = true if { 
+					__local0__ = 1
+					neq(__local0__, 2) or { not lt(__local0__, 2) }
+				}
+			`,
+		},
+
+		{
+			note: "and, every",
+			module: `package logic
+				p if {
+					every x in [1, 2, 3] {
+						x > 0 and x < 4
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					__local2__ = [1, 2, 3]
+					every __local0__, __local1__ in __local2__ {
+						gt(__local1__, 0) and lt(__local1__, 4)
+					}
+				}
+			`,
+		},
+		{
+			note: "or, every",
+			module: `package logic
+				p if {
+					every x in [1, 2, 3] {
+						x > 0 or x < 4
+					}
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					__local2__ = [1, 2, 3]
+					every __local0__, __local1__ in __local2__ {
+						gt(__local1__, 0) or lt(__local1__, 4)
+					}
+				}
+			`,
+		},
+
+		{
+			note: "and, comprehension",
+			module: `package logic
+				p := [x | some x in input.x; x > 0 and x < 10]
+			`,
+			expMod: `package logic
+				p := __local3__ if {
+					__local3__ = [__local2__ | 
+						__local2__ = input.x[__local1__]
+						gt(__local2__, 0) and lt(__local2__, 10)
+					]
+				}
+			`,
+		},
+		{
+			note: "or, comprehension",
+			module: `package logic
+				p := [x | some x in input.x; x > 0 or x < 10]
+			`,
+			expMod: `package logic
+				p := __local3__ if {
+					__local3__ = [__local2__ | 
+						__local2__ = input.x[__local1__]
+						gt(__local2__, 0) or lt(__local2__, 10)
+					]
+				}
+			`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Compile(map[string]*Module{"mod.rego": MustParseModuleWithOpts(tc.module, popts)})
+
+			if len(tc.expErrs) > 0 {
+				assertErrors(t, c.Errors, tc.expErrs, false)
+			} else if len(c.Errors) > 0 {
+				if c.Failed() {
+					t.Fatalf("unexpected compile errors: %v", c.Errors)
+				}
+			}
+
+			if tc.expMod != nil && tc.expMod != "" {
+				var expMod *Module
+				if m, ok := tc.expMod.(*Module); ok {
+					expMod = m
+				} else {
+					expMod = MustParseModuleWithOpts(tc.expMod.(string), popts)
+				}
+
+				if diff := cmp.Diff(expMod, c.Modules["mod.rego"]); diff != "" {
+					t.Errorf("unexpected module (-want, +got):\n%s", diff)
+				}
+			}
+
+			for n, m := range c.Modules {
+				t.Logf("compiled module %s:\n\n%v\n\n%s", n, m, mermaidGraph(m))
+			}
+		})
+	}
+}
+
+func TestQueryCompilerAndOrImports(t *testing.T) {
+	popts := ParserOptions{
+		Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+		AllFutureKeywords: true,
+	}
+	c := NewCompiler()
+
+	tests := []struct {
+		note  string
+		query string
+	}{
+		{"and basic", "input.x and input.y"},
+		{"or basic", "input.x or input.y"},
+		{"explicit body with internal local", "{x := 1; x > 0} and true"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			body, err := ParseBodyWithOpts(tc.query, popts)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			qc := c.QueryCompiler()
+			if _, err := qc.Compile(body); err != nil {
+				t.Fatalf("query compile failed: %v", err)
 			}
 		})
 	}

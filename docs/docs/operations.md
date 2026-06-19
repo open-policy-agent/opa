@@ -66,7 +66,7 @@ The mechanisms discussed above ensure that OPA is not asked to answer policy que
 - fail-open: if OPA does not provide a decision, then treat the decision as allowed.
 - fail-closed: if OPA does not provide a decision, then treat the decision as denied.
 
-The choices are more varied if the policy is not making an allow/deny decision, but often there is some analog to fail-open and fail-closed. The key observation is that this logic is entirely the responsibility of the software asking OPA for a policy decision. Despite the fact that what to do when OPA is unavailable is technically a policy question, it is one that we cannot rely on OPA to answer. The right logic can depend on many factors including the likelihood of OPA not making a decision and the cost of allowing or denying a request incorrectly.
+The choices are more varied if the policy is not making an allow/deny decision, but often there is some analog to fail-open and fail-closed. The key observation is that this logic is entirely the responsibility of the software asking OPA for a policy decision. Despite the fact that what to do when OPA is unavailable is technically a policy question, it is one that OPA cannot answer. The right logic can depend on many factors including the likelihood of OPA not making a decision and the cost of allowing or denying a request incorrectly.
 
 In Kubernetes admission control, for example, the Kubernetes admin can choose whether to fail-open or fail-closed, leaving the decision up to the user. And often this is the correct way to build an integration because it is unlikely that there is a universal solution. For example, running an OPA-integration in a development environment might require fail-open, but running exactly the same integration in a production environment might require fail-closed.
 
@@ -88,7 +88,7 @@ valid_semantic_version_tag if {
 }
 ```
 
-We can check whether it is compatible with different versions of OPA:
+The policy's compatibility with different versions of OPA can be checked as follows:
 
 ```bash
 # OK!
@@ -174,7 +174,7 @@ Features present in the list are enabled, while features not present are disable
 
 :::info
 It is recommended to use the `rego.v1` import instead of `future.keywords` imports, as this will ensure that your policy is compatible with the future release of [OPA v1.0](./v0-upgrade/)
-If the `rego.v1` import is present in a module, then `future.keywords` and `future.keywords.*` import is implied, and not allowed.
+If the `rego.v1` import is present in a module, then `future.keywords.in`, `future.keywords.every`, `future.keywords.if`, and `future.keywords.contains` imports are implied, and not allowed.
 :::
 
 The availability of future keywords in an OPA version can also be controlled using the capabilities file:

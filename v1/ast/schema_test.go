@@ -350,6 +350,26 @@ func TestAllOfSchemas(t *testing.T) {
 			expectedType:  expectedUnevenArrayType,
 			expectedError: nil,
 		},
+		{
+			note:   "allOf with single Object type through $ref",
+			schema: allOfRef,
+			expectedType: types.NewObject([]*types.StaticProperty{
+				{Key: "v", Value: types.A},
+			}, nil),
+			expectedError: nil,
+		},
+		{
+			note:   "allOf with $ref issue #6523: nested $ref in allOf resolved to correct type",
+			schema: iss6523,
+			expectedType: types.NewObject([]*types.StaticProperty{
+				{Key: "action", Value: types.S},
+				{Key: "context", Value: types.NewObject([]*types.StaticProperty{
+					{Key: "groups", Value: types.S},
+					{Key: "user", Value: types.S},
+				}, nil)},
+			}, nil),
+			expectedError: nil,
+		},
 	}
 
 	for _, tc := range tests {
@@ -698,6 +718,31 @@ func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
 			expectedError: nil,
 		},
 		{
+			note:          "allOf with single Object type through ref",
+			schema:        allOfRef,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Object types through ref",
+			schema:        allOfObjectRef,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with anyOf containing $ref types",
+			schema:        allOfAnyOfRef,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with $ref issue #6523",
+			schema:        iss6523,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf $ref unmergable",
+			schema:        allOfRefUnmergable,
+			expectedError: errors.New("unable to merge these schemas: type mismatch: string and integer"),
+		},
+		{
 			note:          "allOf schema with unmergeable Array of Arrays",
 			schema:        allOfArrayOfArrays,
 			expectedError: errors.New("unable to merge these schemas"),
@@ -747,8 +792,8 @@ func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
 			c.WithSchemas(schemaSet)
 			compileStages(c, StageCheckTypes)
 			if tc.expectedError != nil {
-				if errors.Is(c.Errors, tc.expectedError) {
-					t.Fatal("Unexpected error:", err)
+				if !strings.Contains(c.Errors.Error(), tc.expectedError.Error()) {
+					t.Fatal("Unexpected error:", c.Errors)
 				}
 			} else {
 				assertNotFailed(t, c)
@@ -1451,6 +1496,142 @@ const allOfArrayMissing = `{
 			}]
 		}
 	]
+}`
+
+const allOfRef = `{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"allOf": [{"$ref": "#/$defs/d"}],
+	"$defs": {
+		"d": {
+			"type": "object",
+			"properties": {
+				"v": {"const": 1}
+			},
+			"additionalProperties": false
+		}
+	}
+}`
+
+const allOfObjectRef = `{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"allOf": [
+		{
+			"type": "object",
+				"properties": {
+				"v": {"integer"}
+			}
+		},
+		{"$ref": "#/$defs/d"}
+	],
+	"$defs": {
+		"d": {
+			"type": "object",
+			"properties": {
+				"v": {"integer"}
+			}
+		}
+	}
+}`
+
+const allOfAnyOfRef = `{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"allOf": [
+		{
+			"type": "object",
+			"properties": {
+				"v": {"enum": [1, 2]}
+			}
+		},
+		{"anyOf": [{"$ref": "#/$defs/d1"}, {"$ref": "#/$defs/d2"}]}
+	],
+	"$defs": {
+		"d1": {
+			"type": "object",
+			"properties": {
+				"v": {"const": 1},
+				"k": {"type": "integer"}
+			},
+			"additionalProperties": false
+		},
+		"d2": {
+			"type": "object",
+			"properties": {
+				"v": {"const": 2},
+				"j": {"type": "string"}
+			},
+			"additionalProperties": false
+		}
+	}
+}`
+
+const iss6523 = `{
+	"$schema": "https://json-schema.org/draft-07/schema",
+	"$id": "https://jsonschema.dev/schemas/opa-input",
+	"$defs": {
+		"mixins/action.schema.json": {
+			"$schema": "https://json-schema.org/draft-07/schema",
+			"$id": "mixins/action.schema.json",
+			"type": "string"
+		},
+		"mixins/context.schema.json": {
+			"$schema": "https://json-schema.org/draft-07/schema",
+			"$id": "mixins/context.schema.json",
+			"type": "object",
+			"properties": {
+				"user": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"user"
+			]
+		},
+		"mixins/special-context.schema.json": {
+			"$schema": "https://json-schema.org/draft-07/schema",
+			"$id": "mixins/special-context.schema.json",
+			"type": "object",
+			"properties": {
+				"groups": {
+					"type": "string"
+				}
+			},
+			"allOf": [
+				{
+					"$ref": "https://jsonschema.dev/schemas/mixins/context.schema.json"
+				}
+			],
+			"required": [
+				"groups"
+			]
+		}
+	},
+	"type": "object",
+	"properties": {
+		"action": {
+			"$ref": "https://jsonschema.dev/schemas/mixins/action.schema.json"
+		},
+		"context": {
+			"$ref": "https://jsonschema.dev/schemas/mixins/special-context.schema.json"
+		}
+	},
+	"required": [
+		"action",
+		"context"
+	]
+}`
+
+const allOfRefUnmergable = `{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://jsonschema.dev/schemas/opa-input",
+	"$defs": {
+		"d1": {
+			"type": "string"
+		},
+		"d2": {
+			"type": "integer",
+		}
+	},
+	"allOf": [{"$ref": "#/$defs/d1"}, {"$ref": "#/$defs/d2"}]
 }`
 
 const anyOfSchemaParentVariation = `{

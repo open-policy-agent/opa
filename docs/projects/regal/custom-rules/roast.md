@@ -13,7 +13,7 @@ Roast is an optimized JSON format for [Rego](https://www.openpolicyagent.org/doc
 as common utilities for working with both the Roast format and OPA's AST APIs.
 
 Roast is used by [Regal](https://www.openpolicyagent.org/projects/regal), where the JSON representation of Rego's AST is used input for
-static analysis [performed by Rego itself](https://www.styra.com/blog/linting-rego-with-rego/) to determine whether
+static analysis [performed by Rego itself](https://web.archive.org/web/https://www.styra.com/blog/linting-rego-with-rego/) to determine whether
 policies conform to Regal's linter rules.
 
 > [!IMPORTANT]
@@ -234,15 +234,11 @@ expressions found in template strings, and is thus either `true` or missing, nev
 Following the Roast convention of omitting boolean attributes that are `false`, the `multi_line` attribute found
 on template string nodes is only present when `true`.
 
-### Fixed inconsistencies in the original Rego AST
+### Module comments represented as arrays of location strings
 
-A few inconsistencies exist in the original AST JSON format:
-
-- `comments` attributes having a `Text` attribute rather than the expected `text`
-- `comments` attributes having a `Location` attribute rather than the expected `location`
-
-Fixing these in the original format would be a breaking change. The Roast format corrects these inconsistencies, and
-uses `text` and `location` consistently.
+Since a comment is simply text at a given location, they are simply represented as location strings. OPA's AST format
+adds a redundant extra text atttribute only to strip off the leading `#` from the comment text, and is additionally
+inconsistent with the rest if its format, as both the `text` and `location` attributes are title-cased.
 
 ## Performance
 

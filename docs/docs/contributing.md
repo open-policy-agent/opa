@@ -25,13 +25,10 @@ Overflow.
 
 ## I'd like to contribute code
 
-If you have found a bug and would like to work on a fix, **we always encourage you
-file a [GitHub Issue](https://github.com/open-policy-agent/opa/issues)** to talk
-about the problem and the solution you have in mind. This allows you to get
-feedback from maintainers before committing time to something that might already
+If you have found a bug and would like to work on a fix, **filing a [GitHub Issue](https://github.com/open-policy-agent/opa/issues)** is always encouraged. It is a good way to discuss the problem and your proposed solution, and gather feedback from maintainers before committing time to something that might already
 have a solution or might not be the right approach.
 
-If you have an idea for a new feature, we also **request that you file an
+If you have an idea for a new feature, **file an
 issue** to discuss it first. This again allows you to get feedback from
 the maintainer team and the community before you start working on it.
 
@@ -45,19 +42,19 @@ else, head over to
 Slack. This is also a great place to ask for ideas if you want to contribute, but
 aren't sure what to work on!
 
-If you are ready to start contributing code, please see our
+If you are ready to start contributing code, please see the
 [Contributing Code](./contrib-code/) guide for pointers on how to get
-started. Please note we have some restrictions around the use of AI tooling
+started. Please note there are some restrictions around the use of AI tooling
 which are documented here.
 
 ## I'd like to help improve the documentation
 
-Great! Please see our [Contributing Documentation](./contrib-docs) guide for
+See the [Contributing Documentation](./contrib-docs) guide for
 more details.
 
 ## I have an OPA project or talk I'd like to share
 
-Awesome! For OPA-based projects, we have our [Ecosystem page](/ecosystem/).
+Awesome! For OPA-based projects, the [Ecosystem page](/ecosystem/) is available.
 This is a great place to showcase your project and how it uses OPA.
 
 You can create a markdown file in:
@@ -73,8 +70,8 @@ If you have a talk or blog you'd like to share please feel free to post in:
 
 ## I'm interested in something else
 
-Sounds interesting, we'd love to hear all about it,
-[sign up for our Slack](https://slack.openpolicyagent.org/) and
+Sounds interesting, reach out to share it,
+[sign up for the OPA Slack](https://slack.openpolicyagent.org/) and
 drop a message in the
 [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59)
 channel.

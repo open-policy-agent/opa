@@ -76,18 +76,18 @@ p if {
 	}
 
 	expectedCovered := []Position{
-		{5},           // foo head
-		{6}, {7}, {8}, // foo body
-		{11},             // bar head
-		{12}, {13}, {14}, // bar body
-		{18}, {19}, // baz body hits
-		{23},       // p head
-		{25}, {26}, // p body
+		{Row: 5},                     // foo head
+		{Row: 6}, {Row: 7}, {Row: 8}, // foo body
+		{Row: 11},                       // bar head
+		{Row: 12}, {Row: 13}, {Row: 14}, // bar body
+		{Row: 18}, {Row: 19}, // baz body hits
+		{Row: 23},            // p head
+		{Row: 25}, {Row: 26}, // p body
 	}
 
 	expectedNotCovered := []Position{
-		{17}, // baz head
-		{20}, // baz body miss
+		{Row: 17}, // baz head
+		{Row: 20}, // baz body miss
 	}
 
 	for _, exp := range expectedCovered {
@@ -178,11 +178,11 @@ allow if { true }
 	}
 
 	expectedCovered := []Position{
-		{6}, // allow
+		{Row: 6}, // allow
 	}
 
 	expectedNotCovered := []Position{
-		{4}, // foo
+		{Row: 4}, // foo
 	}
 
 	for _, exp := range expectedCovered {
@@ -228,6 +228,91 @@ allow if { true }
 			t.Fatal(err)
 		}
 		fmt.Println(string(bs))
+	}
+}
+
+func TestCoverInlineRuleHeadNotCovered(t *testing.T) {
+	t.Parallel()
+
+	cover := New()
+
+	module := `package test
+
+foo if false
+
+test_foo if {
+	not foo
+}
+`
+
+	parsedModule, err := ast.ParseModule("test.rego", module)
+	if err != nil {
+		t.Fatalf("failed to parse module: %v", err)
+	}
+
+	eval := rego.New(
+		rego.ParsedModule(parsedModule),
+		rego.Query("data.test.test_foo"),
+		rego.QueryTracer(cover),
+	)
+
+	ctx := t.Context()
+	_, err = eval.Eval(ctx)
+	if err != nil {
+		t.Fatalf("failed to evaluate: %v", err)
+	}
+
+	report := cover.Report(map[string]*ast.Module{"test.rego": parsedModule})
+
+	fr, ok := report.Files["test.rego"]
+	if !ok {
+		t.Fatal("Expected file report for test.rego")
+	}
+
+	fooHead := Range{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}}
+	if !fr.isRangeNotCovered(fooHead) {
+		t.Errorf("expected foo head %v to be not covered", fooHead)
+	}
+
+	falseExpr := Range{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}}
+	if !fr.isRangeCovered(falseExpr) {
+		t.Errorf("expected false body %v to be covered", falseExpr)
+	}
+}
+
+func TestFileReportIsRangeCovered(t *testing.T) {
+	t.Parallel()
+
+	fr := &FileReport{
+		Covered: []Range{
+			{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}},
+		},
+		NotCovered: []Range{
+			{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}},
+		},
+	}
+
+	covered := Range{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}}
+	if !fr.isRangeCovered(covered) {
+		t.Errorf("expected %v to be covered", covered)
+	}
+
+	subCovered := Range{Start: Position{Row: 3, Col: 9}, End: Position{Row: 3, Col: 11}}
+	if !fr.isRangeCovered(subCovered) {
+		t.Errorf("expected sub-range %v to be covered", subCovered)
+	}
+
+	notCovered := Range{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}}
+	if !fr.isRangeNotCovered(notCovered) {
+		t.Errorf("expected %v to be not covered", notCovered)
+	}
+
+	absent := Range{Start: Position{Row: 5, Col: 1}, End: Position{Row: 5, Col: 4}}
+	if fr.isRangeCovered(absent) {
+		t.Errorf("expected %v to not be covered", absent)
+	}
+	if fr.isRangeNotCovered(absent) {
+		t.Errorf("expected %v to not be in not_covered", absent)
 	}
 }
 

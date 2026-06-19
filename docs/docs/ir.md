@@ -9,6 +9,36 @@ semantics of the intermediate representation (IR) used to represent these
 planned evaluation paths. Read this document if you want to write a compiler or
 interpreter for Rego.
 
+To evaluate IR plans directly in your application, see
+[Swift-OPA](https://github.com/open-policy-agent/swift-opa) for Swift and
+[java-opa-sdk](https://github.com/open-policy-agent/java-opa-sdk) for Java.
+
+## JSON Schema
+
+A machine-readable JSON Schema (Draft 2020-12) describing the IR plan format is
+published at
+[`https://openpolicyagent.org/schemas/ir/v1/plan.schema.json`](https://openpolicyagent.org/schemas/ir/v1/plan.schema.json).
+The schema is generated from the Go type definitions in
+[`v1/ir/ir.go`](https://github.com/open-policy-agent/opa/blob/main/v1/ir/ir.go)
+and stays in sync with them via a CI drift test, so it always reflects what the
+current `opa build -t plan` actually emits. Backward-incompatible changes to the
+IR contract will be published under a new path (e.g., `/v2/`).
+
+Use it to validate plan output, generate typed bindings in non-Go languages,
+or feed it into JSON Schema-aware tooling. Example with
+[`ajv`](https://ajv.js.org/):
+
+```bash
+opa build -t plan -e example/allow example.rego
+tar -xzf bundle.tar.gz /plan.json
+ajv validate \
+  -s https://openpolicyagent.org/schemas/ir/v1/plan.schema.json \
+  -d plan.json
+```
+
+The polymorphic `Stmt` and `Val` shapes are expressed as `oneOf` over the
+`"type"` discriminator, with one branch per kind documented below.
+
 ## Structure
 
 This section explains the structure of policies compiled into the IR.
@@ -442,7 +472,7 @@ This statement is **undefined** if `source` is a scalar value or empty collectio
 
 The OPA repository contains a [test suite](https://github.com/open-policy-agent/opa/tree/main/v1/test/cases/testdata/v1)
 that is used internally to validate both the Go interpreter and the Wasm
-compiler. If you are implementing your own compiler or interpreter we highly
+compiler. If you are implementing your own compiler or interpreter, we highly
 recommend integrating the test suite into your own development environment so
 that your implementation can be verified to conform with OPA's.
 

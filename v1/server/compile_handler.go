@@ -88,6 +88,18 @@ type CompileFiltersRequestV1 struct {
 		TargetDialects  []string       `json:"targetDialects,omitempty"`
 		MaskRule        string         `json:"maskRule,omitempty"`
 	} `json:"options"`
+
+	// Metadata holds any additional top-level fields not defined in this struct.
+	// These fields are preserved during JSON unmarshaling, allowing wrapping
+	// projects to pass through custom key/value pairs (e.g. snapshot_id).
+	Metadata map[string]any `json:"-"`
+}
+
+func (r *CompileFiltersRequestV1) UnmarshalJSON(data []byte) error {
+	type alias CompileFiltersRequestV1
+	extra, err := types.UnmarshalExtras[CompileFiltersRequestV1](data, (*alias)(r))
+	r.Metadata = extra
+	return err
 }
 
 type compileFiltersRequest struct {
@@ -107,6 +119,18 @@ type CompileResponseV1 struct {
 	Explanation types.TraceV1     `json:"explanation,omitempty"`
 	Metrics     types.MetricsV1   `json:"metrics,omitempty"`
 	Hints       []failtracer.Hint `json:"hints,omitempty"`
+
+	Metadata map[string]any `json:"-"`
+}
+
+func (r CompileResponseV1) MarshalJSON() ([]byte, error) {
+	type alias CompileResponseV1
+	return types.MarshalExtras[CompileResponseV1](alias(r), r.Metadata)
+}
+
+func init() {
+	types.RegisterJSONFields[CompileFiltersRequestV1]()
+	types.RegisterJSONFields[CompileResponseV1]()
 }
 
 func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
@@ -266,7 +290,8 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 
 	qt := failtracer.New()
 
-	filters, err := preparedCompile.Compile(ctx,
+	respMetadata := map[string]any{}
+	evalOpts := []rego.EvalOption{
 		rego.EvalTransaction(txn),
 		rego.EvalParsedInput(request.Input),
 		rego.EvalPrintHook(s.manager.PrintHook()),
@@ -274,7 +299,13 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
 		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalQueryTracer(qt),
-	)
+		rego.EvalResponseMetadata(respMetadata),
+	}
+	if orig.Metadata != nil {
+		evalOpts = append(evalOpts, rego.EvalRequestMetadata(orig.Metadata))
+	}
+
+	filters, err := preparedCompile.Compile(ctx, evalOpts...)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -338,6 +369,11 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.Timer(metrics.ServerHandler).Stop()
+
+	if len(respMetadata) > 0 {
+		result.Metadata = respMetadata
+	}
+
 	fin(w, result, contentType, m, includeMetrics(r), includeInstrumentation, pretty(r))
 
 	unk := make([]string, len(unknowns))
@@ -352,6 +388,12 @@ func (s *Server) v1CompileFilters(w http.ResponseWriter, r *http.Request) {
 		"unknowns":  unk,
 		"type":      decisionLogType,
 		"mask_rule": maskingRule.String(),
+	}
+	if len(orig.Metadata) > 0 {
+		custom["request_metadata"] = orig.Metadata
+	}
+	if len(respMetadata) > 0 {
+		custom["response_metadata"] = respMetadata
 	}
 
 	if err := logger.Log(ctx, txn, urlPath, orig.Query, orig.Input, request.Input, result.Result, ndbCache, nil, m, nil, custom); err != nil {

@@ -4,7 +4,7 @@ title: Docker
 
 Docker’s out-of-the-box authorization model is all or nothing. But many users
 require finer-grained access control and Docker’s plugin infrastructure allows
-us to do so.
+for this.
 
 This is an excellent opportunity to see how to policy enable an existing
 service.
@@ -19,7 +19,7 @@ in OPA.
 > application while still keeping up with the size, complexity, and dynamic
 > nature of modern applications.
 
-For the purpose of this tutorial, we want to use OPA to enforce a policy that
+For the purpose of this tutorial, OPA is used to enforce a policy that
 prevents users from running insecure containers.
 
 This tutorial illustrates two key concepts:
@@ -64,15 +64,14 @@ allow := true
 ```
 
 This policy defines a single rule named `allow` that always produces the
-decision `true`. Once all the components are running, we will come back to
-the policy.
+decision `true`. The tutorial returns to this policy once all the components are running.
 
 ### 2. Create policy bundle and OPA configuration
 
-For the purpose of this example, we are going to use [Nginx](https://www.openpolicyagent.org/docs/management-bundles#nginx)
+For the purpose of this example, [Nginx](https://www.openpolicyagent.org/docs/management-bundles#nginx) is used
 to serve bundles from the same machine Docker is running on.
 
-With nginx running, simply build the policy bundle placed into the nginx web root directory.
+With Nginx running, build the policy bundle placed into the Nginx web root directory.
 
 ```shell
 opa build --bundle --output /var/www/html/bundle.tar.gz .
@@ -95,9 +94,9 @@ decision_logs:
   console: true
 ```
 
-Save the above file as `opa-config.yaml`. We'll need to place this somewhere where the plugin can find it.
-The `/etc/docker` directory will be mounted as `/opa` in the container running the plugin, so let's create a
-sub-directory for our configuration file there.
+Save the above file as `opa-config.yaml`. Place this file somewhere the plugin can find it.
+The `/etc/docker` directory will be mounted as `/opa` in the container running the plugin, so create a
+sub-directory for the configuration file there.
 
 ```shell
 sudo mkdir -p /etc/docker/config
@@ -139,7 +138,7 @@ expect to see log messages from OPA and the plugin.
 
 ### 5. Test that the policy definition is working
 
-Let’s modify our policy to **deny** all requests:
+Modify the policy to **deny** all requests:
 
 **authz.rego**:
 
@@ -159,7 +158,7 @@ In OPA, rules defines the content of documents. Documents be boolean values
 (true/false) or they can represent more complex structures using arrays,
 objects, strings, etc.
 
-In the example above we modified the policy to always return `false` so that
+In the example above, the policy was modified to always return `false` so that
 requests will be rejected.
 
 ```shell
@@ -178,7 +177,7 @@ With this policy in place, users will not be able to run any Docker commands. Go
 ahead and try other commands such as `docker run` or `docker pull`. They will
 all be rejected.
 
-Now let's change the policy so that it's a bit more useful.
+Now change the policy to be more useful.
 
 ### 6. Update the policy to reject requests with the unconfined [seccomp](https://en.wikipedia.org/wiki/Seccomp) profile
 
@@ -353,8 +352,7 @@ prevented by the policy):
 docker run --security-opt seccomp:unconfined hello-world
 ```
 
-Congratulations! You have successfully prevented containers from running without
-seccomp!
+Containers without a seccomp profile are now blocked.
 
 The rest of the tutorial shows how you can grant fine-grained access to specific
 clients.
@@ -384,7 +382,7 @@ EOF
 
 > Docker does not currently provide a way to authenticate clients. But in Docker
 > 1.12, clients can be authenticated using TLS and there are plans to include
-> other means of authentication. For the purpose of this tutorial, we assume that
+> other means of authentication. For the purpose of this tutorial, assume that
 > an authentication system is place.
 
 ### 9. Update the policy to include basic user access controls
@@ -441,5 +439,3 @@ Because the configured user is `"alice"`, the request will succeed:
 ```shell
 docker run hello-world
 ```
-
-That's it!

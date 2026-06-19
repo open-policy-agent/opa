@@ -161,7 +161,18 @@ func (p *Planner) buildFunctrie() error {
 }
 
 func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
-	// We know the rules with closer to the root (shorter static path) are ordered first.
+	// We sort rules, first by ref length, and then using the
+	// Ref.Compare method to break ties. This yields a stable
+	// sorting order for the slice of rules to be planned.
+	sort.Slice(rules, func(i, j int) bool {
+		li, lj := len(rules[i].Ref()), len(rules[j].Ref())
+		if li != lj {
+			return li > lj
+		}
+		return rules[i].Ref().Compare(rules[j].Ref()) < 0
+	})
+
+	// We know the rules that are closer to the root (shorter static path) are ordered first.
 	pathRef := rules[0].Ref()
 
 	// figure out what our rules' collective name/path is:
@@ -261,12 +272,6 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 
 	var defaultRule *ast.Rule
 	var ruleLoc *location.Location
-
-	// We sort rules by ref length, to ensure that when merged, we can detect conflicts when one
-	// rule attempts to override values (deep and shallow) defined by another rule.
-	sort.Slice(rules, func(i, j int) bool {
-		return len(rules[i].Ref()) > len(rules[j].Ref())
-	})
 
 	// Generate function blocks for rules.
 	for i := range rules {

@@ -64,7 +64,7 @@ The obvious exception is stated already in the title of this rule: unit tests! U
 is what `with` is for.
 
 Using `with` outside the context of unit tests is most commonly seen in policies using
-[dynamic policy composition](https://www.styra.com/blog/dynamic-policy-composition-for-opa/), which typically involves
+[dynamic policy composition](https://web.archive.org/web/https://www.styra.com/blog/dynamic-policy-composition-for-opa/), which typically involves
 a "main" policy dispatching to a number of other policies and aggregating the result of evaluating each one. In this
 scenario it's quite common to need to alter either `input` or `data` before evaluating a policy or rule, and `with` is
 commonly used for this purpose. If you need to use `with` outside of tests, make sure that rules evaluated frequently
@@ -85,5 +85,5 @@ rules:
 ## Related Resources
 
 - OPA Docs: [With Keyword](https://www.openpolicyagent.org/docs/policy-language/#with-keyword)
-- Styra Blog: [Dynamic Policy Composition for OPA](https://www.styra.com/blog/dynamic-policy-composition-for-opa/)
+- Styra Blog: [Dynamic Policy Composition for OPA](https://web.archive.org/web/https://www.styra.com/blog/dynamic-policy-composition-for-opa/)
 - GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/performance/with-outside-test-context/with_outside_test_context.rego)

@@ -76,6 +76,8 @@ const (
 	Every
 	Contains
 	If
+	LogicalAnd
+	LogicalOr
 )
 
 var strings = [...]string{
@@ -131,6 +133,8 @@ var strings = [...]string{
 	Every:                 "every",
 	Contains:              "contains",
 	If:                    "if",
+	LogicalAnd:            "and",
+	LogicalOr:             "or",
 }
 
 var keywords = map[string]Token{

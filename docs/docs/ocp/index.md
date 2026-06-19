@@ -6,7 +6,7 @@ sidebar_label: Overview
 # OPA Control Plane: Overview
 
 OPA Control Plane (OCP) simplifies how you manage policies for your OPA
-deployments. It provides a centralized management system to control how OPAs
+deployments. It provides a centralized management system to control how OPA instances
 receive the policies and data they need to make decisions. OCP provides:
 
 - **Git-based Policy Management.** Build bundles based on Rego from multiple Git
@@ -15,7 +15,7 @@ receive the policies and data they need to make decisions. OCP provides:
   policies build-time using HTTP push and pull datasources.
 - **Highly-Available & Scalable Bundle Serving.** Distribute bundles to cloud
   object storage like AWS S3, Google Cloud Storage, or Azure Blob Storage and
-  ensure your OPAs can quickly and reliably serve policy decisions.
+  ensure your OPA instances can quickly and reliably serve policy decisions.
 - **Global and hierarchical policies.** Enforce organization-wide rules by
   defining global policies that get injected into bundles at build-time based on
   label selectors. Global policies can override other policies based on custom
@@ -31,7 +31,7 @@ receive the policies and data they need to make decisions. OCP provides:
 - [OCP on GitHub](https://github.com/open-policy-agent/opa-control-plane) -
   explore OCP the code, contribute and file issues.
 
-## Kick the tires
+## Quick Start
 
 Follow this section to get a quick example running on your laptop. By following
 these instructions, you will be able to:
@@ -42,7 +42,7 @@ these instructions, you will be able to:
 - Configure OPA to use the OCP build bundle
 - Test the policy's enforcement and observe its effects.
 
-This example is designed for rapid iteration and learning, making it ideal for new users who want to understand OCP's fundamental concepts and operational flow in a controlled, personal setting. We'll focus on simplicity and clarity, ensuring that each step is easy to follow and the outcomes are immediately visible.
+This example is designed for rapid iteration and learning, making it ideal for new users who want to understand OCP's fundamental concepts and operational flow in a controlled, personal setting. The focus is on simplicity and clarity, ensuring that each step is easy to follow and the outcomes are immediately visible.
 
 ## 1. Install binary
 
@@ -67,7 +67,7 @@ sources:
     - rules/rules.rego
 ```
 
-We also will want to define a simple policy for this bundle. Add the following
+Define a simple policy for this bundle. Add the following
 to `./files/sources/hello-world/rules/rules.rego`
 
 ```rego title="files/sources/hello-world/rules/rules.rego"
@@ -92,7 +92,7 @@ opactl build
 
 ## 4. Configure OPA to use the bundle
 
-You could set up a simple server to serve up the bundle, but for now we can just use OPA to watch the bundle. Run this in your working directory:
+You could set up a simple server to serve up the bundle, but for now, use OPA to watch the bundle. Run this in your working directory:
 
 ```shell
 opa run -s -w ./bundles/hello-world/bundle.tar.gz

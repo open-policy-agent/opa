@@ -100,6 +100,7 @@ type EvalContext struct {
 	parsedInput                 ast.Value
 	metrics                     metrics.Metrics
 	txn                         storage.Transaction
+	generateJSON                func(*ast.Term, *EvalContext) (any, error)
 	instrument                  bool
 	instrumentation             *topdown.Instrumentation
 	partialNamespace            string
@@ -224,6 +225,15 @@ func EvalMetrics(metric metrics.Metrics) EvalOption {
 func EvalTransaction(txn storage.Transaction) EvalOption {
 	return func(e *EvalContext) {
 		e.txn = txn
+	}
+}
+
+// EvalGenerateJSON sets the AST to JSON converter for an evaluation. When set, this
+// option takes precedence over [GenerateJSON] set on the Rego object from e.g. a prepared
+// query, allowing individual evaluations to customize how the result is transformed.
+func EvalGenerateJSON(f func(*ast.Term, *EvalContext) (any, error)) EvalOption {
+	return func(e *EvalContext) {
+		e.generateJSON = f
 	}
 }
 
@@ -1330,7 +1340,10 @@ func Target(t string) func(r *Rego) {
 	}
 }
 
-// GenerateJSON sets the AST to JSON converter for the results.
+// GenerateJSON sets the AST to JSON converter to use for results. This will have any evaluationn on a Rego
+// object use the provided function for conversion. Use [EvalGenerateJSON] if you want to set a converter
+// function for individual evaluations, which will take precedence over GenerateJSON set on the Rego object,
+// (i.e. by this function) for the scope of that evaluation.
 func GenerateJSON(f func(*ast.Term, *EvalContext) (any, error)) func(r *Rego) {
 	return func(r *Rego) {
 		r.generateJSON = f
@@ -2160,8 +2173,7 @@ func (r *Rego) parseQuery(queryImports []*ast.Import, m metrics.Metrics) (ast.Bo
 
 func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserOptions) (ast.ParserOptions, error) {
 	for _, imp := range imports {
-		path := imp.Path.Value.(ast.Ref)
-		if ast.Compare(path, ast.RegoV1CompatibleRef) == 0 {
+		if ast.RegoV1CompatibleRef.Compare(imp.Path.Value) == 0 {
 			popts.RegoVersion = ast.RegoV1
 			return popts, nil
 		}
@@ -2462,6 +2474,11 @@ func (r *Rego) valueToQueryResult(res ast.Value, ectx *EvalContext) (ResultSet, 
 func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result, error) {
 	rewritten := ectx.compiledQuery.compiler.RewrittenVars()
 
+	generateJSON := r.generateJSON
+	if ectx.generateJSON != nil {
+		generateJSON = ectx.generateJSON
+	}
+
 	result := newResult()
 	for k, term := range qr {
 		if rw, ok := rewritten[k]; ok {
@@ -2471,7 +2488,7 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 			continue
 		}
 
-		v, err := r.generateJSON(term, ectx)
+		v, err := generateJSON(term, ectx)
 		if err != nil {
 			return result, err
 		}
@@ -2485,7 +2502,7 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 		}
 
 		if k, ok := r.capture[expr]; ok {
-			v, err := r.generateJSON(qr[k], ectx)
+			v, err := generateJSON(qr[k], ectx)
 			if err != nil {
 				return result, err
 			}
@@ -3064,9 +3081,11 @@ func generateJSON(term *ast.Term, ectx *EvalContext) (any, error) {
 }
 
 func (r *Rego) planQuery(queries []ast.Body, evalQueryType queryType) (*ir.Policy, error) {
+	// We sort the list of module names here to ensure a deterministic
+	// output ordering for the planner.
 	modules := make([]*ast.Module, 0, len(r.compiler.Modules))
-	for _, module := range r.compiler.Modules {
-		modules = append(modules, module)
+	for _, name := range util.KeysSorted(r.compiler.Modules) {
+		modules = append(modules, r.compiler.Modules[name])
 	}
 
 	decls := make(map[string]*ast.Builtin, len(r.builtinDecls)+len(ast.BuiltinMap))

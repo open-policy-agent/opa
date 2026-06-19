@@ -1259,12 +1259,16 @@ func (m *Manifest) numericRegoVersionForFile(path string) (*int, error) {
 
 	if len(m.FileRegoVersions) != len(m.compiledFileRegoVersions) {
 		m.compiledFileRegoVersions = make([]fileRegoVersion, 0, len(m.FileRegoVersions))
-		for pattern, v := range m.FileRegoVersions {
+		// Compile patterns in sorted key order. The behaviour for overlapping
+		// patterns is documented as undefined, however we ensure the ordering
+		// of which patterns are used will be deterministic by sorting the
+		// keys before iterating over the patterns.
+		for _, pattern := range util.KeysSorted(m.FileRegoVersions) {
 			compiled, err := glob.Compile(pattern)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile glob pattern %s: %s", pattern, err)
 			}
-			m.compiledFileRegoVersions = append(m.compiledFileRegoVersions, fileRegoVersion{compiled, v})
+			m.compiledFileRegoVersions = append(m.compiledFileRegoVersions, fileRegoVersion{compiled, m.FileRegoVersions[pattern]})
 		}
 	}
 

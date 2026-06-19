@@ -1657,7 +1657,7 @@ exceptions contains "bob"
 exceptions contains "alice"
 ```
 
-In this case, if we execute query on behalf of a user that does not
+In this case, if a query is executed on behalf of a user that does not
 have an exception (e.g., `"eve"`), the OPA response will not contain a
 `queries` field at all. This indicates there are NO conditions that
 could make the query true.
@@ -1729,7 +1729,7 @@ OPA uses the `Accept` header to denote the target response format.
 
 #### Example Request
 
-With OPA running with this policy, we'll compile the query `data.filters.include` into SQL filters:
+With OPA running with this policy, the following request compiles the query `data.filters.include` into SQL filters:
 
 ```rego
 package filters
@@ -1797,7 +1797,7 @@ An empty string `query` indicates **unconditional include**:
 
 #### Example: Mapping Table and Column Names
 
-For this example, let's assume OPA is running with this policy:
+For this example, assume OPA is running with this policy:
 
 ```rego
 package filters
@@ -1812,7 +1812,7 @@ include if input.price == "free"
 ```
 
 If there is no one-to-one correspondence between unknowns and table/column names, the target mapping comes into play.
-With this mapping, we would translate the policy into `WHERE fruit.display_name = E'pineapple' AND fruit.price_tag = E'free'`:
+With this mapping, the policy translates into `WHERE fruit.display_name = E'pineapple' AND fruit.price_tag = E'free'`:
 
 ```http
 POST /v1/compile/filters/include
@@ -2398,7 +2398,7 @@ faster to evaluate since OPA will not have to re-parse or compile it. Hence, whe
 OPA also supports query instrumentation. To enable query instrumentation,
 specify the `instrument=true` query parameter when executing the API call.
 Query instrumentation can help diagnose performance problems, however, it can
-add significant overhead to query evaluation. We recommend leaving query
+add significant overhead to query evaluation. It is recommended to leave query
 instrumentation off unless you are debugging a performance problem.
 
 When instrumentation is enabled there are several additional performance metrics

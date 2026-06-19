@@ -20,9 +20,9 @@ evaluation, policy coverage, and more.
 | TextMate           | [github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate)                                                                                                                                                                                                   |                                            |
 
 :::info
-**Your editor missing? Built a Rego integration for your editor?** Drop us a
+**Your editor missing? Built a Rego integration for your editor?** Send a
 message on [Slack](https://slack.openpolicyagent.org)
-We also have our [Ecosystem page](/ecosystem/). This is a great place to
+The [Ecosystem page](/ecosystem/) is also a great place to
 showcase your project. See
 [these instructions](./contrib-docs#opa-ecosystem-additions)
 to get it listed.

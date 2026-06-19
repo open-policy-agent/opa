@@ -10,10 +10,10 @@ The purpose of this style guide is to provide a collection of recommendations an
 [Rego](https://www.openpolicyagent.org/docs/policy-language).
 From the maintainers of [Open Policy Agent](https://www.openpolicyagent.org) (OPA),
 and some of the most experienced members of the community,
-we hope to share lessons learnt from authoring and reviewing hundreds of thousands of lines of Rego over the years.
+this guide shares lessons learnt from authoring and reviewing hundreds of thousands of lines of Rego over the years.
 
-With new features, language constructs, and other improvements continuously finding their way into OPA, we aim to keep
-this style guide a reflection of what we consider current best practices. Make sure to check back every once in a while,
+With new features, language constructs, and other improvements continuously finding their way into OPA, the goal is to keep
+this style guide a reflection of current best practices. Make sure to check back every once in a while,
 and see the changelog for updates since your last visit.
 
 ## Regal
@@ -186,7 +186,7 @@ Regal rule. Get started with [Regal, the Rego linter](/projects/regal).
 
 ### Optionally, use leading underscore for rules intended for internal use
 
-While OPA doesn't have "private" rules or functions, a pretty common convention that we've seen in the community is to
+While OPA doesn't have "private" rules or functions, a pretty common convention in the community is to
 use a leading underscore for rules and functions that are intended to be internal to the package that they are in:
 
 ```rego
@@ -304,14 +304,14 @@ deny contains "User is anonymous" if input.user_id == "anonymous"
 At first glance, it might seem obvious that evaluating the rule should add a violation to the set of messages if the
 `user_id` provided in `input` is equal to "anonymous". But what happens if there is no `user_id` provided _at all_?
 Evaluation will stop when encountering undefined, and the comparison will never be invoked, leading to **nothing**
-being added to the `deny` set — the rule allows someone without a `user_id`. We could of course add another
+being added to the `deny` set — the rule allows someone without a `user_id`. One option is to add another
 rule, checking only for its presence:
 
 ```rego
 deny contains "User ID missing from input" if not input.user_id
 ```
 
-This is nice in that we'll get an even more granular message returned to the caller, but quickly becomes tedious when
+This provides an even more granular message returned to the caller, but quickly becomes tedious when
 working with a large set of input data. To deal with this, a helper rule using _negation_ may be used.
 
 **Prefer**
@@ -323,9 +323,9 @@ deny contains "User is anonymous" if not authenticated_user
 authenticated_user if input.user_id != "anonymous"
 ```
 
-In the above case, the `authenticated_user` rule will fail **both** in the the undefined case, and if defined
-but equal to "anonymous". Since we negate the result of the helper rule in the `deny` rule, we'll have both
-cases covered.
+In the above case, the `authenticated_user` rule will fail **both** in the undefined case, and if defined
+but equal to "anonymous". Since the result of the helper rule is negated in the `deny` rule, both
+cases are covered.
 
 #### Related Resources
 
@@ -502,8 +502,7 @@ my_rule if {
 }
 ```
 
-While this could be alleviated by declaring `some user` before the iteration, we can't take that consideration for
-granted when reading code from someone else.
+While this could be alleviated by declaring `some user` before the iteration, that assumption cannot be taken for granted when reading code from someone else.
 
 **Avoid**
 ```rego
@@ -796,7 +795,7 @@ allow if {
 
 #### Related Resources
 
-- [Five things you didn't know about OPA](https://www.styra.com/blog/five-things-you-didnt-know-about-opa/).
+- [Five things you didn't know about OPA](https://web.archive.org/web/https://www.styra.com/blog/five-things-you-didnt-know-about-opa/).
 
 ## Functions
 
@@ -1031,11 +1030,11 @@ of completeness, and to provide context for older policies.
 
 ### Use explicit imports for future keywords
 
-**With the introduction of the `import rego.v1` construct in OPA v0.59.0, this is no longer needed**
+**With the introduction of the `import rego.v1` construct in OPA v0.59.0, this is no longer needed for `in`, `every`, `contains`, and `if`.**
 
 In order to evolve the Rego language without breaking existing policies, many new features require importing
 ["future" keywords](https://www.openpolicyagent.org/docs/policy-language#future-keywords), like `contains`,
-`every`, `if` and `in`. While it might seem convenient to use the "catch-all" form of `import future.keywords` to
+`every`, `if`, `in` and `not`. While it might seem convenient to use the "catch-all" form of `import future.keywords` to
 import all of the future keywords, this construct risks breaking your policies when new keywords are introduced, and
 their names happen to collide with names you've used for variables or rules.
 
@@ -1074,7 +1073,7 @@ Regal rule. Get started with [Regal, the Rego linter](/projects/regal).
 ## Contributing
 
 This document is meant to reflect the style preferences and best practices as compiled by the OPA community. As such,
-we welcome contributions from any of its members. Since most of the topics in a guide like this are likely subject to
+contributions from community members are welcome. Since most of the topics in a guide like this are likely subject to
 discussion, please open an issue, and allow some time for people to comment, before opening a PR.
 
 If you'd like to add or remove items for your own company, team or project, forking this repo is highly encouraged!

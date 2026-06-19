@@ -48,3 +48,9 @@
 .link:hover {
     text-decoration: underline;
 }
+
+.dateAdded {
+    margin-top: 0.75rem;
+    color: var(--ifm-color-emphasis-600);
+    font-size: 0.8rem;
+}

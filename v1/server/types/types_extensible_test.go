@@ -120,6 +120,60 @@ func TestDataResponseV1_ExtraFields(t *testing.T) {
 	}
 }
 
+func TestDataRequestV1_MarshalRoundTrip(t *testing.T) {
+	src := `{"input":{"user":"alice"},"trace_id":"abc","tenant":{"id":"t-1"}}`
+
+	var req DataRequestV1
+	if err := json.Unmarshal([]byte(src), &req); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	out, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	input, ok := got["input"].(map[string]any)
+	if !ok || input["user"] != "alice" {
+		t.Errorf("input not preserved: %v", got["input"])
+	}
+	if got["trace_id"] != "abc" {
+		t.Errorf("extra trace_id not preserved: %v", got["trace_id"])
+	}
+	tenant, ok := got["tenant"].(map[string]any)
+	if !ok || tenant["id"] != "t-1" {
+		t.Errorf("extra tenant not preserved: %v", got["tenant"])
+	}
+}
+
+func TestDataRequestV1_MarshalDoesNotOverrideInput(t *testing.T) {
+	inp := any(map[string]any{"user": "alice"})
+	req := DataRequestV1{
+		Input:    &inp,
+		Metadata: map[string]any{"input": "should_be_ignored"},
+	}
+
+	out, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	input, ok := got["input"].(map[string]any)
+	if !ok || input["user"] != "alice" {
+		t.Errorf("input overridden by metadata: %v", got["input"])
+	}
+}
+
 func TestDataResponseV1_RoundTrip(t *testing.T) {
 	input := `{"result": {"allowed": true}, "decision_id": "xyz", "custom": "data", "metrics": {"timer_rego_query_eval_ns": 1000}}`
 

@@ -6,26 +6,23 @@
 package cover
 
 import (
-	"fmt"
 	"slices"
-	"strings"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown"
-	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Cover computes and reports on coverage.
 type Cover struct {
 	mu   sync.Mutex
-	hits map[string]map[Position]struct{}
+	hits map[string]map[Range]struct{}
 }
 
 // New returns a new Cover object.
 func New() *Cover {
 	return &Cover{
-		hits: map[string]map[Position]struct{}{},
+		hits: map[string]map[Range]struct{}{},
 	}
 }
 
@@ -45,24 +42,25 @@ func (*Cover) Config() topdown.TraceConfig {
 func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 	report.Files = map[string]*FileReport{}
 	for file, hits := range c.hits {
-		covered := make(PositionSlice, 0, len(hits))
-		for pos := range hits {
-			covered = append(covered, pos)
+		covered := make([]Range, 0, len(hits))
+		for r := range hits {
+			covered = append(covered, r)
 		}
-		covered.Sort()
+		slices.SortFunc(covered, Range.Compare)
 		fr, ok := report.Files[file]
 		if !ok {
 			fr = &FileReport{}
 			report.Files[file] = fr
 		}
-		fr.Covered = sortedPositionSliceToRangeSlice(covered)
+		fr.Covered = covered
 	}
 	for file, module := range modules {
-		notCovered := PositionSlice{}
+		notCovered := map[Range]struct{}{}
 		ast.WalkRules(module, func(x *ast.Rule) bool {
-			if hasFileLocation(x.Head.Location) {
-				if !report.IsCovered(x.Location.File, x.Location.Row) {
-					notCovered = append(notCovered, Position{x.Head.Location.Row})
+			if x.Head.Location.HasFile() {
+				headRange := rangeOf(x.Head.Location)
+				if !report.Files[x.Head.Location.File].isRangeCovered(headRange) {
+					notCovered[headRange] = struct{}{}
 				}
 			}
 			return false
@@ -70,18 +68,22 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 		ast.WalkExprs(module, func(x *ast.Expr) bool {
 			if includeExprInCoverage(x) {
 				if !report.IsCovered(x.Location.File, x.Location.Row) {
-					notCovered = append(notCovered, Position{x.Location.Row})
+					notCovered[rangeOf(x.Location)] = struct{}{}
 				}
 			}
 			return false
 		})
-		notCovered.Sort()
+		ranges := make([]Range, 0, len(notCovered))
+		for r := range notCovered {
+			ranges = append(ranges, r)
+		}
+		slices.SortFunc(ranges, Range.Compare)
 		fr, ok := report.Files[file]
 		if !ok {
 			fr = &FileReport{}
 			report.Files[file] = fr
 		}
-		fr.NotCovered = sortedPositionSliceToRangeSlice(notCovered)
+		fr.NotCovered = ranges
 	}
 
 	var coveredLoc, notCoveredLoc int
@@ -128,108 +130,16 @@ func (c *Cover) TraceEvent(event topdown.Event) {
 }
 
 func (c *Cover) setHit(loc *ast.Location) {
-	if hasFileLocation(loc) {
+	if loc.HasFile() {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		hits, ok := c.hits[loc.File]
 		if !ok {
-			hits = map[Position]struct{}{}
+			hits = map[Range]struct{}{}
 			c.hits[loc.File] = hits
 		}
-		hits[Position{loc.Row}] = struct{}{}
+		hits[rangeOf(loc)] = struct{}{}
 	}
-}
-
-// Position represents a file location.
-type Position struct {
-	Row int `json:"row"`
-}
-
-// PositionSlice is a collection of position that can be sorted.
-type PositionSlice []Position
-
-// Sort sorts the slice by line number.
-func (sl PositionSlice) Sort() {
-	slices.SortFunc(sl, func(a, b Position) int {
-		return a.Row - b.Row
-	})
-}
-
-// Range represents a range of positions in a file.
-type Range struct {
-	Start Position `json:"start"`
-	End   Position `json:"end"`
-}
-
-// In returns true if the row is inside the range.
-func (r Range) In(row int) bool {
-	return row >= r.Start.Row && row <= r.End.Row
-}
-
-// FileReport represents a coverage report for a single file.
-type FileReport struct {
-	Covered         []Range `json:"covered,omitempty"`
-	NotCovered      []Range `json:"not_covered,omitempty"`
-	CoveredLines    int     `json:"covered_lines,omitempty"`
-	NotCoveredLines int     `json:"not_covered_lines,omitempty"`
-	Coverage        float64 `json:"coverage,omitempty"`
-}
-
-// IsCovered returns true if the row is marked as covered in the report.
-func (fr *FileReport) IsCovered(row int) bool {
-	if fr == nil {
-		return false
-	}
-	for _, r := range fr.Covered {
-		if r.In(row) {
-			return true
-		}
-	}
-	return false
-}
-
-// IsNotCovered returns true if the row is marked as NOT covered in the report.
-// This is not the same as simply not being reported. For example, certain
-// statements like imports are not included in the report.
-func (fr *FileReport) IsNotCovered(row int) bool {
-	if fr == nil {
-		return false
-	}
-	for _, r := range fr.NotCovered {
-		if r.In(row) {
-			return true
-		}
-	}
-	return false
-}
-
-// locCovered returns the number of lines of code covered by tests
-func (fr *FileReport) locCovered() (loc int) {
-	for _, r := range fr.Covered {
-		loc += r.End.Row - r.Start.Row + 1
-	}
-	return
-}
-
-// locNotCovered returns the number of lines of code not covered by tests
-func (fr *FileReport) locNotCovered() (loc int) {
-	for _, r := range fr.NotCovered {
-		loc += r.End.Row - r.Start.Row + 1
-	}
-	return
-}
-
-// computeCoveragePercentage returns the code coverage percentage of the file
-func (fr *FileReport) computeCoveragePercentage() float64 {
-	coveredLoc := fr.locCovered()
-	notCoveredLoc := fr.locNotCovered()
-	totalLoc := coveredLoc + notCoveredLoc
-
-	if totalLoc == 0 {
-		return 0.0
-	}
-
-	return 100.0 * float64(coveredLoc) / float64(totalLoc)
 }
 
 // Report represents a coverage report for a set of files.
@@ -245,67 +155,9 @@ func (r Report) IsCovered(file string, row int) bool {
 	return r.Files[file].IsCovered(row)
 }
 
-// CoverageThresholdError represents an error raised when the global
-// code coverage percentage is lower than the specified threshold.
-type CoverageThresholdError struct {
-	Coverage  float64
-	Threshold float64
-	Report    *Report
-}
-
-func (e *CoverageThresholdError) Error() string {
-	sb := &strings.Builder{}
-	fmt.Fprintf(sb,
-		"Code coverage threshold not met: got %.2f instead of %.2f",
-		e.Coverage,
-		e.Threshold,
-	)
-
-	if e.Report != nil && len(e.Report.Files) > 0 {
-		sb.WriteString("\nLines not covered:")
-
-		for _, file := range util.KeysSorted(e.Report.Files) {
-			report := e.Report.Files[file]
-			for _, r := range report.NotCovered {
-				if r.Start.Row == r.End.Row {
-					fmt.Fprintf(sb, "\n\t%s:%d", file, r.Start.Row)
-				} else {
-					fmt.Fprintf(sb, "\n\t%s:%d-%d", file, r.Start.Row, r.End.Row)
-				}
-			}
-		}
-	}
-
-	return sb.String()
-}
-
-func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {
-	if len(sorted) == 0 {
-		return
-	}
-	start, end := sorted[0], sorted[0]
-	for i := 1; i < len(sorted); i++ {
-		curr := sorted[i]
-		switch {
-		case curr.Row == end.Row: // skip
-		case curr.Row == end.Row+1:
-			end = curr
-		default:
-			result = append(result, Range{start, end})
-			start, end = curr, curr
-		}
-	}
-	result = append(result, Range{start, end})
-	return
-}
-
-func hasFileLocation(loc *ast.Location) bool {
-	return loc != nil && loc.File != ""
-}
-
 // Check the expression and return true if it should be included in the coverage report
 func includeExprInCoverage(x *ast.Expr) bool {
 	_, excludeExprType := x.Terms.(*ast.SomeDecl)
 
-	return !excludeExprType && hasFileLocation(x.Location)
+	return !excludeExprType && x.Location.HasFile()
 }

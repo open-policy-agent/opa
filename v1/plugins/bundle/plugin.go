@@ -880,6 +880,7 @@ func (fl *fileLoader) oneShot(ctx context.Context) (err error) {
 		WithLazyLoadingMode(bundle.HasExtension()).
 		WithSizeLimitBytes(fl.sizeLimitBytes).
 		WithRegoVersion(fl.bundleParserOpts.RegoVersion).
+		WithProcessAnnotations(fl.bundleParserOpts.ProcessAnnotation).
 		Read()
 	u.Error = err
 	if err == nil {

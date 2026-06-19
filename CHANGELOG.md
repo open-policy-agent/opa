@@ -5,23 +5,155 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Evaluated Rules in Decision Logs and API Responses
+## 1.17.1
 
-Rules can now be annotated with a metadata `id` field. When any loaded policy contains
-rules with `id` annotations, the IDs of successfully evaluated rules are automatically
-included in decision log events (as `ids`). Additionally, the Data API supports a `?ids`
-query parameter to include the same information directly in the response payload.
-Duplicate IDs from functions called multiple times are suppressed.
+This release uses the latest version of Go (1.26.4) to build OPA, fixing stdlib vulnerabilities in
+code that OPA's HTTP handler and crypto builtins use:
+
+- https://pkg.go.dev/vuln/GO-2026-5039
+- https://pkg.go.dev/vuln/GO-2026-5037
+
+It is otherwise the same code as v1.17.0.
+
+Note that users building their own OPA binaries and images already control the Golang
+version, so this is not relevant for them.
+
+### Miscellaneous
+
+- build: bump go 1.26.3 -> 1.26.4 (authored by @srenatus)
+
+## 1.17.0
+
+This release contains a mix of new features, performance improvements, and bugfixes.  Notably:
+
+- A new `future.keywords.not` import that adds improved semantics to the `not` keyword.
+- Rule Labels in Decision Logs
+- Published json schema for IR and bundle manifest
+- Dropped automaxprocs and x/net dependencies
+
+### Improved Negation Semantics ([#8387](https://github.com/open-policy-agent/opa/issues/8387))
+
+This OPA release introduces a new [`future.keywords.not` import](https://www.openpolicyagent.org/docs/policy-reference/keywords/not#improved-negation-semantics)
+that fixes a long-standing semantic issue with negation in Rego.
+
+Without the import, the compiler expands a negated composite expression like
+`not f(g(input.x))` into a series of sub-expressions evaluated *before* the
+`not`:
+
+```
+__local0__ = input.x
+g(__local0__, __local1__)
+not f(__local1__)
+```
+
+If any sub-expression fails — for example, `input.x` is undefined or `g`
+produces an undefined result — the entire rule fails rather than the `not` succeeding.
+This is unintuitive: the user's intent is "the condition does not hold," but
+an undefined intermediate value causes a silent failure instead of the expected
+`not` result.
+
+With `import future.keywords.not`, composite-expression negation wraps the full compiler
+expansion in an implicit body:
+
+```
+not { __local0__ = input.x; g(__local0__, __local1__); f(__local1__) }
+```
+
+Now, if *any* sub-expression is undefined or fails, the body is unsatisfiable
+and the `not` expression succeeds; matching the intuition that "the condition does not hold."
+
+> **_NOTE:_**
+>
+> Users are recommended to import `future.keywords.not` whenever the `not` keyword is used in a policy.
+ 
+Authored by @johanfylling
+
+### Rule Labels in Decision Logs ([#2089](https://github.com/open-policy-agent/opa/issues/2089))
+
+Rule annotations now support a `labels` field. Labels from all successfully evaluated
+rules are collected and included in each decision log entry as a top-level `rule_labels`
+array. Each element is the merged label map for one successfully evaluated rule, with
+inner-scope-wins precedence across the rule's annotation chain
+(`subpackages` < `package` < `document` < `rule`). Merged maps are deduplicated
+across rules so that identical label sets collapse to a single entry.
 
 ```rego
 # METADATA
-# id: allow-admin
+# scope: package
+# labels:
+#   service: authz
+#   severity: info
+package myapp
+
+# METADATA
+# labels:
+#   severity: low
+#   team: platform
 allow if input.role == "admin"
 ```
 
-Modules containing `id` annotations will have metadata parsing enabled automatically.
-When external rule sources are registered, rule tracking is always enabled so that
-externally-provided rules with `id` annotations are recorded.
+The resulting decision log entry will contain:
+
+```json
+{"rule_labels": [{"service": "authz", "severity": "low", "team": "platform"}]}
+```
+
+Note how `severity: info` from the package scope is overridden by `severity: low` from
+the rule scope. Queries against `rule_labels` can now rely on each entry carrying the
+full label context for a single rule, rather than one entry per contributing scope.
+
+Both the runtime and the Go SDK now process metadata annotations by default.
+
+Authored by @srenatus, reported by @tsandall
+
+### Runtime, SDK, Tooling
+
+- ast: Allow `$ref` in `allOf` in JSON schemas ([#6523](https://github.com/open-policy-agent/opa/issues/6523)) authored by @deeglaze reported by @mosiac1
+- bundle: Update bundle roots conflict detection algorithm. ([#8664](https://github.com/open-policy-agent/opa/pull/8664)) authored by @philipaconrad
+- download: Use oras, not containerd ([#8639](https://github.com/open-policy-agent/opa/pull/8639)) authored by @srenatus
+- server: Remove dead code (s.partials) ([#8708](https://github.com/open-policy-agent/opa/pull/8708)) authored by @srenatus
+- server: Wire in response/request metadata for compile handler ([#8650](https://github.com/open-policy-agent/opa/pull/8650)) authored by @srenatus
+- server/types: generalize request/response metadata ([#8650](https://github.com/open-policy-agent/opa/pull/8650)) authored by @srenatus
+
+### Compiler, Topdown and Rego
+
+- builtins: Enable pattern validation in `json.verify_schema` and `json.match_schema` built-in functions ([#6089](https://github.com/open-policy-agent/opa/issues/6089)) authored by @sspaink reported by @ewout8
+- ir: Don't capitalize `index` field in `MakeNumberRefStmt` IR statement ([#6266](https://github.com/open-policy-agent/opa/issues/6266)) authored by @sspaink reported by @johanfylling
+- perf: Avoid allocating in binary and/or operators when possible ([#8689](https://github.com/open-policy-agent/opa/pull/8689)) authored by @anderseknert
+- rego: Allow per-eval `GenerateJSON` function ([#8690](https://github.com/open-policy-agent/opa/pull/8690)) authored by @anderseknert
+
+### Docs, Website, Ecosystem
+
+- ecosystem: add OPA MCP ([#8618](https://github.com/open-policy-agent/opa/pull/8618)) authored by @OrygnsCode
+- docs: Add explicit address binding to examples ([#8688](https://github.com/open-policy-agent/opa/pull/8688)) authored by @charlieegan3
+- docs: Add titles to code blocks in policy-testing ([#8649](https://github.com/open-policy-agent/opa/pull/8649)) authored by @charlieegan3
+- docs: Correct OCP SSH key docs ([#8675](https://github.com/open-policy-agent/opa/pull/8675)) authored by @taurelius
+- docs: Update diagram to match index examples ([#8667](https://github.com/open-policy-agent/opa/pull/8667)) authored by @charlieegan3
+
+### Miscellaneous
+
+- ast,storage/inmem: Add `inmem.NewFromASTObject` and add missing string case to `ast.InternedValue`  ([#8707](https://github.com/open-policy-agent/opa/pull/8707)) authored by @anderseknert
+- build: `go install` -> `go install tool` to control checksums ([#8646](https://github.com/open-policy-agent/opa/pull/8646)) authored by @srenatus
+- build: Push edge binaries to bucket ([#8668](https://github.com/open-policy-agent/opa/pull/8668)) authored by @charlieegan3
+- workflows: Fix benchmarks workflow (replace action, avoid stackoverflow) ([#8655](https://github.com/open-policy-agent/opa/pull/8655)) authored by @srenatus
+- workflows: Note improvements in benchmark comments ([#8673](https://github.com/open-policy-agent/opa/pull/8673)) authored by @srenatus
+- Generate a JSON Schema for the IR plan ([#8662](https://github.com/open-policy-agent/opa/issues/8662)) authored by @sspaink reported by @kroekle
+- Generate a JSON Schema for the bundle manifest ([#8661](https://github.com/open-policy-agent/opa/issues/8661)) authored by @sspaink reported by @kroekle
+- Dependency updates; notably:
+  - build(deps): Remove automaxprocs dependency ([#8696](https://github.com/open-policy-agent/opa/pull/8696)) authored by @anderseknert
+  - build(deps): Remove direct x/net dependency ([#8697](https://github.com/open-policy-agent/opa/pull/8697)) authored by @anderseknert
+  - build(deps): Bump github.com/bytecodealliance/wasmtime-go from 43.0.2 to 44.0.0 ([8652](https://github.com/open-policy-agent/opa/pull/8652)) authored by @srenatus
+  - build(deps): Bump github.com/fsnotify/fsnotify from 1.9.0 to 1.10.1
+  - build(deps): Bump github.com/huandu/go-sqlbuilder from 1.40.2 to 1.41.0
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.1.0 to 3.1.1
+  - build(deps): Bump github.com/vektah/gqlparser/v2 from 2.5.32 to 2.5.33
+  - build(deps): Bump google.golang.org/grpc from 1.80.0 to 1.81.0
+  - build(deps): Bump gopkg.in/ini.v1 from 1.67.1 to 1.67.2
+
+## 1.16.2
+
+This release updates the version of Go used to build the OPA binaries and images to 1.26.3;
+addressing [a number of vulnerabilities](https://groups.google.com/g/golang-announce/c/qcCIEXso47M).
 
 ## 1.16.1
 

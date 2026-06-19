@@ -286,12 +286,16 @@ func applyPatches(source *ast.Term, operations *ast.Array) (*ast.Term, error) {
 				return nil, err
 			}
 		case "remove":
-			if _, err = et.DeleteAtPath(path); err != nil {
+			if deleted, err := et.DeleteAtPath(path); err != nil {
 				return nil, err
+			} else if deleted != et {
+				edittree.Dispose(deleted) // Reclaim only on success path.
 			}
 		case "replace":
-			if _, err = et.DeleteAtPath(path); err != nil {
+			if deleted, err := et.DeleteAtPath(path); err != nil {
 				return nil, err
+			} else if deleted != et {
+				edittree.Dispose(deleted) // Reclaim only on success path.
 			}
 			value := object.Get(ast.InternedTerm("value"))
 			if value == nil {
@@ -314,8 +318,10 @@ func applyPatches(source *ast.Term, operations *ast.Array) (*ast.Term, error) {
 			if err != nil {
 				return nil, err
 			}
-			if _, err = et.DeleteAtPath(from); err != nil {
+			if deleted, err := et.DeleteAtPath(from); err != nil {
 				return nil, err
+			} else if deleted != et {
+				edittree.Dispose(deleted) // Reclaim dead original structure.
 			}
 			if _, err = et.InsertAtPath(path, chunk); err != nil {
 				return nil, err

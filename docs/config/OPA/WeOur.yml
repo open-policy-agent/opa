@@ -1,0 +1,10 @@
+extends: existence
+message: "Avoid first-person plural '%s'. Use direct address, active before passive."
+level: error
+ignorecase: false
+# Prefix excludes hyphen-prefixed matches (e.g. en-us in frontmatter URLs).
+nonword: true
+tokens:
+  - '(?:^|[^-\w])[Ww]e\b'
+  - '(?:^|[^-\w])[Oo]ur\b'
+  - '(?:^|[^-\w])[Uu]s\b'

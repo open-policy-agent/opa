@@ -245,7 +245,7 @@ http/example/authz/authz.rego
 In this example, the bundle contains one policy file (`authz.rego`) and two
 data files (`roles/bindings/data.json` and `roles/permissions/data.json`).
 A data file in the root of the bundle will be loaded into the `data` Document at
-the root. For example, here we can see that the `foo` key is inserted at the
+the root. For example, the `foo` key is inserted at the
 root of the `data` document:
 
 ```sh
@@ -363,6 +363,34 @@ expect for policy files `/policy1.rego` and those under the folder `foo`.
 }
 ```
 
+### Manifest JSON Schema
+
+A machine-readable JSON Schema (Draft 2020-12) describing the manifest format
+is published at
+[`https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json`](https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json).
+The schema is generated from the Go type definitions in
+[`v1/bundle/bundle.go`](https://github.com/open-policy-agent/opa/blob/main/v1/bundle/bundle.go)
+and stays in sync with them via a CI drift test, so it always reflects what the
+current `opa build` actually emits. Backward-incompatible changes will be
+published under a new path (e.g., `/v2/`).
+
+Use it to validate manifests, generate typed bindings in non-Go languages, or
+feed it into JSON Schema-aware tooling. Example with [`ajv`](https://ajv.js.org/):
+
+```bash
+opa build -b bundle/
+tar -xzf bundle.tar.gz .manifest
+ajv validate \
+  -s https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json \
+  -d .manifest
+```
+
+The top-level `Manifest` object does not set `additionalProperties: false`:
+the bundle loader has always ignored unknown top-level keys, and embedders
+that wrap OPA sometimes attach their own configuration alongside the
+documented fields. Sub-records like `WasmResolver` remain closed, since
+their shape is fully specified.
+
 Some important details for bundle files:
 
 - OPA will only load data files named `data.json` or `data.yaml` (which contain
@@ -389,8 +417,8 @@ to generate bundles that are scoped to a subset of OPA's policy and
 data cache.
 
 :::danger
-We recommend that whenever possible, you implement policy and data
-aggregation centrally, however, in some cases that's not possible
+Whenever possible, implement policy and data
+aggregation centrally. In some cases that's not possible
 (e.g., due to latency requirements.).
 When using multiple sources there are **no** ordering guarantees for which bundle loads first and
 takes over some root. If multiple bundles conflict, but are loaded at different
@@ -450,7 +478,7 @@ digitally signed so that industry-standard cryptographic primitives can verify t
 
 OPA supports digital signatures for policy bundles. Specifically, a signed bundle is a normal OPA bundle that includes
 a file named `.signatures.json` that dictates which files should be included in the bundle, what their SHA hashes are,
-and of course is cryptographically secure.
+and is cryptographically secure.
 
 When OPA receives a new bundle, it checks that it has been properly signed using a (public) key that OPA has been
 configured with out-of-band. Only if that verification succeeds does OPA activate the new bundle; otherwise, OPA
@@ -475,8 +503,8 @@ roles/bindings/data.json
 ```
 
 The signatures file is a JSON file with an array of JSON Web Tokens (JWTs) that encapsulate the signatures for the bundle.
-Currently, you will be limited to one signature, as shown below. In the future, we may add support to include multiple
-signatures to sign different files within the bundle.
+Currently, you will be limited to one signature, as shown below. In the future, support for multiple signatures may be added
+to sign different files within the bundle.
 
 ```json
 {
@@ -604,8 +632,8 @@ bundle.RegisterVerifier("custom", &CustomVerifier{})
 ## Delta Bundles
 
 A regular _snapshot_ bundle represents the entirety of OPA’s policy and data cache. When a new _snapshot_ bundle is
-downloaded, OPA will erase and overwrite all the policy and data in its cache before activating the new bundle. We can
-optionally scope the bundle to a subset of OPA’s policy and data cache by defining the `roots` in the bundle's `.manifest` file.
+downloaded, OPA will erase and overwrite all the policy and data in its cache before activating the new bundle. The bundle can
+optionally be scoped to a subset of OPA’s policy and data cache by defining the `roots` in the bundle’s `.manifest` file.
 
 Although OPA [caches](#caching) snapshot bundles to avoid unnecessary retransmission,
 servers must still retransmit the entire snapshot when any change occurs. If you need
@@ -1035,7 +1063,7 @@ If your instance of OPA runs inside GCP, you'll be able to authenticate using GC
 
 ##### JWT Bearer Grant Type
 
-Use this for [authenticating](https://docs.cloud.google.com/storage/docs/authentication) _external_ clients, i.e. OPAs running outside the GCP environment.
+Use this for [authenticating](https://docs.cloud.google.com/storage/docs/authentication) _external_ clients, i.e. OPA instances running outside the GCP environment.
 
 1. Search for "credentials" in the top search box and choose "Credentials - APIs and Services".
 2. Click "Create Credentials" followed by "Service Account."
@@ -1047,7 +1075,7 @@ Use this for [authenticating](https://docs.cloud.google.com/storage/docs/authent
 
 ##### Testing Authentication
 
-The easiest way of testing GCP metadata token or JWT bearer grant type authentication is simply to set up OPA with config for these and run the server.
+To test GCP metadata token or JWT bearer grant type authentication, set up OPA with the relevant config and run the server.
 
 #### Upload Bundle
 
@@ -1259,14 +1287,14 @@ Also note in particular how the `thumbprint` property is required for Azure. The
 
 ### Nginx
 
-Nginx offers a simple but competent bundle server for those who prefer to host their own. A great choice for local testing.
+Nginx offers a simple but competent bundle server for those who prefer to host their own and is also suitable for local testing.
 
 | Feature                | Supported                                                                                                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Caching headers        | Yes                                                                                                                                                                                                                                                                            |
 | Authentication methods | [Bearer Token](https://www.openpolicyagent.org/docs/latest/configuration/#bearer-token) <sup>1</sup><br/> [OAuth2 Client Credentials JWT authentication](https://www.openpolicyagent.org/docs/latest/configuration/#oauth2-client-credentials-jwt-authentication) <sup>2</sup> |
 
-<sup>1</sup>Nginx does not support bearer token authentication, but it does support [basic auth](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/). This can be achieved by setting `services[_].credentials.bearer.scheme` to `Basic` in the OPA configuration, and simply provide the base64 encoded credentials as the token.<br/>
+<sup>1</sup>Nginx does not support bearer token authentication, but it does support [basic auth](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/). This can be achieved by setting `services[_].credentials.bearer.scheme` to `Basic` in the OPA configuration, and providing the base64 encoded credentials as the token.<br/>
 <sup>2</sup>Only available with Nginx Plus.
 
 #### Upload Bundle
@@ -1302,7 +1330,7 @@ The bundle container is composed of 3 layers:
 - the bundle tarball layer - the actual bundle tarball
 - the configuration layer - currently empty
 
-For OCI compatible registries an _**oci**_ folder is created in the [persistence directory](./configuration/#miscellaneous). If this value is not set, because the OCI downloader plugin requires a storage path, the system's temporary folder location will be used instead. This folder should be maintained by the user. We recommend backing-up or cleaning up this folder periodically as this acts as a local cache for the OCI downloader.
+For OCI compatible registries an _**oci**_ folder is created in the [persistence directory](./configuration/#miscellaneous). If this value is not set, because the OCI downloader plugin requires a storage path, the system's temporary folder location will be used instead. This folder should be maintained by the user. Back up or clean up this folder periodically as this acts as a local cache for the OCI downloader.
 
 **Current Limitations**
 The OCI Downloader plugin used by OPA has a couple of limitation:
@@ -1326,7 +1354,7 @@ commands:
 
 - `opa build <path_to_src>` will allow you to build a bundle tarball from your OPA policy and data files
 
-Now that we have the tarball we will need to provide a config manifest to the ORAS CLI and the tarball itself:
+Provide a config manifest to the ORAS CLI and the tarball itself:
 
 - `oras push <registry>/<org>/<repo>:<tag> --manifest-config <you_config_json>:application/vnd.oci.image.config.v1+json <the_tarball_obtained_from_opa_build>:application/vnd.oci.image.layer.v1.tar+gzip`
 
@@ -1334,15 +1362,15 @@ Using an empty(`{}`) `manifest-config` json file should be sufficient to be able
 
 #### Maintaining a policy-as-code repository
 
-One of the easiest method of managing your policy bundles is to store your code base in a hosted repository service like Github or Gitlab and set up an automated way to build and publish your code as a container to the desired registry using a CI(ex. Github Action).
+One of the easiest method of managing your policy bundles is to store your code base in a hosted repository service like GitHub or GitLab and set up an automated way to build and publish your code as a container to the desired registry using a CI(ex. GitHub Action).
 
 #### Example
 
-In this example we are using the [ghcr.io](https://ghcr.io) OCI registry as the upstream repository and the OPA and ORAS CLI as our build and publishing tool.
+In this example, the [ghcr.io](https://ghcr.io) OCI registry is used as the upstream repository and the OPA and ORAS CLI as the build and publishing tool.
 
 ##### Starting from scratch
 
-Let's set up a basic policy example structured as:
+Set up a basic policy example structured as:
 
 ```
 └── src
@@ -1352,7 +1380,7 @@ Let's set up a basic policy example structured as:
         └── hello.rego
 ```
 
-Here our _hello.rego_ file contains a very simple example:
+The _hello.rego_ file contains a very simple example:
 
 ```rego
 package policies.play
@@ -1386,7 +1414,7 @@ And the _data.json_ file is empty json:
 
 ###### Building your policy
 
-To build my bundle tarball I'm going to use the OPA CLI and run the following command:
+To build the bundle tarball, use the OPA CLI and run the following command:
 
 ```bash
 opa build .src/
@@ -1394,19 +1422,19 @@ opa build .src/
 
 ###### Pushing the container to a remote registry
 
-I'll prepare an empty config.json file that contains:
+Prepare an empty config.json file that contains:
 
 ```
 {}
 ```
 
-To push the build image to an upstream registry we first need to login using:
+To push the build image to an upstream registry, first log in using:
 
 ```bash
 oras login ghcr.io
 ```
 
-And now we can push our policy using:
+Push the policy using:
 
 ```bash
 oras push ghcr.io/someorg/policy-hello:1.0.0 --config config.json:application/vnd.oci.image.config.v1+json bundle.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
@@ -1414,9 +1442,9 @@ oras push ghcr.io/someorg/policy-hello:1.0.0 --config config.json:application/vn
 
 ###### Spin up the policy with OPA CLI
 
-Now that our image is pushed we prepare the OPA configuration.
+With the image pushed, prepare the OPA configuration.
 
-In this example the configuration.yaml looks like this as the pushed image is private we need credentials for OPA to download it:
+In this example the configuration.yaml looks like this. The pushed image is private, so credentials are needed for OPA to download it:
 
 ```yaml
 services:
@@ -1438,9 +1466,9 @@ bundles:
       max_delay_seconds: 120
 ```
 
-In the above configuration we pinned the configuration to use the 1.0.0 tag of the image. OPA will identify this image by the tag and the descriptor SHA. If the SHA of the image is changed upstream, OPA will redownload and activate the changes.
+In the above configuration, the 1.0.0 tag of the image is pinned. OPA will identify this image by the tag and the descriptor SHA. If the SHA of the image is changed upstream, OPA will redownload and activate the changes.
 
-If we run the _opa CLI_ with this configuration using the command it will open an interactive terminal (REPL) where we can see the loaded bundle:
+Running the _opa CLI_ with this configuration opens an interactive terminal (REPL) showing the loaded bundle:
 
 ```bash
 opa run -c configuration.yaml
@@ -1461,7 +1489,7 @@ The terminal should show that the bundle has been loaded and activated:
 > exit
 ```
 
-We can now start OPA as a server using:
+Start OPA as a server using:
 
 ```bash
 opa run --server --set default_decision=policies -c configuration.yaml
@@ -1493,7 +1521,7 @@ Content-Length: 24
 ## Ecosystem Projects
 
 <EcosystemEmbed feature="opa-bundles">
-The Bundle API is great way to manage your policies and data. The following
+The Bundle API supports managing policies and data. The following
 projects all make use of this API if you're looking for inspiration or examples
 of how to use it.
 </EcosystemEmbed>

@@ -21,7 +21,7 @@ code:
 - https://github.com/tenable/terrascan/tree/master/pkg/policies/opa/rego
 - https://github.com/Checkmarx/kics/tree/master/assets/queries/terraform
 blogs:
-- https://www.styra.com/blog/policy-based-infrastructure-guardrails-with-terraform-and-opa/
+- https://web.archive.org/web/https://www.styra.com/blog/policy-based-infrastructure-guardrails-with-terraform-and-opa/
 inventors:
 - fugue
 - accurics

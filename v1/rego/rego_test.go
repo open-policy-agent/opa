@@ -3173,6 +3173,35 @@ func TestGenerateJSON(t *testing.T) {
 	assertEval(t, r, `[["converted-input"]]`)
 }
 
+func TestEvalGenerateJSON(t *testing.T) {
+	// Given a prepared query with a GenerateJSON function provided
+	r := New(Query("input"), Input("original-input"), GenerateJSON(generateJSONResult("prepare-generate")))
+	pq, err := r.PrepareForEval(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// EvalGenerateJSON takes precedence over the GenerateJSON set on the prepared query
+	rs, err := pq.Eval(t.Context(), EvalGenerateJSON(generateJSONResult("eval-generate")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertResultSet(t, rs, `[["eval-generate"]]`)
+
+	// When EvalGenerateJSON is not provided, the GenerateJSON from the prepared query is used
+	rs, err = pq.Eval(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertResultSet(t, rs, `[["prepare-generate"]]`)
+}
+
+func generateJSONResult(s string) func(*ast.Term, *EvalContext) (any, error) {
+	return func(*ast.Term, *EvalContext) (any, error) {
+		return s, nil
+	}
+}
+
 func TestRegoLazyObjDefault(t *testing.T) {
 	foo := map[string]any{"foo": "bar", "other": 1}
 	store := inmem.NewFromObjectWithOpts(map[string]any{

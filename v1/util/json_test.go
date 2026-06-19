@@ -104,10 +104,10 @@ func TestReference(t *testing.T) {
 		t.Run(fmt.Sprintf("input %v", tc), func(t *testing.T) {
 			ref := util.Reference(tc)
 			rv := reflect.ValueOf(ref)
-			if rv.Kind() != reflect.Ptr {
+			if rv.Kind() != reflect.Pointer {
 				t.Fatalf("expected pointer, got %v", rv.Kind())
 			}
-			if rv.Elem().Kind() == reflect.Ptr {
+			if rv.Elem().Kind() == reflect.Pointer {
 				t.Error("expected non-pointer element")
 			}
 		})
