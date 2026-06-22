@@ -23,6 +23,7 @@ jobs:
       docs: ${{ steps.changes.outputs.docs }}
       rego: ${{ steps.changes.outputs.rego }}
       yaml: ${{ steps.changes.outputs.yaml }}
+      proto: ${{ steps.changes.outputs.proto }}
     steps:
     - name: Check out repository code
       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -46,6 +47,7 @@ jobs:
         echo "docs=true" >> $GITHUB_OUTPUT
         echo "rego=true" >> $GITHUB_OUTPUT
         echo "yaml=true" >> $GITHUB_OUTPUT
+        echo "proto=true" >> $GITHUB_OUTPUT
 
         # Get changed files: use git diff for merge_group, PR API for pull_request
         if [ -n "${{ github.event.merge_group.base_sha }}" ]; then
@@ -54,13 +56,13 @@ jobs:
         elif ! curl -s -o changed_files.json -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files"; then
           echo "Error: Failed to fetch changed files from GitHub API"
-          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true, yaml=true)"
+          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true, yaml=true, proto=true)"
           exit 0
         fi
 
         if [ ! -s changed_files.json ]; then
           echo "Warning: No changed files found"
-          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true, yaml=true)"
+          echo "Defaulting to running all checks (go=true, wasm=true, docs=true, rego=true, yaml=true, proto=true)"
           exit 0
         fi
 
@@ -78,12 +80,14 @@ jobs:
         docs_result=$(jq -r '.changes.docs // false' opa_result.json)
         rego_result=$(jq -r '.changes.rego // false' opa_result.json)
         yaml_result=$(jq -r '.changes.yaml // false' opa_result.json)
+        proto_result=$(jq -r '.changes.proto // false' opa_result.json)
 
         echo "go=${go_result}" >> $GITHUB_OUTPUT
         echo "wasm=${wasm_result}" >> $GITHUB_OUTPUT
         echo "docs=${docs_result}" >> $GITHUB_OUTPUT
         echo "rego=${rego_result}" >> $GITHUB_OUTPUT
         echo "yaml=${yaml_result}" >> $GITHUB_OUTPUT
+        echo "proto=${proto_result}" >> $GITHUB_OUTPUT
 
         echo "Final outputs:"
         echo "  go=${go_result}"
@@ -91,6 +95,7 @@ jobs:
         echo "  docs=${docs_result}"
         echo "  rego=${rego_result}"
         echo "  yaml=${yaml_result}"
+        echo "  proto=${proto_result}"
 
   # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
@@ -263,6 +268,44 @@ jobs:
       timeout-minutes: 30
       env:
         YAML_LINT_FORMAT: github
+
+  proto-check:
+    name: Proto Lint and Breaking
+    runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.proto == 'true' }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install buf
+        uses: bufbuild/buf-setup-action@a47c93e0b1648d5651a065437926377d060baa99 # v1.50.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: buf lint
+        run: buf lint
+
+      - name: buf breaking against base
+        # Bootstrap PR has no buf.yaml on the comparison ref — skip then.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BASE_SHA:-}" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+            ref="$BASE_SHA"
+          else
+            git fetch --no-tags --depth=1 origin main
+            ref="$(git rev-parse FETCH_HEAD)"
+          fi
+          if git show "${ref}:buf.yaml" >/dev/null 2>&1; then
+            buf breaking --against ".git#ref=${ref}"
+          else
+            echo "Comparison ref ${ref} has no buf.yaml — bootstrap PR, skipping breaking-change check."
+          fi
 
   gh-actions-lint:
     name: Github Actions Lint
@@ -672,6 +715,7 @@ jobs:
       go-lint,
       yaml-lint,
       gh-actions-lint,
+      proto-check,
       wasm,
       check-generated,
       race-detector,

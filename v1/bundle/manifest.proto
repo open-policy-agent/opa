@@ -1,0 +1,112 @@
+// Copyright 2026 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+edition = "2023";
+
+package opa.bundle.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/open-policy-agent/opa/v1/bundle/v1pb";
+option java_multiple_files = true;
+
+// Manifest mirrors `bundle.Manifest` in v1/bundle/bundle.go.
+message Manifest {
+  // Bundle revision string.
+  string revision = 1;
+
+  // Root paths the bundle owns.
+  repeated string roots = 2;
+
+  // Wasm resolvers attached to the bundle. JSON key is `wasm`.
+  repeated WasmResolver wasm = 3;
+
+  // Global Rego version for the bundle. Currently 0 (RegoV0) or 1 (RegoV1).
+  int32 rego_version = 4;
+
+  // Per-file Rego version overrides keyed by file path.
+  map<string, int32> file_rego_versions = 5;
+
+  // Free-form metadata object. Modeled as `Struct` because the Go field
+  // is `map[string]any`.
+  google.protobuf.Struct metadata = 6;
+}
+
+// WasmResolver mirrors `bundle.WasmResolver` in v1/bundle/bundle.go.
+message WasmResolver {
+  // Entrypoint policy ref this resolver targets.
+  string entrypoint = 1;
+
+  // Path to the wasm module within the bundle.
+  string module = 2;
+
+  // Rego annotations attached to the entrypoint.
+  repeated Annotations annotations = 3;
+}
+
+// Annotations mirrors `ast.Annotations` in v1/ast/annotations.go.
+message Annotations {
+  string scope = 1;
+  string title = 2;
+  bool entrypoint = 3;
+  string description = 4;
+  repeated string organizations = 5;
+  repeated RelatedResourceAnnotation related_resources = 6;
+  repeated AuthorAnnotation authors = 7;
+  repeated SchemaAnnotation schemas = 8;
+  CompileAnnotation compile = 9;
+
+  // `custom` and `labels` are `map[string]any` in Go — genuinely
+  // free-form, so `Struct` is the right model.
+  google.protobuf.Struct custom = 10;
+  google.protobuf.Struct labels = 11;
+
+  Location location = 12;
+}
+
+// SchemaAnnotation mirrors `ast.SchemaAnnotation`. Path/Schema are
+// `ast.Ref` in Go (a list of terms); the wire form is the canonical
+// dotted ref string (e.g. `data.foo.bar`). Modeling the term tree
+// faithfully would pull most of the AST into this schema and isn't
+// worth the cost for annotations.
+message SchemaAnnotation {
+  string path = 1;
+  string schema = 2;
+  // `*any` on the Go side — a parsed JSON Schema document or any
+  // JSON value. `Value` (not `Struct`) because the top level may be
+  // a scalar, list, or null, not just an object.
+  google.protobuf.Value definition = 3;
+}
+
+// CompileAnnotation mirrors `ast.CompileAnnotation`. Refs are the
+// canonical dotted form; see SchemaAnnotation for the trade-off.
+message CompileAnnotation {
+  repeated string unknowns = 1;
+  string mask_rule = 2;
+}
+
+// AuthorAnnotation mirrors `ast.AuthorAnnotation`.
+message AuthorAnnotation {
+  string name = 1;
+  string email = 2;
+}
+
+// RelatedResourceAnnotation mirrors `ast.RelatedResourceAnnotation`.
+// `Ref` is a `url.URL` in Go, serialized to its `String()` form.
+message RelatedResourceAnnotation {
+  string ref = 1;
+  string description = 2;
+}
+
+// Location mirrors `ast.Location` (= `location.Location`). Only the
+// File/Row/Col triple is wire-relevant; `Text`, `Offset`, and `Tabs`
+// are tagged `json:"-"` and intentionally absent.
+//
+// Distinct from `ir.Location`, which is promoted onto the `Stmt`
+// envelope in plan.proto. The two are independent Go types.
+message Location {
+  string file = 1;
+  int32 row = 2;
+  int32 col = 3;
+}

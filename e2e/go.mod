@@ -6,6 +6,7 @@ go 1.25.7
 replace github.com/open-policy-agent/opa => ../
 
 require (
+	github.com/bufbuild/protocompile v0.14.1
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/go-cmp v0.7.0
 	github.com/lib/pq v1.12.3
@@ -13,6 +14,7 @@ require (
 	github.com/open-policy-agent/opa v1.8.0
 	github.com/rogpeppe/go-internal v1.15.0
 	github.com/testcontainers/testcontainers-go v0.42.0
+	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.51.0
 )
 
@@ -142,7 +144,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc v1.81.1 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.2 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
