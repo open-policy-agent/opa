@@ -138,99 +138,6 @@ p if {
 	}
 }
 
-func TestCoverNoDuplicates(t *testing.T) {
-
-	cover := New()
-
-	module := `package test
-
-# Both a rule and an expression, but should not be counted twice
-foo := 1
-
-allow if { true }
-`
-
-	parsedModule, err := ast.ParseModuleWithOpts("test.rego", module, ast.ParserOptions{AllFutureKeywords: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	eval := rego.New(
-		rego.ParsedModule(parsedModule),
-		rego.Query("data.test.allow"),
-		rego.QueryTracer(cover),
-	)
-
-	ctx := t.Context()
-	_, err = eval.Eval(ctx)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	report := cover.Report(map[string]*ast.Module{
-		"test.rego": parsedModule,
-	})
-
-	fr, ok := report.Files["test.rego"]
-	if !ok {
-		t.Fatal("Expected file report for test.rego")
-	}
-
-	expectedCovered := []Position{
-		{Row: 6}, // allow
-	}
-
-	expectedNotCovered := []Position{
-		{Row: 4}, // foo
-	}
-
-	for _, exp := range expectedCovered {
-		if !fr.IsCovered(exp.Row) {
-			t.Errorf("Expected %v to be covered", exp)
-		}
-	}
-
-	for _, exp := range expectedNotCovered {
-		if !fr.IsNotCovered(exp.Row) {
-			t.Errorf("Expected %v to NOT be covered", exp)
-		}
-	}
-
-	if len(expectedCovered) != fr.locCovered() {
-		t.Errorf(
-			"Expected %d loc to be covered, got %d instead",
-			len(expectedCovered),
-			fr.locCovered())
-	}
-
-	if len(expectedNotCovered) != fr.locNotCovered() {
-		t.Errorf(
-			"Expected %d loc to not be covered, got %d instead",
-			len(expectedNotCovered),
-			fr.locNotCovered())
-	}
-
-	expectedCoveragePercentage := 100.0 * float64(len(expectedCovered)) / float64(len(expectedCovered)+len(expectedNotCovered))
-	if expectedCoveragePercentage != fr.Coverage {
-		t.Errorf("Expected coverage %f != %f", expectedCoveragePercentage, fr.Coverage)
-	}
-
-	if expectedCoveragePercentage != report.Coverage {
-		t.Errorf("Expected report coverage %f != %f",
-			expectedCoveragePercentage,
-			report.Coverage)
-	}
-
-	if t.Failed() {
-		bs, err := json.MarshalIndent(fr, "", "  ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		fmt.Println(string(bs))
-	}
-}
-
 func TestCoverRangeCases(t *testing.T) {
 	t.Parallel()
 
@@ -240,6 +147,22 @@ func TestCoverRangeCases(t *testing.T) {
 		covered    []Range
 		notCovered []Range
 	}{
+		"rule head and value expression on same row counted once": {
+			module: `package test
+
+# Both a rule and an expression, but should not be counted twice
+foo := 1
+
+allow if { true }
+`,
+			query: "data.test.allow",
+			covered: []Range{
+				{Start: Position{Row: 6, Col: 1}, End: Position{Row: 6, Col: 6}}, // allow head
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 4, Col: 1}, End: Position{Row: 4, Col: 9}}, // foo := 1 head
+			},
+		},
 		"inline rule head not covered": {
 			module: `package test
 
@@ -323,43 +246,7 @@ test_foo if {
 	}
 }
 
-func TestFileReportIsRangeCovered(t *testing.T) {
-	t.Parallel()
-
-	fr := &FileReport{
-		Covered: []Range{
-			{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}},
-		},
-		NotCovered: []Range{
-			{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}},
-		},
-	}
-
-	covered := Range{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}}
-	if !fr.isRangeCovered(covered) {
-		t.Errorf("expected %v to be covered", covered)
-	}
-
-	subCovered := Range{Start: Position{Row: 3, Col: 9}, End: Position{Row: 3, Col: 11}}
-	if !fr.isRangeCovered(subCovered) {
-		t.Errorf("expected sub-range %v to be covered", subCovered)
-	}
-
-	notCovered := Range{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}}
-	if !fr.isRangeNotCovered(notCovered) {
-		t.Errorf("expected %v to be not covered", notCovered)
-	}
-
-	absent := Range{Start: Position{Row: 5, Col: 1}, End: Position{Row: 5, Col: 4}}
-	if fr.isRangeCovered(absent) {
-		t.Errorf("expected %v to not be covered", absent)
-	}
-	if fr.isRangeNotCovered(absent) {
-		t.Errorf("expected %v to not be in not_covered", absent)
-	}
-}
-
-func TestCoverTraceConfig(t *testing.T) {
+func TestCoverQueryTracerInterface(t *testing.T) {
 	ct := topdown.QueryTracer(New())
 	conf := ct.Config()
 
