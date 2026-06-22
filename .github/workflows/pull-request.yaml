@@ -73,29 +73,13 @@ jobs:
           --data build/policy/pr-check/pr_check.rego \
           --input changed_files.json \
           --format pretty \
-          'data.policy["pr-check"]' > opa_result.json
-
-        go_result=$(jq -r '.changes.go // false' opa_result.json)
-        wasm_result=$(jq -r '.changes.wasm // false' opa_result.json)
-        docs_result=$(jq -r '.changes.docs // false' opa_result.json)
-        rego_result=$(jq -r '.changes.rego // false' opa_result.json)
-        yaml_result=$(jq -r '.changes.yaml // false' opa_result.json)
-        proto_result=$(jq -r '.changes.proto // false' opa_result.json)
-
-        echo "go=${go_result}" >> $GITHUB_OUTPUT
-        echo "wasm=${wasm_result}" >> $GITHUB_OUTPUT
-        echo "docs=${docs_result}" >> $GITHUB_OUTPUT
-        echo "rego=${rego_result}" >> $GITHUB_OUTPUT
-        echo "yaml=${yaml_result}" >> $GITHUB_OUTPUT
-        echo "proto=${proto_result}" >> $GITHUB_OUTPUT
+          'data.policy["pr-check"].changes' > changes.json
 
         echo "Final outputs:"
-        echo "  go=${go_result}"
-        echo "  wasm=${wasm_result}"
-        echo "  docs=${docs_result}"
-        echo "  rego=${rego_result}"
-        echo "  yaml=${yaml_result}"
-        echo "  proto=${proto_result}"
+        jq -r '
+          ["go","wasm","docs","rego","yaml","proto"][] as $k |
+          "\($k)=\(.[$k] // false)"
+        ' changes.json | tee -a "$GITHUB_OUTPUT" | sed 's/^/  /'
 
   # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
