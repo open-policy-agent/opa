@@ -9,15 +9,9 @@ OPA provides a high-level declarative language that lets you specify policy as
 code and simple APIs to offload policy decision-making from your software. You
 can use OPA to enforce policies in microservices, Kubernetes, CI/CD pipelines,
 API gateways, and more.
-
 OPA is proud to be a graduated
 [Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/announcements/2021/02/04/cloud-native-computing-foundation-announces-open-policy-agent-graduation/)
 project.
-
-This page covers core concepts in OPA's policy language
-([Rego](./docs/policy-language)) as well as how to download and run OPA.
-
-## What is OPA?
 
 OPA [decouples](./docs/philosophy#policy-decoupling) policy decision-making from policy
 enforcement. When your software needs to make policy decisions it **queries**
@@ -30,14 +24,13 @@ import OverviewDiagram from './assets/OverviewDiagram';
 
 OPA generates policy decisions by evaluating the query input against
 policies and data. OPA and Rego are domain-agnostic so you can describe almost
-any kind of invariant in your policies. For example:
+any kind of rule in your policies. For example:
 
-- Which users can access which resources.
-- Which subnets egress traffic is allowed to.
-- Which clusters a workload must be deployed to.
-- Which registries binaries can be downloaded from.
-- Which OS capabilities a container can execute with.
-- Which times of day the system can be accessed at.
+- What roles must a user have to access a particular resource
+- Which network ranges egress traffic is allowed to
+- Allowed registries to source container images 
+- When during the day the system can be accessed
+- The System Calls a binary in a container can make
 
 Policy decisions are not limited to simple yes/no or allow/deny answers. Like
 query inputs, your policies can generate arbitrary structured data as output.
@@ -96,7 +89,7 @@ find servers that violate the policy.
 
 The following section explores how OPA can help implement this policy.
 
-## Writing Policy with Rego
+## Writing Policies with Rego
 
 OPA policies are expressed in a high-level declarative language called Rego.
 Rego (pronounced "ray-go") is purpose-built for expressing policies over complex
@@ -892,7 +885,7 @@ shasum -c $BINARY_NAME.sha256
 
 ### 2. Try `opa eval`
 
-The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli#eval).
+A simple way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli#eval).
 It can be used to evaluate arbitrary Rego expressions and policies.
 `opa eval` supports a large number of options for controlling evaluation.
 Commonly used flags include:
@@ -971,6 +964,12 @@ public_servers contains server if {                  # a server exists in the 'p
 ./opa eval --fail-defined -i input.json -d example.rego "data.example.violation[x]"
 echo $?
 ```
+
+:::tip
+Looking for the IDE experience? Rego and OPA have mature developer tooling
+with support for live evaluation and debugging in
+[editors and IDEs](./docs/editor-and-ide-support)
+:::
 
 ### 3. Try `opa run` (interactive)
 
