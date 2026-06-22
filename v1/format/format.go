@@ -1875,9 +1875,13 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 		return nil, err
 	}
 
+	hasBoundaryComment := false
 	// If there are comments within the single line, don't collapse it and keep it as-is
 	// Return an error so that writeTerm will write the original formatting
 	if len(lines) == 1 {
+		if w.beforeEnd != nil {
+			hasBoundaryComment = w.beforeEnd.Location.Row >= last.Row && w.beforeEnd.Location.Row <= close.Row
+		}
 		for _, c := range comments {
 			if c.Location.Row > last.Row && c.Location.Row < close.Row {
 				return comments, unexpectedCommentError{
@@ -1885,10 +1889,14 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 					newCommentRow: c.Location.Row,
 				}
 			}
+			if c.Location.Row == last.Row || c.Location.Row == close.Row {
+				hasBoundaryComment = true
+			}
 		}
 	}
 
-	if len(lines) > 1 {
+	isMultiline := len(lines) > 1 || (len(lines) == 1 && len(elements) > 0 && close.Row > last.Row && !hasBoundaryComment)
+	if isMultiline {
 		w.delayBeforeEnd()
 		w.startMultilineSeq()
 	}
@@ -1910,7 +1918,7 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 		return nil, err
 	}
 
-	if len(lines) > 1 {
+	if isMultiline {
 		w.write(",")
 		w.endLine()
 		comments, err = w.insertComments(comments, close)
