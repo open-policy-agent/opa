@@ -13,6 +13,11 @@ OPA is proud to be a graduated
 [Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/announcements/2021/02/04/cloud-native-computing-foundation-announces-open-policy-agent-graduation/)
 project.
 
+> **Prefer to get hands on?** Checkout the
+[online playground](https://play.openpolicyagent.org)
+or the
+[CLI examples](#2-try-opa-eval) below.
+
 OPA [decouples](./docs/philosophy#policy-decoupling) policy decision-making from policy
 enforcement. When your software needs to make policy decisions it **queries**
 OPA and supplies structured data (e.g., JSON) as input. OPA accepts arbitrary
