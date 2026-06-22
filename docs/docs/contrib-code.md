@@ -36,8 +36,8 @@ When contributing please consider the following pointers:
   change set. Field numbers and `oneof` case numbers in the `.proto` are
   a permanent wire-format commitment — never reuse a number for a
   different field, and mark removed fields with `reserved`. The consistency tests
-  (`v1/ir/plan_proto_test.go`, `v1/bundle/manifest_proto_test.go`) catch
-  drift; `buf breaking` (when configured in CI) catches wire-incompatible
+  (`e2e/proto/plan_test.go`, `e2e/proto/manifest_test.go`) catch
+  drift; `buf breaking` (in CI) catches wire-incompatible
   changes.
 - **AI Tooling**: You can use generative AI tooling to assist your work on OPA,
   but please review our project's [AI Guidelines](#ai-guidelines) below before doing so to

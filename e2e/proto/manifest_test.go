@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package bundle
+package proto
 
 import (
 	"context"
@@ -14,23 +14,25 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/open-policy-agent/opa/e2e/proto/protoroundtrip"
+	"github.com/open-policy-agent/opa/e2e/proto/protoschemacheck"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ast/location"
-	"github.com/open-policy-agent/opa/v1/util/test/protoroundtrip"
-	"github.com/open-policy-agent/opa/v1/util/test/protoschemacheck"
+	"github.com/open-policy-agent/opa/v1/bundle"
 )
 
 func TestManifestProtoConsistency(t *testing.T) {
 	protoschemacheck.Run(t, protoschemacheck.Spec{
-		ProtoPath: "manifest.proto",
+		ProtoPath:   "manifest.proto",
+		ImportPaths: []string{"../../v1/bundle"},
 		Messages: []protoschemacheck.MessageSpec{
 			{
 				Name:   "Manifest",
-				GoType: reflect.TypeOf(Manifest{}),
+				GoType: reflect.TypeOf(bundle.Manifest{}),
 			},
 			{
 				Name:   "WasmResolver",
-				GoType: reflect.TypeOf(WasmResolver{}),
+				GoType: reflect.TypeOf(bundle.WasmResolver{}),
 			},
 			{
 				Name:   "Annotations",
@@ -79,16 +81,16 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 
 	tests := []struct {
 		note     string
-		manifest Manifest
+		manifest bundle.Manifest
 	}{
 		{
 			note:     "empty manifest",
-			manifest: Manifest{},
+			manifest: bundle.Manifest{},
 		},
 		{
 			note: "revision and roots",
-			manifest: func() Manifest {
-				m := Manifest{Revision: "abc123"}
+			manifest: func() bundle.Manifest {
+				m := bundle.Manifest{Revision: "abc123"}
 				m.Init()
 				m.AddRoot("roles")
 				m.AddRoot("http/example/authz")
@@ -97,7 +99,7 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 		},
 		{
 			note: "rego version and per-file overrides",
-			manifest: Manifest{
+			manifest: bundle.Manifest{
 				Revision:    "abc123",
 				RegoVersion: &regoV1,
 				FileRegoVersions: map[string]int{
@@ -108,16 +110,16 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 		},
 		{
 			note: "wasm resolvers",
-			manifest: Manifest{
+			manifest: bundle.Manifest{
 				Revision: "abc123",
-				WasmResolvers: []WasmResolver{
+				WasmResolvers: []bundle.WasmResolver{
 					{Entrypoint: "http/example/authz/allow", Module: "/policy.wasm"},
 				},
 			},
 		},
 		{
 			note: "metadata",
-			manifest: Manifest{
+			manifest: bundle.Manifest{
 				Revision: "abc123",
 				Metadata: map[string]any{
 					"build_id": "ci-1234",
@@ -128,9 +130,9 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 		},
 		{
 			note: "wasm resolver with annotations",
-			manifest: Manifest{
+			manifest: bundle.Manifest{
 				Revision: "abc123",
-				WasmResolvers: []WasmResolver{{
+				WasmResolvers: []bundle.WasmResolver{{
 					Entrypoint: "http/example/authz/allow",
 					Module:     "/policy.wasm",
 					Annotations: []*ast.Annotations{{
@@ -150,9 +152,9 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 		},
 		{
 			note: "annotations with refs, schemas, compile, location",
-			manifest: Manifest{
+			manifest: bundle.Manifest{
 				Revision: "abc123",
-				WasmResolvers: []WasmResolver{{
+				WasmResolvers: []bundle.WasmResolver{{
 					Entrypoint: "http/example/authz/allow",
 					Module:     "/policy.wasm",
 					Annotations: []*ast.Annotations{{
@@ -191,7 +193,7 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("encode: %v", err)
 			}
-			var got Manifest
+			var got bundle.Manifest
 			if err := codec.Decode(bs, &got); err != nil {
 				t.Fatalf("decode: %v", err)
 			}
@@ -206,7 +208,7 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 	}
 }
 
-func normalizeRoots(m *Manifest) {
+func normalizeRoots(m *bundle.Manifest) {
 	if m.Roots != nil && len(*m.Roots) == 0 {
 		m.Roots = nil
 	}
@@ -228,7 +230,7 @@ func loadManifestCodec(t *testing.T) *protoroundtrip.Codec {
 	t.Helper()
 	c := protocompile.Compiler{
 		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{
-			ImportPaths: []string{"."},
+			ImportPaths: []string{"../../v1/bundle"},
 		}),
 	}
 	files, err := c.Compile(context.Background(), "manifest.proto")
@@ -236,8 +238,8 @@ func loadManifestCodec(t *testing.T) *protoroundtrip.Codec {
 		t.Fatalf("compile manifest.proto: %v", err)
 	}
 	codec := protoroundtrip.NewCodec(files[0])
-	codec.RegisterRoot(reflect.TypeOf(Manifest{}), "Manifest")
-	codec.RegisterRoot(reflect.TypeOf(WasmResolver{}), "WasmResolver")
+	codec.RegisterRoot(reflect.TypeOf(bundle.Manifest{}), "Manifest")
+	codec.RegisterRoot(reflect.TypeOf(bundle.WasmResolver{}), "WasmResolver")
 	codec.RegisterRoot(reflect.TypeOf(ast.Annotations{}), "Annotations")
 	codec.RegisterRoot(reflect.TypeOf(ast.SchemaAnnotation{}), "SchemaAnnotation")
 	codec.RegisterRoot(reflect.TypeOf(ast.CompileAnnotation{}), "CompileAnnotation")

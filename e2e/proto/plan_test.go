@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package ir_test
+package proto
 
 import (
 	"context"
@@ -17,12 +17,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/open-policy-agent/opa/e2e/proto/protoroundtrip"
+	"github.com/open-policy-agent/opa/e2e/proto/protoschemacheck"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/test/cases"
-	"github.com/open-policy-agent/opa/v1/util/test/protoroundtrip"
-	"github.com/open-policy-agent/opa/v1/util/test/protoschemacheck"
 )
 
 func TestPlanProtoConsistency(t *testing.T) {
@@ -138,6 +138,7 @@ func TestPlanProtoConsistency(t *testing.T) {
 
 	protoschemacheck.Run(t, protoschemacheck.Spec{
 		ProtoPath:      "plan.proto",
+		ImportPaths:    []string{"../../v1/ir"},
 		Messages:       messages,
 		OpaqueMessages: []string{"Val"},
 		Oneofs: []protoschemacheck.OneofSpec{
@@ -226,7 +227,7 @@ func TestPlanProtoRoundTripYAMLSuite(t *testing.T) {
 		t.Skip("too slow for testing.Short")
 	}
 	codec := loadPlanCodec(t)
-	corpus, err := cases.Load("../test/cases/testdata/v1")
+	corpus, err := cases.Load("../../v1/test/cases/testdata/v1")
 	if err != nil {
 		t.Fatalf("load YAML cases: %v", err)
 	}
@@ -326,7 +327,7 @@ func loadPlanCodec(t *testing.T) *protoroundtrip.Codec {
 	t.Helper()
 	c := protocompile.Compiler{
 		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{
-			ImportPaths: []string{"."},
+			ImportPaths: []string{"../../v1/ir"},
 		}),
 	}
 	files, err := c.Compile(context.Background(), "plan.proto")
