@@ -67,8 +67,9 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 		})
 		ast.WalkExprs(module, func(x *ast.Expr) bool {
 			if includeExprInCoverage(x) {
-				if !report.IsCovered(x.Location.File, x.Location.Row) {
-					notCovered[rangeOf(x.Location)] = struct{}{}
+				exprRange := rangeOf(x.Location)
+				if !report.Files[x.Location.File].isRangeCovered(exprRange) {
+					notCovered[exprRange] = struct{}{}
 				}
 			}
 			return false

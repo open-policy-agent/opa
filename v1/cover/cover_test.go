@@ -280,6 +280,66 @@ test_foo if {
 	}
 }
 
+func TestCoverSemicolonSeparatedExprs(t *testing.T) {
+	t.Parallel()
+
+	cover := New()
+
+	module := `package test
+
+foo if {
+	true; true; false; false
+}
+
+test_foo if {
+	not foo
+}
+`
+
+	parsedModule, err := ast.ParseModule("test.rego", module)
+	if err != nil {
+		t.Fatalf("failed to parse module: %v", err)
+	}
+
+	eval := rego.New(
+		rego.ParsedModule(parsedModule),
+		rego.Query("data.test.test_foo"),
+		rego.QueryTracer(cover),
+	)
+
+	ctx := t.Context()
+	_, err = eval.Eval(ctx)
+	if err != nil {
+		t.Fatalf("failed to evaluate: %v", err)
+	}
+
+	report := cover.Report(map[string]*ast.Module{"test.rego": parsedModule})
+
+	fr, ok := report.Files["test.rego"]
+	if !ok {
+		t.Fatal("Expected file report for test.rego")
+	}
+
+	// Row 4: `\ttrue; true; false; false`
+	// Expressions covered (evaluated before short-circuit):
+	coveredExprs := []Range{
+		{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 6}},  // true
+		{Start: Position{Row: 4, Col: 8}, End: Position{Row: 4, Col: 12}}, // true
+		{Start: Position{Row: 4, Col: 14}, End: Position{Row: 4, Col: 19}}, // false (caused failure)
+	}
+	// Expression not covered (never evaluated, short-circuited by the preceding false):
+	notCoveredExpr := Range{Start: Position{Row: 4, Col: 21}, End: Position{Row: 4, Col: 26}} // false
+
+	for _, r := range coveredExprs {
+		if !fr.isRangeCovered(r) {
+			t.Errorf("expected range %v to be covered", r)
+		}
+	}
+	if !fr.isRangeNotCovered(notCoveredExpr) {
+		t.Errorf("expected range %v to be not covered", notCoveredExpr)
+	}
+}
+
 func TestFileReportIsRangeCovered(t *testing.T) {
 	t.Parallel()
 
