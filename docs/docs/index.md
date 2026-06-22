@@ -14,9 +14,9 @@ OPA is proud to be a graduated
 project.
 
 > **Prefer to get hands on?** Checkout the
-[online playground](https://play.openpolicyagent.org)
-or the
-[CLI examples](#2-try-opa-eval) below.
+> [online playground](https://play.openpolicyagent.org)
+> or the
+> [CLI examples](#2-try-opa-eval) below.
 
 OPA [decouples](./docs/philosophy#policy-decoupling) policy decision-making from policy
 enforcement. When your software needs to make policy decisions it **queries**
@@ -33,7 +33,7 @@ any kind of rule in your policies. For example:
 
 - What roles must a user have to access a particular resource
 - Which network ranges egress traffic is allowed to
-- Allowed registries to source container images 
+- Allowed registries to source container images
 - When during the day the system can be accessed
 - The System Calls a binary in a container can make
 

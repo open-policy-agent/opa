@@ -1806,7 +1806,6 @@ The keyword takes a key argument (optional) and value argument to be used for
 further checks, a domain to select items from, and a block of further
 statements to check (the "body").
 
-
 ```rego
 package example
 
