@@ -1735,10 +1735,24 @@ deny contains msg if { msg := "forbidden" }
 
 ## Some Keyword
 
-The `some` keyword allows queries to explicitly declare local variables. Use the
-`some` keyword in rules that contain unification statements or references with
-variable operands **if** variables contained in those statements are not
-declared using `:=` .
+The `some` keyword in Rego can be used in both the `some ... in` form
+or in a standalone way to declare free variables. Both forms are used in rules
+to check if a solution to the rule exists. For examples, here a rule checks a
+user's roles for admin:
+
+```rego
+allow if {
+    some role in input.user.roles
+    role.id == "admin"
+}
+```
+
+`some` can also be used to declare variables upfront in a rule, without
+binding a value. During evaluation, Rego will search to see if a solution exists
+for the rule while adhering to the use of the variables as constraints.
+This is useful if the rule contains unification statements or
+references with variable operands (if variables contained in those
+statements are not declared using the assignment operator `:=`).
 
 | Statement                        | Example                          | Variables   |
 | -------------------------------- | -------------------------------- | ----------- |
@@ -1781,10 +1795,17 @@ The `some` keyword is not required but it's recommended to avoid situations like
 the one above where introduction of a rule inside a package could change
 behaviour of other rules.
 
-For using the `some` keyword with iteration, see
+More details on the `some ... in` form can be found in
 [the documentation of the `in` operator](#membership-and-iteration-in).
 
 ## Every Keyword
+
+The `every` keyword allows policy authors to express 'For All' constraints
+in their rules in a readable way.
+The keyword takes a key argument (optional) and value argument to be used for
+further checks, a domain to select items from, and a block of further
+statements to check (the "body").
+
 
 ```rego
 package example
@@ -1803,21 +1824,16 @@ names_with_dev if {
 
 <RunSnippet files="#example_data.rego" command="data.example.names_with_dev"/>
 
-The `every` keyword takes an (optional) key argument, a value argument, a domain, and a
-block of further queries, its "body".
-
 The keyword is used to explicitly assert that its body is true for _any element in the domain_.
 It will iterate over the domain, bind its variables, and check that the body holds
 for those bindings.
 If one of the bindings does not yield a successful evaluation of the body, the overall
 statement is undefined.
-
 If the domain is empty, the overall statement is true.
-
 Evaluating `every` does **not** introduce new bindings into the rule evaluation.
 
-Used with a key argument, the index, or property name (for objects), comes into the
-scope of the body evaluation:
+Used with the optional key argument, the index, or property name (for objects),
+comes into the scope of the body evaluation:
 
 ```rego
 package example
@@ -1840,8 +1856,10 @@ set_domain if {
 
 <RunSnippet command="data.example"/>
 
+:::info
 Negating `every` is forbidden. If you need to express `not every x in xs { p(x) }`
 please use `some x in xs; not p(x)` instead.
+:::
 
 ## With Keyword
 
