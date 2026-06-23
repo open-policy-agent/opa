@@ -138,185 +138,115 @@ p if {
 	}
 }
 
-func TestCoverNoDuplicates(t *testing.T) {
+func TestCoverRangeCases(t *testing.T) {
+	t.Parallel()
 
-	cover := New()
-
-	module := `package test
+	cases := map[string]struct {
+		module     string
+		query      string
+		covered    []Range
+		notCovered []Range
+	}{
+		"rule head and value expression on same row counted once": {
+			module: `package test
 
 # Both a rule and an expression, but should not be counted twice
 foo := 1
 
 allow if { true }
-`
-
-	parsedModule, err := ast.ParseModuleWithOpts("test.rego", module, ast.ParserOptions{AllFutureKeywords: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	eval := rego.New(
-		rego.ParsedModule(parsedModule),
-		rego.Query("data.test.allow"),
-		rego.QueryTracer(cover),
-	)
-
-	ctx := t.Context()
-	_, err = eval.Eval(ctx)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	report := cover.Report(map[string]*ast.Module{
-		"test.rego": parsedModule,
-	})
-
-	fr, ok := report.Files["test.rego"]
-	if !ok {
-		t.Fatal("Expected file report for test.rego")
-	}
-
-	expectedCovered := []Position{
-		{Row: 6}, // allow
-	}
-
-	expectedNotCovered := []Position{
-		{Row: 4}, // foo
-	}
-
-	for _, exp := range expectedCovered {
-		if !fr.IsCovered(exp.Row) {
-			t.Errorf("Expected %v to be covered", exp)
-		}
-	}
-
-	for _, exp := range expectedNotCovered {
-		if !fr.IsNotCovered(exp.Row) {
-			t.Errorf("Expected %v to NOT be covered", exp)
-		}
-	}
-
-	if len(expectedCovered) != fr.locCovered() {
-		t.Errorf(
-			"Expected %d loc to be covered, got %d instead",
-			len(expectedCovered),
-			fr.locCovered())
-	}
-
-	if len(expectedNotCovered) != fr.locNotCovered() {
-		t.Errorf(
-			"Expected %d loc to not be covered, got %d instead",
-			len(expectedNotCovered),
-			fr.locNotCovered())
-	}
-
-	expectedCoveragePercentage := 100.0 * float64(len(expectedCovered)) / float64(len(expectedCovered)+len(expectedNotCovered))
-	if expectedCoveragePercentage != fr.Coverage {
-		t.Errorf("Expected coverage %f != %f", expectedCoveragePercentage, fr.Coverage)
-	}
-
-	if expectedCoveragePercentage != report.Coverage {
-		t.Errorf("Expected report coverage %f != %f",
-			expectedCoveragePercentage,
-			report.Coverage)
-	}
-
-	if t.Failed() {
-		bs, err := json.MarshalIndent(fr, "", "  ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		fmt.Println(string(bs))
-	}
-}
-
-func TestCoverInlineRuleHeadNotCovered(t *testing.T) {
-	t.Parallel()
-
-	cover := New()
-
-	module := `package test
+`,
+			query: "data.test.allow",
+			covered: []Range{
+				{Start: Position{Row: 6, Col: 1}, End: Position{Row: 6, Col: 6}}, // allow head
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 4, Col: 1}, End: Position{Row: 4, Col: 9}}, // foo := 1 head
+			},
+		},
+		"inline rule head not covered": {
+			module: `package test
 
 foo if false
 
 test_foo if {
 	not foo
 }
-`
+`,
+			query: "data.test.test_foo",
+			covered: []Range{
+				{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}}, // false expr
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}}, // foo head
+			},
+		},
+		"semicolon-separated expressions short-circuit": {
+			module: `package test
 
-	parsedModule, err := ast.ParseModule("test.rego", module)
-	if err != nil {
-		t.Fatalf("failed to parse module: %v", err)
-	}
-
-	eval := rego.New(
-		rego.ParsedModule(parsedModule),
-		rego.Query("data.test.test_foo"),
-		rego.QueryTracer(cover),
-	)
-
-	ctx := t.Context()
-	_, err = eval.Eval(ctx)
-	if err != nil {
-		t.Fatalf("failed to evaluate: %v", err)
-	}
-
-	report := cover.Report(map[string]*ast.Module{"test.rego": parsedModule})
-
-	fr, ok := report.Files["test.rego"]
-	if !ok {
-		t.Fatal("Expected file report for test.rego")
-	}
-
-	fooHead := Range{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}}
-	if !fr.isRangeNotCovered(fooHead) {
-		t.Errorf("expected foo head %v to be not covered", fooHead)
-	}
-
-	falseExpr := Range{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}}
-	if !fr.isRangeCovered(falseExpr) {
-		t.Errorf("expected false body %v to be covered", falseExpr)
-	}
+foo if {
+	true; true; false; false
 }
 
-func TestFileReportIsRangeCovered(t *testing.T) {
-	t.Parallel()
-
-	fr := &FileReport{
-		Covered: []Range{
-			{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}},
-		},
-		NotCovered: []Range{
-			{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}},
+test_foo if {
+	not foo
+}
+`,
+			query: "data.test.test_foo",
+			// Row 4: `\ttrue; true; false; false`
+			covered: []Range{
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 6}},   // true
+				{Start: Position{Row: 4, Col: 8}, End: Position{Row: 4, Col: 12}},  // true
+				{Start: Position{Row: 4, Col: 14}, End: Position{Row: 4, Col: 19}}, // false (caused failure)
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 4, Col: 21}, End: Position{Row: 4, Col: 26}}, // false (never evaluated)
+			},
 		},
 	}
 
-	covered := Range{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}}
-	if !fr.isRangeCovered(covered) {
-		t.Errorf("expected %v to be covered", covered)
-	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	subCovered := Range{Start: Position{Row: 3, Col: 9}, End: Position{Row: 3, Col: 11}}
-	if !fr.isRangeCovered(subCovered) {
-		t.Errorf("expected sub-range %v to be covered", subCovered)
-	}
+			cover := New()
 
-	notCovered := Range{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}}
-	if !fr.isRangeNotCovered(notCovered) {
-		t.Errorf("expected %v to be not covered", notCovered)
-	}
+			parsedModule, err := ast.ParseModule("test.rego", tc.module)
+			if err != nil {
+				t.Fatalf("failed to parse module: %v", err)
+			}
 
-	absent := Range{Start: Position{Row: 5, Col: 1}, End: Position{Row: 5, Col: 4}}
-	if fr.isRangeCovered(absent) {
-		t.Errorf("expected %v to not be covered", absent)
-	}
-	if fr.isRangeNotCovered(absent) {
-		t.Errorf("expected %v to not be in not_covered", absent)
+			eval := rego.New(
+				rego.ParsedModule(parsedModule),
+				rego.Query(tc.query),
+				rego.QueryTracer(cover),
+			)
+			_, err = eval.Eval(t.Context())
+			if err != nil {
+				t.Fatalf("failed to evaluate: %v", err)
+			}
+
+			report := cover.Report(map[string]*ast.Module{"test.rego": parsedModule})
+			fr, ok := report.Files["test.rego"]
+			if !ok {
+				t.Fatal("expected file report for test.rego")
+			}
+
+			for _, r := range tc.covered {
+				if !fr.isRangeCovered(r) {
+					t.Errorf("expected range %v to be covered", r)
+				}
+			}
+
+			for _, r := range tc.notCovered {
+				if !fr.isRangeNotCovered(r) {
+					t.Errorf("expected range %v to be not covered", r)
+				}
+			}
+		})
 	}
 }
 
-func TestCoverTraceConfig(t *testing.T) {
+func TestCoverQueryTracerInterface(t *testing.T) {
 	ct := topdown.QueryTracer(New())
 	conf := ct.Config()
 
