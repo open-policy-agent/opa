@@ -363,6 +363,7 @@ opa_value *builtin_member3(opa_value *key, opa_value *val, opa_value *collection
     {
     case OPA_ARRAY:
     case OPA_OBJECT:
+    case OPA_SET:
         return opa_boolean(opa_value_compare(val, opa_value_get(collection, key)) == 0);
     }
     return opa_boolean(false);
