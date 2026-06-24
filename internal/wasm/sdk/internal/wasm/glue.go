@@ -1,4 +1,4 @@
-// Copyright 2026 The OPA Authors.  All rights reserved.
+// Copyright 2025 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
@@ -27,37 +27,28 @@
 //     under their "env.*" names.
 //
 // The policy then resolves everything — memory and the real host functions —
-// from "env". Because the shared memory lives in "env" and the host functions
-// hold a reference to the policy module (set after instantiation), the Go
-// builtins can read arguments from and write results back into that memory.
+// from "env".
 
 package wasm
 
 import (
 	"bytes"
-	"encoding/binary"
+
+	"github.com/open-policy-agent/opa/internal/wasm/encoding"
+	"github.com/open-policy-agent/opa/internal/wasm/module"
+	"github.com/open-policy-agent/opa/internal/wasm/types"
 )
 
 // hostModuleName is the wazero module that provides the real Go host functions,
 // which the glue "env" module imports and re-exports.
 const hostModuleName = "opa"
 
-// envMemoryMinPages is the initial size of the linear memory handed to the
-// policy. OPA's policy.wasm imports a memory with a minimum of 2 pages; we
-// must provide at least that. The memory is growable (no maximum).
-const envMemoryMinPages = 2
-
-// i32Wasm is the WebAssembly value-type byte for a 32-bit integer.
-const i32Wasm = 0x7F
-
-type importedFunc struct {
-	name    string
-	typeIdx int
-}
-
 // hostFuncImports lists the host functions in import order (determines function
 // indices in the glue module).
-var hostFuncImports = []importedFunc{
+var hostFuncImports = []struct {
+	name    string
+	typeIdx int
+}{
 	{"opa_builtin0", 1},
 	{"opa_builtin1", 2},
 	{"opa_builtin2", 3},
@@ -68,99 +59,59 @@ var hostFuncImports = []importedFunc{
 }
 
 // buildEnvModule assembles the glue "env" Wasm module and returns its binary
-// encoding. The module:
-//   - imports each host function from hostModuleName ("opa") and re-exports it,
-//   - defines and exports a linear memory with the given min and optional max.
-//
-// maxPages == 0 means no maximum (unbounded growth).
+// encoding. maxPages == 0 means no maximum (unbounded growth).
 func buildEnvModule(minPages, maxPages uint32) []byte {
-	types := []funcType{
-		{params: []byte{i32Wasm}, results: nil},                                                          // 0: opa_abort / opa_println
-		{params: []byte{i32Wasm, i32Wasm}, results: []byte{i32Wasm}},                                     // 1: opa_builtin0
-		{params: []byte{i32Wasm, i32Wasm, i32Wasm}, results: []byte{i32Wasm}},                            // 2: opa_builtin1
-		{params: []byte{i32Wasm, i32Wasm, i32Wasm, i32Wasm}, results: []byte{i32Wasm}},                   // 3: opa_builtin2
-		{params: []byte{i32Wasm, i32Wasm, i32Wasm, i32Wasm, i32Wasm}, results: []byte{i32Wasm}},          // 4: opa_builtin3
-		{params: []byte{i32Wasm, i32Wasm, i32Wasm, i32Wasm, i32Wasm, i32Wasm}, results: []byte{i32Wasm}}, // 5: opa_builtin4
+	i32 := types.I32
+
+	// Function type signatures, indexed by position.
+	//   0: (i32) -> void       — opa_abort, opa_println
+	//   1: (i32, i32) -> i32   — opa_builtin0
+	//   2..5: add one i32 arg per builtin arity
+	funcTypes := []module.FunctionType{
+		{Params: []types.ValueType{i32}},
+		{Params: []types.ValueType{i32, i32}, Results: []types.ValueType{i32}},
+		{Params: []types.ValueType{i32, i32, i32}, Results: []types.ValueType{i32}},
+		{Params: []types.ValueType{i32, i32, i32, i32}, Results: []types.ValueType{i32}},
+		{Params: []types.ValueType{i32, i32, i32, i32, i32}, Results: []types.ValueType{i32}},
+		{Params: []types.ValueType{i32, i32, i32, i32, i32, i32}, Results: []types.ValueType{i32}},
 	}
 
-	var m bytes.Buffer
-	m.Write([]byte{0x00, 0x61, 0x73, 0x6D}) // "\0asm" magic
-	m.Write([]byte{0x01, 0x00, 0x00, 0x00}) // version 1
-
-	// Type section (id 1).
-	var typeSec bytes.Buffer
-	writeUvarint(&typeSec, uint64(len(types)))
-	for _, t := range types {
-		typeSec.WriteByte(0x60) // func type tag
-		writeVec(&typeSec, t.params)
-		writeVec(&typeSec, t.results)
-	}
-	writeSection(&m, 1, typeSec.Bytes())
-
-	// Import section (id 2): host functions from hostModuleName.
-	var impSec bytes.Buffer
-	writeUvarint(&impSec, uint64(len(hostFuncImports)))
-	for _, f := range hostFuncImports {
-		writeName(&impSec, hostModuleName)
-		writeName(&impSec, f.name)
-		impSec.WriteByte(0x00) // import kind: function
-		writeUvarint(&impSec, uint64(f.typeIdx))
-	}
-	writeSection(&m, 2, impSec.Bytes())
-
-	// Memory section (id 5): one memory with min, and optional max.
-	var memSec bytes.Buffer
-	writeUvarint(&memSec, 1) // one memory
-	if maxPages > 0 {
-		memSec.WriteByte(0x01) // limits flag: min+max
-		writeUvarint(&memSec, uint64(minPages))
-		writeUvarint(&memSec, uint64(maxPages))
-	} else {
-		memSec.WriteByte(0x00) // limits flag: min only (no max, growable)
-		writeUvarint(&memSec, uint64(minPages))
-	}
-	writeSection(&m, 5, memSec.Bytes())
-
-	// Export section (id 7): memory + re-export of every imported function.
-	// Imported functions occupy indices 0..len(hostFuncImports)-1.
-	var expSec bytes.Buffer
-	writeUvarint(&expSec, uint64(len(hostFuncImports)+1))
-	writeName(&expSec, "memory")
-	expSec.WriteByte(0x02) // export kind: memory
-	writeUvarint(&expSec, 0)
+	imports := make([]module.Import, len(hostFuncImports))
 	for i, f := range hostFuncImports {
-		writeName(&expSec, f.name)
-		expSec.WriteByte(0x00) // export kind: function
-		writeUvarint(&expSec, uint64(i))
+		imports[i] = module.Import{
+			Module:     hostModuleName,
+			Name:       f.name,
+			Descriptor: module.FunctionImport{Func: uint32(f.typeIdx)},
+		}
 	}
-	writeSection(&m, 7, expSec.Bytes())
 
-	return m.Bytes()
-}
+	var maxPtr *uint32
+	if maxPages > 0 {
+		maxPtr = &maxPages
+	}
 
-type funcType struct {
-	params  []byte
-	results []byte
-}
+	exports := make([]module.Export, 1+len(hostFuncImports))
+	exports[0] = module.Export{
+		Name:       "memory",
+		Descriptor: module.ExportDescriptor{Type: module.MemoryExportType, Index: 0},
+	}
+	for i, f := range hostFuncImports {
+		exports[1+i] = module.Export{
+			Name:       f.name,
+			Descriptor: module.ExportDescriptor{Type: module.FunctionExportType, Index: uint32(i)},
+		}
+	}
 
-func writeSection(w *bytes.Buffer, id byte, payload []byte) {
-	w.WriteByte(id)
-	writeUvarint(w, uint64(len(payload)))
-	w.Write(payload)
-}
+	mod := module.Module{
+		Type:   module.TypeSection{Functions: funcTypes},
+		Import: module.ImportSection{Imports: imports},
+		Memory: module.MemorySection{Memories: []module.Memory{{Lim: module.Limit{Min: minPages, Max: maxPtr}}}},
+		Export: module.ExportSection{Exports: exports},
+	}
 
-func writeVec(w *bytes.Buffer, b []byte) {
-	writeUvarint(w, uint64(len(b)))
-	w.Write(b)
-}
-
-func writeName(w *bytes.Buffer, s string) {
-	writeUvarint(w, uint64(len(s)))
-	w.WriteString(s)
-}
-
-func writeUvarint(w *bytes.Buffer, v uint64) {
-	var buf [binary.MaxVarintLen64]byte
-	n := binary.PutUvarint(buf[:], v)
-	w.Write(buf[:n])
+	var buf bytes.Buffer
+	if err := encoding.WriteModule(&buf, &mod); err != nil {
+		panic(err) // module is statically correct; only panics on a bug
+	}
+	return buf.Bytes()
 }
