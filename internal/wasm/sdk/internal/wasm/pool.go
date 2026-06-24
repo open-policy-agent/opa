@@ -89,7 +89,9 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		// Surface a cancellation in the SDK's error vocabulary so callers
+		// (and sdk_errors.IsCancel) recognize it; a bare ctx.Err() would not.
+		return nil, errors.New(errors.CancelledErr, ctx.Err().Error())
 	case <-p.available:
 	}
 
