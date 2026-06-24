@@ -4557,6 +4557,122 @@ q if { input.x = 7 }`},
 				} or true`},
 		},
 
+		// comprehensions inside and/or operand bodies
+		{
+			note:                 "and: rhs set comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					true and { y := input.y; {z | z := input.z; z < x; z > y} }
+				}`},
+			wantQueries: []string{`true and {
+					__local1__1 = input.y
+					{__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					}
+				}
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "and: lhs set comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					{ y := input.y; {z | z := input.z; z < x; z > y} } and true
+				}`},
+			wantQueries: []string{`{
+					__local1__1 = input.y
+					{__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					}
+				} and true
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "or: rhs set comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					false or { y := input.y; {z | z := input.z; z < x; z > y} }
+				}`},
+			wantQueries: []string{`false or {
+					__local1__1 = input.y
+					{__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					}
+				}
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "or: lhs set comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					{ y := input.y; {z | z := input.z; z < x; z > y} } or false
+				}`},
+			wantQueries: []string{`{
+					__local1__1 = input.y
+					{__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					}
+				} or false
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "and: rhs array comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					true and { y := input.y; [z | z := input.z; z < x; z > y] }
+				}`},
+			wantQueries: []string{`true and {
+					__local1__1 = input.y
+					[__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					]
+				}
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "or: lhs object comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					{ y := input.y; {k: v | k := input.k; v := x; v != y} } or false
+				}`},
+			wantQueries: []string{`{
+					__local1__1 = input.y
+					{__local2__1: __local3__1 |
+						__local2__1 = input.k
+						__local3__1 = input.x
+						neq(__local3__1, __local1__1)
+					}
+				} or false
+				__local0__1 = input.x`},
+		},
+
 		// and/or nested inside other outer constructs
 		{
 			note:                 "every: body contains and with unknowns",
@@ -6760,6 +6876,40 @@ func TestTopDownPartialEvalLogicalRoundTrip(t *testing.T) {
 				`{"x": -1, "y": 2}`,
 				`{"x": 1, "y": -2}`,
 				`{"x": -1, "y": -2}`,
+			},
+		},
+		{
+			note: "and: rhs comp, cross-scope vars",
+			module: `package test
+				p if {
+					x := input.x
+					true and {
+						y := input.threshold
+						s := {z | z := input.y[_]; z < x; z > y}
+						count(s) > 0
+					}
+				}`,
+			inputs: []string{
+				`{"x": 10, "threshold": 2, "y": [3, 5, 7]}`, // s={3,5,7} -> defined
+				`{"x": 0, "threshold": 5, "y": [3, 5, 7]}`,  // none < 0 -> undefined
+				`{"x": 10, "threshold": 2, "y": [1, 2]}`,    // none > 2 -> undefined
+			},
+		},
+		{
+			note: "or: lhs comp, cross-scope vars",
+			module: `package test
+				p if {
+					x := input.x
+					{
+						y := input.threshold
+						s := {z | z := input.y[_]; z < x; z > y}
+						count(s) > 0
+					} or false
+				}`,
+			inputs: []string{
+				`{"x": 10, "threshold": 2, "y": [3, 5, 7]}`,
+				`{"x": 0, "threshold": 5, "y": [3, 5, 7]}`,
+				`{"x": 10, "threshold": 2, "y": [1, 2]}`,
 			},
 		},
 	}

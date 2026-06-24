@@ -4256,7 +4256,7 @@ func (e *evalEvery) save(iter unifyIterator) error {
 func (e *evalEvery) plug(expr *ast.Expr) (*ast.Expr, error) {
 	cpy := expr.Copy()
 	every := cpy.Terms.(*ast.Every)
-	if err := e.plugBody(every.Body); err != nil {
+	if err := plugBody(e.e, every.Body); err != nil {
 		return nil, err
 	}
 
@@ -4265,59 +4265,6 @@ func (e *evalEvery) plug(expr *ast.Expr) (*ast.Expr, error) {
 	every.Domain = e.e.bindings.PlugNamespaced(every.Domain, e.e.caller.bindings)
 	cpy.Terms = every
 	return cpy, nil
-}
-
-func (e *evalEvery) plugBody(body ast.Body) error {
-	for i := range body {
-		switch t := body[i].Terms.(type) {
-		case *ast.Term:
-			plugged, err := e.plugTerm(t)
-			if err != nil {
-				return err
-			}
-			body[i].Terms = plugged
-		case []*ast.Term:
-			for j := 1; j < len(t); j++ { // don't plug operator, t[0]
-				plugged, err := e.plugTerm(t[j])
-				if err != nil {
-					return err
-				}
-				t[j] = plugged
-			}
-		case *ast.Every:
-			plugged, err := e.plug(body[i])
-			if err != nil {
-				return err
-			}
-			body[i] = plugged
-		case *ast.Not:
-			if err := e.plugBody(t.Body); err != nil {
-				return err
-			}
-		case *ast.LogicalAnd:
-			if err := e.plugBody(t.Lhs); err != nil {
-				return err
-			}
-			if err := e.plugBody(t.Rhs); err != nil {
-				return err
-			}
-		case *ast.LogicalOr:
-			if err := e.plugBody(t.Lhs); err != nil {
-				return err
-			}
-			if err := e.plugBody(t.Rhs); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (e *evalEvery) plugTerm(t *ast.Term) (*ast.Term, error) {
-	if ast.IsComprehension(t.Value) {
-		return e.e.amendComprehension(t, e.e.bindings)
-	}
-	return e.e.bindings.PlugNamespaced(t, e.e.caller.bindings), nil
 }
 
 type evalNot struct {
@@ -4468,10 +4415,10 @@ func (e evalLogicalAnd) plug(expr *ast.Expr) (*ast.Expr, error) {
 	cpy := expr.Copy()
 	and := cpy.Terms.(*ast.LogicalAnd)
 
-	if err := plugLogicalBody(e.e, and.Lhs); err != nil {
+	if err := plugBody(e.e, and.Lhs); err != nil {
 		return nil, err
 	}
-	if err := plugLogicalBody(e.e, and.Rhs); err != nil {
+	if err := plugBody(e.e, and.Rhs); err != nil {
 		return nil, err
 	}
 
@@ -4527,10 +4474,10 @@ func (e evalLogicalOr) plug(expr *ast.Expr) (*ast.Expr, error) {
 	cpy := expr.Copy()
 	or := cpy.Terms.(*ast.LogicalOr)
 
-	if err := plugLogicalBody(e.e, or.Lhs); err != nil {
+	if err := plugBody(e.e, or.Lhs); err != nil {
 		return nil, err
 	}
-	if err := plugLogicalBody(e.e, or.Rhs); err != nil {
+	if err := plugBody(e.e, or.Rhs); err != nil {
 		return nil, err
 	}
 
@@ -4571,16 +4518,22 @@ func evalLogicalOperand(parent *eval, body ast.Body) (bool, error) {
 	return defined, nil
 }
 
-// plugLogicalBody namespaces variable references inside the operand body of
-// a LogicalAnd/LogicalOr expression for partial evaluation.
-func plugLogicalBody(e *eval, body ast.Body) error {
+func plugBody(e *eval, body ast.Body) error {
 	for i := range body {
 		switch t := body[i].Terms.(type) {
 		case *ast.Term:
-			body[i].Terms = e.bindings.PlugNamespaced(t, e.caller.bindings)
+			plugged, err := plugTerm(e, t)
+			if err != nil {
+				return err
+			}
+			body[i].Terms = plugged
 		case []*ast.Term:
 			for j := 1; j < len(t); j++ { // don't plug operator, t[0]
-				t[j] = e.bindings.PlugNamespaced(t[j], e.caller.bindings)
+				plugged, err := plugTerm(e, t[j])
+				if err != nil {
+					return err
+				}
+				t[j] = plugged
 			}
 		case *ast.Every:
 			ev := evalEvery{e: e, every: t, expr: body[i]}
@@ -4590,27 +4543,34 @@ func plugLogicalBody(e *eval, body ast.Body) error {
 			}
 			body[i] = plugged
 		case *ast.Not:
-			if err := plugLogicalBody(e, t.Body); err != nil {
+			if err := plugBody(e, t.Body); err != nil {
 				return err
 			}
 		case *ast.LogicalAnd:
-			if err := plugLogicalBody(e, t.Lhs); err != nil {
+			if err := plugBody(e, t.Lhs); err != nil {
 				return err
 			}
-			if err := plugLogicalBody(e, t.Rhs); err != nil {
+			if err := plugBody(e, t.Rhs); err != nil {
 				return err
 			}
 		case *ast.LogicalOr:
-			if err := plugLogicalBody(e, t.Lhs); err != nil {
+			if err := plugBody(e, t.Lhs); err != nil {
 				return err
 			}
-			if err := plugLogicalBody(e, t.Rhs); err != nil {
+			if err := plugBody(e, t.Rhs); err != nil {
 				return err
 			}
 		}
 	}
 
 	return nil
+}
+
+func plugTerm(e *eval, t *ast.Term) (*ast.Term, error) {
+	if ast.IsComprehension(t.Value) {
+		return e.amendComprehension(t, e.bindings)
+	}
+	return e.bindings.PlugNamespaced(t, e.caller.bindings), nil
 }
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
