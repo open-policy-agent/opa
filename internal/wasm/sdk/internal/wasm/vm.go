@@ -28,40 +28,17 @@ import (
 
 // VM is a wrapper around a Wasm VM instance
 type VM struct {
-	dispatcher           *builtinDispatcher
-	runtime              wazero.Runtime
-	mod                  api.Module
-	mem                  api.Memory
-	policy               []byte
-	abiMajorVersion      int32
-	abiMinorVersion      int32
-	memoryMin            uint32
-	memoryMax            uint32
-	entrypointIDs        map[string]int32
-	baseHeapPtr          int32
-	dataAddr             int32
-	evalHeapPtr          int32
-	evalOneOff           func(context.Context, int32, int32, int32, int32, int32) (int32, error)
-	eval                 func(context.Context, int32) error
-	evalCtxGetResult     func(context.Context, int32) (int32, error)
-	evalCtxNew           func(context.Context) (int32, error)
-	evalCtxSetData       func(context.Context, int32, int32) error
-	evalCtxSetInput      func(context.Context, int32, int32) error
-	evalCtxSetEntrypoint func(context.Context, int32, int32) error
-	heapPtrGet           func(context.Context) (int32, error)
-	heapPtrSet           func(context.Context, int32) error
-	jsonDump             func(context.Context, int32) (int32, error)
-	jsonParse            func(context.Context, int32, int32) (int32, error)
-	valueDump            func(context.Context, int32) (int32, error)
-	valueParse           func(context.Context, int32, int32) (int32, error)
-	malloc               func(context.Context, int32) (int32, error)
-	free                 func(context.Context, int32) error
-	valueAddPath         func(context.Context, int32, int32, int32) (int32, error)
-	valueRemovePath      func(context.Context, int32, int32) (int32, error)
-	valueFree            func(context.Context, int32) error
-	heapBlocksStash      func(context.Context) error
-	heapBlocksRestore    func(context.Context) error
-	heapStashClear       func(context.Context) error
+	dispatcher    *builtinDispatcher
+	runtime       wazero.Runtime
+	mod           api.Module
+	mem           api.Memory
+	policy        []byte
+	memoryMin     uint32
+	memoryMax     uint32
+	entrypointIDs map[string]int32
+	baseHeapPtr   int32
+	dataAddr      int32
+	evalHeapPtr   int32
 }
 
 type vmOpts struct {
@@ -122,75 +99,20 @@ func newVM(ctx context.Context, opts vmOpts) (*VM, error) {
 	v.dispatcher.valueDumpFn = mod.ExportedFunction("opa_value_dump")
 	v.dispatcher.valueParseFn = mod.ExportedFunction("opa_value_parse")
 
-	v.abiMajorVersion, v.abiMinorVersion, err = getABIVersion(mod)
+	major, minor, err := getABIVersion(mod)
 	if err != nil {
 		r.Close(ctx)
 		return nil, fmt.Errorf("invalid module: %w", err)
 	}
-	if v.abiMajorVersion != int32(1) || (v.abiMinorVersion != int32(1) && v.abiMinorVersion != int32(3)) {
+	if major != 1 || minor < 2 {
 		r.Close(ctx)
-		return nil, fmt.Errorf("invalid module: unsupported ABI version: %d.%d", v.abiMajorVersion, v.abiMinorVersion)
+		return nil, fmt.Errorf("invalid module: unsupported ABI version: %d.%d", major, minor)
 	}
 
 	v.entrypointIDs = make(map[string]int32)
-	v.dataAddr = 0
-
-	v.eval = func(ctx context.Context, a int32) error { return callVoid(ctx, v, "eval", a) }
-	v.evalCtxGetResult = func(ctx context.Context, a int32) (int32, error) {
-		return call(ctx, v, "opa_eval_ctx_get_result", a)
-	}
-	v.evalCtxNew = func(ctx context.Context) (int32, error) { return call(ctx, v, "opa_eval_ctx_new") }
-	v.evalCtxSetData = func(ctx context.Context, a int32, b int32) error {
-		return callVoid(ctx, v, "opa_eval_ctx_set_data", a, b)
-	}
-	v.evalCtxSetInput = func(ctx context.Context, a int32, b int32) error {
-		return callVoid(ctx, v, "opa_eval_ctx_set_input", a, b)
-	}
-	v.evalOneOff = func(ctx context.Context, ep, dataAddr, inputAddr, inputLen, heapAddr int32) (int32, error) {
-		return call(ctx, v, "opa_eval", 0 /* reserved */, ep, dataAddr, inputAddr, inputLen, heapAddr, 1 /* value output */)
-	}
-	v.evalCtxSetEntrypoint = func(ctx context.Context, a int32, b int32) error {
-		return callVoid(ctx, v, "opa_eval_ctx_set_entrypoint", a, b)
-	}
-	v.free = func(ctx context.Context, a int32) error { return callVoid(ctx, v, "opa_free", a) }
-	v.heapPtrGet = func(ctx context.Context) (int32, error) { return call(ctx, v, "opa_heap_ptr_get") }
-	v.heapPtrSet = func(ctx context.Context, a int32) error {
-		return callVoid(ctx, v, "opa_heap_ptr_set", a)
-	}
-	v.jsonDump = func(ctx context.Context, a int32) (int32, error) {
-		return call(ctx, v, "opa_json_dump", a)
-	}
-	v.jsonParse = func(ctx context.Context, a int32, b int32) (int32, error) {
-		return call(ctx, v, "opa_json_parse", a, b)
-	}
-	v.valueDump = func(ctx context.Context, a int32) (int32, error) {
-		return call(ctx, v, "opa_value_dump", a)
-	}
-	v.valueParse = func(ctx context.Context, a int32, b int32) (int32, error) {
-		return call(ctx, v, "opa_value_parse", a, b)
-	}
-	v.malloc = func(ctx context.Context, a int32) (int32, error) { return call(ctx, v, "opa_malloc", a) }
-	v.valueAddPath = func(ctx context.Context, a int32, b int32, c int32) (int32, error) {
-		return call(ctx, v, "opa_value_add_path", a, b, c)
-	}
-	v.valueRemovePath = func(ctx context.Context, a int32, b int32) (int32, error) {
-		return call(ctx, v, "opa_value_remove_path", a, b)
-	}
-	v.valueFree = func(ctx context.Context, a int32) error {
-		return callVoid(ctx, v, "opa_value_free", a)
-	}
-	v.heapBlocksStash = func(ctx context.Context) error {
-		return callVoid(ctx, v, "opa_heap_blocks_stash")
-	}
-	v.heapBlocksRestore = func(ctx context.Context) error {
-		return callVoid(ctx, v, "opa_heap_blocks_restore")
-	}
-	v.heapStashClear = func(ctx context.Context) error {
-		return callVoid(ctx, v, "opa_heap_stash_clear")
-	}
 
 	// Initialize the heap.
-	if _, err := v.malloc(ctx, 0); err != nil {
+	if _, err = call(ctx, v, "opa_malloc", 0); err != nil {
 		r.Close(ctx)
 		return nil, err
 	}
@@ -217,7 +139,7 @@ func newVM(ctx context.Context, opts vmOpts) (*VM, error) {
 		}
 		v.dataAddr = opts.parsedDataAddr
 		v.evalHeapPtr = v.baseHeapPtr + int32(len(opts.parsedData))
-		if err := v.setHeapState(ctx, v.evalHeapPtr); err != nil {
+		if err = v.setHeapState(ctx, v.evalHeapPtr); err != nil {
 			r.Close(ctx)
 			return nil, err
 		}
@@ -312,10 +234,6 @@ func (i *VM) Eval(ctx context.Context,
 	ndbCache builtins.NDBCache,
 	ph print.Hook,
 	capabilities *ast.Capabilities) ([]byte, error) {
-	if i.abiMinorVersion < int32(2) {
-		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache, ndbCache, ph, capabilities)
-	}
-
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -368,7 +286,7 @@ func (i *VM) Eval(ctx context.Context,
 	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
 
 	metrics.Timer("wasm_vm_eval_call").Start()
-	resultAddr, err := i.evalOneOff(ctx, entrypoint, i.dataAddr, inputAddr, inputLen, heapPtr)
+	resultAddr, err := call(ctx, i, "opa_eval", 0 /* reserved */, entrypoint, i.dataAddr, inputAddr, inputLen, heapPtr, 1 /* value output */)
 	if err != nil {
 		return nil, err
 	}
@@ -382,97 +300,6 @@ func (i *VM) Eval(ctx context.Context,
 	if n < 0 {
 		n = 0
 	}
-
-	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
-	return data[:n], nil
-}
-
-// evalCompat evaluates a policy using multiple calls into the VM to set the stage.
-// It's been superseded with ABI version 1.2, but still here for compatibility with
-// Wasm modules lacking the needed export (i.e., ABI 1.1).
-func (i *VM) evalCompat(ctx context.Context,
-	entrypoint int32,
-	input *any,
-	metrics metrics.Metrics,
-	seed io.Reader,
-	ns time.Time,
-	iqbCache cache.InterQueryCache,
-	ndbCache builtins.NDBCache,
-	ph print.Hook,
-	capabilities *ast.Capabilities) ([]byte, error) {
-	metrics.Timer("wasm_vm_eval").Start()
-	defer metrics.Timer("wasm_vm_eval").Stop()
-
-	metrics.Timer("wasm_vm_eval_prepare_input").Start()
-
-	// Setting the ctx here ensures that it'll be available to builtins that
-	// make use of it (e.g. `http.send`); and it will spawn a go routine
-	// cancelling the builtins that use topdown.Cancel, when the context is
-	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
-
-	err := i.setHeapState(ctx, i.evalHeapPtr)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse the input JSON and activate it with the data.
-	ctxAddr, err := i.evalCtxNew(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if i.dataAddr != 0 {
-		if err := i.evalCtxSetData(ctx, ctxAddr, i.dataAddr); err != nil {
-			return nil, err
-		}
-	}
-
-	if err := i.evalCtxSetEntrypoint(ctx, ctxAddr, entrypoint); err != nil {
-		return nil, err
-	}
-
-	if input != nil {
-		inputAddr, err := i.toRegoJSON(ctx, *input, false)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := i.evalCtxSetInput(ctx, ctxAddr, inputAddr); err != nil {
-			return nil, err
-		}
-	}
-	metrics.Timer("wasm_vm_eval_prepare_input").Stop()
-
-	// Evaluate the policy.
-	metrics.Timer("wasm_vm_eval_execute").Start()
-	err = i.eval(ctx, ctxAddr)
-	metrics.Timer("wasm_vm_eval_execute").Stop()
-	if err != nil {
-		return nil, err
-	}
-
-	metrics.Timer("wasm_vm_eval_prepare_result").Start()
-	resultAddr, err := i.evalCtxGetResult(ctx, ctxAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	serialized, err := i.valueDump(ctx, resultAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	data, ok := i.mem.Read(uint32(serialized), i.mem.Size()-uint32(serialized))
-	if !ok {
-		return nil, fmt.Errorf("read result from memory at %d", serialized)
-	}
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		n = 0
-	}
-
-	metrics.Timer("wasm_vm_eval_prepare_result").Stop()
 
 	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
 	return data[:n], nil
@@ -497,7 +324,7 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 	i.dataAddr = 0
 
 	// Release any stashed heap blocks since they will be above the base heap pointer
-	if err := i.heapStashClear(ctx); err != nil {
+	if err := callVoid(ctx, i, "opa_heap_stash_clear"); err != nil {
 		return err
 	}
 
@@ -521,7 +348,7 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 		}
 		i.dataAddr = opts.parsedDataAddr
 		i.evalHeapPtr = i.baseHeapPtr + length
-		if err := i.setHeapState(ctx, i.evalHeapPtr); err != nil {
+		if err = i.setHeapState(ctx, i.evalHeapPtr); err != nil {
 			return err
 		}
 	} else if opts.data != nil {
@@ -531,16 +358,12 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 	}
 
 	// Stash any free blocks so that eval()/setHeapState() won't leak them
-	if err := i.heapBlocksStash(ctx); err != nil {
+	if err = callVoid(ctx, i, "opa_heap_blocks_stash"); err != nil {
 		return err
 	}
 
 	i.evalHeapPtr, err = i.getHeapState(ctx)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 type abortError struct {
@@ -554,20 +377,6 @@ type cancelledError struct {
 }
 
 func (e cancelledError) Error() string { return e.message }
-
-// Println is invoked if the policy WASM code calls opa_println().
-func (i *VM) Println(arg int32) {
-	data, ok := i.mem.Read(uint32(arg), i.mem.Size()-uint32(arg))
-	if !ok {
-		panic("invalid opa_println argument")
-	}
-	n := bytes.IndexByte(data, 0)
-	if n == -1 {
-		panic("invalid opa_println argument")
-	}
-
-	fmt.Printf("opa_println(): %s\n", string(data[:n]))
-}
 
 type builtinError struct {
 	err error
@@ -591,7 +400,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 	}
 
 	// Restore saved blocks protected from leaking in eval()/setHeapState()
-	if err := i.heapBlocksRestore(ctx); err != nil {
+	if err := callVoid(ctx, i, "opa_heap_blocks_restore"); err != nil {
 		return err
 	}
 
@@ -605,7 +414,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 		return err
 	}
 
-	result, err := i.valueAddPath(ctx, i.dataAddr, pathAddr, valueAddr)
+	result, err := call(ctx, i, "opa_value_add_path", i.dataAddr, pathAddr, valueAddr)
 	if err != nil {
 		return err
 	}
@@ -613,12 +422,12 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 	// We don't need to free the value, assume it is "owned" as part of the
 	// overall data object now.
 	// We do need to free the path
-	if err := i.valueFree(ctx, pathAddr); err != nil {
+	if err = callVoid(ctx, i, "opa_value_free", pathAddr); err != nil {
 		return err
 	}
 
 	// Stash free blocks so eval() calls don't leak them when calling setHeapState()
-	if err := i.heapBlocksStash(ctx); err != nil {
+	if err = callVoid(ctx, i, "opa_heap_blocks_stash"); err != nil {
 		return err
 	}
 
@@ -629,9 +438,8 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 		return err
 	}
 
-	errc := result
-	if errc != 0 {
-		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
+	if result != 0 {
+		return fmt.Errorf("unable to set data value for path %v, err=%d", path, result)
 	}
 
 	return nil
@@ -643,13 +451,12 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 	// Reset the heap ptr before patching the vm to try and keep any
 	// new allocations safe from subsequent heap resets on eval.
-	err := i.setHeapState(ctx, i.evalHeapPtr)
-	if err != nil {
+	if err := i.setHeapState(ctx, i.evalHeapPtr); err != nil {
 		return err
 	}
 
 	// Restore saved blocks protected from leaking in eval()/setHeapState()
-	if err := i.heapBlocksRestore(ctx); err != nil {
+	if err := callVoid(ctx, i, "opa_heap_blocks_restore"); err != nil {
 		return err
 	}
 
@@ -658,17 +465,17 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 		return err
 	}
 
-	errc, err := i.valueRemovePath(ctx, i.dataAddr, pathAddr)
+	errc, err := call(ctx, i, "opa_value_remove_path", i.dataAddr, pathAddr)
 	if err != nil {
 		return err
 	}
 
-	if err := i.valueFree(ctx, pathAddr); err != nil {
+	if err = callVoid(ctx, i, "opa_value_free", pathAddr); err != nil {
 		return err
 	}
 
 	// Stash free blocks so eval() calls don't leak them when calling setHeapState()
-	if err = i.heapBlocksStash(ctx); err != nil {
+	if err = callVoid(ctx, i, "opa_heap_blocks_stash"); err != nil {
 		return err
 	}
 
@@ -687,7 +494,7 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 // fromRegoJSON parses serialized JSON from the Wasm memory buffer into
 // native go types.
 func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (any, error) {
-	serialized, err := i.jsonDump(ctx, addr)
+	serialized, err := call(ctx, i, "opa_json_dump", addr)
 	if err != nil {
 		return nil, err
 	}
@@ -711,7 +518,7 @@ func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (any, erro
 	}
 
 	if free {
-		if err := i.free(ctx, serialized); err != nil {
+		if err = callVoid(ctx, i, "opa_free", serialized); err != nil {
 			return nil, err
 		}
 	}
@@ -739,7 +546,7 @@ func (i *VM) toRegoJSON(ctx context.Context, v any, free bool) (int32, error) {
 	}
 
 	n := int32(len(raw))
-	p, err := i.malloc(ctx, n)
+	p, err := call(ctx, i, "opa_malloc", n)
 	if err != nil {
 		return 0, err
 	}
@@ -748,13 +555,13 @@ func (i *VM) toRegoJSON(ctx context.Context, v any, free bool) (int32, error) {
 		return 0, fmt.Errorf("write %d bytes at %d", n, p)
 	}
 
-	addr, err := i.valueParse(ctx, p, n)
+	addr, err := call(ctx, i, "opa_value_parse", p, n)
 	if err != nil {
 		return 0, err
 	}
 
 	if free {
-		if err := i.free(ctx, p); err != nil {
+		if err = callVoid(ctx, i, "opa_free", p); err != nil {
 			return 0, err
 		}
 	}
@@ -763,11 +570,11 @@ func (i *VM) toRegoJSON(ctx context.Context, v any, free bool) (int32, error) {
 }
 
 func (i *VM) getHeapState(ctx context.Context) (int32, error) {
-	return i.heapPtrGet(ctx)
+	return call(ctx, i, "opa_heap_ptr_get")
 }
 
 func (i *VM) setHeapState(ctx context.Context, ptr int32) error {
-	return i.heapPtrSet(ctx, ptr)
+	return callVoid(ctx, i, "opa_heap_ptr_set", ptr)
 }
 
 func (i *VM) cloneDataSegment() (int32, []byte) {
