@@ -131,10 +131,32 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 	return vm, nil
 }
 
-// Release releases the VM back to the pool.
+// Release releases the VM back to the pool. If the VM was killed during a
+// cancelled eval its runtime is closed and it is removed from the pool so a
+// fresh VM can be created in its place.
 func (p *Pool) Release(vm *VM, metrics metrics.Metrics) {
 	metrics.Timer("wasm_pool_release").Start()
 	defer metrics.Timer("wasm_pool_release").Stop()
+
+	if vm.dead {
+		p.mutex.Lock()
+		for i := range p.vms {
+			if p.vms[i] == vm {
+				n := len(p.vms)
+				if n > 1 {
+					p.vms[i] = p.vms[n-1]
+					p.acquired[i] = p.acquired[n-1]
+				}
+				p.vms = p.vms[:n-1]
+				p.acquired = p.acquired[:n-1]
+				break
+			}
+		}
+		p.mutex.Unlock()
+		vm.close()
+		p.available <- struct{}{}
+		return
+	}
 
 	p.mutex.Lock()
 

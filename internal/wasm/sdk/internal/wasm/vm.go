@@ -15,6 +15,7 @@ import (
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/sys"
 
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
@@ -54,7 +55,8 @@ type vmOpts struct {
 }
 
 func newVM(ctx context.Context, opts vmOpts) (*VM, error) {
-	cfg := wazero.NewRuntimeConfig()
+	cfg := wazero.NewRuntimeConfig().
+		WithCloseOnContextDone(true) // interrupts tight wasm loops when ctx is cancelled
 	if opts.cache != nil {
 		cfg = cfg.WithCompilationCache(opts.cache)
 	}
@@ -713,6 +715,16 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (any,
 		var be builtinError
 		if errors.As(err, &be) {
 			return 0, sdk_errors.New(sdk_errors.InternalErr, be.err.Error())
+		}
+		// WithCloseOnContextDone: wazero closes the module and returns sys.ExitError
+		// when ctx is cancelled or times out mid-execution (tight wasm loops included).
+		var exitErr *sys.ExitError
+		if errors.As(err, &exitErr) {
+			c := exitErr.ExitCode()
+			if c == sys.ExitCodeContextCanceled || c == sys.ExitCodeDeadlineExceeded {
+				vm.dead = true
+				return 0, sdk_errors.New(sdk_errors.CancelledErr, "interrupted")
+			}
 		}
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return 0, sdk_errors.New(sdk_errors.CancelledErr, "interrupted")
