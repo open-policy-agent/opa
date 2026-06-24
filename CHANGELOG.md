@@ -12,6 +12,20 @@ project adheres to [Semantic Versioning](http://semver.org/).
 > `Open-Policy-Agent/<version> (<os>, <arch>)`. Server-side log filters or WAF rules that
 > exact-match the old string will need to be updated.
 
+### WebAssembly runtime: wasmtime-go replaced with wazero
+
+OPA's WebAssembly runtime — used by the `wasm` evaluation target and the WASM SDK — now runs on
+the pure-Go [wazero](https://wazero.io/) runtime instead of `bytecodealliance/wasmtime-go`. This
+removes the cgo dependency from this path, so `wasm`-enabled builds no longer need a C toolchain.
+
+Compiled policy modules are now cached process-wide, so repeated VM creation for the same policy
+skips recompilation. On an Apple M4 Max this makes wasm cold start (compile + instantiate + first
+eval) about 73% faster, and warm evaluation about 29% faster with ~28% fewer allocations.
+
+One side effect worth noting: wasm linear memory is now allocated on the Go heap rather than in C,
+so memory profiles and `B/op` figures for wasm evaluations account for it (it was previously
+invisible to Go's allocator).
+
 ## 1.17.1
 
 This release uses the latest version of Go (1.26.4) to build OPA, fixing stdlib vulnerabilities in
