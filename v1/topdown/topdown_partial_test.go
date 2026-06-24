@@ -3069,6 +3069,34 @@ func TestTopDownPartialEval(t *testing.T) {
 				}`},
 		},
 		{
+			note:  "every: in-scope var in nested set comprehensions",
+			query: "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every x in input.x {
+						{y | 
+							y := input.y
+							y < x
+							{z | 
+								z := input.z
+								z < x
+								z > y
+							}
+						}
+					}
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.x { 
+				{__local2__1 |
+					__local2__1 = input.y
+					lt(__local2__1, __local1__1)
+					{__local3__1 |
+						__local3__1 = input.z
+						lt(__local3__1, __local1__1)
+						gt(__local3__1, __local2__1)}
+					}
+				}`},
+		},
+		{
 			note:  "every: in-scope var in set comprehension, assigned",
 			query: "data.test.p = true",
 			modules: []string{`package test
