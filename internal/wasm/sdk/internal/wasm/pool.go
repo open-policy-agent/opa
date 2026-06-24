@@ -9,8 +9,6 @@ import (
 	"context"
 	"sync"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v44"
-
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -20,7 +18,6 @@ var errNotReady = errors.New(errors.NotReadyErr, "")
 
 // Pool maintains a pool of WebAssemly VM instances.
 type Pool struct {
-	engine         *wasmtime.Engine
 	available      chan struct{}
 	mutex          sync.Mutex
 	dataMtx        sync.Mutex
@@ -39,17 +36,12 @@ type Pool struct {
 
 // NewPool constructs a new pool with the pool and VM configuration provided.
 func NewPool(poolSize, memoryMinPages, memoryMaxPages uint32) *Pool {
-
-	cfg := wasmtime.NewConfig()
-	cfg.SetEpochInterruption(true)
-
 	available := make(chan struct{}, poolSize)
 	for range poolSize {
 		available <- struct{}{}
 	}
 
 	return &Pool{
-		engine:         wasmtime.NewEngineWithConfig(cfg),
 		memoryMinPages: memoryMinPages,
 		memoryMaxPages: memoryMaxPages,
 		available:      available,
@@ -108,14 +100,14 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 	policy, parsedData, parsedDataAddr := p.policy, p.parsedData, p.parsedDataAddr
 
 	p.mutex.Unlock()
-	vm, err := newVM(vmOpts{
+	vm, err := newVM(ctx, vmOpts{
 		policy:         policy,
 		data:           nil,
 		parsedData:     parsedData,
 		parsedDataAddr: parsedDataAddr,
 		memoryMin:      p.memoryMinPages,
 		memoryMax:      p.memoryMaxPages,
-	}, p.engine)
+	})
 	p.mutex.Lock()
 
 	if err != nil {
@@ -170,18 +162,18 @@ func (p *Pool) SetPolicyData(ctx context.Context, policy []byte, data []byte) er
 	p.mutex.Lock()
 
 	if !p.initialized {
-		vm, err := newVM(vmOpts{
+		vm, err := newVM(ctx, vmOpts{
 			policy:         policy,
 			data:           data,
 			parsedData:     nil,
 			parsedDataAddr: 0,
 			memoryMin:      p.memoryMinPages,
 			memoryMax:      p.memoryMaxPages,
-		}, p.engine)
+		})
 
 		if err == nil {
 			parsedDataAddr, parsedData := vm.cloneDataSegment()
-			p.memoryMinPages = util.Pages(uint32(vm.memory.DataSize(vm.store)))
+			p.memoryMinPages = util.Pages(vm.mem.Size())
 			p.vms = append(p.vms, vm)
 			p.acquired = append(p.acquired, false)
 			p.initialized = true
@@ -275,6 +267,7 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 			// No guarantee about the VM state after an error; hence, remove.
 			p.remove(i)
 			p.Release(vm, metrics.New())
+			vm.close()
 
 			// After the first successful activation, proceed through all the VMs, ignoring the remaining errors.
 			if !activated {
@@ -289,7 +282,7 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 				activated = true
 				policy = vm.policy
 				parsedDataAddr, parsedData = vm.cloneDataSegment()
-				seedMemorySize = util.Pages(uint32(vm.memory.DataSize(vm.store)))
+				seedMemorySize = util.Pages(vm.mem.Size())
 				p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
 			}
 
@@ -311,6 +304,9 @@ func (p *Pool) Close() {
 	defer p.mutex.Unlock()
 
 	p.closed = true
+	for _, vm := range p.vms {
+		vm.close()
+	}
 	p.vms = nil
 }
 

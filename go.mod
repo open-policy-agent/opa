@@ -5,7 +5,6 @@ go 1.25.0
 require (
 	github.com/KimMachineGun/automemlimit v0.7.5
 	github.com/agnivade/levenshtein v1.2.1
-	github.com/bytecodealliance/wasmtime-go/v44 v44.0.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/dgraph-io/badger/v4 v4.9.2
 	github.com/fortytw2/leaktest v1.3.0
@@ -32,6 +31,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/tchap/go-patricia/v2 v2.3.3
+	github.com/tetratelabs/wazero v1.12.0
 	github.com/vektah/gqlparser/v2 v2.5.34
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
 	github.com/yashtewari/glob-intersection v0.2.0
