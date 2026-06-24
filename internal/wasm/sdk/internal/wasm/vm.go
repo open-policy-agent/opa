@@ -94,7 +94,7 @@ func newVM(ctx context.Context, opts vmOpts) (*VM, error) {
 	v.mem = mod.Memory()
 	if v.mem == nil {
 		r.Close(ctx)
-		return nil, fmt.Errorf("policy module exports no memory")
+		return nil, errors.New("policy module exports no memory")
 	}
 
 	// Wire the dispatcher to the policy module's memory and exported functions.
@@ -140,7 +140,7 @@ func newVM(ctx context.Context, opts vmOpts) (*VM, error) {
 		}
 		if !v.mem.Write(uint32(v.baseHeapPtr), opts.parsedData) {
 			r.Close(ctx)
-			return nil, fmt.Errorf("write parsed data into memory")
+			return nil, errors.New("write parsed data into memory")
 		}
 		v.dataAddr = opts.parsedDataAddr
 		v.evalHeapPtr = v.baseHeapPtr + int32(len(opts.parsedData))
@@ -280,7 +280,7 @@ func (i *VM) Eval(ctx context.Context,
 			}
 		}
 		if !i.mem.Write(uint32(inputAddr), raw) {
-			return nil, fmt.Errorf("write input to memory")
+			return nil, errors.New("write input to memory")
 		}
 		heapPtr += inputLen
 
@@ -432,7 +432,7 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 		}
 		length := int32(len(opts.parsedData))
 		if !i.mem.Write(uint32(i.baseHeapPtr), opts.parsedData) {
-			return fmt.Errorf("write parsed data into memory")
+			return errors.New("write parsed data into memory")
 		}
 		i.dataAddr = opts.parsedDataAddr
 		i.evalHeapPtr = i.baseHeapPtr + length

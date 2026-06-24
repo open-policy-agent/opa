@@ -173,7 +173,7 @@ func (d *builtinDispatcher) dispatch(ctx context.Context, id int32, argAddrs ...
 		}
 	}()
 
-	var convertedArgs []*ast.Term
+	convertedArgs := make([]*ast.Term, 0, len(argAddrs))
 	for _, addr := range argAddrs {
 		x, err := d.fromWasmValue(ctx, addr)
 		if err != nil {
@@ -206,7 +206,7 @@ func (d *builtinDispatcher) dispatch(ctx context.Context, id int32, argAddrs ...
 	if err != nil {
 		panic(builtinError{err: err})
 	}
-	return int32(addr)
+	return addr
 }
 
 // fromWasmValue dumps the OPA value at addr to a string and parses it as an
