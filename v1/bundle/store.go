@@ -780,7 +780,7 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 	}
 
 	getRegoVersion := func(modId string) (ast.RegoVersion, bool) {
-		info, ok := modulesInfo[modId]
+		info, ok := modulesInfo[strings.TrimPrefix(modId, "/")]
 		if !ok {
 			return ast.RegoUndefined, false
 		}

@@ -4,14 +4,26 @@ p[{"a": #
 "b"} #
 ] := true
 
-value := {"a": {"b": {"c": "d"}}}
+value := {
+	"a": {
+		"b": {
+			"c": "d",
+		},
+	},
+}
 
 value := {"a":  # test 1
 "b"} # test 2
 
 value := {"a": "b"} # test 1
 
-value := {"a": {"b": {"c": "d"}}}
+value := {
+	"a": {
+		"b": {
+			"c": "d",
+		},
+	},
+}
 
 value := {"a": # this is
 {"b": # my ridiculous
@@ -23,7 +35,13 @@ p := {"a":  #
 	str := "my \n string"
 }
 
-value := {"a": {"b": {"c": "d"}}}
+value := {
+	"a": {
+		"b": {
+			"c": "d",
+		},
+	},
+}
 
 f(_) := value if {
 	value := {"a": # this is
@@ -63,7 +81,9 @@ p := {"a": str} if { #
 	str := "my \n string"
 }
 
-p := {"a": str} if {
+p := {
+	"a": str,
+} if {
 	#
 	str := "my \n string"
 }

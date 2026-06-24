@@ -7,7 +7,9 @@ single_line_with {
 multi_line_with {
 	fn(1) with input.a as "a"
 		with input.b as "b"
-		with input.c as {"foo": "bar"}
+		with input.c as {
+			"foo": "bar",
+		}
 		with input.d as [
 			1,
 			2,
@@ -48,4 +50,12 @@ original(x) = x + 1
 more_func_replacements {
 	original(1) with original as mock_f
 	original(1) with original as 1234
+}
+
+lone_with_multiline_call {
+	foo(
+		arg_a,
+		bar(arg_b, arg_c),
+		"some message",
+	) with input.x as false
 }

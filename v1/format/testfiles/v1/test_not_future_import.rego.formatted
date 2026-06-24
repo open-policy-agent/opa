@@ -33,8 +33,7 @@ b if {
 		f(42) with input.x as 1 with input.x2 as 2
 			with input.x3 as 3
 			with input.x4 as 4
-	}
-		with input.y as 5 with input.y2 as 6
+	} with input.y as 5 with input.y2 as 6
 		with input.y3 as 7
 		with input.y4 as 8
 }

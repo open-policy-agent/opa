@@ -3052,6 +3052,142 @@ func TestTopDownPartialEval(t *testing.T) {
 					a2 = input; __local4__2 > __local2__2 }
 				}`},
 		},
+		{
+			note:  "every: in-scope var in set comprehension",
+			query: "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every a in input.z {
+						a == 1
+						x := input.x
+						{y | y := input.y; y < x}
+					}
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.z {
+					__local1__1 = 1
+					__local2__1 = input.x
+					{__local3__1 | __local3__1 = input.y; lt(__local3__1, __local2__1)}
+				}`},
+		},
+		{
+			note:  "every: in-scope var in nested set comprehensions",
+			query: "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every x in input.x {
+						{y | 
+							y := input.y
+							y < x
+							{z | 
+								z := input.z
+								z < x
+								z > y
+							}
+						}
+					}
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.x { 
+				{__local2__1 |
+					__local2__1 = input.y
+					lt(__local2__1, __local1__1)
+					{__local3__1 |
+						__local3__1 = input.z
+						lt(__local3__1, __local1__1)
+						gt(__local3__1, __local2__1)}
+					}
+				}`},
+		},
+		{
+			note:  "every: in-scope var in set comprehension, assigned",
+			query: "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every a in input.z {
+						a == 1
+						x := input.x
+						z := {y | y := input.y; y < x}
+						z != {x}
+					}
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.z {
+					__local1__1 = 1
+					__local2__1 = input.x
+					__local4__1 = {__local3__1 | __local3__1 = input.y; lt(__local3__1, __local2__1)}
+					neq(__local4__1, {__local2__1})
+				}`},
+		},
+		{
+			note:  "every: in-scope var in array comprehension",
+			query: "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every a in input.z {
+						a == 1
+						x := input.x
+						[y | y := input.y; y < x]
+					}
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.z {
+					__local1__1 = 1
+					__local2__1 = input.x
+					[__local3__1 | __local3__1 = input.y; lt(__local3__1, __local2__1)]
+				}`},
+		},
+		{
+			note:  "every: in-scope var in array comprehension, assigned",
+			query: "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every a in input.z {
+						a == 1
+						x := input.x
+						z := [y | y := input.y; y < x]
+						z != [x]
+					}
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.z {
+					__local1__1 = 1
+					__local2__1 = input.x
+					__local4__1 = [__local3__1 | __local3__1 = input.y; lt(__local3__1, __local2__1)]
+					neq(__local4__1, [__local2__1])
+				}`},
+		},
+		{
+			note:  "every: in-scope var in object comprehension",
+			query: "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every a in input.z {
+						a == 1
+						x := input.x
+						{k: v | k := input.k; v := x}
+					}
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.z {
+					__local1__1 = 1
+					__local2__1 = input.x
+					{__local3__1: __local4__1 | __local3__1 = input.k; __local4__1 = __local2__1}
+				}`},
+		},
+		{
+			note:  "every: in-scope var in object comprehension, assigned",
+			query: "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every a in input.z {
+						a == 1
+						x := input.x
+						z := {k: v | k := input.k; v := x}
+						z != {"_": x}
+					}
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.z {
+					__local1__1 = 1
+					__local2__1 = input.x
+					__local5__1 = {__local3__1: __local4__1 | __local3__1 = input.k; __local4__1 = __local2__1}
+					neq(__local5__1, {"_": __local2__1})
+				}`},
+		},
 		{ // https://github.com/open-policy-agent/opa/issues/5367
 			note:  "copypropagation: keep equations that are only found in comprehensions, inlined function call",
 			query: "data.test.p",
@@ -4419,46 +4555,6 @@ q if { input.x = 7 }`},
 						lt(__local2__1, __local4__1)
 					}
 				} or true`},
-		},
-		{
-			note:                 "and (array comprehension): unknown inside",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
-			modules: []string{`package test
-				p if {
-					{ x := input.x; [y | y := input.y; y < x] } and true 
-				}`},
-			wantQueries: []string{`{ 
-					__local0__1 = input.x
-					[__local1__ | __local1__ = input.y; lt(__local1__, __local0__1)]
-				} and true`},
-		},
-		{
-			note:                 "and (set comprehension): unknown inside",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
-			modules: []string{`package test
-				p if {
-					{ x := input.x; {y | y := input.y; y < x} } and true 
-				}`},
-			wantQueries: []string{`{ 
-					__local0__1 = input.x
-					{__local1__ | __local1__ = input.y; lt(__local1__, __local0__1)}
-				} and true`},
-		},
-		{
-			note:                 "every (set comprehension): unknown inside",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
-			modules: []string{`package test
-				p if {
-					every a in input.z { a == 1; x := input.x; {y | y := input.y; y < x} } 
-				}`},
-			wantQueries: []string{`every __local0__1, __local1__1 in input.z { 
-					__local1__1 = 1
-					__local2__1 = input.x
-					{__local3__ | __local3__ = input.y; lt(__local3__, __local2__1)}
-				}`},
 		},
 
 		// and/or nested inside other outer constructs

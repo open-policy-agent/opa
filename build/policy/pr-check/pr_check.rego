@@ -63,6 +63,12 @@ go_root_files := [
 	"main.go",
 ]
 
+# Paths covered by buf.yaml.
+proto_change_prefixes := [
+	"v1/bundle/",
+	"v1/ir/",
+]
+
 changes.docs if {
 	some changed_file in input
 	startswith(changed_file.filename, "docs/")
@@ -81,6 +87,9 @@ changes.go if {
 } else if {
 	some changed_file in input
 	changed_file.filename in go_root_files
+} else if {
+	# .proto changes also run go-test (consistency tests live there).
+	changes.proto
 }
 
 changes.wasm if {
@@ -102,6 +111,15 @@ changes.rego if {
 changes.yaml if {
 	some changed_file in input
 	strings.any_suffix_match(changed_file.filename, yaml_change_suffixes)
+}
+
+changes.proto if {
+	some changed_file in input
+	strings.any_prefix_match(changed_file.filename, proto_change_prefixes)
+	endswith(changed_file.filename, ".proto")
+} else if {
+	some changed_file in input
+	changed_file.filename == "buf.yaml"
 }
 
 changes.bench contains "./v1/ast" if {

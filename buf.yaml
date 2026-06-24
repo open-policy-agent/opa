@@ -1,0 +1,14 @@
+# buf configuration for OPA's hand-authored .proto schemas.
+
+version: v2
+modules:
+  - path: v1/ir
+  - path: v1/bundle
+lint:
+  use:
+    - MINIMAL
+  except:
+    - PACKAGE_DIRECTORY_MATCH
+breaking:
+  use:
+    - FILE

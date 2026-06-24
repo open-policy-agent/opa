@@ -6,6 +6,10 @@
 //
 // The IR specifies an imperative execution model for Rego policies similar to a
 // query plan in traditional databases.
+//
+// Schema mirror: plan.proto + plan_proto_test.go. Update both when
+// adding/renaming/removing fields or Stmt/Val kinds; never reuse a proto
+// field number or oneof case.
 package ir
 
 import (

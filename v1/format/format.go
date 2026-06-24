@@ -963,7 +963,12 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 	}
 
 	withs := expr.With
-	lastRow := expr.Location.Row
+	// Compare against the row where the expression's terms end (its
+	// closing-bracket row), not where they begin. For a multi-line expression
+	// the lone leading `with` sits on the closing-bracket line, which differs
+	// from the start row, and comparing against the start would eject it onto
+	// its own indented line (see issue #8804).
+	lastRow := exprTermsEndRow(expr)
 
 	// Print on same row if already there, otherwise increase indent a print remaining
 	if withs[0].Location.Row == lastRow {
@@ -995,6 +1000,28 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 	}
 
 	return comments, nil
+}
+
+// exprTermsEndRow returns the row of the last source line occupied by the
+// expression's own terms, ignoring any trailing `with` modifiers. For a
+// single-line expression this equals expr.Location.Row; for a multi-line one
+// (e.g. a wrapped function call ending in `)` or an `every` block ending in
+// `}`) it is the closing-bracket row. expr.Location.Text spans the `with`
+// clauses too, so they are trimmed off via the first `with`'s offset before
+// the remaining term text is measured.
+func exprTermsEndRow(expr *ast.Expr) int {
+	loc := expr.Location
+	if loc == nil {
+		return 0
+	}
+	text := loc.Text
+	if len(expr.With) > 0 && expr.With[0].Location != nil {
+		if off := expr.With[0].Location.Offset - loc.Offset; off > 0 && off <= len(text) {
+			text = text[:off]
+		}
+	}
+	text = bytes.TrimRight(text, " \t\r\n")
+	return loc.Row + bytes.Count(text, []byte{'\n'})
 }
 
 func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) ([]*ast.Comment, error) {
@@ -1212,7 +1239,13 @@ func (w *writer) writeWith(with *ast.With, comments []*ast.Comment, indented boo
 	w.write(" as ")
 	comments, err = w.writeTerm(with.Value, comments)
 	if err != nil {
-		return comments, err
+		// An unexpectedCommentError from writeTerm signals that it fell
+		// back to writing the term's original unformatted text — the value
+		// was written successfully, so don't abort the surrounding chain
+		// of `with` clauses (issue #8765).
+		if !errors.As(err, &unexpectedCommentError{}) {
+			return comments, err
+		}
 	}
 	return comments, nil
 }
@@ -1869,9 +1902,13 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 		return nil, err
 	}
 
+	hasBoundaryComment := false
 	// If there are comments within the single line, don't collapse it and keep it as-is
 	// Return an error so that writeTerm will write the original formatting
 	if len(lines) == 1 {
+		if w.beforeEnd != nil {
+			hasBoundaryComment = w.beforeEnd.Location.Row >= last.Row && w.beforeEnd.Location.Row <= close.Row
+		}
 		for _, c := range comments {
 			if c.Location.Row > last.Row && c.Location.Row < close.Row {
 				return comments, unexpectedCommentError{
@@ -1879,10 +1916,14 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 					newCommentRow: c.Location.Row,
 				}
 			}
+			if c.Location.Row == last.Row || c.Location.Row == close.Row {
+				hasBoundaryComment = true
+			}
 		}
 	}
 
-	if len(lines) > 1 {
+	isMultiline := len(lines) > 1 || (len(lines) == 1 && len(elements) > 0 && close.Row > last.Row && !hasBoundaryComment)
+	if isMultiline {
 		w.delayBeforeEnd()
 		w.startMultilineSeq()
 	}
@@ -1904,7 +1945,7 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 		return nil, err
 	}
 
-	if len(lines) > 1 {
+	if isMultiline {
 		w.write(",")
 		w.endLine()
 		comments, err = w.insertComments(comments, close)
