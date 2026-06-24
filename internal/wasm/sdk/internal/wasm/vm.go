@@ -291,7 +291,8 @@ func (i *VM) Eval(ctx context.Context,
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
+	stop := i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
+	defer stop()
 
 	metrics.Timer("wasm_vm_eval_call").Start()
 	resultAddr, err := call(ctx, i, "opa_eval", 0 /* reserved */, entrypoint, i.dataAddr, inputAddr, inputLen, heapPtr, 1 /* value output */)
@@ -330,7 +331,8 @@ func (i *VM) evalCompat(ctx context.Context,
 
 	metrics.Timer("wasm_vm_eval_prepare_input").Start()
 
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
+	stop := i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
+	defer stop()
 
 	if err := i.setHeapState(ctx, i.evalHeapPtr); err != nil {
 		return nil, err

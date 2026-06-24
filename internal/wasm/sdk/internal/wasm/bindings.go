@@ -63,14 +63,18 @@ func (d *builtinDispatcher) SetMap(m map[int32]topdown.BuiltinFunc) {
 	d.builtins = m
 }
 
-// Reset is called in Eval before using the builtinDispatcher.
+// Reset is called in Eval before using the builtinDispatcher. It (re)builds the
+// BuiltinContext and starts a single goroutine that bridges context
+// cancellation into topdown.Cancel, so builtins that cooperate via topdown.Cancel
+// (e.g. net.cidr_expand) are aborted when ctx is done. The returned stop func
+// must be called when the eval completes to tear that goroutine down.
 func (d *builtinDispatcher) Reset(ctx context.Context,
 	seed io.Reader,
 	ns time.Time,
 	iqbCache cache.InterQueryCache,
 	ndbCache builtins.NDBCache,
 	ph print.Hook,
-	capabilities *ast.Capabilities) {
+	capabilities *ast.Capabilities) (stop func()) {
 	if ns.IsZero() {
 		ns = time.Now()
 	}
@@ -95,6 +99,19 @@ func (d *builtinDispatcher) Reset(ctx context.Context,
 		PrintHook:              ph,
 		Capabilities:           capabilities,
 	}
+
+	// WithCloseOnContextDone interrupts wasm-native execution, but it cannot
+	// preempt a running Go builtin; those cooperate via topdown.Cancel instead.
+	// A single bridge per eval suffices since d.ctx.Cancel lives for the eval.
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			d.ctx.Cancel.Cancel()
+		}
+	}()
+	return func() { close(done) }
 }
 
 func (d *builtinDispatcher) opaAbort(_ context.Context, addr int32) {
@@ -160,18 +177,6 @@ func (d *builtinDispatcher) dispatch(ctx context.Context, id int32, argAddrs ...
 	if d.builtins == nil {
 		panic(abortError{message: "unreachable: uninitialized builtin dispatcher index"})
 	}
-
-	// Bridge context cancellation into topdown.Cancel so that builtins that
-	// use it (e.g. net.cidr_expand) are properly aborted.
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		select {
-		case <-done:
-		case <-d.ctx.Context.Done():
-			d.ctx.Cancel.Cancel()
-		}
-	}()
 
 	convertedArgs := make([]*ast.Term, 0, len(argAddrs))
 	for _, addr := range argAddrs {
