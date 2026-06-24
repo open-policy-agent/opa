@@ -28,17 +28,19 @@ import (
 
 // VM is a wrapper around a Wasm VM instance
 type VM struct {
-	dispatcher    *builtinDispatcher
-	runtime       wazero.Runtime
-	mod           api.Module
-	mem           api.Memory
-	policy        []byte
-	memoryMin     uint32
-	memoryMax     uint32
-	entrypointIDs map[string]int32
-	baseHeapPtr   int32
-	dataAddr      int32
-	evalHeapPtr   int32
+	dispatcher      *builtinDispatcher
+	runtime         wazero.Runtime
+	mod             api.Module
+	mem             api.Memory
+	policy          []byte
+	abiMinorVersion int32
+	memoryMin       uint32
+	memoryMax       uint32
+	entrypointIDs   map[string]int32
+	baseHeapPtr     int32
+	dataAddr        int32
+	evalHeapPtr     int32
+	dead            bool // set when the runtime is closed mid-eval due to context cancellation
 }
 
 type vmOpts struct {
@@ -104,10 +106,11 @@ func newVM(ctx context.Context, opts vmOpts) (*VM, error) {
 		r.Close(ctx)
 		return nil, fmt.Errorf("invalid module: %w", err)
 	}
-	if major != 1 || minor < 2 {
+	if major != 1 || minor < 1 {
 		r.Close(ctx)
 		return nil, fmt.Errorf("invalid module: unsupported ABI version: %d.%d", major, minor)
 	}
+	v.abiMinorVersion = minor
 
 	v.entrypointIDs = make(map[string]int32)
 
@@ -234,6 +237,9 @@ func (i *VM) Eval(ctx context.Context,
 	ndbCache builtins.NDBCache,
 	ph print.Hook,
 	capabilities *ast.Capabilities) ([]byte, error) {
+	if i.abiMinorVersion < int32(2) {
+		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache, ndbCache, ph, capabilities)
+	}
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -302,6 +308,86 @@ func (i *VM) Eval(ctx context.Context,
 	}
 
 	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
+	return data[:n], nil
+}
+
+// evalCompat implements policy evaluation for ABI 1.1 modules which predate
+// the one-shot opa_eval export (added in ABI 1.2).
+func (i *VM) evalCompat(ctx context.Context,
+	entrypoint int32,
+	input *any,
+	metrics metrics.Metrics,
+	seed io.Reader,
+	ns time.Time,
+	iqbCache cache.InterQueryCache,
+	ndbCache builtins.NDBCache,
+	ph print.Hook,
+	capabilities *ast.Capabilities) ([]byte, error) {
+	metrics.Timer("wasm_vm_eval").Start()
+	defer metrics.Timer("wasm_vm_eval").Stop()
+
+	metrics.Timer("wasm_vm_eval_prepare_input").Start()
+
+	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
+
+	if err := i.setHeapState(ctx, i.evalHeapPtr); err != nil {
+		return nil, err
+	}
+
+	ctxAddr, err := call(ctx, i, "opa_eval_ctx_new")
+	if err != nil {
+		return nil, err
+	}
+
+	if i.dataAddr != 0 {
+		if err := callVoid(ctx, i, "opa_eval_ctx_set_data", ctxAddr, i.dataAddr); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := callVoid(ctx, i, "opa_eval_ctx_set_entrypoint", ctxAddr, entrypoint); err != nil {
+		return nil, err
+	}
+
+	if input != nil {
+		inputAddr, err := i.toRegoJSON(ctx, *input, false)
+		if err != nil {
+			return nil, err
+		}
+		if err := callVoid(ctx, i, "opa_eval_ctx_set_input", ctxAddr, inputAddr); err != nil {
+			return nil, err
+		}
+	}
+	metrics.Timer("wasm_vm_eval_prepare_input").Stop()
+
+	metrics.Timer("wasm_vm_eval_execute").Start()
+	err = callVoid(ctx, i, "eval", ctxAddr)
+	metrics.Timer("wasm_vm_eval_execute").Stop()
+	if err != nil {
+		return nil, err
+	}
+
+	metrics.Timer("wasm_vm_eval_prepare_result").Start()
+	resultAddr, err := call(ctx, i, "opa_eval_ctx_get_result", ctxAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	serialized, err := call(ctx, i, "opa_value_dump", resultAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	data, ok := i.mem.Read(uint32(serialized), i.mem.Size()-uint32(serialized))
+	if !ok {
+		return nil, fmt.Errorf("read result from memory at %d", serialized)
+	}
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		n = 0
+	}
+
+	metrics.Timer("wasm_vm_eval_prepare_result").Stop()
 	return data[:n], nil
 }
 
