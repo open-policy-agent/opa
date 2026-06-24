@@ -71,10 +71,15 @@ type vmOpts struct {
 	parsedDataAddr int32
 	memoryMin      uint32
 	memoryMax      uint32
+	cache          wazero.CompilationCache
 }
 
 func newVM(ctx context.Context, opts vmOpts) (*VM, error) {
-	r := wazero.NewRuntime(ctx)
+	cfg := wazero.NewRuntimeConfig()
+	if opts.cache != nil {
+		cfg = cfg.WithCompilationCache(opts.cache)
+	}
+	r := wazero.NewRuntimeWithConfig(ctx, cfg)
 	v := &VM{
 		runtime:   r,
 		policy:    opts.policy,

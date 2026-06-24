@@ -9,6 +9,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/tetratelabs/wazero"
+
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -18,6 +20,7 @@ var errNotReady = errors.New(errors.NotReadyErr, "")
 
 // Pool maintains a pool of WebAssemly VM instances.
 type Pool struct {
+	cache          wazero.CompilationCache
 	available      chan struct{}
 	mutex          sync.Mutex
 	dataMtx        sync.Mutex
@@ -42,6 +45,7 @@ func NewPool(poolSize, memoryMinPages, memoryMaxPages uint32) *Pool {
 	}
 
 	return &Pool{
+		cache:          wazero.NewCompilationCache(),
 		memoryMinPages: memoryMinPages,
 		memoryMaxPages: memoryMaxPages,
 		available:      available,
@@ -107,6 +111,7 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 		parsedDataAddr: parsedDataAddr,
 		memoryMin:      p.memoryMinPages,
 		memoryMax:      p.memoryMaxPages,
+		cache:          p.cache,
 	})
 	p.mutex.Lock()
 
@@ -169,6 +174,7 @@ func (p *Pool) SetPolicyData(ctx context.Context, policy []byte, data []byte) er
 			parsedDataAddr: 0,
 			memoryMin:      p.memoryMinPages,
 			memoryMax:      p.memoryMaxPages,
+			cache:          p.cache,
 		})
 
 		if err == nil {
@@ -260,7 +266,8 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 			parsedData:     parsedData,
 			parsedDataAddr: parsedDataAddr,
 			memoryMin:      seedMemorySize,
-			memoryMax:      p.memoryMaxPages, // The max pages cannot be changed while updating.
+			memoryMax:      p.memoryMaxPages,
+			cache:          p.cache,
 		})
 
 		if err != nil {
@@ -308,6 +315,7 @@ func (p *Pool) Close() {
 		vm.close()
 	}
 	p.vms = nil
+	p.cache.Close(context.Background())
 }
 
 // Wait steals the i'th VM instance. The VM has to be released afterwards.
