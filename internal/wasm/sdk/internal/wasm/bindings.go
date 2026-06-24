@@ -98,7 +98,12 @@ func (d *builtinDispatcher) Reset(ctx context.Context,
 }
 
 func (d *builtinDispatcher) opaAbort(_ context.Context, addr int32) {
-	data, ok := d.mem.Read(uint32(addr), d.mem.Size()-uint32(addr))
+	uaddr := uint32(addr)
+	size := d.mem.Size()
+	if uaddr >= size {
+		panic(abortError{message: "(unreadable abort message)"})
+	}
+	data, ok := d.mem.Read(uaddr, size-uaddr)
 	if !ok {
 		panic(abortError{message: "(unreadable abort message)"})
 	}
@@ -110,7 +115,12 @@ func (d *builtinDispatcher) opaAbort(_ context.Context, addr int32) {
 }
 
 func (d *builtinDispatcher) opaPrintln(_ context.Context, addr int32) {
-	data, ok := d.mem.Read(uint32(addr), d.mem.Size()-uint32(addr))
+	uaddr := uint32(addr)
+	size := d.mem.Size()
+	if uaddr >= size {
+		return
+	}
+	data, ok := d.mem.Read(uaddr, size-uaddr)
 	if !ok {
 		return
 	}
