@@ -50,3 +50,11 @@ more_func_replacements {
     original(1) with original as mock_f
     original(1) with original as 1234
 }
+
+lone_with_multiline_call {
+	foo(
+		arg_a,
+		bar(arg_b, arg_c),
+		"some message",
+	) with input.x as false
+}

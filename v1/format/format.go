@@ -963,7 +963,12 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 	}
 
 	withs := expr.With
-	lastRow := expr.Location.Row
+	// Compare against the row where the expression's terms end (its
+	// closing-bracket row), not where they begin. For a multi-line expression
+	// the lone leading `with` sits on the closing-bracket line, which differs
+	// from the start row, and comparing against the start would eject it onto
+	// its own indented line (see issue #8804).
+	lastRow := exprTermsEndRow(expr)
 
 	// Print on same row if already there, otherwise increase indent a print remaining
 	if withs[0].Location.Row == lastRow {
@@ -995,6 +1000,28 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 	}
 
 	return comments, nil
+}
+
+// exprTermsEndRow returns the row of the last source line occupied by the
+// expression's own terms, ignoring any trailing `with` modifiers. For a
+// single-line expression this equals expr.Location.Row; for a multi-line one
+// (e.g. a wrapped function call ending in `)` or an `every` block ending in
+// `}`) it is the closing-bracket row. expr.Location.Text spans the `with`
+// clauses too, so they are trimmed off via the first `with`'s offset before
+// the remaining term text is measured.
+func exprTermsEndRow(expr *ast.Expr) int {
+	loc := expr.Location
+	if loc == nil {
+		return 0
+	}
+	text := loc.Text
+	if len(expr.With) > 0 && expr.With[0].Location != nil {
+		if off := expr.With[0].Location.Offset - loc.Offset; off > 0 && off <= len(text) {
+			text = text[:off]
+		}
+	}
+	text = bytes.TrimRight(text, " \t\r\n")
+	return loc.Row + bytes.Count(text, []byte{'\n'})
 }
 
 func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) ([]*ast.Comment, error) {

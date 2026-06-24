@@ -50,3 +50,17 @@ more_func_replacements if {
     original(1) with original as mock_f
     original(1) with original as 1234
 }
+
+lone_with_multiline_call if {
+	foo(
+		arg_a,
+		bar(arg_b, arg_c),
+		"some message",
+	) with input.x as false
+}
+
+lone_with_every_block if {
+	every item in items {
+		check(item)
+	} with data.x as mock
+}
