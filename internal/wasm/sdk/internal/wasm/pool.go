@@ -16,6 +16,12 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 )
 
+// compilationCache is shared across all Pools in the process. wazero compiles
+// each unique policy wasm binary once and caches the result; subsequent Pool
+// or VM creations for the same bytes skip recompilation. The cache is never
+// closed — it is intentionally process-scoped.
+var compilationCache = sync.OnceValue(wazero.NewCompilationCache)
+
 var errNotReady = errors.New(errors.NotReadyErr, "")
 
 // Pool maintains a pool of WebAssemly VM instances.
@@ -45,7 +51,7 @@ func NewPool(poolSize, memoryMinPages, memoryMaxPages uint32) *Pool {
 	}
 
 	return &Pool{
-		cache:          wazero.NewCompilationCache(),
+		cache:          compilationCache(),
 		memoryMinPages: memoryMinPages,
 		memoryMaxPages: memoryMaxPages,
 		available:      available,
@@ -315,7 +321,7 @@ func (p *Pool) Close() {
 		vm.close()
 	}
 	p.vms = nil
-	p.cache.Close(context.Background())
+	// compilationCache is process-scoped and intentionally not closed here.
 }
 
 // Wait steals the i'th VM instance. The VM has to be released afterwards.
