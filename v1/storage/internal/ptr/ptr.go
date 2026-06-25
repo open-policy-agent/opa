@@ -6,11 +6,10 @@
 package ptr
 
 import (
-	"strconv"
-
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/internal/errors"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func Ptr(data any, path storage.Path) (any, error) {
@@ -92,7 +91,7 @@ func ValuePtr(data ast.Value, path storage.Path) (ast.Value, error) {
 }
 
 func ValidateArrayIndex(arr []any, s string, path storage.Path) (int, error) {
-	idx, ok := isInt(s)
+	idx, ok := util.Atoi(s)
 	if !ok {
 		return 0, errors.NewNotFoundErrorWithHint(path, errors.ArrayIndexTypeMsg)
 	}
@@ -100,7 +99,7 @@ func ValidateArrayIndex(arr []any, s string, path storage.Path) (int, error) {
 }
 
 func ValidateASTArrayIndex(arr *ast.Array, s string, path storage.Path) (int, error) {
-	idx, ok := isInt(s)
+	idx, ok := util.Atoi(s)
 	if !ok {
 		return 0, errors.NewNotFoundErrorWithHint(path, errors.ArrayIndexTypeMsg)
 	}
@@ -111,16 +110,11 @@ func ValidateASTArrayIndex(arr *ast.Array, s string, path storage.Path) (int, er
 // array element like `ValidateArrayIndex`, but returns a `resource_conflict` error
 // if it is not.
 func ValidateArrayIndexForWrite(arr []any, s string, i int, path storage.Path) (int, error) {
-	idx, ok := isInt(s)
+	idx, ok := util.Atoi(s)
 	if !ok {
 		return 0, errors.NewWriteConflictError(path[:i-1])
 	}
 	return inRange(idx, arr, path)
-}
-
-func isInt(s string) (int, bool) {
-	idx, err := strconv.Atoi(s)
-	return idx, err == nil
 }
 
 func inRange(i int, arr any, path storage.Path) (int, error) {

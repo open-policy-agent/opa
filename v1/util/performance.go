@@ -114,6 +114,66 @@ func AppendInt(buf []byte, n int) []byte {
 	return strconv.AppendInt(buf, int64(n), 10)
 }
 
+// Atoi is a convenience function for [Atoi64] where an int is preferable to an int64.
+// See the documentation of [Atoi64] for details on the performance benefits of this
+// function over strconv.Atoi.
+func Atoi(s string) (int, bool) {
+	if i, ok := Atoi64(s); ok {
+		return int(i), true
+	}
+	return 0, false
+}
+
+// Atoi64 is an alternative implementation of strconv.Atoi which is slightly faster for the
+// (for our use case) common case of a successful conversion, and crucially — *much* faster
+// for the failure case, as this function allocates nothing for any given input string, while
+// strconv.Atoi performs 1-2 allocations on failure in its error handling. The callers in this
+// codebase — most notably ast.Number's Int() and Int64() methods — have no interest in the
+// details of the failure, and keeping this allocation free means both methods can be used
+// not only for conversion, but as a most efficient "IsInt64" check.
+func Atoi64(s string) (int64, bool) {
+	sLen := len(s)
+	if sLen > 0 {
+		negative := s[0] == '-'
+		if negative || s[0] == '+' {
+			s = s[1:]
+			sLen--
+		}
+		if sLen == 0 || sLen > 19 {
+			return 0, false
+		}
+
+		var n int64
+		for _, ch := range []byte(s) {
+			ch -= '0'
+			if ch > 9 {
+				return 0, false
+			}
+			n = n*10 + int64(ch)
+		}
+		if !negative && n < 0 {
+			return 0, false // overflow
+		}
+		if negative {
+			n = -n
+			if n > 0 {
+				return 0, false // underflow
+			}
+		}
+		return n, true
+	}
+
+	return 0, false
+}
+
+// IsOnlyDigits returns true if the string contains only digits (0-9) with an optional leading '-'.
+//
+// Deprecated: use [Atoi] or [Atoi64] instead.
+func IsOnlyDigits(s string) bool {
+	_, ok := Atoi(s)
+	return ok
+}
+
 // SplitMap calls fn for each delim-separated part of text and returns a slice of the results.
 // Cheaper than calling fn on strings.Split(text, delim), as it avoids allocating an intermediate slice of strings.
 func SplitMap[T any](text string, delim string, fn func(string) T) []T {
