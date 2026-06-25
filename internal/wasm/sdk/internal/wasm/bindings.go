@@ -103,12 +103,15 @@ func (d *builtinDispatcher) Reset(ctx context.Context,
 	// WithCloseOnContextDone interrupts wasm-native execution, but it cannot
 	// preempt a running Go builtin; those cooperate via topdown.Cancel instead.
 	// A single bridge per eval suffices since d.ctx.Cancel lives for the eval.
+	// Capture cancel before spawning to avoid a race with the next Reset() call
+	// overwriting d.ctx.
+	cancel := d.ctx.Cancel
 	done := make(chan struct{})
 	go func() {
 		select {
 		case <-done:
 		case <-ctx.Done():
-			d.ctx.Cancel.Cancel()
+			cancel.Cancel()
 		}
 	}()
 	return func() { close(done) }
