@@ -3,14 +3,111 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.18.0
 
-### Breaking: Fix User-Agent according to RFC9110
-> OPA's outbound HTTP requests (bundle, discovery, decision log, status, `http.send`, AWS KMS/ECR)
-> previously sent `User-Agent: Open Policy Agent/<version> (<os>, <arch>)`, which is not a valid
-> RFC 9110 `User-Agent` value because the `product` token cannot contain spaces. The header is now
-> `Open-Policy-Agent/<version> (<os>, <arch>)`. Server-side log filters or WAF rules that
-> exact-match the old string will need to be updated.
+This release contains a mix of bugfixes and small features. Notably:
+
+- A breaking fix to the outbound `User-Agent` header so it conforms to RFC 9110 (see below)
+- Container-aware resource limits: automatic `GOMAXPROCS` is restored and automatic `GOMEMLIMIT` is now supported
+- Several `opa fmt` correctness fixes
+- Improvements to `opa test --coverage` (ranges in report, inline rule head tracking, conjunction-expression coverage)
+
+### Breaking: Fix User-Agent according to RFC9110 ([#8792](https://github.com/open-policy-agent/opa/issues/8792))
+
+OPA's outbound HTTP requests (bundle, discovery, decision log, status, `http.send`, AWS KMS/ECR)
+previously sent `User-Agent: Open Policy Agent/<version> (<os>, <arch>)`, which is not a valid
+RFC 9110 `User-Agent` value because the `product` token cannot contain spaces. The header is now
+`Open-Policy-Agent/<version> (<os>, <arch>)`. Server-side log filters or WAF rules that
+exact-match the old string will need to be updated.
+
+Authored by @sspaink, reported by @SpecLad
+
+### Runtime, SDK, Tooling
+
+- bundle: fix per-module rego version lookup ([#8797](https://github.com/open-policy-agent/opa/issues/8797)) authored by @sspaink, reported by @xubinzheng
+- bundle: improve determinism of `file_rego_versions` patterns with overlap ([#8733](https://github.com/open-policy-agent/opa/pull/8733)) authored by @philipaconrad
+- cover: Track inline rule head in post trace walk ([#6531](https://github.com/open-policy-agent/opa/issues/6531)) authored by @charlieegan3, reported by @anderseknert
+- cover: Update report to include ranges ([#8748](https://github.com/open-policy-agent/opa/issues/8748)) reported and authored by @charlieegan3
+- cover: Add support for coverage of conjunction exprs ([#8809](https://github.com/open-policy-agent/opa/pull/8809)) authored by @charlieegan3
+- download/oci: Set Accept headers ([#8720](https://github.com/open-policy-agent/opa/pull/8720)) authored by @charlieegan3
+- fmt: preserve the multiline but single entry iterables ([#8557](https://github.com/open-policy-agent/opa/issues/8557)) authored by @unichronic, reported by @anderseknert
+- format: Fix dropped with-clause after comment in object value ([#8765](https://github.com/open-policy-agent/opa/issues/8765)) authored by @sspaink, reported by @srabraham
+- format: keep lone `with` on the closing-bracket line of multi-line expressions ([#8804](https://github.com/open-policy-agent/opa/issues/8804)) authored by @anneheartrecord, reported by @burnster
+- oracle: Fix find-definition on expressions inside `ast.Not` nodes ([#8731](https://github.com/open-policy-agent/opa/pull/8731)) authored by @johanfylling
+- runtime: Restore goautomaxprocs, add automemlimit ([#8784](https://github.com/open-policy-agent/opa/pull/8784)) authored by @charlieegan3
+
+### Compiler, Topdown and Rego
+
+- ast: Apply location to inner `ast.Not` expressions ([#8717](https://github.com/open-policy-agent/opa/issues/8717)) authored by @johanfylling, reported by @anderseknert
+- ast: Clean up code for value comparisons ([#8737](https://github.com/open-policy-agent/opa/pull/8737)) authored by @anderseknert
+- ast: Fix PE regression for `future.keywords.not` negation inside `every` ([#8781](https://github.com/open-policy-agent/opa/pull/8781)) authored by @johanfylling
+- internal/edittree: Add recursive tree node recycling ([#8693](https://github.com/open-policy-agent/opa/pull/8693)) authored by @philipaconrad
+- internal: compile,planner: improve determinism of `plan`/`wasm` bundle builds ([#8732](https://github.com/open-policy-agent/opa/pull/8732)) authored by @philipaconrad
+- perf: avoid allocations in `object.get` ([#8729](https://github.com/open-policy-agent/opa/pull/8729)) authored by @anderseknert
+- topdown: Fix PE not namespacing vars in comprehensions nested inside `every` ([#8816](https://github.com/open-policy-agent/opa/pull/8816)) authored by @johanfylling
+- topdown: remove `dst.Compare(src)` shortcut ([#8739](https://github.com/open-policy-agent/opa/pull/8739)) authored by @srenatus
+- topdown: skip strconv.ParseInt in format_int base-10 fast path ([#8801](https://github.com/open-policy-agent/opa/pull/8801)) authored by @srenatus
+
+### Docs, Website, Ecosystem
+
+- docs/chore: Remove broken links ([#8714](https://github.com/open-policy-agent/opa/issues/8714)) authored by @charlieegan3, reported by @github-actions
+- docs: PoC for kapa.ai ([#8125](https://github.com/open-policy-agent/opa/issues/8125)) reported and authored by @charlieegan3
+- docs(ecosystem): update OPA MCP entry with video, blog, and distribution links ([#8712](https://github.com/open-policy-agent/opa/pull/8712)) authored by @OrygnsCode
+- docs/contributing: add formatting ([#8740](https://github.com/open-policy-agent/opa/pull/8740)) authored by @mmzzuu
+- docs: Add SDK references for evaluating IR plans ([#8783](https://github.com/open-policy-agent/opa/pull/8783)) authored by @charlieegan3
+- docs: Add depkeep to enterprise support ([#8685](https://github.com/open-policy-agent/opa/pull/8685)) authored by @pkuzco
+- docs: Add notes about use of GOMEMLIMIT ([#8771](https://github.com/open-policy-agent/opa/pull/8771)) authored by @charlieegan3
+- docs: Add we/our/us check to spell check ([#8787](https://github.com/open-policy-agent/opa/pull/8787)) authored by @charlieegan3
+- docs: Update built-in index page titles ([#8728](https://github.com/open-policy-agent/opa/pull/8728)) authored by @charlieegan3
+- docs: Update documentation to be more consistent and sound more like reference docs ([#8786](https://github.com/open-policy-agent/opa/pull/8786)) authored by @charlieegan3
+- docs: Update regal docs for 0.41.1 release ([#8730](https://github.com/open-policy-agent/opa/pull/8730)) authored by @charlieegan3
+- docs: Update to agents.md regarding security dependences 'fixes' ([#8754](https://github.com/open-policy-agent/opa/pull/8754)) authored by @charlieegan3
+- docs: clarify environment variable substitution behaviour ([#8713](https://github.com/open-policy-agent/opa/pull/8713)) authored by @taurelius
+- docs: remove duplicated word in Rego style guide ([#8800](https://github.com/open-policy-agent/opa/pull/8800)) authored by @s3onghyun
+- website: Add .md alternate content types for llms ([#8725](https://github.com/open-policy-agent/opa/pull/8725)) authored by @charlieegan3
+- website: Add support page disclaimer and sort by date added ([#8736](https://github.com/open-policy-agent/opa/pull/8736)) authored by @charlieegan3
+- website: Fix build from missing dateAdded ([#8764](https://github.com/open-policy-agent/opa/pull/8764)) authored by @charlieegan3
+- website: Update docusaurus ([#8756](https://github.com/open-policy-agent/opa/pull/8756)) authored by @charlieegan3
+- website: Update homepage AI example to tool calls ([#8755](https://github.com/open-policy-agent/opa/pull/8755)) authored by @charlieegan3
+- website: Various updates to node and website deps ([#8768](https://github.com/open-policy-agent/opa/pull/8768)) authored by @charlieegan3
+- website: add ossrisk to ecosystem ([#8780](https://github.com/open-policy-agent/opa/pull/8780)) authored by @pkuzco
+
+### Miscellaneous
+
+- benchmarks: smaller tweaks ([#8759](https://github.com/open-policy-agent/opa/pull/8759)) authored by @srenatus
+- benchmarks: split off script, emit markdown table ([#8812](https://github.com/open-policy-agent/opa/pull/8812)) authored by @srenatus
+- benchmarks: use details+summary comments for benchlab results ([#8811](https://github.com/open-policy-agent/opa/pull/8811)) authored by @srenatus
+- capabilities: Integrate 1.17.1 patch release ([#8798](https://github.com/open-policy-agent/opa/pull/8798)) authored by @sspaink
+- chore: tidy go.mod to remove untagged versions ([#8791](https://github.com/open-policy-agent/opa/pull/8791)) authored by @thaJeztah
+- e2e: Add proto schemas for the IR plan and bundle manifest ([#8766](https://github.com/open-policy-agent/opa/issues/8766)) reported and authored by @sspaink
+- gha: deduplicate change-detection output in pr CI checks ([#8808](https://github.com/open-policy-agent/opa/pull/8808)) authored by @sspaink
+- nightly: use regal@main ([#8735](https://github.com/open-policy-agent/opa/pull/8735)) authored by @srenatus
+- workflow: remove tests from docker (edge) image build ([#8721](https://github.com/open-policy-agent/opa/pull/8721)) authored by @srenatus
+- workflows: bring back docker edge tags for post-merge ([#8718](https://github.com/open-policy-agent/opa/pull/8718)) authored by @srenatus
+- workflows: use `go-version-file` with `actions/setup-go` ([#8751](https://github.com/open-policy-agent/opa/pull/8751)) authored by @srenatus
+- Dependency updates; notably:
+    - build(deps): Add github.com/KimMachineGun/automemlimit v0.7.5
+    - build(deps): Add go.uber.org/automaxprocs v1.6.0
+    - build(deps): Bump github.com/dgraph-io/badger/v4 from v4.9.1 to v4.9.2
+    - build(deps): Bump github.com/vektah/gqlparser/v2 from v2.5.33 to v2.5.34
+    - build(deps): Bump go.opentelemetry.io/contrib/bridges/prometheus from v0.68.0 to v0.69.0
+    - build(deps): Bump go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp from v0.68.0 to v0.69.0
+    - build(deps): Bump go.opentelemetry.io/otel from v1.43.0 to v1.44.0
+    - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc from v1.43.0 to v1.44.0
+    - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp from v1.43.0 to v1.44.0
+    - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace from v1.43.0 to v1.44.0
+    - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc from v1.43.0 to v1.44.0
+    - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp from v1.43.0 to v1.44.0
+    - build(deps): Bump go.opentelemetry.io/otel/sdk from v1.43.0 to v1.44.0
+    - build(deps): Bump go.opentelemetry.io/otel/sdk/metric from v1.43.0 to v1.44.0
+    - build(deps): Bump go.opentelemetry.io/otel/trace from v1.43.0 to v1.44.0
+    - build(deps): Bump golang.org/x/sync from v0.20.0 to v0.21.0
+    - build(deps): Bump golang.org/x/text from v0.37.0 to v0.38.0
+    - build(deps): Bump google.golang.org/grpc from v1.81.0 to v1.81.1
+    - build(deps): Bump gopkg.in/ini.v1 from v1.67.2 to v1.67.3
+    - build(deps): Bump oras.land/oras-go/v2 from v2.6.0 to v2.6.1
+    - build(deps): bump golang.org/x/crypto to v0.52.0 and golang.org/x/net to v0.55.0 ([#8745](https://github.com/open-policy-agent/opa/pull/8745)) authored by @BGebken
+    - build: bump go 1.26.3 -> 1.26.4 ([#8726](https://github.com/open-policy-agent/opa/pull/8726)) authored by @srenatus
 
 ## 1.17.1
 
