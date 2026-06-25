@@ -1285,6 +1285,13 @@ func TestUnsupportedURLScheme(t *testing.T) {
 	}
 }
 
+func TestRejectRemoteFileURLHost(t *testing.T) {
+	_, err := NewFileLoader().All([]string{"file://server/share/a.rego"})
+	if err == nil || !strings.Contains(err.Error(), "file URL host must be empty or localhost: file://server/share/a.rego") {
+		t.Fatal(err)
+	}
+}
+
 func TestSplitPrefix(t *testing.T) {
 
 	tests := []struct {
