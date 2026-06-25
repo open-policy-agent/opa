@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 1.18.0
 
 This release contains a mix of bugfixes and small features. Notably:
@@ -457,10 +459,6 @@ Users of the binaries or Docker images can ignore this, the code is otherwise th
 Miscellaneous
 
     logging: make WithContext() optional (authored by @srenatus)
-
-## Unreleased
-
-## Unreleased
 
 ## 1.15.0
 
