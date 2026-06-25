@@ -1899,6 +1899,26 @@ obj := {
 				},
 			},
 		},
+		{
+			// Regression test for #8719: an unsafe variable that appears in a
+			// rule head and is rewritten (e.g. declared with `some`) must still
+			// report its location.
+			module: `package test
+
+r[x] := y if {
+	some x
+	y := [_]
+}`,
+			expectedErrs: []struct {
+				message  string
+				location int
+			}{
+				{
+					"var x is unsafe",
+					3,
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

@@ -1596,11 +1596,16 @@ func (c *Compiler) checkSafetyRuleHeads() {
 				if vars.DiffCount(vis.vars) > 0 {
 					unsafe := vars.Diff(vis.vars)
 					for v := range unsafe {
+						// Capture the location before v is rewritten back to its
+						// original name below: vars is keyed by the (possibly
+						// rewritten) head var, so looking up vars[v] after the
+						// reassignment would miss the location. See #8719.
+						loc := vars[v].Location
 						if w, ok := c.RewrittenVars[v]; ok {
 							v = w
 						}
 						if !v.IsGenerated() {
-							if !c.err(NewError(UnsafeVarErr, vars[v].Location, "var %v is unsafe", v)) {
+							if !c.err(NewError(UnsafeVarErr, loc, "var %v is unsafe", v)) {
 								return true
 							}
 						}
