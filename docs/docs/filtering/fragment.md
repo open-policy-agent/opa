@@ -31,7 +31,7 @@ When only _known_ values are used, **you can use all of Rego.**
 
 ## Example Preamble
 
-In the running example, assume a table `fruits` with columns `name`, `colour`, and `price`. These **unknown values** are represented with `input.<TABLE>.<COLUMN>` e.g. `input.fruits.name`
+In this running example, assume a table `fruits` exists with columns `name`, `colour`, and `price`.
 
 ```mermaid
 erDiagram
@@ -42,7 +42,29 @@ erDiagram
     }
 ```
 
-The data filters also depend on user information. These **known values** are represented with `input.user`
+## Context data for Partial Evaluation
+
+### Unknowns: database rows
+
+Database rows are **unknown** at policy evaluation time — OPA does not have access to the database. They are represented in Rego using the convention `input.<TABLE>.<COLUMN>`, e.g. `input.fruits.name` refers to the `name` column of the `fruits` table.
+
+The **METADATA annotation** on the policy package declares which `input` paths are unknown. OPA uses this to know which parts of the policy to leave as conditions rather than evaluate:
+
+```rego title="policy.rego"
+# METADATA
+# scope: package
+# compile:
+#   unknowns: [input.fruits]
+package filters
+
+include if input.fruits.name == "banana"
+```
+
+With `input.fruits` declared as unknown, OPA will not try to resolve `input.fruits.name` during partial evaluation — instead it becomes a column reference in the output SQL.
+
+### Known values: request context
+
+Our data filters also depend on user information. These **known values** are sent to OPA as input at query time and will be substituted during partial evaluation:
 
 ```json
 {
@@ -52,6 +74,8 @@ The data filters also depend on user information. These **known values** are rep
   "budget": 10
 }
 ```
+
+They are referenced in the policy as `input.user`, e.g. `input.user.budget`. Because they are not listed in `unknowns`, OPA resolves them to their concrete values during partial evaluation.
 
 ## Simple comparisons
 
