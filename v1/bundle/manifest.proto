@@ -32,7 +32,7 @@ message Manifest {
   // is `map[string]any`.
   google.protobuf.Struct metadata = 6;
 
-  // True iff `bundle.Manifest.Roots` was non-nil. `repeated string` can't
+  // True if `bundle.Manifest.Roots` was non-nil. `repeated string` can't
   // distinguish nil (default to [""]) from explicit-empty (owns no paths).
   bool roots_set = 7;
 }

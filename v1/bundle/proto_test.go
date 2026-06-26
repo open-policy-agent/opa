@@ -17,9 +17,6 @@ import (
 	pb "github.com/open-policy-agent/opa/v1/bundle/v1pb"
 )
 
-// TestManifestProtoRoundTrip verifies the Manifest → proto → bytes →
-// proto → Manifest round-trip preserves manifest semantics, including
-// every annotation sub-type that has its own from/to converter.
 func TestManifestProtoRoundTrip(t *testing.T) {
 	regoV1 := 1
 	roots := []string{"", "a/b"}
