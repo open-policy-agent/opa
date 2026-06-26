@@ -93,13 +93,13 @@ allow if {
 allow if {
     input.method == "GET"
     input.path == ["accounts", "report"]
-    roles[input.user][_] == "admin"
+    "admin" in roles[input.user]
 }
 
 allow if {
     input.method == "POST"
     input.path == ["accounts"]
-    roles[input.user][_] == "admin"
+    "admin" in roles[input.user]
 }
 
 roles := {
@@ -124,7 +124,7 @@ roles := {
 
 For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables). For example:
 
-| Expression                  | Indexed | Reason (for not indexing)    |
+| Expression                  | Indexed | Notes                        |
 | --------------------------- | ------- | ---------------------------- |
 | `input.x`                   | yes     |                              |
 | `input.x == "foo"`          | yes     |                              |
@@ -137,11 +137,36 @@ For simple equality statements (`=` and `==`) to be indexed one side must be a n
 
 For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern must be recognized by the indexer and the match be a non-nested reference that does not contain any variables. The indexer recognizes patterns containing the normal glob (`*`) operator but not the super glob (`**`) or character pattern matching operators.
 
-| Expression                                   | Indexed | Reason (for not indexing)  |
+| Expression                                   | Indexed | Notes                      |
 | -------------------------------------------- | ------- | -------------------------- |
 | `glob.match("foo:*:bar", [":"], input.x)`    | yes     |                            |
 | `glob.match("foo:**:bar", [":"], input.x)`   | no      | pattern contains `**`      |
 | `glob.match("foo:*:bar", [":"], input.x[i])` | no      | match contains variable(s) |
+
+#### Membership (`in`) statements
+
+For `value in collection` statements to be indexed, the value must be a scalar (or a variable previously assigned a scalar), and the collection must be either a non-nested reference without variables, or a literal set, array, or object.
+
+Both directions of membership are supported:
+
+| Expression                                | Indexed | Notes                                   |
+| ----------------------------------------- | ------- | --------------------------------------- |
+| `input.role in {"admin", "user"}`         | yes     |                                         |
+| `"admin" in input.roles`                  | yes     |                                         |
+| `input.roles[_] == "admin"`               | yes     | treated as `"admin" in input.roles`     |
+| `x := input.role; x in {"admin", "user"}` | yes     | variable resolved to ref via assignment |
+| `{"nested": "obj"} in input.items`        | no      | non-scalar membership value             |
+| `some k, v in input.obj; v == "admin"`    | no      | three-operand `in` not indexed          |
+
+#### Bare reference statements
+
+A bare reference used as a boolean check (without an explicit comparison) is also indexed. The indexer selects rules that reference the ref and skips rules that don't — the actual truthiness check still happens during evaluation.
+
+| Expression   | Indexed | Notes                         |
+| ------------ | ------- | ----------------------------- |
+| `input.x`    | yes     |                               |
+| `input.x.y`  | yes     |                               |
+| `input.x[i]` | no      | reference contains a variable |
 
 ### Early Exit in Rule Evaluation
 
