@@ -1,0 +1,16 @@
+{
+  "api_version": "v2",
+  "deny": [
+    "unsupported API version \"v2\"; only v1 is allowed"
+  ],
+  "path_segments": [
+    "api",
+    "v2",
+    "users",
+    "123"
+  ],
+  "route_prefix": [
+    "api",
+    "v2"
+  ]
+}
