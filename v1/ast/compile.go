@@ -1701,16 +1701,17 @@ func (parser *schemaParser) parseSchemaWithPropertyKey(schema any, propertyKey s
 
 	// Handle referenced schemas, returns directly when a $ref is found
 	if subSchema.RefSchema != nil {
-		if existing, ok := parser.definitionCache[subSchema.Ref.String()]; ok {
+		subSchemaStr := subSchema.Ref.String()
+		if existing, ok := parser.definitionCache[subSchemaStr]; ok {
 			if existing.processing {
 				if existing.rec == nil {
-					existing.rec = types.NewRecursive(subSchema.Ref.String(), nil)
+					existing.rec = types.NewRecursive(subSchemaStr, nil)
 				}
 				return existing.rec, nil
 			}
 			return existing.typ, nil
 		}
-		return parser.parseSchemaWithPropertyKey(subSchema.RefSchema, subSchema.Ref.String())
+		return parser.parseSchemaWithPropertyKey(subSchema.RefSchema, subSchemaStr)
 	}
 
 	// Cache this $ref definition and finalize it via defer when parsing

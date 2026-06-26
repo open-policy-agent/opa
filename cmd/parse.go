@@ -7,7 +7,6 @@ package cmd
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -108,8 +107,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 			_ = pr.JSON(stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
 			return 1
 		}
-
-		_, _ = fmt.Fprint(stdout, string(bs)+"\n")
+		_, _ = stdout.Write(append(bs, '\n'))
 	default:
 		ast.Pretty(stdout, result.Parsed)
 	}

@@ -12,4 +12,7 @@ opa_value *opa_agg_sort(opa_value *v);
 opa_value *opa_agg_all(opa_value *v);
 opa_value *opa_agg_any(opa_value *v);
 
+opa_value *builtin_member(opa_value *v, opa_value *collection);
+opa_value *builtin_member3(opa_value *key, opa_value *val, opa_value *collection);
+
 #endif
