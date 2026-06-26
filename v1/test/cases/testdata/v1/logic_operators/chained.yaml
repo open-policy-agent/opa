@@ -1,0 +1,129 @@
+---
+cases:
+  - note: "logic_op/chained: a and b and c, all true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          input.a and input.b and input.c
+        }
+    input:
+      a: true
+      b: true
+      c: true
+    want_result:
+      - x: true
+  - note: "logic_op/chained: a and b and c, middle false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          input.a and input.b and input.c
+        }
+    input:
+      a: true
+      b: false
+      c: true
+    want_result: []
+  - note: "logic_op/chained: a or b or c, only middle true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.a or input.b or input.c
+        }
+    input:
+      a: false
+      b: true
+      c: false
+    want_result:
+      - x: true
+  - note: "logic_op/chained: a or b or c, all false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.a or input.b or input.c
+        }
+    input:
+      a: false
+      b: false
+      c: false
+    want_result: []
+  - note: "logic_op/chained: a and b or c and d, right side wins"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          # parses as (a and b) or (c and d)
+          input.a and input.b or input.c and input.d
+        }
+    input:
+      a: false
+      b: true
+      c: true
+      d: true
+    want_result:
+      - x: true
+  - note: "logic_op/chained: a or b and c or d, b-and-c is the only true conjunct"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          # parses as: a or (b and c) or d
+          input.a or input.b and input.c or input.d
+        }
+    input:
+      a: false
+      b: true
+      c: true
+      d: false
+    want_result:
+      - x: true
+  - note: "logic_op/chained: deeply nested explicit bodies"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          { input.a and { input.b or input.c } } and { input.d or { input.e and input.f } }
+        }
+    input:
+      a: true
+      b: false
+      c: true
+      d: false
+      e: true
+      f: true
+    want_result:
+      - x: true

@@ -107,3 +107,67 @@ cases:
         ]
     want_result:
       - x: []
+  - note: "logic_op/iteration: not around or with iteration"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+        import future.keywords.not
+
+        # not body iterates xs; succeeds iff NO element satisfies either branch
+        p if {
+          not { some n in input.xs; n < 0 or n > 100 }
+        }
+    input:
+      xs: [0, 5, 99]
+    want_result:
+      - x: true
+  - note: "logic_op/iteration: not around or with iteration, one element matches"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+        import future.keywords.not
+
+        p if {
+          not { some n in input.xs; n < 0 or n > 100 }
+        }
+    input:
+      xs: [0, 5, 200]
+    want_result: []
+  - note: "logic_op/iteration: not around and with iteration"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.not
+
+        # Succeeds iff no n in xs is both >0 and <10
+        p if {
+          not { some n in input.xs; n > 0 and n < 10 }
+        }
+    input:
+      xs: [-1, 0, 20]
+    want_result:
+      - x: true
+  - note: "logic_op/iteration: not around and with iteration, one element matches"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.not
+
+        p if {
+          not { some n in input.xs; n > 0 and n < 10 }
+        }
+    input:
+      xs: [-1, 0, 5]
+    want_result: []

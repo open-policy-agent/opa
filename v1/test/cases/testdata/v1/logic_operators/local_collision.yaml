@@ -1,0 +1,71 @@
+---
+cases:
+  - note: "logic_op/local_collision: same name in both and-operand bodies"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { a := 1; a > 0 } and { a := 2; a > 1 }
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/local_collision: same name in both or-operand bodies"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          { a := 0; a > 0 } or { a := 5; a > 0 }
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/local_collision: same name across and-body and outer scope"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        # outer `a` must not leak into the operand body and vice-versa.
+        p if {
+          a := -100
+          { a := 1; a > 0 } and { a := 2; a > 1 }
+          a == -100
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/local_collision: same `some` iter name in both operand bodies"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { some n in [1, 2, 3]; n > 2 } and { some n in [10, 20, 30]; n > 20 }
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/local_collision: nested explicit body re-uses same name"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          { a := 1; a > 0 } and { { a := 2; a > 1 } or { a := 3; a > 5 } }
+        }
+    want_result:
+      - x: true
