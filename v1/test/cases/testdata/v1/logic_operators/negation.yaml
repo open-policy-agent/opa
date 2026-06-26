@@ -1,0 +1,134 @@
+---
+cases:
+  - note: "logic_op/negation: not {x and y}, de Morgan equivalent"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.not
+
+        p if {
+          not { input.x and input.y }
+        }
+    input:
+      x: true
+      "y": false
+    want_result:
+      - x: true
+  - note: "logic_op/negation: not {x and y}, both true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.not
+
+        p if {
+          not { input.x and input.y }
+        }
+    input:
+      x: true
+      "y": true
+    want_result: []
+  - note: "logic_op/negation: not {x or y}, neither true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+        import future.keywords.not
+
+        p if {
+          not { input.x or input.y }
+        }
+    input:
+      x: false
+      "y": false
+    want_result:
+      - x: true
+  - note: "logic_op/negation: not {x or y}, one true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+        import future.keywords.not
+
+        p if {
+          not { input.x or input.y }
+        }
+    input:
+      x: false
+      "y": true
+    want_result: []
+  - note: "logic_op/negation: not x and not y, inner negation"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          not input.x and not input.y
+        }
+    input:
+      x: false
+      "y": false
+    want_result:
+      - x: true
+  - note: "logic_op/negation: not x or not y, inner negation"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          not input.x or not input.y
+        }
+    input:
+      x: false
+      "y": false
+    want_result:
+      - x: true
+  - note: "logic_op/negation: not {not x or not y}, double negation"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+        import future.keywords.not
+
+        p if {
+          not {not input.x or not input.y}
+        }
+    input:
+      x: true
+      "y": true
+    want_result:
+      - x: true
+  - note: "logic_op/negation: not {x and not y}, mixed"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.not
+
+        p if {
+          not {input.x and not input.y}
+        }
+    input:
+      x: true
+      "y": true
+    want_result:
+      - x: true

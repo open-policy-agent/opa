@@ -1,0 +1,95 @@
+---
+cases:
+  - note: "logic_op/comprehension: array, and as filter"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        # One entry per x where both operands succeed.
+        p := [x |
+          x := input.xs[_]
+          x > 0 and x < 10
+        ]
+    input:
+      xs: [-1, 5, 12, 3]
+    want_result:
+      - x: [5, 3]
+  - note: "logic_op/comprehension: array, or as filter"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := [x |
+          x := input.xs[_]
+          x < 0 or x > 10
+        ]
+    input:
+      xs: [-1, 5, 12, 3]
+    want_result:
+      - x: [-1, 12]
+  - note: "logic_op/comprehension: set with and (dedup)"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        # Set semantics dedupe even if multiple iterations match.
+        p := {x |
+          x := input.xs[_]
+          x > 0 and x < 10
+        }
+    input:
+      xs: [1, 1, 2, 2, 3, 3]
+    sort_bindings: true
+    want_result:
+      - x: [1, 2, 3]
+  - note: "logic_op/comprehension: object with or"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := {k: v |
+          v := input[k]
+          v > 0 or v < -10
+        }
+    input:
+      a: 5
+      b: 0
+      c: -20
+      d: -1
+    want_result:
+      - x:
+          a: 5
+          c: -20
+  - note: "logic_op/comprehension: nested comprehension with and"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p := [r |
+          xs := input.matrix[_]
+          r := [n |
+            n := xs[_]
+            n > 0 and n < 10
+          ]
+        ]
+    input:
+      matrix:
+        - [1, -2, 5]
+        - [12, 3, -4]
+    want_result:
+      - x: [[1, 5], [3]]

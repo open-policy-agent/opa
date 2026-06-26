@@ -1,0 +1,103 @@
+---
+cases:
+  - note: "logic_op/and/explicit-body: explicit lhs, implicit rhs"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { a := 1; a > 0 } and input.y == 2
+        }
+    input:
+      "y": 2
+    want_result:
+      - x: true
+  - note: "logic_op/and/explicit-body: implicit lhs, explicit rhs"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          input.y == 2 and { a := 1; a > 0 }
+        }
+    input:
+      "y": 2
+    want_result:
+      - x: true
+  - note: "logic_op/and/explicit-body: both explicit"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { a := 1; a > 0 } and { b := 2; b > 0 }
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/and/explicit-body: multi-expr operand body"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { a := input.a; a > 0; a < 10 } and true
+        }
+    input:
+      a: 5
+    want_result:
+      - x: true
+  - note: "logic_op/and/explicit-body: multi-expr operand body fails on second expr"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { a := input.a; a > 0; a < 10 } and true
+        }
+    input:
+      a: 100
+    want_result: []
+  - note: "logic_op/and/explicit-body: each operand has its own scope"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { a = 1; a > 0 } and { a = -1; a < 0 }
+          { b := 1; b > 0 } and { b := -1; b < 0 }
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/and/explicit-body: some-binding inside operand body"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { some n in input.xs; n > 0 } and true
+        }
+    input:
+      xs: [-1, 0, 5]
+    want_result:
+      - x: true

@@ -1,0 +1,109 @@
+---
+# Operand bodies with internal enumeration.
+cases:
+  - note: "logic_op/iteration: and"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { some n in [1, 2, 3]; n > 0 } and true
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/iteration: and lhs would yield multiple successes, comprehension emits once"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p := [1 |
+          { some n in [1, 2, 3]; n > 0 } and true
+        ]
+    want_result:
+      - x: [1]
+  - note: "logic_op/iteration: and rhs would yield multiple successes, comprehension emits once"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p := [1 |
+          true and { some n in [1, 2, 3]; n > 0 }
+        ]
+    want_result:
+      - x: [1]
+  - note: "logic_op/iteration: and lhs+rhs would yield multiple successes, comprehension emits once"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p := [1 |
+          { some n in [1, 2, 3]; n > 0 } and { some n in [4, 5, 6]; n > 0 }
+        ]
+    want_result:
+      - x: [1]
+  - note: "logic_op/iteration: or lhs would yield multiple successes, comprehension emits once"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := [1 |
+          { some n in [1, 2, 3]; n > 0 } or false
+        ]
+    want_result:
+      - x: [1]
+  - note: "logic_op/iteration: or rhs would yield multiple successes, comprehension emits once"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := [1 |
+          false or { some n in [1, 2, 3]; n > 0 }
+        ]
+    want_result:
+      - x: [1]
+  - note: "logic_op/iteration: enumeration inside operand body, no fail-and-retry"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        # Only one needs to succeed
+        p := [1 |
+          { some n in [-1, 2, 3, 4]; n == 2 } and true
+        ]
+    want_result:
+      - x: [1]
+  - note: "logic_op/iteration: enumeration inside operand body, all fail"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        # All fail
+        p := [1 |
+          { some n in [-1, 2, 3, 4]; n == 42 } and true
+        ]
+    want_result:
+      - x: []

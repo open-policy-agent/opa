@@ -1,0 +1,62 @@
+---
+cases:
+  - note: "logic_op/with: outer with on and propagates to both operand bodies"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          input.x > 0 and input.y > 0 with input as {"x": 1, "y": 2}
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/with: with on lhs only, scoped to lhs"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { input.x < 2 with input.x as 1 } and input.x == 5
+        }
+    input:
+      x: 5
+    want_result:
+      - x: true
+  - note: "logic_op/with: with on lhs only, scoped to lhs, but falls through to called scope"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { q with input.x as 1 } and input.x == 5
+        }
+
+        q if {
+          input.x < 2
+        }
+    input:
+      x: 5
+    want_result:
+      - x: true
+  - note: "logic_op/with: outer with on or, both operands see modified input"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.x > 0 or input.y > 0 with input as {"x": 0, "y": 1}
+        }
+    want_result:
+      - x: true

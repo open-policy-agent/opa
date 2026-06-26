@@ -1,0 +1,46 @@
+---
+cases:
+  - note: "logic_op/or/single-result: both operands succeed contributes one element"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        # Comprehension makes cardinality observable: a broken `or` that ran
+        # both operands and emitted two outer successes would yield [1, 1].
+        p := [1 |
+          true or true
+        ]
+    want_result:
+      - x: [1]
+  - note: "logic_op/or/single-result: nested or, all branches succeed contributes one element"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := [1 |
+          { true or true } or { true or true }
+        ]
+    want_result:
+      - x: [1]
+  - note: "logic_op/or/single-result: inside iterating comprehension, one entry per outer binding"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := [i |
+          i := input.xs[_]
+          i > 0 or i != 0 # if lhs/rhs both contributed a result, we'd get duplicates in the array
+        ]
+    input:
+      xs: [1, 2, 3]
+    want_result:
+      - x: [1, 2, 3]
