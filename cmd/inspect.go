@@ -38,6 +38,7 @@ const (
 type inspectCommandParams struct {
 	outputFormat    *util.EnumFlag
 	listAnnotations bool
+	dataPaths       repeatedStringFlag
 	v0Compatible    bool
 	v1Compatible    bool
 }
@@ -56,6 +57,7 @@ func newInspectCommandParams() inspectCommandParams {
 	return inspectCommandParams{
 		outputFormat:    formats.Flag(formats.Pretty, formats.JSON),
 		listAnnotations: false,
+		dataPaths:       newrepeatedStringFlag([]string{}),
 	}
 }
 
@@ -66,12 +68,12 @@ func initInspect(root *cobra.Command, brand string) {
 
 	inspectCommand := &cobra.Command{
 		Use:   "inspect <path> [<path> [...]]",
-		Short: `Inspect ` + brand + ` bundle(s)`,
-		Long: `Inspect ` + brand + ` bundle(s).
+		Short: `Inspect ` + brand + ` bundle(s), Rego files, or data files`,
+		Long: `Inspect ` + brand + ` bundle(s), Rego files, or data files.
 
-The 'inspect' command provides a summary of the contents in ` + brand + ` bundle(s) or a single Rego file.
-Bundles are gzipped tarballs containing policies and data. The 'inspect' command reads bundle(s) and lists
-the following:
+The 'inspect' command provides a summary of the contents in ` + brand + ` bundle(s), a single Rego file,
+or data files. Bundles are gzipped tarballs containing policies and data. The 'inspect' command reads
+bundle(s) and lists the following:
 
 * packages that are contributed by .rego files
 * data locations defined by the data.json and data.yaml files
@@ -80,16 +82,24 @@ the following:
 * information about the Wasm module files
 * package- and rule annotations
 
-Example:
+Examples:
 
+    # Inspect a bundle
     $ ls
     bundle.tar.gz
     $ ` + executable + ` inspect bundle.tar.gz
 
+    # Inspect data files
+    $ ` + executable + ` inspect --data data.json
+    $ ` + executable + ` inspect --data config.yaml
+
 You can provide exactly one ` + brand + ` bundle, to a bundle directory, or direct path to a Rego file to the 'inspect'
 command on the command-line. If you provide a path referring to a directory, the 'inspect' command will load that path as
-a bundle and summarize its structure and contents.  If you provide a path referring to a Rego file, the 'inspect' command
+a bundle and summarize its structure and contents. If you provide a path referring to a Rego file, the 'inspect' command
 will load that file and summarize its structure and contents.
+
+Alternatively, you can use the --data flag to inspect individual JSON or YAML data files. This flag can
+be repeated to inspect multiple data files.
 `,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateInspectParams(&params, args); err != nil {
@@ -101,7 +111,11 @@ will load that file and summarize its structure and contents.
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
 
-			if err := doInspect(params, args[0], os.Stdout); err != nil {
+			path := ""
+			if len(args) > 0 {
+				path = args[0]
+			}
+			if err := doInspect(params, path, os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
 				return err
 			}
@@ -111,13 +125,21 @@ will load that file and summarize its structure and contents.
 
 	addOutputFormat(inspectCommand.Flags(), params.outputFormat)
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
+	addDataFlag(inspectCommand.Flags(), &params.dataPaths)
 	addV0CompatibleFlag(inspectCommand.Flags(), &params.v0Compatible, false)
 	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible, false)
 	root.AddCommand(inspectCommand)
 }
 
 func doInspect(params inspectCommandParams, path string, out io.Writer) error {
-	info, err := ib.FileForRegoVersion(params.regoVersion(), path, params.listAnnotations)
+	var info *ib.Info
+	var err error
+
+	if params.dataPaths.isFlagSet() {
+		info, err = ib.DataFileInfo(params.dataPaths.v)
+	} else {
+		info, err = ib.FileForRegoVersion(params.regoVersion(), path, params.listAnnotations)
+	}
 	if err != nil {
 		return err
 	}
@@ -168,7 +190,11 @@ func hasManifest(info *ib.Info) bool {
 }
 
 func validateInspectParams(p *inspectCommandParams, args []string) error {
-	if len(args) != 1 {
+	if p.dataPaths.isFlagSet() {
+		if len(args) > 0 {
+			return errors.New("specify either a bundle/path argument or --data flag, not both")
+		}
+	} else if len(args) != 1 {
 		return errors.New("specify exactly one OPA bundle or path")
 	}
 

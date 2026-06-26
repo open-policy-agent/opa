@@ -2263,3 +2263,125 @@ NAMESPACES:
 		}
 	})
 }
+
+func TestDoInspectDataFile(t *testing.T) {
+	files := map[string]string{
+		"/data.json": `{"users": {"alice": {"role": "admin"}}}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		fileName := filepath.Join(rootDir, "data.json")
+		ps := newInspectCommandParams()
+		ps.dataPaths = newrepeatedStringFlag([]string{})
+		if err := ps.dataPaths.Set(fileName); err != nil {
+			t.Fatal(err)
+		}
+
+		var out bytes.Buffer
+		err := doInspect(ps, "", &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		output := out.String()
+		if !strings.Contains(output, "NAMESPACES:") {
+			t.Fatalf("Expected NAMESPACES section in output, got:\n%v", output)
+		}
+		if !strings.Contains(output, "data") {
+			t.Fatalf("Expected 'data' namespace in output, got:\n%v", output)
+		}
+		if !strings.Contains(output, "data.json") {
+			t.Fatalf("Expected 'data.json' file in output, got:\n%v", output)
+		}
+	})
+}
+
+func TestDoInspectDataFileYAML(t *testing.T) {
+	files := map[string]string{
+		"/config.yaml": "users:\n  alice:\n    role: admin\n",
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		fileName := filepath.Join(rootDir, "config.yaml")
+		ps := newInspectCommandParams()
+		ps.dataPaths = newrepeatedStringFlag([]string{})
+		if err := ps.dataPaths.Set(fileName); err != nil {
+			t.Fatal(err)
+		}
+
+		var out bytes.Buffer
+		err := doInspect(ps, "", &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		output := out.String()
+		if !strings.Contains(output, "NAMESPACES:") {
+			t.Fatalf("Expected NAMESPACES section in output, got:\n%v", output)
+		}
+		if !strings.Contains(output, "config.yaml") {
+			t.Fatalf("Expected 'config.yaml' file in output, got:\n%v", output)
+		}
+	})
+}
+
+func TestDoInspectDataFileInvalidJSON(t *testing.T) {
+	files := map[string]string{
+		"/bad.json": `{"users": invalid}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		fileName := filepath.Join(rootDir, "bad.json")
+		ps := newInspectCommandParams()
+		ps.dataPaths = newrepeatedStringFlag([]string{})
+		if err := ps.dataPaths.Set(fileName); err != nil {
+			t.Fatal(err)
+		}
+
+		var out bytes.Buffer
+		err := doInspect(ps, "", &out)
+		if err == nil {
+			t.Fatal("Expected error for invalid JSON")
+		}
+	})
+}
+
+func TestDoInspectDataFileNonDataFile(t *testing.T) {
+	files := map[string]string{
+		"/policy.rego": `package test`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		fileName := filepath.Join(rootDir, "policy.rego")
+		ps := newInspectCommandParams()
+		ps.dataPaths = newrepeatedStringFlag([]string{})
+		if err := ps.dataPaths.Set(fileName); err != nil {
+			t.Fatal(err)
+		}
+
+		var out bytes.Buffer
+		err := doInspect(ps, "", &out)
+		if err == nil {
+			t.Fatal("Expected error for non-data file")
+		}
+		if !strings.Contains(err.Error(), "not a JSON or YAML data file") {
+			t.Fatalf("Expected 'not a JSON or YAML' error, got: %v", err)
+		}
+	})
+}
+
+func TestValidateInspectParamsDataAndArgs(t *testing.T) {
+	ps := newInspectCommandParams()
+	ps.dataPaths = newrepeatedStringFlag([]string{})
+	if err := ps.dataPaths.Set("data.json"); err != nil {
+		t.Fatal(err)
+	}
+
+	err := validateInspectParams(&ps, []string{"bundle.tar.gz"})
+	if err == nil {
+		t.Fatal("Expected error when both --data and positional args are given")
+	}
+	if !strings.Contains(err.Error(), "specify either") {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
