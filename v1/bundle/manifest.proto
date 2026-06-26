@@ -16,7 +16,7 @@ message Manifest {
   // Bundle revision string.
   string revision = 1;
 
-  // Root paths the bundle owns.
+  // Root paths the bundle owns. See `roots_set` for nil-vs-empty.
   repeated string roots = 2;
 
   // Wasm resolvers attached to the bundle. JSON key is `wasm`.
@@ -31,6 +31,10 @@ message Manifest {
   // Free-form metadata object. Modeled as `Struct` because the Go field
   // is `map[string]any`.
   google.protobuf.Struct metadata = 6;
+
+  // True if `bundle.Manifest.Roots` was non-nil. `repeated string` can't
+  // distinguish nil (default to [""]) from explicit-empty (owns no paths).
+  bool roots_set = 7;
 }
 
 // WasmResolver mirrors `bundle.WasmResolver` in v1/bundle/bundle.go.

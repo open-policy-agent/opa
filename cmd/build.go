@@ -29,6 +29,7 @@ const defaultPublicKeyID = "default"
 type buildParams struct {
 	capabilities       *capabilitiesFlag
 	target             *util.EnumFlag
+	planFormat         *util.EnumFlag
 	bundleMode         bool
 	pruneUnused        bool
 	optimizationLevel  int
@@ -57,6 +58,7 @@ func newBuildParams() buildParams {
 	return buildParams{
 		capabilities: newCapabilitiesFlag(),
 		target:       util.NewEnumFlag(compile.TargetRego, compile.Targets),
+		planFormat:   util.NewEnumFlag(compile.PlanFormatJSON, compile.PlanFormats),
 		stderr:       os.Stderr,
 	}
 }
@@ -254,6 +256,7 @@ against ` + brand + ` v0.22.0:
 	}
 
 	buildCommand.Flags().VarP(buildParams.target, "target", "t", "set the output bundle target type")
+	buildCommand.Flags().Var(buildParams.planFormat, "format", "set the plan output format (only applies when --target=plan)")
 	buildCommand.Flags().BoolVar(&buildParams.pruneUnused, "prune-unused", false, "exclude dependents of entrypoints")
 	buildCommand.Flags().BoolVar(&buildParams.debug, "debug", false, "enable debug output")
 	buildCommand.Flags().IntVarP(&buildParams.optimizationLevel, "optimize", "O", 0, "set optimization level")
@@ -312,11 +315,12 @@ func dobuild(params buildParams, args []string) error {
 				continue
 			}
 
-			if _, err := os.Stat(filepath.Join(arg, ".manifest")); err != nil {
-				continue
+			for _, name := range []string{bundle.ManifestExt, bundle.ManifestProtoExt} {
+				if _, err := os.Stat(filepath.Join(arg, name)); err == nil {
+					fmt.Fprintf(params.stderr, "Warning: %s file found in %q but -b flag not specified. Manifest will be ignored.\n", name, arg)
+					break
+				}
 			}
-
-			fmt.Fprintf(params.stderr, "Warning: .manifest file found in %q but -b flag not specified. Manifest will be ignored.\n", arg)
 		}
 	}
 
@@ -329,6 +333,7 @@ func dobuild(params buildParams, args []string) error {
 	compiler := compile.New().
 		WithCapabilities(capabilities).
 		WithTarget(params.target.String()).
+		WithPlanFormat(params.planFormat.String()).
 		WithAsBundle(params.bundleMode).
 		WithPruneUnused(params.pruneUnused).
 		WithOptimizationLevel(params.optimizationLevel).

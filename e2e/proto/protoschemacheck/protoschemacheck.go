@@ -73,6 +73,11 @@ type MessageSpec struct {
 	// is intentionally absent from the proto because consumers consult
 	// their own registry for builtin signatures.
 	SkipGoFields []string
+	// SkipProtoFields names proto fields with no Go counterpart by design —
+	// wire-form bookkeeping that the Go side carries differently. For
+	// example, bundle.Manifest.roots_set distinguishes nil from explicit-
+	// empty on the wire; the Go side already carries that as Roots *[]string.
+	SkipProtoFields []string
 }
 
 // OneofSpec asserts that the named oneof on MessageName has exactly the
@@ -289,6 +294,14 @@ func checkMessage(t *testing.T, declared map[string]protoreflect.MessageDescript
 		}
 	}
 
+	skipProto := map[string]bool{}
+	for _, n := range m.SkipProtoFields {
+		skipProto[n] = true
+		if msg.Fields().ByName(protoreflect.Name(n)) == nil {
+			t.Errorf("%s: SkipProtoFields entry %q does not match any proto field on this message", m.Name, n)
+		}
+	}
+
 	// Validate FieldNameOverride entries point at real Go fields.
 	for goJSONName := range override {
 		if !goJSONNameExists(m.GoType, goJSONName) {
@@ -331,6 +344,9 @@ func checkMessage(t *testing.T, declared map[string]protoreflect.MessageDescript
 			continue
 		}
 		if opaque[name] {
+			continue
+		}
+		if skipProto[name] {
 			continue
 		}
 		// Fields belonging to a oneof handled by an OneofSpec are

@@ -29,6 +29,11 @@ func TestManifestProtoConsistency(t *testing.T) {
 			{
 				Name:   "Manifest",
 				GoType: reflect.TypeOf(bundle.Manifest{}),
+				// roots_set is wire-form bookkeeping: it preserves the
+				// nil-vs-explicit-empty distinction that Manifest.Roots
+				// (*[]string) carries on the Go side. No Go counterpart by
+				// design.
+				SkipProtoFields: []string{"roots_set"},
 			},
 			{
 				Name:   "WasmResolver",
