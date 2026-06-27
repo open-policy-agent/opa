@@ -183,6 +183,7 @@
       "strings.any_suffix_match",
       "strings.count",
       "strings.render_template",
+      "strings.repeat",
       "strings.replace_n",
       "strings.reverse",
       "substring",
@@ -24021,6 +24022,31 @@
     "result": {
       "description": "rendered template with template variables injected",
       "name": "result",
+      "type": "string"
+    },
+    "wasm": false
+  },
+  "strings.repeat": {
+    "args": [
+      {
+        "description": "string to repeat",
+        "name": "str",
+        "type": "string"
+      },
+      {
+        "description": "non-negative number of times to repeat `str`",
+        "name": "count",
+        "type": "number"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns a new string consisting of `count` copies of the input string.",
+    "introduced": "edge",
+    "result": {
+      "description": "string consisting of `count` copies of `str`",
+      "name": "output",
       "type": "string"
     },
     "wasm": false

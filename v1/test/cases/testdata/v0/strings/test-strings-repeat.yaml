@@ -1,0 +1,27 @@
+---
+cases:
+  - note: "strings/repeat_basic"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p = strings.repeat("ab", 3)
+    want_result:
+      - x: ababab
+  - note: "strings/repeat_zero"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p = strings.repeat("foo", 0)
+    want_result:
+      - x: ""
+  - note: "strings/repeat_negative_count"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p = strings.repeat("x", -1)
+    strict_error: true
+    want_error_code: eval_builtin_error
+    want_error: "strings.repeat: count must be a non-negative integer"

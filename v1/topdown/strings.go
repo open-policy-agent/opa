@@ -773,6 +773,29 @@ func builtinReverse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	return iter(ast.InternedTerm(reverseString(string(s))))
 }
 
+func builtinStringRepeat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	s, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	count, err := builtins.IntOperand(operands[1].Value, 2)
+	if err != nil {
+		return err
+	}
+	if count < 0 {
+		// strings.Repeat panics for count < 0
+		return errors.New("strings.repeat: count must be a non-negative integer")
+	}
+
+	// Guard against overflow in result length (strings.Repeat also panics on this).
+	if count > 0 && len(s) > 0 && len(s) > (int(^uint(0)>>1))/count {
+		return errors.New("strings.repeat: count causes result length overflow")
+	}
+
+	return iter(ast.InternedTerm(strings.Repeat(string(s), count)))
+}
+
 func reverseString(str string) string {
 	var buf []byte
 	var arr [255]byte
@@ -818,4 +841,5 @@ func init() {
 	RegisterBuiltinFunc(ast.AnyPrefixMatch.Name, builtinAnyPrefixMatch)
 	RegisterBuiltinFunc(ast.AnySuffixMatch.Name, builtinAnySuffixMatch)
 	RegisterBuiltinFunc(ast.StringReverse.Name, builtinReverse)
+	RegisterBuiltinFunc(ast.StringRepeat.Name, builtinStringRepeat)
 }

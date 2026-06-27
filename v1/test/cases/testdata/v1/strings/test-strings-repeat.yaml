@@ -1,0 +1,67 @@
+---
+cases:
+  - note: strings/repeat_basic
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.repeat("ab", 3)
+    want_result:
+      - x: ababab
+  - note: strings/repeat_zero
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.repeat("foo", 0)
+    want_result:
+      - x: ""
+  - note: strings/repeat_one
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.repeat("hello", 1)
+    want_result:
+      - x: hello
+  - note: strings/repeat_empty_string
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.repeat("", 5)
+    want_result:
+      - x: ""
+  - note: strings/repeat_unicode
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.repeat("世界", 2)
+    want_result:
+      - x: 世界世界
+  - note: strings/repeat_negative_count
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.repeat("x", -1)
+    strict_error: true
+    want_error_code: eval_builtin_error
+    want_error: "strings.repeat: count must be a non-negative integer"
+  - note: strings/repeat_non_integer_count
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.repeat("x", 1.5)
+    strict_error: true
+    want_error_code: eval_type_error
+    want_error: "strings.repeat: operand 2 must be integer number but got floating-point number"

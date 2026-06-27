@@ -228,6 +228,8 @@ var Sprintf = v1.Sprintf
 
 var StringReverse = v1.StringReverse
 
+var StringRepeat = v1.StringRepeat
+
 var RenderTemplate = v1.RenderTemplate
 
 /**

@@ -151,6 +151,7 @@ var DefaultBuiltins = [...]*Builtin{
 	TrimSpace,
 	Sprintf,
 	StringReverse,
+	StringRepeat,
 	RenderTemplate,
 	InternalTemplateString,
 
@@ -1435,6 +1436,20 @@ var StringReverse = &Builtin{
 			types.Named("x", types.S).Description("string to reverse"),
 		),
 		types.Named("y", types.S).Description("reversed string"),
+	),
+	Categories:  stringsCat,
+	CanSkipBctx: true,
+}
+
+var StringRepeat = &Builtin{
+	Name:        "strings.repeat",
+	Description: "Returns a new string consisting of `count` copies of the input string.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("str", types.S).Description("string to repeat"),
+			types.Named("count", types.N).Description("non-negative number of times to repeat `str`"),
+		),
+		types.Named("output", types.S).Description("string consisting of `count` copies of `str`"),
 	),
 	Categories:  stringsCat,
 	CanSkipBctx: true,
