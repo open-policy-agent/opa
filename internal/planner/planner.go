@@ -648,6 +648,12 @@ func (p *Planner) planExpr(e *ast.Expr, iter planiter) error {
 	case e.IsNegated():
 		return p.planNot(e, iter)
 
+	case e.IsAnd():
+		return p.planExprLogicalAnd(e, iter)
+
+	case e.IsOr():
+		return p.planExprLogicalOr(e, iter)
+
 	case e.IsCall():
 		return p.planExprCall(e, iter)
 
@@ -693,6 +699,119 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 	p.appendStmt(not)
 
 	return iter()
+}
+
+func (p *Planner) planExprLogicalAnd(e *ast.Expr, iter planiter) error {
+	// We're constructing the following plan:
+	//
+	// | reset &{Target:Local<cond_lhs>}
+	// | block lhs
+	// | | <plan(LHS body)>
+	// | | assign_var &{Target:Local<cond_lhs>}    # Local<cond_lhs> = true on success
+	// | is_defined &{Source:Local<cond_lhs>}      # aborts outer if LHS produced no success
+	// | reset &{Target:Local<cond_rhs>}
+	// | block rhs
+	// | | <plan(RHS body)>
+	// | | assign_var &{Target:Local<cond_rhs>}    # Local<cond_rhs> = true on success
+	// | is_defined &{Source:Local<cond_rhs>}      # aborts outer if RHS produced no success
+	// | iter()                                    # caller's continuation
+
+	and := e.Terms.(*ast.LogicalAnd)
+
+	if err := p.planLogicalOperand(and.Lhs); err != nil {
+		return err
+	}
+
+	if err := p.planLogicalOperand(and.Rhs); err != nil {
+		return err
+	}
+
+	return iter()
+}
+
+func (p *Planner) planLogicalOperand(body ast.Body) error {
+	cond := p.newLocal() // success condition
+	p.appendStmt(&ir.ResetLocalStmt{Target: cond})
+
+	sub, err := p.planBodyAsScope(body, cond)
+	if err != nil {
+		return err
+	}
+
+	p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{sub}})
+	p.appendStmt(&ir.IsDefinedStmt{Source: cond})
+
+	return nil
+}
+
+func (p *Planner) planExprLogicalOr(e *ast.Expr, iter planiter) error {
+	// We're constructing the following plan:
+	//
+	// | reset &{Target:Local<cond>}
+	// | block lhs
+	// | | <plan(LHS body)>
+	// | | assign_var &{Target:Local<cond>}      # Local<cond_lhs> = true on success
+	// | block outer
+	// | | block skip
+	// | | | is_defined &{Source:Local<cond>}    # if defined ..
+	// | | | break &{Index:1}                    # .. break past RHS
+	// | | block rhs
+	// | | | <plan(RHS body)>
+	// | | | assign_var &{Target:Local<cond>}    # Local<cond_lhs> = true on success
+	// | is_defined &{Source:Local<cond>}        # aborts outer if neither produced a success
+	// | iter()                                  # caller's continuation
+
+	or := e.Terms.(*ast.LogicalOr)
+
+	cond := p.newLocal() // success condition
+	p.appendStmt(&ir.ResetLocalStmt{Target: cond})
+
+	lhsBlock, err := p.planBodyAsScope(or.Lhs, cond)
+	if err != nil {
+		return err
+	}
+	p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{lhsBlock}})
+
+	rhsBlock, err := p.planBodyAsScope(or.Rhs, cond)
+	if err != nil {
+		return err
+	}
+
+	// skip-rhs-if-lhs-succeeded: if cond is defined, break out past the
+	// RHS block; otherwise this inner block aborts and the outer block
+	// falls through into the RHS plan.
+	skip := &ir.Block{Stmts: []ir.Stmt{
+		&ir.IsDefinedStmt{Source: cond},
+		&ir.BreakStmt{Index: 1},
+	}}
+	outer := &ir.Block{Stmts: []ir.Stmt{
+		&ir.BlockStmt{Blocks: []*ir.Block{skip}},
+		&ir.BlockStmt{Blocks: []*ir.Block{rhsBlock}},
+	}}
+	p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{outer}})
+
+	p.appendStmt(&ir.IsDefinedStmt{Source: cond})
+	return iter()
+}
+
+func (p *Planner) planBodyAsScope(body ast.Body, cond ir.Local) (*ir.Block, error) {
+	sub := &ir.Block{}
+	prev := p.curr
+	p.curr = sub
+	p.vars.Push(map[ast.Var]ir.Local{})
+
+	err := p.planQuery(body, 0, func() error {
+		p.appendStmt(&ir.AssignVarStmt{
+			Source: op(ir.Bool(true)),
+			Target: cond,
+		})
+		return nil
+	})
+
+	p.vars.Pop()
+	p.curr = prev
+
+	return sub, err
 }
 
 func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
