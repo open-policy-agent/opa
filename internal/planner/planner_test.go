@@ -5,10 +5,12 @@
 package planner
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -735,8 +737,147 @@ a if {
 	}
 }
 
-func TestMultipleNamedQueries(t *testing.T) {
+func TestPlannerLogicalAndOr(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		want   string
+	}{
+		{
+			note: "and: each operand has its own cond local",
+			module: `
+				package test
+				import future.keywords.and
 
+				p if {
+					input.x > 0 and input.y > 0
+				}
+			`,
+			want: `| *ir.Funcs Funcs (1 funcs)
+| | *ir.Func g0.data.test.p (2 params: [Local<0> Local<1>], 3 blocks, path: [g0 test p])
+| | | *ir.Block Block (8 statements)
+| | | | *ir.ResetLocalStmt &{Target:Local<3>}
+| | | | *ir.ResetLocalStmt &{Target:Local<4>}
+| | | | *ir.BlockStmt BlockStmt (1 blocks)
+| | | | | *ir.Block Block (5 statements)
+| | | | | | *ir.DotStmt &{Source:{Value:Local<0>} Key:{Value:String<0>} Target:Local<5>}
+| | | | | | *ir.MakeNumberRefStmt &{Index:1 Target:Local<6>}
+| | | | | | *ir.CallStmt &{Func:gt Args:[{Value:Local<5>} {Value:Local<6>}] Result:Local<7>}
+| | | | | | *ir.NotEqualStmt &{A:{Value:Local<7>} B:{Value:Bool<false>}}
+| | | | | | *ir.AssignVarStmt &{Source:{Value:Bool<true>} Target:Local<4>}
+| | | | *ir.IsDefinedStmt &{Source:Local<4>}
+| | | | *ir.ResetLocalStmt &{Target:Local<8>}
+| | | | *ir.BlockStmt BlockStmt (1 blocks)
+| | | | | *ir.Block Block (5 statements)
+| | | | | | *ir.DotStmt &{Source:{Value:Local<0>} Key:{Value:String<2>} Target:Local<9>}
+| | | | | | *ir.MakeNumberRefStmt &{Index:1 Target:Local<10>}
+| | | | | | *ir.CallStmt &{Func:gt Args:[{Value:Local<9>} {Value:Local<10>}] Result:Local<11>}
+| | | | | | *ir.NotEqualStmt &{A:{Value:Local<11>} B:{Value:Bool<false>}}
+| | | | | | *ir.AssignVarStmt &{Source:{Value:Bool<true>} Target:Local<8>}
+| | | | *ir.IsDefinedStmt &{Source:Local<8>}
+| | | | *ir.AssignVarOnceStmt &{Source:{Value:Bool<true>} Target:Local<3>}
+| | | *ir.Block Block (2 statements)
+| | | | *ir.IsDefinedStmt &{Source:Local<3>}
+| | | | *ir.AssignVarOnceStmt &{Source:{Value:Local<3>} Target:Local<2>}
+| | | *ir.Block Block (1 statements)
+| | | | *ir.ReturnLocalStmt &{Source:Local<2>}
+`,
+		},
+		{
+			note: "or: both operands share the same cond local",
+			module: `
+				package test
+				import future.keywords.or
+
+				p if {
+					input.x > 0 or input.y > 0
+				}
+			`,
+			want: `| *ir.Funcs Funcs (1 funcs)
+| | *ir.Func g0.data.test.p (2 params: [Local<0> Local<1>], 3 blocks, path: [g0 test p])
+| | | *ir.Block Block (6 statements)
+| | | | *ir.ResetLocalStmt &{Target:Local<3>}
+| | | | *ir.ResetLocalStmt &{Target:Local<4>}
+| | | | *ir.BlockStmt BlockStmt (1 blocks)
+| | | | | *ir.Block Block (5 statements)
+| | | | | | *ir.DotStmt &{Source:{Value:Local<0>} Key:{Value:String<0>} Target:Local<5>}
+| | | | | | *ir.MakeNumberRefStmt &{Index:1 Target:Local<6>}
+| | | | | | *ir.CallStmt &{Func:gt Args:[{Value:Local<5>} {Value:Local<6>}] Result:Local<7>}
+| | | | | | *ir.NotEqualStmt &{A:{Value:Local<7>} B:{Value:Bool<false>}}
+| | | | | | *ir.AssignVarStmt &{Source:{Value:Bool<true>} Target:Local<4>}
+| | | | *ir.BlockStmt BlockStmt (1 blocks)
+| | | | | *ir.Block Block (2 statements)
+| | | | | | *ir.BlockStmt BlockStmt (1 blocks)
+| | | | | | | *ir.Block Block (2 statements)
+| | | | | | | | *ir.IsDefinedStmt &{Source:Local<4>}
+| | | | | | | | *ir.BreakStmt &{Index:1}
+| | | | | | *ir.BlockStmt BlockStmt (1 blocks)
+| | | | | | | *ir.Block Block (5 statements)
+| | | | | | | | *ir.DotStmt &{Source:{Value:Local<0>} Key:{Value:String<2>} Target:Local<8>}
+| | | | | | | | *ir.MakeNumberRefStmt &{Index:1 Target:Local<9>}
+| | | | | | | | *ir.CallStmt &{Func:gt Args:[{Value:Local<8>} {Value:Local<9>}] Result:Local<10>}
+| | | | | | | | *ir.NotEqualStmt &{A:{Value:Local<10>} B:{Value:Bool<false>}}
+| | | | | | | | *ir.AssignVarStmt &{Source:{Value:Bool<true>} Target:Local<4>}
+| | | | *ir.IsDefinedStmt &{Source:Local<4>}
+| | | | *ir.AssignVarOnceStmt &{Source:{Value:Bool<true>} Target:Local<3>}
+| | | *ir.Block Block (2 statements)
+| | | | *ir.IsDefinedStmt &{Source:Local<3>}
+| | | | *ir.AssignVarOnceStmt &{Source:{Value:Local<3>} Target:Local<2>}
+| | | *ir.Block Block (1 statements)
+| | | | *ir.ReturnLocalStmt &{Source:Local<2>}
+`,
+		},
+	}
+
+	parserOpts := ast.ParserOptions{
+		Capabilities:   ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
+		FutureKeywords: []string{"and", "or"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			m, err := ast.ParseModuleWithOpts("test.rego", tc.module, parserOpts)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			policy, err := New().
+				WithQueries([]QuerySet{{
+					Name:    "test",
+					Queries: []ast.Body{ast.MustParseBody("data.test.p = x")},
+				}}).
+				WithModules([]*ast.Module{m}).
+				WithBuiltinDecls(ast.BuiltinMap).
+				Plan()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var buf bytes.Buffer
+			if err := ir.Pretty(&buf, policy); err != nil {
+				t.Fatal(err)
+			}
+			got := stripIRLocations(buf.String())
+
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("unexpected plan to contain: \n%s\ngot:\n%s", tc.want, got)
+			}
+		})
+	}
+}
+
+var (
+	irLocationFieldRE  = regexp.MustCompile(` Location:\{[^}]*}`)
+	irLocationInlineRE = regexp.MustCompile(` &\{[0-9]+ [0-9]+ [0-9]+[^}]*}`)
+)
+
+func stripIRLocations(s string) string {
+	s = irLocationFieldRE.ReplaceAllString(s, "")
+	s = irLocationInlineRE.ReplaceAllString(s, "")
+	return s
+}
+
+func TestMultipleNamedQueries(t *testing.T) {
 	q1 := []ast.Body{
 		ast.MustParseBody(`a=1`),
 	}
