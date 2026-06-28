@@ -704,33 +704,33 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 func (p *Planner) planExprLogicalAnd(e *ast.Expr, iter planiter) error {
 	// We're constructing the following plan:
 	//
-	// | reset &{Target:Local<cond_lhs>}
+	// | reset &{Target:Local<cond>}
 	// | block lhs
 	// | | <plan(LHS body)>
-	// | | assign_var &{Target:Local<cond_lhs>}    # Local<cond_lhs> = true on success
-	// | is_defined &{Source:Local<cond_lhs>}      # aborts outer if LHS produced no success
-	// | reset &{Target:Local<cond_rhs>}
+	// | | assign_var &{Target:Local<cond>}        # Local<cond> = true on success
+	// | is_defined &{Source:Local<cond>}          # aborts outer if LHS produced no success
+	// | reset &{Target:Local<cond>}               # clear before RHS
 	// | block rhs
 	// | | <plan(RHS body)>
-	// | | assign_var &{Target:Local<cond_rhs>}    # Local<cond_rhs> = true on success
-	// | is_defined &{Source:Local<cond_rhs>}      # aborts outer if RHS produced no success
+	// | | assign_var &{Target:Local<cond>}        # Local<cond> = true on success
+	// | is_defined &{Source:Local<cond>}          # aborts outer if RHS produced no success
 	// | iter()                                    # caller's continuation
 
 	and := e.Terms.(*ast.LogicalAnd)
+	cond := p.newLocal() // success condition
 
-	if err := p.planLogicalOperand(and.Lhs); err != nil {
+	if err := planLogicalOperand(p, and.Lhs, cond); err != nil {
 		return err
 	}
 
-	if err := p.planLogicalOperand(and.Rhs); err != nil {
+	if err := planLogicalOperand(p, and.Rhs, cond); err != nil {
 		return err
 	}
 
 	return iter()
 }
 
-func (p *Planner) planLogicalOperand(body ast.Body) error {
-	cond := p.newLocal() // success condition
+func planLogicalOperand(p *Planner, body ast.Body, cond ir.Local) error {
 	p.appendStmt(&ir.ResetLocalStmt{Target: cond})
 
 	sub, err := p.planBodyAsScope(body, cond)

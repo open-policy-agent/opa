@@ -744,7 +744,7 @@ func TestPlannerLogicalAndOr(t *testing.T) {
 		want   string
 	}{
 		{
-			note: "and: each operand has its own cond local",
+			note: "and: both operands share the same cond local",
 			module: `
 				package test
 				import future.keywords.and
@@ -766,15 +766,15 @@ func TestPlannerLogicalAndOr(t *testing.T) {
 | | | | | | *ir.NotEqualStmt &{A:{Value:Local<7>} B:{Value:Bool<false>}}
 | | | | | | *ir.AssignVarStmt &{Source:{Value:Bool<true>} Target:Local<4>}
 | | | | *ir.IsDefinedStmt &{Source:Local<4>}
-| | | | *ir.ResetLocalStmt &{Target:Local<8>}
+| | | | *ir.ResetLocalStmt &{Target:Local<4>}
 | | | | *ir.BlockStmt BlockStmt (1 blocks)
 | | | | | *ir.Block Block (5 statements)
-| | | | | | *ir.DotStmt &{Source:{Value:Local<0>} Key:{Value:String<2>} Target:Local<9>}
-| | | | | | *ir.MakeNumberRefStmt &{Index:1 Target:Local<10>}
-| | | | | | *ir.CallStmt &{Func:gt Args:[{Value:Local<9>} {Value:Local<10>}] Result:Local<11>}
-| | | | | | *ir.NotEqualStmt &{A:{Value:Local<11>} B:{Value:Bool<false>}}
-| | | | | | *ir.AssignVarStmt &{Source:{Value:Bool<true>} Target:Local<8>}
-| | | | *ir.IsDefinedStmt &{Source:Local<8>}
+| | | | | | *ir.DotStmt &{Source:{Value:Local<0>} Key:{Value:String<2>} Target:Local<8>}
+| | | | | | *ir.MakeNumberRefStmt &{Index:1 Target:Local<9>}
+| | | | | | *ir.CallStmt &{Func:gt Args:[{Value:Local<8>} {Value:Local<9>}] Result:Local<10>}
+| | | | | | *ir.NotEqualStmt &{A:{Value:Local<10>} B:{Value:Bool<false>}}
+| | | | | | *ir.AssignVarStmt &{Source:{Value:Bool<true>} Target:Local<4>}
+| | | | *ir.IsDefinedStmt &{Source:Local<4>}
 | | | | *ir.AssignVarOnceStmt &{Source:{Value:Bool<true>} Target:Local<3>}
 | | | *ir.Block Block (2 statements)
 | | | | *ir.IsDefinedStmt &{Source:Local<3>}
