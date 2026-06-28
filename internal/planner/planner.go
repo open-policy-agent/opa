@@ -665,34 +665,34 @@ func (p *Planner) planExpr(e *ast.Expr, iter planiter) error {
 }
 
 func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
-	not := &ir.NotStmt{
-		Block: &ir.Block{},
-	}
-
-	prev := p.curr
-	p.curr = not.Block
-
 	if n, ok := e.Terms.(*ast.Not); ok {
-		cond := p.newLocal() // success condition
+		// We're constructing the following plan:
+		//
+		// | not
+		// | | <plan(body)>                            # assigns Local<cond> = true at each success point
+		// | | is_defined &{Source:Local<cond>}        # aborts inner block if body produced no success
+		// | iter()                                    # caller's continuation
 
-		err := p.planQuery(n.Body, 0, func() error {
-			p.appendStmt(&ir.AssignVarStmt{
-				Source: op(ir.Bool(true)),
-				Target: cond,
-			})
-			return nil
-		})
+		cond := p.newLocal()
+		sub, err := p.planBodyAsScope(n.Body, cond)
 		if err != nil {
 			return err
 		}
 
-		p.appendStmt(&ir.IsDefinedStmt{
-			Source: cond,
-		})
-	} else {
-		if err := p.planExpr(e.Complement(), func() error { return nil }); err != nil {
-			return err
-		}
+		sub.Stmts = append(sub.Stmts, &ir.IsDefinedStmt{Source: cond})
+		p.appendStmt(&ir.NotStmt{Block: sub})
+
+		return iter()
+	}
+
+	// Legacy negation
+
+	not := &ir.NotStmt{Block: &ir.Block{}}
+	prev := p.curr
+	p.curr = not.Block
+
+	if err := p.planExpr(e.Complement(), func() error { return nil }); err != nil {
+		return err
 	}
 
 	p.curr = prev
@@ -750,14 +750,14 @@ func (p *Planner) planExprLogicalOr(e *ast.Expr, iter planiter) error {
 	// | reset &{Target:Local<cond>}
 	// | block lhs
 	// | | <plan(LHS body)>
-	// | | assign_var &{Target:Local<cond>}      # Local<cond_lhs> = true on success
+	// | | assign_var &{Target:Local<cond>}      # Local<cond> = true on success
 	// | block outer
 	// | | block skip
 	// | | | is_defined &{Source:Local<cond>}    # if defined ..
 	// | | | break &{Index:1}                    # .. break past RHS
 	// | | block rhs
 	// | | | <plan(RHS body)>
-	// | | | assign_var &{Target:Local<cond>}    # Local<cond_lhs> = true on success
+	// | | | assign_var &{Target:Local<cond>}    # Local<cond> = true on success
 	// | is_defined &{Source:Local<cond>}        # aborts outer if neither produced a success
 	// | iter()                                  # caller's continuation
 
