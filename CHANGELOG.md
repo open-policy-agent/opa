@@ -5,6 +5,15 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.18.1
+
+This release fixes a memory leak introduced in OPA v1.17.0.
+It is advised to update if you notice excess memory usage when running OPA server.
+
+### Fixes
+
+- ast: fix AnnotationSet memory leak via runtime.AddCleanup cycle ([#8817](https://github.com/open-policy-agent/opa/issues/8817)) authored by @srenatus reported by @keydon and @gorsr01
+
 ## 1.18.0
 
 This release contains a mix of bugfixes and small features. Notably:
