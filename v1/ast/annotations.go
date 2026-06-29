@@ -9,11 +9,8 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
-	"runtime"
 	"slices"
 	"strings"
-	"sync"
-	"weak"
 
 	"github.com/open-policy-agent/opa/internal/deepcopy"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
@@ -70,11 +67,10 @@ type (
 	}
 
 	AnnotationSet struct {
-		byRule       map[*Rule][]*Annotations
-		byPackage    map[int]*Annotations
-		byPath       *annotationTreeNode
-		modules      []*Module // Modules this set was constructed from
-		mergedLabels sync.Map  // map[weak.Pointer[Rule]]*ruleLabelsEntry; lazily populated, entries cleaned up via runtime.AddCleanup when rules are GC'd
+		byRule    map[*Rule][]*Annotations
+		byPackage map[int]*Annotations
+		byPath    *annotationTreeNode
+		modules   []*Module // Modules this set was constructed from
 	}
 
 	annotationTreeNode struct {
@@ -964,42 +960,19 @@ func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
 	return refs
 }
 
-// ruleLabelsEntry caches the merged labels and dedup key for a single rule.
-type ruleLabelsEntry struct {
-	labels map[string]any
-	key    string
-}
-
 // MergedLabels returns the inner-scope-wins merged labels for the given rule
-// along with a stable string suitable for content-based deduplication. The
-// result is computed once per rule and cached on the AnnotationSet; the cache
-// entry is dropped automatically when the rule is garbage-collected.
-//
-// labels is nil when the rule has no labels anywhere in its annotation chain;
-// in that case key is the empty string.
+// along with a stable JSON string suitable for content-based deduplication.
+// labels is nil when the rule has no labels anywhere in its annotation chain.
 func (as *AnnotationSet) MergedLabels(rule *Rule) (labels map[string]any, key string) {
 	if as == nil {
 		return nil, ""
 	}
-	k := weak.Make(rule)
-	if v, ok := as.mergedLabels.Load(k); ok {
-		e := v.(*ruleLabelsEntry)
-		return e.labels, e.key
+	labels = mergeChainLabels(as.Chain(rule))
+	if len(labels) > 0 {
+		b, _ := json.Marshal(labels)
+		key = string(b)
 	}
-	merged := mergeChainLabels(as.Chain(rule))
-	e := &ruleLabelsEntry{labels: merged}
-	if len(merged) > 0 {
-		b, _ := json.Marshal(merged)
-		e.key = string(b)
-	}
-	actual, loaded := as.mergedLabels.LoadOrStore(k, e)
-	if !loaded {
-		// k is a weak.Pointer (value type) — it does not keep rule alive, so
-		// the cleanup will fire once the rule becomes unreachable elsewhere.
-		runtime.AddCleanup(rule, func(k weak.Pointer[Rule]) { as.mergedLabels.Delete(k) }, k)
-	}
-	e = actual.(*ruleLabelsEntry)
-	return e.labels, e.key
+	return labels, key
 }
 
 // mergeChainLabels folds labels from a rule's annotation chain with inner-wins

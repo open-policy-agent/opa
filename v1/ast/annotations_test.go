@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"runtime"
 	"testing"
+	"weak"
 )
 
 func TestEntrypointAnnotationScopeRequirements(t *testing.T) {
@@ -1301,4 +1303,47 @@ func toJSON(v any) string {
 func schemaAnnotationFromMap(path string, def map[string]any) *SchemaAnnotation {
 	var p any = def
 	return &SchemaAnnotation{Path: MustParseRef(path), Definition: &p}
+}
+
+// TestAnnotationSet_MergedLabels_Collectable verifies that an AnnotationSet
+// can be garbage-collected after it goes out of scope, even when MergedLabels
+// has been called (which populates the internal mergedLabels cache).
+//
+// Regression test for a memory leak where the cleanup closure registered by
+// runtime.AddCleanup captured the AnnotationSet itself. The AnnotationSet
+// holds strong references to all modules (and their rules) via as.modules, so
+// the cleanup could never fire: rule → cleanup closure → AnnotationSet →
+// modules → rule. Each bundle reload left the old AnnotationSet permanently
+// alive, causing unbounded heap growth.
+func TestAnnotationSet_MergedLabels_Collectable(t *testing.T) {
+	const src = `package test
+
+# METADATA
+# labels:
+#   tier: fast
+allow if true
+`
+	var watch weak.Pointer[AnnotationSet]
+
+	func() {
+		mod := MustParseModuleWithOpts(src, ParserOptions{ProcessAnnotation: true})
+		as, errs := BuildAnnotationSet([]*Module{mod})
+		if len(errs) > 0 {
+			t.Fatalf("BuildAnnotationSet: %v", errs)
+		}
+		// Populate the mergedLabels cache for all rules.
+		for _, r := range mod.Rules {
+			as.MergedLabels(r)
+		}
+		watch = weak.Make(as)
+		// mod and as go out of scope here.
+	}()
+
+	// Two GC cycles: one to discover unreachable objects, one to collect them.
+	runtime.GC()
+	runtime.GC()
+
+	if watch.Value() != nil {
+		t.Fatal("AnnotationSet was not garbage-collected: mergedLabels cache likely holds a retaining cycle")
+	}
 }
