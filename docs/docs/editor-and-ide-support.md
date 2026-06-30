@@ -5,8 +5,6 @@ title: Editor and IDE Support
 OPA can be integrated into editors and IDEs to provide features like syntax highlighting, query
 evaluation, policy coverage, and more.
 
-## Integrations
-
 | Editor             | Link                                                                                                                                                                                                                                                                                                                                         | Note                                       |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | Visual Studio Code | [marketplace.visualstudio.com/items?itemName=tsandall.opa](https://marketplace.visualstudio.com/items?itemName=tsandall.opa)                                                                                                                                                                                                                 | Supports Language Server and Debug Adapter |

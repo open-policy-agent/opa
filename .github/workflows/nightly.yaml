@@ -21,7 +21,7 @@ jobs:
           persist-credentials: false
 
       - name: Test with Race Detector
-        run: CGO_ENABLED=1 make ci-go-race-detector
+        run: make ci-go-race-detector
 
       - name: Slack Notification
         uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3

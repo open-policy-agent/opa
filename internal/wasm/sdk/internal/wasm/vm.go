@@ -11,10 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v44"
+	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/sys"
 
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
@@ -28,41 +29,19 @@ import (
 
 // VM is a wrapper around a Wasm VM instance
 type VM struct {
-	dispatcher           *builtinDispatcher
-	engine               *wasmtime.Engine
-	store                *wasmtime.Store
-	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
-	policy               []byte
-	abiMajorVersion      int32
-	abiMinorVersion      int32
-	memory               *wasmtime.Memory
-	memoryMin            uint32
-	memoryMax            uint32
-	entrypointIDs        map[string]int32
-	baseHeapPtr          int32
-	dataAddr             int32
-	evalHeapPtr          int32
-	evalOneOff           func(context.Context, int32, int32, int32, int32, int32) (int32, error)
-	eval                 func(context.Context, int32) error
-	evalCtxGetResult     func(context.Context, int32) (int32, error)
-	evalCtxNew           func(context.Context) (int32, error)
-	evalCtxSetData       func(context.Context, int32, int32) error
-	evalCtxSetInput      func(context.Context, int32, int32) error
-	evalCtxSetEntrypoint func(context.Context, int32, int32) error
-	heapPtrGet           func(context.Context) (int32, error)
-	heapPtrSet           func(context.Context, int32) error
-	jsonDump             func(context.Context, int32) (int32, error)
-	jsonParse            func(context.Context, int32, int32) (int32, error)
-	valueDump            func(context.Context, int32) (int32, error)
-	valueParse           func(context.Context, int32, int32) (int32, error)
-	malloc               func(context.Context, int32) (int32, error)
-	free                 func(context.Context, int32) error
-	valueAddPath         func(context.Context, int32, int32, int32) (int32, error)
-	valueRemovePath      func(context.Context, int32, int32) (int32, error)
-	valueFree            func(context.Context, int32) error
-	heapBlocksStash      func(context.Context) error
-	heapBlocksRestore    func(context.Context) error
-	heapStashClear       func(context.Context) error
+	dispatcher      *builtinDispatcher
+	runtime         wazero.Runtime
+	mod             api.Module
+	mem             api.Memory
+	policy          []byte
+	abiMinorVersion int32
+	memoryMin       uint32
+	memoryMax       uint32
+	entrypointIDs   map[string]int32
+	baseHeapPtr     int32
+	dataAddr        int32
+	evalHeapPtr     int32
+	dead            bool // set when the runtime is closed mid-eval due to context cancellation
 }
 
 type vmOpts struct {
@@ -72,200 +51,158 @@ type vmOpts struct {
 	parsedDataAddr int32
 	memoryMin      uint32
 	memoryMax      uint32
+	cache          wazero.CompilationCache
 }
 
-func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
-	ctx := context.Background()
-	v := &VM{engine: engine}
-	store := wasmtime.NewStore(engine)
-	store.SetEpochDeadline(1)
-	memorytype, err := wasmtime.NewMemoryType(
-		opts.memoryMin,
-		true,
-		opts.memoryMax,
-		false,
-	)
-	if err != nil {
-		return nil, err
+func newVM(ctx context.Context, opts vmOpts) (*VM, error) {
+	cfg := wazero.NewRuntimeConfig().
+		WithCloseOnContextDone(true) // interrupts tight wasm loops when ctx is cancelled
+	if opts.cache != nil {
+		cfg = cfg.WithCompilationCache(opts.cache)
 	}
-	memory, err := wasmtime.NewMemory(store, memorytype)
-	if err != nil {
-		return nil, err
+	r := wazero.NewRuntimeWithConfig(ctx, cfg)
+	v := &VM{
+		runtime:   r,
+		policy:    opts.policy,
+		memoryMin: opts.memoryMin,
+		memoryMax: opts.memoryMax,
 	}
 
-	module, err := wasmtime.NewModule(store.Engine, opts.policy)
-	if err != nil {
-		return nil, err
-	}
-
-	linker := wasmtime.NewLinker(store.Engine)
 	v.dispatcher = newBuiltinDispatcher()
-	externs := opaFunctions(v.dispatcher, store)
-	for name, extern := range externs {
-		if err := linker.Define(store, "env", name, extern); err != nil {
-			return nil, fmt.Errorf("linker: env.%s: %w", name, err)
-		}
-	}
-	if err := linker.Define(store, "env", "memory", memory); err != nil {
-		return nil, fmt.Errorf("linker: env.memory: %w", err)
+
+	if err := instantiateOPAModule(ctx, r, v.dispatcher); err != nil {
+		r.Close(ctx)
+		return nil, fmt.Errorf("instantiate opa host module: %w", err)
 	}
 
-	i, err := linker.Instantiate(store, module)
-	if err != nil {
-		return nil, err
+	if _, err := r.InstantiateWithConfig(ctx, buildEnvModule(opts.memoryMin, opts.memoryMax),
+		wazero.NewModuleConfig().WithName("env")); err != nil {
+		r.Close(ctx)
+		return nil, fmt.Errorf("instantiate env glue module: %w", err)
 	}
 
-	v.abiMajorVersion, v.abiMinorVersion, err = getABIVersion(i, store)
+	mod, err := r.InstantiateWithConfig(ctx, opts.policy,
+		wazero.NewModuleConfig().WithName("policy"))
 	if err != nil {
+		r.Close(ctx)
+		return nil, fmt.Errorf("instantiate policy module: %w", err)
+	}
+
+	v.mod = mod
+	// The policy module gets its memory from the "env" glue module; after
+	// instantiation wazero surfaces it as an export of the policy module.
+	v.mem = mod.Memory()
+	if v.mem == nil {
+		r.Close(ctx)
+		return nil, errors.New("policy module exports no memory")
+	}
+
+	// Wire the dispatcher to the policy module's memory and exported functions.
+	v.dispatcher.mem = v.mem
+	v.dispatcher.malloc = mod.ExportedFunction("opa_malloc")
+	v.dispatcher.valueDumpFn = mod.ExportedFunction("opa_value_dump")
+	v.dispatcher.valueParseFn = mod.ExportedFunction("opa_value_parse")
+
+	major, minor, err := getABIVersion(mod)
+	if err != nil {
+		r.Close(ctx)
 		return nil, fmt.Errorf("invalid module: %w", err)
 	}
-	if v.abiMajorVersion != int32(1) || (v.abiMinorVersion != int32(1) && v.abiMinorVersion != int32(3)) {
-		return nil, fmt.Errorf("invalid module: unsupported ABI version: %d.%d", v.abiMajorVersion, v.abiMinorVersion)
+	if major != 1 || minor < 1 {
+		r.Close(ctx)
+		return nil, fmt.Errorf("invalid module: unsupported ABI version: %d.%d", major, minor)
 	}
+	v.abiMinorVersion = minor
 
-	// re-exported import, or just plain export if memory wasn't imported
-	memory = i.GetExport(store, "memory").Memory()
-
-	v.store = store
-	v.instance = i
-	v.policy = opts.policy
-	v.memory = memory
-	v.memoryMin = opts.memoryMin
-	v.memoryMax = opts.memoryMax
 	v.entrypointIDs = make(map[string]int32)
-	v.dataAddr = 0
-	v.eval = func(ctx context.Context, a int32) error { return callVoid(ctx, v, "eval", a) }
-	v.evalCtxGetResult = func(ctx context.Context, a int32) (int32, error) { return call(ctx, v, "opa_eval_ctx_get_result", a) }
-	v.evalCtxNew = func(ctx context.Context) (int32, error) { return call(ctx, v, "opa_eval_ctx_new") }
-	v.evalCtxSetData = func(ctx context.Context, a int32, b int32) error {
-		return callVoid(ctx, v, "opa_eval_ctx_set_data", a, b)
-	}
-	v.evalCtxSetInput = func(ctx context.Context, a int32, b int32) error {
-		return callVoid(ctx, v, "opa_eval_ctx_set_input", a, b)
-	}
-	v.evalOneOff = func(ctx context.Context, ep, dataAddr, inputAddr, inputLen, heapAddr int32) (int32, error) {
-		return call(ctx, v, "opa_eval", 0 /* reserved */, ep, dataAddr, inputAddr, inputLen, heapAddr, 1 /* value output */)
-	}
-	v.evalCtxSetEntrypoint = func(ctx context.Context, a int32, b int32) error {
-		return callVoid(ctx, v, "opa_eval_ctx_set_entrypoint", a, b)
-	}
-	v.free = func(ctx context.Context, a int32) error { return callVoid(ctx, v, "opa_free", a) }
-	v.heapPtrGet = func(ctx context.Context) (int32, error) { return call(ctx, v, "opa_heap_ptr_get") }
-	v.heapPtrSet = func(ctx context.Context, a int32) error { return callVoid(ctx, v, "opa_heap_ptr_set", a) }
-	v.jsonDump = func(ctx context.Context, a int32) (int32, error) { return call(ctx, v, "opa_json_dump", a) }
-	v.jsonParse = func(ctx context.Context, a int32, b int32) (int32, error) {
-		return call(ctx, v, "opa_json_parse", a, b)
-	}
-	v.valueDump = func(ctx context.Context, a int32) (int32, error) { return call(ctx, v, "opa_value_dump", a) }
-	v.valueParse = func(ctx context.Context, a int32, b int32) (int32, error) {
-		return call(ctx, v, "opa_value_parse", a, b)
-	}
-	v.malloc = func(ctx context.Context, a int32) (int32, error) { return call(ctx, v, "opa_malloc", a) }
-	v.valueAddPath = func(ctx context.Context, a int32, b int32, c int32) (int32, error) {
-		return call(ctx, v, "opa_value_add_path", a, b, c)
-	}
-	v.valueRemovePath = func(ctx context.Context, a int32, b int32) (int32, error) {
-		return call(ctx, v, "opa_value_remove_path", a, b)
-	}
-	v.valueFree = func(ctx context.Context, a int32) error {
-		return callVoid(ctx, v, "opa_value_free", a)
-	}
-	v.heapBlocksStash = func(ctx context.Context) error {
-		return callVoid(ctx, v, "opa_heap_blocks_stash")
-	}
-	v.heapBlocksRestore = func(ctx context.Context) error {
-		return callVoid(ctx, v, "opa_heap_blocks_restore")
-	}
-	v.heapStashClear = func(ctx context.Context) error {
-		return callVoid(ctx, v, "opa_heap_stash_clear")
-	}
 
 	// Initialize the heap.
-
-	if _, err := v.malloc(ctx, 0); err != nil {
+	if _, err = call(ctx, v, "opa_malloc", 0); err != nil {
+		r.Close(ctx)
 		return nil, err
 	}
 
 	if v.baseHeapPtr, err = v.getHeapState(ctx); err != nil {
+		r.Close(ctx)
 		return nil, err
 	}
 
-	// Optimization for cloning a vm, if provided a parsed data memory buffer
-	// insert it directly into the new vm's buffer and set pointers accordingly.
-	// This only works because the placement is deterministic (eg, for a given policy
-	// the base heap pointer and parsed data layout will always be the same).
+	// Fast path: inject pre-parsed data directly into the new VM's memory.
 	if opts.parsedData != nil {
-		if uint32(memory.DataSize(store))-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
-			delta := uint32(len(opts.parsedData)) - (uint32(memory.DataSize(store)) - uint32(v.baseHeapPtr))
-			_, err = memory.Grow(store, uint64(util.Pages(delta)))
-			if err != nil {
-				return nil, err
+		avail := v.mem.Size() - uint32(v.baseHeapPtr)
+		if avail < uint32(len(opts.parsedData)) {
+			delta := uint32(len(opts.parsedData)) - avail
+			neededPages := util.Pages(delta)
+			if _, ok := v.mem.Grow(neededPages); !ok {
+				r.Close(ctx)
+				return nil, fmt.Errorf("failed to grow memory by `%d` for parsed data (max pages %d)", neededPages, opts.memoryMax)
 			}
 		}
-		mem := memory.UnsafeData(store)
-		for src, dest := 0, v.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
-			mem[dest] = opts.parsedData[src]
+		if !v.mem.Write(uint32(v.baseHeapPtr), opts.parsedData) {
+			r.Close(ctx)
+			return nil, errors.New("write parsed data into memory")
 		}
 		v.dataAddr = opts.parsedDataAddr
 		v.evalHeapPtr = v.baseHeapPtr + int32(len(opts.parsedData))
-		err := v.setHeapState(ctx, v.evalHeapPtr)
-		if err != nil {
+		if err = v.setHeapState(ctx, v.evalHeapPtr); err != nil {
+			r.Close(ctx)
 			return nil, err
 		}
 	} else if opts.data != nil {
 		if v.dataAddr, err = v.toRegoJSON(ctx, opts.data, true); err != nil {
+			r.Close(ctx)
 			return nil, err
 		}
 	}
 
 	if v.evalHeapPtr, err = v.getHeapState(ctx); err != nil {
+		r.Close(ctx)
 		return nil, err
 	}
 
-	// Construct the builtin id to name mappings.
-
-	val, err := i.GetFunc(store, "builtins").Call(store)
+	// Build the builtin id -> topdown.BuiltinFunc map.
+	builtinsAddr, err := call(ctx, v, "builtins")
 	if err != nil {
+		r.Close(ctx)
 		return nil, err
 	}
-
-	builtins, err := v.fromRegoJSON(ctx, val.(int32), true)
+	builtinsVal, err := v.fromRegoJSON(ctx, builtinsAddr, true)
 	if err != nil {
+		r.Close(ctx)
 		return nil, err
 	}
 
 	builtinMap := map[int32]topdown.BuiltinFunc{}
-
-	for name, id := range builtins.(map[string]any) {
+	for name, id := range builtinsVal.(map[string]any) {
 		f := topdown.GetBuiltin(name)
 		if f == nil {
+			r.Close(ctx)
 			return nil, fmt.Errorf("builtin '%s' not found", name)
 		}
-
 		n, err := id.(json.Number).Int64()
 		if err != nil {
+			r.Close(ctx)
 			panic(err)
 		}
-
 		builtinMap[int32(n)] = f
 	}
-
 	v.dispatcher.SetMap(builtinMap)
 
-	// Extract the entrypoint ID's
-	val, err = i.GetFunc(store, "entrypoints").Call(store)
+	// Extract entrypoint IDs.
+	epAddr, err := call(ctx, v, "entrypoints")
 	if err != nil {
+		r.Close(ctx)
 		return nil, err
 	}
-
-	epMap, err := v.fromRegoJSON(ctx, val.(int32), true)
+	epMap, err := v.fromRegoJSON(ctx, epAddr, true)
 	if err != nil {
+		r.Close(ctx)
 		return nil, err
 	}
-
 	for ep, value := range epMap.(map[string]any) {
 		id, err := value.(json.Number).Int64()
 		if err != nil {
+			r.Close(ctx)
 			return nil, err
 		}
 		v.entrypointIDs[ep] = int32(id)
@@ -274,17 +211,20 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	return v, nil
 }
 
-func getABIVersion(i *wasmtime.Instance, store wasmtime.Storelike) (int32, int32, error) {
-	major := i.GetExport(store, "opa_wasm_abi_version").Global()
-	minor := i.GetExport(store, "opa_wasm_abi_minor_version").Global()
-	if major != nil && minor != nil {
-		majorVal := major.Get(store)
-		minorVal := minor.Get(store)
-		if majorVal.Kind() == wasmtime.KindI32 && minorVal.Kind() == wasmtime.KindI32 {
-			return majorVal.I32(), minorVal.I32(), nil
-		}
+func getABIVersion(mod api.Module) (int32, int32, error) {
+	major := mod.ExportedGlobal("opa_wasm_abi_version")
+	minor := mod.ExportedGlobal("opa_wasm_abi_minor_version")
+	if major == nil || minor == nil {
+		return 0, 0, errors.New("failed to read ABI version")
 	}
-	return 0, 0, errors.New("failed to read ABI version")
+	return int32(major.Get()), int32(minor.Get()), nil
+}
+
+// close releases the wazero Runtime and all resources associated with this VM.
+func (v *VM) close() {
+	if v.runtime != nil {
+		v.runtime.Close(context.Background())
+	}
 }
 
 // Eval performs an evaluation of the specified entrypoint, with any provided
@@ -302,7 +242,6 @@ func (i *VM) Eval(ctx context.Context,
 	if i.abiMinorVersion < int32(2) {
 		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache, ndbCache, ph, capabilities)
 	}
-
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -332,17 +271,18 @@ func (i *VM) Eval(ctx context.Context,
 		inputLen = int32(len(raw))
 		inputAddr = i.evalHeapPtr
 
-		rest := inputAddr + inputLen - int32(i.memory.DataSize(i.store))
-		if rest > 0 { // need to grow memory
-			_, err := i.memory.Grow(i.store, uint64(util.Pages(uint32(rest))))
-			if err != nil {
-				return nil, fmt.Errorf("input: %w (max pages %d)", err, i.memoryMax)
+		end := uint32(inputAddr) + uint32(inputLen)
+		if end > i.mem.Size() {
+			delta := end - i.mem.Size()
+			neededPages := util.Pages(delta)
+			if _, ok := i.mem.Grow(neededPages); !ok {
+				return nil, fmt.Errorf("input: failed to grow memory by `%d` (max pages %d)", neededPages, i.memoryMax)
 			}
 		}
-		mem := i.memory.UnsafeData(i.store)
-
+		if !i.mem.Write(uint32(inputAddr), raw) {
+			return nil, errors.New("write input to memory")
+		}
 		heapPtr += inputLen
-		copy(mem[inputAddr:inputAddr+inputLen], raw)
 
 		metrics.Timer("wasm_vm_eval_prepare_input").Stop()
 	}
@@ -351,25 +291,31 @@ func (i *VM) Eval(ctx context.Context,
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
+	stop := i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
+	defer stop()
 
 	metrics.Timer("wasm_vm_eval_call").Start()
-	resultAddr, err := i.evalOneOff(ctx, entrypoint, i.dataAddr, inputAddr, inputLen, heapPtr)
+	resultAddr, err := call(ctx, i, "opa_eval", 0 /* reserved */, entrypoint, i.dataAddr, inputAddr, inputLen, heapPtr, 1 /* value output */)
 	if err != nil {
 		return nil, err
 	}
 	metrics.Timer("wasm_vm_eval_call").Stop()
 
-	data := i.memory.UnsafeData(i.store)[resultAddr:]
-	n := max(bytes.IndexByte(data, 0), 0)
+	data, ok := i.mem.Read(uint32(resultAddr), i.mem.Size()-uint32(resultAddr))
+	if !ok {
+		return nil, fmt.Errorf("read result from memory at %d", resultAddr)
+	}
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		n = 0
+	}
 
 	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
 	return data[:n], nil
 }
 
-// evalCompat evaluates a policy using multiple calls into the VM to set the stage.
-// It's been superceded with ABI version 1.2, but still here for compatibility with
-// Wasm modules lacking the needed export (i.e., ABI 1.1).
+// evalCompat implements policy evaluation for ABI 1.1 modules which predate
+// the one-shot opa_eval export (added in ABI 1.2).
 func (i *VM) evalCompat(ctx context.Context,
 	entrypoint int32,
 	input *any,
@@ -385,30 +331,25 @@ func (i *VM) evalCompat(ctx context.Context,
 
 	metrics.Timer("wasm_vm_eval_prepare_input").Start()
 
-	// Setting the ctx here ensures that it'll be available to builtins that
-	// make use of it (e.g. `http.send`); and it will spawn a go routine
-	// cancelling the builtins that use topdown.Cancel, when the context is
-	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
+	stop := i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
+	defer stop()
 
-	err := i.setHeapState(ctx, i.evalHeapPtr)
-	if err != nil {
+	if err := i.setHeapState(ctx, i.evalHeapPtr); err != nil {
 		return nil, err
 	}
 
-	// Parse the input JSON and activate it with the data.
-	ctxAddr, err := i.evalCtxNew(ctx)
+	ctxAddr, err := call(ctx, i, "opa_eval_ctx_new")
 	if err != nil {
 		return nil, err
 	}
 
 	if i.dataAddr != 0 {
-		if err := i.evalCtxSetData(ctx, ctxAddr, i.dataAddr); err != nil {
+		if err := callVoid(ctx, i, "opa_eval_ctx_set_data", ctxAddr, i.dataAddr); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := i.evalCtxSetEntrypoint(ctx, ctxAddr, entrypoint); err != nil {
+	if err := callVoid(ctx, i, "opa_eval_ctx_set_entrypoint", ctxAddr, entrypoint); err != nil {
 		return nil, err
 	}
 
@@ -417,40 +358,41 @@ func (i *VM) evalCompat(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-
-		if err := i.evalCtxSetInput(ctx, ctxAddr, inputAddr); err != nil {
+		if err := callVoid(ctx, i, "opa_eval_ctx_set_input", ctxAddr, inputAddr); err != nil {
 			return nil, err
 		}
 	}
 	metrics.Timer("wasm_vm_eval_prepare_input").Stop()
 
-	// Evaluate the policy.
 	metrics.Timer("wasm_vm_eval_execute").Start()
-	err = i.eval(ctx, ctxAddr)
+	err = callVoid(ctx, i, "eval", ctxAddr)
 	metrics.Timer("wasm_vm_eval_execute").Stop()
 	if err != nil {
 		return nil, err
 	}
 
 	metrics.Timer("wasm_vm_eval_prepare_result").Start()
-	resultAddr, err := i.evalCtxGetResult(ctx, ctxAddr)
+	resultAddr, err := call(ctx, i, "opa_eval_ctx_get_result", ctxAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	serialized, err := i.valueDump(ctx, resultAddr)
+	serialized, err := call(ctx, i, "opa_value_dump", resultAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	data := i.memory.UnsafeData(i.store)[serialized:]
-	n := max(bytes.IndexByte(data, 0), 0)
+	data, ok := i.mem.Read(uint32(serialized), i.mem.Size()-uint32(serialized))
+	if !ok {
+		return nil, fmt.Errorf("read result from memory at %d", serialized)
+	}
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		n = 0
+	}
 
 	metrics.Timer("wasm_vm_eval_prepare_result").Stop()
-
-	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
-
-	return data[0:n], nil
+	return data[:n], nil
 }
 
 // SetPolicyData Will either update the VM's data or, if the policy changed,
@@ -459,19 +401,20 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 
 	if !bytes.Equal(opts.policy, i.policy) {
 		// Swap the instance to a new one, with new policy.
-		n, err := newVM(opts, i.engine)
+		n, err := newVM(ctx, opts)
 		if err != nil {
 			return err
 		}
-
+		oldRuntime := i.runtime
 		*i = *n
+		oldRuntime.Close(context.Background())
 		return nil
 	}
 
 	i.dataAddr = 0
 
 	// Release any stashed heap blocks since they will be above the base heap pointer
-	if err := i.heapStashClear(ctx); err != nil {
+	if err := callVoid(ctx, i, "opa_heap_stash_clear"); err != nil {
 		return err
 	}
 
@@ -481,21 +424,21 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 
 	var err error
 	if opts.parsedData != nil {
-		if uint32(i.memory.DataSize(i.store))-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
-			delta := uint32(len(opts.parsedData)) - (uint32(i.memory.DataSize(i.store)) - uint32(i.baseHeapPtr))
-			_, err := i.memory.Grow(i.store, uint64(util.Pages(delta)))
-			if err != nil {
-				return err
+		avail := i.mem.Size() - uint32(i.baseHeapPtr)
+		if avail < uint32(len(opts.parsedData)) {
+			delta := uint32(len(opts.parsedData)) - avail
+			neededPages := util.Pages(delta)
+			if _, ok := i.mem.Grow(neededPages); !ok {
+				return fmt.Errorf("failed to grow memory by `%d` for parsed data (max pages %d)", neededPages, i.memoryMax)
 			}
 		}
-		mem := i.memory.UnsafeData(i.store)
 		length := int32(len(opts.parsedData))
-		copy(mem[i.baseHeapPtr:i.baseHeapPtr+length], opts.parsedData)
+		if !i.mem.Write(uint32(i.baseHeapPtr), opts.parsedData) {
+			return errors.New("write parsed data into memory")
+		}
 		i.dataAddr = opts.parsedDataAddr
-
 		i.evalHeapPtr = i.baseHeapPtr + length
-		err := i.setHeapState(ctx, i.evalHeapPtr)
-		if err != nil {
+		if err = i.setHeapState(ctx, i.evalHeapPtr); err != nil {
 			return err
 		}
 	} else if opts.data != nil {
@@ -505,40 +448,31 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 	}
 
 	// Stash any free blocks so that eval()/setHeapState() won't leak them
-	if err := i.heapBlocksStash(ctx); err != nil {
+	if err = callVoid(ctx, i, "opa_heap_blocks_stash"); err != nil {
 		return err
 	}
 
 	i.evalHeapPtr, err = i.getHeapState(ctx)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 type abortError struct {
 	message string
 }
 
+func (e abortError) Error() string { return e.message }
+
 type cancelledError struct {
 	message string
 }
 
-// Println is invoked if the policy WASM code calls opa_println().
-func (i *VM) Println(arg int32) {
-	data := i.memory.UnsafeData(i.store)[arg:]
-	n := bytes.IndexByte(data, 0)
-	if n == -1 {
-		panic("invalid opa_println argument")
-	}
-
-	fmt.Printf("opa_println(): %s\n", string(data[:n]))
-}
+func (e cancelledError) Error() string { return e.message }
 
 type builtinError struct {
 	err error
 }
+
+func (e builtinError) Error() string { return e.err.Error() }
 
 // Entrypoints returns a mapping of entrypoint name to ID for use by Eval().
 func (i *VM) Entrypoints() map[string]int32 {
@@ -556,7 +490,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 	}
 
 	// Restore saved blocks protected from leaking in eval()/setHeapState()
-	if err := i.heapBlocksRestore(ctx); err != nil {
+	if err := callVoid(ctx, i, "opa_heap_blocks_restore"); err != nil {
 		return err
 	}
 
@@ -570,7 +504,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 		return err
 	}
 
-	result, err := i.valueAddPath(ctx, i.dataAddr, pathAddr, valueAddr)
+	result, err := call(ctx, i, "opa_value_add_path", i.dataAddr, pathAddr, valueAddr)
 	if err != nil {
 		return err
 	}
@@ -578,12 +512,12 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 	// We don't need to free the value, assume it is "owned" as part of the
 	// overall data object now.
 	// We do need to free the path
-	if err := i.valueFree(ctx, pathAddr); err != nil {
+	if err = callVoid(ctx, i, "opa_value_free", pathAddr); err != nil {
 		return err
 	}
 
 	// Stash free blocks so eval() calls don't leak them when calling setHeapState()
-	if err := i.heapBlocksStash(ctx); err != nil {
+	if err = callVoid(ctx, i, "opa_heap_blocks_stash"); err != nil {
 		return err
 	}
 
@@ -594,9 +528,8 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 		return err
 	}
 
-	errc := result
-	if errc != 0 {
-		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
+	if result != 0 {
+		return fmt.Errorf("unable to set data value for path %v, err=%d", path, result)
 	}
 
 	return nil
@@ -608,13 +541,12 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value any) error {
 func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 	// Reset the heap ptr before patching the vm to try and keep any
 	// new allocations safe from subsequent heap resets on eval.
-	err := i.setHeapState(ctx, i.evalHeapPtr)
-	if err != nil {
+	if err := i.setHeapState(ctx, i.evalHeapPtr); err != nil {
 		return err
 	}
 
 	// Restore saved blocks protected from leaking in eval()/setHeapState()
-	if err := i.heapBlocksRestore(ctx); err != nil {
+	if err := callVoid(ctx, i, "opa_heap_blocks_restore"); err != nil {
 		return err
 	}
 
@@ -623,17 +555,17 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 		return err
 	}
 
-	errc, err := i.valueRemovePath(ctx, i.dataAddr, pathAddr)
+	errc, err := call(ctx, i, "opa_value_remove_path", i.dataAddr, pathAddr)
 	if err != nil {
 		return err
 	}
 
-	if err := i.valueFree(ctx, pathAddr); err != nil {
+	if err = callVoid(ctx, i, "opa_value_free", pathAddr); err != nil {
 		return err
 	}
 
 	// Stash free blocks so eval() calls don't leak them when calling setHeapState()
-	if err = i.heapBlocksStash(ctx); err != nil {
+	if err = callVoid(ctx, i, "opa_heap_blocks_stash"); err != nil {
 		return err
 	}
 
@@ -652,17 +584,22 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 // fromRegoJSON parses serialized JSON from the Wasm memory buffer into
 // native go types.
 func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (any, error) {
-	serialized, err := i.jsonDump(ctx, addr)
+	serialized, err := call(ctx, i, "opa_json_dump", addr)
 	if err != nil {
 		return nil, err
 	}
 
-	data := i.memory.UnsafeData(i.store)[serialized:]
-	n := max(bytes.IndexByte(data, 0), 0)
+	data, ok := i.mem.Read(uint32(serialized), i.mem.Size()-uint32(serialized))
+	if !ok {
+		return nil, fmt.Errorf("read memory at %d", serialized)
+	}
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		n = 0
+	}
 
 	// Parse the result into go types.
-
-	decoder := json.NewDecoder(bytes.NewReader(data[0:n]))
+	decoder := json.NewDecoder(bytes.NewReader(data[:n]))
 	decoder.UseNumber()
 
 	var result any
@@ -671,7 +608,7 @@ func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (any, erro
 	}
 
 	if free {
-		if err := i.free(ctx, serialized); err != nil {
+		if err = callVoid(ctx, i, "opa_free", serialized); err != nil {
 			return nil, err
 		}
 	}
@@ -699,20 +636,22 @@ func (i *VM) toRegoJSON(ctx context.Context, v any, free bool) (int32, error) {
 	}
 
 	n := int32(len(raw))
-	p, err := i.malloc(ctx, n)
+	p, err := call(ctx, i, "opa_malloc", n)
 	if err != nil {
 		return 0, err
 	}
 
-	copy(i.memory.UnsafeData(i.store)[p:p+n], raw)
+	if !i.mem.Write(uint32(p), raw) {
+		return 0, fmt.Errorf("write %d bytes at %d", n, p)
+	}
 
-	addr, err := i.valueParse(ctx, p, n)
+	addr, err := call(ctx, i, "opa_value_parse", p, n)
 	if err != nil {
 		return 0, err
 	}
 
 	if free {
-		if err := i.free(ctx, p); err != nil {
+		if err = callVoid(ctx, i, "opa_free", p); err != nil {
 			return 0, err
 		}
 	}
@@ -721,17 +660,18 @@ func (i *VM) toRegoJSON(ctx context.Context, v any, free bool) (int32, error) {
 }
 
 func (i *VM) getHeapState(ctx context.Context) (int32, error) {
-	return i.heapPtrGet(ctx)
+	return call(ctx, i, "opa_heap_ptr_get")
 }
 
 func (i *VM) setHeapState(ctx context.Context, ptr int32) error {
-	return i.heapPtrSet(ctx, ptr)
+	return callVoid(ctx, i, "opa_heap_ptr_set", ptr)
 }
 
 func (i *VM) cloneDataSegment() (int32, []byte) {
 	// The parsed data values sit between the base heap address and end
 	// at the eval heap pointer address.
-	srcData := i.memory.UnsafeData(i.store)[i.baseHeapPtr:i.evalHeapPtr]
+	size := uint32(i.evalHeapPtr - i.baseHeapPtr)
+	srcData, _ := i.mem.Read(uint32(i.baseHeapPtr), size)
 	patchedData := make([]byte, len(srcData))
 	copy(patchedData, srcData)
 	return i.dataAddr, patchedData
@@ -742,6 +682,9 @@ func call(ctx context.Context, vm *VM, name string, args ...int32) (int32, error
 	if err != nil {
 		return 0, err
 	}
+	if res == nil {
+		return 0, nil
+	}
 	return res.(int32), nil
 }
 
@@ -751,83 +694,48 @@ func callVoid(ctx context.Context, vm *VM, name string, args ...int32) error {
 }
 
 func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (any, error) {
-	sl := make([]any, len(args))
-	for i := range sl {
-		sl[i] = args[i]
+	ul := make([]uint64, len(args))
+	for i, a := range args {
+		ul[i] = uint64(uint32(a))
 	}
 
-	// `done` is closed when the eval is done;
-	// `ctxdone` is used to ensure that this goroutine is not running rogue;
-	// it may interact badly with other calls into this VM because of async
-	// execution. Concretely, there's no guarantee which branch of done or
-	// ctx.Done() is selected when they're both good to go. Hence, this may
-	// interrupt the VM long after _this_ functions is done. By tying them
-	// together (`<-ctxdone` at the end of callOrCancel, `close(ctxdone)`
-	// here), we can avoid that.
-	done := make(chan struct{})
-	ctxdone := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			vm.store.Engine.IncrementEpoch()
-		case <-done:
-		}
-		close(ctxdone)
-	}()
+	f := vm.mod.ExportedFunction(name)
+	if f == nil {
+		return nil, fmt.Errorf("function %q not found in policy module", name)
+	}
 
-	f := vm.instance.GetFunc(vm.store, name)
-	// If this call into the VM ends up calling host functions (builtins not
-	// implemented in Wasm), and those panic, wasmtime will re-throw them,
-	// and this is where we deal with that:
-	res, err := func() (res any, err error) {
-		defer close(done)
-		defer func() {
-			if e := recover(); e != nil {
-				switch e := e.(type) {
-				case abortError:
-					err = sdk_errors.New(sdk_errors.InternalErr, e.message)
-				case cancelledError:
-					err = sdk_errors.New(sdk_errors.CancelledErr, e.message)
-				case builtinError:
-					err = sdk_errors.New(sdk_errors.InternalErr, e.err.Error())
-				default:
-					panic(e)
-				}
-			}
-		}()
-		res, err = f.Call(vm.store, sl...)
-		return
-	}()
+	res, err := f.Call(ctx, ul...)
 	if err != nil {
-		// if last err was trap, extract information
-		var t *wasmtime.Trap
-		if errors.As(err, &t) {
-			if strings.Contains(t.Message(), "wasm trap: interrupt") {
+		var abort abortError
+		if errors.As(err, &abort) {
+			return 0, sdk_errors.New(sdk_errors.InternalErr, abort.message)
+		}
+		var cancelled cancelledError
+		if errors.As(err, &cancelled) {
+			return 0, sdk_errors.New(sdk_errors.CancelledErr, cancelled.message)
+		}
+		var be builtinError
+		if errors.As(err, &be) {
+			return 0, sdk_errors.New(sdk_errors.InternalErr, be.err.Error())
+		}
+		// WithCloseOnContextDone: wazero closes the module and returns sys.ExitError
+		// when ctx is cancelled or times out mid-execution (tight wasm loops included).
+		var exitErr *sys.ExitError
+		if errors.As(err, &exitErr) {
+			c := exitErr.ExitCode()
+			if c == sys.ExitCodeContextCanceled || c == sys.ExitCodeDeadlineExceeded {
+				vm.dead = true
 				return 0, sdk_errors.New(sdk_errors.CancelledErr, "interrupted")
 			}
-			return 0, sdk_errors.New(sdk_errors.InternalErr, getStack(t.Frames(), "trapped"))
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return 0, sdk_errors.New(sdk_errors.CancelledErr, "interrupted")
 		}
 		return 0, err
 	}
-	<-ctxdone // wait for the goroutine that's checking ctx
-	return res, nil
-}
 
-func getStack(fs []*wasmtime.Frame, desc string) string {
-	var b strings.Builder
-	b.WriteString(desc)
-	if len(fs) > 1 {
-		b.WriteString(" at ")
-		for i := len(fs) - 1; i >= 0; i-- { // backwards
-			fr := fs[i]
-			if fun := fr.FuncName(); fun != nil {
-				if i != len(fs)-1 {
-					b.WriteRune('/')
-				}
-				b.WriteString(*fun)
-
-			}
-		}
+	if len(res) == 0 {
+		return nil, nil
 	}
-	return b.String()
+	return int32(res[0]), nil
 }

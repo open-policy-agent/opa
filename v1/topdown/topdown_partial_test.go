@@ -41,6 +41,7 @@ func TestTopDownPartialEval(t *testing.T) {
 		wantSupport              []string
 		wantSupportASTs          []*ast.Module
 		ignoreOrder              bool
+		experimentalKeywords     bool // opt in to experimental and/or keywords
 	}{
 		{
 			note:        "empty",
@@ -4293,12 +4294,491 @@ default q := false
 q if { input.x = 7 }`},
 			wantQueries: []string{"input.x = 7"},
 		},
+
+		// and/or baseline (no unknowns: truth-table)
+
+		{
+			note:                 "and: no unknowns, both true",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					true and true
+				}`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:                 "and: no unknowns, lhs false",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					false and true
+				}`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:                 "and: no unknowns, rhs false",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					true and false
+				}`},
+			wantQueries: []string{}, // unconditionally false
+		},
+		{
+			note:                 "or: no unknowns, lhs true",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					true or false
+				}`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:                 "or: no unknowns, rhs true",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					false or true
+				}`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:                 "or: no unknowns, both true (single result)",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					true or true
+				}`},
+			wantQueries: []string{""}, // unconditionally true
+		},
+		{
+			note:                 "or: no unknowns, both false",
+			experimentalKeywords: true,
+			query:                "data.test.p",
+			modules: []string{`package test
+				p if {
+					false or false
+				}`},
+			wantQueries: []string{}, // unconditionally false
+		},
+
+		// and/or baseline (simple unknowns: save the whole expression)
+		// TODO: PE optimization in #8680
+
+		{
+			note:                 "and: unknown lhs only",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 and true
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and true`},
+		},
+		{
+			note:                 "and: unknown rhs only",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					true and input.y > 0
+				}`},
+			wantQueries: []string{`true and {__local0__1 = input.y; gt(__local0__1, 0)}`},
+		},
+		{
+			note:                 "and: unknowns in both",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 and input.y > 0
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and {__local1__1 = input.y; gt(__local1__1, 0)}`},
+		},
+		{
+			note:                 "or: unknown lhs only",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 or false
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or false`},
+		},
+		{
+			note:                 "or: unknown rhs only",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					false or input.y > 0
+				}`},
+			wantQueries: []string{`false or {__local0__1 = input.y; gt(__local0__1, 0)}`},
+		},
+		{
+			note:                 "or: unknowns in both",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 or input.y > 0
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or {__local1__1 = input.y; gt(__local1__1, 0)}`},
+		},
+		// Baseline does NOT simplify even when one operand is statically true
+		{
+			note:                 "or: unknown lhs, rhs known-true (no simplification at this layer)",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 or true
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or true`},
+		},
+		{
+			note:                 "and: unknown lhs, rhs known-true (no simplification at this layer)",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.x > 0 and true
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and true`},
+		},
+
+		// nested chains, data-ref unknowns, multi-expr explicit bodies
+		{
+			note:                 "and: nested left-leaning, all unknown",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.a > 0 and input.b > 0 and input.c > 0
+				}`},
+			wantQueries: []string{`{
+					__local0__1 = input.a
+					gt(__local0__1, 0)
+				} and {
+					__local1__1 = input.b
+					gt(__local1__1, 0)
+				} and {
+					__local2__1 = input.c
+					gt(__local2__1, 0)
+				}`},
+		},
+		{
+			note:                 "or: nested left-leaning, all unknown",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					input.a > 0 or input.b > 0 or input.c > 0
+				}`},
+			wantQueries: []string{`{
+					__local0__1 = input.a
+					gt(__local0__1, 0)
+				} or {
+					__local1__1 = input.b
+					gt(__local1__1, 0)
+				} or {
+					__local2__1 = input.c
+					gt(__local2__1, 0)
+				}`},
+		},
+		{
+			note:                 "and: mixed data and input unknowns",
+			experimentalKeywords: true,
+			unknowns:             []string{"input", "data.foo"},
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					data.foo.x > 0 and input.y > 0
+				}`},
+			wantQueries: []string{`{
+					__local0__1 = data.foo.x
+					gt(__local0__1, 0)
+				} and {
+					__local1__1 = input.y
+					gt(__local1__1, 0)
+				}`},
+		},
+		{
+			note:                 "and: explicit body multi-expr, unknowns inside",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ input.x > 0; input.x < 10 } and true
+				}`},
+			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0); __local1__1 = input.x; lt(__local1__1, 10)} and true`},
+		},
+
+		{
+			note:                 "and (every): unknown inside",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; every i in x { i in x; i < input.y } } and true 
+				}`},
+			wantQueries: []string{`{ 
+					__local0__1 = input.x
+					__local3__1 = __local0__1
+					every __local1__1, __local2__1 in __local3__1 {
+						internal.member_2(__local2__1, __local0__1)
+						__local4__1 = input.y
+						lt(__local2__1, __local4__1)
+					}
+				} and true`},
+		},
+		{
+			note:                 "or (every): unknown inside",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; every i in x { i in x; i < input.y } } or true 
+				}`},
+			wantQueries: []string{`{ 
+					__local0__1 = input.x
+					__local3__1 = __local0__1
+					every __local1__1, __local2__1 in __local3__1 {
+						internal.member_2(__local2__1, __local0__1)
+						__local4__1 = input.y
+						lt(__local2__1, __local4__1)
+					}
+				} or true`},
+		},
+
+		// comprehensions inside and/or operand bodies
+		{
+			note:                 "and: rhs set comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					true and { y := input.y; {z | z := input.z; z < x; z > y} }
+				}`},
+			wantQueries: []string{`true and {
+					__local1__1 = input.y
+					{__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					}
+				}
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "and: lhs set comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					{ y := input.y; {z | z := input.z; z < x; z > y} } and true
+				}`},
+			wantQueries: []string{`{
+					__local1__1 = input.y
+					{__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					}
+				} and true
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "or: rhs set comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					false or { y := input.y; {z | z := input.z; z < x; z > y} }
+				}`},
+			wantQueries: []string{`false or {
+					__local1__1 = input.y
+					{__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					}
+				}
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "or: lhs set comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					{ y := input.y; {z | z := input.z; z < x; z > y} } or false
+				}`},
+			wantQueries: []string{`{
+					__local1__1 = input.y
+					{__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					}
+				} or false
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "and: rhs array comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					true and { y := input.y; [z | z := input.z; z < x; z > y] }
+				}`},
+			wantQueries: []string{`true and {
+					__local1__1 = input.y
+					[__local2__1 |
+						__local2__1 = input.z
+						lt(__local2__1, input.x)
+						gt(__local2__1, __local1__1)
+					]
+				}
+				__local0__1 = input.x`},
+		},
+		{
+			note:                 "or: lhs object comp, cross-scope vars",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					x := input.x
+					{ y := input.y; {k: v | k := input.k; v := x; v != y} } or false
+				}`},
+			wantQueries: []string{`{
+					__local1__1 = input.y
+					{__local2__1: __local3__1 |
+						__local2__1 = input.k
+						__local3__1 = input.x
+						neq(__local3__1, __local1__1)
+					}
+				} or false
+				__local0__1 = input.x`},
+		},
+
+		// and/or nested inside other outer constructs
+		{
+			note:                 "every: body contains and with unknowns",
+			experimentalKeywords: true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					every x in [1, 2, 3] { x > 0 and x > input }
+				}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
+					gt(__local1__1, 0) and { __local3__1 = input; gt(__local1__1, __local3__1) }
+				}`},
+		},
+		{
+			note:                 "array comprehension: body contains or with unknowns",
+			experimentalKeywords: true,
+			query:                "data.test.p = x",
+			modules: []string{`package test
+				p := [n | n = input.xs[i]; n > 0 or n < 0]`},
+			wantQueries: []string{`x = [n1 | n1 = input.xs[i1]; gt(n1, 0) or lt(n1, 0)]`},
+		},
+		{
+			note:                 "set comprehension: body contains or with unknowns",
+			experimentalKeywords: true,
+			query:                "data.test.p = x",
+			modules: []string{`package test
+				p := {n | n = input.xs[i]; n > 0 or n < 0}`},
+			wantQueries: []string{`x = {n1 | n1 = input.xs[i1]; gt(n1, 0) or lt(n1, 0)}`},
+		},
+		{
+			note:                 "object comprehension: body contains and with unknowns",
+			experimentalKeywords: true,
+			query:                "data.test.p = x",
+			modules: []string{`package test
+				p := {k: v | v := input[k]; v > 0 and v < 10}`},
+			wantQueries: []string{`x = {k1: __local0__1 | __local0__1 = input[k1]; gt(__local0__1, 0) and lt(__local0__1, 10)}`},
+		},
+
+		// copy-propagation
+		{
+			note:                 "copy propagation: and safety needs extra expr",
+			experimentalKeywords: true,
+			query:                `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p if {
+				  x = data.y[c]
+				  x.z = 1 and x.z != 2
+				}
+				`,
+			},
+			unknowns: []string{`data.y`},
+			wantQueries: []string{
+				`x1 = data.y[c1]; x1.z = 1 and {__local0__1 = x1.z; neq(__local0__1, 2)}`,
+			},
+		},
+		{
+			note:                 "copy propagation: or safety needs extra expr",
+			experimentalKeywords: true,
+			query:                `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p if {
+				  x = data.y[c]
+				  x.z = 1 or x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`data.y`},
+			// Copy-prop inlines x1 into both operand bodies — unlike the `and`
+			// case above, both operands are plain `=` so there's no rewrite
+			// barrier — but still re-adds the binding at body level.
+			wantQueries: []string{
+				`data.y[c1].z = 1 or data.y[c1].z = 2; x1 = data.y[c1]`,
+			},
+		},
+		{
+			note:                 "copy propagation: and safety needs extra expr - no live var overlap",
+			experimentalKeywords: true,
+			query:                `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p if {
+				  x = input.y[c]
+				  x.z = 1 and x.z != 2
+				}
+				`,
+			},
+			unknowns: []string{`input.y`},
+			wantQueries: []string{
+				`x1 = input.y[c1]; x1.z = 1 and {__local0__1 = x1.z; neq(__local0__1, 2)}`,
+			},
+		},
 	}
 
 	ctx := t.Context()
 
 	for _, tc := range tests {
 		popts := ast.ParserOptions{}
+		if tc.experimentalKeywords {
+			popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+			popts.FutureKeywords = []string{"and", "or"}
+		}
 
 		params := fixtureParams{
 			note:          tc.note,
@@ -4414,6 +4894,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		wantSupportASTs          []*ast.Module
 		ignoreOrder              bool
 		notBodyOnly              bool
+		experimentalKeywords     bool // opt in to experimental and/or keywords
 	}{
 		{
 			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
@@ -6126,6 +6607,84 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				v1 = input.threshold`,
 			},
 		},
+
+		// inner and/or, with unknowns
+		// TODO: PE optimization in #8680
+
+		{
+			note:                 "not (and): unknown inside",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					not { input.x > 0 and true }
+				}`},
+			wantQueries: []string{`not {
+					{ __local0__1 = input.x; gt(__local0__1, 0) } and true
+				}`},
+		},
+		{
+			note:                 "not (or): unknowns in both operands",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					not { input.x > 0 or input.y > 0 }
+				}`},
+			wantQueries: []string{`not {
+					{ __local0__1 = input.x; gt(__local0__1, 0) } or { __local1__1 = input.y; gt(__local1__1, 0) }
+				}`},
+		},
+		{
+			note:                 "not (and): unknown lhs, rhs static false ",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					not { input.x > 0 and false }
+				}`},
+			wantQueries: []string{`not {
+					{__local0__1 = input.x; gt(__local0__1, 0)} and false
+				}`},
+		},
+		{
+			note:                 "not (or): unknown rhs, lhs static true",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					not {true or input.y > 0}
+				}`},
+			wantQueries: []string{`not {
+					true or {__local0__1 = input.y; gt(__local0__1, 0)}
+				}`},
+		},
+		{
+			note:                 "and (not): unknown inside",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; not x > 0 } and true 
+				}`},
+			wantQueries: []string{`{ __local0__1 = input.x; not gt(__local0__1, 0) } and true`},
+		},
+		{
+			note:                 "or (not): unknown inside",
+			experimentalKeywords: true,
+			notBodyOnly:          true,
+			query:                "data.test.p = true",
+			modules: []string{`package test
+				p if {
+					{ x := input.x; not x > 0 } or true 
+				}`},
+			wantQueries: []string{`{ __local0__1 = input.x; not gt(__local0__1, 0) } or true`},
+		},
 	}
 
 	ctx := t.Context()
@@ -6146,6 +6705,12 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 					continue
 				}
 
+				casePopts := popts
+				if tc.experimentalKeywords {
+					casePopts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+					casePopts.FutureKeywords = append(append([]string{}, popts.FutureKeywords...), "and", "or")
+				}
+
 				params := fixtureParams{
 					note:          tc.note,
 					query:         tc.query,
@@ -6153,7 +6718,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 					moduleASTs:    tc.moduleASTs,
 					data:          tc.data,
 					input:         tc.input,
-					parserOptions: popts,
+					parserOptions: casePopts,
 				}
 
 				prepareTest(ctx, t, params, func(ctx context.Context, t *testing.T, f fixture) {
@@ -6210,7 +6775,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 					}
 
 					for i := range tc.wantQueries {
-						expectedQueries = append(expectedQueries, ast.MustParseBodyWithOpts(tc.wantQueries[i], popts))
+						expectedQueries = append(expectedQueries, ast.MustParseBodyWithOpts(tc.wantQueries[i], casePopts))
 					}
 
 					queriesA, queriesB := bodySet(partials), bodySet(expectedQueries)
@@ -6228,7 +6793,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 						expectedSupport = tc.wantSupportASTs
 					} else {
 						for i := range tc.wantSupport {
-							expectedSupport = append(expectedSupport, ast.MustParseModuleWithOpts(tc.wantSupport[i], popts))
+							expectedSupport = append(expectedSupport, ast.MustParseModuleWithOpts(tc.wantSupport[i], casePopts))
 						}
 					}
 					supportA, supportB := moduleSet(support), moduleSet(expectedSupport)
@@ -6244,6 +6809,211 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestTopDownPartialEvalLogicalRoundTrip verifies semantic equivalence between
+// the original and/or modules and their residuals.
+func TestTopDownPartialEvalLogicalRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	popts := ast.ParserOptions{
+		Capabilities:   ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
+		FutureKeywords: []string{"and", "or"},
+	}
+
+	cases := []struct {
+		note   string
+		module string
+		inputs []string
+	}{
+		{
+			note: "and: both unknowns",
+			module: `package test
+				p if {
+					input.x > 0 and input.y > 0
+				}`,
+			inputs: []string{
+				`{"x": 1, "y": 2}`,   // both true -> defined
+				`{"x": -1, "y": 2}`,  // lhs false -> undefined
+				`{"x": 1, "y": -2}`,  // rhs false -> undefined
+				`{"x": -1, "y": -2}`, // both false -> undefined
+			},
+		},
+		{
+			note: "or: both unknowns",
+			module: `package test
+				p if {
+					input.x > 0 or input.y > 0
+				}`,
+			inputs: []string{
+				`{"x": 1, "y": 2}`,   // both true -> defined (single result)
+				`{"x": -1, "y": 2}`,  // lhs false -> defined via rhs
+				`{"x": 1, "y": -2}`,  // rhs false -> defined via lhs
+				`{"x": -1, "y": -2}`, // both false -> undefined
+			},
+		},
+		{
+			note: "and: explicit body operands",
+			module: `package test
+				p if {
+					{ a := input.x; a > 0} and {b := input.y; b > 0 }
+				}`,
+			inputs: []string{
+				`{"x": 1, "y": 2}`,
+				`{"x": -1, "y": 2}`,
+				`{"x": 1, "y": -2}`,
+				`{"x": -1, "y": -2}`,
+			},
+		},
+		{
+			note: "or: explicit body operands",
+			module: `package test
+				p if {
+					{ a := input.x; a > 0 } or { b := input.y; b > 0 }
+				}`,
+			inputs: []string{
+				`{"x": 1, "y": 2}`,
+				`{"x": -1, "y": 2}`,
+				`{"x": 1, "y": -2}`,
+				`{"x": -1, "y": -2}`,
+			},
+		},
+		{
+			note: "and: rhs comp, cross-scope vars",
+			module: `package test
+				p if {
+					x := input.x
+					true and {
+						y := input.threshold
+						s := {z | z := input.y[_]; z < x; z > y}
+						count(s) > 0
+					}
+				}`,
+			inputs: []string{
+				`{"x": 10, "threshold": 2, "y": [3, 5, 7]}`, // s={3,5,7} -> defined
+				`{"x": 0, "threshold": 5, "y": [3, 5, 7]}`,  // none < 0 -> undefined
+				`{"x": 10, "threshold": 2, "y": [1, 2]}`,    // none > 2 -> undefined
+			},
+		},
+		{
+			note: "or: lhs comp, cross-scope vars",
+			module: `package test
+				p if {
+					x := input.x
+					{
+						y := input.threshold
+						s := {z | z := input.y[_]; z < x; z > y}
+						count(s) > 0
+					} or false
+				}`,
+			inputs: []string{
+				`{"x": 10, "threshold": 2, "y": [3, 5, 7]}`,
+				`{"x": 0, "threshold": 5, "y": [3, 5, 7]}`,
+				`{"x": 10, "threshold": 2, "y": [1, 2]}`,
+			},
+		},
+	}
+
+	ctx := t.Context()
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			residualModule := residualModuleFor(t, ctx, tc.module, popts)
+
+			for _, inp := range tc.inputs {
+				t.Run("input="+inp, func(t *testing.T) {
+					orig := pIsDefined(t, ctx, tc.module, "test", inp, popts)
+					residual := pIsDefined(t, ctx, residualModule, "test_residual", inp, popts)
+					if orig != residual {
+						t.Errorf("round-trip mismatch for input %s: orig=%v residual=%v\nresidual module:\n%s",
+							inp, orig, residual, residualModule)
+					}
+				})
+			}
+		})
+	}
+}
+
+func residualModuleFor(t *testing.T, ctx context.Context, module string, popts ast.ParserOptions) string {
+	t.Helper()
+
+	compiler, err := ast.CompileModulesWithOpt(
+		map[string]string{"test.rego": module},
+		ast.CompileOpts{ParserOptions: popts})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	queryBody, err := compiler.QueryCompiler().Compile(
+		ast.MustParseBodyWithOpts("data.test.p = true", popts))
+	if err != nil {
+		t.Fatalf("compile query: %v", err)
+	}
+
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	partials, _, err := NewQuery(queryBody).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
+		PartialRun(ctx)
+	if err != nil {
+		t.Fatalf("PartialRun: %v", err)
+	}
+
+	var sb strings.Builder
+	sb.WriteString("package test_residual\n\n")
+	for _, body := range partials {
+		sb.WriteString("p if {\n")
+		for _, expr := range body {
+			sb.WriteString("\t" + expr.String() + "\n")
+		}
+		sb.WriteString("}\n")
+	}
+	return sb.String()
+}
+
+func pIsDefined(t *testing.T, ctx context.Context, module, pkg, inputJSON string, popts ast.ParserOptions) bool {
+	t.Helper()
+
+	// An empty residual module (no `p` rule) means PE proved p is unconditionally
+	// undefined; short-circuit to false without going through the compiler
+	if pkg == "test_residual" && !strings.Contains(module, "p if") {
+		return false
+	}
+
+	compiler, err := ast.CompileModulesWithOpt(
+		map[string]string{pkg + ".rego": module},
+		ast.CompileOpts{ParserOptions: popts})
+	if err != nil {
+		t.Fatalf("compile %s: %v\nmodule:\n%s", pkg, err, module)
+	}
+
+	queryBody, err := compiler.QueryCompiler().Compile(
+		ast.MustParseBodyWithOpts("data."+pkg+".p", popts))
+	if err != nil {
+		t.Fatalf("compile query: %v", err)
+	}
+
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	rs, err := NewQuery(queryBody).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(ast.MustParseTerm(inputJSON)).
+		Run(ctx)
+	if err != nil {
+		t.Fatalf("query Run: %v", err)
+	}
+	return len(rs) > 0
 }
 
 func replaceWildcardsInBodySet(s bodySet) {

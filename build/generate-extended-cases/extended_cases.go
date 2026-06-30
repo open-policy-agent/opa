@@ -9,8 +9,10 @@ import (
 	"io/fs"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
+	"github.com/gobwas/glob"
 	"sigs.k8s.io/yaml"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -25,10 +27,14 @@ import (
 
 var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to load a list of test names to exclude")
 
-var exceptions map[string]string
+var (
+	exceptions     map[string]string
+	exceptionGlobs []glob.Glob
+)
 
 func setup() {
 	exceptions = map[string]string{}
+	exceptionGlobs = nil
 
 	bs, err := os.ReadFile(*exceptionsFile)
 	if err != nil {
@@ -40,11 +46,33 @@ func setup() {
 		fmt.Println("Unable to parse exceptions file: " + err.Error())
 		os.Exit(1)
 	}
+
+	for pattern := range exceptions {
+		if !strings.Contains(pattern, "*") {
+			continue
+		}
+
+		g, err := glob.Compile(pattern, '/')
+		if err != nil {
+			fmt.Printf("Invalid glob pattern %q in exceptions file: %v\n", pattern, err)
+			os.Exit(1)
+		}
+		exceptionGlobs = append(exceptionGlobs, g)
+	}
 }
 
 func shouldSkip(tc cases.TestCase) bool {
-	_, ok := exceptions[tc.Note]
-	return ok
+	if _, ok := exceptions[tc.Note]; ok {
+		return true
+	}
+
+	for _, g := range exceptionGlobs {
+		if g.Match(tc.Note) {
+			return true
+		}
+	}
+
+	return false
 }
 
 type ExtendedTestCase struct {

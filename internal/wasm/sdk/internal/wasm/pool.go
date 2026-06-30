@@ -9,18 +9,24 @@ import (
 	"context"
 	"sync"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v44"
+	"github.com/tetratelabs/wazero"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/v1/metrics"
 )
 
+// compilationCache is shared across all Pools in the process. wazero compiles
+// each unique policy wasm binary once and caches the result; subsequent Pool
+// or VM creations for the same bytes skip recompilation. The cache is never
+// closed — it is intentionally process-scoped.
+var compilationCache = sync.OnceValue(wazero.NewCompilationCache)
+
 var errNotReady = errors.New(errors.NotReadyErr, "")
 
 // Pool maintains a pool of WebAssemly VM instances.
 type Pool struct {
-	engine         *wasmtime.Engine
+	cache          wazero.CompilationCache
 	available      chan struct{}
 	mutex          sync.Mutex
 	dataMtx        sync.Mutex
@@ -39,17 +45,13 @@ type Pool struct {
 
 // NewPool constructs a new pool with the pool and VM configuration provided.
 func NewPool(poolSize, memoryMinPages, memoryMaxPages uint32) *Pool {
-
-	cfg := wasmtime.NewConfig()
-	cfg.SetEpochInterruption(true)
-
 	available := make(chan struct{}, poolSize)
 	for range poolSize {
 		available <- struct{}{}
 	}
 
 	return &Pool{
-		engine:         wasmtime.NewEngineWithConfig(cfg),
+		cache:          compilationCache(),
 		memoryMinPages: memoryMinPages,
 		memoryMaxPages: memoryMaxPages,
 		available:      available,
@@ -87,7 +89,9 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		// Surface a cancellation in the SDK's error vocabulary so callers
+		// (and sdk_errors.IsCancel) recognize it; a bare ctx.Err() would not.
+		return nil, errors.New(errors.CancelledErr, ctx.Err().Error())
 	case <-p.available:
 	}
 
@@ -108,14 +112,15 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 	policy, parsedData, parsedDataAddr := p.policy, p.parsedData, p.parsedDataAddr
 
 	p.mutex.Unlock()
-	vm, err := newVM(vmOpts{
+	vm, err := newVM(ctx, vmOpts{
 		policy:         policy,
 		data:           nil,
 		parsedData:     parsedData,
 		parsedDataAddr: parsedDataAddr,
 		memoryMin:      p.memoryMinPages,
 		memoryMax:      p.memoryMaxPages,
-	}, p.engine)
+		cache:          p.cache,
+	})
 	p.mutex.Lock()
 
 	if err != nil {
@@ -128,10 +133,32 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 	return vm, nil
 }
 
-// Release releases the VM back to the pool.
+// Release releases the VM back to the pool. If the VM was killed during a
+// cancelled eval its runtime is closed and it is removed from the pool so a
+// fresh VM can be created in its place.
 func (p *Pool) Release(vm *VM, metrics metrics.Metrics) {
 	metrics.Timer("wasm_pool_release").Start()
 	defer metrics.Timer("wasm_pool_release").Stop()
+
+	if vm.dead {
+		p.mutex.Lock()
+		for i := range p.vms {
+			if p.vms[i] == vm {
+				n := len(p.vms)
+				if n > 1 {
+					p.vms[i] = p.vms[n-1]
+					p.acquired[i] = p.acquired[n-1]
+				}
+				p.vms = p.vms[:n-1]
+				p.acquired = p.acquired[:n-1]
+				break
+			}
+		}
+		p.mutex.Unlock()
+		vm.close()
+		p.available <- struct{}{}
+		return
+	}
 
 	p.mutex.Lock()
 
@@ -170,18 +197,19 @@ func (p *Pool) SetPolicyData(ctx context.Context, policy []byte, data []byte) er
 	p.mutex.Lock()
 
 	if !p.initialized {
-		vm, err := newVM(vmOpts{
+		vm, err := newVM(ctx, vmOpts{
 			policy:         policy,
 			data:           data,
 			parsedData:     nil,
 			parsedDataAddr: 0,
 			memoryMin:      p.memoryMinPages,
 			memoryMax:      p.memoryMaxPages,
-		}, p.engine)
+			cache:          p.cache,
+		})
 
 		if err == nil {
 			parsedDataAddr, parsedData := vm.cloneDataSegment()
-			p.memoryMinPages = util.Pages(uint32(vm.memory.DataSize(vm.store)))
+			p.memoryMinPages = util.Pages(vm.mem.Size())
 			p.vms = append(p.vms, vm)
 			p.acquired = append(p.acquired, false)
 			p.initialized = true
@@ -268,13 +296,15 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 			parsedData:     parsedData,
 			parsedDataAddr: parsedDataAddr,
 			memoryMin:      seedMemorySize,
-			memoryMax:      p.memoryMaxPages, // The max pages cannot be changed while updating.
+			memoryMax:      p.memoryMaxPages,
+			cache:          p.cache,
 		})
 
 		if err != nil {
 			// No guarantee about the VM state after an error; hence, remove.
 			p.remove(i)
 			p.Release(vm, metrics.New())
+			vm.close()
 
 			// After the first successful activation, proceed through all the VMs, ignoring the remaining errors.
 			if !activated {
@@ -289,7 +319,7 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 				activated = true
 				policy = vm.policy
 				parsedDataAddr, parsedData = vm.cloneDataSegment()
-				seedMemorySize = util.Pages(uint32(vm.memory.DataSize(vm.store)))
+				seedMemorySize = util.Pages(vm.mem.Size())
 				p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
 			}
 
@@ -311,7 +341,11 @@ func (p *Pool) Close() {
 	defer p.mutex.Unlock()
 
 	p.closed = true
+	for _, vm := range p.vms {
+		vm.close()
+	}
 	p.vms = nil
+	// compilationCache is process-scoped and intentionally not closed here.
 }
 
 // Wait steals the i'th VM instance. The VM has to be released afterwards.

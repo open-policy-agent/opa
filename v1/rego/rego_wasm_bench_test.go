@@ -21,7 +21,6 @@ func isWASMNotAvailable(err error, target string) bool {
 	return target == "wasm" && err != nil && strings.Contains(err.Error(), "not found")
 }
 
-// NOTE: Memory benchmarks may be inaccurate for WASM due to cgo allocation through wasmtime-go
 func benchmarkWithWASMTargets(b *testing.B, fn func(b *testing.B, target string)) {
 	b.Helper()
 	b.Run("topdown", func(b *testing.B) {
