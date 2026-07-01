@@ -75,8 +75,8 @@ github.com/huandu/go-assert v1.1.6 h1:oaAfYxq9KNDi9qswn/6aE0EydfxSa+tWZC1KabNitY
 github.com/huandu/go-assert v1.1.6/go.mod h1:JuIfbmYG9ykwvuxoJ3V8TB5QP+3+ajIA54Y44TmkMxs=
 github.com/huandu/go-clone v1.7.3 h1:rtQODA+ABThEn6J5LBTppJfKmZy/FwfpMUWa8d01TTQ=
 github.com/huandu/go-clone v1.7.3/go.mod h1:ReGivhG6op3GYr+UY3lS6mxjKp7MIGTknuU5TbTVaXE=
-github.com/huandu/go-sqlbuilder v1.41.0 h1:oWa6DOKkyRf/oYWrAA5tyEyolDJg39oTTf0+FYy94/E=
-github.com/huandu/go-sqlbuilder v1.41.0/go.mod h1:zdONH67liL+/TvoUMwnZP/sUYGSSvHh9psLe/HpXn8E=
+github.com/huandu/go-sqlbuilder v1.42.1 h1:9DVQbKg1uFNGaVqgWMpaBNkM3Fv58p2m/+AxWkTrCYc=
+github.com/huandu/go-sqlbuilder v1.42.1/go.mod h1:BEm32AHl29lzKDeV3HAIkzrz9cgRyumkDohHeGYYBoM=
 github.com/huandu/xstrings v1.4.0 h1:D17IlohoQq4UcpqD7fDk80P7l+lwAmlFaBHgOipl2FU=
 github.com/huandu/xstrings v1.4.0/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
@@ -197,8 +197,8 @@ github.com/tetratelabs/wazero v1.12.0 h1:DuWcpNu/FzgEXgGBDp8J1Spc+CWOvvtvVyjKlaZ
 github.com/tetratelabs/wazero v1.12.0/go.mod h1:LvKtzl2RqO4gyF27BiXU+nKAjcV8f38U+kP/q2vgxh0=
 github.com/valyala/fastjson v1.6.10 h1:/yjJg8jaVQdYR3arGxPE2X5z89xrlhS0eGXdv+ADTh4=
 github.com/valyala/fastjson v1.6.10/go.mod h1:e6FubmQouUNP73jtMLmcbxS6ydWIpOfhz34TSfO3JaE=
-github.com/vektah/gqlparser/v2 v2.5.34 h1:MEea5P0qhdcqfBL45ghKE+qr9laidVHTMHjav5h7ckk=
-github.com/vektah/gqlparser/v2 v2.5.34/go.mod h1:mFdHLGCio7OGX1fby9ZjTW6FN+qxgmbnBcRIeeScE5s=
+github.com/vektah/gqlparser/v2 v2.5.35 h1:LEr/wXnTKkOqNn+4tNClYclksXN2781VoBFzzFW51Dk=
+github.com/vektah/gqlparser/v2 v2.5.35/go.mod h1:cAJ9qwVgPaUkWv6Gn8vn0mqOE0Ui5Pn56wNy5396XWo=
 github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb h1:zGWFAtiMcyryUHoUjUJX0/lt1H2+i2Ka2n+D3DImSNo=
 github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb/go.mod h1:N2zxlSyiKSe5eX1tZViRH5QA0qijqEDrYZiPEAiq3wU=
 github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 h1:EzJWgHovont7NscjpAxXsDA8S8BMYve8Y5+7cuRE7R0=
