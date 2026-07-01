@@ -20,7 +20,7 @@ metadata_discovery(issuer) := http.send({
     "force_cache_duration_seconds": 86400 # Cache response for 24 hours
 }).body
 
-claims := jwt.decode(input.token)[1]
+claims := io.jwt.decode(input.token)[1]
 metadata := metadata_discovery(claims.iss)
 
 jwks_endpoint := metadata.jwks_uri
@@ -71,7 +71,7 @@ jwks_url := concat("?", [
 ])
 jwks := jwks_request(jwks_url).raw_body
 
-jwt_verified := jwt_unverified {
+jwt_verified := jwt_unverified if {
     io.jwt.verify_rs256(input.token, jwks)
 }
 
@@ -85,7 +85,7 @@ Programmatically obtain an OAuth2 access token following the client credentials 
 ```rego
 package oauth2
 
-token := t {
+token := t if {
     response := http.send({
         "url": "https://authorization-server.example.com/token",
         "method": "POST",
