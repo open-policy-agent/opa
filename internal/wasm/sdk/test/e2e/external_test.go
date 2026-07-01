@@ -95,8 +95,7 @@ func TestWasmE2E(t *testing.T) {
 					t.Setenv(k, v)
 				}
 
-				caps := ast.CapabilitiesForThisVersion()
-				caps.FutureKeywords = append(caps.FutureKeywords, "not")
+				caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(tc.ExperimentalKeywords))
 
 				opts := []func(*rego.Rego){
 					rego.Query(tc.Query),

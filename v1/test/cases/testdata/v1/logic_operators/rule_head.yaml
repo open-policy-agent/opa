@@ -1,0 +1,124 @@
+---
+cases:
+  - note: "logic_op/rule_head: and under if-head, both true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if input.x > 0 and input.y > 0
+    input:
+      x: 1
+      "y": 2
+    want_result:
+      - x: true
+  - note: "logic_op/rule_head: and under if-head, lhs false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if input.x > 0 and input.y > 0
+    input:
+      x: 0
+      "y": 2
+    want_result: []
+  - note: "logic_op/rule_head: or under if-head, lhs true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if input.x > 0 or input.y > 0
+    input:
+      x: 1
+      "y": 0
+    want_result:
+      - x: true
+  - note: "logic_op/rule_head: or under if-head, both false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if input.x > 0 or input.y > 0
+    input:
+      x: 0
+      "y": 0
+    want_result: []
+  - note: "logic_op/rule_head: and under assignment head"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p := 1 if input.x > 0 and input.y > 0
+    input:
+      x: 1
+      "y": 2
+    want_result:
+      - x: 1
+  - note: "logic_op/rule_head: or under assignment head"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := "matched" if input.x > 0 or input.y > 0
+    input:
+      x: 0
+      "y": 5
+    want_result:
+      - x: "matched"
+  - note: "logic_op/rule_head: and in function body"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        in_range(n) if n > 0 and n < 10
+
+        p if in_range(5)
+    want_result:
+      - x: true
+  - note: "logic_op/rule_head: and in function body, fails"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        in_range(n) if n > 0 and n < 10
+
+        p if in_range(42)
+    want_result: []
+  - note: "logic_op/rule_head: or in function body"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        boundary(n) if n < 1 or n > 99
+
+        p if boundary(input.n)
+    input:
+      "n": 100
+    want_result:
+      - x: true

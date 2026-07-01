@@ -93,3 +93,44 @@ cases:
         - [12, 3, -4]
     want_result:
       - x: [[1, 5], [3]]
+  - note: "logic_op/comprehension: walk-bound iteration with and as filter"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p := [v |
+          walk(input, [_, v])
+          is_string(v) and count(v) > 0
+        ]
+    input:
+      a: "hello"
+      b: ""
+      c:
+        d: "nested"
+        e: 42
+    sort_bindings: true
+    want_result:
+      - x: ["hello", "nested"]
+  - note: "logic_op/comprehension: walk-bound iteration with or as filter"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := [v |
+          walk(input, [_, v])
+          is_number(v) or { is_array(v); count(v) > 1 }
+        ]
+    input:
+      a: 1
+      b: "x"
+      c: [10, 20, 30]
+      d: [99]
+    sort_bindings: true
+    want_result:
+      - x: [1, 10, 20, 30, 99, [10, 20, 30]]

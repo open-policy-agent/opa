@@ -212,6 +212,9 @@ func LoadIrExtendedTestCasesFiltered(filters ...Filters) ([]ExtendedSet, error) 
 				rego.Query(tc.Query),
 				rego.SetRegoVersion(ast.RegoV1),
 			}
+			if tc.ExperimentalKeywords {
+				opts = append(opts, rego.Capabilities(ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))))
+			}
 			for i := range tc.Modules {
 				opts = append(opts, rego.Module(fmt.Sprintf("module-%d.rego", i), tc.Modules[i]))
 			}
