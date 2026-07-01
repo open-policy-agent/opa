@@ -35,5 +35,6 @@ jobs:
           INPUT_SUBDIRECTORY: opa
           INPUT_PUBLISH: ${{ inputs.publish }}
           INPUT_PUBLISH_BRANCH: ${{ inputs.publish_branch }}
+          INPUT_PRUNE_COUNT: 250
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 120
