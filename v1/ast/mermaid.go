@@ -152,7 +152,7 @@ func (rule *Rule) mermaidFormat(b *mermaidBuilder) string {
 		bodyID := b.node("rect", "Body")
 		b.edge(id, bodyID)
 		for i, expr := range rule.Body {
-			exprID := mermaidFormatExpr(expr, i, b)
+			exprID := mermaidFormatExpr(expr, b)
 			b.edgeLabeled(bodyID, exprID, strconv.Itoa(i))
 		}
 	}
@@ -188,7 +188,7 @@ func mermaidFormatHead(head *Head, b *mermaidBuilder) string {
 	return id
 }
 
-func mermaidFormatExpr(expr *Expr, index int, b *mermaidBuilder) string {
+func mermaidFormatExpr(expr *Expr, b *mermaidBuilder) string {
 	label := expr.String()
 
 	id := b.node("hex", label)
@@ -245,8 +245,8 @@ func mermaidFormatEvery(every *Every, b *mermaidBuilder) string {
 	b.edgeLabeled(id, domainID, "domain")
 	bodyID := b.node("rect", "Body")
 	b.edge(id, bodyID)
-	for i, expr := range every.Body {
-		exprID := mermaidFormatExpr(expr, i, b)
+	for _, expr := range every.Body {
+		exprID := mermaidFormatExpr(expr, b)
 		b.edge(bodyID, exprID)
 	}
 	return id
@@ -256,14 +256,14 @@ func mermaidFormatLogical(op string, lhs, rhs Body, b *mermaidBuilder) string {
 	id := b.node("rect", op)
 	lhsID := b.node("rect", "Lhs")
 	b.edge(id, lhsID)
-	for i, expr := range lhs {
-		exprID := mermaidFormatExpr(expr, i, b)
+	for _, expr := range lhs {
+		exprID := mermaidFormatExpr(expr, b)
 		b.edge(lhsID, exprID)
 	}
 	rhsID := b.node("rect", "Rhs")
 	b.edge(id, rhsID)
-	for i, expr := range rhs {
-		exprID := mermaidFormatExpr(expr, i, b)
+	for _, expr := range rhs {
+		exprID := mermaidFormatExpr(expr, b)
 		b.edge(rhsID, exprID)
 	}
 	return id
@@ -283,7 +283,7 @@ func mermaidFormatWith(w *With, b *mermaidBuilder) string {
 func (not *Not) mermaidFormat(b *mermaidBuilder) string {
 	id := b.node("stadium", "not")
 	for i, expr := range not.Body {
-		exprID := mermaidFormatExpr(expr, i, b)
+		exprID := mermaidFormatExpr(expr, b)
 		b.edgeLabeled(id, exprID, strconv.Itoa(i))
 	}
 	return id
@@ -381,7 +381,7 @@ func (ac *ArrayComprehension) mermaidFormat(b *mermaidBuilder) string {
 	bodyID := b.node("rect", "Body")
 	b.edge(id, bodyID)
 	for i, expr := range ac.Body {
-		exprID := mermaidFormatExpr(expr, i, b)
+		exprID := mermaidFormatExpr(expr, b)
 		b.edgeLabeled(bodyID, exprID, strconv.Itoa(i))
 	}
 	return id
@@ -396,7 +396,7 @@ func (oc *ObjectComprehension) mermaidFormat(b *mermaidBuilder) string {
 	bodyID := b.node("rect", "Body")
 	b.edge(id, bodyID)
 	for i, expr := range oc.Body {
-		exprID := mermaidFormatExpr(expr, i, b)
+		exprID := mermaidFormatExpr(expr, b)
 		b.edgeLabeled(bodyID, exprID, strconv.Itoa(i))
 	}
 	return id
@@ -409,7 +409,7 @@ func (sc *SetComprehension) mermaidFormat(b *mermaidBuilder) string {
 	bodyID := b.node("rect", "Body")
 	b.edge(id, bodyID)
 	for i, expr := range sc.Body {
-		exprID := mermaidFormatExpr(expr, i, b)
+		exprID := mermaidFormatExpr(expr, b)
 		b.edgeLabeled(bodyID, exprID, strconv.Itoa(i))
 	}
 	return id

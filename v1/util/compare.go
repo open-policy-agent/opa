@@ -19,6 +19,22 @@ const (
 	objectSort
 )
 
+// Or works like [cmp.Or] but allows supplier functions to be tried rather than
+// alternative values. This allows deferring computation of the alternatives to
+// only when needed.
+func Or[T comparable](val T, suppliers ...func() T) T {
+	var zero T
+	if val == zero {
+		for _, f := range suppliers {
+			if alt := f(); alt != zero {
+				return alt
+			}
+		}
+	}
+
+	return val
+}
+
 // SliceLenCompare is a convenience function for comparing / sorting
 // slices by their length using the various slices.SortX functions.
 func SliceLenCompare[T any, S ~[]T](a, b S) int {
