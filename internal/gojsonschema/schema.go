@@ -31,19 +31,18 @@ import (
 	"errors"
 	"math/big"
 	"regexp"
-	"text/template"
 
 	"github.com/xeipuuv/gojsonreference"
 )
 
-var (
-	// Locale is the default locale to use
-	// Library users can overwrite with their own implementation
-	Locale locale = DefaultLocale{}
+// Locale is the default locale to use
+// Library users can overwrite with their own implementation
+var Locale locale = DefaultLocale{}
 
-	// ErrorTemplateFuncs allows you to define custom template funcs for use in localization.
-	ErrorTemplateFuncs template.FuncMap
-)
+// The upstream ErrorTemplateFuncs (text/template.FuncMap) extension point was
+// removed: nothing in this module set it, and any reachable text/template use
+// defeats linker dead-code elimination binary-wide (see formatErrorDescription
+// in errors.go; golang/go#72895, #7903).
 
 // NewSchema instances a schema using the given JSONLoader
 func NewSchema(l JSONLoader) (*Schema, error) {

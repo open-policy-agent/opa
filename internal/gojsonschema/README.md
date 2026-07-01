@@ -304,31 +304,12 @@ Note: An error of RequiredType has an err.Type() return value of "required"
 
 **err.Details()**: *gojsonschema.ErrorDetails* Returns a map[string]interface{} of additional error details specific to the error. For example, GTE errors will have a "min" value, LTE will have a "max" value. See errors.go for a full description of all the error details. Every error always contains a "field" key that holds the value of *err.Field()*
 
-Note in most cases, the err.Details() will be used to generate replacement strings in your locales, and not used directly. These strings follow the text/template format i.e.
+Note in most cases, the err.Details() will be used to generate replacement strings in your locales, and not used directly. These strings use simple `{{.field}}` placeholders, each substituted with the matching value from err.Details() (a missing key renders as `<no value>`):
 ```
 {{.field}} must be greater than or equal to {{.min}}
 ```
 
-The library allows you to specify custom template functions, should you require more complex error message handling.
-```go
-gojsonschema.ErrorTemplateFuncs = map[string]interface{}{
-	"allcaps": func(s string) string {
-		return strings.ToUpper(s)
-	},
-}
-```
-
-Given the above definition, you can use the custom function `"allcaps"` in your localization templates:
-```
-{{allcaps .field}} must be greater than or equal to {{.min}}
-```
-
-The above error message would then be rendered with the `field` value in capital letters. For example:
-```
-"PASSWORD must be greater than or equal to 8"
-```
-
-Learn more about what types of template functions you can use in `ErrorTemplateFuncs` by referring to Go's [text/template FuncMap](https://golang.org/pkg/text/template/#FuncMap) type.
+Only this bare `{{.key}}` substitution is supported — no functions, conditionals, or pipelines. (Earlier versions ran locale strings through `text/template`; that was dropped because a reachable `text/template` defeats the Go linker's dead-code elimination binary-wide, see golang/go#72895.)
 
 ## Formats
 JSON Schema allows for optional "format" property to validate instances against well-known formats. gojsonschema ships with all of the formats defined in the spec that you can use like this:

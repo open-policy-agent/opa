@@ -2,19 +2,9 @@
 package gojsonschema
 
 import (
-	"bytes"
-	"sync"
-	"text/template"
+	"fmt"
+	"strings"
 )
-
-var errorTemplates = errorTemplate{template.New("errors-new"), sync.RWMutex{}}
-
-// template.Template is not thread-safe for writing, so some locking is done
-// sync.RWMutex is used for efficiently locking when new templates are created
-type errorTemplate struct {
-	*template.Template
-	sync.RWMutex
-}
 
 type (
 
@@ -328,39 +318,37 @@ func newError(err ResultError, context *JSONContext, value any, locale locale, d
 	err.SetDescription(formatErrorDescription(err.DescriptionFormat(), details))
 }
 
-// formatErrorDescription takes a string in the default text/template
-// format and converts it to a string with replacements. The fields come
-// from the ErrorDetails struct and vary for each type of error.
+// formatErrorDescription expands "{{.key}}" placeholders in s with values from
+// details. Deliberately not text/template: its {{.Field}} evaluation reaches
+// reflect.Value.MethodByName, which makes the Go linker disable method-level
+// dead-code elimination for the whole binary (golang/go#72895, #7903). Every
+// locale format string in this package uses only the simple {{.field}} form
+// (see locales.go) over ErrorDetails (map[string]any), so this is
+// behavior-identical to the former template path: map index, missing key ->
+// "<no value>", values via %v, and no re-expansion of substituted values.
+// Stateless, so the former template cache and its RWMutex are gone too.
 func formatErrorDescription(s string, details ErrorDetails) string {
-
-	var tpl *template.Template
-	var descrAsBuffer bytes.Buffer
-	var err error
-
-	errorTemplates.RLock()
-	tpl = errorTemplates.Lookup(s)
-	errorTemplates.RUnlock()
-
-	if tpl == nil {
-		errorTemplates.Lock()
-		tpl = errorTemplates.New(s)
-
-		if ErrorTemplateFuncs != nil {
-			tpl.Funcs(ErrorTemplateFuncs)
+	var b strings.Builder
+	for {
+		start := strings.Index(s, "{{.")
+		if start == -1 {
+			b.WriteString(s)
+			break
 		}
-
-		tpl, err = tpl.Parse(s)
-		errorTemplates.Unlock()
-
-		if err != nil {
-			return err.Error()
+		end := strings.Index(s[start:], "}}")
+		if end == -1 { // unterminated placeholder: emit the remainder verbatim
+			b.WriteString(s)
+			break
 		}
-	}
+		end += start
 
-	err = tpl.Execute(&descrAsBuffer, details)
-	if err != nil {
-		return err.Error()
+		b.WriteString(s[:start])
+		if v, ok := details[s[start+3:end]]; ok {
+			fmt.Fprintf(&b, "%v", v)
+		} else {
+			b.WriteString("<no value>")
+		}
+		s = s[end+2:]
 	}
-
-	return descrAsBuffer.String()
+	return b.String()
 }

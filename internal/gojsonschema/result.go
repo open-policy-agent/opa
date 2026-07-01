@@ -52,9 +52,9 @@ type (
 		SetDescription(string)
 		// Description returns the description of the error
 		Description() string
-		// SetDescriptionFormat sets the format for the description in the default text/template format
+		// SetDescriptionFormat sets the format for the description using simple {{.field}} substitution
 		SetDescriptionFormat(string)
-		// DescriptionFormat returns the format for the description in the default text/template format
+		// DescriptionFormat returns the format for the description using simple {{.field}} substitution
 		DescriptionFormat() string
 		// SetValue sets the value related to the error
 		SetValue(any)
@@ -125,12 +125,12 @@ func (v *ResultErrorFields) Description() string {
 	return v.description
 }
 
-// SetDescriptionFormat sets the format for the description in the default text/template format
+// SetDescriptionFormat sets the format for the description using simple {{.field}} substitution
 func (v *ResultErrorFields) SetDescriptionFormat(descriptionFormat string) {
 	v.descriptionFormat = descriptionFormat
 }
 
-// DescriptionFormat returns the format for the description in the default text/template format
+// DescriptionFormat returns the format for the description using simple {{.field}} substitution
 func (v *ResultErrorFields) DescriptionFormat() string {
 	return v.descriptionFormat
 }
