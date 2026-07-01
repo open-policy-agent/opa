@@ -31,7 +31,10 @@ import (
 	"errors"
 	"math/big"
 	"regexp"
-	"text/template"
+
+	// Method-less copy of text/template; see the import note in errors.go
+	// (golang/go#72895, #7903). ErrorTemplateFuncs below is its FuncMap.
+	template "github.com/DataDog/datadog-agent/pkg/template/text"
 
 	"github.com/xeipuuv/gojsonreference"
 )

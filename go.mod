@@ -62,6 +62,7 @@ require (
 )
 
 require (
+	github.com/DataDog/datadog-agent/pkg/template v0.80.4
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/clipperhouse/displaywidth v0.10.0 // indirect

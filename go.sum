@@ -1,3 +1,5 @@
+github.com/DataDog/datadog-agent/pkg/template v0.80.4 h1:jpfqE0NbUOQQ05m3lM09rh13J0QjJzkzt/JigiZOIKc=
+github.com/DataDog/datadog-agent/pkg/template v0.80.4/go.mod h1:ZUjICHSlN0of0cmWrYk9Pof0DV0eqHSpTUK1NTnN26Y=
 github.com/KimMachineGun/automemlimit v0.7.5 h1:RkbaC0MwhjL1ZuBKunGDjE/ggwAX43DwZrJqVwyveTk=
 github.com/KimMachineGun/automemlimit v0.7.5/go.mod h1:QZxpHaGOQoYvFhv/r4u3U0JTC2ZcOwbSr11UZF46UBM=
 github.com/agnivade/levenshtein v1.2.1 h1:EHBY3UOn1gwdy/VbFwgo4cxecRznFk7fKWN1KOX7eoM=
