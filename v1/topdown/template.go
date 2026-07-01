@@ -3,7 +3,13 @@ package topdown
 import (
 	"bytes"
 	"strings"
-	"text/template"
+
+	// A method-less copy of text/template. Rego values decode to
+	// map[string]any/[]any/scalars, which have no methods, so eliding method
+	// calls is a no-op here; it keeps text/template's evalField MethodByName off
+	// the reachable graph, which otherwise disables the Go linker's method-level
+	// dead-code elimination binary-wide (golang/go#72895, #7903).
+	template "github.com/DataDog/datadog-agent/pkg/template/text"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
