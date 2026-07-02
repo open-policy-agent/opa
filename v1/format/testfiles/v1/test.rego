@@ -205,9 +205,13 @@ union_list := [(declare3|declare4)]
 
 union_set_2 := {(((declare3|declare4)))}
 
-union_object_multi_line := {"response": (
+union_object_multi_line1 := {"response": (
   declare3 | declare4
 )}
+
+union_object_multi_line2 := {
+    "response": (declare3 | declare4)
+}
 
 union_object_key := {(declare3|declare4): "foo"}
 
