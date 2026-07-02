@@ -14806,7 +14806,7 @@
     "result": {
       "description": "remaining data from `object` with only keys specified in `paths`",
       "name": "filtered",
-      "type": "any"
+      "type": "object[any: any]"
     },
     "wasm": true
   },
@@ -15579,7 +15579,7 @@
     "result": {
       "description": "result of removing all keys specified in `paths`",
       "name": "output",
-      "type": "any"
+      "type": "object[any: any]"
     },
     "wasm": true
   },
@@ -18744,7 +18744,7 @@
     "result": {
       "description": "remaining data from `object` with only keys specified in `keys`",
       "name": "filtered",
-      "type": "any"
+      "type": "object[any: any]"
     },
     "wasm": true
   },
@@ -19178,7 +19178,7 @@
     "result": {
       "description": "result of removing the specified `keys` from `object`",
       "name": "output",
-      "type": "any"
+      "type": "object[any: any]"
     },
     "wasm": true
   },
@@ -19285,9 +19285,9 @@
     "description": "Determines if an object `sub` is a subset of another object `super`.Object `sub` is a subset of object `super` if and only if every key in `sub` is also in `super`, **and** for all keys which `sub` and `super` share, they have the same value. This function works with objects, sets, arrays and a set of array and set.If both arguments are objects, then the operation is recursive, e.g. `{\"c\": {\"x\": {10, 15, 20}}` is a subset of `{\"a\": \"b\", \"c\": {\"x\": {10, 15, 20, 25}, \"y\": \"z\"}`. If both arguments are sets, then this function checks if every element of `sub` is a member of `super`, but does not attempt to recurse. If both arguments are arrays, then this function checks if `sub` appears contiguously in order within `super`, and also does not attempt to recurse. If `super` is array and `sub` is set, then this function checks if `super` contains every element of `sub` with no consideration of ordering, and also does not attempt to recurse.",
     "introduced": "v0.42.0",
     "result": {
-      "description": "`true` if `sub` is a subset of `super`",
+      "description": "`true` if `sub` is a subset of `super`, otherwise undefined",
       "name": "result",
-      "type": "any"
+      "type": "boolean"
     },
     "wasm": false
   },
@@ -19454,7 +19454,7 @@
     "result": {
       "description": "a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object `b`",
       "name": "output",
-      "type": "any"
+      "type": "object[any: any]"
     },
     "wasm": true
   },
@@ -19566,7 +19566,7 @@
     "result": {
       "description": "asymmetric recursive union of all objects in `objects`, merged from left to right, where conflicts are resolved by choosing the key from the right-hand object",
       "name": "output",
-      "type": "any"
+      "type": "object[any: any]"
     },
     "wasm": true
   },
