@@ -2234,7 +2234,15 @@
           }
         ],
         "result": {
-          "type": "any"
+          "dynamic": {
+            "key": {
+              "type": "any"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
         },
         "type": "function"
       }
@@ -2496,7 +2504,15 @@
           }
         ],
         "result": {
-          "type": "any"
+          "dynamic": {
+            "key": {
+              "type": "any"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
         },
         "type": "function"
       }
@@ -3129,7 +3145,15 @@
           }
         ],
         "result": {
-          "type": "any"
+          "dynamic": {
+            "key": {
+              "type": "any"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
         },
         "type": "function"
       }
@@ -3232,7 +3256,15 @@
           }
         ],
         "result": {
-          "type": "any"
+          "dynamic": {
+            "key": {
+              "type": "any"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
         },
         "type": "function"
       }
@@ -3299,7 +3331,7 @@
           }
         ],
         "result": {
-          "type": "any"
+          "type": "boolean"
         },
         "type": "function"
       }
@@ -3332,7 +3364,15 @@
           }
         ],
         "result": {
-          "type": "any"
+          "dynamic": {
+            "key": {
+              "type": "any"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
         },
         "type": "function"
       }
@@ -3357,7 +3397,15 @@
           }
         ],
         "result": {
-          "type": "any"
+          "dynamic": {
+            "key": {
+              "type": "any"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
         },
         "type": "function"
       }

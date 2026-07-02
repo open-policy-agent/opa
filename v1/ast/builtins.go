@@ -1624,7 +1624,10 @@ var JSONFilter = &Builtin{
 				),
 			)).Description("JSON string paths"),
 		),
-		types.Named("filtered", types.A).Description("remaining data from `object` with only keys specified in `paths`"),
+		types.Named("filtered", types.NewObject(
+			nil,
+			types.NewDynamicProperty(types.A, types.A),
+		)).Description("remaining data from `object` with only keys specified in `paths`"),
 	),
 	Categories:  objectCat,
 	CanSkipBctx: true,
@@ -1663,7 +1666,10 @@ var JSONRemove = &Builtin{
 				),
 			)).Description("JSON string paths"),
 		),
-		types.Named("output", types.A).Description("result of removing all keys specified in `paths`"),
+		types.Named("output", types.NewObject(
+			nil,
+			types.NewDynamicProperty(types.A, types.A),
+		)).Description("result of removing all keys specified in `paths`"),
 	),
 	Categories:  objectCat,
 	CanSkipBctx: true,
@@ -1724,7 +1730,7 @@ var ObjectSubset = &Builtin{
 				types.NewArray(nil, types.A),
 			)).Description("object to test if super is a superset of"),
 		),
-		types.Named("result", types.A).Description("`true` if `sub` is a subset of `super`"),
+		types.Named("result", types.B).Description("`true` if `sub` is a subset of `super`, otherwise undefined"),
 	),
 	CanSkipBctx: true,
 }
@@ -1744,8 +1750,11 @@ var ObjectUnion = &Builtin{
 				types.NewDynamicProperty(types.A, types.A),
 			)).Description("right-hand object"),
 		),
-		types.Named("output", types.A).Description("a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object `b`"),
-	), // TODO(sr): types.A?  ^^^^^^^ (also below)
+		types.Named("output", types.NewObject(
+			nil,
+			types.NewDynamicProperty(types.A, types.A),
+		)).Description("a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object `b`"),
+	),
 	CanSkipBctx: true,
 }
 
@@ -1760,7 +1769,10 @@ var ObjectUnionN = &Builtin{
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			)).Description("list of objects to merge"),
 		),
-		types.Named("output", types.A).Description("asymmetric recursive union of all objects in `objects`, merged from left to right, where conflicts are resolved by choosing the key from the right-hand object"),
+		types.Named("output", types.NewObject(
+			nil,
+			types.NewDynamicProperty(types.A, types.A),
+		)).Description("asymmetric recursive union of all objects in `objects`, merged from left to right, where conflicts are resolved by choosing the key from the right-hand object"),
 	),
 	CanSkipBctx: true,
 }
@@ -1780,7 +1792,10 @@ var ObjectRemove = &Builtin{
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			)).Description("keys to remove from x"),
 		),
-		types.Named("output", types.A).Description("result of removing the specified `keys` from `object`"),
+		types.Named("output", types.NewObject(
+			nil,
+			types.NewDynamicProperty(types.A, types.A),
+		)).Description("result of removing the specified `keys` from `object`"),
 	),
 	CanSkipBctx: true,
 }
@@ -1801,7 +1816,10 @@ var ObjectFilter = &Builtin{
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			)).Description("keys to keep in `object`"),
 		),
-		types.Named("filtered", types.A).Description("remaining data from `object` with only keys specified in `keys`"),
+		types.Named("filtered", types.NewObject(
+			nil,
+			types.NewDynamicProperty(types.A, types.A),
+		)).Description("remaining data from `object` with only keys specified in `keys`"),
 	),
 	CanSkipBctx: true,
 }

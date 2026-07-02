@@ -2941,3 +2941,37 @@ object1[key] = value if {
 		})
 	}
 }
+
+// Verify fix for https://github.com/open-policy-agent/opa/issues/8692
+func TestCheckObjectCategoryReturnType(t *testing.T) {
+	policy := `package p
+
+	r if {
+		%s == 1
+	}
+	`
+	builtins := []string{
+		"json.filter({}, [])",
+		"json.remove({}, [])",
+		"object.union({}, {})",
+		"object.union_n([{}, {}])",
+		"object.remove({}, [])",
+		"object.filter({}, [])",
+	}
+
+	for _, b := range builtins {
+		t.Run(b, func(t *testing.T) {
+			module, err := ParseModule("policy.rego", fmt.Sprintf(policy, b))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler().WithCapabilities(CapabilitiesForThisVersion())
+			compiler.Compile(map[string]*Module{"policy.rego": module})
+
+			if !compiler.Failed() || !strings.Contains(compiler.Errors.Error(), "rego_type_error: match error") {
+				t.Fatal("expected type error, got none")
+			}
+		})
+	}
+}
