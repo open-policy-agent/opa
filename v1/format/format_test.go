@@ -1206,6 +1206,36 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 	}
 }
 
+// Regression test for #8557
+func TestSingleItemHonorMultiline(t *testing.T) {
+	contents := `package test
+
+x0 := {{"foo", "bar"}}
+
+x1 := {{
+	"foo",
+	"bar",
+}}
+
+x2 := {
+	{
+		"foo",
+		"bar",
+	},
+}
+
+x3 := {"foo": {
+	"bar": "baz",
+}}
+`
+	module := ast.MustParseModuleWithOpts(contents, ast.ParserOptions{RegoVersion: ast.RegoV1})
+	formatted := string(MustAstWithOpts(module, Opts{RegoVersion: ast.RegoV1}))
+
+	if contents != formatted {
+		t.Fatalf("expected \n%sgot\n%s", contents, formatted)
+	}
+}
+
 // 3064960 ns/op	 4573131 B/op	   26266 allocs/op // no optimizations
 // 1737719 ns/op	 1972193 B/op	   14160 allocs/op // pre-allocate partitionComments
 // 1674343 ns/op	 1916700 B/op	   11556 allocs/op // static memberRef & memberWithKeyRef

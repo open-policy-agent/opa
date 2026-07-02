@@ -1902,13 +1902,10 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 		return nil, err
 	}
 
-	hasBoundaryComment := false
+	newlinePrecedesItem := false
 	// If there are comments within the single line, don't collapse it and keep it as-is
 	// Return an error so that writeTerm will write the original formatting
 	if len(lines) == 1 {
-		if w.beforeEnd != nil {
-			hasBoundaryComment = w.beforeEnd.Location.Row >= last.Row && w.beforeEnd.Location.Row <= close.Row
-		}
 		for _, c := range comments {
 			if c.Location.Row > last.Row && c.Location.Row < close.Row {
 				return comments, unexpectedCommentError{
@@ -1916,13 +1913,24 @@ func (w *writer) writeIterable(elements []any, last *ast.Location, close *ast.Lo
 					newCommentRow: c.Location.Row,
 				}
 			}
-			if c.Location.Row == last.Row || c.Location.Row == close.Row {
-				hasBoundaryComment = true
+		}
+		if len(elements) > 0 {
+			var first *ast.Term
+			if term, ok := elements[0].(*ast.Term); ok {
+				first = term
+			} else if pair, ok := elements[0].([2]*ast.Term); ok {
+				first = pair[0]
+			}
+			cut := bytes.Index(last.Text, first.Location.Text)
+			if cut > 0 {
+				txt := last.Text[:cut]
+				newlinePrecedesItem = bytes.IndexByte(txt, '\n') > 0
 			}
 		}
 	}
 
-	isMultiline := len(lines) > 1 || (len(lines) == 1 && len(elements) > 0 && close.Row > last.Row && !hasBoundaryComment)
+	isMultiline := len(lines) > 1 || (len(lines) == 1 && newlinePrecedesItem)
+
 	if isMultiline {
 		w.delayBeforeEnd()
 		w.startMultilineSeq()

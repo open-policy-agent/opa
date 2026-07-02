@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 1.18.2
+
+This release fixes an issue in the formatter introduced in OPA v1.18.0 which caused it to reformat
+much more aggressively than intended. See:
+
+- [#8557](https://github.com/open-policy-agent/opa/issues/8557) Original issue
+- [#8663](https://github.com/open-policy-agent/opa/pull/8663) PR fixing issue, introducing regression
+- [#8845](https://github.com/open-policy-agent/opa/pull/8845) PR fixing regression
+
+It is advised to update if you use OPA's formatter.
+
+### Fixes
+
+- fmt: Fix regression in formatting single-item collections while honoring newlines
+  ([#8845](https://github.com/open-policy-agent/opa/pull/8845)) reported and authored by @anderseknert
+
 ## 1.18.1
 
 This release fixes a memory leak introduced in OPA v1.17.0.
