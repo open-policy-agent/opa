@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          sum({1, 2, 3, 4}, x)
+        }
+    note: aggregates/sum set
+    query: data.generated.p = x
+    want_result:
+      - x: 10

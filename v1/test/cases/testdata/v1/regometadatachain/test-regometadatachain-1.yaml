@@ -1,0 +1,96 @@
+---
+cases:
+  - note: regometadatachain/simple
+    query: data.testing.p = x
+    modules:
+      - |
+        # METADATA
+        # description: The Rego test suite
+        package testing
+
+        # METADATA
+        # title: Testing annotations
+        # authors:
+        # - The OPA contributors
+        p := x if {
+        	x := rego.metadata.chain()
+        }
+    want_result:
+      - x:
+          - annotations:
+              authors:
+                - name: The OPA contributors
+              scope: rule
+              title: Testing annotations
+            path:
+              - testing
+              - p
+          - annotations:
+              description: The Rego test suite
+              scope: package
+            path:
+              - testing
+  - note: regometadatachain/rule mixed scope
+    query: data.testing.p = x
+    modules:
+      - |
+        # METADATA
+        # description: The Rego test suite
+        package testing
+
+        # METADATA
+        # scope: document
+        # title: Testing annotations
+        # authors:
+        # - The OPA contributors
+        p := "foo" if {
+        	false
+        }
+
+        # METADATA
+        # title: Another annotation
+        p := x if {
+        	x := rego.metadata.chain()
+        }
+    want_result:
+      - x:
+          - annotations:
+              scope: rule
+              title: Another annotation
+            path:
+              - testing
+              - p
+          - annotations:
+              authors:
+                - name: The OPA contributors
+              scope: document
+              title: Testing annotations
+            path:
+              - testing
+              - p
+          - annotations:
+              description: The Rego test suite
+              scope: package
+            path:
+              - testing
+  - note: regometadatachain/package spanning modules
+    query: data.testing.p = x
+    modules:
+      - |
+        # METADATA
+        # description: A set of package annotations seen across multiple modules
+        package testing
+      - |
+        package testing
+
+        p := rego.metadata.chain()
+    want_result:
+      - x:
+          - path:
+              - testing
+              - p
+          - annotations:
+              description: A set of package annotations seen across multiple modules
+              scope: package
+            path:
+              - testing

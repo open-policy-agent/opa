@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [1, 2, 3, 4]
+    note: "completedoc/array: [1,2,3,4]"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4

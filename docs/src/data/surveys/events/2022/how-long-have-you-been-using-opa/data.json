@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "label": "Not using OPA",
+      "value": 20
+    },
+    {
+      "label": "< 3 months",
+      "value": 20
+    },
+    {
+      "label": "3-6 months",
+      "value": 20
+    },
+    {
+      "label": "6-12 months",
+      "value": 20
+    },
+    {
+      "label": "Over 12 months",
+      "value": 20
+    }
+  ]
+}

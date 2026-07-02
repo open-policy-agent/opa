@@ -1,0 +1,13 @@
+---
+cases:
+  - note: "strings/contains: undefined"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	contains("abcdefgh", "ac")
+        }
+    data: {}
+    want_result: []

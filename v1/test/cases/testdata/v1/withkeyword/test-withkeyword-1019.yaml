@@ -1,0 +1,22 @@
+---
+cases:
+  - note: withkeyword/with conflict
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	x := data.ex.loopback with input.foo as "x" with input.foo.bar as "y"
+        }
+      - |
+        package ex
+
+        loopback := y if {
+        	true
+        	y = input
+        }
+    want_result:
+      - x:
+          foo:
+            bar: "y"

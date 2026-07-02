@@ -1,0 +1,18 @@
+{
+  "id": "if-you-havent-been-able-to-use-opa-for-a-project-o",
+  "title": "If you haven't been able to use OPA for a project or use case, why was that?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 6
+}

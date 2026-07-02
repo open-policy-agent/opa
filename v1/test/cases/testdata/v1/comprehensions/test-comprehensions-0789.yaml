@@ -1,0 +1,25 @@
+---
+cases:
+  - note: comprehensions/object non-string key
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	xs = {k: 1 | data.a[_] = k}
+        	xs[x]
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4
+    sort_bindings: true

@@ -1,0 +1,15 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = x {
+          cast_object([1, 2, 3], x)
+        }
+    note: casts/obj invalid
+    query: data.generated.p = x
+    want_error: ""
+    want_error_code: eval_type_error
+    strict_error: true

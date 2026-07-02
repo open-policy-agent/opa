@@ -1,0 +1,26 @@
+---
+cases:
+  - note: "strings/concat: ref dest"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	__local0__ = data.c[0].x[2]
+        	concat("", ["f", "o", "o"], __local0__)
+        }
+    data:
+      c:
+        - "true":
+            - null
+            - "3.14159"
+          x:
+            - true
+            - false
+            - foo
+          z:
+            p: true
+            q: false
+    want_result:
+      - x: true

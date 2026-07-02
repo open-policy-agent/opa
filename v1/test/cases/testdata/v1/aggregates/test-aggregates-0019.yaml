@@ -1,0 +1,17 @@
+---
+
+cases:
+  - note: aggregates/min out-of-order
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	min([3, 2, 1, 4, 6, -7, 10], x)
+        }
+    data: { }
+    want_result:
+      - x:
+          - -7
+    sort_bindings: true

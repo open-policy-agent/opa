@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\t{\n\t\t\t\"arr_ref\": [1, null],\n\t\t\t\"obj_ref\": {\"x\": 1, \"y\": null},\n\t\t\t\"obj_ref_missing_key\": {\"x\": 3, \"z\": 2}\n\t\t}\n\t\t")

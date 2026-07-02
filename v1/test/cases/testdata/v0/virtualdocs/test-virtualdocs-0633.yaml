@@ -1,0 +1,30 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.generated.q[3]
+          __local1__ = data.generated.q[2]
+          x = {"a": [__local0__], "b": [__local1__]}
+        }
+
+        q[i] = x {
+          data.a[i] = x
+        }
+    note: "virtualdocs/input: object embedded 2"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - a:
+              - 4
+            b:
+              - 3

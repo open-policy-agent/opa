@@ -1,0 +1,106 @@
+---
+cases:
+  - data: {}
+    input_term: '{"req3": {"a": {"b": {"x": [1, 2, 3, 4]}}}}'
+    modules:
+      - |
+        package z
+
+        p {
+          data.a[i] = x
+          input.req1.foo = x
+          input.req2.bar = x
+          data.z.q[x]
+        }
+
+        q[x] {
+          input.req1.foo = x
+          input.req2.bar = x
+          data.z.r[x]
+        }
+
+        r[x] {
+          __local1__ = input.req2.bar
+          __local2__ = input.req1.foo
+          {"bar": [x], "foo": __local1__} = {"bar": [__local2__], "foo": x}
+        }
+
+        s {
+          input.req3.a.b.x[0] = 1
+        }
+
+        t {
+          input.req4.a.b.x[0] = 1
+        }
+
+        u[x] {
+          input.req3.a.b[_] = x
+          x > 1
+        }
+
+        w = [[1, 2], [3, 4]]
+
+        gt1 {
+          __local3__ = input.req1
+          __local3__ > 1
+        }
+
+        keys[x] = y {
+          data.numbers[_] = x
+          to_number(x, y)
+        }
+
+        loopback = __local0__ {
+          true
+          __local0__ = input
+        }
+
+        sets {
+          input.foo[{1}][1] = 1
+        }
+      - |
+        package topdown_test_partial
+
+        __result__ = _result {
+          input.req1.foo = 1
+          input.req2.bar = 1
+          input.req1.foo = 1
+          input.req2.bar = 1
+          1 = input.req2.bar
+          1 = input.req1.foo
+          _result = true
+        }
+
+        __result__ = _result {
+          input.req1.foo = 2
+          input.req2.bar = 2
+          input.req1.foo = 2
+          input.req2.bar = 2
+          2 = input.req2.bar
+          2 = input.req1.foo
+          _result = true
+        }
+
+        __result__ = _result {
+          input.req1.foo = 3
+          input.req2.bar = 3
+          input.req1.foo = 3
+          input.req2.bar = 3
+          3 = input.req2.bar
+          3 = input.req1.foo
+          _result = true
+        }
+
+        __result__ = _result {
+          input.req1.foo = 4
+          input.req2.bar = 4
+          input.req1.foo = 4
+          input.req2.bar = 4
+          4 = input.req2.bar
+          4 = input.req1.foo
+          _result = true
+        }
+    note: inputvalues/namespaced
+    query: data.z.s = x
+    want_result:
+      - x: true

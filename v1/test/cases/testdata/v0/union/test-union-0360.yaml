@@ -1,0 +1,24 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          s1 = {1, 2, 3}
+          s2 = {2, 3, 4}
+          s3 = {4, 5, 6}
+          union({s1, s2, s3}, x)
+        }
+    note: union/union_3_sets
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6

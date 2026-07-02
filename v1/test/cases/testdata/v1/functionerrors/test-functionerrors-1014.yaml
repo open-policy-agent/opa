@@ -1,0 +1,21 @@
+---
+cases:
+  - note: functionerrors/function output conflict multiple
+    query: data.test3.r = x
+    modules:
+      - |
+        package test3
+
+        p(1, a) := y if {
+        	y = a
+        }
+
+        p(x, y) := z if {
+        	z = x
+        }
+
+        r := y if {
+        	data.test3.p(1, 0, y)
+        }
+    want_error_code: eval_conflict_error
+    want_error: functions must not produce multiple outputs for same inputs

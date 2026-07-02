@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          false
+        }
+
+        p {
+          false
+        }
+    note: "disjunction/complete: undefined"
+    query: data.generated.p = x
+    want_result: []

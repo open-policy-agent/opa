@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          sprintf("hi %s", [true], x)
+        }
+    note: "strings/sprintf: bool"
+    query: data.generated.p = x
+    want_result:
+      - x: hi true

@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          glob.quote_meta("*.github.com", x)
+        }
+    note: globquotemeta/glob quote meta
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - \*.github.com

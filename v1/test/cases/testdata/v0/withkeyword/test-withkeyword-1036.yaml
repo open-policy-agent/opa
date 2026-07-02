@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.a.b[x] = 1 with data.a.b as {"c": 1, "d": 2, "e": 1}
+        }
+    note: withkeyword/with base doc exact value
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - c
+          - e

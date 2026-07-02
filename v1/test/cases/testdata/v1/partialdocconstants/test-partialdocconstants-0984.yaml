@@ -1,0 +1,26 @@
+---
+cases:
+  - note: partialdocconstants/obj-1
+    query: data.ex.foo.bar = x
+    modules:
+      - |
+        package ex
+
+        foo["bar"] := 0
+
+        foo["baz"] := 1
+
+        foo["*"] := [1, 2, 3] if {
+        	input.foo = 7
+        }
+
+        bar contains "x"
+
+        bar contains "y"
+
+        bar contains "*" if {
+        	input.foo = 7
+        }
+    data: {}
+    want_result:
+      - x: 0

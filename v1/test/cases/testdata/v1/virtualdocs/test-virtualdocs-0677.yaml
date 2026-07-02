@@ -1,0 +1,16 @@
+---
+cases:
+  - note: "virtualdocs/no suffix: complete"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q
+        }
+
+        q := true
+    data: {}
+    want_result:
+      - x: true

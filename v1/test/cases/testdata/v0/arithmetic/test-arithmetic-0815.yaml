@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          abs(-10, x)
+          x = 10
+        }
+    note: arithmetic/abs
+    query: data.generated.p = x
+    want_result:
+      - x: true

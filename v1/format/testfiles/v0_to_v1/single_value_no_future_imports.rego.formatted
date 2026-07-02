@@ -1,0 +1,34 @@
+package test
+
+import rego.v1
+
+a.b := "c" if {
+	input.x
+}
+
+b["c/d"] := "e" if {
+	input.d
+}
+
+c.d.e := true
+
+d.e.f if {
+	input.x
+}
+
+e[f] := "g" if {
+	f := input.f
+}
+
+f.g := "h" if {
+	input.x
+}
+
+g.h[i].j[k] := "l" if {
+	i := input.i
+	k := input.k
+}
+
+h.i["j/k"].l.m := "n" if {
+	input.x
+}

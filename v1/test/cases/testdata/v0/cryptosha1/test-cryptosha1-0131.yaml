@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[__local0__] {
+          crypto.sha1("lorem ipsum", __local1__)
+          __local0__ = __local1__
+        }
+    note: cryptosha1/crypto.sha1 with string
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - bfb7759a67daeb65410490b4d98bb9da7d1ea2ce

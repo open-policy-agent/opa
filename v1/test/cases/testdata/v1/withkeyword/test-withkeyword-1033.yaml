@@ -1,0 +1,23 @@
+---
+cases:
+  - note: withkeyword/with map data overwrite
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.ex.allow_merge_1 = true with data.b.v2 as "world"
+        }
+      - |
+        package ex
+
+        allow_merge_1 if {
+        	data.b = {"v1": "hello", "v2": "world"}
+        }
+    data:
+      b:
+        v1: hello
+        v2: goodbye
+    want_result:
+      - x: true

@@ -1,0 +1,14 @@
+---
+cases:
+  - note: evaltermexpr/number non-zero
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	-3.14
+        }
+    data: {}
+    want_result:
+      - x: true

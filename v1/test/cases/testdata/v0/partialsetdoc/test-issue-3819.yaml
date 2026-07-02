@@ -1,0 +1,25 @@
+---
+cases:
+  - data:
+      a:
+        apples: 2
+        bananas: 1
+        clementines: 3
+    modules:
+      - |
+        package foo
+        p[x] {
+            data.a[x] # iterates data.a
+            q[_]
+        }
+        q[x] {
+            x = data.a # inserts data.a into a set, sorts the object keys
+        }
+    note: "partialsetdoc: object sort while iter"
+    query: data.foo.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - apples
+          - bananas
+          - clementines

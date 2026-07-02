@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          arr = [[1, [2]], [1, null], [2, [2]]]
+          [x, [2]] = arr[_]
+        }
+    note: undos/array-type
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2

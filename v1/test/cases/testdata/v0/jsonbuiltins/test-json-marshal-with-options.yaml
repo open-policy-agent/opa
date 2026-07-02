@@ -1,0 +1,144 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"indent": "  "})
+        }
+    note: jsonbuiltins/marshal_with_options-explicit-indent
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          [
+            1234567890,
+            2000000,
+            1000000000
+          ]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {})
+        }
+    note: jsonbuiltins/marshal_with_options-empty-object
+    query: data.test.p = x
+    want_result:
+      - x: "[1234567890,2000000,1000000000]"
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"pretty": true})
+        }
+    note: jsonbuiltins/marshal_with_options-defaults
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          [
+          	1234567890,
+          	2000000,
+          	1000000000
+          ]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"pretty": false, "prefix": "NO!", "indent": "BAD!"})
+        }
+    note: jsonbuiltins/marshal_with_options-explicit-disable
+    query: data.test.p = x
+    want_result:
+      - x: "[1234567890,2000000,1000000000]"
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"prefix": "JSON => "})
+        }
+    note: jsonbuiltins/marshal_with_options-prefix
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          JSON => [
+          JSON => 	1234567890,
+          JSON => 	2000000,
+          JSON => 	1000000000
+          JSON => ]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options({"foo": "bar", "bar": "baz"}, {"prefix": "JSON => "})
+        }
+    note: jsonbuiltins/marshal_with_options-object
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          JSON => {
+          JSON => 	"bar": "baz",
+          JSON => 	"foo": "bar"
+          JSON => }
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([], {"indent": "    ", "prefix": "---"})
+        }
+    note: jsonbuiltins/marshal_with_options-empty-array
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          ---[]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([[[[[[[]]]]]]], {"indent": "    "})
+        }
+    note: jsonbuiltins/marshal_with_options-deep-array
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          [
+              [
+                  [
+                      [
+                          [
+                              [
+                                  []
+                              ]
+                          ]
+                      ]
+                  ]
+              ]
+          ]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([], {"indent": "    ", "include_winning_lottery_numbers": true})
+        }
+    note: jsonbuiltins/marshal_with_options-invalid-key
+    query: data.test.p = x
+    strict_error: true
+    want_error: object contained unknown key "include_winning_lottery_numbers"
+    want_error_code: eval_type_error

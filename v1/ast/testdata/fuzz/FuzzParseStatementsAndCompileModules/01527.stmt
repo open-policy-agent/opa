@@ -1,0 +1,2 @@
+go test fuzz v1
+string("[\n\t\t\t\t[[], {\"v1\": \"hello\", \"v2\": \"goodbye\"}],\n\t\t\t\t[[\"v1\"], \"hello\"],\n\t\t\t\t[[\"v2\"], \"goodbye\"]\n\t\t\t]")

@@ -1,0 +1,35 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package test
+        p {
+            units.parse("500m") == 0.5
+        }
+    note: units_parse/exact comparison - regression case 1
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        p {
+            units.parse("0.0005K") == 0.5
+        }
+    note: units_parse/exact comparison - regression case 2
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        p {
+            units.parse("0.0000005M") == 0.5
+        }
+    note: units_parse/exact comparison - regression case 3
+    query: data.test.p = x
+    want_result:
+      - x: true

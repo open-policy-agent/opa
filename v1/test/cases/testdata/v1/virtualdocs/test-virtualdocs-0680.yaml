@@ -1,0 +1,20 @@
+---
+cases:
+  - note: "virtualdocs/no suffix: complete incr"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	not data.generated.q
+        }
+
+        q if {
+        	false
+        }
+
+        q := false
+    data: {}
+    want_result:
+      - x: true

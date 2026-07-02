@@ -1,0 +1,66 @@
+# Verify that labels from evaluated rule annotations appear as a top-level
+# field in decision logs when policies are loaded from disk (no bundle server).
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info --set decision_logs.console=true ./policy/ &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+
+# Evaluate allow — triggers rule with labels.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "admin"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == true'
+
+# Evaluate with no match — no labels expected.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"role": "guest"}}' http://localhost/v1/data/authz/allow
+jq stdout '.result == false'
+
+# Evaluate a rule in a sibling package with no ambient scope labels.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"user": "alice"}}' http://localhost/v1/data/other/allow
+jq stdout '.result == true'
+
+# Evaluate the sibling package's default branch — no rule-scope, no ambient.
+exec curl -sf --unix-socket opa.sock -H 'Content-Type: application/json' -d '{"input": {"user": "bob"}}' http://localhost/v1/data/other/allow
+jq stdout '.result == false'
+
+kill -INT opa
+wait opa
+
+# Decision log for the admin request should have rule_labels with labels
+# merged from package and rule scopes (inner scope wins on conflicts).
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow" and .result == true)] | .[0].rule_labels == [{"service": "authz", "severity": "low", "team": "platform"}]'
+
+# Decision log for the guest request triggers the default rule; it has no
+# rule-scope labels of its own, so only the package-scope labels apply.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "authz/allow" and .result == false)] | .[0].rule_labels == [{"service": "authz", "severity": "info"}]'
+
+# Decision log for /other/allow (alice) reflects only the matching rule — no
+# ambient scopes apply to this package.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "other/allow" and .result == true)] | .[0].rule_labels == [{"severity": "low"}]'
+
+# Decision log for /other/allow (bob) triggers the default; no ambient chain
+# applies, so rule_labels is omitted entirely.
+jq -s stderr '[.[] | select(.msg == "Decision Log" and .path == "other/allow" and .result == false)] | .[0] | has("rule_labels") | not'
+
+-- policy/authz.rego --
+# METADATA
+# scope: package
+# labels:
+#   service: authz
+#   severity: info
+package authz
+
+default allow := false
+
+# METADATA
+# labels:
+#   severity: low
+#   team: platform
+allow if input.role == "admin"
+
+-- policy/other.rego --
+package other
+
+default allow := false
+
+# METADATA
+# labels:
+#   severity: low
+allow if input.user == "alice"

@@ -1,0 +1,19 @@
+---
+cases:
+  - note: "virtualdocs/input: non-ground set elements"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q.c
+        }
+
+        q := {x, "b", z} if {
+        	x = "a"
+        	z = "c"
+        }
+    data: {}
+    want_result:
+      - x: true

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[i] { xs = {\"a\": {x | x = a[_]}}; xs.a[i] > 1 }")

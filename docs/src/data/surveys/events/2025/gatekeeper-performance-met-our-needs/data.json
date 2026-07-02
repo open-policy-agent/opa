@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "label": "Strongly disagree",
+      "value": 0
+    },
+    {
+      "label": "Disagree",
+      "value": 0
+    },
+    {
+      "label": "Somewhat disagree",
+      "value": 1
+    },
+    {
+      "label": "Neither agree nor disagree",
+      "value": 0
+    },
+    {
+      "label": "Somewhat agree",
+      "value": 3
+    },
+    {
+      "label": "Agree",
+      "value": 9
+    },
+    {
+      "label": "Strongly agree",
+      "value": 7
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          sort({1, 2, 3, 4}, x)
+        }
+    note: aggregates/sort set
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4

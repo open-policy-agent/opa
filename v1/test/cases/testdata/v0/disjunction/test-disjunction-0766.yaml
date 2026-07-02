@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p["a"] = 1
+
+        p["b"] = 2
+    note: "disjunction/incr: query object constant key"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a: 1
+          b: 2

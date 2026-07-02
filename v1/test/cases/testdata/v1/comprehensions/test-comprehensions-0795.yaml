@@ -1,0 +1,24 @@
+---
+cases:
+  - note: comprehensions/object dereference embedded
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        arr := [4]
+
+        p contains x if {
+        	data.generated.q.a = x
+        }
+
+        q[k] := v if {
+        	k = "a"
+        	v = {"bar": y | i = {"foo": z | z = data.generated.arr[_]}; i[_] = _; i = y}
+        }
+    data: {}
+    want_result:
+      - x:
+          - bar:
+              foo: 4
+    sort_bindings: true

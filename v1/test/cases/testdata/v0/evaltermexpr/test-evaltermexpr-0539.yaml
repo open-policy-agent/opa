@@ -1,0 +1,13 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          data.deadbeef[i]
+        }
+    note: evaltermexpr/ref undefined
+    query: data.generated.p = x
+    want_result: []

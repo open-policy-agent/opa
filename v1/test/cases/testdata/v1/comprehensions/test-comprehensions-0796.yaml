@@ -1,0 +1,24 @@
+---
+cases:
+  - note: comprehensions/object conflict
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.generated.q.a = x
+        }
+
+        q[k] := v if {
+        	k = "a"
+        	v = {"bar": y | i = {"foo": z | z = data.a[_]}; i[_] = _; i = y}
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_error_code: eval_conflict_error
+    want_error: object keys must be unique

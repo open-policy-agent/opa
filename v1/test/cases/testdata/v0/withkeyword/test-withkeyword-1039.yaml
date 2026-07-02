@@ -1,0 +1,29 @@
+---
+cases:
+  - data:
+      l:
+        - a: bob
+          b: -1
+          c:
+            - 1
+            - 2
+            - 3
+            - 4
+        - a: alice
+          b: 1
+          c:
+            - 2
+            - 3
+            - 4
+            - 5
+          d: null
+    modules:
+      - |
+        package generated
+
+        p {
+          data.l.a with data.l as 1
+        }
+    note: withkeyword/undefined_2
+    query: data.generated.p = x
+    want_result: []

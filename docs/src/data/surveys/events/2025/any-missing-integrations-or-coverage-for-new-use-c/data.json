@@ -1,0 +1,26 @@
+{
+  "data": [],
+  "intro": "32 responses were summarized as follows, showing interest across a broad range integration options.",
+  "bullets": [
+    {
+      "title": "Data & State Management",
+      "count": 7,
+      "sentence": "Users want better solutions for handling external data, from \"on demand data ingestion\" for high-volume volatile data to \"a good shared cache for OPAs in same kubernetes namespace\" and the ability to \"load a baseline dataset from a bundle file and amend that via rest api.\""
+    },
+    {
+      "title": "Standards & Protocol Support",
+      "count": 6,
+      "sentence": "Requests for broader protocol and API support, including \"OpenID AuthZEN API support,\" \"OPA running as gRPC,\" and more \"first-party\" integrations like \"AuthZen and Rebac out-of-the-box.\""
+    },
+    {
+      "title": "Enterprise & Operational Features",
+      "count": 6,
+      "sentence": "Need for production-ready capabilities such as \"full stack OTEL integration with Grafana,\" \"disk buffering for decision logs,\" \"s3 export of logs,\" and \"a builtin control plane.\""
+    },
+    {
+      "title": "Documentation & Tooling",
+      "count": 4,
+      "sentence": "Gaps in guidance and developer experience, from \"better documentation on OPA side car components\" to \"proper CLI installation for Linux machines\" and package management where \"a OPA lib can depend on remote OPA policy.\""
+    }
+  ]
+}

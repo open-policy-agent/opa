@@ -1,0 +1,28 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p {
+          data.ex.allow_merge_2 = true with data.b.v2 as "world" with data.b.v3 as "again"
+        }
+      - |
+        package ex
+
+        allow_merge_2 {
+          data.b = {"v1": "hello", "v2": "world", "v3": "again"}
+        }
+    note: withkeyword/with map data new key
+    query: data.generated.p = x
+    want_result:
+      - x: true

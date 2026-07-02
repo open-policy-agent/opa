@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          glob.match("{cat,bat,[fr]at}", [], "fat", x)
+        }
+    note: globmatch/glob match with pattern-alternatives list (fat)
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - true

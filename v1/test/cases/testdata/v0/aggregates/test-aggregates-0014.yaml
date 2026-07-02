@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          max({1, 2, 3, 4}, x)
+        }
+    note: aggregates/max set
+    query: data.generated.p = x
+    want_result:
+      - x: 4

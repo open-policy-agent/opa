@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          cast_null(null, x)
+        }
+    note: casts/null valid
+    query: data.generated.p = x
+    want_result:
+      - x: null

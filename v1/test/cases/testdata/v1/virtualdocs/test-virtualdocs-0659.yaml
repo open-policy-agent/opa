@@ -1,0 +1,25 @@
+---
+cases:
+  - note: "virtualdocs/output: object key var binding"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains z if {
+        	data.generated.q[x] = y
+        	z = [x, y]
+        }
+
+        q[k] := v if {
+        	x = "a"
+        	v = "foo"
+        	y = x
+        	k = y
+        }
+    data: {}
+    want_result:
+      - x:
+          - - a
+            - foo
+    sort_bindings: true

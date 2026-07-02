@@ -1,0 +1,37 @@
+---
+cases:
+  - note: replacen/bad pattern object operand/non-string key
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({2: "x" | true}, "foo")
+    want_error_code: eval_type_error
+    want_error: "strings.replace_n: operand 1 non-string key found in pattern object"
+    strict_error: true
+  - note: replacen/bad pattern object operand/non-string value
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n(data.pattern, "foo")
+    data:
+      pattern:
+        f: 100
+    want_error_code: eval_type_error
+    want_error: "strings.replace_n: operand 1 non-string value found in pattern object"
+    strict_error: true
+  - note: replacen/bad pattern object operand/non-string value
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({"foo": "baz"}, data.string)
+    data:
+      string: 100
+    want_error_code: eval_type_error
+    want_error: "strings.replace_n: operand 2 must be string but got number"
+    strict_error: true

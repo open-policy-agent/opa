@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = y {
+          yaml.marshal([{"foo": {1, 2, 3}}], x)
+          yaml.unmarshal(x, y)
+        }
+    note: jsonbuiltins/yaml round-trip
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - foo:
+              - 1
+              - 2
+              - 3

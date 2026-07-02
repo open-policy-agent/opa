@@ -1,0 +1,12 @@
+---
+cases:
+  - note: "completedoc/number: 3.0"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := 3.0
+    data: {}
+    want_result:
+      - x: 3.0

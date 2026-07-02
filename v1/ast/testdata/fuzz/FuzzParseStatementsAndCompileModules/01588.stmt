@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{\"bar\": 0, \"baz\": 1, \"*\": [1,2,3]}")

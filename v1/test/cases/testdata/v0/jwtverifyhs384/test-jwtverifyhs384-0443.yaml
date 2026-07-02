@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          io.jwt.verify_hs384("eyJhbGciOiJIUzM4NCJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0.g98lHYzuqINVppLMoEZT7jlpX0IBSo9zKGoN9DhQg7Ua3YjLXbJMjzESjIHXOGLB", "secret", x)
+        }
+    note: jwtverifyhs384/success
+    query: data.generated.p = x
+    want_result:
+      - x: true

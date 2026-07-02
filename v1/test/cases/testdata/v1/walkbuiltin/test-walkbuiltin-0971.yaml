@@ -1,0 +1,58 @@
+---
+cases:
+  - note: walkbuiltin/arrays
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.a
+        	walk(__local0__, x)
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - - []
+            - - 1
+              - 2
+              - 3
+              - 4
+          - - - 0
+            - 1
+          - - - 1
+            - 2
+          - - - 2
+            - 3
+          - - - 3
+            - 4
+    sort_bindings: true
+  - note: walkbuiltin/arrays no path
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [x | walk(data.a, [_, x])]
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4
+          - - 1
+            - 2
+            - 3
+            - 4
+    sort_bindings: true

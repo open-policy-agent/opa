@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{\"b\": 2, \"c\": 4, \"hello\": \"v1\", \"goodbye\": \"v2\", \"a\": 1}")

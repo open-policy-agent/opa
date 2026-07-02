@@ -1,0 +1,149 @@
+cases:
+  - note: additive
+    query: data.x.p = {2,1}
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains 1
+        p contains 2
+    want_defined: true
+  - note: additive (negative)
+    query: data.x.p = {2,1}
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains 1
+        p contains 2
+        p contains 3
+    want_defined: false
+  - note: input
+    query: data.x.p = {2,1}
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains 1 if { input.x = 1 }
+        p contains 2 if { input.y = 2 }
+    want_defined: true
+    input: {"x": 1, "y": 2}
+  - note: input (negative)
+    query: data.x.p = {2,1}
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains 1 if { input.x = 1 }
+        p contains 2 if { input.y = 2 }
+        p contains 3 if { input.z = 3 }
+    want_defined: true
+    input: {"x": 1, "y": 2}
+  - note: composites
+    query: data.x.p = {[2],[1]}
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains [x] if { x = 1 }
+        p contains [y] if { y = 2 }
+    want_defined: true
+  - note: set membership
+    query: data.x.p[1]
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains 1
+        p contains 2
+    want_defined: true
+  - note: set membership (negative)
+    query: data.x.p[3]
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains 1
+        p contains 2
+    want_defined: false
+  - note: set membership (negation)
+    query: not data.x.p[3]
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains 1
+        p contains 2
+    want_defined: true
+  - note: set iteration
+    query: data.x.p[x]; x > 1
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains 1
+        p contains 2
+    want_defined: true
+  - note: set iteration (negative)
+    query: data.x.p[x]; x > 2
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains 1
+        p contains 2
+    want_defined: false
+  - note: set composites
+    query: a := [1,x]; data.x.p[a]; x == "y"
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains [1, "x"]
+        p contains [1, "y"]
+        p contains [2, "x"]
+    want_defined: true
+  - note: set dereference
+    query: data.x.p[x].a == 1; x.b == "y"
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains {"a": 1, "b": "x"}
+        p contains {"a": 1, "b": "y"}
+        p contains {"a": 1, "b": "y"}
+    want_defined: true
+  - note: set dereference (negative)
+    query: data.x.p[x].a == 100
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains {"a": 1}
+        p contains {"a": 2}
+        p contains {"a": 3}
+    want_defined: false
+  - note: set chain
+    query: data.x.p[x]; x = 2
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains x if { q[x]; r[x] }
+        q contains 1
+        q contains 2
+        q contains 3
+        r contains 2
+    want_defined: true
+  - note: set chain (negative)
+    query: data.x.p[x]; x = 2
+    modules:
+      - |
+        package x
+        import rego.v1
+        p contains x if { q[x]; r[x] }
+        q contains 1
+        q contains 2
+        q contains 3
+        r contains 3
+    want_defined: false

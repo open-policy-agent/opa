@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          s1 = {"a", "b", "c", "d"}
+          s2 = {"b", "c", "d"}
+          s3 = {"c", "d"}
+          s4 = {"d"}
+          intersection({s1, s2, s3, s4}, x)
+        }
+    note: intersection/intersection_4_sets
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - d

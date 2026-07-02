@@ -1,0 +1,24 @@
+---
+cases:
+  - note: evaltermexpr/ref false
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.c[0].x[1]
+        }
+    data:
+      c:
+        - "true":
+            - null
+            - "3.14159"
+          x:
+            - true
+            - false
+            - foo
+          z:
+            p: true
+            q: false
+    want_result: []

@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [x, y] {
+          is_array([1, 2, 3], x)
+          is_array(["a", "b"], y)
+        }
+    note: typebuiltin/is_array
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - true
+          - true

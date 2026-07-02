@@ -1,0 +1,7 @@
+{
+  "role": "admin",
+  "path": [
+    "payments",
+    "approve"
+  ]
+}

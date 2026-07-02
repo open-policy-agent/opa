@@ -1,0 +1,530 @@
+---
+cases:
+  - note: units_parse/removes quotes and lowercases string
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("\"100TI\"") == 109951162777600
+        }
+    want_result:
+      - x: true
+  - note: units_parse/zero
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("0") == 0
+        }
+    want_result:
+      - x: true
+  - note: units_parse/zero float
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("0.0") == 0
+        }
+    want_result:
+      - x: true
+  - note: units_parse/zero bare float
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse(".0") == 0
+        }
+    want_result:
+      - x: true
+  - note: units_parse/raw number
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("12345") == 12345
+        }
+    want_result:
+      - x: true
+  - note: units_parse/10 kilo uppercase
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("10K") == 10000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/10 Ki uppercase
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("10KI") == 10240
+        }
+    want_result:
+      - x: true
+  - note: units_parse/10 K lowercase
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("10k") == 10000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/10 Ki mixed case
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("10Ki") == 10240
+        }
+    want_result:
+      - x: true
+  - note: units_parse/200 mega
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("200M") == 200000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/300 Gi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("300Gi") == 322122547200
+        }
+    want_result:
+      - x: true
+  - note: units_parse/1.1 K floating point
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("1.1K") == 1100
+        }
+    want_result:
+      - x: true
+  - note: units_parse/1.1 Ki floating point, not rounded
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("1.1Ki") == 1126.4
+        }
+    want_result:
+      - x: true
+  - note: units_parse/.5 K bare floating point
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse(".5K") == 500
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 kilo as k
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100k") == 100000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 kilo as K
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100K") == 100000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 kibi as ki
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100ki") == 102400
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 kibi as Ki
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100Ki") == 102400
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 milli as m
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	round(units.parse("100m") * 1000) == 100
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 mega as M
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100M") == 100000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 mebi as mi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100mi") == 104857600
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 mebi as Mi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100Mi") == 104857600
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 giga as g
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100g") == 100000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 gibi as gi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100gi") == 107374182400
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 tera as t
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100t") == 100000000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 tera as T
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100T") == 100000000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 tebi as ti
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100ti") == 109951162777600
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 tebi as Ti
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100Ti") == 109951162777600
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 peta as p
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100p") == 100000000000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 peta as P
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100P") == 100000000000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 pebi as pi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100pi") == 112589990684262400
+        }
+    want_result:
+      - x: true
+  - note: units_parse/100 pebi as Pi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100Pi") == 112589990684262400
+        }
+    want_result:
+      - x: true
+  - note: units_parse/10 eta as e
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("10e") == 10000000000000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/10 eta as E
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("10E") == 10000000000000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/10 ebi as ei
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("10ei") == 11529215046068469760
+        }
+    want_result:
+      - x: true
+  - note: units_parse/10 ebi as Ei
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("10Ei") == 11529215046068469760
+        }
+    want_result:
+      - x: true
+  - note: units_parse/1e10 lowercase scientific notation without unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("1e10") == 10000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/3.2E4 uppercase scientific notation without unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("3.2E4") == 32000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/2.5e3 mixed case scientific notation with K
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("2.5e3K") == 2500000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/1e3M lowercase scientific notation with M
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("1e3M") == 1000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/4E2G uppercase scientific notation with G
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("4E2G") == 400000000000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/5e1Gi mixed case scientific notation with Gi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("5e1Gi") == 53687091200
+        }
+    want_result:
+      - x: true
+  - note: units_parse/1e-2 lowercase scientific notation with negative exponent
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("1e-2") == 0.01
+        }
+    want_result:
+      - x: true
+  - note: units_parse/7.8E-1 uppercase scientific notation with negative exponent
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("7.8E-1") == 0.78
+        }
+    want_result:
+      - x: true
+  - note: units_parse/6e3Mi mixed case scientific notation with binary Mi
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("6e3Mi") == 6291456000
+        }
+    want_result:
+      - x: true
+  - note: units_parse/invalid notation with single E
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          not units.parse("5E") == 5
+        }
+    want_result:
+      - x: true
+  - note: units_parse/number without exponent or unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("42") == 42
+        }
+    want_result:
+      - x: true
+  - note: units_parse/negative number in scientific notation with unit
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          units.parse("-3.5E2m") == -0.35
+        }
+    want_result:
+      - x: true

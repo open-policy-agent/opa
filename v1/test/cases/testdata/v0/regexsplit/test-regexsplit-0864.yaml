@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [v, w] {
+          regex.split("z+", "pizza", [v, w])
+        }
+    note: "regexsplit/regex.split: repeat pattern"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - pi
+          - a

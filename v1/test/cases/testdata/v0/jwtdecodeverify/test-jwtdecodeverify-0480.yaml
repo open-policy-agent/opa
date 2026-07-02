@@ -1,0 +1,19 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode_verify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjMwMDAuMiwiaXNzIjoieHh4In0.XUen7GtDmICV3O1ngsoO-tQrjrXtOgJI06oGW0nQSIM", {"secret": "secret", "time": 2000000000000.1}, [x, y, z])
+        }
+    note: jwtdecodeverify/hs256-float-exp-valid
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - true
+          - alg: HS256
+            typ: JWT
+          - exp: 3000.2
+            iss: xxx

@@ -1,0 +1,42 @@
+---
+cases:
+  - note: "virtualdocs/undefined: in array literal"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	[1, 2, input]
+        } else := false
+    want_result:
+      - x: false
+  - note: "virtualdocs/undefined: in set literal"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	{1, 2, input}
+        } else := false
+    want_result:
+      - x: false
+  - note: "virtualdocs/undefined: in set coprehension body"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := {1 | input}
+    want_result:
+      - x: []
+  - note: "virtualdocs/undefined: in array coprehension body"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [1 | input]
+    want_result:
+      - x: []

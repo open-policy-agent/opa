@@ -1,0 +1,199 @@
+---
+cases:
+  - note: keywordrefs/in keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.in.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.in.bar
+
+        p if {
+          bar.baz == 42
+          data.foo.in.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/in keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.in
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.in as my_if
+
+        p if {
+          my_if.bar == 42
+          data.foo.in.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/in keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          in.foo == 1
+          foo.in == 2
+        }
+
+        in.foo := 1
+
+        foo.in := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/in keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p if {
+          in.foo == 3
+          foo.in == 6
+        }
+
+        in.foo := 1 if {
+          input.x == 1
+        } else := 2 if {
+          input.x == 2
+        } else := 3
+
+        foo.in := 4 if {
+          input.x == 1
+        } else := 5 if {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/in keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          in.foo == {"a", "c"}
+          foo.in == {"a", "c"}
+        }
+
+        in.foo contains "a"
+
+        in.foo contains "b" if {
+          false
+        }
+
+        in.foo contains "c" if {
+          true
+        }
+
+        foo.in contains "a"
+
+        foo.in contains "b" if {
+          false
+        }
+
+        foo.in contains "c" if {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/in keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          in.foo == "a"
+          in.bar.one == "a"
+          in.bar.three == "c"
+          foo.in == "a"
+          bar.baz.in == "a"
+        }
+
+        in.foo := "a"
+
+        in.foo := "b" if {
+          false
+        }
+
+        in.foo := "c" if {
+          false
+        }
+
+        in.bar.one := "a"
+
+        in.bar.two := "b" if {
+          false
+        }
+
+        in.bar.three := "c" if {
+          true
+        }
+
+        foo.in := "a"
+
+        foo.in := "b" if {
+          false
+        }
+
+        foo.in := "c" if {
+          false
+        }
+
+        bar.baz.in := "a"
+
+        bar.baz.in := "b" if {
+          false
+        }
+
+        bar.baz.in := "c" if {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/in keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          in.foo(1) == 1
+          in.foo(11) == 42
+          foo.in(1) == 1
+          foo.in(11) == 42
+          bar.in.baz(1) == 1
+          bar.in.baz(11) == 42
+        }
+
+        default in.foo(_) := 42
+
+        in.foo(x) := x if {
+          x < 10
+        }
+
+        default foo.in(_) := 42
+
+        foo.in(x) := x if {
+          x < 10
+        }
+
+        default bar.in.baz(_) := 42
+
+        bar.in.baz(x) := x if {
+          x < 10
+        }
+    want_result:
+      - x: true

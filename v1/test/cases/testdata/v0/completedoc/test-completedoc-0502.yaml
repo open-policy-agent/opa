@@ -1,0 +1,12 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = "hello"
+    note: 'completedoc/string: "hello"'
+    query: data.generated.p = x
+    want_result:
+      - x: hello

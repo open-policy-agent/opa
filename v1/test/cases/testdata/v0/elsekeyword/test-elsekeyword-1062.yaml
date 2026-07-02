@@ -1,0 +1,20 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package ex
+
+        default default_2 = 2
+
+        default_2 {
+          false
+        }
+
+        default_2 = 1 {
+          false
+        }
+    note: elsekeyword/default-2
+    query: data.ex.default_2 = x
+    want_result:
+      - x: 2

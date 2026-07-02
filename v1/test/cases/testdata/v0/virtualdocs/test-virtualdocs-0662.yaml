@@ -1,0 +1,29 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[y] {
+          data.generated.q[x]
+          data.generated.r[x] = y
+        }
+
+        q[x] {
+          z = ["a", "b", "c", "d"]
+          z[y] = x
+        }
+
+        r[k] = v {
+          x = {"a": 1, "b": 2, "d": 4}
+          x[k] = v
+        }
+    note: "virtualdocs/i/o: undefined keys"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 4

@@ -1,0 +1,15 @@
+---
+cases:
+  - note: objectfilter/empty roots set
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	object.filter({"a": 7}, set(), __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    want_result:
+      - x: {}

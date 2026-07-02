@@ -1,0 +1,26 @@
+---
+cases:
+  - note: base64urlbuiltins/encode-1
+    modules:
+      - |
+        package generated
+
+        p = x {
+          base64url.encode("hello", x)
+        }
+    data:
+    query: data.generated.p = x
+    want_result:
+      - x: aGVsbG8=
+  - note: base64urlbuiltins/encode-2
+    modules:
+      - |
+        package generated
+
+        p = x {
+          base64url.encode("there", x)
+        }
+    data:
+    query: data.generated.p = x
+    want_result:
+      - x: dGhlcmU=

@@ -1,0 +1,31 @@
+---
+cases:
+  - note: partialsetdoc/deep ref/heterogeneous
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.c[i][j][k] = x
+        }
+    data:
+      c:
+        - "true":
+            - null
+            - 3.14159
+          x:
+            - true
+            - false
+            - foo
+          z:
+            p: true
+            q: false
+    want_result:
+      - x:
+          - null
+          - false
+          - true
+          - 3.14159
+          - foo
+    sort_bindings: true

@@ -1,0 +1,24 @@
+ignore:
+  files:
+    - "docs/*"
+    - "**/test/*"
+    - "**/testdata/*"
+    - "**/testfiles/*"
+
+rules:
+  idiomatic:
+    directory-package-mismatch:
+      exclude-test-suffix: true
+      ignore:
+        files:
+          - "docs"
+          - "internal/wasm/sdk/examples/*"
+  style:
+    line-length:
+      ignore:
+        files:
+          - "docs"
+
+project:
+  roots:
+    - build/policy

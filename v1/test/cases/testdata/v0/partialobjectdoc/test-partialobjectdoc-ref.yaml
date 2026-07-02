@@ -1,0 +1,22 @@
+---
+cases:
+  - note: partialobjectdoc/ref
+    modules:
+      - |
+        package generated
+
+        p.q[k] = v {
+          k := ["foo", "bar"][v]
+        }
+
+        p.baz := 2
+
+        q {
+          x := "bar"
+          y := "q"
+          p[y][x] == 1
+        }
+
+    query: data.generated.q = x
+    want_result:
+      - x: true

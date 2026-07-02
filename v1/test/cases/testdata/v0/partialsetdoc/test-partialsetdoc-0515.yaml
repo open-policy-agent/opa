@@ -1,0 +1,32 @@
+---
+cases:
+  - data:
+      f:
+        - xs:
+            - 1
+          ys:
+            - 2
+        - xs:
+            - 2
+          ys:
+            - 3
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.f[i] = x
+        }
+    note: partialsetdoc/nested composites
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - xs:
+              - 1
+            ys:
+              - 2
+          - xs:
+              - 2
+            ys:
+              - 3

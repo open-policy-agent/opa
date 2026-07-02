@@ -1,0 +1,26 @@
+---
+cases:
+  - note: globmatch/captured negative results, variable
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := glob.match("*.github.com", ["."], input)
+        }
+    input: api.example.com
+    want_result:
+      - x: false
+  - note: globmatch/captured negative result, constant
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	glob.match("*.github.com", ["."], input, false)
+        }
+    input: api.example.com
+    want_result:
+      - x: true

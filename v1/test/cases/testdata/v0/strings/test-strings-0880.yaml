@@ -1,0 +1,20 @@
+---
+cases:
+  - data:
+      numbers:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+    modules:
+      - |
+        package generated
+
+        p {
+          __local0__ = data.numbers[2]
+          not format_int(4.1, 10, __local0__)
+        }
+    note: "strings/format_int: ref dest (2)"
+    query: data.generated.p = x
+    want_result:
+      - x: true

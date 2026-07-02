@@ -1,0 +1,31 @@
+---
+cases:
+  - note: "eqexpr/pattern: object = ref (reversed)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.c[i][j] = {"p": y, "q": z}
+        	x = [i, j, y, z]
+        }
+    data:
+      c:
+        - "true":
+            - null
+            - 3.14159
+          x:
+            - true
+            - false
+            - foo
+          z:
+            p: true
+            q: false
+    want_result:
+      - x:
+          - - 0
+            - z
+            - true
+            - false
+    sort_bindings: true

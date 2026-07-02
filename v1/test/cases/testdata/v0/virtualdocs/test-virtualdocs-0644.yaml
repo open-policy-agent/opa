@@ -1,0 +1,26 @@
+---
+cases:
+  - data:
+      d:
+        e:
+          - bar
+          - baz
+    modules:
+      - |
+        package generated
+
+        p[i] {
+          __local0__ = data.generated.q[i]
+          {i: [i]} = {i: [__local0__]}
+        }
+
+        q[x] {
+          data.d.e[i] = x
+        }
+    note: "virtualdocs/output: set embedded"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - bar
+          - baz

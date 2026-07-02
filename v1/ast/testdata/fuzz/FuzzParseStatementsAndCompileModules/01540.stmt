@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package b.c.d\n\nimport data.a\nimport data.g\n\np[x] { a[i] = x; q[x] }\nq[x] { g[j][k] = x }")

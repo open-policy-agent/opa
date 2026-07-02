@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          x = "a"
+          {"a": 1} = {x: 1}
+        }
+    note: "eqexpr/unordered: object keys (reverse)"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - a

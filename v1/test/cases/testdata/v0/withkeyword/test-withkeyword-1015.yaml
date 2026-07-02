@@ -1,0 +1,22 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          data.ex.loopback with input as true
+          data.ex.loopback = false with input as false
+        }
+      - |
+        package ex
+
+        loopback = __local0__ {
+          true
+          __local0__ = input
+        }
+    note: withkeyword/with
+    query: data.generated.p = x
+    want_result:
+      - x: true

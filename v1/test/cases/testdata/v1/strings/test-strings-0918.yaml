@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "strings/sprintf: int"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	sprintf("hi %02d", [5], x)
+        }
+    data: {}
+    want_result:
+      - x: hi 05

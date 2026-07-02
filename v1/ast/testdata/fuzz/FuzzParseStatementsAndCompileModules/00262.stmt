@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[x] { arr = [[1, [2]], [1, null], [2, [2]]]; [x, [2]] = arr[_] }")

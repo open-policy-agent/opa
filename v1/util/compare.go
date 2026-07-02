@@ -1,0 +1,198 @@
+// Copyright 2016 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+package util
+
+import (
+	"encoding/json"
+	"fmt"
+	"math/big"
+)
+
+const (
+	nilSort = iota
+	boolSort
+	numberSort
+	stringSort
+	arraySort
+	objectSort
+)
+
+// Or works like [cmp.Or] but allows supplier functions to be tried rather than
+// alternative values. This allows deferring computation of the alternatives to
+// only when needed.
+func Or[T comparable](val T, suppliers ...func() T) T {
+	var zero T
+	if val == zero {
+		for _, f := range suppliers {
+			if alt := f(); alt != zero {
+				return alt
+			}
+		}
+	}
+
+	return val
+}
+
+// SliceLenCompare is a convenience function for comparing / sorting
+// slices by their length using the various slices.SortX functions.
+func SliceLenCompare[T any, S ~[]T](a, b S) int {
+	aLen, bLen := len(a), len(b)
+	if aLen == bLen {
+		return 0
+	} else if aLen < bLen {
+		return -1
+	}
+
+	return 1
+}
+
+// Compare returns 0 if a equals b, -1 if a is less than b, and 1 if b is than a.
+//
+// For comparison between values of different types, the following ordering is used:
+// nil < bool < int, float64 < string < []any < map[string]any. Slices and maps
+// are compared recursively. If one slice or map is a subset of the other slice or map
+// it is considered "less than". Nil is always equal to nil.
+func Compare(a, b any) int {
+	aSortOrder := sortOrder(a)
+	bSortOrder := sortOrder(b)
+	if aSortOrder < bSortOrder {
+		return -1
+	} else if bSortOrder < aSortOrder {
+		return 1
+	}
+	switch a := a.(type) {
+	case nil:
+		return 0
+	case bool:
+		switch b := b.(type) {
+		case bool:
+			if a == b {
+				return 0
+			}
+			if !a {
+				return -1
+			}
+			return 1
+		}
+	case json.Number:
+		switch b := b.(type) {
+		case json.Number:
+			return compareJSONNumber(a, b)
+		}
+	case int:
+		switch b := b.(type) {
+		case int:
+			if a == b {
+				return 0
+			} else if a < b {
+				return -1
+			}
+			return 1
+		}
+	case float64:
+		switch b := b.(type) {
+		case float64:
+			if a == b {
+				return 0
+			} else if a < b {
+				return -1
+			}
+			return 1
+		}
+	case string:
+		switch b := b.(type) {
+		case string:
+			if a == b {
+				return 0
+			} else if a < b {
+				return -1
+			}
+			return 1
+		}
+	case []any:
+		switch b := b.(type) {
+		case []any:
+			bLen := len(b)
+			aLen := len(a)
+			minLen := min(bLen, aLen)
+			for i := range minLen {
+				cmp := Compare(a[i], b[i])
+				if cmp != 0 {
+					return cmp
+				}
+			}
+			if aLen == bLen {
+				return 0
+			} else if aLen < bLen {
+				return -1
+			}
+			return 1
+		}
+	case map[string]any:
+		switch b := b.(type) {
+		case map[string]any:
+			aKeys := KeysSorted(a)
+			bKeys := KeysSorted(b)
+			aLen := len(aKeys)
+			bLen := len(bKeys)
+			minLen := min(bLen, aLen)
+			for i := range minLen {
+				if aKeys[i] < bKeys[i] {
+					return -1
+				} else if bKeys[i] < aKeys[i] {
+					return 1
+				}
+				aVal := a[aKeys[i]]
+				bVal := b[bKeys[i]]
+				cmp := Compare(aVal, bVal)
+				if cmp != 0 {
+					return cmp
+				}
+			}
+			if aLen == bLen {
+				return 0
+			} else if aLen < bLen {
+				return -1
+			}
+			return 1
+		}
+	}
+
+	panic(fmt.Sprintf("illegal arguments of type %T and type %T", a, b))
+}
+
+func compareJSONNumber(a, b json.Number) int {
+	bigA, ok := new(big.Float).SetString(string(a))
+	if !ok {
+		panic("illegal value")
+	}
+	bigB, ok := new(big.Float).SetString(string(b))
+	if !ok {
+		panic("illegal value")
+	}
+	return bigA.Cmp(bigB)
+}
+
+func sortOrder(v any) int {
+	switch v.(type) {
+	case nil:
+		return nilSort
+	case bool:
+		return boolSort
+	case json.Number:
+		return numberSort
+	case int:
+		return numberSort
+	case float64:
+		return numberSort
+	case string:
+		return stringSort
+	case []any:
+		return arraySort
+	case map[string]any:
+		return objectSort
+	}
+	panic(fmt.Sprintf("illegal argument of type %T", v))
+}

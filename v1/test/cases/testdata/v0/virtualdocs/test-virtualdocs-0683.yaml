@@ -1,0 +1,34 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          data.generated.q = x
+          x[i] = 4
+        }
+
+        q[k] = v {
+          data.generated.r = x
+          x[k] = v
+        }
+
+        r[k] = v {
+          data.generated.s = x
+          x[k] = v
+        }
+
+        r[k] = v {
+          data.generated.t = x
+          x[v] = k
+        }
+
+        s = {"a": 1, "b": 2, "c": 4}
+
+        t = ["d", "e", "g"]
+    note: "virtualdocs/no suffix: chained"
+    query: data.generated.p = x
+    want_result:
+      - x: true

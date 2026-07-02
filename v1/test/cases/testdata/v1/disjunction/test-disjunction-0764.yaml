@@ -1,0 +1,27 @@
+---
+cases:
+  - note: "disjunction/incr: query set constants"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains 100
+
+        p contains x if {
+        	data.a[x]
+        }
+    data:
+      a:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+    want_result:
+      - x:
+          - 0
+          - 1
+          - 2
+          - 3
+          - 100
+    sort_bindings: true

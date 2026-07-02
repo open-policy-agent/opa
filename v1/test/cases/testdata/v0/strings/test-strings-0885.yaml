@@ -1,0 +1,26 @@
+---
+cases:
+  - data:
+      c:
+        - x:
+            - true
+            - false
+            - foo
+          y:
+            - null
+            - 3.14159
+          z:
+            p: true
+            q: false
+    modules:
+      - |
+        package generated
+
+        p {
+          __local0__ = data.c[0].x[2]
+          concat("", ["f", "o", "o"], __local0__)
+        }
+    note: "strings/concat: ref dest"
+    query: data.generated.p = x
+    want_result:
+      - x: true

@@ -1,0 +1,13 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          1 > 2
+        }
+    note: "comparisonexpr/undefined: gt"
+    query: data.generated.p = x
+    want_result: []

@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [x, y] {
+          split("foo.bar.baz", ".", [x, "bar", y])
+        }
+    note: "strings/split: many"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - foo
+          - baz

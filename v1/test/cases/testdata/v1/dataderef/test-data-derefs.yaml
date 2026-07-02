@@ -1,0 +1,38 @@
+---
+cases:
+  - note: data/toplevel integer
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := data[2]
+    data:
+      "2": bar
+    want_result:
+      - x: bar
+  - note: data/nested integer
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := data.nested[2]
+    data:
+      nested:
+        "2": bar
+    want_result:
+      - x: bar
+  - note: "data/negative case: nested integer"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := obj[2] if {
+        	obj := data.nested
+        }
+    data:
+      nested:
+        "2": bar
+    want_result: []

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[x] { v = c[i][j]; x = v[k]; x = true }")

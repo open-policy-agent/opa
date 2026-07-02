@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = {1: 2, {3: 4}: 5}
+    note: "completedoc/object/non-string key:"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          "1": 2
+          '{"3":4}': 5

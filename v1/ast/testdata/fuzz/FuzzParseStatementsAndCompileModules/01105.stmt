@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = x { substring(\"abcdefgh\", 2, 10000, x) }")

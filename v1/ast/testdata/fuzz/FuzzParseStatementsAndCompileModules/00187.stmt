@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = true { {\"b\": false, \"a\": [1, 2, 3]} = {\"a\": [1, 2, 3], \"b\": false} }")

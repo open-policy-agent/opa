@@ -1,0 +1,24 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p = xs {
+          __local0__ = {s: x | x = data.a[_]; format_int(x, 10, s)}
+          xs = {__local0__}
+        }
+    note: comprehensions/object embedded set
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - "1": 1
+            "2": 2
+            "3": 3
+            "4": 4

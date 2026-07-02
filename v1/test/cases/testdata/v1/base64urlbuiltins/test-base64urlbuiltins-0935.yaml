@@ -1,0 +1,24 @@
+---
+cases:
+  - note: base64urlbuiltins/encode-1
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	base64url.encode("hello", x)
+        }
+    want_result:
+      - x: aGVsbG8=
+  - note: base64urlbuiltins/encode-2
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	base64url.encode("there", x)
+        }
+    want_result:
+      - x: dGhlcmU=

@@ -1,0 +1,18 @@
+{
+  "id": "does-regals-documentation-help-you-fix-the-bugs-yo",
+  "title": "Does Regal's documentation help you fix the bugs you find?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "regal"
+  ],
+  "rank": 68
+}

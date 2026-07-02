@@ -1,0 +1,10 @@
+{
+  "allow": true,
+  "resource": "users",
+  "scope_map": {
+    "comments": "delete",
+    "posts": "write",
+    "users": "read"
+  },
+  "scope_pattern": "(\\w+):(\\w+)"
+}

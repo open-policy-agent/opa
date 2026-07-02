@@ -1,0 +1,26 @@
+---
+cases:
+  - note: base64urlbuiltins/decode-1 padded string
+    modules:
+      - |
+        package generated
+
+        p = x {
+          base64url.decode("aGVsbG8=", x)
+        }
+    data:
+    query: data.generated.p = x
+    want_result:
+      - x: hello
+  - note: base64urlbuiltins/decode-2 non-padded string
+    modules:
+      - |
+        package generated
+
+        p = x {
+          base64url.decode("aGVsbG8", x)
+        }
+    data:
+    query: data.generated.p = x
+    want_result:
+      - x: hello

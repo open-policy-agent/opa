@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tpackage test3\n\n\t\tp(1, x) = y {\n\t\t\ty = x\n\t\t}\n\n\t\tp(2, x) = y {\n\t\t\ty = x+1\n\t\t}\n\n\t\tp(x, y) = z {\n\t\t\tz = x\n\t\t}\n\n\t\tr = y {\n\t\t\tp(1, 0, y)\n\t\t}")

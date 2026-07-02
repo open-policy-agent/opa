@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          array.slice([1, 2, 3], 0, 0, __local0__)
+          x = __local0__
+        }
+    note: "array/slice: empty slice"
+    query: data.generated.p = x
+    want_result:
+      - x: []

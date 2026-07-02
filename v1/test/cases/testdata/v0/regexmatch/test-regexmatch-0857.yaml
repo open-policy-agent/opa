@@ -1,0 +1,15 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p {
+          re_match("][", "foo[\"bar\"]")
+        }
+    note: "regexmatch/re_match: bad pattern err"
+    query: data.generated.p = x
+    want_error: "re_match: error parsing regexp: missing closing ]: `[`"
+    want_error_code: eval_builtin_error
+    strict_error: true

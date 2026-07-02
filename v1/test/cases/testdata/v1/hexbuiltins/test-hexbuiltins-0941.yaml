@@ -1,0 +1,14 @@
+---
+cases:
+  - note: hexbuiltins/hex_decode with invalid hex encoded string
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	hex.decode("fghijkl", x)
+        }
+    want_error_code: eval_builtin_error
+    want_error: "invalid byte: U+0067 'g'"
+    strict_error: true

@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          sum([1, 2, 3, 4], x)
+        }
+    note: aggregates/sum
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 10

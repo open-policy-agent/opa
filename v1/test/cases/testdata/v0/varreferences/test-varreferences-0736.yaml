@@ -1,0 +1,25 @@
+---
+cases:
+  - data:
+      numbers:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+    modules:
+      - |
+        package generated
+
+        p[y] {
+          i = {"1": 1, "2": 2, "4": 4}
+          x = data.numbers[_]
+          i[x] = y
+        }
+    note: "varreferences/object: ref"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 4

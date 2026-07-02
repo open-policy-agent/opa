@@ -1,0 +1,8 @@
+{
+  "features": {
+    "new_ui": true,
+    "test_speedy_checkout": false
+  },
+  "path": "/new/checkout",
+  "email": "alice@example.com"
+}

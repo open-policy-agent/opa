@@ -1,0 +1,20 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          data.generated.q[1][1] = 2
+        }
+
+        q = [{"x": x, "y": y}, z] {
+          x = 1
+          y = 2
+          z = [1, 2, 3]
+        }
+    note: "virtualdocs/input: complete vars"
+    query: data.generated.p = x
+    want_result:
+      - x: true

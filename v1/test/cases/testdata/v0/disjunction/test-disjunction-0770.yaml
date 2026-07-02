@@ -1,0 +1,20 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[k] = v {
+          data.generated.q[k] = v
+        }
+
+        q["a"] = 1
+
+        q["b"] = 2
+    note: "disjunction/incr: eval object constant key"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a: 1
+          b: 2

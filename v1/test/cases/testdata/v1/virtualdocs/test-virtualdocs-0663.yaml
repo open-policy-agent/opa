@@ -1,0 +1,16 @@
+---
+cases:
+  - note: "virtualdocs/input: complete array"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q[1] = 2
+        }
+
+        q := [1, 2, 3, 4]
+    data: {}
+    want_result:
+      - x: true

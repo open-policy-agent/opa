@@ -1,0 +1,24 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        arr = [4]
+
+        p[x] {
+          data.generated.q.a = x
+        }
+
+        q[k] = v {
+          k = "a"
+          v = {"bar": y | i = {"foo": z | z = data.generated.arr[_]}; i[_] = _; i = y}
+        }
+    note: comprehensions/object dereference embedded
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - bar:
+              foo: 4

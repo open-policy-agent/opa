@@ -1,0 +1,24 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package test
+
+        p[z] {
+          data.a[i] = x
+          y = i / x
+          round(y, z)
+        }
+    note: arithmetic/divide+round
+    query: data.test.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 0
+          - 1

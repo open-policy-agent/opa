@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "label": "Beginner - Basic understanding, experimenting with simple policies",
+      "value": 3
+    },
+    {
+      "label": "Intermediate - Write and maintain policies, integrate into CI/CD pipelines",
+      "value": 10
+    },
+    {
+      "label": "Expert - Architect enterprise policy solutions, contribute to tools, lead implementations",
+      "value": 4
+    },
+    {
+      "label": "Advanced - Design complex policy frameworks, implement governance at scale",
+      "value": 2
+    },
+    {
+      "label": "No experience - Never used policy-as-code tools",
+      "value": 1
+    }
+  ]
+}

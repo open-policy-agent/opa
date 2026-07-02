@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package opa.example\n\nimport data.servers\nimport data.networks\nimport data.ports\n\npublic_servers[server] { server = servers[_]; server.ports[_] = ports[i].id; ports[i].networks[_] = networks[j].id; networks[j].public = true }\nviolations[server] { server = servers[_]; server.protocols[_] = \"http\"; public_servers[server] }")

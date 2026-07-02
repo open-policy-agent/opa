@@ -1,0 +1,21 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] = y {
+          xs = ["a", "b", "c", "a"]
+          x = xs[i]
+          y = data.a[i]
+        }
+    note: "virtualdocs/no suffix: object conflict (error)"
+    query: data.generated.p = x
+    want_error: object keys must be unique
+    want_error_code: eval_conflict_error

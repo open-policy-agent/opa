@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "request": {
+      "http": {
+        "headers": {
+          "authorization": "Basic bob"
+        },
+        "method": "GET",
+        "path": "/",
+        "protocol": "HTTP/1.1"
+      }
+    }
+  }
+}

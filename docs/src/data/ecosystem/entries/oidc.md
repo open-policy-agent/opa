@@ -1,0 +1,14 @@
+---
+title: OpenID Connect (OIDC)
+software:
+- oauth
+- oidc
+labels:
+  category: security
+tutorials:
+- https://www.openpolicyagent.org/docs/oauth-oidc
+blogs:
+- https://web.archive.org/web/https://www.styra.com/blog/integrating-identity-oauth2-and-openid-connect-in-open-policy-agent/
+---
+
+Integrating OpenID Connect (OIDC) with Open Policy Agent

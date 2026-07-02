@@ -1,0 +1,13 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          regex.globs_match(`[a-z]+\[[0-9]+\]`, "foo[\"bar\"]")
+        }
+    note: "globsmatch/regex.globs_match: raw: undefined"
+    query: data.generated.p = x
+    want_result: []

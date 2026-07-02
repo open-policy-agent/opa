@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          [1, 2, 3] = [1, 2, 3]
+        }
+    note: "eqexpr/ground: array"
+    query: data.generated.p = x
+    want_result:
+      - x: true

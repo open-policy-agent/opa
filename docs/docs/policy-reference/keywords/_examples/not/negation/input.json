@@ -1,0 +1,5 @@
+{
+  "roles": ["intern"],
+  "email": "alice@foo.example.com",
+  "via_vpn": true
+}

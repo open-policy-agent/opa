@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          y = 1
+          x = [y | y = 1]
+        }
+    note: comprehensions/array closure
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - 1

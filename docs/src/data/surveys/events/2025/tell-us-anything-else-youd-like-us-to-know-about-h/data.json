@@ -1,0 +1,11 @@
+{
+  "data": [],
+  "intro": "3 responses were summarized",
+  "bullets": [
+    {
+      "title": "Use Case Guidance",
+      "count": 1,
+      "sentence": "Users want documentation for complex scenarios, particularly \"global and local policies\" in \"a multi-tenant (namespaced) cluster where there are enterprise level policies at the gateway and local policies at tenants.\""
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.generated.q[x] = data.generated.r[x]
+        }
+
+        q[x] = y {
+          z = {"a": 1, "b": 2, "d": 4}
+          z[x] = y
+        }
+
+        r[k] = v {
+          x = {"a": 1, "b": 2, "c": 4, "d": 3}
+          x[k] = v
+        }
+    note: "virtualdocs/i/o: objects"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - a
+          - b

@@ -1,0 +1,22 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package test3
+
+        p(1, a) = y {
+          y = a
+        }
+
+        p(x, y) = z {
+          z = x
+        }
+
+        r = y {
+          data.test3.p(1, 0, y)
+        }
+    note: functionerrors/function output conflict multiple
+    query: data.test3.r = x
+    want_error: functions must not produce multiple outputs for same inputs
+    want_error_code: eval_conflict_error

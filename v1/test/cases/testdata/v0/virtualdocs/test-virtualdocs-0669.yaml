@@ -1,0 +1,21 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          z = ["b", "c"]
+          z[i] = y
+          data.generated.q[y] = x
+        }
+
+        q = {"a": 1, "b": 2, "c": 3, "d": 4}
+    note: "virtualdocs/input: complete object ground key"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 2
+          - 3

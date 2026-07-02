@@ -1,0 +1,24 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.generated.q[i][j] = x
+        }
+
+        q = {x: {x1: 1}, y: {y1: 2}} {
+          x = "a"
+          y = "b"
+          x1 = "a1"
+          y1 = "b1"
+        }
+    note: "virtualdocs/output: non-ground object keys"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2

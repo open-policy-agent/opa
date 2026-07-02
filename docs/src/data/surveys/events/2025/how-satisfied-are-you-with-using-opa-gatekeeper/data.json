@@ -1,0 +1,28 @@
+{
+  "data": [
+    {
+      "label": "Very dissatisfied",
+      "value": 0
+    },
+    {
+      "label": "Somewhat dissatisfied",
+      "value": 0
+    },
+    {
+      "label": "Neither satisfied nor dissatisfied",
+      "value": 1
+    },
+    {
+      "label": "Somewhat satisfied",
+      "value": 9
+    },
+    {
+      "label": "Satisfied",
+      "value": 7
+    },
+    {
+      "label": "Very satisfied",
+      "value": 4
+    }
+  ]
+}

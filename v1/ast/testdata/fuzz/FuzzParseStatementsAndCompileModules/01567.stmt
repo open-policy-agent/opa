@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{\n\t\t\"req1\": {\"foo\": 4}\n\t}")

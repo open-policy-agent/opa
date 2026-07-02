@@ -1,0 +1,19 @@
+---
+cases:
+  - note: indirectreferences/user call in comprehension
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        fn(__local0__) := [__local0__]
+
+        p contains x if {
+        	__local2__ = [y | data.generated.fn(1, __local1__); y = __local1__]
+        	x = __local2__[_][_]
+        }
+    data: {}
+    want_result:
+      - x:
+          - 1
+    sort_bindings: true

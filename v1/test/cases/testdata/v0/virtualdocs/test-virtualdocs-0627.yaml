@@ -1,0 +1,21 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          y = 2
+          z = [[1, y], y]
+          data.generated.q[z]
+        }
+
+        q[[x, y]] {
+          y = 2
+          x = [1, y]
+        }
+    note: "virtualdocs/input: set ground composite (2)"
+    query: data.generated.p = x
+    want_result:
+      - x: true

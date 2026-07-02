@@ -1,0 +1,18 @@
+---
+cases:
+  - note: "virtualdocs/no suffix: complete vars"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q
+        }
+
+        q := x if {
+        	x = true
+        }
+    data: {}
+    want_result:
+      - x: true

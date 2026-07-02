@@ -1,0 +1,23 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = x {
+          x := data.ex.loopback with input.foo as "x" with input.foo.bar as "y"
+        }
+      - |
+        package ex
+
+        loopback = y {
+          true
+          y = input
+        }
+    note: withkeyword/with conflict
+    query: data.generated.p = x
+    want_result:
+      - x:
+          foo:
+            bar: "y"

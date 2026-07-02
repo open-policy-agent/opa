@@ -1,0 +1,9 @@
+{
+  "crawl-delay": 0,
+  "request-rate": {
+    "requests": 0,
+    "seconds": 0
+  },
+  "burst": 0,
+  "overload": false
+}

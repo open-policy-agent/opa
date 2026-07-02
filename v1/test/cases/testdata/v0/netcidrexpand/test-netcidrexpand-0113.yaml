@@ -1,0 +1,18 @@
+---
+cases:
+  - modules:
+      - |
+        package generated
+
+        p = x {
+          net.cidr_expand("192.168.1.1/30", x)
+        }
+    note: netcidrexpand/cidr includes host and broadcast
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 192.168.1.0
+          - 192.168.1.1
+          - 192.168.1.2
+          - 192.168.1.3
+    sort_bindings: true

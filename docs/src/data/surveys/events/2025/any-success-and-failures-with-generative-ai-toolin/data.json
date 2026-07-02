@@ -1,0 +1,21 @@
+{
+  "data": [],
+  "intro": "39 responses were summarized and grouped, we still see that generative models still struggle with the Rego syntax.",
+  "bullets": [
+    {
+      "title": "Failures/Limitations",
+      "count": 15,
+      "sentence": "LLMs struggle with Rego's unique syntax, often \"hallucinating\" features, generating \"python-like code,\" or producing outdated v0 syntax like \"the old name { ... } syntax without the if\" despite recent language updates."
+    },
+    {
+      "title": "Mixed/Moderate Success",
+      "count": 7,
+      "sentence": "AI can be helpful for specific tasks like \"debugging operations,\" \"drafting the rego rules,\" or \"convert some pretty nasty v0 rego to v1,\" though manual edits are typically still required."
+    },
+    {
+      "title": "Haven't Tried/N/A",
+      "count": 12,
+      "sentence": "Many respondents haven't explored AI tooling yet, with some noting they \"prefer understanding what I'm doing first\" or simply haven't needed to update policies since GenAI became widely available."
+    }
+  ]
+}

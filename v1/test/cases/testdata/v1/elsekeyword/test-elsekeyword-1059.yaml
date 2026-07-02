@@ -1,0 +1,28 @@
+---
+cases:
+  - note: elsekeyword/ref-head
+    query: data.ex.refs = x
+    modules:
+      - |
+        package ex
+
+        refs if {
+        	false
+        } else := __local6__ if {
+        	true
+        	__local7__ = data.b.v2
+        	__local6__ = ["hello", __local7__]
+        }
+    data:
+      a:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+      b:
+        v1: hello
+        v2: goodbye
+    want_result:
+      - x:
+          - hello
+          - goodbye

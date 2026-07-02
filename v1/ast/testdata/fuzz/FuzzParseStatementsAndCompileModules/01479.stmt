@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tp { time.now_ns(t0); test.sleep(\"10ms\"); time.now_ns(t1); t1 = t2 }\n\t")

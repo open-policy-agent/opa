@@ -1,0 +1,52 @@
+{
+  "data": [
+    {
+      "label": "Go",
+      "value": 52
+    },
+    {
+      "label": "Python",
+      "value": 47
+    },
+    {
+      "label": "Java",
+      "value": 40
+    },
+    {
+      "label": "JavaScript/TypeScript",
+      "value": 34
+    },
+    {
+      "label": "Rust",
+      "value": 7
+    },
+    {
+      "label": "Shell/Bash",
+      "value": 27
+    },
+    {
+      "label": "C/C++",
+      "value": 8
+    },
+    {
+      "label": "C#/.NET",
+      "value": 8
+    },
+    {
+      "label": "Ruby",
+      "value": 8
+    },
+    {
+      "label": "Kotlin",
+      "value": 4
+    }
+  ],
+  "otherResponses": [
+    "PHP",
+    "PHP",
+    "Zig",
+    "PHP",
+    "SQL",
+    "PowerShell"
+  ]
+}

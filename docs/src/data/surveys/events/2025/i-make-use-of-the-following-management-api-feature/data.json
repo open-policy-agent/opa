@@ -1,0 +1,27 @@
+{
+  "data": [
+    {
+      "label": "Bundles",
+      "value": 58
+    },
+    {
+      "label": "Decision logs",
+      "value": 51
+    },
+    {
+      "label": "REST API*",
+      "value": 31
+    },
+    {
+      "label": "Status",
+      "value": 28
+    },
+    {
+      "label": "Delta bundles",
+      "value": 9
+    }
+  ],
+  "footnotes": [
+    "* REST API for policy management or non policy evaluation use cases"
+  ]
+}

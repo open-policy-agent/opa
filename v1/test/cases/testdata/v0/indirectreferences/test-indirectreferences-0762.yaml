@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        fn(__local0__) = [__local0__]
+
+        p[x] {
+          __local2__ = [y | data.generated.fn(1, __local1__); y = __local1__]
+          x = __local2__[_][_]
+        }
+    note: indirectreferences/user call in comprehension
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1

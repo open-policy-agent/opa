@@ -1,0 +1,21 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          1 >= 1
+          data.a[i] = x
+          x >= 4
+        }
+    note: comparisonexpr/gteq
+    query: data.generated.p = x
+    want_result:
+      - x: true

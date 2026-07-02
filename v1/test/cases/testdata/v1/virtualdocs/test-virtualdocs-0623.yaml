@@ -1,0 +1,17 @@
+---
+cases:
+  - note: "virtualdocs/input: set undefined"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q[1000]
+        }
+
+        q contains x if {
+        	data.a[x] = y
+        }
+    data: {}
+    want_result: []

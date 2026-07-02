@@ -1,0 +1,24 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.a[i] = x
+        }
+    note: partialsetdoc/array values
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4

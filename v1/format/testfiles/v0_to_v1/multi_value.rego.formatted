@@ -1,0 +1,31 @@
+package test
+
+import rego.v1
+
+a contains "b"
+
+b contains "c" if {
+	input.x
+}
+
+c contains "d"
+
+d contains "e" if {
+	input.x
+}
+
+e.f contains "g" if {
+	input.x
+}
+
+f.g contains "h" if {
+	input.x
+}
+
+g[h].i contains "j" if {
+	h := input.h
+}
+
+h[i].j contains "k" if {
+	i := input.h
+}

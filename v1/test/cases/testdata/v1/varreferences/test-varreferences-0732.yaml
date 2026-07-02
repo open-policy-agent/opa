@@ -1,0 +1,34 @@
+---
+cases:
+  - note: varreferences/embedded ref binding
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	v = data.c[i][j]
+        	__local0__ = v[0]
+        	__local1__ = v[1]
+        	w = [__local0__, __local1__]
+        	x = w[y]
+        }
+    data:
+      c:
+        - "true":
+            - null
+            - 3.14159
+          x:
+            - true
+            - false
+            - foo
+          z:
+            p: true
+            q: false
+    want_result:
+      - x:
+          - null
+          - false
+          - true
+          - 3.14159
+    sort_bindings: true

@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          io.jwt.verify_hs256("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0", "secret", x)
+        }
+    note: jwtverifyhs256/failure-invalid token
+    query: data.generated.p = x
+    strict_error: true
+    want_error: encoded JWT must have 3 sections, found 2
+    want_error_code: eval_builtin_error

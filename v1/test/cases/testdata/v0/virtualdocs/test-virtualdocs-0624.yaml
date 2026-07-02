@@ -1,0 +1,24 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p = y {
+          x = [1]
+          data.generated.q[x][0] = y
+        }
+
+        q[[x]] {
+          data.a[_] = x
+        }
+    note: "virtualdocs/input: set dereference"
+    query: data.generated.p = x
+    want_result:
+      - x: 1

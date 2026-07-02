@@ -1,0 +1,9 @@
+{
+  "showInput": false,
+  "showData": false,
+  "showTitles": false,
+  "showPlayground": false,
+  "titleSize": 4,
+  "command": "data.jwt",
+  "skip_output_reason": "document dependencies"
+}

@@ -1,0 +1,21 @@
+---
+cases:
+  - note: withkeyword/with mock iteration on sets
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        q contains 1
+
+        q contains 2
+
+        p contains x if {
+        	data.generated.q[x] with data.generated.q as {3, 4}
+        }
+    data: {}
+    want_result:
+      - x:
+          - 3
+          - 4
+    sort_bindings: true

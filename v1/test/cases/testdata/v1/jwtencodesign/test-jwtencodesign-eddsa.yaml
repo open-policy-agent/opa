@@ -1,0 +1,19 @@
+---
+cases:
+  - note: jwtencodesign/EdDSA
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	io.jwt.encode_sign(
+        		{"alg": "EdDSA", "typ": "JWT"},
+        		{"aud": ["bob", "saul"], "exp": 1300819380, "http://example.com/is_root": true, "iss": "joe", "privateParams": {"private_one": "one", "private_two": "two"}},
+        		{"kty": "OKP", "alg": "EdDSA", "crv": "Ed25519", "x": "wEZFfoAj1rFKTLOOmjJjVZlCHwksuvMb2I5y_hg70E8", "d": "9XI34uQzYUJfWhDZf_0nYsLMBRVu8a6dFsy60P8uugk"},
+        	x,
+        	)
+        }
+    data: {}
+    want_result:
+      - x: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiYm9iIiwic2F1bCJdLCJleHAiOjEzMDA4MTkzODAsImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlLCJpc3MiOiJqb2UiLCJwcml2YXRlUGFyYW1zIjp7InByaXZhdGVfb25lIjoib25lIiwicHJpdmF0ZV90d28iOiJ0d28ifX0.T_X7SzKEehTnRdgYrDobpKO-EqZ0LW3Y-idx16wNHXCL5aiR24h2Ei0pWRHG2X2BYomwbvNwyxPcasgHqs_eBA

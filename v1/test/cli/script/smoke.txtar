@@ -1,0 +1,16 @@
+# opa version
+exec $OPA version
+stdout '^Version:'
+stdout '^Build Commit:'
+stdout '^Build Timestamp:'
+stdout '^Build Hostname:'
+stdout '^Go Version:'
+stdout '^Platform:'
+stdout '^Rego Version:'
+stdout '^WebAssembly:'
+! stderr .
+
+# simple eval
+exec $OPA eval --format=pretty 'time.now_ns()'
+stdout '[0-9]+'
+! stderr .

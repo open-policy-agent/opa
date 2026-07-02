@@ -1,0 +1,83 @@
+---
+cases:
+  - note: objectunionn/empty array
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := object.union_n([{}])
+    want_result:
+      - x: {}
+  - note: objectunionn/single item array
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := object.union_n([{"foo": "bar"}])
+    want_result:
+      - x:
+          foo: bar
+  - note: objectunionn/merge objects
+    query: data.test.x = x
+    modules:
+      - |
+        package test
+
+        x := object.union_n([{"foo": "bar"}, {"x": "y"}])
+    want_result:
+      - x:
+          foo: bar
+          x: "y"
+  - note: objectunionn/merge objects conflict
+    query: data.test.x = x
+    modules:
+      - |
+        package test
+
+        x := object.union_n([{"foo": "bar"}, {"foo": "baz"}])
+    want_result:
+      - x:
+          foo: baz
+  - note: objectunionn/merge objects extended
+    query: data.test.x = x
+    modules:
+      - |
+        package test
+
+        x := object.union_n([
+        	{
+        		"a": 1,
+        		"b": 2,
+        		"c": 3,
+        	},
+        	{
+        		"foo": "baz",
+        		"a": "a",
+        		"b": 2,
+        		"d": 4,
+        	},
+        	{
+        		"a": "final A!",
+        		"e": 5.0,
+        	},
+        ])
+    want_result:
+      - x:
+          a: final A!
+          b: 2
+          c: 3
+          d: 4
+          e: 5
+          foo: baz
+  - note: "# 5073 regression test"
+    query: data.test.x = x
+    modules:
+      - |
+        package test
+
+        x := object.union_n(input)
+    input_term: '[{"foo": 1}, {"bar": 2}, "baz"]'
+    want_error_code: eval_type_error
+    strict_error: true

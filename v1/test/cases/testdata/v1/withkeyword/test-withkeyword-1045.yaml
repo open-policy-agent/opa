@@ -1,0 +1,20 @@
+---
+cases:
+  - note: withkeyword/with mock rule
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.ex.mock_rule with data.ex.mock_rule as true
+        }
+      - |
+        package ex
+
+        mock_rule := false if {
+        	1 = 2
+        }
+    data: {}
+    want_result:
+      - x: true

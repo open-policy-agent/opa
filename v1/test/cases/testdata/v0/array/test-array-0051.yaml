@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          array.slice([1, 2, 3], 1000, 2000, __local0__)
+          x = __local0__
+        }
+    note: "array/slice: clamp both out of range non-empty"
+    query: data.generated.p = x
+    want_result:
+      - x: []

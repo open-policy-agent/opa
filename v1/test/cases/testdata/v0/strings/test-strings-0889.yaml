@@ -1,0 +1,20 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          substring("abcdefgh", 2, 3, x)
+        }
+    note: strings/substring
+    query: data.generated.p = x
+    want_result:
+      - x: cde
+  - modules:
+      - "package generated\n\np = x {\n  substring(\"\xE5\xE4\xF6\", 0, 2, x)\n}\n"
+    note: "strings/substring: unicode"
+    query: data.generated.p = x
+    want_result:
+      - x: "\xE5\xE4"

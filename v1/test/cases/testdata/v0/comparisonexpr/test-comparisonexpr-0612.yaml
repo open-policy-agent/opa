@@ -1,0 +1,21 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          -1 < 0
+          data.a[i] = x
+          x < 5
+        }
+    note: comparisonexpr/lt
+    query: data.generated.p = x
+    want_result:
+      - x: true

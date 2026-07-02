@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          union({set(), {1, 2}}, x)
+        }
+    note: union/union_2_sets
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 1
+          - 2

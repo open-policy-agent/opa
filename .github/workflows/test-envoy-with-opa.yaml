@@ -1,0 +1,72 @@
+name: Test Envoy with OPA
+
+on:
+  workflow_call:
+    secrets:
+      slack_webhook_url:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  test-envoy-with-opa:
+    name: Test Envoy with OPA
+    runs-on: ubuntu-24.04
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }} # zizmor: ignore[secrets-outside-env]
+    steps:
+      - name: Check out OPA code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+          path: opa
+
+      - name: Install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: opa/.go-version
+          cache-dependency-path: opa/go.sum
+
+      - name: Get latest opa-envoy-plugin release tag
+        id: envoy_release
+        run: |
+          tag=$(gh api repos/open-policy-agent/opa-envoy-plugin/releases/latest --jq '.tag_name')
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Check out opa-envoy-plugin ${{ steps.envoy_release.outputs.tag }}
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: open-policy-agent/opa-envoy-plugin
+          ref: ${{ steps.envoy_release.outputs.tag }}
+          persist-credentials: false
+          path: envoy
+
+      - name: Update OPA dependency
+        working-directory: envoy
+        run: |
+          go mod edit -replace github.com/open-policy-agent/opa=../opa
+          go mod tidy
+
+      - name: Build
+        working-directory: envoy
+        run: make build
+
+      - name: Test
+        working-directory: envoy
+        run: make test
+
+        # TODO: run e2e tests
+
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        with:
+          webhook: ${{ env.SLACK_WEBHOOK_URL }} # zizmor: ignore[secrets-outside-env]
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "opa-envoy-plugin compatibility check failed: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }} - ${{ github.job }}>"
+            }

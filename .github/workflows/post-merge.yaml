@@ -1,0 +1,255 @@
+name: Post Merge
+
+on:
+  push:
+    branches:
+      - main
+    tags-ignore:
+      - dev
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    permissions:
+      contents: write  # for Git to git push
+    name: Sync Generated Code and Docs
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          token: ${{ secrets.GH_PUSH_TOKEN }} # zizmor: ignore[secrets-outside-env] required to push to protected branch below
+          persist-credentials: true
+
+      - name: Generate
+        run: make clean generate docs-generate-cli-docs
+
+      - name: Commit & Push
+        shell: bash
+        run: |
+          # Commit any changes and push as needed.
+
+          # See https://github.com/actions/checkout#push-a-commit-using-the-built-in-token
+          AUTHOR=wasm-updater
+          git config user.name ${AUTHOR}
+          git config user.email ${AUTHOR}@github.com
+
+          # Prevent looping if the build was non-deterministic..
+          CAN_PUSH=1
+          if [[ "$(git log -1 --pretty=format:'%an')" == "${AUTHOR}" ]]; then
+              CAN_PUSH=0
+          fi
+
+          if ./build/commit-wasm-bins.sh; then
+            if [[ "${CAN_PUSH}" == "1" ]]; then
+              git push
+            else
+              echo "Previous commit was auto-generated -- Aborting!"
+              exit 1
+            fi
+          else
+            echo "No generated changes to push!"
+          fi
+
+          AUTHOR=cli-docs-updater
+          git config user.name ${AUTHOR}
+          git config user.email ${AUTHOR}@github.com
+
+          # Prevent looping if the build was non-deterministic..
+          CAN_PUSH=1
+          if [[ "$(git log -1 --pretty=format:'%an')" == "${AUTHOR}" ]]; then
+              CAN_PUSH=0
+          fi
+
+          if ./build/commit-cli-docs.sh; then
+            if [[ "${CAN_PUSH}" == "1" ]]; then
+              git push
+            else
+              echo "Previous commit was auto-generated -- Aborting!"
+              exit 1
+            fi
+          else
+            echo "No generated changes to push!"
+          fi
+
+  code-coverage:
+    name: Update Go Test Coverage
+    runs-on: ubuntu-24.04
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Unit Test Golang
+        run: make ci-go-test-coverage
+        timeout-minutes: 30
+
+  release-build:
+    name: Release Build (linux, windows)
+    runs-on: ubuntu-24.04
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Git Describe
+        run: git describe --tags
+
+      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
+        with:
+          install: true
+          cache: false
+          mise_toml: |
+            [tools]
+            zig = "0.16.0"
+
+      - name: Install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: .go-version
+
+      - name: Build Linux and Windows
+        run: make ci-build-windows ci-go-ci-build-linux ci-go-ci-build-linux-static
+        timeout-minutes: 30
+
+      - name: Build Linux arm64
+        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static
+        timeout-minutes: 30
+        env:
+          GOARCH: arm64
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: binaries-linux-windows
+          path: _release
+
+  release-build-darwin:
+    name: Release Build (darwin)
+    runs-on: macos-14
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Git Describe
+        run: git describe --tags
+
+      - name: Install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: .go-version
+
+      - name: Build Darwin
+        run: |
+          make ci-build-darwin GOARCH=amd64
+          make ci-build-darwin-arm64-static
+        timeout-minutes: 30
+
+      - name: Upload binaries (darwin)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: binaries-darwin
+          path: _release
+
+  deploy-dev:
+    name: Deploy Dev Prerelease
+    runs-on: ubuntu-24.04
+    needs: [ release-build, release-build-darwin ]
+    permissions:
+      contents: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: true
+
+      - name: Download release binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: _release
+
+      - name: Push edge binaries to bucket
+        env:
+          S3_RELEASE_BINARY_URL: ${{ secrets.S3_RELEASE_BINARY_URL }} # zizmor: ignore[secrets-outside-env]
+        if: ${{ env.S3_RELEASE_BINARY_URL }}
+        run: |
+          for asset in _release/*/opa_*_*; do
+            curl -f -X PUT --data-binary @"$asset" \
+              "${S3_RELEASE_BINARY_URL}/binaries/edge/$(basename "$asset")"
+          done
+
+  deploy-edge-docker:
+    name: Push Edge Docker Tags
+    runs-on: ubuntu-24.04
+    needs: [release-build, release-build-darwin]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Download release binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: _release
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Deploy OPA Edge Docker Tags
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }} # zizmor: ignore[secrets-outside-env]
+        # Only run if required secrets are provided
+        if: ${{ env.DOCKER_USER && env.DOCKER_PASSWORD }}
+        run: make deploy-ci
+
+  deploy-wasm-builder:
+    name: Deploy WASM Builder
+    runs-on: ubuntu-24.04
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Build and Push opa-wasm-builder
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_WASM_BUILDER_IMAGE: ${{ secrets.DOCKER_WASM_BUILDER_IMAGE }} # zizmor: ignore[secrets-outside-env]
+        # Only run if required secrets are provided
+        if: ${{ env.DOCKER_USER && env.DOCKER_PASSWORD }}
+        run: make push-wasm-builder-image
+
+  website-smoke-test:
+    name : Website Smoke Test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Run Smoke Test
+        run: make -C docs smoke-test

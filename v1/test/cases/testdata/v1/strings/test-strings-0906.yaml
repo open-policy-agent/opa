@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "strings/replace: empty string"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	replace("", "hi", "bye", x)
+        }
+    data: {}
+    want_result:
+      - x: ""

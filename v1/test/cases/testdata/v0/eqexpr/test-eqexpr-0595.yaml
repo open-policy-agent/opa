@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          x = 2
+          {1, 3, x} = {1, 2, 3}
+        }
+    note: "eqexpr/unordered: sets"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 2

@@ -1,0 +1,16 @@
+{
+  "data": [],
+  "intro": "9 responses were summarized",
+  "bullets": [
+    {
+      "title": "Complexity & Usability",
+      "count": 3,
+      "sentence": "Users find Gatekeeper \"overcomplicated for simple use cases,\" with the \"constraints + constraint templates\" structure feeling like \"a bit too much cruft\" for simple tasks like enforcing a label, and \"not always easy to debug policy failures.\""
+    },
+    {
+      "title": "Architecture Limitations",
+      "count": 3,
+      "sentence": "Technical gaps frustrate users, particularly the \"lack of shared lib support and hierarchical policy support\" and \"no simple way to embed rego policy at scale into the constraint template\" while maintaining separate files for unit tests."
+    }
+  ]
+}

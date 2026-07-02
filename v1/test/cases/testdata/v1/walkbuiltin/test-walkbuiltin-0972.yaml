@@ -1,0 +1,44 @@
+---
+cases:
+  - note: walkbuiltin/objects
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.b
+        	walk(__local0__, x)
+        }
+    data:
+      b:
+        v1: hello
+        v2: goodbye
+    want_result:
+      - x:
+          - - []
+            - v1: hello
+              v2: goodbye
+          - - - v1
+            - hello
+          - - - v2
+            - goodbye
+    sort_bindings: true
+  - note: walkbuiltin/objects no path
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := [x | walk(data.b, [_, x])]
+    data:
+      b:
+        v1: hello
+        v2: goodbye
+    want_result:
+      - x:
+          - goodbye
+          - hello
+          - v1: hello
+            v2: goodbye
+    sort_bindings: true

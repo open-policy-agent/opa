@@ -1,0 +1,17 @@
+---
+cases:
+  - note: replacen/find no patterns
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	strings.replace_n({"old1": "new1", "old2": "new2"}, "Everything is new1, new2", __local0__)
+        	x = __local0__
+        }
+    data: {}
+    want_result:
+      - x:
+          - Everything is new1, new2
+    sort_bindings: true

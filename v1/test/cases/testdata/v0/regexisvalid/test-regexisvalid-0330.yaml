@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          regex.is_valid(`++`, x)
+        }
+    note: regexisvalid/bad pattern
+    query: data.generated.p = x
+    want_result:
+      - x: false

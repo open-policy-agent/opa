@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          product({1, 2, 3, 4}, x)
+        }
+    note: aggregates/product set
+    query: data.generated.p = x
+    want_result:
+      - x: 24

@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = {"a": [x, y]} {
+          xs = [1, 2]
+          ys = [1, 2]
+          x = xs[_]
+          y = ys[_]
+        }
+    note: completedoc/vars conflict
+    query: data.generated.p = x
+    want_error: complete rules must not produce multiple outputs
+    want_error_code: eval_conflict_error

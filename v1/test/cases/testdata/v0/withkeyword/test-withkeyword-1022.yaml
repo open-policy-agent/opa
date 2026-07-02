@@ -1,0 +1,36 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        r = __local0__ {
+          true
+          __local0__ = data.test
+        }
+
+        q = x {
+          data.generated.r = x with data.test.a.c as 2
+        }
+
+        p = x {
+          data.generated.q = x with data.test.a.b as 1
+        }
+      - |
+        package test.a
+
+        d = 3
+      - |
+        package test
+
+        e = 4
+    note: withkeyword/with stack (data)
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a:
+            b: 1
+            c: 2
+            d: 3
+          e: 4

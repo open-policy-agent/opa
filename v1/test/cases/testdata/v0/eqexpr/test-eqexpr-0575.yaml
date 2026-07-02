@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          [[1, x], [3, 4]] = [[1, 2], [3, 4]]
+        }
+    note: "eqexpr/pattern: array 2"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 2

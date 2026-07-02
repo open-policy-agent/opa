@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        fn(__local0__) = [__local0__]
+
+        p[x] {
+          data.generated.fn(1, __local1__)
+          x = __local1__[0]
+        }
+    note: indirectreferences/user call
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1

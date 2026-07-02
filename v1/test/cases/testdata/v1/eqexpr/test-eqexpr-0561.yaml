@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "eqexpr/ground: set"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	{1, 2, 3} = {1, 2, 3}
+        }
+    data: {}
+    want_result:
+      - x: true

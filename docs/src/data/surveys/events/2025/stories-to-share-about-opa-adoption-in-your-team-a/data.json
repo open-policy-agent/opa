@@ -1,0 +1,26 @@
+{
+  "data": [],
+  "intro": "28 responses were summarized showing a broad range of experiences.",
+  "bullets": [
+    {
+      "title": "Successful Implementations",
+      "count": 8,
+      "sentence": "Teams have found success using OPA for diverse use cases, from \"fine-grained Kubernetes security policy\" with Gatekeeper to \"auth across multiple Trino instances\" and \"decoupling permissions from our legacy monolith system,\" with one team seeing dramatic improvements where \"10000 policies causing a JWT token request timeout\" dropped to \"around 200ms\" with OPA."
+    },
+    {
+      "title": "Learning Curve Challenges",
+      "count": 5,
+      "sentence": "Adoption friction centers on Rego's declarative nature, where \"teams have a hard time learning Rego\" and \"error handling is weird\" — particularly the concept that \"if some value is undefined the top rule is also undefined.\""
+    },
+    {
+      "title": "Architectural & Integration Hurdles",
+      "count": 5,
+      "sentence": "Organizations struggle with complex integration patterns, from \"how to handle 'global' or enterprise policies at the gateway level and 'local' policies at the application level\" to converting \"arbitrary rules to SQL for filter requests\" and wanting \"better GraphQL support.\""
+    },
+    {
+      "title": "Organizational & Trust Concerns",
+      "count": 3,
+      "sentence": "Business adoption faces resistance, with \"strong pushback on OPA and externalized authz in general\" and a need for \"supporting tooling\" like control planes and management apps to ease introduction."
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+---
+cases:
+  - data:
+      c:
+        - x:
+            - true
+            - false
+            - foo
+          y:
+            - null
+            - 3.14159
+          z:
+            p: true
+            q: false
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          v = data.c[i][j]
+          x = v[k]
+          x = true
+        }
+    note: varreferences/ref binding
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - true

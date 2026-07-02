@@ -1,0 +1,22 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p = y {
+          y = {x | x = data.a[_]; x > 1}
+        }
+    note: comprehensions/set simple
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 2
+          - 3
+          - 4

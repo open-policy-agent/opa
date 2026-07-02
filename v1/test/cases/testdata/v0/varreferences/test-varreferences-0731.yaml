@@ -1,0 +1,20 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          v = [1, 2, 3]
+          __local0__ = v[i]
+          x = [{"a": __local0__}]
+        }
+    note: varreferences/embedded
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - a: 1
+          - - a: 2
+          - - a: 3

@@ -1,0 +1,364 @@
+// Copyright 2026 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+edition = "2023";
+
+package opa.ir.v1;
+
+option go_package = "github.com/open-policy-agent/opa/v1/ir/v1pb";
+option java_multiple_files = true;
+
+// Policy mirrors `ir.Policy` in v1/ir/ir.go.
+message Policy {
+  Static static = 1;
+  Plans plans = 2;
+  Funcs funcs = 3;
+}
+
+// Static mirrors `ir.Static` in v1/ir/ir.go.
+message Static {
+  repeated StringConst strings = 1;
+  repeated BuiltinFunc builtin_funcs = 2;
+  repeated StringConst files = 3;
+}
+
+// BuiltinFunc mirrors `ir.BuiltinFunc` in v1/ir/ir.go.
+//
+// `ir.BuiltinFunc.Decl` (the function's `types.Function` signature) is
+// intentionally not modeled. Consumers that execute plans need their
+// own builtin registry to dispatch host-language implementations, and
+// that registry is the source of truth for signatures — bundling
+// `Decl` here would be redundant and prone to drift.
+message BuiltinFunc {
+  string name = 1;
+}
+
+// Plans mirrors `ir.Plans` in v1/ir/ir.go.
+message Plans {
+  repeated Plan plans = 1;
+}
+
+// Funcs mirrors `ir.Funcs` in v1/ir/ir.go.
+message Funcs {
+  repeated Func funcs = 1;
+}
+
+// Func mirrors `ir.Func` in v1/ir/ir.go.
+//
+// Each parameter and the return slot are local-variable indices; see
+// `ir.Local` in v1/ir/ir.go.
+message Func {
+  string name = 1;
+  repeated int32 params = 2;
+  // The local that holds the function's return value. Renamed from
+  // `return` (the Go field is `Func.Return Local`, JSON-tagged `return`)
+  // to avoid colliding with a reserved keyword in many target languages
+  // when this proto is fed to protoc plugins. The JSON wire form
+  // continues to use `return`; only the proto-side identifier differs.
+  int32 result = 3;
+  repeated Block blocks = 4;
+  repeated string path = 5;
+}
+
+// Plan mirrors `ir.Plan` in v1/ir/ir.go.
+message Plan {
+  string name = 1;
+  repeated Block blocks = 2;
+}
+
+// Block mirrors `ir.Block` in v1/ir/ir.go.
+message Block {
+  repeated Stmt stmts = 1;
+}
+
+// StringConst mirrors `ir.StringConst` in v1/ir/ir.go.
+message StringConst {
+  string value = 1;
+}
+
+// Operand mirrors `ir.Operand` in v1/ir/ir.go. The `value` field is a
+// polymorphic `Val` union; see the `Val` message below.
+message Operand {
+  Val value = 1;
+}
+
+// Val mirrors the `ir.Val` interface in v1/ir/ir.go. Each oneof case
+// corresponds to a concrete `Val` implementation; the case names match
+// the JSON discriminator strings emitted by `*Operand.MarshalJSON`.
+//
+// Case-number assignments are a stability commitment. New cases must
+// be added with the next unused number; existing numbers must never
+// be repurposed.
+message Val {
+  oneof kind {
+    bool bool = 1;
+    int32 local = 2;
+    int32 string_index = 3;
+  }
+}
+
+// Stmt mirrors the `ir.Stmt` interface in v1/ir/ir.go. Every Stmt carries
+// the source-location triple (file, col, row) on this envelope; the body
+// messages below describe only the kind-specific payload.
+//
+// On the Go side, `ir.Location` is embedded into every concrete Stmt
+// implementation, so `encoding/json` flattens File/Col/Row into the
+// emitted JSON body. The proto promotes those fields to the envelope
+// because that's both more idiomatic protobuf and lets every body
+// message start its own field numbering at 1.
+//
+// Case-number assignments (4–37) are a stability commitment. Field
+// numbers 1–3 are reserved for the location triple. New cases must be
+// added with the next unused number; existing numbers must never be
+// repurposed.
+message Stmt {
+  int32 file = 1;
+  int32 col = 2;
+  int32 row = 3;
+  oneof kind {
+    ArrayAppendStmt array_append_stmt = 4;
+    AssignIntStmt assign_int_stmt = 5;
+    AssignVarOnceStmt assign_var_once_stmt = 6;
+    AssignVarStmt assign_var_stmt = 7;
+    BlockStmt block_stmt = 8;
+    BreakStmt break_stmt = 9;
+    CallDynamicStmt call_dynamic_stmt = 10;
+    CallStmt call_stmt = 11;
+    DotStmt dot_stmt = 12;
+    EqualStmt equal_stmt = 13;
+    IsArrayStmt is_array_stmt = 14;
+    IsDefinedStmt is_defined_stmt = 15;
+    IsObjectStmt is_object_stmt = 16;
+    IsSetStmt is_set_stmt = 17;
+    IsUndefinedStmt is_undefined_stmt = 18;
+    LenStmt len_stmt = 19;
+    MakeArrayStmt make_array_stmt = 20;
+    MakeNullStmt make_null_stmt = 21;
+    MakeNumberIntStmt make_number_int_stmt = 22;
+    MakeNumberRefStmt make_number_ref_stmt = 23;
+    MakeObjectStmt make_object_stmt = 24;
+    MakeSetStmt make_set_stmt = 25;
+    NopStmt nop_stmt = 26;
+    NotEqualStmt not_equal_stmt = 27;
+    NotStmt not_stmt = 28;
+    ObjectInsertOnceStmt object_insert_once_stmt = 29;
+    ObjectInsertStmt object_insert_stmt = 30;
+    ObjectMergeStmt object_merge_stmt = 31;
+    ResetLocalStmt reset_local_stmt = 32;
+    ResultSetAddStmt result_set_add_stmt = 33;
+    ReturnLocalStmt return_local_stmt = 34;
+    ScanStmt scan_stmt = 35;
+    SetAddStmt set_add_stmt = 36;
+    WithStmt with_stmt = 37;
+  }
+}
+
+// Stmt body messages start their own field numbering at 1; the
+// source-location triple lives on the parent `Stmt` envelope.
+
+// ArrayAppendStmt mirrors `ir.ArrayAppendStmt` in v1/ir/ir.go.
+message ArrayAppendStmt {
+  Operand value = 1;
+  int32 array = 2;
+}
+
+// AssignIntStmt mirrors `ir.AssignIntStmt` in v1/ir/ir.go.
+message AssignIntStmt {
+  int64 value = 1;
+  int32 target = 2;
+}
+
+// AssignVarOnceStmt mirrors `ir.AssignVarOnceStmt` in v1/ir/ir.go.
+message AssignVarOnceStmt {
+  Operand source = 1;
+  int32 target = 2;
+}
+
+// AssignVarStmt mirrors `ir.AssignVarStmt` in v1/ir/ir.go.
+message AssignVarStmt {
+  Operand source = 1;
+  int32 target = 2;
+}
+
+// BlockStmt mirrors `ir.BlockStmt` in v1/ir/ir.go.
+message BlockStmt {
+  repeated Block blocks = 1;
+}
+
+// BreakStmt mirrors `ir.BreakStmt` in v1/ir/ir.go.
+message BreakStmt {
+  uint32 index = 1;
+}
+
+// CallDynamicStmt mirrors `ir.CallDynamicStmt` in v1/ir/ir.go.
+message CallDynamicStmt {
+  repeated int32 args = 1;
+  int32 result = 2;
+  repeated Operand path = 3;
+}
+
+// CallStmt mirrors `ir.CallStmt` in v1/ir/ir.go.
+message CallStmt {
+  // Renamed from `func` (Go field `CallStmt.Func`, JSON-tagged `func`)
+  // to avoid colliding with reserved keywords in target languages,
+  // mirroring the Func.return → result rename above.
+  string function = 1;
+  repeated Operand args = 2;
+  int32 result = 3;
+}
+
+// DotStmt mirrors `ir.DotStmt` in v1/ir/ir.go.
+message DotStmt {
+  Operand source = 1;
+  Operand key = 2;
+  int32 target = 3;
+}
+
+// EqualStmt mirrors `ir.EqualStmt` in v1/ir/ir.go.
+message EqualStmt {
+  Operand a = 1;
+  Operand b = 2;
+}
+
+// IsArrayStmt mirrors `ir.IsArrayStmt` in v1/ir/ir.go.
+message IsArrayStmt {
+  Operand source = 1;
+}
+
+// IsDefinedStmt mirrors `ir.IsDefinedStmt` in v1/ir/ir.go.
+message IsDefinedStmt {
+  int32 source = 1;
+}
+
+// IsObjectStmt mirrors `ir.IsObjectStmt` in v1/ir/ir.go.
+message IsObjectStmt {
+  Operand source = 1;
+}
+
+// IsSetStmt mirrors `ir.IsSetStmt` in v1/ir/ir.go.
+message IsSetStmt {
+  Operand source = 1;
+}
+
+// IsUndefinedStmt mirrors `ir.IsUndefinedStmt` in v1/ir/ir.go.
+message IsUndefinedStmt {
+  int32 source = 1;
+}
+
+// LenStmt mirrors `ir.LenStmt` in v1/ir/ir.go.
+message LenStmt {
+  Operand source = 1;
+  int32 target = 2;
+}
+
+// MakeArrayStmt mirrors `ir.MakeArrayStmt` in v1/ir/ir.go.
+message MakeArrayStmt {
+  int32 capacity = 1;
+  int32 target = 2;
+}
+
+// MakeNullStmt mirrors `ir.MakeNullStmt` in v1/ir/ir.go.
+message MakeNullStmt {
+  int32 target = 1;
+}
+
+// MakeNumberIntStmt mirrors `ir.MakeNumberIntStmt` in v1/ir/ir.go.
+message MakeNumberIntStmt {
+  int64 value = 1;
+  int32 target = 2;
+}
+
+// MakeNumberRefStmt mirrors `ir.MakeNumberRefStmt` in v1/ir/ir.go.
+//
+// The Go field is named `Index` (no `json` tag). The historical JSON
+// shape emitted both `index` and `Index`; the canonical key going
+// forward is `index` and the deprecated `Index` alias will be removed
+// in a future major release. This proto models only the canonical
+// `index` field.
+message MakeNumberRefStmt {
+  int32 index = 1;
+  int32 target = 2;
+}
+
+// MakeObjectStmt mirrors `ir.MakeObjectStmt` in v1/ir/ir.go.
+message MakeObjectStmt {
+  int32 target = 1;
+}
+
+// MakeSetStmt mirrors `ir.MakeSetStmt` in v1/ir/ir.go.
+message MakeSetStmt {
+  int32 target = 1;
+}
+
+// NopStmt mirrors `ir.NopStmt` in v1/ir/ir.go.
+message NopStmt {}
+
+// NotEqualStmt mirrors `ir.NotEqualStmt` in v1/ir/ir.go.
+message NotEqualStmt {
+  Operand a = 1;
+  Operand b = 2;
+}
+
+// NotStmt mirrors `ir.NotStmt` in v1/ir/ir.go.
+message NotStmt {
+  Block block = 1;
+}
+
+// ObjectInsertOnceStmt mirrors `ir.ObjectInsertOnceStmt` in v1/ir/ir.go.
+message ObjectInsertOnceStmt {
+  Operand key = 1;
+  Operand value = 2;
+  int32 object = 3;
+}
+
+// ObjectInsertStmt mirrors `ir.ObjectInsertStmt` in v1/ir/ir.go.
+message ObjectInsertStmt {
+  Operand key = 1;
+  Operand value = 2;
+  int32 object = 3;
+}
+
+// ObjectMergeStmt mirrors `ir.ObjectMergeStmt` in v1/ir/ir.go.
+message ObjectMergeStmt {
+  int32 a = 1;
+  int32 b = 2;
+  int32 target = 3;
+}
+
+// ResetLocalStmt mirrors `ir.ResetLocalStmt` in v1/ir/ir.go.
+message ResetLocalStmt {
+  int32 target = 1;
+}
+
+// ResultSetAddStmt mirrors `ir.ResultSetAddStmt` in v1/ir/ir.go.
+message ResultSetAddStmt {
+  int32 value = 1;
+}
+
+// ReturnLocalStmt mirrors `ir.ReturnLocalStmt` in v1/ir/ir.go.
+message ReturnLocalStmt {
+  int32 source = 1;
+}
+
+// ScanStmt mirrors `ir.ScanStmt` in v1/ir/ir.go.
+message ScanStmt {
+  int32 source = 1;
+  int32 key = 2;
+  int32 value = 3;
+  Block block = 4;
+}
+
+// SetAddStmt mirrors `ir.SetAddStmt` in v1/ir/ir.go.
+message SetAddStmt {
+  Operand value = 1;
+  int32 set = 2;
+}
+
+// WithStmt mirrors `ir.WithStmt` in v1/ir/ir.go.
+message WithStmt {
+  int32 local = 1;
+  repeated int32 path = 2;
+  Operand value = 3;
+  Block block = 4;
+}

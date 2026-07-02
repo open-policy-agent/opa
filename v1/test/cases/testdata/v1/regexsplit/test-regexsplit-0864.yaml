@@ -1,0 +1,16 @@
+---
+cases:
+  - note: "regexsplit/regex.split: repeat pattern"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := [v, w] if {
+        	regex.split("z+", "pizza", [v, w])
+        }
+    data: {}
+    want_result:
+      - x:
+          - pi
+          - a

@@ -1,0 +1,25 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        q = __local0__ {
+          true
+          __local0__ = data.test
+        }
+
+        p = x {
+          data.generated.q = x with data.test.a as {"d": 3}
+        }
+      - |
+        package test
+
+        a = {"b": 1, "c": 2}
+    note: withkeyword/with stack overwrites (data)
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a:
+            d: 3

@@ -1,0 +1,23 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.ex.virtual[x] with data.a.b as {"c": 1, "d": 2, "e": 1}
+        }
+      - |
+        package ex
+
+        virtual[x] {
+          data.a.b[x] = 1
+        }
+    note: withkeyword/with virtual doc any index
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - c
+          - e

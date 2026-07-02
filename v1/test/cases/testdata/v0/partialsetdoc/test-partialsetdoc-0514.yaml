@@ -1,0 +1,20 @@
+---
+cases:
+  - data:
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.b[i] = x
+        }
+    note: partialsetdoc/object values
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - goodbye
+          - hello

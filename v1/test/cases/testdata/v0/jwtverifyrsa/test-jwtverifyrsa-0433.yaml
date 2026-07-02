@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          io.jwt.verify_es384("eyJhbGciOiJFUzM4NCJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0.w85PzWrIQbJBOROnah0pa8or2LsXWnj88bwG1R-zf5Mm20CaYGPKPTQEsU_y-dzaWyDV1Na7nfaGaH3Khcvj8yS-bidZ0OZVVFDk9oabX7ZYvAHo2pTAOfxc11TeOYSF", "-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEY3MFu4PcMeHj7LsHFcwyQlaOH/CNQtV+\nVEuAda1jfucxUiaBgimj01zA4QHUtPA9RttACEZgNAJVVV0ca2WGfmNvNjurPhBr\nAeU9VjAp1BZNkmvsWYhjwKWM+M0hmzRK\n-----END PUBLIC KEY-----", x)
+        }
+    note: jwtverifyrsa/success-es384-key
+    query: data.generated.p = x
+    want_result:
+      - x: true

@@ -1,0 +1,25 @@
+.container header+*,
+.container article>*:first-child {
+    margin-top: 0;
+}
+
+@media (min-width: 997px) {
+    .col {
+        max-width: 80%;
+        margin: 0 auto;
+    }
+
+    /* Narrower max-width when TOC is present to make room for the TOC column */
+    .colWithTOC {
+        max-width: 75%;
+    }
+}
+
+.container {
+    width: 100%;
+}
+
+.col {
+    display: flex;
+    justify-content: center;
+}

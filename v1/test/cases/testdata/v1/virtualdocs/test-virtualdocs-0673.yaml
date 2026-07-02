@@ -1,0 +1,21 @@
+---
+cases:
+  - note: "virtualdocs/output: complete set"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.generated.q[x]
+        }
+
+        q := {1, 2, 3, 4}
+    data: {}
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4
+    sort_bindings: true

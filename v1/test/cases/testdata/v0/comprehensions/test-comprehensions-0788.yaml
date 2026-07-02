@@ -1,0 +1,25 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[i] {
+          xs = {s: x | x = data.a[_]; format_int(x, 10, s)}
+          y = xs[i]
+          y > 1
+        }
+    note: comprehensions/object simple
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - "2"
+          - "3"
+          - "4"

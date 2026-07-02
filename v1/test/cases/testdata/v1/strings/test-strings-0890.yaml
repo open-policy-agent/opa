@@ -1,0 +1,25 @@
+---
+cases:
+  - note: "strings/substring: remainder"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("abcdefgh", 2, -1, x)
+        }
+    data: {}
+    want_result:
+      - x: cdefgh
+  - note: "strings/substring: remainder unicode"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("aåäö", 2, -1, x)
+        }
+    want_result:
+      - x: äö

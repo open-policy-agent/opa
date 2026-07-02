@@ -1,0 +1,28 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] = y {
+          data.generated.r[z] = y
+          data.generated.q[x] = z
+        }
+
+        r[k] = v {
+          x = {"a": 1, "b": 2, "c": 3, "d": 4}
+          x[k] = v
+        }
+
+        q[y] = x {
+          z = {"a": "a", "b": "b", "d": "d"}
+          z[y] = x
+        }
+    note: "virtualdocs/input: variable binding substitution"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a: 1
+          b: 2
+          d: 4

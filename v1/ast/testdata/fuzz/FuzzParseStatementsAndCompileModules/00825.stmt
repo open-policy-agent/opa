@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = r { r = {x: y | z = {i: q | i = b[q]}; x = z[y]}}")

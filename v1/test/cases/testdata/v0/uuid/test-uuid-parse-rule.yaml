@@ -1,0 +1,19 @@
+---
+cases:
+  - note: uuid-parse-rule/positive
+    data: {}
+    modules:
+      - |
+        package test
+
+        validuser {
+          is_string(input.userid)
+          parsed_uuid := uuid.parse(input.userid)
+          parsed_uuid.variant == "RFC4122"
+          parsed_uuid.version == 4
+        }
+
+    input: { "userid": "00000000-0000-4000-8000-000000000000" }
+    query: data.test.validuser = x
+    want_result:
+      - x: true

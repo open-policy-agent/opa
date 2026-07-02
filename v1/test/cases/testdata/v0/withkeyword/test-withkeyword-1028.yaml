@@ -1,0 +1,25 @@
+---
+cases:
+  - data: {}
+    input_term: '"c"'
+    modules:
+      - |
+        package generated
+
+        q[x] {
+          input[_] = x
+        }
+
+        p[[x, y]] {
+          data.generated.q[x] with input as ["a", "b"]
+          y = input
+        }
+    note: withkeyword/with invalidate input stack iteration
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - a
+            - c
+          - - b
+            - c

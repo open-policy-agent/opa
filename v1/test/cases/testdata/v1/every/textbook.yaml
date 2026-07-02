@@ -1,0 +1,138 @@
+---
+cases:
+  - note: every/example, fail
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every x in input.containers {
+        		startswith(x.image, "acmecorp.com/")
+        	}
+        }
+    input:
+      containers:
+        - image: bitcoin-miner
+        - image: acmecorp.com/webapp
+    want_result: []
+  - note: every/example, success
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every x in input.containers {
+        		startswith(x.image, "acmecorp.com/")
+        	}
+        }
+    input:
+      containers:
+        - image: acmecorp.com/bitcoin-miner
+        - image: acmecorp.com/webapp
+    want_result:
+      - x: true
+  - note: every/example with two sets
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	containers := {c | c := input.containers[_]}
+        	init_containers := {c | c := input.init_containers[_]}
+        	every x in containers | init_containers {
+        		startswith(x.image, "acmecorp.com/")
+        	}
+        }
+    input:
+      containers:
+        - image: acmecorp.com/bitcoin-miner
+        - image: acmecorp.com/webapp
+      init_containers:
+        - image: acmecorp.com/bitcoin-miner
+    want_result:
+      - x: true
+  - note: every/example with two sets (fail)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	containers := {c | c := input.containers[_]}
+        	init_containers := {c | c := input.init_containers[_]}
+        	every x in containers | init_containers {
+        		startswith(x.image, "acmecorp.com/")
+        	}
+        }
+    input:
+      containers:
+        - image: acmecorp.com/bitcoin-miner
+        - image: acmecorp.com/webapp
+      init_containers:
+        - image: bitcoin-miner
+    want_result: []
+  - note: every/example every/some, fail
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        allowed_repos := {"hooli.com/", "acmecorp.net/"}
+
+        p if {
+        	every c in input.containers {
+        		some repo in allowed_repos
+        		startswith(c.image, repo)
+        	}
+        }
+    input:
+      containers:
+        - image: hooli.com/bitcoin-miner
+        - image: acmecorp.net/webapp
+        - image: nginx
+    want_result: []
+  - note: every/example every/some, success
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        allowed_repos := {"hooli.com/", "acmecorp.net/"}
+
+        p if {
+        	every c in input.containers {
+        		some repo in allowed_repos
+        		startswith(c.image, repo)
+        	}
+        }
+    input:
+      containers:
+        - image: hooli.com/bitcoin-miner
+        - image: acmecorp.net/webapp
+        - image: hooli.com/nginx
+    want_result:
+      - x: true
+  - note: every/example some/every
+    query: data.test.deny = x
+    modules:
+      - |
+        package test
+
+        deny if {
+        	some s in input.servers
+        	every port in s.ports {
+        		port != 443
+        	}
+        }
+    input:
+      servers:
+        - ports:
+            - "80"
+            - "443"
+        - ports:
+            - "80"
+    want_result:
+      - x: true

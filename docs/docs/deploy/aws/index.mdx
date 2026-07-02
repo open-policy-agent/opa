@@ -1,0 +1,48 @@
+---
+sidebar_label: AWS
+sidebar_position: 3
+title: Deploying OPA on AWS
+---
+
+Open Policy Agent (OPA) is easily integrated with systems running in
+Amazon Web Services (AWS). OPA exposes APIs for policy evaluation and can be
+invoked over the network from a range of AWS services.
+
+OPA can be deployed on a range of different AWS services. Choosing the right one
+for your use case depends on:
+
+- Where the calling service is running
+- The latency requirements of the calling service
+- What the data volume required at policy evaluation time
+
+The table below outlines maps different use cases to one of the three main
+deployment options for OPA on AWS.
+
+| **Use Case**              | **Deployment Method**                    |
+|---------------------------|------------------------------------------|
+| EC2 application           | Local Node Agent or Centralized Service  |
+| AWS API Gateway           | ECS Service                              |
+| EKS application           | Local OPA Sidecar or Centralized Service |
+| Lambda application        | ECS Service                              |
+| Other custom applications | Centralized Service on EKS or ECS        |
+
+<CardGrid>
+  <Card key={"eks"} item={{
+    title: "EKS",
+    icon: require('../assets/images/aws/eks.png').default,
+    link: "../deploy/aws/eks",
+    link_text: "Deploy on EKS",
+  }} />
+  <Card key={"ecs"} item={{
+    title: "ECS",
+    icon: require('../assets/images/aws/ecs.png').default,
+    link: "../deploy/aws/ecs",
+    link_text: "Deploy on ECS",
+  }} />
+  <Card key={"ec2"} item={{
+    title: "EC2",
+    icon: require('../assets/images/aws/ec2.png').default,
+    link: "../deploy/aws/ec2",
+    link_text: "Deploy on EC2",
+  }} />
+</CardGrid>

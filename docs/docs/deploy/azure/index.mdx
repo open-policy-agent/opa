@@ -1,0 +1,48 @@
+---
+sidebar_label: Azure
+sidebar_position: 5
+title: Deploying OPA on Azure
+---
+
+Open Policy Agent (OPA) is easily integrated with systems running in Microsoft
+Azure. OPA exposes APIs for policy evaluation and can be invoked over the
+network from a range of Azure services.
+
+OPA can be deployed on a variety of Azure services. Choosing the right
+deployment method depends on:
+
+- Where the calling service is running
+- The latency requirements of the calling service
+- The data volume required at policy evaluation time
+
+The table below outlines different use cases and the recommended deployment
+options for OPA on Azure.
+
+| **Use Case**               | **Deployment Method**                    |
+|----------------------------|------------------------------------------|
+| AKS application            | Local OPA Sidecar or Centralized Service |
+| Azure App Service          | Local Node Agent or Centralized Service  |
+| Azure Functions            | Centralized Service on AKS or Container Apps |
+| Azure Virtual Machines     | Local Node Agent or Centralized Service  |
+| Other custom applications  | Centralized Service on AKS or Container Apps |
+
+<CardGrid>
+  <Card key={"aks"} item={{
+    title: "AKS",
+    icon: require('../assets/images/azure/aks.png').default,
+    link: "../deploy/azure/aks",
+    link_text: "Deploy on AKS",
+  }} />
+  <Card key={"ca"} item={{
+    title: "Container Apps",
+    icon: require('../assets/images/azure/container-apps.png').default,
+    link: "../deploy/azure/container-apps",
+    link_text: "Deploy on Container Apps",
+  }} />
+  <Card key={"vm"} item={{
+    title: "Virtual Machines",
+    icon: require('../assets/images/azure/vm.png').default,
+    link: "../deploy/azure/vm",
+    link_text: "Deploy on Virtual Machines",
+  }} />
+</CardGrid>

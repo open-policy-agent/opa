@@ -1,0 +1,22 @@
+---
+cases:
+  - note: "virtualdocs/output: complete array dereference non-ground"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains r if {
+        	data.generated.q[i][j] = 2
+        	r = [i, j]
+        }
+
+        q := [[1, 2], [3, 2]]
+    data: {}
+    want_result:
+      - x:
+          - - 0
+            - 1
+          - - 1
+            - 1
+    sort_bindings: true

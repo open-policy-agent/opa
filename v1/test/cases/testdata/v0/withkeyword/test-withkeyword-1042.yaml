@@ -1,0 +1,20 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = y {
+          y = data.ex.virtual.c with data.a.b as {"c": 1, "d": 2, "e": 1}
+        }
+      - |
+        package ex
+
+        virtual[x] {
+          data.a.b[x] = 1
+        }
+    note: withkeyword/with virtual doc specific index
+    query: data.generated.p = x
+    want_result:
+      - x: c

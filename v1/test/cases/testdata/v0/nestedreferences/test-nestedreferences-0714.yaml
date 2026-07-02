@@ -1,0 +1,21 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      three: 3
+    modules:
+      - |
+        package generated
+
+        p {
+          __local0__ = data.three
+          4 = data.a[__local0__]
+        }
+    note: nestedreferences/no suffix
+    query: data.generated.p = x
+    want_result:
+      - x: true

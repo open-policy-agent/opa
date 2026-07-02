@@ -1,0 +1,88 @@
+---
+title: Glob Matching Built-ins
+sidebar_label: Glob Matching
+---
+<BuiltinTable category={"glob"}/>
+
+## Examples
+
+### `glob.match`
+
+`glob.match` matches strings against glob patterns with optional delimiters. The function returns `true` if the string matches the pattern, `false` if it doesn't match, or `undefined` if invalid arguments are provided.
+
+Common use cases for `glob.match` include:
+
+- Matching file paths and URLs with wildcard patterns
+- Validating domain names and hostnames against patterns
+- Filtering resources based on naming conventions
+- Checking configuration keys against allowed patterns
+
+Delimiters are used to split the input into segments for matching. Delimiters must be **single characters** for unambiguous parsing.
+
+```rego title="Valid delimiters"
+glob.match("a:*", [":"], "a:b")          # => true
+glob.match("a/b.c", ["/", "."], "a/b.c") # => true
+```
+
+```rego title="Invalid delimiters"
+glob.match("a::*", ["::"], "a::b")   # => undefined
+glob.match("a:*", [""], "a:b")       # => undefined
+```
+
+If you provide multi-character or empty delimiters, `glob.match` will return `undefined` (or an error with `--strict-builtin-errors` enabled).
+
+An empty array `[]` defaults to `"."` (dot) as the delimiter:
+
+```rego title="Default delimiter"
+glob.match("*.github.com", [], "api.github.com")  # => true
+```
+
+Using `null` means no delimiters are used:
+
+```rego title="No delimiters"
+glob.match("*hub.com", null, "api.cdn.github.com")  # => true
+```
+
+<PlaygroundExample dir={require.context("../_examples/glob/domain_matching")} />
+
+<PlaygroundExample dir={require.context("../_examples/glob/image_matching")} />
+
+:::tip
+For performance considerations when using `glob.match`, see the [Policy Performance](../../policy-performance#glob-statements) guide.
+:::
+
+#### Basic Usage
+
+The following table shows examples of how `glob.match` works:
+
+| `call`                                                           | `output` | Description                                   |
+| ---------------------------------------------------------------- | -------- | --------------------------------------------- |
+| `output := glob.match("*.github.com", [], "api.github.com")`     | `true`   | A glob with the default `["."]` delimiter.    |
+| `output := glob.match("*.github.com", [], "api.cdn.github.com")` | `false`  | A glob with the default `["."]` delimiter.    |
+| `output := glob.match("*hub.com", null, "api.cdn.github.com")`   | `true`   | A glob without delimiter.                     |
+| `output := glob.match("*:github:com", [":"], "api:github:com")`  | `true`   | A glob with delimiters `[":"]`.               |
+| `output := glob.match("api.**.com", [], "api.github.com")`       | `true`   | A super glob.                                 |
+| `output := glob.match("api.**.com", [], "api.cdn.github.com")`   | `true`   | A super glob.                                 |
+| `output := glob.match("?at", [], "cat")`                         | `true`   | A glob with a single character wildcard.      |
+| `output := glob.match("?at", [], "at")`                          | `false`  | A glob with a single character wildcard.      |
+| `output := glob.match("[abc]at", [], "bat")`                     | `true`   | A glob with character-list matchers.          |
+| `output := glob.match("[abc]at", [], "cat")`                     | `true`   | A glob with character-list matchers.          |
+| `output := glob.match("[abc]at", [], "lat")`                     | `false`  | A glob with character-list matchers.          |
+| `output := glob.match("[!abc]at", [], "cat")`                    | `false`  | A glob with negated character-list matchers.  |
+| `output := glob.match("[!abc]at", [], "lat")`                    | `true`   | A glob with negated character-list matchers.  |
+| `output := glob.match("[a-c]at", [], "cat")`                     | `true`   | A glob with character-range matchers.         |
+| `output := glob.match("[a-c]at", [], "lat")`                     | `false`  | A glob with character-range matchers.         |
+| `output := glob.match("[!a-c]at", [], "cat")`                    | `false`  | A glob with negated character-range matchers. |
+| `output := glob.match("[!a-c]at", [], "lat")`                    | `true`   | A glob with negated character-range matchers. |
+| `output := glob.match("{cat,bat,[fr]at}", [], "cat")`            | `true`   | A glob with pattern-alternatives matchers.    |
+| `output := glob.match("{cat,bat,[fr]at}", [], "bat")`            | `true`   | A glob with pattern-alternatives matchers.    |
+| `output := glob.match("{cat,bat,[fr]at}", [], "rat")`            | `true`   | A glob with pattern-alternatives matchers.    |
+| `output := glob.match("{cat,bat,[fr]at}", [], "at")`             | `false`  | A glob with pattern-alternatives matchers.    |
+
+## Performance Metrics
+
+When `?metrics=true` is specified in API requests, `glob.match` operations expose the following per-query metrics:
+
+| Metric | Description |
+| ------ | ----------- |
+| `counter_rego_builtin_glob_interquery_value_cache_hits` | Number of compiled glob patterns served from the inter-query value cache. Only present when [inter-query value caching](/docs/configuration/#caching) is enabled and a previously compiled pattern is reused |

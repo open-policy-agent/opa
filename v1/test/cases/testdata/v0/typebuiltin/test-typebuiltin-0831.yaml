@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          arr = [true, 1]
+          arr[_] = x
+          is_number(x)
+        }
+    note: typebuiltin/is_number
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1

@@ -1,0 +1,26 @@
+---
+cases:
+  - note: aggregates/sum virtual
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = [y | data.generated.q[y]]
+        	sum(__local0__, x)
+        }
+
+        q contains x if {
+        	data.a[_] = x
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 10
+    sort_bindings: true

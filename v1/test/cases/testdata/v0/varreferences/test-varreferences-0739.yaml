@@ -1,0 +1,22 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          v = {[1, 999], [3, 4]}
+          __local0__ = data.a[2]
+          pair = [__local0__, 4]
+          v[pair]
+        }
+    note: "varreferences/set: lookup: base docs"
+    query: data.generated.p = x
+    want_result:
+      - x: true

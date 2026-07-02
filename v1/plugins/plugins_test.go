@@ -1,0 +1,770 @@
+// Copyright 2020 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+package plugins
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"reflect"
+	"testing"
+	"time"
+
+	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
+	"github.com/open-policy-agent/opa/internal/storage/mock"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/logging/test"
+	"github.com/open-policy-agent/opa/v1/plugins/rest"
+	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
+	"github.com/open-policy-agent/opa/v1/topdown/cache"
+	prom "github.com/prometheus/client_golang/prometheus"
+)
+
+func TestManagerCacheTriggers(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	l1Called := false
+	m.RegisterCacheTrigger(func(*cache.Config) {
+		l1Called = true
+	})
+
+	if m.registeredCacheTriggers[0] == nil {
+		t.Fatal("First listener failed to register")
+	}
+
+	l2Called := false
+	m.RegisterCacheTrigger(func(*cache.Config) {
+		l2Called = true
+	})
+
+	if m.registeredCacheTriggers[0] == nil || m.registeredCacheTriggers[1] == nil {
+		t.Fatal("Second listener failed to register")
+	}
+
+	if l1Called == true || l2Called == true {
+		t.Fatal("Listeners should not be called yet")
+	}
+
+	err = m.Reconfigure(m.GetConfig())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if l1Called == false || l2Called == false {
+		t.Fatal("Listeners should hav been called")
+	}
+}
+
+func TestManagerNDCacheTriggers(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	l1Called := false
+	m.RegisterNDCacheTrigger(func(bool) {
+		l1Called = true
+	})
+
+	if m.registeredNDCacheTriggers[0] == nil {
+		t.Fatal("First listener failed to register")
+	}
+
+	l2Called := false
+	m.RegisterNDCacheTrigger(func(bool) {
+		l2Called = true
+	})
+
+	if m.registeredNDCacheTriggers[0] == nil || m.registeredNDCacheTriggers[1] == nil {
+		t.Fatal("Second listener failed to register")
+	}
+
+	if l1Called == true || l2Called == true {
+		t.Fatal("Listeners should not be called yet")
+	}
+
+	err = m.Reconfigure(m.GetConfig())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if l1Called == false || l2Called == false {
+		t.Fatal("Listeners should hav been called")
+	}
+}
+
+func TestManagerPluginStatusListener(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	defer m.Stop(context.Background())
+
+	// Register two listeners
+	var l1Status map[string]*Status
+	m.RegisterPluginStatusListener("l1", func(status map[string]*Status) {
+		l1Status = status
+	})
+
+	var l2Status map[string]*Status
+	m.RegisterPluginStatusListener("l2", func(status map[string]*Status) {
+		l2Status = status
+	})
+
+	// Ensure starting statuses are empty by default
+	currentStatus := m.PluginStatus()
+	if len(currentStatus) != 0 {
+		t.Fatalf("Expected 0 statuses in current plugin status map, got: %+v", currentStatus)
+	}
+
+	// Push an update to a plugin, ensure current status is reflected and listeners were called
+	const message = "foo"
+	m.UpdatePluginStatus("p1", &Status{State: StateOK, Message: message})
+	currentStatus = m.PluginStatus()
+	if len(currentStatus) != 1 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != message {
+		t.Fatalf("Expected 1 statuses in current plugin status map with state OK and message 'foo', got: %+v", currentStatus)
+	}
+	if !reflect.DeepEqual(currentStatus, l1Status) || !reflect.DeepEqual(l1Status, l2Status) {
+		t.Fatalf("Unexpected status in updates:\n\n\texpecting: %+v\n\n\tgot: l1: %+v  l2: %+v\n", currentStatus, l1Status, l2Status)
+	}
+
+	// Unregister the first listener
+	m.UnregisterPluginStatusListener("l1")
+	l1Status = nil
+
+	// Send another update, ensure the status is ok and the remaining listener is still called
+	m.UpdatePluginStatus("p2", &Status{State: StateErr})
+	currentStatus = m.PluginStatus()
+	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != message || currentStatus["p2"].State != StateErr {
+		t.Fatalf("Unexpected current plugin status, got: %+v", currentStatus)
+	}
+	if !reflect.DeepEqual(currentStatus, l2Status) {
+		t.Fatalf("Unexpected status in updates:\n\n\texpecting: %+v\n\n\tgot: %+v\n", currentStatus, l2Status)
+	}
+	if l1Status != nil {
+		t.Fatalf("Expected unregistered listener l1 to not be called, got: %+v", l1Status)
+	}
+
+	// Unregister the last listener
+	m.UnregisterPluginStatusListener("l2")
+	l2Status = nil
+
+	// Ensure updates can still be sent with no listeners
+	m.UpdatePluginStatus("p2", &Status{State: StateOK})
+	currentStatus = m.PluginStatus()
+	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != message || currentStatus["p2"].State != StateOK {
+		t.Fatalf("Unexpected current plugin status, got: %+v", currentStatus)
+	}
+	if l2Status != nil {
+		t.Fatalf("Expected unregistered listener l2 to not be called, got: %+v", l2Status)
+	}
+}
+
+func TestPluginStatusUpdateOnStartAndStop(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	m.Register("p1", &testPlugin{m})
+
+	err = m.Start(t.Context())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	m.Stop(t.Context())
+}
+
+type testPlugin struct {
+	m *Manager
+}
+
+func (p *testPlugin) Start(context.Context) error {
+	p.m.UpdatePluginStatus("p1", &Status{State: StateOK})
+	return nil
+}
+
+func (p *testPlugin) Stop(context.Context) {
+	p.m.UpdatePluginStatus("p1", &Status{State: StateNotReady})
+}
+
+func (p *testPlugin) Reconfigure(context.Context, any) {
+	p.m.UpdatePluginStatus("p1", &Status{State: StateNotReady})
+}
+
+func TestPluginManagerLazyInitBeforePluginStart(t *testing.T) {
+	m, err := New([]byte(`{"plugins": {"someplugin": {"enabled": true}}}`), "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &mockForInitStartOrdering{Manager: m}
+
+	m.Register("someplugin", mock)
+
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	if !mock.Started {
+		t.Fatal("expected plugin to be started")
+	}
+}
+
+func TestPluginManagerInitBeforePluginStart(t *testing.T) {
+	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.Init(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &mockForInitStartOrdering{Manager: m}
+
+	m.Register("someplugin", mock)
+
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	if !mock.Started {
+		t.Fatal("expected plugin to be started")
+	}
+}
+
+func TestPluginManagerInitIdempotence(t *testing.T) {
+	mockStore := mock.New()
+
+	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", mockStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := t.Context()
+
+	if err := m.Init(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	exp := len(mockStore.Transactions)
+
+	if err := m.Init(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(mockStore.Transactions) != exp {
+		t.Fatal("expected num txns to be:", exp, "but got:", len(mockStore.Transactions))
+	}
+}
+
+func TestManagerWithCachingConfig(t *testing.T) {
+	m, err := New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": 100}, "inter_query_builtin_value_cache": {"max_num_entries": 100}}}`), "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected, _ := cache.ParseCachingConfig(nil)
+	limit := int64(100)
+	expected.InterQueryBuiltinCache.MaxSizeBytes = &limit
+	maxNumEntriesInterQueryValueCache := int(100)
+	expected.InterQueryBuiltinValueCache.MaxNumEntries = &maxNumEntriesInterQueryValueCache
+
+	if !reflect.DeepEqual(m.InterQueryBuiltinCacheConfig(), expected) {
+		t.Fatalf("want %+v got %+v", expected, m.interQueryBuiltinCacheConfig)
+	}
+
+	// config error
+	_, err = New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": "100"}}}`), "test", inmem.New())
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+
+	// config error
+	_, err = New([]byte(`{"caching": {"inter_query_builtin_value_cache": {"max_num_entries": "100"}}}`), "test", inmem.New())
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+}
+
+func TestManagerWithNDCachingConfig(t *testing.T) {
+	m, err := New([]byte(`{"nd_builtin_cache": true}`), "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := true
+	if cfg := m.GetConfig(); !cfg.NDBuiltinCache == expected {
+		t.Fatalf("want %+v got %+v", expected, cfg.NDBuiltinCache)
+	}
+
+	// config error
+	_, err = New([]byte(`{"nd_builtin_cache": "x"}`), "test", inmem.New())
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+}
+
+type mockForInitStartOrdering struct {
+	Manager *Manager
+	Started bool
+}
+
+func (m *mockForInitStartOrdering) Start(_ context.Context) error {
+	m.Started = true
+	if m.Manager.initialized {
+		return nil
+	}
+	return errors.New("expected manager to be initialized")
+}
+
+func (*mockForInitStartOrdering) Stop(context.Context)             {}
+func (*mockForInitStartOrdering) Reconfigure(context.Context, any) {}
+
+func TestPluginManagerAuthPlugin(t *testing.T) {
+	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.Init(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &myAuthPluginMock{}
+
+	m.Register("someplugin", mock)
+
+	authPlugin := m.AuthPlugin("someplugin")
+
+	if authPlugin == nil {
+		t.Fatal("expected to receive HTTPAuthPlugin")
+	}
+
+	switch authPlugin.(type) {
+	case *myAuthPluginMock:
+		return
+	default:
+		t.Fatal("expected HTTPAuthPlugin to be myAuthPluginMock")
+	}
+}
+
+func TestPluginManagerLogger(t *testing.T) {
+	logger := logging.Get().WithFields(map[string]any{"context": "myloggincontext"})
+
+	m, err := New([]byte(`{}`), "test", inmem.New(), Logger(logger))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if m.Logger() != logger {
+		t.Fatal("Logger was not configured on plugin manager")
+	}
+}
+
+func TestPluginManagerConsoleLogger(t *testing.T) {
+	consoleLogger := test.New()
+
+	mgr, err := New([]byte(`{}`), "", inmem.New(), ConsoleLogger(consoleLogger))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const fieldKey = "foo"
+	const fieldValue = "bar"
+	mgr.ConsoleLogger().WithFields(map[string]any{fieldKey: fieldValue}).Info("Some message")
+
+	entries := consoleLogger.Entries()
+
+	exp := []test.LogEntry{
+		{
+			Level:   logging.Info,
+			Fields:  map[string]any{fieldKey: fieldValue},
+			Message: "Some message",
+		},
+	}
+
+	if !reflect.DeepEqual(exp, entries) {
+		t.Fatalf("want %v but got %v", exp, entries)
+	}
+}
+
+func TestPluginManagerPrometheusRegister(t *testing.T) {
+	register := prometheusRegisterMock{Collectors: map[prom.Collector]bool{}}
+	mgr, err := New([]byte(`{}`), "", inmem.New(), WithPrometheusRegister(register))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	counter := prom.NewCounter(prom.CounterOpts{})
+	if err := mgr.PrometheusRegister().Register(counter); err != nil {
+		t.Fatal(err)
+	}
+	if register.Collectors[counter] != true {
+		t.Fatalf("Counter metric was not registered on prometheus")
+	}
+}
+
+func TestPluginManagerTracerProvider(t *testing.T) {
+	_, tracerProvider, _, err := internal_tracing.Init(t.Context(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := New([]byte(`{}`), "test", inmem.New(), WithTracerProvider(tracerProvider))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if m.TracerProvider() != tracerProvider {
+		t.Fatal("TracerProvider was not configured on plugin manager")
+	}
+}
+
+func TestPluginManagerServerInitialized(t *testing.T) {
+	// Verify that ServerInitializedChannel is closed when
+	// ServerInitialized is called.
+	m1, err := New([]byte{}, "test1", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	initChannel1 := m1.ServerInitializedChannel()
+	m1.ServerInitialized()
+	// Verify that ServerInitialized is idempotent and will not panic
+	m1.ServerInitialized()
+	select {
+	case <-initChannel1:
+		break
+	default:
+		t.Fatal("expected ServerInitializedChannel to be closed")
+	}
+
+	// Verify that ServerInitializedChannel is open when
+	// ServerInitialized is not called.
+	m2, err := New([]byte{}, "test2", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	initChannel2 := m2.ServerInitializedChannel()
+	select {
+	case <-initChannel2:
+		t.Fatal("expected ServerInitializedChannel to be open and have no messages")
+	default:
+		break
+	}
+}
+
+func TestUpdatePluginStatusAfterStop(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m.Register("p1", &testPlugin{m})
+
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	m.Stop(t.Context())
+
+	// Must not hang.
+	done := make(chan struct{})
+	go func() {
+		m.UpdatePluginStatus("p1", &Status{State: StateNotReady})
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("UpdatePluginStatus hung after Stop")
+	}
+}
+
+func TestPluginStatusAfterStop(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m.Register("p1", &testPlugin{m})
+
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	m.Stop(t.Context())
+
+	done := make(chan struct{})
+	var status map[string]*Status
+	go func() {
+		status = m.PluginStatus()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("PluginStatus hung after Stop")
+	}
+
+	// testPlugin.Stop() reports StateNotReady
+	if s, ok := status["p1"]; !ok {
+		t.Fatal("expected status for p1")
+	} else if s.State != StateNotReady {
+		t.Fatalf("expected StateNotReady, got %v", s.State)
+	}
+}
+
+func TestRegisterAfterStop(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	m.Stop(t.Context())
+
+	done := make(chan struct{})
+	go func() {
+		m.Register("late", &testPlugin{m})
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("Register hung after Stop")
+	}
+}
+
+func TestRegisterListenerAfterStop(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	m.Stop(t.Context())
+
+	done := make(chan struct{})
+	go func() {
+		m.RegisterPluginStatusListener("l1", func(map[string]*Status) {})
+		m.UnregisterPluginStatusListener("l1")
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("RegisterPluginStatusListener hung after Stop")
+	}
+}
+
+type myAuthPluginMock struct{}
+
+func (*myAuthPluginMock) NewClient(c rest.Config) (*http.Client, error) {
+	tlsConfig, err := rest.DefaultTLSConfig(c)
+	if err != nil {
+		return nil, err
+	}
+	return rest.DefaultRoundTripperClient(
+		tlsConfig,
+		10,
+	), nil
+}
+
+func (*myAuthPluginMock) Prepare(*http.Request) error {
+	return nil
+}
+
+func (*myAuthPluginMock) Start(context.Context) error {
+	return nil
+}
+
+func (*myAuthPluginMock) Stop(context.Context) {
+}
+
+func (*myAuthPluginMock) Reconfigure(context.Context, any) {
+}
+
+type prometheusRegisterMock struct {
+	Collectors map[prom.Collector]bool
+}
+
+func (p prometheusRegisterMock) Register(collector prom.Collector) error {
+	p.Collectors[collector] = true
+	return nil
+}
+
+func (p prometheusRegisterMock) MustRegister(collector ...prom.Collector) {
+	for _, c := range collector {
+		p.Collectors[c] = true
+	}
+}
+
+func (p prometheusRegisterMock) Unregister(collector prom.Collector) bool {
+	delete(p.Collectors, collector)
+	return true
+}
+
+// mockExternalSource is a simple implementation for testing
+type mockExternalSource struct {
+	refs  []ast.Ref
+	rules []*ast.Rule
+}
+
+func (m *mockExternalSource) Refs() []ast.Ref {
+	return m.refs
+}
+
+func (m *mockExternalSource) Init(context.Context, ast.Ref) (ast.ExternalRuleIndex, error) {
+	return &mockExternalIndex{rules: m.rules}, nil
+}
+
+type mockExternalIndex struct {
+	rules []*ast.Rule
+}
+
+func (*mockExternalIndex) Opts() *ast.ExternalSourceOptions {
+	return nil
+}
+
+func (m *mockExternalIndex) Lookup(context.Context, ...ast.LookupOption) ([]*ast.Rule, ast.ExternalRuleIndex, error) {
+	return m.rules, nil, nil
+}
+
+// testExternalSourcePlugin registers an external source during construction
+type testExternalSourcePlugin struct {
+	manager *Manager
+	started bool
+}
+
+func (p *testExternalSourcePlugin) Start(context.Context) error {
+	p.started = true
+	return nil
+}
+
+func (*testExternalSourcePlugin) Stop(context.Context) {}
+
+func (*testExternalSourcePlugin) Reconfigure(context.Context, any) {}
+
+// TestExternalSourceIntegration verifies external source behavior during plugin lifecycle
+func TestExternalSourceIntegration(t *testing.T) {
+	t.Run("sources wired after plugin start", func(t *testing.T) {
+		ctx := context.Background()
+		m, err := New([]byte(`{}`), "test", inmem.New())
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := m.Init(ctx); err != nil {
+			t.Fatalf("Failed to initialize manager: %v", err)
+		}
+
+		module := ast.MustParseModule(`package external.test
+test_rule := true`)
+		pkgRef := ast.MustParseRef("data.external.test")
+
+		source := &mockExternalSource{
+			refs:  []ast.Ref{pkgRef},
+			rules: module.Rules,
+		}
+
+		plugin := &testExternalSourcePlugin{manager: m}
+		m.Register("test_external_source", plugin)
+		m.RegisterExternalSource(pkgRef, source)
+
+		if m.GetExternalSources() == nil || m.GetExternalSources().Len() != 1 {
+			t.Fatalf("Expected 1 external source, got %d", m.GetExternalSources().Len())
+		}
+
+		if err := m.Start(ctx); err != nil {
+			t.Fatalf("Failed to start manager: %v", err)
+		}
+
+		if !plugin.started {
+			t.Fatal("Expected plugin to be started")
+		}
+
+		compiler := m.GetCompiler()
+		if compiler == nil || compiler.RuleTree == nil {
+			t.Fatal("Expected compiler with rule tree after Start()")
+		}
+	})
+
+	t.Run("stop cleans up external source plugins", func(t *testing.T) {
+		ctx := t.Context()
+		m, err := New([]byte(`{}`), "test", inmem.New())
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := m.Init(ctx); err != nil {
+			t.Fatalf("Failed to initialize manager: %v", err)
+		}
+
+		module := ast.MustParseModule(`package external.test
+test_rule := true`)
+		pkgRef := ast.MustParseRef("data.external.test")
+
+		source := &mockExternalSource{
+			refs:  []ast.Ref{pkgRef},
+			rules: module.Rules,
+		}
+
+		plugin := &testExternalSourcePlugin{manager: m}
+		m.Register("test_external_source", plugin)
+		m.RegisterExternalSource(pkgRef, source)
+
+		if err := m.Start(ctx); err != nil {
+			t.Fatalf("Failed to start manager: %v", err)
+		}
+
+		if !plugin.started {
+			t.Fatal("Expected plugin to be started")
+		}
+
+		m.Stop(ctx)
+
+		if m.GetExternalSources() == nil || m.GetExternalSources().Len() != 1 {
+			t.Fatalf("Expected external sources to still be registered after stop, got %d", m.GetExternalSources().Len())
+		}
+	})
+
+	t.Run("no recompilation when no sources registered", func(t *testing.T) {
+		ctx := context.Background()
+		m, err := New([]byte(`{}`), "test", inmem.New())
+		if err != nil {
+			t.Fatalf("Failed to create manager: %v", err)
+		}
+
+		if err := m.Init(ctx); err != nil {
+			t.Fatalf("Failed to initialize manager: %v", err)
+		}
+
+		compilerBeforeStart := m.GetCompiler()
+		if compilerBeforeStart == nil {
+			t.Fatal("Expected compiler to be initialized after Init()")
+		}
+
+		plugin := &testPlugin{m: m}
+		m.Register("test_plugin", plugin)
+
+		if err := m.Start(ctx); err != nil {
+			t.Fatalf("Failed to start manager: %v", err)
+		}
+
+		if m.GetCompiler() != compilerBeforeStart {
+			t.Fatal("Expected compiler to remain the same when no external sources registered")
+		}
+	})
+}

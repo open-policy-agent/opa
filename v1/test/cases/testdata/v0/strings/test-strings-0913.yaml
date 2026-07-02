@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          trim("...foo.bar...", ".", x)
+        }
+    note: "strings/trim: both"
+    query: data.generated.p = x
+    want_result:
+      - x: foo.bar

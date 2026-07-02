@@ -1,0 +1,18 @@
+{
+  "id": "what-technologies-do-your-services-use-alongside-o",
+  "title": "What technologies do your services use alongside OPA-Envoy?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "opa-envoy-plugin"
+  ],
+  "rank": 53
+}

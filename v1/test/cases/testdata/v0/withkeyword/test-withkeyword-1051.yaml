@@ -1,0 +1,25 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          data.ex.data_eq with input as {}
+        }
+      - |
+        package ex
+
+        data_eq {
+          data.a = x
+        }
+    note: withkeyword/bug 1100
+    query: data.generated.p = x
+    want_result:
+      - x: true

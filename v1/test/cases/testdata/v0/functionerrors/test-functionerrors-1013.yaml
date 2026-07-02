@@ -1,0 +1,21 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package test2
+
+        p(1, a) = y {
+          y = a
+        }
+
+        p(2, b) = y {
+          y = b + 1
+        }
+
+        r = y {
+          data.test2.p(3, 0, y)
+        }
+    note: functionerrors/function input no match
+    query: data.test2.r = x
+    want_result: []

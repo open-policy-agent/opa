@@ -1,0 +1,16 @@
+---
+cases:
+  - data:
+      b:
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p {
+          data.b.v2 = "goodbye"
+        }
+    note: "eqexpr/ground: ref 2"
+    query: data.generated.p = x
+    want_result:
+      - x: true

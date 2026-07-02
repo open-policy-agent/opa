@@ -1,0 +1,18 @@
+# Open Policy Agent
+
+> OPA is a general-purpose policy engine that unifies policy enforcement across the stack. Policies are written in Rego.
+
+This file is a curated documentation index for AI agents and other automated consumers. Append `.md` to any docs URL to fetch the machine-readable Markdown form.
+
+Full page index: https://openpolicyagent.org/sitemap.xml
+
+## Docs
+
+- [Documentation](https://openpolicyagent.org/docs.md): Language, APIs, CLI, and integrations.
+- [OPA + Kubernetes](https://openpolicyagent.org/docs/kubernetes.md): Admission control and policy on Kubernetes.
+- [OPA + Envoy](https://openpolicyagent.org/docs/envoy.md): External authorization for Envoy-based service meshes.
+
+## Projects
+
+- [Regal](https://openpolicyagent.org/projects/regal.md): Linter and language server for Rego.
+

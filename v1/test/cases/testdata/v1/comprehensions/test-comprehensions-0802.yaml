@@ -1,0 +1,17 @@
+---
+cases:
+  - note: comprehensions/set closure
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	y = 1
+        	x = {y | y = 1}
+        }
+    data: {}
+    want_result:
+      - x:
+          - - 1
+    sort_bindings: true

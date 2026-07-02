@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "label": "Sometimes, I find some rules harder to understand",
+      "value": 17
+    },
+    {
+      "label": "Yes, I find the rule documentation and examples easy to learn from",
+      "value": 23
+    },
+    {
+      "label": "No, haven't found it helpful for bug fixing",
+      "value": 3
+    }
+  ],
+  "otherResponses": [
+    "N/A"
+  ]
+}

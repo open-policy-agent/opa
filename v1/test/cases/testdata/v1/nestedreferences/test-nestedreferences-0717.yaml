@@ -1,0 +1,25 @@
+---
+cases:
+  - note: "nestedreferences/vdoc ref: complete"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.generated.q[_]
+        	x = data.a[__local0__]
+        }
+
+        q := [2, 3]
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 3
+          - 4
+    sort_bindings: true

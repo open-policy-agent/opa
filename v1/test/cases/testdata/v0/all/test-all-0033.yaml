@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          all([{}, "", true, true, 123], __local1__)
+          __local0__ = __local1__
+        }
+    note: all/other types
+    query: data.generated.p = x
+    want_result:
+      - x: false

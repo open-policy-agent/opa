@@ -1,0 +1,26 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          __local1__ = data.generated.s1
+          __local2__ = data.generated.s2
+          __local0__ = __local1__ - __local2__
+          x = __local0__
+        }
+
+        s1[1]
+
+        s1[2]
+
+        s1["c"]
+
+        s2 = {"c", 1}
+    note: "sets/set_diff: virt docs"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 2

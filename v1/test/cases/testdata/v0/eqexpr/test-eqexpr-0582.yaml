@@ -1,0 +1,27 @@
+---
+cases:
+  - data:
+      c:
+        - x:
+            - true
+            - false
+            - foo
+          y:
+            - null
+            - 3.14159
+          z:
+            p: true
+            q: false
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.c[i][j] = [true, false, x]
+        }
+    note: "eqexpr/pattern: array = ref (reversed)"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - foo

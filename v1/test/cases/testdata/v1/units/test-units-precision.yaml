@@ -1,0 +1,13 @@
+---
+cases:
+  - note: units_parse/no decimal places for integers
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	json.marshal(units.parse("1G")) == json.marshal(1000000000)
+        }
+    want_result:
+      - x: true

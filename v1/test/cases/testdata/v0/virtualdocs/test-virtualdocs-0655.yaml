@@ -1,0 +1,44 @@
+---
+cases:
+  - data:
+      d:
+        e:
+          - bar
+          - baz
+      l:
+        - a: bob
+          b: -1
+          c:
+            - 1
+            - 2
+            - 3
+            - 4
+        - a: alice
+          b: 1
+          c:
+            - 2
+            - 3
+            - 4
+            - 5
+          d: null
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.generated.q[_0][0].c[_1] = x
+        }
+
+        q[k] = v {
+          data.d.e[_0] = k
+          v = [r | r = data.l[_1]]
+        }
+    note: "virtualdocs/output: object dereference array of refs"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4

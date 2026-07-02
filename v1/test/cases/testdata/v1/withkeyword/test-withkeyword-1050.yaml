@@ -1,0 +1,19 @@
+---
+cases:
+  - note: withkeyword/bug 1083
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.ex.input_eq with data.foo as 1
+        }
+      - |
+        package ex
+
+        input_eq if {
+        	input.x = 1
+        }
+    data: {}
+    want_result: []

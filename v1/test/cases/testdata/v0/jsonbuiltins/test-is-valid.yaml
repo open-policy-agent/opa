@@ -1,0 +1,73 @@
+---
+cases:
+  - note: jsonbuiltins/json is_valid
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        documents = [
+          `plainstring`,
+          `{`,
+          `{"json": "ok"}`,
+        ]
+
+        p = [x | doc = documents[_]; json.is_valid(doc, x)]
+    strict_error: true
+    want_result:
+      - x:
+          - false
+          - false
+          - true
+
+  - note: jsonbuiltins/json is_valid not string
+    modules:
+      - |
+        package generated
+
+        p = x {
+          json.is_valid(input.foo, x)
+        }
+    query: data.generated.p = x
+    input: { "foo": 1 }
+    strict_error: true
+    want_result:
+      - x: false
+
+  - note: jsonbuiltins/yaml is_valid
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        documents = [
+          `foo:
+           - qux: bar
+           - baz: 2`,
+          `foo:
+           - qux: bar
+           - baz: {`,
+          `{"json": "ok"}`,
+        ]
+
+        p = [x | doc = documents[_]; yaml.is_valid(doc, x)]
+    strict_error: true
+    want_result:
+      - x:
+          - true
+          - false
+          - true
+
+  - note: jsonbuiltins/yaml is_valid not string
+    modules:
+      - |
+        package generated
+
+        p = x {
+          yaml.is_valid(input.foo, x)
+        }
+    query: data.generated.p = x
+    input: { "foo": 1 }
+    strict_error: true
+    want_result:
+      - x: false

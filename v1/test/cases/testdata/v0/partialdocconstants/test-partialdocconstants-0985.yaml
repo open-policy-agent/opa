@@ -1,0 +1,34 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package ex
+
+        foo["bar"] = 0
+
+        foo["baz"] = 1
+
+        foo["*"] = [1, 2, 3] {
+          input.foo = 7
+        }
+
+        bar["x"]
+
+        bar["y"]
+
+        bar["*"] {
+          input.foo = 7
+        }
+      - |
+        package topdown_test_partial
+
+        __result__ = _result {
+          _result = 0
+        }
+    note: partialdocconstants/obj
+    query: data.ex.foo = x
+    want_result:
+      - x:
+          bar: 0
+          baz: 1

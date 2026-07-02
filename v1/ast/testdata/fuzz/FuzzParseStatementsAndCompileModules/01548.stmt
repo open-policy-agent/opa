@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package z\n\nimport data.a\nimport input.req1\nimport input.req2 as req2as\nimport input.req3.a.b\nimport input.req4.a.b as req4as\n\np = true { a[i] = x; req1.foo = x; req2as.bar = x; q[x] }\nq[x] { req1.foo = x; req2as.bar = x; r[x] }\nr[x] { {\"foo\": req2as.bar, \"bar\": [x]} = {\"foo\": x, \"bar\": [req1.foo]} }\ns = true { b.x[0] = 1 }\nt = true { req4as.x[0] = 1 }\nu[x] { b[_] = x; x > 1 }\nw = [[1, 2], [3, 4]] { true }\ngt1 = true { req1 > 1 }\nkeys[x] = y { data.numbers[_] = x; to_number(x, y) }\nloopback = input { true }")

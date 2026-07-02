@@ -1,0 +1,22 @@
+---
+cases:
+  - note: "nestedreferences/vdoc ref: complete: no suffix"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	__local0__ = data.generated.q
+        	2 = data.a[__local0__]
+        }
+
+        q := 1
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x: true

@@ -1,0 +1,17 @@
+---
+cases:
+  - note: "completedoc/set/nested: {{1,2},{2,3}}"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := {{1, 2}, {2, 3}}
+    data: {}
+    want_result:
+      - x:
+          - - 1
+            - 2
+          - - 2
+            - 3
+    sort_bindings: true

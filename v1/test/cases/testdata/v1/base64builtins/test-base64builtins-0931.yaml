@@ -1,0 +1,15 @@
+---
+
+cases:
+  - note: base64builtins/decode-1
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	base64.decode("aGVsbG8=", x)
+        }
+    data: {}
+    want_result:
+      - x: hello

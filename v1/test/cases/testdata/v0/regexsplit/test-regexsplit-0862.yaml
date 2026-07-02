@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          regex.split("^[a-z]+\\[[0-9]+\\]$", "", [x])
+        }
+    note: "regexsplit/regex.split: empty string"
+    query: data.generated.p = x
+    want_result:
+      - x: ""

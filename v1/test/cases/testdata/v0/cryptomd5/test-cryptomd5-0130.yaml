@@ -1,0 +1,17 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p[__local0__] {
+          crypto.md5("lorem ipsum", __local1__)
+          __local0__ = __local1__
+        }
+    note: cryptomd5/crypto.md5 with string
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 80a751fde577028640c419000e33eba6

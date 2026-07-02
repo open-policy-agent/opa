@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "strings/trim: multi-cutset-none"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	trim("...foo.bar...", ".o", x)
+        }
+    data: {}
+    want_result:
+      - x: foo.bar

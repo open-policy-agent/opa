@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          regex.match("^[a-z]+\\[[0-9]+\\]$", "foo[1]")
+        }
+    note: regexmatch/regex.match
+    query: data.generated.p = x
+    want_result:
+      - x: true

@@ -1,0 +1,21 @@
+---
+cases:
+  - note: jsonbuiltins/unmarshal-non-string
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	__local0__ = data.a[0]
+        	json.unmarshal(__local0__, x)
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_error_code: eval_type_error
+    want_error: operand 1 must be string but got number
+    strict_error: true

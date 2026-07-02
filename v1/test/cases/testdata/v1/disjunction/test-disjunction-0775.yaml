@@ -1,0 +1,208 @@
+---
+cases:
+  - note: "disjunction/complete: reference error"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q
+        }
+
+        q := true
+
+        q := false
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: "disjunction/complete: nested conflict, else"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q
+        }
+
+        q if {
+        	false
+        }
+
+        else := true
+
+        q if {
+        	false
+        }
+
+        else := false
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: disjunction/nested function with conflict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := data.test.q(1)
+        	x == true
+        }
+
+        q(_) := true
+
+        q(_) := false
+    want_error_code: eval_conflict_error
+    want_error: functions must not produce multiple outputs for same inputs
+  - note: disjunction/nested function with conflict, else
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := data.test.q(1)
+        }
+
+        q(_) if {
+        	false
+        }
+
+        else := true
+
+        q(_) if {
+        	false
+        }
+
+        else := false
+    want_error_code: eval_conflict_error
+    want_error: functions must not produce multiple outputs for same inputs
+  - note: "disjunction/complete: conflict involving early-exit complete rule (set enumeration)"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	q
+        }
+
+        xs := {1, 2}
+
+        q := xs[_]
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: "disjunction/complete: conflict involving early-exit complete rule (array enumeration)"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	q
+        }
+
+        xs := [1, 2]
+
+        q := xs[_]
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: "disjunction/complete: conflict involving early-exit complete rule (object enumeration)"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	q
+        }
+
+        xs := {"a": 1, "b": 2}
+
+        q := xs[_]
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: "disjunction/complete: conflict involving early-exit partial rule"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	q
+        }
+
+        xs := {1, 2}
+
+        q[y] := x if {
+        	x := xs[_]
+        	y := 1
+        }
+    want_error_code: eval_conflict_error
+    want_error: object keys must be unique
+  - note: "disjunction/complete: conflict involving early-exit complete rule, else"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	q
+        }
+
+        xs := {1, 2}
+
+        q := false if {
+        	false
+        } else := xs[_]
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: "disjunction/complete: conflict involving early-exit complete rule, multiple"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	q
+        }
+
+        xs := {1, 2}
+
+        q := xs[_]
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: "disjunction/complete: conflict involving early-exit complete rule, data array enumeration"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	q
+        }
+
+        q := data.arr[_]
+    data:
+      arr:
+        - "1"
+        - "2"
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: "disjunction/complete: conflict involving early-exit complete rule, data object enumeration"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	q
+        }
+
+        q := data.obj[_]
+    data:
+      obj:
+        a: "1"
+        b: "2"
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs

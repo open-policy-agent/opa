@@ -1,0 +1,8 @@
+{
+  "budget": 10,
+  "deployments": [
+    { "spec": { "replicas": 3 } },
+    { "spec": { "replicas": 4 } },
+    { "spec": { "replicas": 5 } }
+  ]
+}

@@ -1,0 +1,271 @@
+// Copyright 2020 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+// Package init is an internal package with helpers for data and policy loading during initialization.
+package init
+
+import (
+	"context"
+	"fmt"
+	"io/fs"
+	"path/filepath"
+	"strings"
+
+	storedversion "github.com/open-policy-agent/opa/internal/version"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/loader"
+	"github.com/open-policy-agent/opa/v1/metrics"
+	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/util"
+)
+
+// InsertAndCompileOptions contains the input for the operation.
+type InsertAndCompileOptions struct {
+	Store                 storage.Store
+	Txn                   storage.Transaction
+	Files                 loader.Result
+	Bundles               map[string]*bundle.Bundle
+	MaxErrors             int
+	EnablePrintStatements bool
+	ParserOptions         ast.ParserOptions
+	BundleActivatorPlugin string
+	ExternalSources       *util.HasherMap[ast.Ref, ast.ExternalRuleSource]
+}
+
+// InsertAndCompileResult contains the output of the operation.
+type InsertAndCompileResult struct {
+	Compiler *ast.Compiler
+	Metrics  metrics.Metrics
+}
+
+// InsertAndCompile writes data and policy into the store and returns a compiler for the
+// store contents.
+func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*InsertAndCompileResult, error) {
+	if len(opts.Files.Documents) > 0 {
+		if err := opts.Store.Write(ctx, opts.Txn, storage.AddOp, storage.RootPath, opts.Files.Documents); err != nil {
+			return nil, fmt.Errorf("storage error: %w", err)
+		}
+	}
+
+	policies := make(map[string]*ast.Module, len(opts.Files.Modules))
+
+	for id, parsed := range opts.Files.Modules {
+		policies[id] = parsed.Parsed
+	}
+
+	compiler := ast.NewCompiler().
+		WithDefaultRegoVersion(opts.ParserOptions.RegoVersion).
+		SetErrorLimit(opts.MaxErrors).
+		WithPathConflictsCheck(storage.NonEmpty(ctx, opts.Store, opts.Txn)).
+		WithEnablePrintStatements(opts.EnablePrintStatements)
+
+	// Apply external sources to the compiler before bundle activation.
+	// Bundle activation applies them again via compileModules, but we need them
+	// here too: there may be no bundles, or a custom activator plugin may not
+	// call compileModules.
+	if opts.ExternalSources != nil {
+		opts.ExternalSources.Iter(func(ref ast.Ref, source ast.ExternalRuleSource) bool {
+			compiler = compiler.WithExternalSource(ref, source)
+			return false
+		})
+	}
+
+	m := metrics.New()
+
+	activation := &bundle.ActivateOpts{
+		Ctx:             ctx,
+		Store:           opts.Store,
+		Txn:             opts.Txn,
+		Compiler:        compiler,
+		Metrics:         m,
+		Bundles:         opts.Bundles,
+		ExtraModules:    policies,
+		ExternalSources: opts.ExternalSources,
+		ParserOptions:   opts.ParserOptions,
+		Plugin:          opts.BundleActivatorPlugin,
+	}
+
+	err := bundle.Activate(activation)
+	if err != nil {
+		return nil, err
+	}
+
+	// Policies in bundles will have already been added to the store, but
+	// modules loaded outside of bundles will need to be added manually.
+	for id, parsed := range opts.Files.Modules {
+		if err := opts.Store.UpsertPolicy(ctx, opts.Txn, id, parsed.Raw); err != nil {
+			return nil, fmt.Errorf("storage error: %w", err)
+		}
+	}
+
+	// Set the version in the store last to prevent data files from overwriting.
+	if err := storedversion.Write(ctx, opts.Store, opts.Txn); err != nil {
+		return nil, fmt.Errorf("storage error: %w", err)
+	}
+
+	return &InsertAndCompileResult{Compiler: compiler, Metrics: m}, nil
+}
+
+// LoadPathsResult contains the output loading a set of paths.
+type LoadPathsResult struct {
+	Bundles map[string]*bundle.Bundle
+	Files   loader.Result
+}
+
+// WalkPathsResult contains the output loading a set of paths.
+type WalkPathsResult struct {
+	BundlesLoader   []BundleLoader
+	FileDescriptors []*Descriptor
+}
+
+// BundleLoader contains information about files in a bundle
+type BundleLoader struct {
+	DirectoryLoader bundle.DirectoryLoader
+	IsDir           bool
+}
+
+// Descriptor contains information about a file
+type Descriptor struct {
+	Root string
+	Path string
+}
+
+// LoadPaths reads data and policy from the given paths and returns a set of bundles or
+// raw loader file results.
+func LoadPaths(paths []string,
+	filter loader.Filter,
+	asBundle bool,
+	bvc *bundle.VerificationConfig,
+	skipVerify bool,
+	bundleLazyLoading bool,
+	processAnnotations bool,
+	caps *ast.Capabilities,
+	fsys fs.FS) (*LoadPathsResult, error) {
+	return LoadPathsForRegoVersion(ast.ParserOptions{RegoVersion: ast.RegoV0, ProcessAnnotation: processAnnotations, Capabilities: caps}, paths, filter, asBundle, bvc, skipVerify, bundleLazyLoading, false, fsys)
+}
+
+func LoadPathsForRegoVersion(popts ast.ParserOptions,
+	paths []string,
+	filter loader.Filter,
+	asBundle bool,
+	bvc *bundle.VerificationConfig,
+	skipVerify bool,
+	bundleLazyLoading bool,
+	followSymlinks bool,
+	fsys fs.FS) (*LoadPathsResult, error) {
+
+	caps := popts.Capabilities
+	if caps == nil {
+		caps = ast.CapabilitiesForThisVersion()
+	}
+
+	// tar.gz files are automatically loaded as bundles
+	var likelyBundles, nonBundlePaths []string
+	if !asBundle {
+		likelyBundles, nonBundlePaths = splitByTarGzExt(paths)
+		paths = likelyBundles
+	}
+
+	var result LoadPathsResult
+	var err error
+	if asBundle || len(likelyBundles) > 0 {
+		result.Bundles = make(map[string]*bundle.Bundle, len(paths))
+		for _, path := range paths {
+			result.Bundles[path], err = loader.NewFileLoader().
+				WithFS(fsys).
+				WithBundleVerificationConfig(bvc).
+				WithSkipBundleVerification(skipVerify).
+				WithBundleLazyLoadingMode(bundleLazyLoading).
+				WithFilter(filter).
+				WithProcessAnnotation(popts.ProcessAnnotation).
+				WithCapabilities(caps).
+				WithRegoVersion(popts.RegoVersion).
+				WithFollowSymlinks(followSymlinks).
+				AsBundle(path)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if asBundle {
+		return &result, nil
+	}
+
+	files, err := loader.NewFileLoader().
+		WithFS(fsys).
+		WithBundleLazyLoadingMode(bundleLazyLoading).
+		WithProcessAnnotation(popts.ProcessAnnotation).
+		WithCapabilities(caps).
+		WithRegoVersion(popts.RegoVersion).
+		Filtered(nonBundlePaths, filter)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result.Files = *files
+
+	return &result, nil
+}
+
+// splitByTarGzExt splits the paths in 2 groups. Ones with .tar.gz and another with
+// non .tar.gz extensions.
+func splitByTarGzExt(paths []string) (targzs []string, nonTargzs []string) {
+	for _, path := range paths {
+		if strings.HasSuffix(path, ".tar.gz") {
+			targzs = append(targzs, path)
+		} else {
+			nonTargzs = append(nonTargzs, path)
+		}
+	}
+	return
+}
+
+// WalkPaths reads data and policy from the given paths and returns a set of bundle directory loaders
+// or descriptors that contain information about files.
+func WalkPaths(paths []string, filter loader.Filter, asBundle bool) (*WalkPathsResult, error) {
+
+	var result WalkPathsResult
+
+	if asBundle {
+		result.BundlesLoader = make([]BundleLoader, len(paths))
+		for i, path := range paths {
+			bundleLoader, isDir, err := loader.GetBundleDirectoryLoader(path)
+			if err != nil {
+				return nil, err
+			}
+
+			result.BundlesLoader[i] = BundleLoader{
+				DirectoryLoader: bundleLoader,
+				IsDir:           isDir,
+			}
+		}
+		return &result, nil
+	}
+
+	result.FileDescriptors = []*Descriptor{}
+	for _, path := range paths {
+		filePaths, err := loader.FilteredPaths([]string{path}, filter)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, fp := range filePaths {
+			// Trim off the root directory and return path as if chrooted
+			cleanedPath := strings.TrimPrefix(fp, path)
+			if path == "." && filepath.Base(fp) == bundle.ManifestExt {
+				cleanedPath = fp
+			}
+
+			result.FileDescriptors = append(result.FileDescriptors, &Descriptor{
+				Root: path,
+				Path: util.WithPrefix(cleanedPath, "/"),
+			})
+		}
+	}
+
+	return &result, nil
+}

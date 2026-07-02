@@ -1,0 +1,21 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          substring("abcdefgh", 2, 10000, x)
+        }
+    note: "strings/substring: too long"
+    query: data.generated.p = x
+    want_result:
+      - x: cdefgh
+  - modules:
+      - "package generated\n\np = x {\n  substring(\"abcdefgh\xE5\xE4\xF6\", 2, 10000,\
+        \ x)\n}\n"
+    note: "strings/substring: too long unicode"
+    query: data.generated.p = x
+    want_result:
+      - x: "cdefgh\xE5\xE4\xF6"

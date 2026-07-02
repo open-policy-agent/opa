@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = true { abs(-10, x); x = 10 }")

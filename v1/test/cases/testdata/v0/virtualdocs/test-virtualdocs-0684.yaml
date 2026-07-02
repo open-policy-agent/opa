@@ -1,0 +1,25 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.generated.q = x
+        }
+
+        q[k] = v {
+          i = "a"
+          j = 1
+          v = [i, j]
+          k = i
+        }
+    note: "virtualdocs/no suffix: object var binding"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - a:
+              - a
+              - 1

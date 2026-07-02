@@ -1,0 +1,126 @@
+---
+cases:
+  - note: uribuiltins/parse full url
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.parse("https://example.com:8080/api?q=1#top")
+    data: {}
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          port: "8080"
+          path: /api
+          raw_path: /api
+          raw_query: q=1
+          fragment: top
+  - note: uribuiltins/parse without port
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.parse("https://example.com/path")
+    data: {}
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          path: /path
+          raw_path: /path
+  - note: uribuiltins/parse without query or fragment
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.parse("https://example.com:443/path")
+    data: {}
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          port: "443"
+          path: /path
+          raw_path: /path
+  - note: uribuiltins/parse without path
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.parse("https://example.com?q=1#frag")
+    data: {}
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          raw_query: q=1
+          fragment: frag
+  - note: uribuiltins/parse ipv6 hostname
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.parse("http://[::1]:8080/path")
+    data: {}
+    want_result:
+      - x:
+          scheme: http
+          hostname: "::1"
+          port: "8080"
+          path: /path
+          raw_path: /path
+  - note: uribuiltins/parse percent-encoded path
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.parse("https://example.com/path%2Fwith%2Fslashes")
+    data: {}
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          path: /path/with/slashes
+          raw_path: /path%2Fwith%2Fslashes
+  - note: uribuiltins/parse plain path raw_path matches path
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.parse("https://example.com/plain/path")
+    data: {}
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          path: /plain/path
+          raw_path: /plain/path
+  - note: uribuiltins/parse empty string
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.parse("")
+    data: {}
+    want_result:
+      - x: {}
+  - note: uribuiltins/parse mailto uri
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.parse("mailto:user@example.com")
+    data: {}
+    want_result:
+      - x:
+          scheme: mailto

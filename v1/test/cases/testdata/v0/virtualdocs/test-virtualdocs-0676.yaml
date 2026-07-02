@@ -1,0 +1,24 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.generated.q[_][_] = x
+        }
+
+        q = [{"x": x, "y": y}, z] {
+          x = 1
+          y = 2
+          z = [1, 2, 3]
+        }
+    note: "virtualdocs/output: complete vars"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3

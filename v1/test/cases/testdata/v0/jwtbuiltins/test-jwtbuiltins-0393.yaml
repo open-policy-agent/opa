@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXV.CJ9eyJzdWIiOiIwIiwiaXNzIjoib3BhIn0XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY", [x, y, z])
+        }
+    note: jwtbuiltins/wrong-period-count
+    query: data.generated.p = x
+    strict_error: true
+    want_error: encoded JWT must have 3 sections, found 2
+    want_error_code: eval_builtin_error

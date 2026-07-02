@@ -1,0 +1,16 @@
+---
+cases:
+  - note: "virtualdocs/input: complete set"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q[3]
+        }
+
+        q := {1, 2, 3, 4}
+    data: {}
+    want_result:
+      - x: true

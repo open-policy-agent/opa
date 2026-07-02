@@ -1,0 +1,30 @@
+---
+cases:
+  - data:
+      c:
+        - x:
+            - true
+            - false
+            - foo
+          y:
+            - null
+            - 3.14159
+          z:
+            p: true
+            q: false
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.c[0].x[i]
+          {"a": 1, "b": x} = {"a": 1, "b": __local0__}
+        }
+    note: "eqexpr/pattern: object non-ground ref"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - false
+          - true
+          - foo

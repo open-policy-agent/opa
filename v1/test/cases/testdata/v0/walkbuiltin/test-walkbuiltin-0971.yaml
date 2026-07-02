@@ -1,0 +1,34 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.a
+          walk(__local0__, x)
+        }
+    note: walkbuiltin/arrays
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - []
+            - - 1
+              - 2
+              - 3
+              - 4
+          - - - 0
+            - 1
+          - - - 1
+            - 2
+          - - - 2
+            - 3
+          - - - 3
+            - 4

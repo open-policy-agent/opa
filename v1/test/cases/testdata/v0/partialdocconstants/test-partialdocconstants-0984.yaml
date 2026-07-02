@@ -1,0 +1,26 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package ex
+
+        foo["bar"] = 0
+
+        foo["baz"] = 1
+
+        foo["*"] = [1, 2, 3] {
+          input.foo = 7
+        }
+
+        bar["x"]
+
+        bar["y"]
+
+        bar["*"] {
+          input.foo = 7
+        }
+    note: partialdocconstants/obj-1
+    query: data.ex.foo.bar = x
+    want_result:
+      - x: 0

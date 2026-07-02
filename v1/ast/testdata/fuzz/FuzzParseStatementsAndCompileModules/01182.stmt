@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p { yaml.unmarshal(\"[1,2,3\", _) } ")

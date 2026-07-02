@@ -1,0 +1,25 @@
+---
+cases:
+  - note: "eqexpr/pattern: object/array nested"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains ys if {
+        	data.f[i] = {"xs": [2], "ys": ys}
+        }
+    data:
+      f:
+        - xs:
+            - 1
+          ys:
+            - 2
+        - xs:
+            - 2
+          ys:
+            - 3
+    want_result:
+      - x:
+          - - 3
+    sort_bindings: true

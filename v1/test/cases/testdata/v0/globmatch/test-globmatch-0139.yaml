@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          glob.match("[abc]at", [], "fat", x)
+        }
+    note: globmatch/glob no match with character-list matchers
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - false

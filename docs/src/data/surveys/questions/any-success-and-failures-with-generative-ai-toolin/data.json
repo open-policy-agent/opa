@@ -1,0 +1,15 @@
+{
+  "id": "any-success-and-failures-with-generative-ai-toolin",
+  "title": "Any success and failures with generative AI tooling for Rego and OPA learning?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 19
+}

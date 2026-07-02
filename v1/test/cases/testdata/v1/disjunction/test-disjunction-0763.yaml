@@ -1,0 +1,33 @@
+---
+cases:
+  - note: "disjunction/incr: query set"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.a[i] = x
+        }
+
+        p contains y if {
+        	data.b[j] = y
+        }
+    data:
+      a:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+      b:
+        v1: hello
+        v2: goodbye
+    want_result:
+      - x:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - goodbye
+          - hello
+    sort_bindings: true

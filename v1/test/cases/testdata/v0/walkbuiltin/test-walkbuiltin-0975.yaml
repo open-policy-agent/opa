@@ -1,0 +1,33 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[[k1, k2, x]] {
+          __local0__ = data.generated.q
+          walk(__local0__, [["a", k1, "b", k2], x])
+        }
+
+        q = {"a": [
+          {"b": {"foo": 1, "bar": 2}},
+          {"b": {"baz": 3, "qux": 4}},
+        ]}
+    note: walkbuiltin/partially ground path
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - 0
+            - bar
+            - 2
+          - - 0
+            - foo
+            - 1
+          - - 1
+            - baz
+            - 3
+          - - 1
+            - qux
+            - 4

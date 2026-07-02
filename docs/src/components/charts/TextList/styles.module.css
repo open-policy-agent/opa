@@ -1,0 +1,22 @@
+.container {
+  max-width: 700px;
+  margin-top: 1rem;
+}
+
+.intro {
+  margin-bottom: 1rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.5;
+}
+
+.bullets {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.bulletItem {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+  font-weight: 500;
+}

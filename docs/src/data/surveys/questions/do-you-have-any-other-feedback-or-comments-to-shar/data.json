@@ -1,0 +1,15 @@
+{
+  "id": "do-you-have-any-other-feedback-or-comments-to-shar",
+  "title": "Do you have any other feedback or comments to share about Regal?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "regal"
+  ],
+  "rank": 69
+}

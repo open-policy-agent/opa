@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [v, w, x, y] {
+          regex.split("a", "banana", [v, w, x, y])
+        }
+    note: "regexsplit/regex.split: non-repeat pattern"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - b
+          - "n"
+          - "n"
+          - ""

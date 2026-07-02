@@ -1,0 +1,30 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      h:
+        - - 1
+          - 2
+          - 3
+        - - 2
+          - 3
+          - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.a[i]
+          __local1__ = data.h[i][__local0__]
+          x = data.a[__local1__]
+        }
+    note: nestedreferences/two deep repeated var
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 3

@@ -1,0 +1,11 @@
+{
+  "data": [],
+  "intro": "5 responses",
+  "bullets": [
+    {
+      "title": "Insufficient Documentation",
+      "count": 2,
+      "sentence": "Users find gaps in the current docs, noting they do \"not provide details on the interfaces\" and lack clarity on \"the mapping between a request and a policy\" or \"how to evaluate multiple policies against a single request.\""
+    }
+  ]
+}

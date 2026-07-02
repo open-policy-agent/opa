@@ -1,0 +1,22 @@
+---
+cases:
+  - data:
+      d:
+        e:
+          - bar
+          - baz
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.d.e[x]
+          re_match("^b.*$", __local0__)
+        }
+    note: "regexmatch/re_match: ref"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 0
+          - 1

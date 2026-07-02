@@ -1,0 +1,28 @@
+---
+cases:
+  - data: {}
+    input_term: "2"
+    modules:
+      - |
+        package generated
+
+        q = "a" {
+          input = x
+          x = 1
+        }
+
+        q = "b" {
+          input = x
+          x = 2
+        }
+
+        p = [x, y] {
+          data.generated.q = x with input as 1
+          data.generated.q = y
+        }
+    note: withkeyword/with invalidate virtual cache
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - a
+          - b

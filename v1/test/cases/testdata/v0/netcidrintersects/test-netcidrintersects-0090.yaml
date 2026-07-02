@@ -1,0 +1,15 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = x {
+          net.cidr_intersects("not-a-cidr", "192.168.1.0/24", x)
+        }
+    note: netcidrintersects/cidr subnet overlap malformed cidr a
+    query: data.generated.p = x
+    want_error: ""
+    want_error_code: eval_builtin_error
+    strict_error: true

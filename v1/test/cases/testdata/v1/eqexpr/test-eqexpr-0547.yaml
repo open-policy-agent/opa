@@ -1,0 +1,18 @@
+---
+cases:
+  - note: "eqexpr/undefined: ref value"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.a[3] = 9999
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result: []

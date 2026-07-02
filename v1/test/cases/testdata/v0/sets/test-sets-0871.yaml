@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          s1 = {1, 2, 3, 4}
+          s2 = {1, 3}
+          __local0__ = s1 - s2
+          x = __local0__
+        }
+    note: sets/set_diff
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 2
+          - 4

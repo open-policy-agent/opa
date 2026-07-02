@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          type_name([1, 2, 3], x)
+        }
+    note: typenamebuiltin/type_name
+    query: data.generated.p = x
+    want_result:
+      - x: array

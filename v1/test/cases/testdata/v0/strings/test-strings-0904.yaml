@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          split("foo", ".", [x])
+        }
+    note: "strings/split: one"
+    query: data.generated.p = x
+    want_result:
+      - x: foo

@@ -1,0 +1,32 @@
+---
+cases:
+  - note: uribuiltins/is_valid true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.is_valid("https://example.com/path?q=1")
+    data: {}
+    want_result:
+      - x: true
+  - note: uribuiltins/is_valid empty string
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.is_valid("")
+    data: {}
+    want_result:
+      - x: false
+  - note: uribuiltins/is_valid invalid
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uri.is_valid("http://[invalid")
+    data: {}
+    want_result:
+      - x: false

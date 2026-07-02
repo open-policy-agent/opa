@@ -1,0 +1,17 @@
+---
+cases:
+  - note: bitsshiftleft/basic shift-left
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains __local0__ if {
+        	bits.lsh(1, 3, __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    want_result:
+      - x:
+          - 8
+    sort_bindings: true

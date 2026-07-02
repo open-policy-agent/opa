@@ -1,0 +1,15 @@
+---
+cases:
+  - note: semvercompare/a < b
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	semver.compare("1.0.0", "2.0.0", __local0__)
+        	x = __local0__
+        }
+    data: {}
+    want_result:
+      - x: -1

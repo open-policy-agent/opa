@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          io.jwt.verify_hs256("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.R0NDxM1gHTucWQKwayMDre2PbMNR9K9efmOfygDZWcE", "secret", x)
+        }
+    note: jwtverifyhs256/failure-bad token
+    query: data.generated.p = x
+    want_result:
+      - x: false

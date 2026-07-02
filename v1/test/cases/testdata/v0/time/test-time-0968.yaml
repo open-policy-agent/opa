@@ -1,0 +1,27 @@
+---
+cases:
+  - note: time/add_date year month day
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          time.add_date(1585852421593912000, 3, 9, 12, __local1__)
+          __local0__ = __local1__
+        }
+
+    query: data.generated.p = x
+    want_result:
+      - x: 1705257221593912000
+  - note: time/add_date too large result
+    modules:
+      - |
+        package generated
+
+        p = ns {
+          time.add_date(0, 2262, 1, 1, ns)
+        }
+    query: data.generated.p = x
+    strict_error: true
+    want_error_code: eval_builtin_error
+    want_error: "time outside of valid range"

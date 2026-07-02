@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          is_number(-42.0, x)
+          is_number(0, y)
+          is_number(100.1, z)
+        }
+    note: typebuiltin/is_number
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - true
+          - true
+          - true

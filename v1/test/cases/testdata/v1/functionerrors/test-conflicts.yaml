@@ -1,0 +1,28 @@
+---
+cases:
+  - note: "functionerrors/conflict: plain false and true result, first round"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        o := ["1", "2"]
+
+        f(x) := o[_] == x
+
+        p if f("1")
+    want_error_code: eval_conflict_error
+    want_error: functions must not produce multiple outputs for same inputs
+  - note: "functionerrors/conflict: plain false and true result, second round"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        o := ["1", "2"]
+
+        f(x) := o[_] == x
+
+        p if f("2")
+    want_error_code: eval_conflict_error
+    want_error: functions must not produce multiple outputs for same inputs

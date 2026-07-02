@@ -1,0 +1,27 @@
+---
+cases:
+  - note: "virtualdocs/i/o: objects"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.generated.q[x] = data.generated.r[x]
+        }
+
+        q[x] := y if {
+        	z = {"a": 1, "b": 2, "d": 4}
+        	z[x] = y
+        }
+
+        r[k] := v if {
+        	x = {"a": 1, "b": 2, "c": 4, "d": 3}
+        	x[k] = v
+        }
+    data: {}
+    want_result:
+      - x:
+          - a
+          - b
+    sort_bindings: true

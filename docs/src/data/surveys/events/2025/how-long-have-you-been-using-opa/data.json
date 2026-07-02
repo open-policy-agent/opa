@@ -1,0 +1,27 @@
+{
+  "data": [
+    {
+      "label": "< 3 months",
+      "value": 9
+    },
+    {
+      "label": "3-6 months",
+      "value": 9
+    },
+    {
+      "label": "6-12 months",
+      "value": 16
+    },
+    {
+      "label": "Over 12 months",
+      "value": 15
+    },
+    {
+      "label": "more than 2 years",
+      "value": 39
+    }
+  ],
+  "footnotes": [
+    "Response labels have been normalized across survey years to enable comparison (e.g., 'Just started' and '< 3 months' are treated as equivalent)"
+  ]
+}

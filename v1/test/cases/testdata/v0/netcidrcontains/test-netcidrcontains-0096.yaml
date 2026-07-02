@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          net.cidr_contains("2001:4860:4860::8888/32", "2001:4860:4860:1234::8888/40", x)
+        }
+    note: netcidrcontains/cidr contains subnet ipv6
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - true

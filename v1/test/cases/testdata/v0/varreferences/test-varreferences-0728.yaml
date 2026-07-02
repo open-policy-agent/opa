@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] = y {
+          v = [{"a": 1, "b": 2}, {"c": 3, "z": [4]}]
+          y = v[i][x][j]
+        }
+    note: varreferences/mixed
+    query: data.generated.p = x
+    want_result:
+      - x:
+          z: 4

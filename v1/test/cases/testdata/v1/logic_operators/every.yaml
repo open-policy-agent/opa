@@ -1,0 +1,103 @@
+---
+cases:
+  - note: "logic_op/every: and inside every body, all succeed"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          every n in input.xs {
+            n > 0 and n < 10
+          }
+        }
+    input:
+      xs: [1, 2, 3]
+    want_result:
+      - x: true
+  - note: "logic_op/every: and inside every body, one fails"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          every n in input.xs {
+            n > 0 and n < 10
+          }
+        }
+    input:
+      xs: [1, 2, 100]
+    want_result: []
+  - note: "logic_op/every: or inside every body, all match at least one branch"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          every n in input.xs {
+            n < 0 or n > 0
+          }
+        }
+    input:
+      xs: [-3, 1, 5]
+    want_result:
+      - x: true
+  - note: "logic_op/every: or inside every body, one matches neither branch"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          every n in input.xs {
+            n < 0 or n > 0
+          }
+        }
+    input:
+      xs: [-3, 0, 5]
+    want_result: []
+  - note: "logic_op/every: not (or) inside every body"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+        import future.keywords.not
+
+        p if {
+          every n in input.xs {
+            not { n < 0 or n > 10 }
+          }
+        }
+    input:
+      xs: [0, 5, 9]
+    want_result:
+      - x: true
+  - note: "logic_op/every: scoped local var inside operand body"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          every n in input.xs {
+            { m := n; m > 0 } and n < 10
+          }
+        }
+    input:
+      xs: [1, 2, 3]
+    want_result:
+      - x: true

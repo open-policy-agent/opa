@@ -1,0 +1,40 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode_verify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.G051ZlKno4XdDz4pdPthPKH1cKlFqkREvx_dHhl6kwM", {
+            "cert": `{
+          "keys": [
+            {
+              "kty": "EC",
+              "use": "sig",
+              "crv": "P-256",
+              "kid": "k1",
+              "x": "9Qq5S5VqMQoH-FOI4atcH6V3bua03C-5ZMZMG1rszwA",
+              "y": "LLbFxWkGBEBrTm1GMYZJy1OXCH1KLweJMCgIEPIsibU",
+              "alg": "ES256"
+            },
+            {
+              "kty": "RSA",
+              "e": "AQAB",
+              "use": "enc",
+              "kid": "k2",
+              "alg": "RS256",
+              "n": "sGu-fYVE2nq2dPxJlqAMI0Z8G3FD0XcWDnD8mkfO1ddKRGuUQZmfj4gWeZGyIk3cnuoy7KJCEqa3daXc08QHuFZyfn0rH33t8_AFsvb0q0i7R2FK-Gdqs_E0-sGpYMsRJdZWfCioLkYjIHEuVnRbi3DEsWqe484rEGbKF60jNRgGC4b-8pz-E538ZkssWxcqHrYIj5bjGEU36onjS3M_yrTuNvzv_8wRioK4fbcwmGne9bDxu8LcoSReWpPn0CnUkWnfqroRcMJnC87ZuJagDW1ZWCmU3psdsVanmFFh0DP6z0fsA4h8G2n9-qp-LEKFaWwo3IWlOsIzU3MHdcEiGw"
+            }
+          ]
+        }`,
+            "time": 1574723450396363500,
+          }, [x, y, z])
+        }
+    note: jwtdecodeverify/multiple-keys-no-valid
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - false
+          - {}
+          - {}

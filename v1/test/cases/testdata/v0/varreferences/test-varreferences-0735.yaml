@@ -1,0 +1,20 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          i = {"a": 1, "b": 2, "c": 3}
+          j = ["a", "c", "deadbeef"]
+          j[k] = y
+          i[y] = x
+        }
+    note: "varreferences/object: ground var"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 3

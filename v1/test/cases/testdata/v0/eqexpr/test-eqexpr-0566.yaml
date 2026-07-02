@@ -1,0 +1,25 @@
+---
+cases:
+  - data:
+      c:
+        - x:
+            - true
+            - false
+            - foo
+          y:
+            - null
+            - 3.14159
+          z:
+            p: true
+            q: false
+    modules:
+      - |
+        package generated
+
+        p {
+          data.c[0].x[1] = data.c[0].z.q
+        }
+    note: "eqexpr/ground: ref 4"
+    query: data.generated.p = x
+    want_result:
+      - x: true

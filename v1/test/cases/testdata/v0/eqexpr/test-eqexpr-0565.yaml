@@ -1,0 +1,18 @@
+---
+cases:
+  - data:
+      d:
+        e:
+          - bar
+          - baz
+    modules:
+      - |
+        package generated
+
+        p {
+          data.d.e = ["bar", "baz"]
+        }
+    note: "eqexpr/ground: ref 3"
+    query: data.generated.p = x
+    want_result:
+      - x: true

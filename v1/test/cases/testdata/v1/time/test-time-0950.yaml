@@ -1,0 +1,14 @@
+---
+cases:
+  - note: time/parse duration nanos
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := ns if {
+        	time.parse_duration_ns("100ms", ns)
+        }
+    data: {}
+    want_result:
+      - x: 100000000

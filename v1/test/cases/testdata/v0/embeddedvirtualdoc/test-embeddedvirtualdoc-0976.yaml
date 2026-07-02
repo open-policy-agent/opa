@@ -1,0 +1,45 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      g:
+        a:
+          - 1
+          - 0
+          - 0
+          - 0
+        b:
+          - 0
+          - 2
+          - 0
+          - 0
+        c:
+          - 0
+          - 0
+          - 0
+          - 4
+    input_term: "{}"
+    modules:
+      - |
+        package b.c.d
+
+        p[x] {
+          data.a[i] = x
+          data.b.c.d.q[x]
+        }
+
+        q[x] {
+          data.g[j][k] = x
+        }
+    note: embeddedvirtualdoc/deep embedded vdoc
+    query: data.b.c.d.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 4

@@ -1,0 +1,17 @@
+---
+cases:
+  - note: regexfind/finds no matching values
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	regex.find_n("bork", "paranormal", -1, __local0__)
+        	x = __local0__
+        }
+    data: {}
+    want_result:
+      - x:
+          - []
+    sort_bindings: true

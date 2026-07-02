@@ -1,0 +1,200 @@
+---
+cases:
+  - note: keywordrefs/%{KW} keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.%{KW}.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.%{KW}.bar
+
+        p {
+          bar.baz == 42
+          data.foo.%{KW}.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/%{KW} keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.%{KW}
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.%{KW} as my_if
+
+        p {
+          my_if.bar == 42
+          data.foo.%{KW}.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/%{KW} keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          %{KW}.foo == 1
+          foo.%{KW} == 2
+        }
+
+        %{KW}.foo := 1
+
+        foo.%{KW} := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/%{KW} keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p {
+          %{KW}.foo.bar == 3
+          foo.bar.%{KW} == 6
+        }
+
+        %{KW}.foo.bar := 1 {
+          input.x == 1
+        } else := 2 {
+          input.x == 2
+        } else := 3
+
+        foo.bar.%{KW} := 4 {
+          input.x == 1
+        } else := 5 {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/%{KW} keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.contains
+
+        p {
+          %{KW}.foo.bar == {"a", "c"}
+          foo.bar.%{KW} == {"a", "c"}
+        }
+
+        %{KW}.foo.bar contains "a"
+
+        %{KW}.foo.bar contains "b" {
+          false
+        }
+
+        %{KW}.foo.bar contains "c" {
+          true
+        }
+
+        foo.bar.%{KW} contains "a"
+
+        foo.bar.%{KW} contains "b" {
+          false
+        }
+
+        foo.bar.%{KW} contains "c" {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/%{KW} keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          %{KW}.foo == "a"
+          %{KW}.bar.one == "a"
+          %{KW}.bar.three == "c"
+          foo.%{KW} == "a"
+          bar.baz.%{KW} == "a"
+        }
+
+        %{KW}.foo := "a"
+
+        %{KW}.foo := "b" {
+          false
+        }
+
+        %{KW}.foo := "c" {
+          false
+        }
+
+        %{KW}.bar.one := "a"
+
+        %{KW}.bar.two := "b" {
+          false
+        }
+
+        %{KW}.bar.three := "c" {
+          true
+        }
+
+        foo.%{KW} := "a"
+
+        foo.%{KW} := "b" {
+          false
+        }
+
+        foo.%{KW} := "c" {
+          false
+        }
+
+        bar.baz.%{KW} := "a"
+
+        bar.baz.%{KW} := "b" {
+          false
+        }
+
+        bar.baz.%{KW} := "c" {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/%{KW} keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          %{KW}.foo(1) == 1
+          %{KW}.foo(11) == 42
+          foo.%{KW}(1) == 1
+          foo.%{KW}(11) == 42
+          bar.%{KW}.baz(1) == 1
+          bar.%{KW}.baz(11) == 42
+        }
+
+        default %{KW}.foo(_) := 42
+
+        %{KW}.foo(x) := x {
+          x < 10
+        }
+
+        default foo.%{KW}(_) := 42
+
+        foo.%{KW}(x) := x {
+          x < 10
+        }
+
+        default bar.%{KW}.baz(_) := 42
+
+        bar.%{KW}.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

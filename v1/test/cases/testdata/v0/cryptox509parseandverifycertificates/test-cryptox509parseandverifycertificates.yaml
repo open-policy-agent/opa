@@ -1,0 +1,138 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package test
+
+        import future.keywords
+
+        certs := `-----BEGIN CERTIFICATE-----
+        MIIBoDCCAUagAwIBAgIRAJXcMYZALXooNq/VV/grXhMwCgYIKoZIzj0EAwIwLjER
+        MA8GA1UEChMIT1BBIFRlc3QxGTAXBgNVBAMTEE9QQSBUZXN0IFJvb3QgQ0EwHhcN
+        MjEwNzAxMTc0MTUzWhcNMzEwNjI5MTc0MTUzWjAuMREwDwYDVQQKEwhPUEEgVGVz
+        dDEZMBcGA1UEAxMQT1BBIFRlc3QgUm9vdCBDQTBZMBMGByqGSM49AgEGCCqGSM49
+        AwEHA0IABFqhdZA5LjsJgzsBvhgzfayZFOk+C7PmGCi7xz6zOC3xWORJZSNOyZeJ
+        YzSKFmoMZkcFMfslTW1jp9fwe1xl3HWjRTBDMA4GA1UdDwEB/wQEAwIBBjASBgNV
+        HRMBAf8ECDAGAQH/AgEBMB0GA1UdDgQWBBTch60qxQvLl+AfDfcaXmjvT8GvpzAK
+        BggqhkjOPQQDAgNIADBFAiBqraIP0l2U0oNuH0+rf36hDks94wSB5EGlGH3lYNMR
+        ugIhANkbukX5hOP8pJDRWP/pYuv6MBnRY4BS8gpp9Vu31qOb
+        -----END CERTIFICATE-----
+        -----BEGIN CERTIFICATE-----
+        MIIByDCCAW6gAwIBAgIQC0k4DPGrh9me73EJX5zntTAKBggqhkjOPQQDAjAuMREw
+        DwYDVQQKEwhPUEEgVGVzdDEZMBcGA1UEAxMQT1BBIFRlc3QgUm9vdCBDQTAeFw0y
+        MTA3MDExNzQxNTNaFw0zMTA2MjkxNzQxNTNaMDYxETAPBgNVBAoTCE9QQSBUZXN0
+        MSEwHwYDVQQDExhPUEEgVGVzdCBJbnRlcm1lZGlhdGUgQ0EwWTATBgcqhkjOPQIB
+        BggqhkjOPQMBBwNCAARvXQa7fy476gDI81nqLYb2SnD459WxBmU0hk2bA3ZuNtI+
+        H20KXz6ISmxH3MZ2WBm6rOy7y4Gn+WMCJuxzcl5jo2YwZDAOBgNVHQ8BAf8EBAMC
+        AQYwEgYDVR0TAQH/BAgwBgEB/wIBADAdBgNVHQ4EFgQUuslZNjJl0V8I1Gj17IID
+        ALy/9WEwHwYDVR0jBBgwFoAU3IetKsULy5fgHw33Gl5o70/Br6cwCgYIKoZIzj0E
+        AwIDSAAwRQIgUwsYApW9Tsm6AstWswaKGie0srB4FUkUbfKwWmUI2JgCIQCBTySN
+        MF+EiQAMKyz/N9KUuXEckC356WvKcyJaYYcV0w==
+        -----END CERTIFICATE-----
+        -----BEGIN CERTIFICATE-----
+        MIIB8zCCAZqgAwIBAgIRAID4gPKg7DDiuOfzUYFSXLAwCgYIKoZIzj0EAwIwNjER
+        MA8GA1UEChMIT1BBIFRlc3QxITAfBgNVBAMTGE9QQSBUZXN0IEludGVybWVkaWF0
+        ZSBDQTAeFw0yMTA3MDUxNzQ5NTBaFw0zNjA3MDExNzQ5NDdaMCUxIzAhBgNVBAMT
+        Gm5vdGFyZWFsc2l0ZS5vcGEubG9jYWxob3N0MFkwEwYHKoZIzj0CAQYIKoZIzj0D
+        AQcDQgAE1YSXZXeaGGL+XeYyoPi/QdA39Ds4fgxSHJTMh+js393kByPm2PNtFkem
+        tUii3KCRJw3SEh3z0JWr/9y4+ua2L6OBmTCBljAOBgNVHQ8BAf8EBAMCB4AwHQYD
+        VR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMB0GA1UdDgQWBBRL0P0g17viZHo9
+        CnXe3ZQJm48LXTAfBgNVHSMEGDAWgBS6yVk2MmXRXwjUaPXsggMAvL/1YTAlBgNV
+        HREEHjAcghpub3RhcmVhbHNpdGUub3BhLmxvY2FsaG9zdDAKBggqhkjOPQQDAgNH
+        ADBEAiAtmZewL94ijN0YwUGaJM9BXCaoTQPwkzugqjCj+K912QIgKKFvbPu4asrE
+        nwy7dzejHmQUcZ/aUNbc4VTbiv15ESk=
+        -----END CERTIFICATE-----
+        `
+
+        value := crypto.x509.parse_and_verify_certificates(certs)
+
+        result := {
+          "valid": value[0],
+          "certs": [c|
+            some cert in value[1]
+            c := {
+              "CN": cert.Subject.CommonName,
+              "DNS": cert.DNSNames,
+              "URI": cert.URIStrings,
+            }
+          ],
+        }
+
+    note: cryptox509parseandverifycertificates/base_case
+    query: data.test.result = x
+    want_result:
+      - x:
+          certs:
+            - CN: notarealsite.opa.localhost
+              DNS:
+                - notarealsite.opa.localhost
+              URI:
+            - CN: OPA Test Intermediate CA
+              DNS:
+              URI:
+            - CN: OPA Test Root CA
+              DNS:
+              URI:
+          valid: true
+  - data:
+    modules:
+      - |
+        package test
+
+        import future.keywords
+
+        certs := `-----BEGIN CERTIFICATE-----
+        MIIB1TCCAXugAwIBAgIIKIoxsnMwJJ4wCgYIKoZIzj0EAwIwPTELMAkGA1UEBhMC
+        R0IxEDAOBgNVBAoTB0V4YW1wbGUxHDAaBgNVBAUTEzI5MjEyMDE5NTA4MDk2NjI2
+        MjIwIBcNMjMxMTI5MTc1NTQ2WhgPMjEyMzExMDUxNzU1NDZaMD0xCzAJBgNVBAYT
+        AkdCMRAwDgYDVQQKEwdFeGFtcGxlMRwwGgYDVQQFExMyOTIxMjAxOTUwODA5NjYy
+        NjIyMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkvI9ddM0SuP9LvBWS1y64fuK
+        ELCjVF5W3FSKm3azKEkDi8Eq1I1UM80MgCjC5ChNNyM4+cmVUDrCkTl3SqRxa6Nj
+        MGEwDgYDVR0PAQH/BAQDAgIEMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFF7H
+        A8n3mXXnwUP0ypMJ9JwY5wasMB8GA1UdEQQYMBaGFHNwaWZmZTovL2V4YW1wbGUu
+        Y29tMAoGCCqGSM49BAMCA0gAMEUCIByB2l5RIWmaU8qcRv13qigbB9BV/F2raEk+
+        pRQnsUcgAiEA9OvBpPKC/FBkI5vVvR7WgK5sGPna4+a0RkXxRQgN2jM=
+        -----END CERTIFICATE-----
+        -----BEGIN CERTIFICATE-----
+        MIIB1jCCAXygAwIBAgIIV9914tIKKkMwCgYIKoZIzj0EAwIwPTELMAkGA1UEBhMC
+        R0IxEDAOBgNVBAoTB0V4YW1wbGUxHDAaBgNVBAUTEzI5MjEyMDE5NTA4MDk2NjI2
+        MjIwIBcNMjMxMTI5MTc1NTQ2WhgPMjEyMjExMDUxNzU1NDZaMD0xCzAJBgNVBAYT
+        AkdCMRAwDgYDVQQKEwdFeGFtcGxlMRwwGgYDVQQFExM2MzMxOTA5MjE4MTUzMTQ2
+        OTQ3MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMoy2UqvC8zL3sPfLNvG1nX5p
+        6hhEyDjFtokORB4VkKiPXFryIFn8XHG0ipz6aKSwVMoDT2T/YXP/wWpVwPJCi6Nk
+        MGIwDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcD
+        ATAMBgNVHRMBAf8EAjAAMCMGA1UdEQQcMBqGGHNwaWZmZTovL2V4YW1wbGUuY29t
+        L29wYTAKBggqhkjOPQQDAgNIADBFAiBEmdSKGj2+9J5SQPIAmwdxpVTOxqmVQv2x
+        Vvita/AmowIhAOyX/alNJxL4iCfKUNwlC2lYxGhuWopWgB1Q32bQhTEh
+        -----END CERTIFICATE-----
+        `
+
+        value := crypto.x509.parse_and_verify_certificates(certs)
+
+        result := {
+          "valid": value[0],
+          "certs": [c|
+            some cert in value[1]
+            c := {
+              "CN": cert.Subject.CommonName,
+              "DNS": cert.DNSNames,
+              "URI": cert.URIStrings,
+            }
+          ],
+        }
+
+    note: cryptox509parseandverifycertificates/uri_strings
+    query: data.test.result = x
+    want_result:
+      - x:
+          certs:
+            - CN: ""
+              DNS: null
+              URI:
+                - spiffe://example.com/opa
+            - CN: ""
+              DNS: null
+              URI:
+                - spiffe://example.com
+          valid: true

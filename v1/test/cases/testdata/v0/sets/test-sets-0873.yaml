@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          __local0__ = {1, 2, 3} - {2, 3}
+          {1} = __local0__
+        }
+    note: "sets/set_diff: ground output"
+    query: data.generated.p = x
+    want_result:
+      - x: true

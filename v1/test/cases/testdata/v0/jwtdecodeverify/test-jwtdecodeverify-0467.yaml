@@ -1,0 +1,18 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode_verify("eyJhbGciOiAiRVMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4In0.JvbTLBF06FR70gb7lCbx_ojhp4bk9--B_aULgNlYM0fYf9OSawaqBQp2lwW6FADFtRJ2WFUk5g0zwVOUlnrlzw", {"cert": "-----BEGIN CERTIFICATE-----\nMIIBcDCCARagAwIBAgIJAMZmuGSIfvgzMAoGCCqGSM49BAMCMBMxETAPBgNVBAMM\nCHdoYXRldmVyMB4XDTE4MDgxMDE0Mjg1NFoXDTE4MDkwOTE0Mjg1NFowEzERMA8G\nA1UEAwwId2hhdGV2ZXIwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATPwn3WCEXL\nmjp/bFniDwuwsfu7bASlPae2PyWhqGeWwe23Xlyx+tSqxlkXYe4pZ23BkAAscpGj\nyn5gXHExyDlKo1MwUTAdBgNVHQ4EFgQUElRjSoVgKjUqY5AXz2o74cLzzS8wHwYD\nVR0jBBgwFoAUElRjSoVgKjUqY5AXz2o74cLzzS8wDwYDVR0TAQH/BAUwAwEB/zAK\nBggqhkjOPQQDAgNIADBFAiEA4yQ/88ZrUX68c6kOe9G11u8NUaUzd8pLOtkKhniN\nOHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm\n-----END CERTIFICATE-----\n"}, [x, y, z])
+        }
+    note: jwtdecodeverify/es256-unconstrained
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - true
+          - alg: ES256
+            typ: JWT
+          - iss: xxx

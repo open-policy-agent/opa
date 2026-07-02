@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tpackage test1\n\n\t\tp(x) = y {\n\t\t\ty = x[_]\n\t\t}\n\n\t\tr = y {\n\t\t\tp([1, 2, 3], y)\n\t\t}")

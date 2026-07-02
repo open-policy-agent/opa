@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwia/XNzIjoib3BhIn0.XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY", [x, y, z])
+        }
+    note: jwtbuiltins/bad-payload-encoding
+    query: data.generated.p = x
+    strict_error: true
+    want_error:
+      "JWT payload had invalid encoding: illegal base64 data at input byte
+      17"
+    want_error_code: eval_builtin_error

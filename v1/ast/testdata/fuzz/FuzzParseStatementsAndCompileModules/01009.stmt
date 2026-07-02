@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = x { type_name(100, x) }")

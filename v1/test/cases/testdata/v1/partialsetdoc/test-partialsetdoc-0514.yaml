@@ -1,0 +1,20 @@
+---
+cases:
+  - note: partialsetdoc/object values
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.b[i] = x
+        }
+    data:
+      b:
+        v1: hello
+        v2: goodbye
+    want_result:
+      - x:
+          - goodbye
+          - hello
+    sort_bindings: true

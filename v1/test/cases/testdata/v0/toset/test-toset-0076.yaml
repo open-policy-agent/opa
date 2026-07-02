@@ -1,0 +1,15 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = x {
+          cast_set("hello", x)
+        }
+    note: toset/bad type
+    query: data.generated.p = x
+    want_error: operand 1 must be one of {array, set}
+    want_error_code: eval_type_error
+    strict_error: true

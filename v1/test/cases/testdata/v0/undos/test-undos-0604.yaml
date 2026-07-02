@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          obj = {"a": {"x": 1, "y": 2}, "b": {"x": 1, "y": null}, "c": {"x": 2, "y": 2}}
+          obj[_] = {"x": x, "y": 2}
+        }
+    note: undos/objects-element
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2

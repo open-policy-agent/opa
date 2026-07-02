@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package topdown\n\np[[x1, x2, x3, x4]] { data.topdown.a.b[x1][x2][x3] = x4 }\nq[[x1, x2, x3]] { data.topdown.a.b[x1][x2][0] = x3 }\nr[[x1, x2]] { data.topdown.a.b[x1] = x2 }\ns = data.topdown.no { true }\nt = data.topdown.a.b.c.undefined1 { true }\nu = data.topdown.missing.input.value { true }\nv = data.topdown.g { true }\nw = data.topdown.set { true }\n\niterate_ground[x] { data.topdown.virtual.constants[x] = 1 }\n")

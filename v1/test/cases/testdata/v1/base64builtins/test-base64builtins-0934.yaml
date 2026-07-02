@@ -1,0 +1,14 @@
+---
+cases:
+  - note: base64builtins/decode-slash
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	base64.decode("c3ViamVjdHM/X2Q=", x)
+        }
+    data: {}
+    want_result:
+      - x: subjects?_d

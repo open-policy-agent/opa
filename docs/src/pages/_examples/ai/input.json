@@ -1,0 +1,18 @@
+{
+  "tool_calls": [
+    {
+      "tool": "Bash",
+      "params": {
+        "command": "ls -la",
+        "timeout": 5000
+      }
+    },
+    {
+      "tool": "WebFetch",
+      "params": {
+        "url": "http://example.com",
+        "timeout": 5000
+      }
+    }
+  ]
+}

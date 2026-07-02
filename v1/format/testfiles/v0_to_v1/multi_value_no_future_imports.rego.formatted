@@ -1,0 +1,15 @@
+package test
+
+import rego.v1
+
+a contains "b"
+
+b contains "c"
+
+c contains "d" if {
+	input.x
+}
+
+d contains "e" if {
+	input.x
+}

@@ -1,0 +1,19 @@
+---
+cases:
+  - data:
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p = r {
+          r = {x: y | z = {i: q | i = data.b[q]}; x = z[y]}
+        }
+    note: comprehensions/object nested
+    query: data.generated.p = x
+    want_result:
+      - x:
+          v1: hello
+          v2: goodbye

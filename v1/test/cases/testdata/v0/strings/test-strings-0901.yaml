@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          lower("AbCdEf", x)
+        }
+    note: strings/lower
+    query: data.generated.p = x
+    want_result:
+      - x: abcdef

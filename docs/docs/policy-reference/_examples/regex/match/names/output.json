@@ -1,0 +1,7 @@
+{
+  "invalid_name1": false,
+  "invalid_name2": false,
+  "name_pattern": "^(\\p{L}+\\s?)+\\p{L}+$",
+  "valid_name1": true,
+  "valid_name2": true
+}

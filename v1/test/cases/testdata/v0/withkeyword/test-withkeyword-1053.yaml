@@ -1,0 +1,30 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = [x, y] {
+          x = data.ex.s with input as {"a": "b", "c": "b"}
+          y = data.ex.s with input as {"a": "b"}
+        }
+      - |
+        package ex
+
+        s[x] {
+          x = {v: ks |
+            v = input[i]
+            ks = {k | v = input[k]}
+          }
+        }
+    note: withkeyword/invalidate comprehension cache
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - b:
+                - a
+          - - b:
+                - a
+                - c

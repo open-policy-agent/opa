@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t    [\n\t        {\"id\": \"s4\", \"name\": \"dev\", \"protocols\": [\"http\"], \"ports\": [\"p1\", \"p2\"]}\n\t    ]\n\t")

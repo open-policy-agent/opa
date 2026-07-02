@@ -1,0 +1,31 @@
+---
+cases:
+  - data:
+      c:
+        - x:
+            - true
+            - false
+            - foo
+          y:
+            - null
+            - 3.14159
+          z:
+            p: true
+            q: false
+    modules:
+      - |
+        package generated
+
+        p[i] {
+          data.generated.q[i].x[1] = false
+        }
+
+        q[i] = x {
+          x = data.c[i]
+        }
+    note: "virtualdocs/output: object dereference ground"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 0

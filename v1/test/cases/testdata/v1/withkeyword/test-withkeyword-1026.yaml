@@ -1,0 +1,30 @@
+---
+cases:
+  - note: withkeyword/with invalidate
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.a[_] = x
+        	not data.ex.input_eq with input.x as x
+        }
+      - |
+        package ex
+
+        input_eq if {
+        	input.x = 1
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 2
+          - 3
+          - 4
+    sort_bindings: true

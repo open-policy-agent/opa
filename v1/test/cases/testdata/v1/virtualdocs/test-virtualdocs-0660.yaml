@@ -1,0 +1,27 @@
+---
+cases:
+  - note: "virtualdocs/object: self-join"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains [x, y] if {
+        	data.generated.q[x] = 1
+        	data.generated.q[y] = x
+        }
+
+        q[x] := i if {
+        	data.a[i] = x
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - - 2
+            - 3
+    sort_bindings: true

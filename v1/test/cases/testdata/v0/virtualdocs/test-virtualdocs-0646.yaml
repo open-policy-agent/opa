@@ -1,0 +1,28 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[y] {
+          data.generated.q[x][0] = y
+        }
+
+        q[[x]] {
+          data.a[_] = x
+        }
+    note: "virtualdocs/output: set dereference"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4

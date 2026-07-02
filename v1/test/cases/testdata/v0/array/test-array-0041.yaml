@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          array.concat([1, 2], [3, 4], __local0__)
+          x = __local0__
+        }
+    note: array/concat
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4

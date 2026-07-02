@@ -1,0 +1,17 @@
+---
+cases:
+  - note: "eqexpr/unordered: object keys (reverse)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	x = "a"
+        	{"a": 1} = {x: 1}
+        }
+    data: {}
+    want_result:
+      - x:
+          - a
+    sort_bindings: true

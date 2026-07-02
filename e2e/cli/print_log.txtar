@@ -1,0 +1,27 @@
+# Verify that print() output from a bundled policy appears in the server
+# logs when the log level is set to at least info.
+
+exec $OPA run --server --addr unix://opa.sock --log-format json --log-level info ./policy/example.rego &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health'
+
+exec curl -sf --unix-socket opa.sock -d '{"input": {"user": "alice"}}' http://localhost/v1/data/example/allow
+jq stdout '.result == true'
+
+exec curl -sf --unix-socket opa.sock -d '{"input": {"user": "bob"}}' http://localhost/v1/data/example/allow
+jq stdout '.result == true'
+
+kill -INT opa
+wait opa
+
+jq -s stderr '[.[] | select(.line == "./policy/example.rego:6" and .msg == "evaluating user: alice")] | length == 1'
+jq -s stderr '[.[] | select(.line == "./policy/example.rego:6" and .msg == "evaluating user: bob")] | length == 1'
+
+-- policy/example.rego --
+package example
+
+default allow := false
+
+allow if {
+	print("evaluating user:", input.user)
+	input.user != ""
+}

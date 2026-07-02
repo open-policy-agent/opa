@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        q = "b"
+
+        p = [x, y] {
+          data.generated.q = x with data.generated.q as "a"
+          data.generated.q = y
+        }
+    note: withkeyword/with invalidate data stack
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - a
+          - b

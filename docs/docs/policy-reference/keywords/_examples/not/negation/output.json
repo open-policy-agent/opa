@@ -1,0 +1,7 @@
+{
+  "deny": [
+    "cannot be accesed over VPN",
+    "must be example.com account",
+    "must be staff"
+  ]
+}

@@ -1,0 +1,19 @@
+---
+cases:
+  - data:
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p[k] = v {
+          data.b[k] = v
+        }
+    note: partialobjectdoc/identity
+    query: data.generated.p = x
+    want_result:
+      - x:
+          v1: hello
+          v2: goodbye

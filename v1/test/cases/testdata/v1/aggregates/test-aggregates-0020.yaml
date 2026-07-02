@@ -1,0 +1,14 @@
+---
+cases:
+  - note: aggregates/min set
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	min({1, 2, 3, 4}, x)
+        }
+    data: { }
+    want_result:
+      - x: 1

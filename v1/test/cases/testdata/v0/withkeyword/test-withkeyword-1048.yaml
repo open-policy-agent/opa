@@ -1,0 +1,20 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        q["a"] = 1
+
+        q["b"] = 2
+
+        p[x] = y {
+          data.generated.q[x] = y with data.generated.q as {"a": 3, "c": 4}
+        }
+    note: withkeyword/with mock iteration on objects
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a: 3
+          c: 4

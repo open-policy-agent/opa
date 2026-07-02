@@ -1,0 +1,24 @@
+---
+cases:
+  - modules:
+      - |
+        package test
+
+        p = x {
+          indexof("abcdefgh", "cde", x)
+        }
+    note: strings/indexof
+    query: data.test.p = x
+    want_result:
+      - x: 2
+  - modules:
+      - |
+        package test
+
+        p = x {
+          indexof("abcabcabcdefgh", "cde", x)
+        }
+    note: strings/indexof
+    query: data.test.p = x
+    want_result:
+      - x: 8

@@ -1,0 +1,70 @@
+---
+sidebar_label: AKS
+sidebar_position: 2
+title: Deploying OPA on AKS
+---
+
+:::tip
+This page contains details in addition to the
+[base Kubernetes documentation](../k8s) for deploying OPA. Please see
+that page for details on how to deploy OPA on K8s and return here for more AKS
+specific notes.
+:::
+
+
+## Creating a Load Balancer for and OPA Cluster service
+
+If running OPA as a cluster service, you might be interested in exposing the
+service to the internet or other, internal, off-cluster PEPs. Generally, OPA is
+invoked by other PEP applications rather than clients, and so a public IP is
+generally not required.
+
+
+```yaml title="Internal Load Balancer Service"
+apiVersion: v1
+kind: Service
+metadata:
+  name: opa
+  annotations:
+    // highlight-next-line
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  selector:
+    app: opa
+  ports:
+    - protocol: TCP
+      port: 8181
+      targetPort: 8181
+  type: LoadBalancer
+```
+
+:::warning
+If you are exposing an OPA service to the public internet, you are advised to
+make use of OPA's built in
+[authentication and authorization](../../security/#authentication-and-authorization)
+features if not running OPA behind another service that provides these
+functions.
+:::
+
+```yaml title="External Load Balancer Service"
+apiVersion: v1
+kind: Service
+metadata:
+  name: opa
+  annotations:
+    // highlight-next-line
+    service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+spec:
+  selector:
+    app: opa
+  ports:
+    - protocol: TCP
+      port: 8181
+      targetPort: 8181
+  type: LoadBalancer
+```
+
+For more information, please see the AKS documentation on load balancers:
+
+- [Internal Load Balancer](https://learn.microsoft.com/en-us/azure/aks/internal-lb)
+- [External Load Balancer](https://learn.microsoft.com/en-us/azure/aks/load-balancer-standard)

@@ -1,0 +1,24 @@
+---
+cases:
+  - data:
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p[x] = y {
+          data.generated.q = o
+          o[x] = y
+        }
+
+        q[x] = y {
+          data.b[x] = y
+        }
+    note: "virtualdocs/no suffix: object"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          v1: hello
+          v2: goodbye

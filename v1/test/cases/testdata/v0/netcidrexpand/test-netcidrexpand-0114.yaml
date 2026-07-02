@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          net.cidr_expand("172.16.100.255/30", x)
+        }
+    note: netcidrexpand/cidr last octet all 1s
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 172.16.100.252
+          - 172.16.100.253
+          - 172.16.100.254
+          - 172.16.100.255

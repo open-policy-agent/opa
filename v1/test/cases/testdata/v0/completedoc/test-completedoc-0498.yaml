@@ -1,0 +1,12 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = false
+    note: "completedoc/bool: false"
+    query: data.generated.p = x
+    want_result:
+      - x: false

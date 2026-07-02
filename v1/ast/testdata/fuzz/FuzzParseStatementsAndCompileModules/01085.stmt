@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = x { concat(\"/\", [\"\", \"foo\", \"bar\", \"0\", \"baz\"], x) }")

@@ -1,0 +1,20 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        csr = "foobar"
+
+        p = __local1__ {
+          __local3__ = data.generated.csr
+          crypto.x509.parse_certificate_request(__local3__, __local2__)
+          __local0__ = __local2__
+          __local1__ = __local0__.Subject.CommonName
+        }
+    note: cryptox509parsecertificaterequest/invalid DER or PEM data, string
+    query: data.generated.p = x
+    want_error: illegal base64
+    want_error_code: eval_builtin_error
+    strict_error: true

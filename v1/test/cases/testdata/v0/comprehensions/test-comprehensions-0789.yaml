@@ -1,0 +1,25 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          xs = {k: 1 | data.a[_] = k}
+          xs[x]
+        }
+    note: comprehensions/object non-string key
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4

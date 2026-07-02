@@ -1,0 +1,24 @@
+---
+cases:
+  - data:
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = [k | data.generated.q[k] = _]
+          count(__local0__, x)
+        }
+
+        q[k] = v {
+          data.b[k] = v
+        }
+    note: aggregates/count keys virtual
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 2

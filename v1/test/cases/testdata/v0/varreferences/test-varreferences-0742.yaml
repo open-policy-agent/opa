@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          somevar = [1, 2, 3]
+          somevar[i] = 2
+        }
+    note: varreferences/avoids indexer
+    query: data.generated.p = x
+    want_result:
+      - x: true

@@ -1,0 +1,17 @@
+---
+cases:
+  - note: varreferences/ground
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	v = [[1, 2], [2, 3], [3, 4]]
+        	x = v[2][1]
+        }
+    data: {}
+    want_result:
+      - x:
+          - 4
+    sort_bindings: true

@@ -1,0 +1,17 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode_verify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjEuNTg5Mzg1NzcxMTIzNGUrMDksImlzcyI6Inh4eCJ9.PZ2z6VfHt9YdvHHUbilkTnw4R9TK3_V0LV1h-q0k9xg", {"secret": "secret", "time": 1589385771223400000}, [x, y, z])
+        }
+    note: jwtdecodeverify/hs256-float-one-tenth-second-after-exp
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - false
+          - {}
+          - {}

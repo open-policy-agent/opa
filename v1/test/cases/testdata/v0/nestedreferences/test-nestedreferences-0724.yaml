@@ -1,0 +1,36 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      d:
+        e:
+          - bar
+          - baz
+      strings:
+        bar: 2
+        baz: 3
+        foo: 1
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.d.e[_]
+          __local1__ = data.generated.q[__local0__]
+          x = data.a[__local1__]
+        }
+
+        q[k] = v {
+          data.strings[k] = v
+        }
+    note: "nestedreferences/vdoc ref: partial object: nested bdoc ref-2"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 3
+          - 4

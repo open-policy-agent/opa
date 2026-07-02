@@ -1,0 +1,200 @@
+---
+cases:
+  - note: keywordrefs/package keyword in package
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.package.bar
+
+        baz := 42
+      - |
+        package foo
+        import data.foo.package.bar
+
+        p {
+          bar.baz == 42
+          data.foo.package.bar.baz == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/package keyword in package, import alias
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo.package
+
+        bar := 42
+      - |
+        package foo
+        import data.foo.package as my_if
+
+        p {
+          my_if.bar == 42
+          data.foo.package.bar == 42
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/package keyword rule refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          package.foo == 1
+          foo.package == 2
+        }
+
+        package.foo := 1
+
+        foo.package := 2
+    want_result:
+      - x: true
+  - note: keywordrefs/package keyword rule refhead, else bodies
+    query: data.test.p = x
+    input:
+      x: 3
+    modules:
+      - |
+        package test
+
+        p {
+          package.foo.bar == 3
+          foo.bar.package == 6
+        }
+
+        package.foo.bar := 1 {
+          input.x == 1
+        } else := 2 {
+          input.x == 2
+        } else := 3
+
+        foo.bar.package := 4 {
+          input.x == 1
+        } else := 5 {
+          input.x == 2
+        } else := 6
+    want_result:
+      - x: true
+  - note: keywordrefs/package keyword rule refhead, partial set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.contains
+
+        p {
+          package.foo.bar == {"a", "c"}
+          foo.bar.package == {"a", "c"}
+        }
+
+        package.foo.bar contains "a"
+
+        package.foo.bar contains "b" {
+          false
+        }
+
+        package.foo.bar contains "c" {
+          true
+        }
+
+        foo.bar.package contains "a"
+
+        foo.bar.package contains "b" {
+          false
+        }
+
+        foo.bar.package contains "c" {
+          true
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/package keyword rule refhead, partial object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          package.foo == "a"
+          package.bar.one == "a"
+          package.bar.three == "c"
+          foo.package == "a"
+          bar.baz.package == "a"
+        }
+
+        package.foo := "a"
+
+        package.foo := "b" {
+          false
+        }
+
+        package.foo := "c" {
+          false
+        }
+
+        package.bar.one := "a"
+
+        package.bar.two := "b" {
+          false
+        }
+
+        package.bar.three := "c" {
+          true
+        }
+
+        foo.package := "a"
+
+        foo.package := "b" {
+          false
+        }
+
+        foo.package := "c" {
+          false
+        }
+
+        bar.baz.package := "a"
+
+        bar.baz.package := "b" {
+          false
+        }
+
+        bar.baz.package := "c" {
+          false
+        }
+    want_result:
+      - x: true
+  - note: keywordrefs/package keyword function refhead
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          package.foo(1) == 1
+          package.foo(11) == 42
+          foo.package(1) == 1
+          foo.package(11) == 42
+          bar.package.baz(1) == 1
+          bar.package.baz(11) == 42
+        }
+
+        default package.foo(_) := 42
+
+        package.foo(x) := x {
+          x < 10
+        }
+
+        default foo.package(_) := 42
+
+        foo.package(x) := x {
+          x < 10
+        }
+
+        default bar.package.baz(_) := 42
+
+        bar.package.baz(x) := x {
+          x < 10
+        }
+    want_result:
+      - x: true

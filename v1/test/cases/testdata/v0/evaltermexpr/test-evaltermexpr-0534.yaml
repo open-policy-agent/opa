@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          {"a": 1}
+        }
+    note: evaltermexpr/object non-empty
+    query: data.generated.p = x
+    want_result:
+      - x: true

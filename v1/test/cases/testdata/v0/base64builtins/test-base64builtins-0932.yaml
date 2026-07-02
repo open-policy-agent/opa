@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          base64.decode("dGhlcmU=", x)
+        }
+    note: base64builtins/decode-2
+    query: data.generated.p = x
+    want_result:
+      - x: there

@@ -1,0 +1,25 @@
+---
+cases:
+  - note: strings/substring
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("abcdefgh", 2, 3, x)
+        }
+    data: {}
+    want_result:
+      - x: cde
+  - note: "strings/substring: unicode"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("åäö", 0, 2, x)
+        }
+    want_result:
+      - x: åä

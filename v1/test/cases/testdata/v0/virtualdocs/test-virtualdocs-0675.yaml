@@ -1,0 +1,22 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[r] {
+          data.generated.q[x][y] = 2
+          r = [x, y]
+        }
+
+        q = {"a": {"x": 1}, "b": {"y": 2}, "c": {"z": 2}}
+    note: "virtualdocs/output: complete object defererence non-ground"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - b
+            - "y"
+          - - c
+            - z

@@ -1,0 +1,100 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p(_) {
+          data.generated.q
+        }
+
+        q = true
+
+        q = false
+    note: "functions/nested complete doc with conflict"
+    query: data.generated.p(1) = x
+    want_error: complete rules must not produce multiple outputs
+    want_error_code: eval_conflict_error
+  - data:
+    modules:
+      - |
+        package generated
+
+        p(_) {
+          data.generated.q
+        }
+
+        q = true {
+          false
+        }
+        else = true {
+          true
+        }
+
+        q = true {
+          false
+        }
+        else = false {
+          true
+        }
+    note: "functions/nested complete doc with conflict, else"
+    query: data.generated.p(1) = x
+    want_error: complete rules must not produce multiple outputs
+    want_error_code: eval_conflict_error
+  - data:
+    modules:
+      - |
+        package generated
+
+        p(x) {
+          y := data.generated.q(x)
+        }
+
+        q(_) = true
+
+        q(_) = false
+    note: "functions/nested function with conflict"
+    query: data.generated.p(1) = x
+    want_error: functions must not produce multiple outputs for same inputs
+    want_error_code: eval_conflict_error
+  - data:
+    modules:
+      - |
+        package generated
+
+        p(x) {
+          y := data.generated.q(x)
+        }
+
+        q(_) = true {
+          false
+        }
+        else = true {
+          true
+        }
+
+        q(_) = true {
+          false
+        }
+        else = false {
+          true
+        }
+    note: "functions/nested function with conflict, else"
+    query: data.generated.p(1) = x
+    want_error: functions must not produce multiple outputs for same inputs
+    want_error_code: eval_conflict_error
+  - data:
+    modules:
+      - |
+        package test
+
+        p(x) {
+          y := data.test.q(x)
+        }
+        xs = {1, 2}
+        q(_) = xs[_]
+    note: "functions/nested function with conflict, else, no extra return"
+    query: data.test.p(1) = x
+    want_error: functions must not produce multiple outputs for same inputs
+    want_error_code: eval_conflict_error

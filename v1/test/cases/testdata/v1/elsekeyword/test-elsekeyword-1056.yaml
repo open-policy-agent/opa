@@ -1,0 +1,15 @@
+---
+cases:
+  - note: elsekeyword/trivial-non-bool
+    query: data.ex.non_bool = x
+    modules:
+      - |
+        package ex
+
+        non_bool := null if {
+        	false
+        } else := [100]
+    data: {}
+    want_result:
+      - x:
+          - 100

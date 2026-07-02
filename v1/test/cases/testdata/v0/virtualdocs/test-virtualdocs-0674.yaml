@@ -1,0 +1,22 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[r] {
+          data.generated.q[i][j] = 2
+          r = [i, j]
+        }
+
+        q = [[1, 2], [3, 2]]
+    note: "virtualdocs/output: complete array dereference non-ground"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - 0
+            - 1
+          - - 1
+            - 1

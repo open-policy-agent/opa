@@ -1,0 +1,114 @@
+version: "2"
+run:
+  timeout: 5m
+linters:
+  default: none
+  enable:
+    - copyloopvar
+    - errcheck
+    - gocritic
+    - govet
+    - ineffassign
+    - intrange
+    - mirror
+    - misspell
+    - perfsprint
+    - prealloc
+    - revive # replacement for golint
+    - staticcheck
+    - unconvert
+    - unused
+    - usetesting
+    # - gosec # too many false positives
+  settings:
+    gocritic:
+      enabled-checks:
+        # NOTE that these are rules enabled in addition to the default set
+        - filepathJoin
+        - dupImport
+        - redundantSprint
+        - stringConcatSimplify
+      disabled-checks:
+        - appendAssign
+        # NOTE(ae): this one should be enabled, but there were too
+        # many violations to fix in one go... revisit later
+        - singleCaseSwitch
+        # Reasonable rule, but not sure what to replace with in
+        # many locations, so disabling for now
+        - exitAfterDefer
+        # This is disabled from the perfomance tag  enabled further down.
+        - hugeParam
+      enabled-tags:
+        - performance
+      settings:
+        ifElseChain:
+          # ridiculous value set for now, but this should be
+          # lowered to something more reasonable, as the rule
+          # is reasonable (replace long if-else chains with
+          # switch)... just too many violations right now
+          minThreshold: 10
+    govet:
+      disable:
+        # enable later and fix
+        - buildtag
+      enable:
+        - deepequalerrors
+        - nilness
+    lll:
+      line-length: 200
+    perfsprint:
+      # only rule disabled by default, but it's a good one
+      err-error: true
+    revive:
+      # this mainly complains about us using min/max for variable names,
+      # which seems like an unlikely source of actual issues
+      rules:
+        - name: redefines-builtin-id
+          disabled: true
+        - name: unused-receiver
+          disabled: false
+    staticcheck:
+      checks:
+        # https://staticcheck.dev/docs/checks/#<check-id> for more details on these rules
+        [
+          "all",
+          "-ST1000",
+          "-ST1003",
+          "-ST1016",
+          "-ST1020",
+          "-ST1021",
+          "-ST1022",
+          "-QF1001",
+          "-QF1002",
+          "-QF1003",
+          "-QF1008",
+        ]
+  exclusions:
+    warn-unused: true
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: This package is intended for older projects transitioning from OPA v0.x
+        path-except: v1/
+      - linters:
+          - staticcheck
+        text: SA1019 # Using a deprecated function, variable, constant or field
+        path: _test\.go
+    paths:
+      - internal/gojsonschema
+      - node_modules
+issues:
+  # don't hide issues in CI runs because they are the same type
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax

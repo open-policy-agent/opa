@@ -1,0 +1,14 @@
+---
+cases:
+  - note: functionerrors/undefined builtin result
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        foo := units.parse_bytes("1KB")
+
+        bar := units.parse_bytes("foo") # undefined
+    want_result:
+      - x:
+          foo: 1000

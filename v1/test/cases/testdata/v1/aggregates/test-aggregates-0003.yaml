@@ -1,0 +1,20 @@
+---
+cases:
+  - note: aggregates/count keys
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.b
+        	count(__local0__, x)
+        }
+    data:
+      b:
+        v1: hello
+        v2: goodbye
+    want_result:
+      - x:
+          - 2
+    sort_bindings: true

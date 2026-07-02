@@ -1,0 +1,21 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        q[1]
+
+        q[2]
+
+        p[x] {
+          data.generated.q[_] = x with data.generated.q as [3, 4]
+        }
+    note: withkeyword/with mock iteration on arrays
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 3
+          - 4

@@ -1,0 +1,71 @@
+---
+cases:
+  - data:
+      foo: bar
+    modules:
+      - |
+        package test
+
+        p := strings.reverse(data.foo)
+    note: strings/reverse_bar
+    query: data.test.p = x
+    want_result:
+      - x: rab
+  - data:
+      foo: "2\uFE0F\u20E3"
+    modules:
+      - |
+        package test
+
+        p := strings.reverse(data.foo)
+    note: strings/reverse_unicode_multi_char_emojii
+    query: data.test.p = x
+    want_result:
+      - x: "\u20E3\uFE0F2"
+  - data:
+      foo: "1\U0001F600\U0001D6FE"
+    modules:
+      - |
+        package test
+
+        p := strings.reverse(data.foo)
+    note: strings/reverse_unicode
+    query: data.test.p = x
+    want_result:
+      - x: "\U0001D6FE\U0001F6001"
+  - data:
+      foo: ""
+    modules:
+      - |
+        package test
+
+        p := strings.reverse(data.foo)
+    note: strings/reverse_empty
+    query: data.test.p = x
+    want_result:
+      - x: ""
+  - data:
+      foo: 123
+    modules:
+      - |
+        package test
+
+        p := strings.reverse(data.foo)
+    note: strings/reverse_number_error
+    query: data.test.p = x
+    strict_error: true
+    want_error: "reverse: operand 1 must be string but got number"
+    want_error_code: eval_type_error
+  - data:
+      foo:
+        bar: baz
+    modules:
+      - |
+        package test
+
+        p := strings.reverse(data.foo)
+    note: strings/reverse_object_error
+    query: data.test.p = x
+    strict_error: true
+    want_error: "reverse: operand 1 must be string but got object"
+    want_error_code: eval_type_error

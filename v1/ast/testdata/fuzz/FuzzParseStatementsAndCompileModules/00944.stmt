@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = [x, y, z] { is_number(-42.0, x); is_number(0, y); is_number(100.1, z) }")

@@ -1,0 +1,10 @@
+{
+  "allow": true,
+  "deny": [],
+  "email_matches": [
+    "foo+test@example.com",
+    "+test",
+    "example.com"
+  ],
+  "internal_domain": "example.com"
+}

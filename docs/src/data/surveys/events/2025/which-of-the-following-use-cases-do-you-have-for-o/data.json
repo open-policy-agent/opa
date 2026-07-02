@@ -1,0 +1,56 @@
+{
+  "data": [
+    {
+      "label": "Internal compliance & governance",
+      "value": 28
+    },
+    {
+      "label": "Application authorization",
+      "value": 54
+    },
+    {
+      "label": "CI/CD and supply-chain guardrails (SBOMs, Spinnaker, etc.)",
+      "value": 13
+    },
+    {
+      "label": "Kubernetes Admission Control",
+      "value": 28
+    },
+    {
+      "label": "Infrastructure-as-code Guardrails (Terraform, Cloudformation, other)",
+      "value": 19
+    },
+    {
+      "label": "Microservice Authorization",
+      "value": 36
+    },
+    {
+      "label": "External compliance (e.g., PCI)",
+      "value": 10
+    },
+    {
+      "label": "Customer IAM",
+      "value": 14
+    },
+    {
+      "label": "Staff IAM",
+      "value": 19
+    }
+  ],
+  "otherResponses": [
+    "Business logic decisions",
+    "Data enrichment of SBOM data with EPSS, log detection as code",
+    "API responses from AI powered tools",
+    "Decentralised data authorisation for open standard data models",
+    "fun!",
+    "Using OPA as a business rule engine and love it",
+    "Direct Data Access Authz (e.g. via Trino)",
+    "Kubernetes Authorization Webhook",
+    "AI MCP Enforcement, Customer-driven data transformations",
+    "ACL",
+    "Detection policy engine",
+    "Loyalty rules evaluation (thousands of similar campaigns with common rules)",
+    "Regal rules",
+    "Cyber vulnerability data enrichment"
+  ]
+}

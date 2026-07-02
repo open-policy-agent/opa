@@ -1,0 +1,15 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p {
+          yaml.unmarshal("[1,2,3", _)
+        }
+    note: jsonbuiltins/yaml unmarshal error
+    query: data.generated.p = x
+    want_error: "yaml: line 1: did not find"
+    want_error_code: eval_builtin_error
+    strict_error: true

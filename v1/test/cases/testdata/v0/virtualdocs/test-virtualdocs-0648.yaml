@@ -1,0 +1,23 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.generated.q[x]
+        }
+
+        q = {0, "", false, null, [], {}, set()}
+    note: "virtualdocs/output: set falsy values"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - null
+          - 0
+          - ""
+          - []
+          - []
+          - {}

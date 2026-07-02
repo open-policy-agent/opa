@@ -1,0 +1,26 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          x = 1
+          data.generated.q[x]
+        }
+
+        q[y] {
+          data.a[y] = i
+        }
+    note: "virtualdocs/input: set ground var"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1

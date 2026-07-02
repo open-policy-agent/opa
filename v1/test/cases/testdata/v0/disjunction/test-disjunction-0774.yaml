@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = true
+
+        p = false {
+          false
+        }
+    note: "disjunction/complete: valid-2"
+    query: data.generated.p = x
+    want_result:
+      - x: true

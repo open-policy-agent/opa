@@ -1,0 +1,44 @@
+{
+  "data": [
+    {
+      "label": "Gatekeeper policy library",
+      "value": 23
+    },
+    {
+      "label": "Library, Community-owned policy library for OPA",
+      "value": 25
+    },
+    {
+      "label": "Red Hat Rego policies",
+      "value": 2
+    },
+    {
+      "label": "Appshield - Open Database of Rego policies for common IaC file",
+      "value": 2
+    },
+    {
+      "label": "Kubescape Rego library",
+      "value": 3
+    },
+    {
+      "label": "Conftest policy packs",
+      "value": 5
+    },
+    {
+      "label": "Confectionary Terraform rules for Conftest",
+      "value": 1
+    },
+    {
+      "label": "Raspernetes  Kubernetes Security Policies",
+      "value": 1
+    }
+  ],
+  "otherResponses": [
+    "OPAL",
+    "In-house created",
+    "topaz",
+    "We dont use libraries.",
+    "none",
+    "None"
+  ]
+}

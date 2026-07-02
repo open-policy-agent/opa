@@ -1,0 +1,19 @@
+{
+  "id": "which-of-the-following-use-cases-do-you-have-for-o",
+  "title": "Which of the following use cases do you have for OPA?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true,
+    "showLegend": false
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 1
+}

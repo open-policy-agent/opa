@@ -1,0 +1,24 @@
+---
+cases:
+  - note: helloworld/test_case
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := 7 if {
+        	data.foo == q
+        }
+
+        q := input.baz
+    data:
+      foo: bar
+    input:
+      baz: bar
+    want_result:
+      - x: 7
+  - note: helloworld/another_test_for_builtin_error
+    query: 1 / 0
+    want_error_code: eval_builtin_error
+    want_error: "div: divide by zero"
+    strict_error: true

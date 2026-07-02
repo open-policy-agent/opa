@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          __local0__ = data.three.deadbeef
+          data.a[__local0__] = x
+        }
+    note: nestedreferences/undefined
+    query: data.generated.p = x
+    want_result: []

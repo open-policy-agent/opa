@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package ex
+
+        triple {
+          false
+        } else {
+          false
+        } else = "hello" {
+          true
+        }
+    note: elsekeyword/trivial-3
+    query: data.ex.triple = x
+    want_result:
+      - x: hello

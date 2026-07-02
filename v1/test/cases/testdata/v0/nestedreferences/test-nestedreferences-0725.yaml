@@ -1,0 +1,31 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.a[_]
+          __local1__ = data.a[_]
+          __local2__ = data.generated.r[__local1__]
+          x = data.generated.q[__local0__].v[__local2__]
+        }
+
+        q = [{"v": {}}, {"v": [0, 0, 1, 2]}, {"v": [0, 0, 3, 4]}, {"v": [0, 0]}, {}]
+
+        r = [1, 2, 3, 4]
+    note: "nestedreferences/vdoc ref: multiple"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4

@@ -1,0 +1,201 @@
+---
+cases:
+  - note: functions/chained
+    query: data.ex.chain2 = x
+    modules:
+      - |
+        package test
+
+        foo(__local126__) := y if {
+        	trim(__local126__, "h o", y)
+        }
+
+        cross := y if {
+        	data.ex.cross("hi, my name is foo", y)
+        }
+
+        multi("foo", __local127__) := y if {
+        	y = __local127__
+        }
+
+        multi("bar", __local128__) := y if {
+        	y = "baz"
+        }
+
+        multi_cross_pkg := [y, z] if {
+        	data.test.multi("foo", "bar", y)
+        	data.ex.multi(2, 1, z)
+        }
+      - |
+        package test
+
+        samepkg := y if {
+        	data.test.foo("how do you do?", y)
+        }
+      - |
+        package test.l1.l3
+
+        g(__local133__) := __local133__
+      - |
+        package test.l1.l2
+
+        p := true
+
+        f(__local138__) := __local138__
+      - |
+        package test.omit_result
+
+        f(__local143__) := __local143__
+
+        p if {
+        	data.test.omit_result.f(1)
+        }
+      - |
+        package topdown_test_partial
+
+        __result__ := _result if {
+        	_result = true
+        }
+      - |
+        package ex
+
+        foo(__local86__) := y if {
+        	split(__local86__, "i", y)
+        }
+
+        bar[x] := y if {
+        	data.l[_].a = x
+        	data.ex.foo(x, y)
+        }
+
+        chain0(__local87__) := y if {
+        	data.ex.foo(__local87__, y)
+        }
+
+        chain1(__local88__) := b if {
+        	data.ex.chain0(__local88__, b)
+        }
+
+        chain2 := d if {
+        	data.ex.chain1("fooibar", d)
+        }
+
+        cross(__local91__) := [a, b] if {
+        	split(__local91__, "i", y)
+        	__local27__ = y[1]
+        	data.ex.foo(__local27__, b)
+        	__local28__ = y[2]
+        	data.test.foo(__local28__, a)
+        }
+
+        falsy_func(__local94__) := false
+
+        falsy_func_else(__local96__) if {
+        	__local96__ = 1
+        }
+
+        else := false
+
+        falsy_undefined if {
+        	data.ex.falsy_func(1)
+        }
+
+        falsy_negation if {
+        	not data.ex.falsy_func(1)
+        }
+
+        falsy_else_value := __local23__ if {
+        	true
+        	data.ex.falsy_func_else(2, __local23__)
+        }
+
+        falsy_else_undefined if {
+        	data.ex.falsy_func_else(2)
+        }
+
+        falsy_else_negation if {
+        	not data.ex.falsy_func_else(2)
+        }
+
+        arrays([__local98__, __local99__]) := [a, b] if {
+        	data.ex.foo(__local98__, a)
+        	data.ex.foo(__local99__, b)
+        }
+
+        arraysrule := y if {
+        	data.ex.arrays(["hih", "foo"], y)
+        }
+
+        objects({"foo": __local100__, "bar": __local101__}) := z if {
+        	data.ex.foo(__local100__, a)
+        	data.test.foo(__local101__, b)
+        	z = [a, b]
+        }
+
+        objectsrule := y if {
+        	data.ex.objects({"bar": "hi ho", "foo": "hih"}, y)
+        }
+
+        refoutput := y if {
+        	data.ex.foo("hih", z)
+        	y = z[1]
+        }
+
+        void(__local102__) if {
+        	__local102__ = "foo"
+        }
+
+        voidGood if {
+        	not data.ex.void("bar", true)
+        }
+
+        voidBad if {
+        	data.ex.void("bar", true)
+        }
+
+        multi(1, __local103__) := y if {
+        	y = __local103__
+        }
+
+        multi(2, __local104__) := y if {
+        	__local24__ = 2 * __local104__
+        	a = __local24__
+        	__local25__ = a + 1
+        	y = __local25__
+        }
+
+        multi(3, __local105__) := y if {
+        	__local26__ = __local105__ * 10
+        	y = __local26__
+        }
+
+        multi("foo", __local109__) := y if {
+        	y = "bar"
+        }
+
+        multi1 := y if {
+        	data.ex.multi(1, 2, y)
+        }
+
+        multi2 := y if {
+        	data.ex.multi(2, 2, y)
+        }
+
+        multi3 := y if {
+        	data.ex.multi(3, 2, y)
+        }
+
+        multi4 := y if {
+        	data.ex.multi("foo", 2, y)
+        }
+
+        always_true_fn(__local110__) := true
+
+        always_true if {
+        	data.ex.always_true_fn(1)
+        }
+    data: {}
+    want_result:
+      - x:
+          - foo
+          - bar

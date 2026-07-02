@@ -1,0 +1,29 @@
+---
+cases:
+  - note: "eqexpr/pattern: object/array nested 2"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains v if {
+        	data.f[i] = {"xs": [x], "ys": [y]}
+        	v = [x, y]
+        }
+    data:
+      f:
+        - xs:
+            - 1
+          ys:
+            - 2
+        - xs:
+            - 2
+          ys:
+            - 3
+    want_result:
+      - x:
+          - - 1
+            - 2
+          - - 2
+            - 3
+    sort_bindings: true

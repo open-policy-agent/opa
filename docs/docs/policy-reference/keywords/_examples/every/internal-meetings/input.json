@@ -1,0 +1,11 @@
+{
+  "invites": {
+    "bob@example.com": {
+      "roles": ["contractor"]
+    },
+    "charlie@example.com": {
+      "roles": ["staff"]
+    }
+  },
+  "owner": "alice@example.com"
+}

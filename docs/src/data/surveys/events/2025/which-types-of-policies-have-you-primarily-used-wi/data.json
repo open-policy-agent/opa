@@ -1,0 +1,56 @@
+{
+  "data": [
+    {
+      "label": "Security policies (pod security standards, image scanning, network policies)",
+      "value": 18
+    },
+    {
+      "label": "Label and annotation standards",
+      "value": 14
+    },
+    {
+      "label": "Network segmentation policies",
+      "value": 6
+    },
+    {
+      "label": "Compliance policies (regulatory requirements, industry standards)",
+      "value": 12
+    },
+    {
+      "label": "Resource governance (limits, requests, quotas)",
+      "value": 9
+    },
+    {
+      "label": "Multi-tenancy policies (namespace isolation, RBAC)",
+      "value": 8
+    },
+    {
+      "label": "Image policies (registry restrictions, vulnerability scanning)",
+      "value": 11
+    },
+    {
+      "label": "Data protection policies (encryption, PVC restrictions)",
+      "value": 7
+    },
+    {
+      "label": "Other custom organizational policies",
+      "value": 5
+    },
+    {
+      "label": "Cost control policies (resource optimization, node selectors)",
+      "value": 4
+    },
+    {
+      "label": "Configuration best practices (probes, anti-affinity)",
+      "value": 7
+    },
+    {
+      "label": "Workload placement policies (node affinity, taints/tolerations)",
+      "value": 6
+    },
+    {
+      "label": "Supply chain security (SBOM, signing verification)",
+      "value": 1
+    }
+  ]
+}

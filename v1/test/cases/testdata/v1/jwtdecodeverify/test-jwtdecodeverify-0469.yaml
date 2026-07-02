@@ -1,0 +1,16 @@
+---
+cases:
+  - note: jwtdecodeverify/hs256-key-wrong
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := [x, y, z] if {
+        	io.jwt.decode_verify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM", {"secret": "the wrong key"}, [x, y, z])
+        }
+    want_result:
+      - x:
+          - false
+          - {}
+          - {}

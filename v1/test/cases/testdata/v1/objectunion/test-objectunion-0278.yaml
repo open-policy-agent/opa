@@ -1,0 +1,18 @@
+---
+cases:
+  - note: objectunion/error wrong rhs type input
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	__local2__ = input.b
+        	object.union({"a": 1}, __local2__, __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    input_term: '{"b": [1, 2, 3]}'
+    want_error_code: eval_type_error
+    want_error: "object.union: operand 2 must be object but got array"
+    strict_error: true

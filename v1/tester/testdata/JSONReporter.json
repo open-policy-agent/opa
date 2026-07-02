@@ -1,0 +1,231 @@
+[
+  {
+    "location": null,
+    "package": "data.foo.bar",
+    "name": "test_baz",
+    "duration": 7,
+    "trace": [
+      {
+        "Op": "Fail",
+        "Node": {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "Location": {
+          "file": "",
+          "row": 1,
+          "col": 1
+        },
+        "QueryID": 0,
+        "ParentID": 0,
+        "Locals": null,
+        "LocalMetadata": null,
+        "Message": "",
+        "Ref": null
+      }
+    ]
+  },
+  {
+    "location": null,
+    "package": "data.foo.bar",
+    "name": "test_qux",
+    "error": {},
+    "duration": 6,
+    "trace": [
+      {
+        "Op": "Fail",
+        "Node": {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "Location": {
+          "file": "",
+          "row": 1,
+          "col": 1
+        },
+        "QueryID": 0,
+        "ParentID": 0,
+        "Locals": null,
+        "LocalMetadata": null,
+        "Message": "",
+        "Ref": null
+      }
+    ]
+  },
+  {
+    "location": null,
+    "package": "data.foo.bar",
+    "name": "test_corge",
+    "fail": true,
+    "duration": 5,
+    "trace": [
+      {
+        "Op": "Fail",
+        "Node": {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "Location": {
+          "file": "",
+          "row": 1,
+          "col": 1
+        },
+        "QueryID": 0,
+        "ParentID": 0,
+        "Locals": null,
+        "LocalMetadata": null,
+        "Message": "",
+        "Ref": null
+      }
+    ]
+  },
+  {
+    "location": null,
+    "package": "data.foo.bar",
+    "name": "todo_test_qux",
+    "skip": true,
+    "duration": 4
+  },
+  {
+    "location": null,
+    "package": "data.foo.bar",
+    "name": "test_contains_print",
+    "duration": 3,
+    "output": "ZmFrZSBwcmludCBvdXRwdXQK"
+  },
+  {
+    "location": null,
+    "package": "data.foo.baz",
+    "name": "p.q.r.test_quz",
+    "duration": 2
+  },
+  {
+    "location": {
+      "file": "policy5.rego",
+      "row": 0,
+      "col": 0
+    },
+    "package": "data.foo.qux",
+    "name": "test_cases_nested",
+    "fail": true,
+    "duration": 1,
+    "trace": [
+      {
+        "Op": "Fail",
+        "Node": {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "Location": {
+          "file": "",
+          "row": 1,
+          "col": 1
+        },
+        "QueryID": 0,
+        "ParentID": 0,
+        "Locals": null,
+        "LocalMetadata": null,
+        "Message": "",
+        "Ref": null
+      }
+    ],
+    "sub_results": {
+      "one": {
+        "name": "one",
+        "sub_results": {
+          "bar": {
+            "name": "bar"
+          },
+          "foo": {
+            "name": "foo"
+          }
+        }
+      },
+      "two": {
+        "name": "two",
+        "fail": true,
+        "sub_results": {
+          "bar": {
+            "name": "bar"
+          },
+          "foo": {
+            "name": "foo",
+            "fail": true
+          }
+        }
+      }
+    }
+  }
+]

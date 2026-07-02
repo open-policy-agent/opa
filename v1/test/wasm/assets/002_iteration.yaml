@@ -1,0 +1,75 @@
+cases:
+  - note: iteration
+    query: input.x[i] = 1
+    input: {"x": [3,2,1]}
+    want_defined: true
+  - note: iteration (negative)
+    query: input.x[i] = 1
+    input: {"x": [3,2,0]}
+    want_defined: false
+  - note: iteration nested
+    query: input.x[i] = 1; input.y[j] = "world"
+    input: {"x": [3,2,1], "y": ["hello", "world"]}
+    want_defined: true
+  - note: iteration nested (negative)
+    query: input.x[i] = 1; input.y[j] = "world"
+    input: {"x": [3,2,0], "y": ["hello", "universe"]}
+    want_defined: false
+  - note: iteration chained
+    query: input.x[i].y[j] = 1
+    input: {"x": [{"y": []}, {"y": [0]}, {"y": [0, 1]}]}
+    want_defined: true
+  - note: iteration chained (negative)
+    query: input.x[i].y[j] = 1
+    input: {"x": [{"y": []}, {"y": [0]}, {"y": [0, 2]}]}
+    want_defined: false
+  - note: iteration ground
+    query: input.x[i].y[i] = 2
+    input: {
+      "x": [
+        {
+          "y": [
+            1,
+            2,
+          ]
+        },
+        {
+          "y": [
+            1,
+            2,
+          ]
+        },
+      ]
+    }
+    want_defined: true
+  - note: iteration ground
+    query: input.x[i].y[i] = 1
+    input: {
+      "x": [
+        {
+          "y": [
+            2,
+            1,
+          ]
+        },
+        {
+          "y": [
+            1,
+            2,
+          ]
+        },
+      ]
+    }
+    want_defined: false
+  - note: iteration composite
+    query: a = {["t",1], ["u",2], ["v", 3]}; a[["v", v]]; v == 3
+    want_defined: true
+  - note: iteration composite (negative)
+    query: a = {["t",1], ["u",2], ["v", 3]}; a[["u", u]]; u == 3
+    want_defined: false
+  - note: no scan required
+    query: u = 2; a = {["t",1], ["u",2], ["v", 3]}; a[["u", u]]
+    want_defined: true
+  - note: no scan required (negative)
+    query: v = 2; a = {["t",1], ["u",2], ["v", 3]}; a[["v", v]]
+    want_defined: false

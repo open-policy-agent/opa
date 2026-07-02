@@ -1,0 +1,359 @@
+// Copyright 2018 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+package logs
+
+import (
+	"compress/gzip"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/keys"
+	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/metrics"
+	"github.com/open-policy-agent/opa/v1/plugins"
+	"github.com/open-policy-agent/opa/v1/plugins/rest"
+	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+)
+
+func TestEventBuffer_Push(t *testing.T) {
+	t.Parallel()
+
+	expectedIds := make(map[string]struct{})
+	var expectedDropped uint64
+	limit := int64(2)
+	m := metrics.New()
+	b := newEventBuffer(limit, 0, rest.Client{}, "", plugins.TriggerManual)
+	b.WithMetrics(m)
+
+	id := "id1"
+	expectedIds[id] = struct{}{}
+	b.Push(newTestEvent(t, id, false))
+	checkBufferState(t, limit, b, expectedDropped, expectedIds)
+
+	id = "id2"
+	expectedIds[id] = struct{}{}
+	b.Push(newTestEvent(t, id, false))
+	checkBufferState(t, limit, b, expectedDropped, expectedIds)
+
+	id = "id3"
+	expectedIds[id] = struct{}{}
+	b.Push(newTestEvent(t, id, false))
+	// Three events were pushed, but limit is 2 so the oldest even should have been dropped
+	delete(expectedIds, "id1")
+	expectedDropped++
+	checkBufferState(t, limit, b, expectedDropped, expectedIds)
+
+	if int64(len(b.buffer)) != limit {
+		t.Fatalf("buffer size mismatch, expected %d, got %d", limit, len(b.buffer))
+	}
+
+	// Increase the limit, forcing the buffer to change
+	limit = int64(3)
+	b.Stop(t.Context())
+	events := b.Flush()
+	b = newEventBuffer(
+		limit,
+		0,
+		rest.Client{},
+		"",
+		plugins.TriggerPeriodic,
+	)
+	b.WithMetrics(m)
+	for _, event := range events {
+		b.Push(event)
+	}
+	checkBufferState(t, limit, b, expectedDropped, expectedIds)
+
+	id = "id4"
+	expectedIds[id] = struct{}{}
+	b.Push(newTestEvent(t, id, false))
+	checkBufferState(t, limit, b, expectedDropped, expectedIds)
+
+	id = "id5"
+	expectedIds[id] = struct{}{}
+	b.Push(newTestEvent(t, id, true))
+	// Four events were pushed, but limit is 3 so the oldest even should have been dropped
+	expectedDropped++
+	delete(expectedIds, "id2")
+	checkBufferState(t, limit, b, expectedDropped, expectedIds)
+
+	limit = int64(1)
+	b.Stop(t.Context())
+	events = b.Flush()
+	b = newEventBuffer(
+		limit,
+		0,
+		rest.Client{},
+		"",
+		plugins.TriggerPeriodic,
+	)
+	b.WithMetrics(m)
+	for _, event := range events {
+		b.Push(event)
+	}
+	// Limit reconfigured from 3->1, dropping 2 more events.
+	expectedDropped = 4
+	delete(expectedIds, "id3")
+	delete(expectedIds, "id4")
+	checkBufferState(t, limit, b, expectedDropped, expectedIds)
+
+	// Nothing changed
+	b.Stop(t.Context())
+	events = b.Flush()
+	b = newEventBuffer(
+		limit,
+		0,
+		rest.Client{},
+		"",
+		plugins.TriggerPeriodic,
+	)
+	b.WithMetrics(m)
+	for _, event := range events {
+		b.Push(event)
+	}
+	checkBufferState(t, limit, b, expectedDropped, expectedIds)
+}
+
+func checkBufferState(t *testing.T, limit int64, b *eventBuffer, expectedDropped uint64, expectedIds map[string]struct{}) {
+	t.Helper()
+
+	dropped := b.metrics.Counter(logBufferEventDropCounterName).Value().(uint64)
+	if dropped != expectedDropped {
+		t.Fatalf("number of dropped event mismatch, expected %d, got %d", expectedDropped, dropped)
+	}
+
+	if len(b.buffer) != len(expectedIds) {
+		t.Fatalf("buffer size mismatch, expected %d, got %d", len(expectedIds), len(b.buffer))
+	}
+
+	close(b.buffer)
+	newBuffer := make(chan *bufferItem, limit)
+	for event := range b.buffer {
+		if _, ok := expectedIds[event.DecisionID]; !ok {
+			t.Fatalf("received unexpected event %v", event)
+		}
+		newBuffer <- event
+	}
+
+	b.buffer = newBuffer
+}
+
+func TestStopEventBufferLoop(t *testing.T) {
+	t.Parallel()
+
+	uploadPath := "/v1/test"
+	client, ts := setupTestServer(t, uploadPath, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	defer ts.Close()
+
+	tests := []struct {
+		name       string
+		bufferType plugins.TriggerMode
+	}{
+		{
+			name:       "periodic mode",
+			bufferType: plugins.TriggerPeriodic,
+		},
+		{
+			name:       "immediate mode",
+			bufferType: plugins.TriggerImmediate,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEventBuffer(100, 100, client, uploadPath, tc.bufferType).WithLogger(logging.NewNoOpLogger())
+			e.Stop(t.Context())
+			if t.Context().Err() != nil {
+				t.Fatalf("context error: %v", t.Context().Err())
+			}
+			e = newEventBuffer(100, 100, rest.Client{}, uploadPath, tc.bufferType).WithLogger(logging.NewNoOpLogger())
+			e.Push(newTestEvent(t, strconv.Itoa(100), false))
+			if err := e.Upload(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			e.Stop(t.Context())
+			if t.Context().Err() != nil {
+				t.Fatalf("context error: %v", t.Context().Err())
+			}
+		})
+	}
+
+}
+
+func TestEventBuffer_Upload(t *testing.T) {
+	t.Parallel()
+
+	uploadPath := "/v1/test"
+
+	var allEvents []EventV1
+
+	tests := []struct {
+		name                 string
+		eventLimit           int64
+		numberOfEvents       int
+		uploadSizeLimitBytes int64
+		handleFunc           func(w http.ResponseWriter, r *http.Request)
+		expectedError        string
+		mode                 plugins.TriggerMode
+	}{
+		{
+			name:                 "Upload everything in the buffer",
+			mode:                 plugins.TriggerPeriodic,
+			eventLimit:           4,
+			numberOfEvents:       3,
+			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
+			handleFunc: func(w http.ResponseWriter, r *http.Request) {
+				events := decodeLogEvent(t, r.Body)
+				if len(events) != 3 {
+					t.Errorf("expected 3 events, got %d", len(events))
+				}
+				allEvents = append(allEvents, events...)
+
+				w.WriteHeader(http.StatusOK)
+			},
+		},
+		{
+			name:                 "Upload in chunks determined by upload size limit, periodic mode",
+			mode:                 plugins.TriggerPeriodic,
+			eventLimit:           4,
+			numberOfEvents:       4,
+			uploadSizeLimitBytes: 196, // Each test event is 195 bytes
+			handleFunc: func(w http.ResponseWriter, r *http.Request) {
+				events := decodeLogEvent(t, r.Body)
+				if len(events) != 1 {
+					t.Errorf("expected 1 events, got %d", len(events))
+				}
+				allEvents = append(allEvents, events...)
+				w.WriteHeader(http.StatusOK)
+			},
+		},
+		{
+			name:                 "Get error from failed upload, periodic mode",
+			mode:                 plugins.TriggerPeriodic,
+			eventLimit:           1,
+			numberOfEvents:       1,
+			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
+			handleFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusBadRequest)
+			},
+			expectedError: "log upload failed, server replied with HTTP 400 Bad Request",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				allEvents = []EventV1{}
+			}()
+
+			client, ts := setupTestServer(t, uploadPath, tc.handleFunc)
+			defer ts.Close()
+
+			e := newEventBuffer(tc.eventLimit, tc.uploadSizeLimitBytes, client, uploadPath, tc.mode).WithLogger(logging.NewNoOpLogger())
+			e.WithMetrics(metrics.New())
+			for i := range tc.numberOfEvents {
+				e.Push(newTestEvent(t, strconv.Itoa(i), true))
+			}
+
+			err := e.Upload(t.Context())
+			if err != nil {
+				if tc.expectedError == "" || tc.expectedError != "" && err.Error() != tc.expectedError {
+					t.Fatal(err)
+				}
+			}
+
+			if tc.expectedError != "" {
+				return
+			}
+
+			if len(allEvents) != tc.numberOfEvents {
+				t.Fatalf("expected %d events, got %d", tc.numberOfEvents, len(allEvents))
+			}
+		})
+	}
+}
+
+func newTestEvent(t *testing.T, id string, enableNDCache bool) *EventV1 {
+	var result any = false
+	var expInput any = map[string]any{"method": "GET"}
+	timestamp, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := EventV1{
+		Labels: map[string]string{
+			"id":  "test-instance-id",
+			"app": "example-app",
+		},
+		DecisionID:  id,
+		Path:        "foo/bar",
+		Input:       &expInput,
+		Result:      &result,
+		RequestedBy: "test",
+		Timestamp:   timestamp,
+	}
+
+	if enableNDCache {
+		var ndbCacheExample = ast.MustJSON(builtins.NDBCache{
+			"time.now_ns": ast.NewObject([2]*ast.Term{
+				ast.ArrayTerm(),
+				ast.NumberTerm("1663803565571081429"),
+			}),
+		}.AsValue())
+		e.NDBuiltinCache = &ndbCacheExample
+	}
+
+	return &e
+}
+
+func setupTestServer(t *testing.T, uploadPath string, handleFunc func(w http.ResponseWriter, r *http.Request)) (rest.Client, *httptest.Server) {
+	mux := http.NewServeMux()
+	ts := httptest.NewServer(mux)
+
+	mux.HandleFunc(uploadPath, handleFunc)
+
+	config := fmt.Sprintf(`{
+		"name": "foo",
+		"url": %q,
+		"response_header_timeout_seconds": 20,
+	}`, ts.URL)
+	ks := map[string]*keys.Config{}
+	client, err := rest.New([]byte(config), ks)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return client, ts
+}
+
+func decodeLogEvent(t *testing.T, r io.Reader) []EventV1 {
+	t.Helper()
+
+	gr, err := gzip.NewReader(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var events []EventV1
+	if err := json.NewDecoder(gr).Decode(&events); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := gr.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	return events
+}

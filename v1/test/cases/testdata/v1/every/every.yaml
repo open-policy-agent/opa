@@ -1,0 +1,212 @@
+---
+cases:
+  - note: every/empty domain (array)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every x in [] { x != x }
+        }
+    want_result:
+      - x: true
+  - note: every/empty domain (set)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every x in set() { x != x }
+        }
+    want_result:
+      - x: true
+  - note: every/empty domain (object)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every x in {} { x != x }
+        }
+    want_result:
+      - x: true
+  - note: every/empty domain (partial rule ref)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        l contains 1 if {
+        	false
+        }
+
+        p if {
+        	every x in l { x != x }
+        }
+    want_result:
+      - x: true
+  - note: every/domain undefined (input)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every _ in input { true }
+        }
+    want_result: []
+  - note: every/domain undefined (data ref)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every _ in data.foo { true }
+        }
+    want_result: []
+  - note: every/domain is call
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every x in numbers.range(1, 10) { x >= 1 }
+        }
+    want_result:
+      - x: true
+  - note: every/simple key/val
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every k, v in [1, 2] { k + 1 == v }
+        }
+    want_result:
+      - x: true
+  - note: every/simple key/val (set)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every k, v in {1, 2} { k == v }
+        }
+    want_result:
+      - x: true
+  - note: every/simple key/val (partial rule ref)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        l contains 1
+
+        l contains 2
+
+        p if {
+        	every k, v in l { k == v }
+        }
+    want_result:
+      - x: true
+  - note: every/outer bindings
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	i := 10
+        	every k, v in [1, 2] { k + v != i }
+        }
+    want_result:
+      - x: true
+  - note: every/simple failure, first
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every v in [1, 2] { v != 1 }
+        }
+    want_result: []
+  - note: every/simple failure, last
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every v in [1, 2] { v != 2 }
+        }
+    want_result: []
+  - note: "every/with: domain"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every v in input { v == 1 } with input as [1, 1, 1]
+        }
+    want_result:
+      - x: true
+  - note: "every/with: body"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every v in [1, 2] { v in input } with input as [1, 2, 1, 0]
+        }
+    want_result:
+      - x: true
+  - note: every/followed by another query
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains v if {
+        	every v in [1, 2] { v < 3 }
+        	v := 10
+        	v > 3
+        }
+    want_result:
+      - x:
+          - 10
+  - note: every/array with calls
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every v in [1 / 2, 3, 4 + 5] { v < 10 }
+        }
+    want_result:
+      - x: true
+  - note: every/array with calls (fail)
+    query: data.test.q = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	every v in [1 / 2, 3, 4 + 5] { v < 9 }
+        }
+
+        q if {
+        	not p
+        }
+    want_result:
+      - x: true

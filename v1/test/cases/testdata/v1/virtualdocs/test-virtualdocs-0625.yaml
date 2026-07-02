@@ -1,0 +1,26 @@
+---
+cases:
+  - note: "virtualdocs/input: set ground var"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	x = 1
+        	data.generated.q[x]
+        }
+
+        q contains y if {
+        	data.a[y] = i
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 1
+    sort_bindings: true

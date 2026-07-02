@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          net.cidr_expand("192.168.1.1/32", x)
+        }
+    note: netcidrexpand/cidr all bits
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 192.168.1.1

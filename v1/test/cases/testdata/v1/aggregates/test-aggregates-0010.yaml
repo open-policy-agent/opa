@@ -1,0 +1,15 @@
+---
+cases:
+  - note: aggregates/bug 2469 - precision
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	sum([49649733057, 1], __local0__)
+        	__local0__ = 49649733058
+        }
+    data: { }
+    want_result:
+      - x: true

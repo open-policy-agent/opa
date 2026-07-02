@@ -1,0 +1,49 @@
+// Based on implementation outlined here:
+// https://github.com/facebook/docusaurus/issues/7227#issue-1212117180
+//
+import React from "react";
+
+import BrowserOnly from "@docusaurus/BrowserOnly";
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import semver from "semver";
+
+import DefaultNavbarItem from "@theme/NavbarItem/DefaultNavbarItem";
+
+import styles from "./styles.module.css";
+
+// display: inline-block overrides the default and ensures the item shows on
+// mobile at the top of the page.
+export default function CurrentVersionNavbarItem({ ...props }) {
+  const baseUrl = useBaseUrl("/");
+  const href = useBaseUrl("/docs/archive");
+
+  const { siteConfig: { customFields } } = useDocusaurusContext();
+  const version = customFields.buildVersion || "edge";
+
+  // on the mobile menu, show nothing. Note, the 'Desktop' item has 'display'
+  // set, so it'll appear on mobile too.
+  if (props.mobile === true) return null;
+
+  return (
+    <BrowserOnly fallback={null}>
+      {() => {
+        const pathname = window.location.pathname;
+        const docsPath = baseUrl + "docs";
+        if (!pathname.startsWith(docsPath)) {
+          return null;
+        }
+
+        return (
+          <div className={styles.versionWrapper}>
+            <DefaultNavbarItem
+              {...props}
+              label={`${version}`}
+              href={href}
+            />
+          </div>
+        );
+      }}
+    </BrowserOnly>
+  );
+}

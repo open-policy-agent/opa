@@ -1,0 +1,17 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode_verify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ4eHgiLCJuYmYiOjMwMDAuMX0.khHsSae91zHwuaTIvszln3kyrOdPyUYiGSvCI0j2ie8", {"secret": "secret", "time": 2000000000000.1}, [x, y, z])
+        }
+    note: jwtdecodeverify/hs256-float-nbf-not-valid
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - false
+          - {}
+          - {}

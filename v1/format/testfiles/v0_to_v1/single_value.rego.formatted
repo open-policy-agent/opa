@@ -1,0 +1,35 @@
+package test
+
+import rego.v1
+
+a.b := "c" if {
+	input.x
+}
+
+b.c := "d" if {
+	input.d
+}
+
+c.d.e := true
+
+d.e.f if {
+	input.x
+}
+
+e[f] := "g" if {
+	f := input.f
+}
+
+f[g] := "h" if {
+	g := input.g
+}
+
+g.h[i].j[k] := "l" if {
+	i := input.i
+	k := input.k
+}
+
+h.i[j].k[l] := "m" if {
+	j := input.j
+	l := input.l
+}

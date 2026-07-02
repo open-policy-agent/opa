@@ -1,0 +1,43 @@
+# development environment
+.DS_Store
+.vscode
+.idea
+*~
+*.swp
+
+# build artifacts
+coverage.txt
+opa_*
+.Dockerfile_*
+_release
+wasm/_obj
+_test
+!*_test.go
+site.tar.gz
+policy.wasm
+.npm
+.gitbook
+.go
+release-notes.md
+bundle.tar.gz
+
+# ci artifacts
+fuzzit
+ast-fuzzer
+ast-fuzzer.a
+
+# runtime artifacts
+policies
+
+# Local Netlify folder
+.netlify
+
+# man pages
+man
+
+# generated when running local website build
+docs/website/.hugo_build.lock
+docs/website/data/versions
+
+# generated when building windows binary to add icon and product version
+resource.syso

@@ -1,0 +1,18 @@
+---
+cases:
+  - note: "eqexpr/pattern: array multiple vars 2"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains z if {
+        	[1, x, 3] = [y, 2, 3]
+        	z = [x, y]
+        }
+    data: {}
+    want_result:
+      - x:
+          - - 2
+            - 1
+    sort_bindings: true

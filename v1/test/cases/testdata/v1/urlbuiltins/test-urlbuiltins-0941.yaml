@@ -1,0 +1,14 @@
+---
+cases:
+  - note: urlbuiltins/decode
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	urlquery.decode("a%3Db%2B1", x)
+        }
+    data: {}
+    want_result:
+      - x: a=b+1

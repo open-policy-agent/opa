@@ -1,0 +1,23 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          data.generated.q[1] = 0
+        }
+
+        q[x] = i {
+          data.a[i] = x
+        }
+    note: "virtualdocs/input: object 2"
+    query: data.generated.p = x
+    want_result:
+      - x: true

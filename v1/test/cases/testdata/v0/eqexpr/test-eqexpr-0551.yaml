@@ -1,0 +1,13 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          [1, x, 3] = [1, 2, x]
+        }
+    note: "eqexpr/undefined: array var 2"
+    query: data.generated.p = x
+    want_result: []

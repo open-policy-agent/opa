@@ -1,0 +1,15 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p {
+          format_int(4.1, 199, x)
+        }
+    note: "strings/format_int: err: bad base"
+    query: data.generated.p = x
+    want_error: operand 2 must be one of {2, 8, 10, 16}
+    want_error_code: eval_type_error
+    strict_error: true

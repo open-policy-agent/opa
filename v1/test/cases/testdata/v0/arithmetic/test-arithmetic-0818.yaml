@@ -1,0 +1,15 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package test
+
+        p = x {
+          x = 1.1 % 1
+        }
+    note: arithmetic/remainder+error+floating
+    query: data.test.p = x
+    want_error: modulo on floating-point number
+    want_error_code: eval_builtin_error
+    strict_error: true

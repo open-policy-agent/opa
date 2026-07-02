@@ -1,0 +1,27 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package ex
+
+        fn_result = [x, y, z] {
+          data.ex.fn(101, true, x)
+          data.ex.fn(100, true, y)
+          data.ex.fn(100, false, z)
+        }
+
+        fn(x, y) = "large" {
+          x > 100
+        } else = "small" {
+          y = true
+        } else = "medium" {
+          true
+        }
+    note: elsekeyword/functions
+    query: data.ex.fn_result = x
+    want_result:
+      - x:
+          - large
+          - small
+          - medium

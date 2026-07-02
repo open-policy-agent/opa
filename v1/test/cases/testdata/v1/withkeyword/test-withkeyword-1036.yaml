@@ -1,0 +1,17 @@
+---
+cases:
+  - note: withkeyword/with base doc exact value
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.a.b[x] = 1 with data.a.b as {"c": 1, "d": 2, "e": 1}
+        }
+    data: {}
+    want_result:
+      - x:
+          - c
+          - e
+    sort_bindings: true

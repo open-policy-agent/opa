@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = {"a": [x, y]} {
+          x = 1
+          y = 2
+        }
+    note: completedoc/vars
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a:
+            - 1
+            - 2

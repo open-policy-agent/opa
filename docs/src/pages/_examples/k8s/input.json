@@ -1,0 +1,29 @@
+{
+  "kind": "AdmissionReview",
+  "request": {
+    "kind": {
+      "kind": "Pod",
+      "version": "v1"
+    },
+    "object": {
+      "metadata": {
+        "name": "myapp",
+        "labels": {
+          "costcenter": "engineering"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "image": "nginx",
+            "name": "nginx-frontend"
+          },
+          {
+            "image": "mysql",
+            "name": "mysql-backend"
+          }
+        ]
+      }
+    }
+  }
+}

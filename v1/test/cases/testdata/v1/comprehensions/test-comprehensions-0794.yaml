@@ -1,0 +1,17 @@
+---
+cases:
+  - note: comprehensions/object closure
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	y = 1
+        	x = {"foo": y | y = 1}
+        }
+    data: {}
+    want_result:
+      - x:
+          - foo: 1
+    sort_bindings: true

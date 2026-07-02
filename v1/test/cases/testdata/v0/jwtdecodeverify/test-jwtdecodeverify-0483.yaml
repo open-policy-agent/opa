@@ -1,0 +1,19 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode_verify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ4eHgiLCJuYmYiOjEuNTg5Mzg1NzcwMTIzNGUrMDl9.lvrsV1nam-BZr0SomWwsr4dBfu6BDrR2FzQ1iS_Xnrw", {"secret": "secret", "time": 1589385770123400000}, [x, y, z])
+        }
+    note: jwtdecodeverify/hs256-float-nbf-equal
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - true
+          - alg: HS256
+            typ: JWT
+          - iss: xxx
+            nbf: 1.5893857701234e+09

@@ -1,0 +1,25 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.generated.q[_]
+          x = data.a[__local0__]
+        }
+
+        q = [2, 3]
+    note: "nestedreferences/vdoc ref: complete"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 3
+          - 4

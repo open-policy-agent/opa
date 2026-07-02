@@ -1,0 +1,19 @@
+---
+cases:
+  - note: indirectreferences/array
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = [1, 2, 3]
+        	__local0__[x]
+        }
+    data: {}
+    want_result:
+      - x:
+          - 0
+          - 1
+          - 2
+    sort_bindings: true

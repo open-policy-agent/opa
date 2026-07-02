@@ -1,0 +1,20 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          __local0__ = data.a
+          __local1__ = data.a
+          {"a": 1, "b": 2} = {"a": __local0__, "b": __local1__}
+        }
+    note: "eqexpr/undefined: object var 1"
+    query: data.generated.p = x
+    want_result: []

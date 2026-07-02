@@ -1,0 +1,26 @@
+---
+cases:
+  - note: "sets/set_diff: virt docs"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	__local1__ = data.generated.s1
+        	__local2__ = data.generated.s2
+        	__local0__ = __local1__ - __local2__
+        	x = __local0__
+        }
+
+        s1 contains 1
+
+        s1 contains 2
+
+        s1 contains "c"
+
+        s2 := {"c", 1}
+    data: {}
+    want_result:
+      - x:
+          - 2

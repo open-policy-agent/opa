@@ -1,0 +1,12 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = []
+    note: "completedoc/array: []"
+    query: data.generated.p = x
+    want_result:
+      - x: []

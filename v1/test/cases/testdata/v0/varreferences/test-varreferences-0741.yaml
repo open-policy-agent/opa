@@ -1,0 +1,23 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[[i, z, r]] {
+          x = [{}, {[1, 2], [3, 4]}]
+          y = [3, 4]
+          x[i][y][z] = r
+        }
+    note: "varreferences/set: lookup: dereference"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - 1
+            - 0
+            - 3
+          - - 1
+            - 1
+            - 4

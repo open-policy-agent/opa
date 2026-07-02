@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          json.unmarshal("[{\"foo\":[1,2,3]}]", x)
+        }
+    note: jsonbuiltins/unmarshal
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - foo:
+              - 1
+              - 2
+              - 3

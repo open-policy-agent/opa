@@ -1,0 +1,19 @@
+---
+cases:
+  - note: indirectreferences/user call
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        fn(__local0__) := [__local0__]
+
+        p contains x if {
+        	data.generated.fn(1, __local1__)
+        	x = __local1__[0]
+        }
+    data: {}
+    want_result:
+      - x:
+          - 1
+    sort_bindings: true

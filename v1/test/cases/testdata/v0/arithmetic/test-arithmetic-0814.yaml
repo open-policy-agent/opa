@@ -1,0 +1,19 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+    modules:
+      - |
+        package generated
+
+        p = y {
+          data.a[i] = x
+          __local0__ = x / i
+          y = __local0__
+        }
+    note: arithmetic/divide+error
+    query: data.generated.p = x
+    strict_error: true
+    want_error: divide by zero
+    want_error_code: eval_builtin_error

@@ -1,0 +1,46 @@
+---
+cases:
+  - note: net.lookup_ip_addr/simple ip4 returns that ip4
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := net.lookup_ip_addr("10.0.0.0")
+        }
+    want_result:
+      - x:
+          - 10.0.0.0
+  - note: net.lookup_ip_addr/simple ip6 returns that ip6
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := net.lookup_ip_addr("::")
+        }
+    want_result:
+      - x:
+          - "::"
+  - note: net.lookup_ip_addr/localhost
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        # one of these should be the case on any system
+        p if {
+        	net.lookup_ip_addr("localhost") == {"127.0.0.1"}
+        }
+
+        p if {
+        	net.lookup_ip_addr("localhost") == {"127.0.0.1", "::1"}
+        }
+
+        p if {
+        	net.lookup_ip_addr("localhost") == {"::1"}
+        }
+    want_result:
+      - x: true

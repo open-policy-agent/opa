@@ -1,0 +1,12 @@
+---
+cases:
+  - note: completedoc/null
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := null
+    data: {}
+    want_result:
+      - x: null

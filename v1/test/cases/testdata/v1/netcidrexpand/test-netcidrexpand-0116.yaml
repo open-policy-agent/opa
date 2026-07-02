@@ -1,0 +1,14 @@
+---
+cases:
+  - note: netcidrexpand/cidr invalid mask
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	net.cidr_expand("192.168.1.1/33", x)
+        }
+    want_error_code: eval_builtin_error
+    want_error: "net.cidr_expand: invalid CIDR address: 192.168.1.1/33"
+    strict_error: true

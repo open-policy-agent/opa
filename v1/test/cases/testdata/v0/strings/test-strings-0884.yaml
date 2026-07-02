@@ -1,0 +1,13 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          concat("/", ["a", "b"], "deadbeef")
+        }
+    note: "strings/concat: undefined"
+    query: data.generated.p = x
+    want_result: []

@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          __local0__ = 49649733057 + 1
+          __local0__ = 49649733058
+        }
+    note: arithmetic/bug 2469 - precision
+    query: data.generated.p = x
+    want_result:
+      - x: true

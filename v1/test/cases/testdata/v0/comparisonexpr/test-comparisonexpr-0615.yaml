@@ -1,0 +1,13 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          0 != 0
+        }
+    note: "comparisonexpr/undefined: noteq"
+    query: data.generated.p = x
+    want_result: []

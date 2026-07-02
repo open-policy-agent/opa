@@ -1,0 +1,20 @@
+---
+cases:
+  - note: withkeyword/set lookup
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.ex.setl[1] with data.foo as {1}
+        }
+      - |
+        package ex
+
+        setl contains x if {
+        	data.foo[x]
+        }
+    data: {}
+    want_result:
+      - x: true

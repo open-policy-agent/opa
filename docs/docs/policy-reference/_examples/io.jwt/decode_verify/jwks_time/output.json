@@ -1,0 +1,10 @@
+{
+  "allow": true,
+  "allow_future": false,
+  "jwks": "{\n    \"keys\": [\n        {\n            \"alg\": \"ES256\",\n            \"crv\": \"P-256\",\n            \"kid\": \"my-key-id\",\n            \"kty\": \"EC\",\n            \"use\": \"sig\",\n            \"x\": \"Uv7zcspR68KLcqZJDV5WYd946uHTeOFhHVi0hAkqkWI\",\n            \"y\": \"YExfQqSyCo3LlX1K7F9NCTQjcNBNRWAZqsbWtNNHwTU\"\n        }\n    ]\n}",
+  "verified_claims": {
+    "exp": 1893456000,
+    "iss": "pki.example.com",
+    "nbf": 1577836800
+  }
+}

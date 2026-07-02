@@ -1,0 +1,62 @@
+---
+cases:
+  - note: floor rounds down
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	floor(1.01, x)
+        }
+    data: {}
+    want_result:
+      - x: 1
+  - note: floor rounds down (2)
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	floor(1.5, x)
+        }
+    data: {}
+    want_result:
+      - x: 1
+  - note: floor rounds down (3)
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	floor(99.99999, x)
+        }
+    data: {}
+    want_result:
+      - x: 99
+  - note: floor integer
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	floor(1, x)
+        }
+    data: {}
+    want_result:
+      - x: 1
+  - note: floor negative
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	floor(-1.001, x)
+        }
+    data: {}
+    want_result:
+      - x: -2

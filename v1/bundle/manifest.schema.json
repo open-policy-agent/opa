@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpolicyagent.org/schemas/bundle/v1/manifest.schema.json",
+  "title": "OPA Bundle Manifest",
+  "description": "JSON Schema for the bundle `.manifest` file produced by `opa build`. Generated from v1/bundle/bundle.go.",
+  "$ref": "#/$defs/Manifest",
+  "$defs": {
+    "Manifest": {
+      "type": "object",
+      "properties": {
+        "file_rego_versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "rego_version": {
+          "type": "integer"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "roots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "wasm": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WasmResolver"
+          }
+        }
+      },
+      "required": [
+        "revision"
+      ]
+    },
+    "WasmResolver": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "description": "Rego annotations; opaque in this schema. See the OPA documentation for the full annotation shape."
+          }
+        },
+        "entrypoint": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[k] = 1 {
+          ks = [1, {}, null]
+          ks[_] = k
+        }
+    note: partialobjectdoc/non-string key
+    query: data.generated.p = x
+    want_result:
+      - x:
+          "1": 1
+          "null": 1
+          "{}": 1

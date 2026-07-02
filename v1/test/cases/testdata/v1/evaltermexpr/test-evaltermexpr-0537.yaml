@@ -1,0 +1,14 @@
+---
+cases:
+  - note: evaltermexpr/set empty
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	set()
+        }
+    data: {}
+    want_result:
+      - x: true

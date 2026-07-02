@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          sprintf("hi %v", [["there", 5, 3.14]], x)
+        }
+    note: "strings/sprintf: composite"
+    query: data.generated.p = x
+    want_result:
+      - x: hi ["there", 5, 3.14]

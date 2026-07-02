@@ -1,0 +1,35 @@
+{
+  "data": [
+    {
+      "label": "At work",
+      "value": 84
+    },
+    {
+      "label": "For personal use",
+      "value": 16
+    },
+    {
+      "label": "At my second job or side project",
+      "value": 7
+    },
+    {
+      "label": "While doing charity work or volunteering",
+      "value": 3
+    },
+    {
+      "label": "Short term contracts",
+      "value": 3
+    },
+    {
+      "label": "I don't use OPA at all these days",
+      "value": 1
+    },
+    {
+      "label": "I don't use OPA yet",
+      "value": 1
+    }
+  ],
+  "otherResponses": [
+    "study FGA with OPA"
+  ]
+}

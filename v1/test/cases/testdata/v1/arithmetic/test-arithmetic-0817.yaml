@@ -1,0 +1,16 @@
+---
+
+cases:
+  - note: arithmetic/remainder+error
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	__local0__ = 7 % 0
+        	x = __local0__
+        }
+    want_error_code: eval_builtin_error
+    want_error: modulo by zero
+    strict_error: true

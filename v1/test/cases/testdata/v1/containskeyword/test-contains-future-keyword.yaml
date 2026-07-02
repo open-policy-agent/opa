@@ -1,0 +1,63 @@
+---
+cases:
+  - note: containskeyword/base case
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	contains("fireplace", "repl")
+        }
+    want_result:
+      - x: true
+  - note: containskeyword/with unused kw import
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	contains("fireplace", "repl")
+        }
+    want_result:
+      - x: true
+  - note: containskeyword/with kw and builtin used
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains "x" if {
+        	contains("fireplace", "repl")
+        }
+    want_result:
+      - x:
+          - x
+  - note: containskeyword/empty body
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains "x"
+    want_result:
+      - x:
+          - x
+  - note: containskeyword/ordinary deny rule
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains msg if {
+        	msg := "nono"
+        }
+
+        p contains msg if {
+        	msg := "nonono"
+        }
+    want_result:
+      - x:
+          - nono
+          - nonono

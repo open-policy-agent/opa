@@ -1,0 +1,18 @@
+{
+  "id": "which-of-the-following-open-source-policy-librarie",
+  "title": "Which of the following open source policy libraries do you make use of?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 8
+}

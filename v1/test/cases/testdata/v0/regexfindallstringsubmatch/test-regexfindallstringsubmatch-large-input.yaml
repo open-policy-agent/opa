@@ -1,0 +1,16 @@
+---
+cases:
+  - data:
+    input:
+      long: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabc"
+    modules:
+      - |
+        package test
+        import future.keywords
+
+        p contains m if some m in regex.find_all_string_submatch_n("^.*$", input.long, -1)
+    note: regexfindallstringsubmatch/large input
+    query: data.test.p = x
+    want_result:
+      - x:
+          - ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabc"]

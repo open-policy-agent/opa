@@ -1,0 +1,19 @@
+---
+cases:
+  - note: cryptox509parsecertificaterequest/invalid DER or PEM data, b64
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        csr := "YmFkc3RyaW5n"
+
+        p := __local1__ if {
+        	__local3__ = data.generated.csr
+        	crypto.x509.parse_certificate_request(__local3__, __local2__)
+        	__local0__ = __local2__
+        	__local1__ = __local0__.Subject.CommonName
+        }
+    want_error_code: eval_builtin_error
+    want_error: "asn1: structure error"
+    strict_error: true

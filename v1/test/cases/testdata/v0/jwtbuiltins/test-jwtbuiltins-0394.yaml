@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode("eyJhbGciOiJIU^%zI1NiI+sInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiaXNzIjoib3BhIn0.XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY", [x, y, z])
+        }
+    note: jwtbuiltins/bad-header-encoding
+    query: data.generated.p = x
+    strict_error: true
+    want_error:
+      "JWT header had invalid encoding: illegal base64 data at input byte
+      13"
+    want_error_code: eval_builtin_error

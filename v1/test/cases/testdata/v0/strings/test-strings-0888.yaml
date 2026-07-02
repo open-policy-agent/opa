@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          indexof("abcdefgh", "xyz", x)
+        }
+    note: "strings/indexof: not found"
+    query: data.generated.p = x
+    want_result:
+      - x: -1

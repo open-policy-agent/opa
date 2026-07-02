@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImVuYyI6ImJsYWgifQ.eyJuZXciOiJJIGFtIGEgdXNlciBjcmVhdGVkIGZpZWxkIiwiaXNzIjoib3BhIn0.McGUb1e-UviZKy6UyQErNNQzEUgeV25Buwk7OHOa8U8", [x, y, z])
+        }
+    note: jwtbuiltins/no-support-jwe
+    query: data.generated.p = x
+    strict_error: true
+    want_error: JWT is a JWE object, which is not supported
+    want_error_code: eval_builtin_error

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[x] { [1, 2, 3, x] = [a[0], a[1], a[2], a[i]] }")

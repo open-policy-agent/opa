@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+          package test
+
+          p := io.jwt.encode_sign(
+            {"alg": "HS256", "typ": "JWT"},
+            # aud is a set and should be converted to a list
+            {"aud": {"bob", "saul"}, "exp": 1300819380, "http://example.com/is_root": true, "iss": "joe", "privateParams": {"private_one": "one", "private_two": "two"}},
+            {"k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow", "kty": "oct"}
+          )
+    query: data.test.p = x
+    note: set data
+    want_result:
+      - x: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiYm9iIiwic2F1bCJdLCJleHAiOjEzMDA4MTkzODAsImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlLCJpc3MiOiJqb2UiLCJwcml2YXRlUGFyYW1zIjp7InByaXZhdGVfb25lIjoib25lIiwicHJpdmF0ZV90d28iOiJ0d28ifX0.-Or2eol8bzly-Ztb0v7_7UkcKBkN_aNNpK33HK0MeOY

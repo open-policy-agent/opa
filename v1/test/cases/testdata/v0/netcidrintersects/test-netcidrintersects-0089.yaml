@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          net.cidr_intersects("fd1e:5bfe:8af3:9ddc::/64", "2001:4860:4860::8888/32", x)
+        }
+    note: netcidrintersects/cidr ipv6 subnet does not overlap
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - false

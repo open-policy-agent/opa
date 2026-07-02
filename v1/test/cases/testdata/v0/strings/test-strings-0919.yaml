@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          sprintf("hi %02X.%02X", [127, 1], x)
+        }
+    note: "strings/sprintf: hex"
+    query: data.generated.p = x
+    want_result:
+      - x: hi 7F.01

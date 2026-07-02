@@ -1,0 +1,29 @@
+---
+cases:
+  - note: varreferences/ref binding
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	v = data.c[i][j]
+        	x = v[k]
+        	x = true
+        }
+    data:
+      c:
+        - "true":
+            - null
+            - 3.14159
+          x:
+            - true
+            - false
+            - foo
+          z:
+            p: true
+            q: false
+    want_result:
+      - x:
+          - true
+    sort_bindings: true

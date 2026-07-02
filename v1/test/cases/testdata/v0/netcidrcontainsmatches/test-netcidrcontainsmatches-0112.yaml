@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          net.cidr_contains_matches({"k1": "1.1.1.1/24", "k2": ["1.1.1.2/24", 1]}, "1.1.1.128", __local1__)
+          __local0__ = __local1__
+        }
+    note: netcidrcontainsmatches/objects
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - - k1
+            - 1.1.1.128
+          - - k2
+            - 1.1.1.128

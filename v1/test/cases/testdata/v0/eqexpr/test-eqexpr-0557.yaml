@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          "string" = "string"
+        }
+    note: "eqexpr/ground: string"
+    query: data.generated.p = x
+    want_result:
+      - x: true

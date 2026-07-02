@@ -1,0 +1,18 @@
+{
+  "id": "how-would-you-describe-your-expertise-with-kuberne",
+  "title": "How would you describe your expertise with Kubernetes?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 36
+}

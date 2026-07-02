@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          urlquery.encode_object({"a": "b", "c": "d"}, x)
+        }
+    note: urlbuiltins/encode_object strings
+    query: data.generated.p = x
+    want_result:
+      - x: a=b&c=d

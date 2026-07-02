@@ -1,0 +1,21 @@
+---
+cases:
+  - data:
+      d:
+        e:
+          - bar
+          - baz
+    modules:
+      - |
+        package generated
+
+        p[k] = v {
+          data.d[k] = v
+        }
+    note: partialobjectdoc/composites
+    query: data.generated.p = x
+    want_result:
+      - x:
+          e:
+            - bar
+            - baz

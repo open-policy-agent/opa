@@ -1,0 +1,26 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p = x {
+          __local0__ = data.a[0]
+          __local1__ = data.a[1]
+          __local2__ = data.a[2]
+          s1 = {__local0__, __local1__, __local2__}
+          __local3__ = data.a[0]
+          s2 = {2, __local3__}
+          set_diff(s1, s2, x)
+        }
+    note: "sets/set_diff: refs"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 3

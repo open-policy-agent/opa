@@ -1,0 +1,28 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.a[0]
+          __local1__ = data.a[1]
+          __local2__ = data.a[2]
+          __local3__ = data.a[i]
+          [1, 2, 3, x] = [__local0__, __local1__, __local2__, __local3__]
+        }
+    note: "eqexpr/pattern: array non-ground ref"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4

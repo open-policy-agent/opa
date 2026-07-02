@@ -1,0 +1,41 @@
+---
+cases:
+  - data:
+      g:
+        a:
+          - 1
+          - 0
+          - 0
+          - 0
+        b:
+          - 0
+          - 2
+          - 0
+          - 0
+        c:
+          - 0
+          - 0
+          - 0
+          - 4
+    modules:
+      - |
+        package generated
+
+        p[k] = [v1, {"v2": v2}] {
+          data.g[k] = x
+          x[v1] = v2
+          v2 != 0
+        }
+    note: partialobjectdoc/composite value
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a:
+            - 0
+            - v2: 1
+          b:
+            - 1
+            - v2: 2
+          c:
+            - 3
+            - v2: 4

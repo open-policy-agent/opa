@@ -1,0 +1,16 @@
+---
+cases:
+  - note: aggregates/sum
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	sum([1, 2, 3, 4], x)
+        }
+    data: { }
+    want_result:
+      - x:
+          - 10
+    sort_bindings: true

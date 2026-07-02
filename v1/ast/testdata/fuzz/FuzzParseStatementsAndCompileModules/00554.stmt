@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package topdown.virtual.constants\n\n\t\tp = 1\n\t\tq = 2\n\t\tr = 1")

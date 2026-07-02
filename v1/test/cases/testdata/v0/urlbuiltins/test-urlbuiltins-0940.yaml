@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          urlquery.encode("", x)
+        }
+    note: urlbuiltins/encode empty
+    query: data.generated.p = x
+    want_result:
+      - x: ""

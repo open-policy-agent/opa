@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "label": "<10ms",
+      "value": 20
+    },
+    {
+      "label": "<20ms",
+      "value": 14
+    },
+    {
+      "label": "<100ms",
+      "value": 11
+    },
+    {
+      "label": "<500ms",
+      "value": 6
+    },
+    {
+      "label": "depends on policy",
+      "value": 22
+    },
+    {
+      "label": "It varies a lot",
+      "value": 9
+    },
+    {
+      "label": "I don't know",
+      "value": 31
+    }
+  ]
+}

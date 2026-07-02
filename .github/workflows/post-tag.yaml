@@ -1,0 +1,146 @@
+name: Post Tag
+# Note: Because this workflow builds and publishes release
+# artifacts, we intentionally disable caching to prevent
+# cache poisoning attacks during the builds.
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    name: Generate Code
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Generate
+        run: make clean generate
+
+  release-build:
+    name: Release Build (linux, windows)
+    runs-on: ubuntu-24.04
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: .go-version
+          cache: false
+      - uses: jdx/mise-action@dba19683ed58901619b14f395a24841710cb4925 # v4.1.0
+        with:
+          install: true
+          cache: false
+          mise_toml: |
+            [tools]
+            zig = "0.16.0"
+
+      - name: Git Describe
+        run: git describe --tags
+
+      - name: Build Linux and Windows
+        run: make ci-build-windows ci-go-ci-build-linux ci-go-ci-build-linux-static
+        timeout-minutes: 30
+
+      - name: Build Linux arm64
+        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static
+        timeout-minutes: 30
+        env:
+          GOARCH: arm64
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: binaries-linux-windows
+          path: _release
+
+  release-build-darwin:
+    name: Release Build (darwin)
+    runs-on: macos-14
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Git Describe
+        run: git describe --tags
+
+      - name: Install Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: .go-version
+          cache: false
+
+      - name: Build Darwin
+        run: |
+          make ci-build-darwin GOARCH=amd64
+          make ci-build-darwin ci-build-darwin-arm64-static GOARCH=arm64
+        timeout-minutes: 30
+
+      - name: Upload binaries (darwin)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: binaries-darwin
+          path: _release
+
+  publish-release:
+    name: Push Latest Release
+    needs: [release-build, release-build-darwin]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Set TAG_NAME in Environment
+        # Subsequent jobs will be have the computed tag name
+        run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
+      - name: Download release binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: _release
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Build and Deploy OPA Docker Images
+        id: build-and-deploy
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }} # zizmor: ignore[secrets-outside-env]
+          DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }} # zizmor: ignore[secrets-outside-env]
+        # Only run if required secrets are provided
+        if: ${{ env.DOCKER_USER && env.DOCKER_PASSWORD }}
+        run: make release-ci
+
+      - name: Create or Update Release
+        env:
+          # Required for the GitHub CLI
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./build/github-release.sh --asset-dir=$(make release-dir) --tag=${TAG_NAME}

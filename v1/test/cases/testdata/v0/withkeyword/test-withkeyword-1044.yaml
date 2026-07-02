@@ -1,0 +1,20 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = y {
+          y = data.ex.mock_var with data.ex.mock_var as {"c": 1, "d": 2}
+        }
+      - |
+        package ex
+
+        mock_var = {"a": 0, "b": 0}
+    note: withkeyword/with mock var
+    query: data.generated.p = x
+    want_result:
+      - x:
+          c: 1
+          d: 2

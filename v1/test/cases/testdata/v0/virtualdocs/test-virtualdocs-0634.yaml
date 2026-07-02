@@ -1,0 +1,22 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          data.generated.q[1] = 9999
+        }
+
+        q[i] = x {
+          data.a[i] = x
+        }
+    note: "virtualdocs/input: object undefined val"
+    query: data.generated.p = x
+    want_result: []

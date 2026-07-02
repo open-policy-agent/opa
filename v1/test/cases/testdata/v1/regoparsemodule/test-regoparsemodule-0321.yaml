@@ -1,0 +1,17 @@
+---
+cases:
+  - note: regoparsemodule/error
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	__local0__ = data.err
+        	rego.parse_module("x.rego", __local0__, x)
+        }
+    data:
+      err: package foo.
+    want_error_code: eval_builtin_error
+    want_error: "rego_parse_error: unexpected eof token: expected ident"
+    strict_error: true

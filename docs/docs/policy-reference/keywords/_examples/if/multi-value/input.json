@@ -1,0 +1,10 @@
+{
+  "roles": [
+    "admin"
+  ],
+  "email": "admin@example.net",
+  "request": {
+    "headers": {},
+    "path": "/v1/payments"
+  }
+}

@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          intersection({set(), {1, 2}}, x)
+        }
+    note: intersection/intersection_2_sets
+    query: data.generated.p = x
+    want_result:
+      - x: []

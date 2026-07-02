@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          data.generated.q.b[1] = 4
+        }
+
+        q = {"a": [1, 2], "b": [3, 4]}
+    note: "virtualdocs/input: complete object dereference ground"
+    query: data.generated.p = x
+    want_result:
+      - x: true

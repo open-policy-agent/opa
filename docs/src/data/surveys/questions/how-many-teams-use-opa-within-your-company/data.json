@@ -1,0 +1,18 @@
+{
+  "id": "how-many-teams-use-opa-within-your-company",
+  "title": "How many teams use OPA within your company?",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 5
+}

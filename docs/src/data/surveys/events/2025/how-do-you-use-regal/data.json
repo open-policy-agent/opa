@@ -1,0 +1,23 @@
+{
+  "data": [
+    {
+      "label": "Use it in CI",
+      "value": 39
+    },
+    {
+      "label": "Use CLI",
+      "value": 28
+    },
+    {
+      "label": "Use language server in my editor",
+      "value": 32
+    },
+    {
+      "label": "Step by step debugging via DAP",
+      "value": 7
+    }
+  ],
+  "otherResponses": [
+    "Since our policies are dynamic by nature, I use the LS when debugging buggy generated policies"
+  ]
+}

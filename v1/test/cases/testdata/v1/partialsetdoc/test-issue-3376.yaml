@@ -1,0 +1,21 @@
+---
+cases:
+  - note: partialsetdoc/iteration
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo
+
+        p if {
+        	q[i][j] = v # this fails!
+        }
+
+        q contains x if {
+        	x = r
+        }
+
+        r contains x if {
+        	x = [1]
+        }
+    want_result:
+      - x: true

@@ -1,0 +1,54 @@
+---
+# Short-circuit is observed via strict-builtin-errors: the RHS is wired
+# with a builtin that errors at runtime; the test passes only if the RHS is
+# *not* evaluated when the LHS already succeeded.
+cases:
+  - note: "logic_op/or/short-circuit: lhs succeeds, rhs builtin not evaluated"
+    experimental_keywords: true
+    strict_error: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.x > 0 or to_number("foo") == 1
+        }
+    input:
+      x: 1
+    want_result:
+      - x: true
+  - note: "logic_op/or/short-circuit: lhs fails, rhs builtin error surfaces"
+    experimental_keywords: true
+    strict_error: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.x > 0 or to_number("foo") == 1
+        }
+    input:
+      x: 0
+    want_error_code: eval_builtin_error
+    want_error: to_number
+  - note: "logic_op/or/short-circuit: lhs fails, rhs evaluates and succeeds"
+    experimental_keywords: true
+    strict_error: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.x > 0 or input.y > 0
+        }
+    input:
+      x: 0
+      "y": 1
+    want_result:
+      - x: true

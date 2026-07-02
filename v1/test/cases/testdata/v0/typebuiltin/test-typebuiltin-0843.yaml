@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          is_set([1, 2, 3], x)
+        }
+    note: typebuiltin/is_set
+    query: data.generated.p = x
+    want_result:
+      - x: false

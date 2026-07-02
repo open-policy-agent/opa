@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = 1
+
+        default p = 0
+
+        p = 2 {
+          false
+        }
+    note: defaultkeyword/defined-ooo
+    query: data.generated.p = x
+    want_result:
+      - x: 1

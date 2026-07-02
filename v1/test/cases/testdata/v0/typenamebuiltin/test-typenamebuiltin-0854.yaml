@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          __local0__ = {"foo": yy | yy = 1}
+          type_name(__local0__, x)
+        }
+    note: typenamebuiltin/type_name
+    query: data.generated.p = x
+    want_result:
+      - x: object

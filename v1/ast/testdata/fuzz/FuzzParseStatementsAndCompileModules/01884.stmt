@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\t{\n\t\t\t\"public_servers\": [\n\t\t\t\t{\"id\": \"s1\", \"name\": \"app\", \"protocols\": [\"https\", \"ssh\"], \"ports\": [\"p1\", \"p2\", \"p3\"]},\n\t\t\t\t{\"id\": \"s4\", \"name\": \"dev\", \"protocols\": [\"http\"], \"ports\": [\"p1\", \"p2\"]}\n\t\t\t],\n\t\t\t\"violations\": [\n\t\t\t\t{\"id\": \"s4\", \"name\": \"dev\", \"protocols\": [\"http\"], \"ports\": [\"p1\", \"p2\"]}\n\t\t\t]\n\t\t}\n\t")

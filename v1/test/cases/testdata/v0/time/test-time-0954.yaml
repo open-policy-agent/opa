@@ -1,0 +1,21 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [__local0__, __local1__, __local2__] {
+          __local3__ = 1582977600 * 1000
+          __local4__ = __local3__ * 1000
+          __local5__ = __local4__ * 1000
+          time.date(__local5__, __local6__)
+          [__local0__, __local1__, __local2__] = __local6__
+        }
+    note: time/date leap day
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - 2020
+          - 2
+          - 29

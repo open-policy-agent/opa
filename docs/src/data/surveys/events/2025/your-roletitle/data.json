@@ -1,0 +1,45 @@
+{
+  "data": [
+    {
+      "label": "Software Developer/Engineer",
+      "value": 26
+    },
+    {
+      "label": "Engineering Manager/Lead",
+      "value": 12
+    },
+    {
+      "label": "Cloud Architect",
+      "value": 11
+    },
+    {
+      "label": "Platform Engineer",
+      "value": 11
+    },
+    {
+      "label": "Site Reliability Engineer (SRE)",
+      "value": 2
+    },
+    {
+      "label": "Security Engineer",
+      "value": 5
+    },
+    {
+      "label": "DevOps Engineer",
+      "value": 3
+    }
+  ],
+  "otherResponses": [
+    "IAM Architect",
+    "Software Architect/AI Expert",
+    "Medical information officer",
+    "CTO",
+    "Director of Engineering",
+    "platform/devops/SRE/team lead all in one :/",
+    "Founder",
+    "Security Architect",
+    "Technical lead - A mix of development, architecture and leadership",
+    "Data engineer",
+    "Architect"
+  ]
+}

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("q[y] = x { z = {\"a\": \"a\", \"b\": \"b\", \"d\": \"d\"}; z[y] = x }")

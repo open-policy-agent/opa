@@ -1,0 +1,20 @@
+---
+cases:
+  - note: "array/concat: err"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	__local1__ = data.b
+        	array.concat(__local1__, [3, 4], __local0__)
+        	x = __local0__
+        }
+    data:
+      b:
+        v1: hello
+        v2: goodbye
+    want_error_code: eval_type_error
+    want_error: "array.concat: operand 1 must be array but got object"
+    strict_error: true

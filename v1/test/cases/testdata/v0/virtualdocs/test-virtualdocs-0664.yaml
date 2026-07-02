@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          data.generated.q.b = 2
+        }
+
+        q = {"a": 1, "b": 2}
+    note: "virtualdocs/input: complete object"
+    query: data.generated.p = x
+    want_result:
+      - x: true

@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = {"a": [1], "b": [2], "c": [3]}
+    note: 'completedoc/object/nested composites: {"a": [1], "b": [2], "c": [3]}'
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a:
+            - 1
+          b:
+            - 2
+          c:
+            - 3

@@ -1,0 +1,13 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          format_int(15.5, 16, "10000")
+        }
+    note: "strings/format_int: undefined"
+    query: data.generated.p = x
+    want_result: []

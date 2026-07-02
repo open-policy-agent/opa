@@ -1,0 +1,29 @@
+---
+cases:
+  - data: {}
+    input_term: '{"a": {"d": 3}, "e": 4}'
+    modules:
+      - |
+        package generated
+
+        r = __local0__ {
+          true
+          __local0__ = input
+        }
+
+        q = x {
+          data.generated.r = x with input.a.c as 2
+        }
+
+        p = x {
+          data.generated.q = x with input.a.b as 1
+        }
+    note: withkeyword/with stack
+    query: data.generated.p = x
+    want_result:
+      - x:
+          a:
+            b: 1
+            c: 2
+            d: 3
+          e: 4

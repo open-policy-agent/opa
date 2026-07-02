@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          z = 42
+          y = z
+          x = y
+        }
+    note: "eqexpr/var: x=y=z"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 42

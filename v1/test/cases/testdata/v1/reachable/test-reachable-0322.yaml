@@ -1,0 +1,16 @@
+---
+cases:
+  - note: reachable/empty
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	graph.reachable({}, {"a"}, __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    input_term: "{}"
+    want_result:
+      - x: []

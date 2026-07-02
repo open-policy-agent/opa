@@ -1,0 +1,22 @@
+---
+cases:
+  - data:
+      arr_ref:
+        - 1
+        - null
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.arr_ref
+          arr = [[1, 2], __local0__, [2, 2]]
+          arr[_] = [x, 2]
+        }
+    note: undos/array-ref-element
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2

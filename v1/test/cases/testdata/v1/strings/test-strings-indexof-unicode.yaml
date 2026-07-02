@@ -1,0 +1,47 @@
+---
+cases:
+  - note: "strings/indexof: unicode char"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	indexof("μx", "x", x)
+        }
+    want_result:
+      - x: 1
+  - note: "strings/indexof: unicode chars not found"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	indexof("μ", "μμ", x)
+        }
+    want_result:
+      - x: -1
+  - note: "strings/indexof: unicode string"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	indexof("skön var våren", "vår", x)
+        }
+    want_result:
+      - x: 9
+  - note: "strings/indexof: unicode string emoji"
+    query: data.test.p = x
+    modules:
+      - "package test\n\np := x if {\n\tindexof(\"\U0001F367\U0001F368\U0001F9C1\U0001F370\U0001F36E\", \"\U0001F36E\", x)\n}\n"
+    want_result:
+      - x: 4
+  - note: "strings/indexof: unicode string emojis"
+    query: data.test.p = x
+    modules:
+      - "package test\n\np := x if {\n\tindexof(\"\U0001F367\U0001F368\U0001F9C1\U0001F370\U0001F36E\", \"\U0001F367\U0001F368\U0001F9C1\U0001F370\U0001F36E\", x)\n}\n"
+    want_result:
+      - x: 0

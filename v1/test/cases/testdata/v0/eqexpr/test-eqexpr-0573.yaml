@@ -1,0 +1,31 @@
+---
+cases:
+  - data:
+      c:
+        - x:
+            - true
+            - false
+            - foo
+          y:
+            - null
+            - 3.14159
+          z:
+            p: true
+            q: false
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.c[0].x[i] = data.c[0].z[j]
+          x = [i, j]
+        }
+    note: "eqexpr/var: ref ref"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - 0
+            - p
+          - - 1
+            - q

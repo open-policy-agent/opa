@@ -1,0 +1,32 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = data.b[_]
+          __local1__ = data.generated.q[__local0__]
+          x = data.a[__local1__]
+        }
+
+        q[k] = v {
+          o = {"deadbeef": 1000, "goodbye": 3, "hello": 1}
+          o[k] = v
+        }
+    note: "nestedreferences/vdoc ref: partial object: nested bdoc ref"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 2
+          - 4

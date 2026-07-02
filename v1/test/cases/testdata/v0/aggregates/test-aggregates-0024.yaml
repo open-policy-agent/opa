@@ -1,0 +1,20 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          __local0__ = data.a[3]
+          not max([1, 2, 3, 4, 5], __local0__)
+        }
+    note: aggregates/reduce ref dest (2)
+    query: data.generated.p = x
+    want_result:
+      - x: true

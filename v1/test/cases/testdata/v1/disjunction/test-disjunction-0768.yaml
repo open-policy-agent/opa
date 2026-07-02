@@ -1,0 +1,38 @@
+---
+cases:
+  - note: "disjunction/incr: eval set"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.generated.q = s
+        	s[x]
+        }
+
+        q contains x if {
+        	data.a[_0] = x
+        }
+
+        q contains y if {
+        	data.b[_0] = y
+        }
+    data:
+      a:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+      b:
+        v1: hello
+        v2: goodbye
+    want_result:
+      - x:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - goodbye
+          - hello
+    sort_bindings: true

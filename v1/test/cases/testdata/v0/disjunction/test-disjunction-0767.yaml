@@ -1,0 +1,37 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.generated.q[x]
+        }
+
+        q[x] {
+          data.a[i] = x
+        }
+
+        q[y] {
+          data.b[j] = y
+        }
+    note: "disjunction/incr: iter set"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4
+          - goodbye
+          - hello

@@ -1,0 +1,15 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          any([true, true, true, false, false], __local1__)
+          __local0__ = __local1__
+        }
+    note: any/array success
+    query: data.generated.p = x
+    want_result:
+      - x: true

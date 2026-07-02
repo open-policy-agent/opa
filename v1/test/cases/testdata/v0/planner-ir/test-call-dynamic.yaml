@@ -1,0 +1,94 @@
+---
+cases:
+  - note: ir/call_dynamic in comprehension
+    modules:
+      - |
+        package test
+        p := x {
+          b := input
+          x := { y | y := data.a[b][_] }
+        }
+      - |
+        package a
+        b := {"foo", "bar"}
+      - |
+        package a
+        c := {"x", "y" }
+    query: data.test.p = x
+    sort_bindings: true
+    input: "b"
+    want_result:
+      - x:
+          - bar
+          - foo
+  - note: ir/no call-dynamic with mixed partial rules
+    modules:
+      - |
+        package test
+        import future.keywords.if
+        p := data.a.b[c] if c := "c"
+      - |
+        package a
+        import future.keywords.if
+        b[c] := "C" if c := "c"
+        b["d"] := "D"
+    query: data.test.p = x
+    want_result:
+      - x: C
+  - note: ir/call-dynamic with mixed partial rules
+    modules:
+      - |
+        package test
+        import future.keywords.if
+        p := a[b].c if b := "b"
+        a.b.c := "C"
+        a.x.d := "D"
+    query: data.test.p = x
+    want_result:
+      - x: C
+  - note: ir/no call-dynamic with mixed partial rules, ref heads
+    modules:
+      - |
+        package test
+        import future.keywords.if
+        p := a.b[c] if c := "c"
+        a.b[c] := "C" if c := "c"
+        a.b.d := "D"
+    query: data.test.p = x
+    want_result:
+      - x: C
+  - note: ir/call-dynamic with mixed partial rules, ref heads
+    modules:
+      - |
+        package test
+        import future.keywords.if
+        p := a[b][c] if { b := "b"; c := "c" }
+        a.b.c := "C"
+        a.x.d := "D"
+    query: data.test.p = x
+    want_result:
+      - x: C
+  - note: ir/call-dynamic with ref heads, issue 5839
+    modules:
+      - |
+        package test
+        import future.keywords.if
+        p := a[b][c].allow if { b := "b"; c := "c" }
+        a.b.c.allow if true
+        a.x.d.allow if true
+        a.y[x] := "E" if x := "x"
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - note: ir/call-dynamic with ref heads, issue 5839, penultimate
+    modules:
+      - |
+        package test
+        import future.keywords.if
+        p := a[b][c] if { b := "b"; c := "c" }
+        a.b.c if true
+        a.x.d if true
+        a.y := "E"
+    query: data.test.p = x
+    want_result:
+      - x: true

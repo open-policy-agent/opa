@@ -1,0 +1,15 @@
+{
+  "action_requirements": [
+    "dns.records.create",
+    "compute.containers.create",
+    "compute.containers.scale.*"
+  ],
+  "allow": true,
+  "permission_patterns": [
+    "compute.*",
+    "dns.*"
+  ],
+  "user_roles": [
+    "developer"
+  ]
+}

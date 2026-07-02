@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          type_name(null, x)
+        }
+    note: typenamebuiltin/type_name
+    query: data.generated.p = x
+    want_result:
+      - x: "null"

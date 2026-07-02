@@ -1,0 +1,35 @@
+# We're not directly using nor running these dependencies, and hence they're not applicable
+#
+# * github.com/satori/go.uuid - used by a dependency that imports containerd... the containerd import
+#   used here is not vulnerable though.
+CVE-2021-3538
+
+# * go.etcd.io/etcd - we don't run etcd as part of the OPA deployment
+CVE-2018-1098
+CVE-2018-1099
+
+# * k8s.io/kubernetes - we don't run kubernetes as part of the OPA deployment
+CVE-2019-1002101
+CVE-2019-11250
+CVE-2019-11253
+CVE-2019-11254
+CVE-2020-8552
+CVE-2020-8554
+CVE-2020-8555
+CVE-2020-8557
+CVE-2020-8558
+CVE-2020-8559
+CVE-2020-8561
+CVE-2020-8562
+CVE-2020-8563
+CVE-2020-8564
+CVE-2020-8565
+CVE-2021-25735
+CVE-2021-25740
+CVE-2021-25741
+
+# * github.com/emicklei/go-restful - we don't use its code in our handlers
+CVE-2022-1996
+
+# github.com/dgrijalva/jwt-go -- vulnerable version used by docker/distribution above
+CVE-2020-26160

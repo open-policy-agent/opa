@@ -1,0 +1,111 @@
+.versionTag a:link {
+  color: inherit;
+}
+
+.versionTag {
+  background-color: slategrey;
+  color: white;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 0.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.versionTag a:visited {
+  color: inherit;
+}
+
+.wasmTag {
+  background-color: seagreen;
+  color: white;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 0.2rem;
+}
+
+.sdkTag {
+  background-color: darkgoldenrod;
+  color: white;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 0.2rem;
+  white-space: nowrap;
+}
+
+.categoryTag {
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 0.2rem;
+  white-space: nowrap;
+}
+
+.categoryTag a:link {
+  color: inherit;
+}
+.categoryTag a:visited {
+  color: inherit;
+}
+.searchBar {
+  display: flex;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 0.2rem;
+  margin-bottom: 0.4rem;
+  white-space: nowrap;
+}
+.searchBar input {
+  display: flex;
+  background-color: var(--ifm-background-color);
+  color: inherit;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  border: none;
+  border-bottom: 0.1rem solid var(--ifm-table-border-color);
+}
+.searchBar select {
+  display: flex;
+  background-color: var(--ifm-background-color);
+  color: inherit;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  border: none;
+  border-bottom: 0.1rem solid var(--ifm-table-border-color);
+}
+
+.wasm_0 {
+  cursor: pointer;
+  user-select: none;
+  background-color: slategrey;
+  color: white;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  margin-left: 0.4rem;
+  border-radius: 0.2rem;
+}
+.wasm_1 {
+  cursor: pointer;
+  user-select: none;
+  background-color: seagreen;
+  color: white;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  margin-left: 0.4rem;
+  border-radius: 0.2rem;
+}
+
+.metaCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}

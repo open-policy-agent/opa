@@ -1,0 +1,19 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          is_string("Hello", x)
+          is_string("There", y)
+          is_string("OPA", z)
+        }
+    note: typebuiltin/is_string
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - true
+          - true
+          - true

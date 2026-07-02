@@ -1,0 +1,16 @@
+---
+
+
+cases:
+  - note: aggregates/product
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	product([1, 2, 3, 4], 24)
+        }
+    data: { }
+    want_result:
+      - x: true

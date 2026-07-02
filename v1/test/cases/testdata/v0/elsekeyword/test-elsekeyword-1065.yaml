@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package ex
+
+        conflict_1 {
+          false
+        } else = true {
+          true
+        }
+
+        conflict_1 = false
+    note: elsekeyword/conflict-1
+    query: data.ex.conflict_1 = x
+    want_error: complete rules must not produce multiple outputs
+    want_error_code: eval_conflict_error

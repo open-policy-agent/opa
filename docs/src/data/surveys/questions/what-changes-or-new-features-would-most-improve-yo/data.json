@@ -1,0 +1,15 @@
+{
+  "id": "what-changes-or-new-features-would-most-improve-yo",
+  "title": "What changes or new features would most improve your experience with Gatekeeper?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "gatekeeper"
+  ],
+  "rank": 50
+}

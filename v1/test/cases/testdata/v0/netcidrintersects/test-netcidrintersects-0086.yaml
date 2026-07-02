@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          net.cidr_intersects("192.168.1.0/25", "192.168.1.64/25", x)
+        }
+    note: netcidrintersects/cidr subnet overlaps
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - true

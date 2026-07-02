@@ -1,0 +1,14 @@
+{
+  "admin_pattern": "^/admin/.*",
+  "allow": false,
+  "news_pattern": "^/news/.*",
+  "path_patterns": {
+    "admin": [
+      "^/admin/.*",
+      "^/news/.*"
+    ],
+    "intern": [
+      "^/news/.*"
+    ]
+  }
+}

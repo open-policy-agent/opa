@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          json.marshal([{"foo": {1, 2, 3}}], x)
+        }
+    note: jsonbuiltins/marshal
+    query: data.generated.p = x
+    want_result:
+      - x: '[{"foo":[1,2,3]}]'

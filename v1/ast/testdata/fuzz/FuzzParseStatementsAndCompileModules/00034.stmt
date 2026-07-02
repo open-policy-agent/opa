@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package y\n\n\t\tr[\"foo\"] = y {\n\t\t\ty = data.a[0]\n\t\t}")

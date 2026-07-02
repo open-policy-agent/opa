@@ -1,0 +1,24 @@
+---
+cases:
+  - note: "virtualdocs/input: set partially ground composite"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains u if {
+        	y = 2
+        	data.generated.q[z]
+        	z = [x, y]
+        	x = [1, u]
+        }
+
+        q contains [x, y] if {
+        	y = 2
+        	x = [1, y]
+        }
+    data: {}
+    want_result:
+      - x:
+          - 2
+    sort_bindings: true

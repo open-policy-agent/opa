@@ -1,0 +1,21 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          split("foo.bar:qux", ".", __local0__)
+          __local2__ = __local0__[_]
+          split(__local2__, ":", __local1__)
+          __local1__[i] = x
+        }
+    note: indirectreferences/multiple call
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - bar
+          - foo
+          - qux

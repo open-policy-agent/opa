@@ -1,0 +1,16 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          glob.match("*", [], "foo.bar", x)
+        }
+    note: globmatch/glob no match single with default delimiter
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - false

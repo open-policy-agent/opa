@@ -1,0 +1,15 @@
+---
+cases:
+  - note: "array/slice: stopIndex < startIndex"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	array.slice([1, 2, 3, 4, 5], 4, 1, __local0__)
+        	x = __local0__
+        }
+    data: {}
+    want_result:
+      - x: []

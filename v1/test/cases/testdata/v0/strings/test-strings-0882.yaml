@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          concat("/", ["", "foo", "bar", "0", "baz"], x)
+        }
+    note: strings/concat
+    query: data.generated.p = x
+    want_result:
+      - x: /foo/bar/0/baz

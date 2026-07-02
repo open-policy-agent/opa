@@ -1,0 +1,15 @@
+{
+  "id": "stories-to-share-about-opa-adoption-in-your-team-a",
+  "title": "Stories to share about OPA adoption in your team and business?",
+  "comparisonChartType": null,
+  "chartType": "text-list",
+  "featured": false,
+  "chartConfig": {
+    "showCount": true,
+    "maxItems": 100
+  },
+  "tags": [
+    "general"
+  ],
+  "rank": 21
+}

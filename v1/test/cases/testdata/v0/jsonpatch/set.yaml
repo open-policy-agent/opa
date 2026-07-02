@@ -1,0 +1,68 @@
+---
+cases:
+  # Here are some tests that cover dealing with sets and json.patch, since that
+  # is not covered by the spec.
+  - note: jsonpatch/set-success basic-remove
+    query: data.main.result.foo = x
+    want_result:
+      - x:
+          - a
+          - c
+    modules:
+      - |
+        package main
+        doc = {"foo": {"a", "b", "c"}}
+        patch = [{"op": "remove", "path": "foo/b"}]
+        result = r {r = json.patch(doc, patch)}
+    sort_bindings: true
+  - note: jsonpatch/set-success basic-add
+    query: data.main.result.foo = x
+    want_result:
+      - x:
+          - a
+          - b
+          - c
+          - d
+    modules:
+      - |
+        package main
+        doc = {"foo": {"a", "b", "c"}}
+        patch = [{"op": "add", "path": "foo/d", "value": "d"}]
+        result = r {r = json.patch(doc, patch)}
+    sort_bindings: true
+  - note: jsonpatch/set-failure add-with-mismatched-key-value
+    query: data.main.result.foo = x
+    want_result: [] # value does not match key
+    modules:
+      - |
+        package main
+        doc = {"foo": {"a", "b", "c"}}
+        patch = [{"op": "add", "path": "foo/d", "value": "e"}]
+        result = r {r = json.patch(doc, patch)}
+  - note: jsonpatch/set-success basic-move
+    query: "data.main.result.foo = x; data.main.result.bar = z"
+    want_result:
+      - x:
+          - b
+        z:
+          - a
+          - c
+          - d
+    modules:
+      - |
+        package main
+        doc = {"foo": {"a", "b"}, "bar": {"c", "d"}}
+        patch = [{"op": "move", "from": "foo/a", "path": "bar/a"}]
+        result = r {r = json.patch(doc, patch)}
+    sort_bindings: true
+  - note: jsonpatch/set-success add-to-nested-array
+    query: data.main.result = x
+    want_result:
+      - x:
+          - [1, 2]
+    modules:
+      - |
+        package main
+        doc = {[1]}
+        patch = [{"op": "add", "path": [[1], 1], "value": 2}]
+        result = r {r = json.patch(doc, patch)}

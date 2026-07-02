@@ -1,0 +1,40 @@
+---
+cases:
+  - note: defaultkeyword/function with var arg
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        default f(_) := 100
+    want_result:
+      - x: {}
+  - note: defaultkeyword/function with var arg, ref head
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        default p.q.r.f(x) := 100
+    want_result:
+      - x:
+          p:
+            q:
+              r: {}
+  - note: defaultkeyword/function with var arg, ref head query
+    query: data.test.foo = x
+    modules:
+      - |
+        package test
+
+        default p.q.r.f(x) := 100
+
+        p.q.r.f(x) := x if {
+        	x == 2
+        }
+
+        foo if {
+        	p.q.r.f(3) == 100
+        }
+    want_result:
+      - x: true

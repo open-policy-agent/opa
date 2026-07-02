@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          arr = [false, 1, "Hey"]
+          arr[_] = x
+          is_boolean(x)
+        }
+    note: typebuiltin/is_boolean
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - false

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t{\n\t\t\"topdown\": {\n\t\t\t\"a\": {\n\t\t\t\t\"b\": {\n\t\t\t\t\t\"c\": {\n\t\t\t\t\t\t\"x\": [100,200],\n\t\t\t\t\t\t\"y\": false,\n\t\t\t\t\t\t\"z\": {\n\t\t\t\t\t\t\t\"a\": \"b\"\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t},\n\t\t\t\"g\": {\n\t\t\t\t\"h\": {\n\t\t\t\t\t\"k\": [1,2,3]\n\t\t\t\t}\n\t\t\t},\n\t\t\t\"set\": {\n\t\t\t\t\"u\": [1,2,3,4]\n\t\t\t},\n\t\t\t\"conflicts\": {\n\t\t\t\t\"k\": \"foo\"\n\t\t\t}\n\t\t}\n\t}\n\t")

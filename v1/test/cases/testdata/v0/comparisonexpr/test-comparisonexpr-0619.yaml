@@ -1,0 +1,12 @@
+---
+cases:
+  - modules:
+      - |
+        package generated
+
+        p {
+          1 <= -1
+        }
+    note: "comparisonexpr/undefined: lteq"
+    query: data.generated.p = x
+    want_result: []

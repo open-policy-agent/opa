@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = [v,w] { regex.split(\"z+\", \"pizza\", [v,w]) }")

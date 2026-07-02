@@ -1,0 +1,38 @@
+---
+cases:
+  - note: numbersrange/descending
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	numbers.range(2, -3, __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    want_result:
+      - x:
+          - 2
+          - 1
+          - 0
+          - -1
+          - -2
+          - -3
+  - note: numbersrange/descending (cheap optimization)
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	numbers.range(5, 2, __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    want_result:
+      - x:
+          - 5
+          - 4
+          - 3
+          - 2

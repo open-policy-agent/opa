@@ -1,0 +1,39 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p {
+          data.ex.allow with data.label.b.c as [1, 2, 3]
+        }
+      - |
+        package ex
+
+        allow1 {
+          data.label.b.c = [1, 2, 3]
+        }
+
+        allow2 {
+          data.label.b.c[x] = 2
+        }
+
+        allow3 {
+          data.label.b[x] = 1
+        }
+
+        allow4 {
+          data.label.b.c.d[x] = 1
+        }
+
+        allow {
+          data.ex.allow1
+          data.ex.allow2
+          not data.ex.allow3
+          not data.ex.allow4
+        }
+    note: withkeyword/with rule chain
+    query: data.generated.p = x
+    want_result:
+      - x: true

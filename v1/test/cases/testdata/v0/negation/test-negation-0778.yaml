@@ -1,0 +1,13 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p {
+          not true = true
+        }
+    note: "negation/neg: constants"
+    query: data.generated.p = x
+    want_result: []

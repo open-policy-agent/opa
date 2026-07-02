@@ -1,0 +1,28 @@
+---
+cases:
+  - note: walkbuiltin/match and filter
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains [k, x] if {
+        	walk(q, [k, x])
+        	contains(k[1], "oo")
+        }
+
+        q := [{
+        	"foo": 1,
+        	"bar": 2,
+        	"bazoo": 3,
+        }]
+    data: {}
+    want_result:
+      - x:
+          - - - 0
+              - bazoo
+            - 3
+          - - - 0
+              - foo
+            - 1
+    sort_bindings: true

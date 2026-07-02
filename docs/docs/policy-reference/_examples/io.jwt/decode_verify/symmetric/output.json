@@ -1,0 +1,8 @@
+{
+  "allow": true,
+  "verified_claims": {
+    "iss": "pki.example.com",
+    "name": "John Doe",
+    "sub": "1234567890"
+  }
+}

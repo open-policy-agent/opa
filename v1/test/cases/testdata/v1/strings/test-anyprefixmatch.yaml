@@ -1,0 +1,430 @@
+---
+cases:
+  - note: strings/any_prefix_match/match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - a/
+        - d/
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result:
+      - x: true
+  - note: strings/any_prefix_match/nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - f/
+        - d/
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result: []
+  - note: strings/any_prefix_match/match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - a/b/
+        - a/
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result:
+      - x: true
+  - note: strings/any_prefix_match/match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - d/
+        - e/f/g
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result:
+      - x: true
+  - note: strings/any_prefix_match/match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - aa/b
+        - e/f
+      strings:
+        - aa/bb/cc
+        - aa/bb/dd
+        - ee/ff/gg
+    want_result:
+      - x: true
+  - note: strings/any_prefix_match/nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - a/b
+        - e/f
+      strings:
+        - aa/bb/cc
+        - aa/bb/dd
+        - ee/ff/gg
+    want_result: []
+  - note: strings/any_prefix_match/nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - b/cc
+      strings:
+        - aa/bb/cc
+        - aa/bb/dd
+        - ee/ff/gg
+    want_result: []
+  - note: strings/any_prefix_match/nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - a/b
+        - e/f
+      strings: []
+    want_result: []
+  - note: strings/any_prefix_match/nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes: []
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result: []
+  - note: strings/any_prefix_match/nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes: []
+      strings: []
+    want_result: []
+  - note: strings/any_prefix_match/match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefix)
+        }
+    input:
+      prefix: a/
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result:
+      - x: true
+  - note: strings/any_prefix_match/nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefix)
+        }
+    input:
+      prefix: d/
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result: []
+  - note: strings/any_prefix_match/match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.string, input.prefixes)
+        }
+    input:
+      prefixes:
+        - a/
+        - d/
+      string: a/b/c
+    want_result:
+      - x: true
+  - note: strings/any_prefix_match/nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.string, input.prefixes)
+        }
+    input:
+      prefixes:
+        - g/
+        - d/
+      string: a/b/c
+    want_result: []
+  - note: strings/any_prefix_match/match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        strings_set contains str if {
+        	str := input.strings[_]
+        }
+
+        prefixes_set contains prefix if {
+        	prefix := input.prefixes[_]
+        }
+
+        p if {
+        	strings.any_prefix_match(strings_set, prefixes_set)
+        }
+    input:
+      prefixes:
+        - a/
+        - d/
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result:
+      - x: true
+  - note: strings/any_prefix_match/nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        strings_set contains str if {
+        	str := input.strings[_]
+        }
+
+        prefixes_set contains prefix if {
+        	prefix := input.prefixes[_]
+        }
+
+        p if {
+        	strings.any_prefix_match(strings_set, prefixes_set)
+        }
+    input:
+      prefixes:
+        - f/
+        - d/
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result: []
+  - note: strings/any_prefix_match/type_error_nostrict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - f/
+        - d/
+      strings:
+        - "1"
+        - "2"
+        - "3"
+    want_result: []
+  - note: strings/any_prefix_match/type_error_nostrict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - f/
+        - d/
+      strings: 1
+    want_result: []
+  - note: strings/any_prefix_match/type_error_nostrict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - "1"
+        - "2"
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result: []
+  - note: strings/any_prefix_match/type_error_nostrict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes: 1
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result: []
+  - note: strings/any_prefix_match/type_error_strict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - f/
+        - d/
+      strings:
+        - 1
+        - 2
+        - 3
+    want_error: "test-0.rego:4: eval_type_error: strings.any_prefix_match: operand 1 must be array of strings but got array containing number"
+    strict_error: true
+  - note: strings/any_prefix_match/type_error_strict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - f/
+        - d/
+      strings: 1
+    want_error: "test-0.rego:4: eval_type_error: strings.any_prefix_match: operand 1 must be one of {string, set, array} but got number"
+    strict_error: true
+  - note: strings/any_prefix_match/type_error_strict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes:
+        - 1
+        - 2
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_error: "test-0.rego:4: eval_type_error: strings.any_prefix_match: operand 2 must be array of strings but got array containing number"
+    strict_error: true
+  - note: strings/any_prefix_match/type_error_strict
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_prefix_match(input.strings, input.prefixes)
+        }
+    input:
+      prefixes: 1
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_error: "test-0.rego:4: eval_type_error: strings.any_prefix_match: operand 2 must be one of {string, set, array} but got number"
+    strict_error: true

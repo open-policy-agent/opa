@@ -1,0 +1,23 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          net.cidr_contains_matches({["1.1.1.0/24", "bar"], ["1.1.2.0/24", "foo"]}, {["1.1.1.1", "baz"], ["1.1.2.1", "qux"]}, __local1__)
+          __local0__ = __local1__
+        }
+    note: netcidrcontainsmatches/sets of tuples
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - - - 1.1.1.0/24
+              - bar
+            - - 1.1.1.1
+              - baz
+          - - - 1.1.2.0/24
+              - foo
+            - - 1.1.2.1
+              - qux

@@ -1,0 +1,14 @@
+---
+cases:
+  - note: typebuiltin/is_object
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	is_object("foo", x)
+        }
+    data: {}
+    want_result:
+      - x: false

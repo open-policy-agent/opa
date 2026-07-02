@@ -1,0 +1,86 @@
+---
+cases:
+  - note: functions/default
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        default f(x) := 1
+
+        f(x) := x if {
+        	x > 0
+        }
+
+        p if {
+        	f(-1) == 1
+        }
+    want_result:
+      - x: true
+  - note: functions/non default
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        default f(x) := 1
+
+        f(x) := x if {
+        	x > 0
+        }
+
+        p if {
+        	f(2) == 2
+        }
+    want_result:
+      - x: true
+  - note: functions/only default
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        default f(x) := 1
+
+        p if {
+        	f(2) == 1
+        }
+    want_result:
+      - x: true
+  - note: functions/wildcard args
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        default f(_, _) := 1
+
+        f(x, y) := x if {
+        	x == y
+        }
+
+        p if {
+        	f(2, 2) == 2
+        }
+    want_result:
+      - x: true
+  - note: functions/comprehensions
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        default f(x) := 1000
+
+        f(x) := x if {
+        	x > 0
+        }
+
+        p := xs if {
+        	xs := [y | x = [1, -2, 3][_]; y := f(x)]
+        }
+    want_result:
+      - x:
+          - 1
+          - 1000
+          - 3

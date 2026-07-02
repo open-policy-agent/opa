@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "label": "Kubernetes Admission Control",
+      "value": 54
+    },
+    {
+      "label": "Application authorization",
+      "value": 39
+    },
+    {
+      "label": "Microservice Authorization",
+      "value": 39
+    },
+    {
+      "label": "Terraform validation",
+      "value": 25
+    },
+    {
+      "label": "Other",
+      "value": 5
+    }
+  ]
+}

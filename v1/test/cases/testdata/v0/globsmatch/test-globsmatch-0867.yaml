@@ -1,0 +1,17 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p {
+          regex.globs_match("pqrs]", "[a-b]+")
+        }
+    note: "globsmatch/regex.globs_match: bad pattern err"
+    query: data.generated.p = x
+    want_error:
+      "input:pqrs], pos:5, set-close ']' with no preceding '[': the input
+      provided is invalid"
+    want_error_code: eval_builtin_error
+    strict_error: true

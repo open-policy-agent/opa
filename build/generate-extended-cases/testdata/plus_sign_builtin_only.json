@@ -1,0 +1,22 @@
+{
+  "builtins": [
+    {
+      "name": "plus",
+      "infix": "+",
+      "decl": {
+        "type": "function",
+        "args": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "result": {
+          "type": "number"
+        }
+      }
+    }
+  ]
+}

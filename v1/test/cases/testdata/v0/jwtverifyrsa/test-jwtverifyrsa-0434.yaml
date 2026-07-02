@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          io.jwt.verify_es384("eyJhbGciOiJFUzM4NCJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0.w85PzWrIQbJBOROnah0pa8or2LsXWnj88bwG1R-zf5Mm20CaYGPKPTQEsU_y-dzaWyDV1Na7nfaGaH3Khcvj8yS-bidZ0OZVVFDk9oabX7ZYvAHo2pTAOfxc11TeOYSF", `{"kty":"EC","crv":"P-384","x":"Y3MFu4PcMeHj7LsHFcwyQlaOH_CNQtV-VEuAda1jfucxUiaBgimj01zA4QHUtPA9","y":"RttACEZgNAJVVV0ca2WGfmNvNjurPhBrAeU9VjAp1BZNkmvsWYhjwKWM-M0hmzRK"}`, x)
+        }
+    note: jwtverifyrsa/success-es384-jwk
+    query: data.generated.p = x
+    want_result:
+      - x: true

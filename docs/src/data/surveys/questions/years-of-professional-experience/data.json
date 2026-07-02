@@ -1,0 +1,18 @@
+{
+  "id": "years-of-professional-experience",
+  "title": "Years of professional experience",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "",
+    "yAxisLabel": "Count",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "demographic"
+  ],
+  "rank": 70
+}

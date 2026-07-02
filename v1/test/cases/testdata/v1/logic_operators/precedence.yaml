@@ -1,0 +1,85 @@
+---
+cases:
+  - note: "logic_op/precedence: `not x or y` parses as `(not x) or y`"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        # x=true, y=true:
+        # `(not x) or y` = false or true = true -> p=true
+        # `not (x or y)` = not true = false -> undefined
+        p if {
+          not input.x or input.y
+        }
+    input:
+      x: true
+      "y": true
+    want_result:
+      - x: true
+  - note: "logic_op/precedence: `x or y and z` parses as `x or (y and z)`"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        # x=true, y=false, z=false:
+        # `x or (y and z)` = true or _ = true -> p=true (short-circuit)
+        # `(x or y) and z` = (true or false) and false = false -> undefined
+        p if {
+          input.x or input.y and input.z
+        }
+    input:
+      x: true
+      "y": false
+      z: false
+    want_result:
+      - x: true
+  - note: "logic_op/precedence: `x and y or z and w` parses as `(x and y) or (z and w)`"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        # x=false, y=true, z=true, w=true:
+        # `(x and y) or (z and w)` = false or true = true -> p=true
+        # `x and (y or z) and w`   = false and ... = false -> undefined
+        p if {
+          input.x and input.y or input.z and input.w
+        }
+    input:
+      x: false
+      "y": true
+      z: true
+      w: true
+    want_result:
+      - x: true
+  - note: "logic_op/precedence: `not x and not y or z` parses as `((not x) and (not y)) or z`"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        # x=true, y=true, z=true:
+        # `((not x) and (not y)) or z` = (false and false) or true = true -> p=true
+        # `not x and not (y or z)`     = false and not true = false -> undefined
+        p if {
+          not input.x and not input.y or input.z
+        }
+    input:
+      x: true
+      "y": true
+      z: true
+    want_result:
+      - x: true

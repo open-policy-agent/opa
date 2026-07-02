@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          io.jwt.verify_es512("eyJhbGciOiJFUzUxMiJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0.AYpssEoEqq9We9aKsnRykpECAVEOBRJJu8UgDzoL-F8fmB2LPxpS4Gl7D-9wAO5AJt4-9YSsgOb5FLc20MrZN30AAFYopZf75T1pEJQFrdDmOKT45abbrorcR7G_AHDbhBdDNM_R6GojYFg_HPxHndof745Yq5Tfw9PpJc-9kSyk6kqO", "-----BEGIN PUBLIC KEY-----\nMIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBy5tyDA//PLwv0tXAk8o6wo8ByBrI\n4mxQcDwV7d+mCgo1HUu44iSUeWEFT8qUr+4D2iip9RPAqpH1XXd666dU6HABJrOF\n74oLVmQWc338PccmQoJrUNnUx7Ln4v+Vv2MfDd1MPg9sJdSynCa2qLqPqoGphn7q\nLulmwKDxLXToNPgeIxc=\n-----END PUBLIC KEY-----", x)
+        }
+    note: jwtverifyrsa/success-es512-key
+    query: data.generated.p = x
+    want_result:
+      - x: true

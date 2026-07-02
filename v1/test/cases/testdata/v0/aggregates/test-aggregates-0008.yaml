@@ -1,0 +1,26 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          __local0__ = [y | data.generated.q[y]]
+          sum(__local0__, x)
+        }
+
+        q[x] {
+          data.a[_] = x
+        }
+    note: aggregates/sum virtual
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 10

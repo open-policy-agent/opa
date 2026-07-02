@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          upper("AbCdEf", x)
+        }
+    note: strings/upper
+    query: data.generated.p = x
+    want_result:
+      - x: ABCDEF

@@ -1,0 +1,24 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.ex.composite[x] with input.foo as [1, 2, 3, 4]
+        }
+      - |
+        package ex
+
+        composite[x] {
+          input.foo[_] = x
+          x > 2
+        }
+    note: withkeyword/with composite
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 3
+          - 4

@@ -1,0 +1,19 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          not data.a[["b"]]
+        }
+    note: compositebasedereference/set
+    query: data.generated.p = x
+    want_result:
+      - x: true

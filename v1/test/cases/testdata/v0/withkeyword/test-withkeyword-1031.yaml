@@ -1,0 +1,22 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        q["c"]
+
+        p[[x, y]] {
+          data.generated.q[x] with data.generated.q as {"a", "b"}
+          y = data.generated.q
+        }
+    note: withkeyword/with invalidate data stack iteration
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - a
+            - - c
+          - - b
+            - - c

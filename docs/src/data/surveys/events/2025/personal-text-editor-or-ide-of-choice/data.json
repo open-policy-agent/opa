@@ -1,0 +1,31 @@
+{
+  "data": [
+    {
+      "label": "VS Code",
+      "value": 48
+    },
+    {
+      "label": "Emacs",
+      "value": 3
+    },
+    {
+      "label": "Jetbrains IDE",
+      "value": 18
+    },
+    {
+      "label": "Vim/Neovim",
+      "value": 8
+    }
+  ],
+  "otherResponses": [
+    "Cursor",
+    "Helix",
+    "Zed",
+    "Zed",
+    "(VS Code or Zed) with Vim keybindings",
+    "Eclipse",
+    "Cursor",
+    "Cursor",
+    "Zed"
+  ]
+}

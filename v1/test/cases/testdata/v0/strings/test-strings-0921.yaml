@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          sprintf("hi %v", [2e308], x)
+        }
+    note: "strings/sprintf: float too big"
+    query: data.generated.p = x
+    want_result:
+      - x: hi 2e308

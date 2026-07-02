@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = x { base64.encode(\"subjects?_d\", x) }")

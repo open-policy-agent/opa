@@ -1,0 +1,21 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          0 != 1
+          data.a[i] = x
+          x != 2
+        }
+    note: comparisonexpr/noteq
+    query: data.generated.p = x
+    want_result:
+      - x: true

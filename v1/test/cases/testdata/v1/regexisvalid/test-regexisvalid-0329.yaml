@@ -1,0 +1,16 @@
+---
+cases:
+  - note: regexisvalid/bad operand type
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	__local0__ = data.num
+        	regex.is_valid(__local0__, x)
+        }
+    data:
+      num: 10
+    want_result:
+      - x: false

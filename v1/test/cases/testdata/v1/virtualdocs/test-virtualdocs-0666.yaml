@@ -1,0 +1,16 @@
+---
+cases:
+  - note: "virtualdocs/input: complete array dereference ground"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q[1][1] = 3
+        }
+
+        q := [[0, 1], [2, 3]]
+    data: {}
+    want_result:
+      - x: true

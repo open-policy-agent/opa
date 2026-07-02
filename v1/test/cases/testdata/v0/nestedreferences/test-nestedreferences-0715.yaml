@@ -1,0 +1,25 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[y] {
+          x = [1, 2, 3]
+          __local0__ = x[_]
+          y = data.a[__local0__]
+        }
+    note: nestedreferences/var ref
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 2
+          - 3
+          - 4

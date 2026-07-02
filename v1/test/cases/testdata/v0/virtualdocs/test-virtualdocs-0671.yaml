@@ -1,0 +1,26 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          data.generated.q[i] = e
+          x = [i, e]
+        }
+
+        q = [1, 2, 3, 4]
+    note: "virtualdocs/output: complete array"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - 0
+            - 1
+          - - 1
+            - 2
+          - - 2
+            - 3
+          - - 3
+            - 4

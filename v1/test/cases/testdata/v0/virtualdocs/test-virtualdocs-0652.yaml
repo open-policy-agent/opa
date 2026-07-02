@@ -1,0 +1,24 @@
+---
+cases:
+  - data:
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package generated
+
+        p[k] = v {
+          __local0__ = data.generated.q[k]
+          {k: [__local0__]} = {k: [v]}
+        }
+
+        q[x] = y {
+          data.b[x] = y
+        }
+    note: "virtualdocs/output: object embedded"
+    query: data.generated.p = x
+    want_result:
+      - x:
+          v1: hello
+          v2: goodbye

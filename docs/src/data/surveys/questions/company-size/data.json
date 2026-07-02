@@ -1,0 +1,18 @@
+{
+  "id": "company-size",
+  "title": "Company Size",
+  "comparisonChartType": "stacked-bar",
+  "chartType": "horizontal-bar",
+  "featured": false,
+  "chartConfig": {
+    "xAxisLabel": "Count",
+    "yAxisLabel": "",
+    "showXAxis": true,
+    "showYAxis": true,
+    "showTooltip": true
+  },
+  "tags": [
+    "demographic"
+  ],
+  "rank": 73
+}

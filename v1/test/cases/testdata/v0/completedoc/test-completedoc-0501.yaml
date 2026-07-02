@@ -1,0 +1,12 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = 66.66667
+    note: "completedoc/number: 66.66667"
+    query: data.generated.p = x
+    want_result:
+      - x: 66.66667

@@ -1,0 +1,26 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[i] {
+          __local0__ = {x | x = data.a[_]}
+          xs = [__local0__]
+          __local1__ = xs[0][i]
+          __local1__ > 1
+        }
+    note: comprehensions/set embedded array
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 2
+          - 3
+          - 4

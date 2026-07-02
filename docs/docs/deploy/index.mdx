@@ -1,0 +1,73 @@
+---
+sidebar_label: Overview
+sidebar_position: 0
+title: How to Deploy OPA
+---
+
+Open Policy Agent (OPA) is a general purpose policy engine that can be used
+in a range of deployment scenarios. OPA is a Policy Decision Point (PDP) that
+is responsible for making decisions on behalf of applications (Policy
+Enforcement Points or PEPs). A running instance of OPA is responsible for:
+
+- Ensuring that requests for policy evaluation from PEPs are processed quickly
+- Reloading policy when new policy versions are available
+- Loading in live and external data needed for policy evaluation
+- Logging decisions that have been made for auditing
+
+OPA can be deployed in a variety of ways, the right way for your use case
+depends on a number of factors. OPA is generally best located as close as
+possible to the PEPs it is making decisions for. The lower the latency, the
+quicker the total time to make a decision. It is also more reliable if PEPs can
+invoke a local OPA instance since the policy call is not subject to network
+operations.
+
+However, there are use cases where invoking OPA over the network is the right
+choice too. The table below outlines the two main deployment models for OPA, and
+the appropriate use cases for each.
+
+|                      | Sidecar or VM Node Agent                                      | Centralized OPA Service                         |
+|----------------------|---------------------------------------------------------------|-------------------------------------------------|
+| Latency              | Very Low, decisions are local                                 | Higher latency, decisions involve network hops  |
+| Scalability          | Scales with application instances                             | May require additional scaling for high traffic |
+| Fault Tolerance      | More fault tolerant, works without network connectivity       | Failure point if not highly available           |
+| Total Resource Usage | Higher, OPA runs per instance                                 | Lower, data and resources are shared            |
+| Use Cases            | Containers, Service Mesh, Authorizing Proxy/Gateway, IoT/Edge | Large data volumes, Serverless, Batch/CI Jobs   |
+
+Browse the documentation below to learn more about deploying OPA in your
+infrastructure.
+
+<CardGrid>
+  <Card key={"k8s"} item={{
+    title: "Kubernetes",
+    icon: require('./assets/images/k8s.png').default,
+    link: "./deploy/k8s/",
+    link_text: "Deploy on Kubernetes",
+  }} />
+  <Card key={"docker"} item={{
+    title: "Docker",
+    icon: require('./assets/images/docker.png').default,
+    link: "./deploy/docker/",
+    link_text: "Deploy on Docker",
+  }} />
+</CardGrid>
+
+<CardGrid>
+  <Card key={"aws"} item={{
+    title: "AWS",
+    icon: require('./assets/images/aws.png').default,
+    link: "./deploy/aws",
+    link_text: "Deploy on AWS",
+  }} />
+  <Card key={"google-cloud"} item={{
+    title: "Google Cloud",
+    icon: require('./assets/images/google-cloud.png').default,
+    link: "./deploy/google-cloud/",
+    link_text: "Deploy on Google Cloud",
+  }} />
+  <Card key={"azure"} item={{
+    title: "Azure",
+    icon: require('./assets/images/azure.png').default,
+    link: "./deploy/azure/",
+    link_text: "Deploy on Azure",
+  }} />
+</CardGrid>

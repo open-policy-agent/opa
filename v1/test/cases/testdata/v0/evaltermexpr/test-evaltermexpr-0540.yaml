@@ -1,0 +1,18 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          data.a[true]
+        }
+    note: evaltermexpr/ref undefined (path)
+    query: data.generated.p = x
+    want_result: []

@@ -1,0 +1,24 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p = xs {
+          __local0__ = {x | x = data.a[_]}
+          xs = {__local0__}
+        }
+    note: comprehensions/set embedded set
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - - 1
+            - 2
+            - 3
+            - 4

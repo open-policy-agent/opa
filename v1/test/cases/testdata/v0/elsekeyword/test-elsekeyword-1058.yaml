@@ -1,0 +1,26 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      b:
+        v1: hello
+        v2: goodbye
+    modules:
+      - |
+        package ex
+
+        vars {
+          false
+        } else = ["hello", x] {
+          data.b.v2 = x
+        }
+    note: elsekeyword/var-head
+    query: data.ex.vars = x
+    want_result:
+      - x:
+          - hello
+          - goodbye

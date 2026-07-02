@@ -1,0 +1,14 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p = x {
+          sprintf("hi %.2f", [3.1415], x)
+        }
+    note: "strings/sprintf: float"
+    query: data.generated.p = x
+    want_result:
+      - x: hi 3.14

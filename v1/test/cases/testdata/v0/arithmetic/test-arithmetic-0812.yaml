@@ -1,0 +1,26 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p[y] {
+          data.a[i] = x
+          __local0__ = i * x
+          y = __local0__
+        }
+    note: arithmetic/multiply
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 0
+          - 2
+          - 6
+          - 12

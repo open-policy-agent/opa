@@ -1,0 +1,37 @@
+---
+cases:
+  - note: "virtualdocs/output: object defererence non-ground"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains r if {
+        	data.generated.q[x][y][z] = false
+        	r = [x, y, z]
+        }
+
+        q[i] := x if {
+        	x = data.c[i]
+        }
+    data:
+      c:
+        - "true":
+            - null
+            - 3.14159
+          x:
+            - true
+            - false
+            - foo
+          z:
+            p: true
+            q: false
+    want_result:
+      - x:
+          - - 0
+            - x
+            - 1
+          - - 0
+            - z
+            - q
+    sort_bindings: true

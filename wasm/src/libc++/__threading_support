@@ -1,0 +1,16 @@
+#ifndef _LIBCPP_THREADING_SUPPORT
+#define _LIBCPP_THREADING_SUPPORT
+
+#define _LIBCPP_HAS_THREAD_API_EXTERNAL
+
+namespace std {
+namespace __libcpp_thread_api {
+
+// No-op threading stubs for WASM
+inline void __libcpp_thread_yield() {}
+inline void __libcpp_thread_sleep_for(int) {}
+
+} // namespace __libcpp_thread_api
+} // namespace std
+
+#endif // _LIBCPP_THREADING_SUPPORT

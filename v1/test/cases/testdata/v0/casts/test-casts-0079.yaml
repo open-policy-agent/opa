@@ -1,0 +1,19 @@
+---
+cases:
+  - data:
+      op1:
+        - 1
+        - 2
+        - 3
+    modules:
+      - |
+        package generated
+
+        p = x {
+          cast_string(data.op1, x)
+        }
+    note: casts/string invalid
+    query: data.generated.p = x
+    strict_error: true
+    want_error: ""
+    want_error_code: eval_type_error

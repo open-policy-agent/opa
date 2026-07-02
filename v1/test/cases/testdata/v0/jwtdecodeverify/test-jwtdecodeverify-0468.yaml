@@ -1,0 +1,21 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+
+        p = [x, y, z] {
+          io.jwt.decode_verify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM", {"secret": "secret"}, [x, y, z])
+        }
+    note: jwtdecodeverify/hs256-unconstrained
+    query: data.generated.p = x
+    want_result:
+      - x:
+          - true
+          - alg: HS256
+            typ: JWT
+          - azp: alice
+            hr: false
+            subordinates: []
+            user: alice

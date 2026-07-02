@@ -1,0 +1,18 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[z] {
+          [1, x, y] = [1, 2, 3]
+          z = [x, y]
+        }
+    note: "eqexpr/pattern: array multiple vars"
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - - 2
+            - 3

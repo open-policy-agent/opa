@@ -1,0 +1,27 @@
+---
+cases:
+  - note: "virtualdocs/input: set embedded"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.generated.q[2]
+        	x = {"b": [__local0__]}
+        }
+
+        q contains x if {
+        	data.a[i] = x
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - b:
+              - 2
+    sort_bindings: true

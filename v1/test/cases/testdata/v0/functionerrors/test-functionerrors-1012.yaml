@@ -1,0 +1,33 @@
+---
+cases:
+  - data:
+    modules:
+      - |
+        package test1
+
+        p(a) = y {
+          y = a[_]
+        }
+
+        r = y {
+          data.test1.p([1, 2, 3], y)
+        }
+    note: functionerrors/function output conflict single
+    query: data.test1.r = x
+    want_error: functions must not produce multiple outputs for same inputs
+    want_error_code: eval_conflict_error
+  - data:
+    modules:
+      - |
+        package test
+
+        f(_) = true
+        f(_) = false
+
+        r {
+          data.test.f(1)
+        }
+    note: functionerrors/function output conflict, used as boolean
+    query: data.test.r = x
+    want_error: functions must not produce multiple outputs for same inputs
+    want_error_code: eval_conflict_error

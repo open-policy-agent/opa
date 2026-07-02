@@ -1,0 +1,17 @@
+---
+cases:
+  - data: {}
+    modules:
+      - |
+        package generated
+
+        p[x] {
+          v = [[1, 2], [2, 3], [3, 4]]
+          x = v[2][1]
+        }
+    note: varreferences/ground
+    query: data.generated.p = x
+    sort_bindings: true
+    want_result:
+      - x:
+          - 4

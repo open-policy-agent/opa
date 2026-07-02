@@ -1,0 +1,21 @@
+---
+cases:
+  - note: varreferences/existing ref binding
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	q = data.a
+        	q[0] = x
+        	q[0]
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x: 1

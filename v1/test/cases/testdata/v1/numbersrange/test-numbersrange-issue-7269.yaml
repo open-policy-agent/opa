@@ -1,0 +1,12 @@
+---
+cases:
+  - note: numbersrange/issue 7269
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if numbers.range(0, 1)
+    data: {}
+    want_result:
+      - x: true

@@ -1,0 +1,93 @@
+---
+cases:
+  - note: functions/nested complete doc with conflict
+    query: data.generated.p(1) = x
+    modules:
+      - |
+        package generated
+
+        p(_) if {
+        	data.generated.q
+        }
+
+        q := true
+
+        q := false
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: functions/nested complete doc with conflict, else
+    query: data.generated.p(1) = x
+    modules:
+      - |
+        package generated
+
+        p(_) if {
+        	data.generated.q
+        }
+
+        q if {
+        	false
+        }
+
+        else := true
+
+        q if {
+        	false
+        }
+
+        else := false
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs
+  - note: functions/nested function with conflict
+    query: data.generated.p(1) = x
+    modules:
+      - |
+        package generated
+
+        p(x) if {
+        	y := data.generated.q(x)
+        }
+
+        q(_) := true
+
+        q(_) := false
+    want_error_code: eval_conflict_error
+    want_error: functions must not produce multiple outputs for same inputs
+  - note: functions/nested function with conflict, else
+    query: data.generated.p(1) = x
+    modules:
+      - |
+        package generated
+
+        p(x) if {
+        	y := data.generated.q(x)
+        }
+
+        q(_) if {
+        	false
+        }
+
+        else := true
+
+        q(_) if {
+        	false
+        }
+
+        else := false
+    want_error_code: eval_conflict_error
+    want_error: functions must not produce multiple outputs for same inputs
+  - note: functions/nested function with conflict, else, no extra return
+    query: data.test.p(1) = x
+    modules:
+      - |
+        package test
+
+        p(x) if {
+        	y := data.test.q(x)
+        }
+
+        xs := {1, 2}
+
+        q(_) := xs[_]
+    want_error_code: eval_conflict_error
+    want_error: functions must not produce multiple outputs for same inputs

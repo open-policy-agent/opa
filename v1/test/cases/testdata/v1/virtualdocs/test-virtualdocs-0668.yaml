@@ -1,0 +1,21 @@
+---
+cases:
+  - note: "virtualdocs/input: complete array ground index"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	z = [1, 2]
+        	z[i] = y
+        	data.generated.q[y] = x
+        }
+
+        q := [1, 2, 3, 4]
+    data: {}
+    want_result:
+      - x:
+          - 2
+          - 3
+    sort_bindings: true

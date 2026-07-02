@@ -1,0 +1,20 @@
+---
+cases:
+  - data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    modules:
+      - |
+        package generated
+
+        p {
+          data.a[i] = 4
+          x = 3
+        }
+    note: "eqexpr/var: ref key"
+    query: data.generated.p = x
+    want_result:
+      - x: true
