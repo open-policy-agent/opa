@@ -1,0 +1,35 @@
+# Atoi64 vs strconv.Atoi
+
+## Atoi64
+
+BenchmarkAtoi64/#00-16         	1000000000	         0.9167 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/no-16          	1000000000	         1.167 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/02-16          	573961748	         2.107 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/0-16           	643013014	         1.818 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/-0-16          	633210019	         1.938 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/123-16         	479271106	         2.403 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/-123-16        	458470455	         2.645 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/9223372-16     	346216180	         3.434 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/8223372036854775807-16         	130872100	         9.137 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/9223372036854775807-16         	131376300	         9.159 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/+9223372036854775807-16        	124460583	         9.627 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/9223372036854775808-16         	131100723	         9.151 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/-9223372036854775808-16        	122350833	         9.829 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/-9223372036854775809-16        	122665735	         9.780 ns/op	       0 B/op	       0 allocs/op
+
+## strconv.Atoi
+
+BenchmarkAtoi64/#00-16         	103776993	        11.43 ns/op	      48 B/op	       1 allocs/op
+BenchmarkAtoi64/no-16          	72848500	        15.40 ns/op	      50 B/op	       2 allocs/op
+BenchmarkAtoi64/02-16          	454403812	         2.665 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/0-16           	496121979	         2.404 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/-0-16          	451980451	         2.642 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/123-16         	396382513	         3.027 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/-123-16        	373580103	         3.251 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/9223372-16     	302050006	         4.098 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/8223372036854775807-16         	63019692	        19.30 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/9223372036854775807-16         	64338274	        19.10 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/+9223372036854775807-16        	64576740	        19.33 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/9223372036854775808-16         	35374750	        33.59 ns/op	      72 B/op	       2 allocs/op
+BenchmarkAtoi64/-9223372036854775808-16        	63774238	        19.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAtoi64/-9223372036854775809-16        	34102534	        33.55 ns/op	      72 B/op	       2 allocs/op

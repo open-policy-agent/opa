@@ -722,15 +722,15 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 
-	astArr, ok := operands[1].Value.(*ast.Array)
-	if !ok {
-		return builtins.NewOperandTypeErr(2, operands[1].Value, "array")
+	a, err := builtins.ArrayOperand(operands[1].Value, 2)
+	if err != nil {
+		return err
 	}
 
 	// Optimized path for where sprintf is used as a "to_string" function for
 	// a single integer, i.e. sprintf("%d", [x]) where x is an integer.
-	if s == "%d" && astArr.Len() == 1 {
-		if n, ok := astArr.Elem(0).Value.(ast.Number); ok {
+	if s == "%d" && a.Len() == 1 {
+		if n, ok := a.Elem(0).Value.(ast.Number); ok {
 			if i, ok := n.Int(); ok {
 				if interned := ast.InternedIntegerString(i); interned != nil {
 					return iter(interned)
@@ -740,24 +740,35 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		}
 	}
 
-	args := make([]any, astArr.Len())
+	args := make([]any, a.Len())
 
 	for i := range args {
-		switch v := astArr.Elem(i).Value.(type) {
+		t := a.Elem(i)
+		switch v := t.Value.(type) {
 		case ast.Number:
-			if n, ok := v.Int(); ok {
-				args[i] = n
-			} else if b, ok := new(big.Int).SetString(v.String(), 10); ok {
-				args[i] = b
-			} else if f, ok := v.Float64(); ok {
-				args[i] = f
+			ns := string(v)
+			if x, ok := util.Atoi64(ns); ok {
+				args[i] = x
 			} else {
-				args[i] = v.String()
+				if strings.ContainsRune(ns, '.') {
+					if f, ok := v.Float64(); ok {
+						args[i] = f
+						continue
+					} else {
+						args[i] = ns
+					}
+				} else {
+					if b, ok := new(big.Int).SetString(ns, 10); ok {
+						args[i] = b
+					} else {
+						args[i] = ns
+					}
+				}
 			}
 		case ast.String:
 			args[i] = string(v)
 		default:
-			args[i] = astArr.Elem(i).String()
+			args[i] = t.Value.String()
 		}
 	}
 

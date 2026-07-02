@@ -1133,3 +1133,25 @@ func BenchmarkTemplateStringToStringEscapeControl(b *testing.B) {
 		b.Fatalf("expected %q but got %q", exp, s)
 	}
 }
+
+// 13.00 ns/op	       0 B/op	       0 allocs/op // json.Number.Int64()
+// 4.738 ns/op	       0 B/op	       0 allocs/op // util.Atoi64()
+func BenchmarkNumberInt64(b *testing.B) {
+	num := Number("1234567890")
+	for b.Loop() {
+		if x, ok := num.Int64(); !ok || x != 1234567890 {
+			b.Fatalf("expected %d but got %d", 1234567890, x)
+		}
+	}
+}
+
+// 35.42 ns/op	      64 B/op	       2 allocs/op // json.Number.Int64()
+// 2.549 ns/op	       0 B/op	       0 allocs/op // util.Atoi64()
+func BenchmarkNumberInt64Fail(b *testing.B) {
+	num := Number("12345.67890")
+	for b.Loop() {
+		if _, ok := num.Int64(); ok {
+			b.Fatal("expected failure")
+		}
+	}
+}
