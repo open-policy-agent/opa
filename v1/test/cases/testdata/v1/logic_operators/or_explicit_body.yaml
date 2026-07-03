@@ -1,0 +1,98 @@
+---
+cases:
+  - note: "logic_op/or/explicit-body: explicit lhs, implicit rhs"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          { a := 0; a > 0 } or input.y == 2
+        }
+    input:
+      "y": 2
+    want_result:
+      - x: true
+  - note: "logic_op/or/explicit-body: implicit lhs, explicit rhs"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.y == 2 or { a := 1; a > 0 }
+        }
+    input:
+      "y": 0
+    want_result:
+      - x: true
+  - note: "logic_op/or/explicit-body: both explicit, lhs succeeds"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          { a := 1; a > 0 } or { b := 0; b > 0 }
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/explicit-body: both explicit, rhs succeeds"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          { a := 0; a > 0 } or { b := 1; b > 0 }
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/explicit-body: both explicit, both fail"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          { a := 0; a > 0 } or { b := 0; b > 0 }
+        }
+    want_result: []
+  - note: "logic_op/or/explicit-body: multi-expr operand body"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          { a := input.a; a > 0; a < 10 } or true
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/explicit-body: some-binding inside operand body"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          { some n in input.xs; n > 0 } or false
+        }
+    input:
+      xs: [-1, 0, 5]
+    want_result:
+      - x: true

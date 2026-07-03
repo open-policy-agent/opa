@@ -16,7 +16,8 @@ import (
 	"strconv"
 	"time"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v44"
+	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -26,50 +27,32 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/print"
 )
 
-func opaFunctions(dispatcher *builtinDispatcher, store *wasmtime.Store) map[string]wasmtime.AsExtern {
-
-	i32 := wasmtime.NewValType(wasmtime.KindI32)
-
-	externs := map[string]wasmtime.AsExtern{
-		"opa_abort":    wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32}, nil), opaAbort),
-		"opa_builtin0": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
-		"opa_builtin1": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
-		"opa_builtin2": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
-		"opa_builtin3": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
-		"opa_builtin4": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
-		"opa_println":  wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32}, nil), opaPrintln),
-	}
-
-	return externs
+// instantiateOPAModule registers the "opa" host module in r with all OPA host
+// functions backed by d. It must be called before the "env" glue module and the
+// policy module are instantiated, since both import from "opa".
+func instantiateOPAModule(ctx context.Context, r wazero.Runtime, d *builtinDispatcher) error {
+	b := r.NewHostModuleBuilder(hostModuleName)
+	b.NewFunctionBuilder().WithFunc(d.opaAbort).Export("opa_abort")
+	b.NewFunctionBuilder().WithFunc(d.opaPrintln).Export("opa_println")
+	b.NewFunctionBuilder().WithFunc(d.opaBuiltin0).Export("opa_builtin0")
+	b.NewFunctionBuilder().WithFunc(d.opaBuiltin1).Export("opa_builtin1")
+	b.NewFunctionBuilder().WithFunc(d.opaBuiltin2).Export("opa_builtin2")
+	b.NewFunctionBuilder().WithFunc(d.opaBuiltin3).Export("opa_builtin3")
+	b.NewFunctionBuilder().WithFunc(d.opaBuiltin4).Export("opa_builtin4")
+	_, err := b.Instantiate(ctx)
+	return err
 }
 
-func opaAbort(caller *wasmtime.Caller, args []wasmtime.Val) ([]wasmtime.Val, *wasmtime.Trap) {
-
-	data := caller.GetExport("memory").Memory().UnsafeData(caller)[args[0].I32():]
-
-	n := bytes.IndexByte(data, 0)
-	if n == -1 {
-		panic("invalid abort argument")
-	}
-
-	panic(abortError{message: string(data[:n])})
-}
-
-func opaPrintln(caller *wasmtime.Caller, args []wasmtime.Val) ([]wasmtime.Val, *wasmtime.Trap) {
-	data := caller.GetExport("memory").Memory().UnsafeData(caller)[args[0].I32():]
-
-	n := bytes.IndexByte(data, 0)
-	if n == -1 {
-		panic("invalid opa_println argument")
-	}
-
-	fmt.Fprintln(os.Stderr, string(data[:n]))
-	return nil, nil
-}
-
+// builtinDispatcher routes opa_builtinN calls from wasm to Go topdown builtins.
 type builtinDispatcher struct {
 	ctx      *topdown.BuiltinContext
 	builtins map[int32]topdown.BuiltinFunc
+
+	// Wired after policy module instantiation.
+	mem          api.Memory
+	malloc       api.Function
+	valueDumpFn  api.Function
+	valueParseFn api.Function
 }
 
 func newBuiltinDispatcher() *builtinDispatcher {
@@ -80,14 +63,18 @@ func (d *builtinDispatcher) SetMap(m map[int32]topdown.BuiltinFunc) {
 	d.builtins = m
 }
 
-// Reset is called in Eval before using the builtinDispatcher.
+// Reset is called in Eval before using the builtinDispatcher. It (re)builds the
+// BuiltinContext and starts a single goroutine that bridges context
+// cancellation into topdown.Cancel, so builtins that cooperate via topdown.Cancel
+// (e.g. net.cidr_expand) are aborted when ctx is done. The returned stop func
+// must be called when the eval completes to tear that goroutine down.
 func (d *builtinDispatcher) Reset(ctx context.Context,
 	seed io.Reader,
 	ns time.Time,
 	iqbCache cache.InterQueryCache,
 	ndbCache builtins.NDBCache,
 	ph print.Hook,
-	capabilities *ast.Capabilities) {
+	capabilities *ast.Capabilities) (stop func()) {
 	if ns.IsZero() {
 		ns = time.Now()
 	}
@@ -113,71 +100,98 @@ func (d *builtinDispatcher) Reset(ctx context.Context,
 		Capabilities:           capabilities,
 	}
 
-}
-
-func (d *builtinDispatcher) Call(caller *wasmtime.Caller, args []wasmtime.Val) (result []wasmtime.Val, trap *wasmtime.Trap) {
-
-	if d.ctx == nil {
-		panic("unreachable: uninitialized built-in dispatcher context")
-	}
-
-	if d.builtins == nil {
-		panic("unreachable: uninitialized built-in dispatcher index")
-	}
-
-	// Bridge ctx <-> topdown.Cancel
-	//
-	// If the ctx is cancelled (deadline expired, or manually cancelled), this will
-	// cause all topdown-builtins (host functions in wasm terms) to be aborted; if
-	// they check for this. That check occurrs in certain potentially-long-running
-	// builtins, currently only net.cidr_expand.
-	// Other potentially-long-running builtins use the passed context, forwarding
-	// it into stdlib functions: http.send
-	// The context-scenario should work out-of-the-box; the topdown.Cancel scenario
-	// is wired up via the go routine below.
+	// WithCloseOnContextDone interrupts wasm-native execution, but it cannot
+	// preempt a running Go builtin; those cooperate via topdown.Cancel instead.
+	// A single bridge per eval suffices since d.ctx.Cancel lives for the eval.
+	// Capture cancel before spawning to avoid a race with the next Reset() call
+	// overwriting d.ctx.
+	cancel := d.ctx.Cancel
 	done := make(chan struct{})
-	defer close(done)
 	go func() {
 		select {
 		case <-done:
-		case <-d.ctx.Context.Done():
-			d.ctx.Cancel.Cancel()
+		case <-ctx.Done():
+			cancel.Cancel()
 		}
 	}()
+	return func() { close(done) }
+}
 
-	// We don't care for ctx cancellation in the exports called here: they are
-	// wasm module exports that the host function can make use of.
-	// If the ctx is cancelled, and we're evaluation this call stack:
-	//
-	// wasm func
-	//          \---> host func [(*builtinDispatcher).Call]
-	//                         \---> wasm func [exports]
-	//
-	// then the ctx <-> interrupt bridging done in internal/wasm/vm.g will
-	// already have taken care of signalling the interrupt to the wasm
-	// instance. The instances checks for interrupts that may have happened
-	// at the head of every loop, and in the prologue of every function.
-	//
-	// See https://docs.wasmtime.dev/api/wasmtime/struct.Store.html#when-are-interrupts-delivered
+func (d *builtinDispatcher) opaAbort(_ context.Context, addr int32) {
+	uaddr := uint32(addr)
+	size := d.mem.Size()
+	if uaddr >= size {
+		panic(abortError{message: "(unreadable abort message)"})
+	}
+	data, ok := d.mem.Read(uaddr, size-uaddr)
+	if !ok {
+		panic(abortError{message: "(unreadable abort message)"})
+	}
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		panic(abortError{message: "(unterminated abort message)"})
+	}
+	panic(abortError{message: string(data[:n])})
+}
 
-	exports := getExports(caller)
+func (d *builtinDispatcher) opaPrintln(_ context.Context, addr int32) {
+	uaddr := uint32(addr)
+	size := d.mem.Size()
+	if uaddr >= size {
+		return
+	}
+	data, ok := d.mem.Read(uaddr, size-uaddr)
+	if !ok {
+		return
+	}
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, string(data[:n]))
+}
 
-	var convertedArgs []*ast.Term
+func (d *builtinDispatcher) opaBuiltin0(ctx context.Context, id, _ int32) int32 {
+	return d.dispatch(ctx, id)
+}
 
-	// first two args are the built-in identifier and context structure
-	for i := 2; i < len(args); i++ {
+func (d *builtinDispatcher) opaBuiltin1(ctx context.Context, id, _, a1 int32) int32 {
+	return d.dispatch(ctx, id, a1)
+}
 
-		x, err := fromWasmValue(caller, exports, args[i].I32())
+func (d *builtinDispatcher) opaBuiltin2(ctx context.Context, id, _, a1, a2 int32) int32 {
+	return d.dispatch(ctx, id, a1, a2)
+}
+
+func (d *builtinDispatcher) opaBuiltin3(ctx context.Context, id, _, a1, a2, a3 int32) int32 {
+	return d.dispatch(ctx, id, a1, a2, a3)
+}
+
+func (d *builtinDispatcher) opaBuiltin4(ctx context.Context, id, _, a1, a2, a3, a4 int32) int32 {
+	return d.dispatch(ctx, id, a1, a2, a3, a4)
+}
+
+// dispatch looks up the builtin by id, decodes its arguments, calls the Go
+// implementation, and writes the result back into Wasm memory.
+func (d *builtinDispatcher) dispatch(ctx context.Context, id int32, argAddrs ...int32) int32 {
+	if d.ctx == nil {
+		panic(abortError{message: "unreachable: uninitialized builtin dispatcher context"})
+	}
+	if d.builtins == nil {
+		panic(abortError{message: "unreachable: uninitialized builtin dispatcher index"})
+	}
+
+	convertedArgs := make([]*ast.Term, 0, len(argAddrs))
+	for _, addr := range argAddrs {
+		x, err := d.fromWasmValue(ctx, addr)
 		if err != nil {
 			panic(builtinError{err: err})
 		}
-
 		convertedArgs = append(convertedArgs, x)
 	}
 
 	var output *ast.Term
-
-	err := d.builtins[args[0].I32()](*d.ctx, convertedArgs, func(t *ast.Term) error {
+	err := d.builtins[id](*d.ctx, convertedArgs, func(t *ast.Term) error {
 		output = t
 		return nil
 	})
@@ -189,93 +203,55 @@ func (d *builtinDispatcher) Call(caller *wasmtime.Caller, args []wasmtime.Val) (
 			}
 			panic(builtinError{err: err})
 		}
-		// non-halt errors are treated as undefined ("non-strict eval" is the only
-		// mode in wasm), the `output == nil` case below will return NULL
+		// non-halt errors are undefined in wasm's non-strict eval mode
 	}
 
-	// if output is undefined, return NULL
 	if output == nil {
-		return []wasmtime.Val{wasmtime.ValI32(0)}, nil
+		return 0
 	}
 
-	addr, err := toWasmValue(caller, exports, output)
+	addr, err := d.toWasmValue(ctx, output)
 	if err != nil {
 		panic(builtinError{err: err})
 	}
-
-	return []wasmtime.Val{wasmtime.ValI32(addr)}, nil
+	return addr
 }
 
-type exports struct {
-	Memory       *wasmtime.Memory
-	mallocFn     *wasmtime.Func
-	valueDumpFn  *wasmtime.Func
-	valueParseFn *wasmtime.Func
-}
-
-func getExports(c *wasmtime.Caller) exports {
-	var e exports
-	e.Memory = c.GetExport("memory").Memory()
-	e.mallocFn = c.GetExport("opa_malloc").Func()
-	e.valueDumpFn = c.GetExport("opa_value_dump").Func()
-	e.valueParseFn = c.GetExport("opa_value_parse").Func()
-	return e
-}
-
-func (e exports) Malloc(caller *wasmtime.Caller, length int32) (int32, error) {
-	ptr, err := e.mallocFn.Call(caller, length)
-	if err != nil {
-		return 0, err
-	}
-	return ptr.(int32), nil
-}
-
-func (e exports) ValueDump(caller *wasmtime.Caller, addr int32) (int32, error) {
-	result, err := e.valueDumpFn.Call(caller, addr)
-	if err != nil {
-		return 0, err
-	}
-	return result.(int32), nil
-}
-
-func (e exports) ValueParse(caller *wasmtime.Caller, addr int32, length int32) (int32, error) {
-	result, err := e.valueParseFn.Call(caller, addr, length)
-	if err != nil {
-		return 0, err
-	}
-	return result.(int32), nil
-}
-
-func fromWasmValue(caller *wasmtime.Caller, e exports, addr int32) (*ast.Term, error) {
-
-	serialized, err := e.ValueDump(caller, addr)
+// fromWasmValue dumps the OPA value at addr to a string and parses it as an
+// ast.Term.
+func (d *builtinDispatcher) fromWasmValue(ctx context.Context, addr int32) (*ast.Term, error) {
+	res, err := d.valueDumpFn.Call(ctx, uint64(uint32(addr)))
 	if err != nil {
 		return nil, err
 	}
-
-	data := e.Memory.UnsafeData(caller)[serialized:]
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
+	serialized := uint32(res[0])
+	data, ok := d.mem.Read(serialized, d.mem.Size()-serialized)
+	if !ok {
 		return nil, errors.New("invalid serialized value address")
 	}
-
-	return ast.ParseTerm(string(data[0:n]))
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		return nil, errors.New("unterminated serialized value")
+	}
+	return ast.ParseTerm(string(data[:n]))
 }
 
-func toWasmValue(caller *wasmtime.Caller, e exports, term *ast.Term) (int32, error) {
-
+// toWasmValue serialises term, writes the bytes into Wasm memory via
+// opa_malloc, and parses them back as an OPA value, returning the value addr.
+func (d *builtinDispatcher) toWasmValue(ctx context.Context, term *ast.Term) (int32, error) {
 	raw := []byte(term.String())
-	n := int32(len(raw))
-	p, err := e.Malloc(caller, n)
+	n := uint64(len(raw))
+	res, err := d.malloc.Call(ctx, n)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("opa_malloc: %w", err)
 	}
-
-	copy(e.Memory.UnsafeData(caller)[p:p+n], raw)
-	addr, err := e.ValueParse(caller, p, n)
+	p := uint32(res[0])
+	if !d.mem.Write(p, raw) {
+		return 0, fmt.Errorf("write at %d", p)
+	}
+	res, err = d.valueParseFn.Call(ctx, uint64(p), n)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("opa_value_parse: %w", err)
 	}
-
-	return addr, nil
+	return int32(res[0]), nil
 }

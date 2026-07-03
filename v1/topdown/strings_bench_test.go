@@ -331,8 +331,6 @@ func BenchmarkConcatVsSprintfSimple(b *testing.B) {
 		}
 	})
 
-	b.ResetTimer()
-
 	b.Run("sprintf foobar", func(b *testing.B) {
 		operands := []*ast.Term{ast.InternedTerm("%s%s"), ast.ArrayTerm(foo, bar)}
 
@@ -342,6 +340,35 @@ func BenchmarkConcatVsSprintfSimple(b *testing.B) {
 			}
 		}
 	})
+}
+
+// 542.1 ns/op	     552 B/op	      20 allocs/op
+// 451.5 ns/op	     424 B/op	      15 allocs/op
+func BenchmarkLongSprintf(b *testing.B) {
+	bctx := BuiltinContext{}
+
+	operands := []*ast.Term{
+		ast.StringTerm("%s %f %s %d %s %v %s %v %s"),
+		ast.ArrayTerm(
+			ast.InternedTerm("word"),
+			ast.FloatNumberTerm(3.14159),
+			ast.InternedTerm("more"),
+			ast.InternedTerm(55),
+			ast.ArrayTerm(ast.InternedTerm("foo"), ast.InternedTerm("bar")),
+			ast.SetTerm(ast.InternedTerm("baz")),
+			ast.ObjectTerm(ast.Item(ast.InternedTerm("k"), ast.InternedTerm("v"))),
+			ast.NullTerm(),
+			ast.InternedBooleanTrue,
+		),
+	}
+
+	expected := ast.StringTerm(`word 3.141590 more 55 ["foo", "bar"] {"baz"} {"k": "v"} null true`)
+
+	for b.Loop() {
+		if err := builtinSprintf(bctx, operands, eqIter(expected)); err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 func repeatTerm(t *ast.Term, n int) *ast.Term {

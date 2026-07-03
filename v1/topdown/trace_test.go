@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1506,5 +1507,287 @@ Redo data.test = _                                   {_: {"p": true}}
 		var buf bytes.Buffer
 		PrettyTraceWithOpts(&buf, *tracer, PrettyTraceOptions{ExprVariables: true})
 		compareBuffers(t, expected, buf.String())
+	}
+}
+
+func TestPrettyTraceLogical(t *testing.T) {
+	t.Parallel()
+
+	module := `package test
+
+	p if {
+		{true; 2 > 1} and true
+		false or false
+	}`
+
+	ctx := t.Context()
+	compiler, err := ast.CompileModulesWithOpt(
+		map[string]string{"test.rego": module},
+		ast.CompileOpts{ParserOptions: logicalParserOptions()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tracer := NewBufferTracer()
+	query := NewQuery(ast.MustParseBody("data.test.p = _")).
+		WithCompiler(compiler).
+		WithStore(inmem.New()).
+		WithQueryTracer(tracer)
+
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := `Enter data.test.p = _
+| Eval data.test.p = _
+| Index data.test.p (matched 1 rule, early exit)
+| Enter data.test.p
+| | Eval { true; gt(2, 1) } and true
+| | Enter true; gt(2, 1)
+| | | Eval true
+| | | Eval gt(2, 1)
+| | | Exit true; gt(2, 1) early
+| | Redo true; gt(2, 1)
+| | | Redo gt(2, 1)
+| | | Redo true
+| | Enter true
+| | | Eval true
+| | | Exit true early
+| | Redo true
+| | | Redo true
+| | Eval false or false
+| | Enter false
+| | | Eval false
+| | | Fail false
+| | Enter false
+| | | Eval false
+| | | Fail false
+| | Fail false or false
+| | Redo { true; gt(2, 1) } and true
+| Fail data.test.p = _
+`
+
+	var buf bytes.Buffer
+	PrettyTrace(&buf, removeUnifyOps(*tracer))
+	compareBuffers(t, expected, buf.String())
+}
+
+func TestTraceLogicalAnd(t *testing.T) {
+	t.Parallel()
+
+	tests := []traceLogicalCase{
+		{
+			note:  "both succeed: enter+exit on each operand",
+			query: "data.test.p = x",
+			module: `package test
+				import future.keywords.and
+				p if {
+					true and true
+				}`,
+			exp: []string{
+				`Enter true {} (qid=2, pqid=1)`,
+				`Exit true {} (qid=2, pqid=1)`,
+				`Enter true {} (qid=3, pqid=1)`,
+				`Exit true {} (qid=3, pqid=1)`,
+			},
+		},
+		{
+			note:  "lhs fails: rhs not entered, parent-level fail emitted",
+			query: "data.test.p = x",
+			module: `package test
+				import future.keywords.and
+				p if {
+					false and true
+				}`,
+			exp: []string{
+				`Enter false {} (qid=2, pqid=1)`,
+				`Fail false {} (qid=2, pqid=1)`,
+				// Outer evalStep wrapper Fail at the rule-body qid — no paired Enter at qid=1.
+				`Fail false and true {} (qid=1, pqid=0)`,
+			},
+			unwanted: []string{
+				// RHS must not be entered when LHS already failed.
+				`Enter true {} (qid=3, pqid=1)`,
+				`Eval true {} (qid=3, pqid=1)`,
+			},
+			// Wrapper emits Fail; the eval method must not duplicate it.
+			expFailCountFor: `false and true`,
+			expFailCount:    1,
+		},
+		{
+			note:  "lhs succeeds, rhs fails: parent-level fail emitted",
+			query: "data.test.p = x",
+			module: `package test
+				import future.keywords.and
+				p if {
+					true and false
+				}`,
+			exp: []string{
+				`Enter true {} (qid=2, pqid=1)`,
+				`Exit true {} (qid=2, pqid=1)`,
+				`Enter false {} (qid=3, pqid=1)`,
+				`Fail false {} (qid=3, pqid=1)`,
+				`Fail true and false {} (qid=1, pqid=0)`,
+			},
+			expFailCountFor: `true and false`,
+			expFailCount:    1,
+		},
+	}
+
+	runTraceLogicalCases(t, tests)
+}
+
+func TestTraceLogicalOr(t *testing.T) {
+	t.Parallel()
+
+	tests := []traceLogicalCase{
+		{
+			note:  "lhs succeeds: rhs not entered (short-circuit)",
+			query: "data.test.p = x",
+			module: `package test
+				import future.keywords.or
+				p if {
+					true or false
+				}`,
+			exp: []string{
+				`Enter true {} (qid=2, pqid=1)`,
+				`Exit true {} (qid=2, pqid=1)`,
+			},
+			unwanted: []string{
+				// RHS must not be entered when LHS already succeeded.
+				`Enter false {} (qid=3, pqid=1)`,
+				`Eval false {} (qid=3, pqid=1)`,
+				`Fail false {} (qid=3, pqid=1)`,
+			},
+		},
+		{
+			note:  "lhs fails, rhs succeeds: both bodies entered",
+			query: "data.test.p = x",
+			module: `package test
+				import future.keywords.or
+				p if {
+					false or true
+				}`,
+			exp: []string{
+				`Enter false {} (qid=2, pqid=1)`,
+				`Fail false {} (qid=2, pqid=1)`,
+				`Enter true {} (qid=3, pqid=1)`,
+				`Exit true {} (qid=3, pqid=1)`,
+			},
+		},
+		{
+			note:  "both fail: parent-level fail emitted exactly once",
+			query: "data.test.p = x",
+			module: `package test
+				import future.keywords.or
+				p if {
+					false or false
+				}`,
+			exp: []string{
+				`Enter false {} (qid=2, pqid=1)`,
+				`Fail false {} (qid=2, pqid=1)`,
+				`Enter false {} (qid=3, pqid=1)`,
+				`Fail false {} (qid=3, pqid=1)`,
+				`Fail false or false {} (qid=1, pqid=0)`,
+			},
+			expFailCountFor: `false or false`,
+			expFailCount:    1,
+		},
+	}
+
+	runTraceLogicalCases(t, tests)
+}
+
+type traceLogicalCase struct {
+	note   string
+	query  string
+	module string
+	// exp lists events that MUST appear in the captured buffer. Extra
+	// events are ignored.
+	exp []string
+	// unwanted lists events that MUST NOT appear. The load-bearing check
+	// for short-circuit semantics: a regression that incorrectly evaluates
+	// the skipped operand would still satisfy `exp` (extra events are
+	// merely additive), but would trip an `unwanted` line.
+	unwanted []string
+	// expFailCountFor / expFailCount, when set, asserts the number of
+	// captured `Fail <expFailCountFor> ...` events is exactly expFailCount.
+	// Used to confirm the parent-level Fail isn't duplicated.
+	expFailCountFor string
+	expFailCount    int
+}
+
+func runTraceLogicalCases(t *testing.T, tests []traceLogicalCase) {
+	t.Helper()
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+			compiler := ast.NewCompiler()
+			mod := ast.MustParseModuleWithOpts(tc.module, logicalParserOptions())
+			compiler.Compile(map[string]*ast.Module{"test.rego": mod})
+			if compiler.Failed() {
+				t.Fatal(compiler.Errors)
+			}
+
+			queryCompiler := compiler.QueryCompiler()
+			compiledQuery, err := queryCompiler.Compile(ast.MustParseBody(tc.query))
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			buf := NewBufferTracer()
+			query := NewQuery(compiledQuery).
+				WithQueryCompiler(queryCompiler).
+				WithCompiler(compiler).
+				WithStore(inmem.New()).
+				WithQueryTracer(buf)
+
+			if _, err := query.Run(ctx); err != nil {
+				t.Fatalf("unexpected query error: %s", err)
+			}
+
+			// Stub Locals=nil per TestTraceEveryEvaluation's convention.
+			actuals := make([]string, 0, len(*buf))
+			for _, ev := range *buf {
+				ev.Locals = nil
+				actuals = append(actuals, ev.String())
+			}
+
+			for _, want := range tc.exp {
+				if !slices.Contains(actuals, want) {
+					t.Errorf("expected event %q to appear; not found", want)
+				}
+			}
+
+			for _, unw := range tc.unwanted {
+				if slices.Contains(actuals, unw) {
+					t.Errorf("event %q must NOT appear (short-circuit violated)", unw)
+				}
+			}
+
+			if tc.expFailCountFor != "" {
+				prefix := "Fail " + tc.expFailCountFor + " "
+				count := 0
+				for _, s := range actuals {
+					if strings.HasPrefix(s, prefix) {
+						count++
+					}
+				}
+				if count != tc.expFailCount {
+					t.Errorf("expected %d Fail events for %q, got %d",
+						tc.expFailCount, tc.expFailCountFor, count)
+				}
+			}
+
+			if t.Failed() {
+				t.Log("captured events:")
+				for _, s := range actuals {
+					t.Log("  ", s)
+				}
+			}
+		})
 	}
 }

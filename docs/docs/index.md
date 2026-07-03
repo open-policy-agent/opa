@@ -9,15 +9,14 @@ OPA provides a high-level declarative language that lets you specify policy as
 code and simple APIs to offload policy decision-making from your software. You
 can use OPA to enforce policies in microservices, Kubernetes, CI/CD pipelines,
 API gateways, and more.
-
 OPA is proud to be a graduated
 [Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/announcements/2021/02/04/cloud-native-computing-foundation-announces-open-policy-agent-graduation/)
 project.
 
-This page covers core concepts in OPA's policy language
-([Rego](./docs/policy-language)) as well as how to download and run OPA.
-
-## What is OPA?
+> **Prefer to get hands on?** Checkout the
+> [online playground](https://play.openpolicyagent.org)
+> or the
+> [CLI examples](#2-try-opa-eval) below.
 
 OPA [decouples](./docs/philosophy#policy-decoupling) policy decision-making from policy
 enforcement. When your software needs to make policy decisions it **queries**
@@ -30,14 +29,13 @@ import OverviewDiagram from './assets/OverviewDiagram';
 
 OPA generates policy decisions by evaluating the query input against
 policies and data. OPA and Rego are domain-agnostic so you can describe almost
-any kind of invariant in your policies. For example:
+any kind of rule in your policies. For example:
 
-- Which users can access which resources.
-- Which subnets egress traffic is allowed to.
-- Which clusters a workload must be deployed to.
-- Which registries binaries can be downloaded from.
-- Which OS capabilities a container can execute with.
-- Which times of day the system can be accessed at.
+- What roles must a user have to access a particular resource
+- Which network ranges egress traffic is allowed to
+- Allowed registries to source container images
+- When during the day the system can be accessed
+- The System Calls a binary in a container can make
 
 Policy decisions are not limited to simple yes/no or allow/deny answers. Like
 query inputs, your policies can generate arbitrary structured data as output.
@@ -96,7 +94,7 @@ find servers that violate the policy.
 
 The following section explores how OPA can help implement this policy.
 
-## Writing Policy with Rego
+## Writing Policies with Rego
 
 OPA policies are expressed in a high-level declarative language called Rego.
 Rego (pronounced "ray-go") is purpose-built for expressing policies over complex
@@ -295,72 +293,66 @@ This approach is problematic, there may be too many networks to list statically,
 the number of networks may not be known in advance.
 
 Like other declarative languages (e.g., SQL), iteration in Rego happens
-implicitly when you inject variables into expressions. The solution for this
-case is to substitute the array index with a variable:
+implicitly. The solution for this case is to use `some ... in ...` to iterate
+over the collection:
 
 ```rego
 package servers
 
 exists_public_network if {
-    some i
-    input.networks[i].public == true
+    some network in input.networks
+    network.public == true
 }
 ```
 
 <RunSnippet files="#input.json" command="data.servers.exists_public_network"/>
 
-Now the query asks for values of `i` that make the overall expression true. When
-you substitute variables in references, OPA automatically finds variable
-assignments that satisfy all of the expressions in the query. Just like
-intermediate variables, OPA returns the values of the variables.
+OPA evaluates the rule body for each element bound to `network`. If any element
+satisfies all expressions in the body, the rule is defined.
 
-You can substitute as many variables as you want to do nested iteration. For
-example, to find out if any servers expose the insecure `"http"` protocol you
-could write:
-
-```rego
-package servers
-
-http_server if {
-    some i, j
-    input.servers[i].protocols[j] == "http"
-}
-```
-
-<RunSnippet files="#input.json" command="data.servers.http_server"/>
-
-If variables appear multiple times the assignments satisfy all of the
-expressions. For example, to find the ids of ports connected to public networks,
+For example, to find out if any servers expose the insecure `"http"` protocol
 you could write:
 
 ```rego
 package servers
 
-exposed_ports contains port_id if {
-    some i, j
-    port_id := input.ports[i].id
-    input.ports[i].network == input.networks[j].id
-    input.networks[j].public
+http_server if {
+    some server in input.servers
+    "http" in server.protocols
+}
+```
+
+<RunSnippet files="#input.json" command="data.servers.http_server"/>
+
+Or perhaps to find the IDs of ports connected to public networks:
+
+```rego
+package servers
+
+exposed_ports contains port.id if {
+    some port in input.ports
+    some network in input.networks
+    port.network == network.id
+    network.public == true
 }
 ```
 
 <RunSnippet files="#input.json" command="data.servers.exposed_ports"/>
 
-Just like references that refer to non-existent fields or expressions that fail
-to match, if OPA is unable to find any variable assignments that satisfy all of
-the expressions, the result is undefined.
+Just like references that refer to non-existent fields or expressions that fail to match,
+if OPA is unable to find matches that satisfy all of the expressions, the result is undefined.
 
 ```rego
 package servers
 
-ssh_server if {
-    some i
-    # there is no assignment of i that satisfies the expression
-    input.servers[i].protocols[i] == "ssh"
+email_server if {
+    some server in input.servers
+    # no servers have this protocol
+    "imap" in server.protocols
 }
 ```
 
-<RunSnippet files="#input.json" command="data.servers.ssh_server"/>
+<RunSnippet files="#input.json" command="data.servers.email_server"/>
 
 #### FOR SOME and FOR ALL
 
@@ -373,7 +365,7 @@ to express _FOR SOME_ and _FOR ALL_ more explicitly.
 and will bind its variables (key, value position) to the collection items.
 It introduces new bindings to the evaluation of the rest of the rule body.
 
-Using `some`, the rules introduced above can be expressed in different ways:
+Using `some`, the iteration patterns introduced above can be used to build named rules:
 
 ```rego
 package servers
@@ -456,8 +448,8 @@ package rules
 # head
 exists_public_network := true if {
     # body
-    some net in input.networks # some network exists and..
-    net.public                 # it is public.
+    some network in input.networks # some network exists and..
+    network.public == true         # it is public.
 }
 ```
 
@@ -469,8 +461,8 @@ You can query for the value generated by rules just like any other value (such a
 package rules
 
 exists_public_network := true if {
-    some net in input.networks # some network exists and..
-    net.public                 # it is public.
+    some network in input.networks # some network exists and..
+    network.public == true         # it is public.
 }
 
 another_rule := {
@@ -504,8 +496,8 @@ You could rewrite the example above as follows without changing the meaning:
 
 ```rego
 exists_public_network if {
-    some net in input.networks
-    net.public
+    some network in input.networks
+    network.public == true
 }
 ```
 
@@ -546,8 +538,8 @@ not the same as false.) Below, OPA is given a different set of input networks
 package rules
 
 exists_public_network if {
-    some net in input.networks
-    net.public
+    some network in input.networks
+    network.public == true
 }
 ```
 
@@ -641,11 +633,13 @@ package example.logical_or
 default shell_accessible := false
 
 shell_accessible if {
-    input.servers[_].protocols[_] == "telnet"
+    some server in input.servers
+    "telnet" in server.protocols
 }
 
 shell_accessible if {
-    input.servers[_].protocols[_] == "ssh"
+    some server in input.servers
+    "ssh" in server.protocols
 }
 ```
 
@@ -665,13 +659,13 @@ could be modified to generate a set of servers that expose `"telnet"` or
 package example.logical_or
 
 shell_accessible contains server.id if {
-    server := input.servers[_]
-    server.protocols[_] == "telnet"
+    some server in input.servers
+    "telnet" in server.protocols
 }
 
 shell_accessible contains server.id if {
-    server := input.servers[_]
-    server.protocols[_] == "ssh"
+    some server in input.servers
+    "ssh" in server.protocols
 }
 ```
 
@@ -716,9 +710,9 @@ violation contains message if {  # a server is in the violation set if...
 public_servers contains server if { # a server exists in the public_servers set if...
     some server in input.servers    # it exists in the input.servers collection and...
 
-    some port in server.ports       # it references a port in the input.ports collection and...
+    some port in server.ports       # it has a port...
     some input_port in input.ports
-    port == input_port.id
+    port == input_port.id           # which is referenced in the list of ports 
 
     # the port references a network in the input.networks collection and...
     some input_network in input.networks
@@ -896,7 +890,7 @@ shasum -c $BINARY_NAME.sha256
 
 ### 2. Try `opa eval`
 
-The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli#eval).
+A simple way to interact with OPA is via the command-line using the [`opa eval` sub-command](./docs/cli#eval).
 It can be used to evaluate arbitrary Rego expressions and policies.
 `opa eval` supports a large number of options for controlling evaluation.
 Commonly used flags include:
@@ -944,22 +938,23 @@ allow if {                                          # allow is true if...
 }
 
 violation contains server.id if {                   # a server is in the violation set if...
-    some server
-    public_servers[server]                           # it exists in the 'public_servers' set and...
-    server.protocols[_] == "http"                   # it contains the insecure "http" protocol.
+    some server in public_servers                    # it exists in the 'public_servers' set and...
+    "http" in server.protocols                      # it contains the insecure "http" protocol.
 }
 
 violation contains server.id if {                   # a server is in the violation set if...
-    server := input.servers[_]                      # it exists in the input.servers collection and...
-    server.protocols[_] == "telnet"                 # it contains the "telnet" protocol.
+    some server in input.servers                    # it exists in the input.servers collection and...
+    "telnet" in server.protocols                    # it contains the "telnet" protocol.
 }
 
 public_servers contains server if {                  # a server exists in the 'public_servers' set if...
-    some i, j
-    server := input.servers[_]                      # it exists in the input.servers collection and...
-    server.ports[_] == input.ports[i].id            # it references a port in the input.ports collection and...
-    input.ports[i].network == input.networks[j].id  # the port references a network in the input.networks collection and...
-    input.networks[j].public                        # the network is public.
+    some server in input.servers                    # it exists in the input.servers collection and...
+    some port in server.ports                       # it references a port in the input.ports collection and...
+    some input_port in input.ports
+    port == input_port.id
+    some input_network in input.networks            # the port references a network in the input.networks collection and...
+    input_port.network == input_network.id          # the network is public.
+    input_network.public
 }
 ```
 
@@ -974,6 +969,12 @@ public_servers contains server if {                  # a server exists in the 'p
 ./opa eval --fail-defined -i input.json -d example.rego "data.example.violation[x]"
 echo $?
 ```
+
+:::tip
+Looking for the IDE experience? Rego and OPA have mature developer tooling
+with support for live evaluation and debugging in
+[editors and IDEs](./docs/editor-and-ide-support)
+:::
 
 ### 3. Try `opa run` (interactive)
 

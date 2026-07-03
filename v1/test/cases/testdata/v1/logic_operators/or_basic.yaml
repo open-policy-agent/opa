@@ -1,0 +1,200 @@
+---
+cases:
+  - note: "logic_op/or/basic: lhs true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          true or false
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: rhs true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          false or true
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: both true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          true or true
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: both false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          false or false
+        }
+    want_result: []
+  - note: "logic_op/or/basic: lhs succeeds via input"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.role == "admin" or input.role == "user"
+        }
+    input:
+      role: "admin"
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: rhs succeeds via input"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.role == "admin" or input.role == "user"
+        }
+    input:
+      role: "user"
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: neither side succeeds via input"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.role == "admin" or input.role == "user"
+        }
+    input:
+      role: "guest"
+    want_result: []
+  - note: "logic_op/or/basic: lhs undefined ref, rhs true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          input.missing or true
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: virtual rule refs, lhs succeeds"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        q if input.x > 0
+        r if input.y > 0
+
+        p if {
+          data.test.q or data.test.r
+        }
+    input:
+      x: 1
+      "y": 0
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: virtual rule refs, rhs succeeds"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        q if input.x > 0
+        r if input.y > 0
+
+        p if {
+          data.test.q or data.test.r
+        }
+    input:
+      x: 0
+      "y": 1
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: virtual rule refs, neither succeeds"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        q if input.x > 0
+        r if input.y > 0
+
+        p if {
+          data.test.q or data.test.r
+        }
+    input:
+      x: 0
+      "y": 0
+    want_result: []
+  - note: "logic_op/or/basic: dotted data refs, only one defined"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          data.cfg.foo or data.cfg.bar
+        }
+    data:
+      cfg:
+        bar: true
+    want_result:
+      - x: true
+  - note: "logic_op/or/basic: indexed data refs"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          data.cfg.flags["a"] or data.cfg.flags["b"]
+        }
+    data:
+      cfg:
+        flags:
+          a: false
+          b: true
+    want_result:
+      - x: true

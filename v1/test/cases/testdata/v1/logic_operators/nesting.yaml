@@ -1,0 +1,96 @@
+---
+cases:
+  - note: "logic_op/nesting: explicit {a or b} and {c or d}, all true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          { input.a or input.b } and { input.c or input.d }
+        }
+    input:
+      a: true
+      b: false
+      c: false
+      d: true
+    want_result:
+      - x: true
+  - note: "logic_op/nesting: explicit {a or b} and {c or d}, one branch fails"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          { input.a or input.b } and { input.c or input.d }
+        }
+    input:
+      a: false
+      b: false
+      c: true
+      d: true
+    want_result: []
+  - note: "logic_op/nesting: a or {b and {c or d}}, three-deep"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          input.a or { input.b and { input.c or input.d } }
+        }
+    input:
+      a: false
+      b: true
+      c: false
+      d: true
+    want_result:
+      - x: true
+  - note: "logic_op/nesting: a or {b and {c or d}}, top-level lhs short-circuits"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          input.a or { input.b and { input.c or input.d } }
+        }
+    input:
+      a: true
+      b: false
+      c: false
+      d: false
+    want_result:
+      - x: true
+  - note: "logic_op/nesting: x and {y or {z and w}}, mixed"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          input.x and { input.y or { input.z and input.w } }
+        }
+    input:
+      x: true
+      "y": false
+      z: true
+      w: true
+    want_result:
+      - x: true

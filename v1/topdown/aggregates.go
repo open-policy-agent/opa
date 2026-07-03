@@ -260,34 +260,29 @@ func builtinAny(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 }
 
 func builtinMember(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	containee := operands[0]
 	switch c := operands[1].Value.(type) {
 	case ast.Set:
-		return iter(ast.InternedTerm(c.Contains(containee)))
+		return iter(ast.InternedTerm(c.Contains(operands[0])))
 	case *ast.Array:
-		for i := range c.Len() {
-			if c.Elem(i).Value.Compare(containee.Value) == 0 {
-				return iter(ast.InternedTerm(true))
-			}
-		}
-		return iter(ast.InternedTerm(false))
+		return iter(ast.InternedTerm(c.Until(operands[0].Equal)))
 	case ast.Object:
 		return iter(ast.InternedTerm(c.Until(func(_, v *ast.Term) bool {
-			return v.Value.Compare(containee.Value) == 0
+			return operands[0].Equal(v)
 		})))
 	}
 	return iter(ast.InternedTerm(false))
 }
 
 func builtinMemberWithKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	key, val := operands[0], operands[1]
-	switch c := operands[2].Value.(type) {
-	case interface{ Get(*ast.Term) *ast.Term }:
-		ret := false
-		if act := c.Get(key); act != nil {
-			ret = act.Value.Compare(val.Value) == 0
-		}
-		return iter(ast.InternedTerm(ret))
+	type getter interface {
+		Get(*ast.Term) *ast.Term
+	}
+	col, key, val := operands[2], operands[0], operands[1]
+	switch c := col.Value.(type) {
+	case ast.Set:
+		return iter(ast.InternedTerm(c.Contains(key) && key.Equal(val)))
+	case getter:
+		return iter(ast.InternedTerm(val.Equal(c.Get(key))))
 	}
 	return iter(ast.InternedTerm(false))
 }

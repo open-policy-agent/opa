@@ -130,6 +130,10 @@ func testRun(t *testing.T, tc cases.TestCase, opts ...testOpt) {
 		o(tos)
 	}
 
+	if tc.ExperimentalKeywords && tos.parserOptions.Capabilities == nil {
+		tos.parserOptions.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+	}
+
 	for k, v := range tc.Env {
 		t.Setenv(k, v)
 	}

@@ -2062,6 +2062,14 @@ void test_aggregates(void)
     test("any/set trues", opa_value_compare(opa_agg_any(&set_trues->hdr), opa_boolean(true)) == 0);
     test("any/set mixed", opa_value_compare(opa_agg_any(&set_mixed->hdr), opa_boolean(true)) == 0);
     test("any/set falses", opa_value_compare(opa_agg_any(&set_falses->hdr), opa_boolean(false)) == 0);
+
+    opa_set_t *set_foo_bar = opa_cast_set(opa_set());
+    opa_set_add(set_foo_bar, opa_string_terminated("foo"));
+    opa_set_add(set_foo_bar, opa_string_terminated("bar"));
+
+    test("member3/set key==val found", opa_value_compare(builtin_member3(opa_string_terminated("foo"), opa_string_terminated("foo"), &set_foo_bar->hdr), opa_boolean(true)) == 0);
+    test("member3/set key==val not found", opa_value_compare(builtin_member3(opa_string_terminated("baz"), opa_string_terminated("baz"), &set_foo_bar->hdr), opa_boolean(false)) == 0);
+    test("member3/set key!=val", opa_value_compare(builtin_member3(opa_string_terminated("foo"), opa_string_terminated("bar"), &set_foo_bar->hdr), opa_boolean(false)) == 0);
 }
 
 WASM_EXPORT(test_base64)

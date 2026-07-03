@@ -498,18 +498,20 @@ func makeDisjointSets(livevars ast.VarSet, query ast.Body) (*unionFind, bool) {
 
 func isNoop(expr *ast.Expr) bool {
 
-	if !expr.IsCall() && !expr.IsEvery() {
-		term := expr.Terms.(*ast.Term)
-		if !ast.IsConstant(term.Value) {
+	switch t := expr.Terms.(type) {
+	case []*ast.Term:
+		// A==A can be ignored
+		if expr.Operator().Equal(ast.Equal.Ref()) {
+			return expr.Operand(0).Equal(expr.Operand(1))
+		}
+		return false
+	case *ast.Term:
+		if !ast.IsConstant(t.Value) {
 			return false
 		}
-		return !ast.Boolean(false).Equal(term.Value)
+		return !ast.Boolean(false).Equal(t.Value)
+	default:
+		// *ast.Every, *ast.Not, *ast.LogicalAnd, *ast.LogicalOr — none are no-ops.
+		return false
 	}
-
-	// A==A can be ignored
-	if expr.Operator().Equal(ast.Equal.Ref()) {
-		return expr.Operand(0).Equal(expr.Operand(1))
-	}
-
-	return false
 }

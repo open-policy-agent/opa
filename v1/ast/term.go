@@ -380,14 +380,11 @@ func (term *Term) Copy() *Term {
 // Equal returns true if this term equals the other term. Equality is
 // defined for each kind of term, and does not compare the Location.
 func (term *Term) Equal(other *Term) bool {
-	if term == nil && other != nil {
-		return false
-	}
-	if term != nil && other == nil {
-		return false
-	}
 	if term == other {
 		return true
+	}
+	if term == nil || other == nil {
+		return false
 	}
 
 	return ValueEqual(term.Value, other.Value)
@@ -874,7 +871,7 @@ func (num Number) Find(path Ref) (Value, error) {
 // Hash returns the hash code for the Value.
 func (num Number) Hash() int {
 	if len(num) < 4 {
-		if i, err := strconv.Atoi(string(num)); err == nil {
+		if i, ok := util.Atoi(string(num)); ok {
 			return i
 		}
 	}
@@ -892,11 +889,7 @@ func (num Number) Int() (int, bool) {
 
 // Int64 returns the int64 representation of num if possible.
 func (num Number) Int64() (int64, bool) {
-	i, err := json.Number(num).Int64()
-	if err != nil {
-		return 0, false
-	}
-	return i, true
+	return util.Atoi64(string(num))
 }
 
 // Float64 returns the float64 representation of num if possible.

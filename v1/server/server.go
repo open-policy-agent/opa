@@ -2847,9 +2847,10 @@ func stringPathToRef(s string) (ast.Ref, error) {
 			return nil, fmt.Errorf("invalid ref term '%s'", x)
 		}
 
-		i, err := strconv.Atoi(x)
-		if err != nil {
-			r = append(r, ast.StringTerm(x))
+		// Note(anders): the branches look identical, but the difference
+		// in type decides where we go to look for an interned term
+		if i, ok := util.Atoi64(x); !ok {
+			r = append(r, ast.InternedTerm(x))
 		} else {
 			r = append(r, ast.InternedTerm(i))
 		}

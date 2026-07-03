@@ -1,0 +1,167 @@
+---
+cases:
+  - note: "logic_op/and/basic: both operands true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          true and true
+        }
+    want_result:
+      - x: true
+  - note: "logic_op/and/basic: lhs false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          false and true
+        }
+    want_result: []
+  - note: "logic_op/and/basic: rhs false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          true and false
+        }
+    want_result: []
+  - note: "logic_op/and/basic: both false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          false and false
+        }
+    want_result: []
+  - note: "logic_op/and/basic: both succeed via input"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          input.x > 0 and input.y > 0
+        }
+    input:
+      x: 1
+      "y": 2
+    want_result:
+      - x: true
+  - note: "logic_op/and/basic: lhs undefined ref"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          input.missing and input.y > 0
+        }
+    input:
+      "y": 2
+    want_result: []
+  - note: "logic_op/and/basic: rhs undefined ref"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          input.x > 0 and input.missing
+        }
+    input:
+      x: 1
+    want_result: []
+  - note: "logic_op/and/basic: virtual rule refs on both sides"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        q if input.x > 0
+        r if input.y > 0
+
+        p if {
+          data.test.q and data.test.r
+        }
+    input:
+      x: 1
+      "y": 2
+    want_result:
+      - x: true
+  - note: "logic_op/and/basic: virtual rule ref, rhs fails"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        q if input.x > 0
+        r if input.y > 0
+
+        p if {
+          data.test.q and data.test.r
+        }
+    input:
+      x: 1
+      "y": 0
+    want_result: []
+  - note: "logic_op/and/basic: dotted data refs both defined"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          data.cfg.foo and data.cfg.bar
+        }
+    data:
+      cfg:
+        foo: true
+        bar: true
+    want_result:
+      - x: true
+  - note: "logic_op/and/basic: indexed data refs"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          data.cfg.flags["a"] and data.cfg.flags["b"]
+        }
+    data:
+      cfg:
+        flags:
+          a: true
+          b: true
+    want_result:
+      - x: true

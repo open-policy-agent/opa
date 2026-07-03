@@ -1,0 +1,94 @@
+---
+cases:
+  - note: "logic_op/default: default returns when or body fails"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        default p := false
+
+        p if input.x > 0 or input.y > 0
+    input:
+      x: 0
+      "y": 0
+    want_result:
+      - x: false
+  - note: "logic_op/default: default skipped when or body succeeds"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        default p := false
+
+        p if input.x > 0 or input.y > 0
+    input:
+      x: 0
+      "y": 5
+    want_result:
+      - x: true
+  - note: "logic_op/default: default returns when and body fails"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        default p := "fallback"
+
+        p := "ok" if input.x > 0 and input.y > 0
+    input:
+      x: 1
+      "y": 0
+    want_result:
+      - x: "fallback"
+  - note: "logic_op/else: else fires when and body fails"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p := "ok" if input.x > 0 and input.y > 0
+          else := "fallback"
+    input:
+      x: 1
+      "y": 0
+    want_result:
+      - x: "fallback"
+  - note: "logic_op/else: else skipped when or body succeeds"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := "ok" if input.x > 0 or input.y > 0
+          else := "fallback"
+    input:
+      x: 0
+      "y": 5
+    want_result:
+      - x: "ok"
+  - note: "logic_op/else: chained else with or in primary branch"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p := "primary" if input.role == "admin" or input.role == "superuser"
+          else := "secondary"
+    input:
+      role: "guest"
+    want_result:
+      - x: "secondary"

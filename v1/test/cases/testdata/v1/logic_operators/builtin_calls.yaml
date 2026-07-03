@@ -1,0 +1,81 @@
+---
+cases:
+  - note: "logic_op/builtin_calls: and with builtins on both sides"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          count(input.xs) > 0 and startswith(input.s, "/")
+        }
+    input:
+      xs: [1, 2, 3]
+      s: "/etc/hosts"
+    want_result:
+      - x: true
+  - note: "logic_op/builtin_calls: and with builtins, rhs fails"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          count(input.xs) > 0 and startswith(input.s, "/")
+        }
+    input:
+      xs: [1, 2, 3]
+      s: "no-leading-slash"
+    want_result: []
+  - note: "logic_op/builtin_calls: or with builtins on both sides"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          count(input.xs) > 0 or endswith(input.s, ".txt")
+        }
+    input:
+      xs: []
+      s: "report.txt"
+    want_result:
+      - x: true
+  - note: "logic_op/builtin_calls: nested builtin call, distinct result temporaries"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          count(split(input.a, ",")) > 1 and count(split(input.b, ";")) > 1
+        }
+    input:
+      a: "x,y,z"
+      b: "1;2;3"
+    want_result:
+      - x: true
+  - note: "logic_op/builtin_calls: comprehension in builtin, or branch"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          count([n | n := input.xs[_]; n > 0]) > 0 or count([n | n := input.ys[_]; n > 0]) > 0
+        }
+    input:
+      xs: [-1, -2]
+      ys: [3]
+    want_result:
+      - x: true
