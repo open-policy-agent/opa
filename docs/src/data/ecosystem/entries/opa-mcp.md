@@ -11,6 +11,8 @@ code:
 - https://www.npmjs.com/package/@orygn/opa-mcp
 - https://hub.docker.com/r/orygn/opa-mcp
 - https://smithery.ai/server/@orygn/opa-mcp
+tutorials:
+- https://orygn.tech/products/opa-mcp
 videos:
 - https://youtu.be/ByHocQDkB8M
 blogs:
