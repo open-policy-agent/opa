@@ -5,6 +5,21 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.18.2
+
+This release includes a bug fix for a `opa fmt` regression introduced in v1.18.0.
+
+The original fix for #8557 had the formatter enforce newlines in single-item
+collections (arrays, objects, sets) rather than merely honoring existing ones.
+As a result, running `opa fmt` on already-formatted policies could introduce
+a large number of unwanted changes. This patch release restores the intended
+behavior: only newlines already present in the source determine whether a
+single-item collection is formatted on one line or across multiple lines.
+
+### Fixes
+
+- Fix regression in fix of #8557 (#8845) (authored by @anderseknert)
+
 ## 1.18.1
 
 This release fixes a memory leak introduced in OPA v1.17.0.
