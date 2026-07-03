@@ -1,0 +1,31 @@
+---
+cases:
+  - note: "strings/format_int: bignum exact (>64-bit integer, all bases + negative)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := result if {
+        	result := {
+        		"b16": format_int(18446744073709551617, 16),
+        		"b10": format_int(18446744073709551617, 10),
+        		"b8": format_int(18446744073709551617, 8),
+        		"b2": format_int(18446744073709551617, 2),
+        		"neg16": format_int(-18446744073709551617, 16),
+        		"neg10": format_int(-18446744073709551617, 10),
+        		"frac16": format_int(15.9, 16),
+        		"fracneg16": format_int(-15.9, 16),
+        	}
+        }
+    data: {}
+    want_result:
+      - x:
+          b16: "10000000000000001"
+          b10: "18446744073709551617"
+          b8: "2000000000000000000001"
+          b2: "10000000000000000000000000000000000000000000000000000000000000001"
+          neg16: "-10000000000000001"
+          neg10: "-18446744073709551617"
+          frac16: "f"
+          fracneg16: "-f"
