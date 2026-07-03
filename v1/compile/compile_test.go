@@ -2220,6 +2220,69 @@ q = true`,
 	}
 }
 
+// TestCompilerWasmTargetPackageAnnotationEntrypoint tests that a package-level
+// entrypoint annotation works correctly for wasm target builds without any
+// explicit -e flag. Regression test for https://github.com/open-policy-agent/opa/issues/8854
+func TestCompilerWasmTargetPackageAnnotationEntrypoint(t *testing.T) {
+	files := map[string]string{
+		"complex.rego": `# METADATA
+# entrypoint: true
+package complex
+
+access if {
+	input.user == "u"
+}`,
+	}
+
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("wasm").
+				WithRegoAnnotationEntrypoints(true)
+
+			err := compiler.Build(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(compiler.bundle.WasmModules) != 1 {
+				t.Fatalf("expected 1 Wasm module, got: %d", len(compiler.bundle.WasmModules))
+			}
+
+			expWasmResolvers := []bundle.WasmResolver{
+				{
+					Entrypoint: "complex",
+					Module:     "/policy.wasm",
+				},
+			}
+
+			if len(expWasmResolvers) != len(compiler.bundle.Manifest.WasmResolvers) {
+				t.Fatalf("\nExpected WasmResolvers:\n  %+v\nGot:\n  %+v\n", expWasmResolvers, compiler.bundle.Manifest.WasmResolvers)
+			}
+
+			for i, expWasmResolver := range expWasmResolvers {
+				if !expWasmResolver.Equal(&compiler.bundle.Manifest.WasmResolvers[i]) {
+					t.Fatalf("WasmResolver at index %v mismatch\n\nExpected WasmResolvers:\n  %+v\nGot:\n  %+v\n",
+						i, expWasmResolvers, compiler.bundle.Manifest.WasmResolvers)
+				}
+			}
+
+			// The package-level annotation must be preserved in the output bundle's
+			// source module: pruneBundleEntrypoints should not strip it since the
+			// package itself is always retained in the bundle.
+			if len(compiler.bundle.Modules) != 1 {
+				t.Fatalf("expected 1 module in bundle, got %d", len(compiler.bundle.Modules))
+			}
+			mod := compiler.bundle.Modules[0].Parsed
+			if len(mod.Annotations) != 1 || !mod.Annotations[0].Entrypoint {
+				t.Errorf("expected package-level entrypoint annotation to be preserved in bundle module, got annotations: %v", mod.Annotations)
+			}
+		})
+	}
+}
+
 func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test

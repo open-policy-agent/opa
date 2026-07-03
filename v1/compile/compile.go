@@ -848,9 +848,11 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 				}
 			}
 
-			// Prune annotations and comments for entrypoint rules
+			// Prune annotations and comments for entrypoint rules, but not for
+			// packages: the package is always retained in the bundle.
 			annotations, comments := pruneAnnotationsAndComments(mf.Parsed, func(annotation *ast.Annotations) bool {
-				return annotation.GetTargetPath().Equal(entrypoint.Value)
+				return annotation.GetTargetPath().Equal(entrypoint.Value) &&
+					!mf.Parsed.Package.Path.Equal(entrypoint.Value)
 			})
 
 			// If any rules or annotations were dropped update the module accordingly
