@@ -34,6 +34,14 @@ import (
 
 // NewOCI returns a new Downloader that can be started.
 func NewOCI(config Config, client rest.Client, path, storePath string) *OCIDownloader {
+	if storePath == "" {
+		var err error
+		storePath, err = os.MkdirTemp("", "opa-oci-*")
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	localstore, err := oci.New(storePath)
 	if err != nil {
 		panic(err)
