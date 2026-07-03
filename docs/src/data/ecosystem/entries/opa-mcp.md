@@ -12,7 +12,7 @@ code:
 - https://hub.docker.com/r/orygn/opa-mcp
 - https://smithery.ai/server/@orygn/opa-mcp
 tutorials:
-- https://orygn.tech/products/opa-mcp
+- https://orygn.tech/products/opa-mcp#install
 videos:
 - https://youtu.be/ByHocQDkB8M
 blogs:
