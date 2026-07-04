@@ -1,3 +1,4 @@
 # Exception Format is <test name>: <reason>
 "data/toplevel integer": "https://github.com/open-policy-agent/opa/issues/3711"
 "data/nested integer": "https://github.com/open-policy-agent/opa/issues/3711"
+"strings/format_int: bignum exact (>64-bit integer, all bases + negative)": "WASM cannot represent integers larger than 64 bits (see https://github.com/open-policy-agent/opa/issues/3711); this change fixes the Go topdown builtin."
