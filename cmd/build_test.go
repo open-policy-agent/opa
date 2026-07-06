@@ -449,6 +449,114 @@ func TestBuildPlanWithPruneUnused(t *testing.T) {
 	})
 }
 
+func TestBuildPlanProtoFormat(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+			package test
+			default p := false
+			p if input.user == "alice"
+		`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newBuildParams()
+		if err := params.target.Set("plan"); err != nil {
+			t.Fatal(err)
+		}
+		if err := params.planFormat.Set("proto"); err != nil {
+			t.Fatal(err)
+		}
+		params.entrypoints.v = []string{"test"}
+		params.outputFile = path.Join(root, "bundle.tar.gz")
+
+		if err := dobuild(params, []string{root}); err != nil {
+			t.Fatal(err)
+		}
+
+		f, err := os.Open(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+
+		gr, err := gzip.NewReader(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tr := tar.NewReader(gr)
+
+		var foundPlan, foundManifest bool
+		var sawJSONPlan, sawJSONManifest bool
+
+		for {
+			h, err := tr.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			switch h.Name {
+			case "/plan.pb":
+				foundPlan = true
+			case "/.manifest.pb":
+				foundManifest = true
+			case "/plan.json":
+				sawJSONPlan = true
+			case "/.manifest":
+				sawJSONManifest = true
+			}
+		}
+
+		if !foundPlan {
+			t.Error("plan.pb not found in bundle")
+		}
+		if !foundManifest {
+			t.Error("/.manifest.pb not found in bundle")
+		}
+		if sawJSONPlan {
+			t.Error("plan.json should not be present when --format=proto")
+		}
+		if sawJSONManifest {
+			t.Error("/.manifest should not be present when --format=proto")
+		}
+
+		loaded, err := loader.NewFileLoader().AsBundle(params.outputFile)
+		if err != nil {
+			t.Fatalf("load proto bundle: %v", err)
+		}
+		if len(loaded.PlanModules) != 1 {
+			t.Fatalf("expected 1 plan module, got %d", len(loaded.PlanModules))
+		}
+		if filepath.Base(loaded.PlanModules[0].Path) != "plan.pb" {
+			t.Errorf("plan module path should end in plan.pb, got %q", loaded.PlanModules[0].Path)
+		}
+		if loaded.Manifest.Empty() {
+			t.Error("manifest should not be empty after loading proto bundle")
+		}
+	})
+}
+
+func TestBuildFormatRequiresPlanTarget(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test`,
+	}
+	test.WithTempFS(files, func(root string) {
+		params := newBuildParams()
+		if err := params.planFormat.Set("proto"); err != nil {
+			t.Fatal(err)
+		}
+		params.outputFile = path.Join(root, "bundle.tar.gz")
+
+		err := dobuild(params, []string{root})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "plan") {
+			t.Fatalf("error should mention plan target, got: %v", err)
+		}
+	})
+}
+
 func TestBuildPlanWithPrintStatements(t *testing.T) {
 
 	files := map[string]string{
@@ -3264,6 +3372,17 @@ func TestBuildManifestWarning(t *testing.T) {
 Warning: .manifest file found in %q but -b flag not specified. Manifest will be ignored.
 `,
 					path.Join(root, "bundle1"), path.Join(root, "bundle2"))
+			},
+		},
+		"warns when proto manifest ignored": {
+			files: map[string]string{
+				"bundle/.manifest.pb": "ignored-content",
+				"bundle/data.json":    `{"data": "value"}`,
+			},
+			bundleMode: false,
+			buildArgs:  []string{"bundle"},
+			expectedStderr: func(root string) string {
+				return fmt.Sprintf("Warning: .manifest.pb file found in %q but -b flag not specified. Manifest will be ignored.\n", path.Join(root, "bundle"))
 			},
 		},
 	}

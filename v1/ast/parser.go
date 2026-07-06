@@ -3172,7 +3172,7 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 
 		switch v := v.(type) {
 		case string:
-			a.Schema, err = parseSchemaRef(v)
+			a.Schema, err = ParseSchemaRef(v)
 			if err != nil {
 				return nil, err
 			}
@@ -3275,10 +3275,14 @@ func unwrapPair(pair map[string]any) (string, any) {
 
 var errInvalidSchemaRef = errors.New("invalid schema reference")
 
+// ParseSchemaRef parses a schema reference string into a Ref. Unlike
+// ParseRef, it accepts the bare `schema` Var and Refs prefixed with the
+// schema root document.
+//
 // NOTE(tsandall): 'schema' is not registered as a root because it's not
 // supported by the compiler or evaluator today. Once we fix that, we can remove
 // this function.
-func parseSchemaRef(s string) (Ref, error) {
+func ParseSchemaRef(s string) (Ref, error) {
 
 	term, err := ParseTerm(s)
 	if err == nil {

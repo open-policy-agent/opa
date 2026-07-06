@@ -91,6 +91,15 @@ ifeq ($(GOOS),windows)
 endif
 	$(GO) generate
 
+.PHONY: generate-proto
+generate-proto:
+	cd build/tools && $(GO) build -o $(CURDIR)/build/tools/bin/protoc-gen-go google.golang.org/protobuf/cmd/protoc-gen-go
+	PATH="$(CURDIR)/build/tools/bin:$$PATH" protoc \
+		--go_out=. \
+		--go_opt=module=github.com/open-policy-agent/opa \
+		v1/ir/plan.proto \
+		v1/bundle/manifest.proto
+
 .PHONY: build
 build: go-build
 

@@ -544,3 +544,47 @@ func getFilter(pattern string, minDepth int) filter.LoaderFilter {
 		return match && depth >= minDepth
 	}
 }
+
+func TestFormatPathChrootedManifests(t *testing.T) {
+	sep := string(filepath.Separator)
+	cases := []struct {
+		note     string
+		fileName string
+		root     string
+		want     string
+	}{
+		{
+			note:     "json manifest at chroot .",
+			fileName: ".manifest",
+			root:     ".",
+			want:     sep + ".manifest",
+		},
+		{
+			note:     "proto manifest at chroot .",
+			fileName: ".manifest.pb",
+			root:     ".",
+			want:     sep + ".manifest.pb",
+		},
+		{
+			note:     "json manifest at named chroot",
+			fileName: filepath.Join("a", "b", ".manifest"),
+			root:     filepath.Join("a", "b"),
+			want:     sep + ".manifest",
+		},
+		{
+			note:     "proto manifest at named chroot",
+			fileName: filepath.Join("a", "b", ".manifest.pb"),
+			root:     filepath.Join("a", "b"),
+			want:     sep + ".manifest.pb",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			got := formatPath(tc.fileName, tc.root, Chrooted)
+			if got != tc.want {
+				t.Fatalf("formatPath(%q, %q, Chrooted) = %q, want %q", tc.fileName, tc.root, got, tc.want)
+			}
+		})
+	}
+}
