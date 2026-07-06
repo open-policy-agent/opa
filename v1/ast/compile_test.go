@@ -2340,6 +2340,25 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				`),
 		},
 		{
+			note: "multi-value set rule with multi-value general-ref (object) rule, same name (regression test for #8860)",
+			modules: modules(
+				`package pkg
+				import future.keywords
+				index contains p.id if { some p in input.prefs }
+				index[p.id] contains p if { some p in input.prefs }
+				`),
+			err: "rego_type_error: conflicting rules data.pkg.index[",
+		},
+		{
+			note: "multi-value general-ref (object) rules with same name do not conflict",
+			modules: modules(
+				`package pkg
+				import future.keywords
+				index[k] contains v if { k := "a"; v := 1 }
+				index[k] contains v if { k := "b"; v := 2 }
+				`),
+		},
+		{
 			note: "function with other rule (ref) overlap",
 			modules: modules(
 				`package pkg
