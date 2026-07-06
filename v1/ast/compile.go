@@ -1346,7 +1346,7 @@ func (c *Compiler) checkRuleConflicts() {
 		partialRules := 0
 		arities := make(map[int]struct{}, len(rules))
 		name := ""
-		var conflicts []Ref
+		var conflicts []ruleRef
 		defaultRules := make([]*Rule, 0)
 
 		for _, rule := range rules {
@@ -1422,7 +1422,7 @@ func (c *Compiler) checkRuleConflicts() {
 
 		switch {
 		case conflicts != nil:
-			return !c.err(NewError(TypeErr, rules[0].Loc(), "rule %v conflicts with %v", name, conflicts))
+			return !c.err(NewError(TypeErr, rules[0].Loc(), "rule %v conflicts with%v", name, formatConflict(conflicts, rw)))
 
 		case len(kinds) > 1 || len(arities) > 1 || (completeRules >= 1 && partialRules >= 1):
 			return !c.err(NewError(TypeErr, rules[0].Loc(), "conflicting rules %v found", name))
@@ -4482,30 +4482,50 @@ func attachValueToNode(node *TreeNode, ref Ref, val any) {
 	}
 }
 
+type ruleRef struct {
+	ref Ref
+	loc *Location
+}
+
 // flattenChildren flattens all children's rule refs into a sorted array.
-func (n *TreeNode) flattenChildren() []Ref {
+func (n *TreeNode) flattenChildren() []ruleRef {
 	return n.flattenMatchingChildren(func(_ *Rule) bool { return true })
 }
 
 // flattenChildFunctions is like flattenChildren but only collects functions (rules with args).
-func (n *TreeNode) flattenChildFunctions() []Ref {
+func (n *TreeNode) flattenChildFunctions() []ruleRef {
 	return n.flattenMatchingChildren(func(r *Rule) bool { return r.isFunction() })
 }
 
-func (n *TreeNode) flattenMatchingChildren(f func(*Rule) bool) []Ref {
-	ret := newRefSet()
+func (n *TreeNode) flattenMatchingChildren(f func(*Rule) bool) []ruleRef {
+	var ret ruleRefSet
 	for _, sub := range n.Children { // we only want the children, so don't use n.DepthFirst() right away
 		sub.DepthFirst(func(x *TreeNode) bool {
 			for _, rule := range x.Values {
 				if f(rule) {
-					ret.AddPrefix(rule.Ref())
+					ret.AddPrefix(ruleRef{ref: rule.Ref(), loc: rule.Loc()})
 				}
 			}
 			return false
 		})
 	}
 
-	return util.SortedFunc(ret.s, RefCompare)
+	return util.SortedFunc(ret.s, func(a, b ruleRef) int {
+		return RefCompare(a.ref, b.ref)
+	})
+}
+
+func formatConflict(conflicts []ruleRef, rw varRewriter) string {
+	s := strings.Builder{}
+	s.WriteString(":\n")
+	for _, conflict := range conflicts {
+		s.WriteString("  rule ")
+		s.WriteString(rw(conflict.ref.Copy()).String())
+		s.WriteString(" at ")
+		s.WriteString(conflict.loc.String())
+		s.WriteString("\n")
+	}
+	return strings.TrimSuffix(s.String(), "\n")
 }
 
 // Copy creates a shallow copy of the TreeNode suitable for augmentation.
@@ -7234,48 +7254,24 @@ func rewriteVarsInRef(vars ...map[Var]Var) varRewriter {
 	}
 }
 
-// NOTE(sr): This is duplicated with compile/compile.go; but moving it into another location
-// would cause a circular dependency -- the refSet definition needs ast.Ref. If we make it
-// public in the ast package, the compile package could take it from there, but it would also
-// increase our public interface. Let's reconsider if we need it in a third place.
-type refSet struct {
-	s []Ref
-}
-
-func newRefSet(x ...Ref) *refSet {
-	result := &refSet{}
-	for i := range x {
-		result.AddPrefix(x[i])
-	}
-	return result
-}
-
-// ContainsPrefix returns true if r is prefixed by any of the existing refs in the set.
-func (rs *refSet) ContainsPrefix(r Ref) bool {
-	return slices.ContainsFunc(rs.s, r.HasPrefix)
+type ruleRefSet struct {
+	s []ruleRef
 }
 
 // AddPrefix inserts r into the set if r is not prefixed by any existing
 // refs in the set. If any existing refs are prefixed by r, those existing
 // refs are removed.
-func (rs *refSet) AddPrefix(r Ref) {
-	if rs.ContainsPrefix(r) {
-		return
-	}
-	cpy := []Ref{r}
+func (rs *ruleRefSet) AddPrefix(r ruleRef) {
 	for i := range rs.s {
-		if !rs.s[i].HasPrefix(r) {
+		if r.ref.HasPrefix(rs.s[i].ref) {
+			return
+		}
+	}
+	cpy := []ruleRef{r}
+	for i := range rs.s {
+		if !rs.s[i].ref.HasPrefix(r.ref) {
 			cpy = append(cpy, rs.s[i])
 		}
 	}
 	rs.s = cpy
-}
-
-// Sorted returns a sorted slice of terms for refs in the set.
-func (rs *refSet) Sorted() []*Term {
-	terms := make([]*Term, len(rs.s))
-	for i := range rs.s {
-		terms[i] = NewTerm(rs.s[i])
-	}
-	return util.SortedFunc(terms, TermValueCompare)
 }
