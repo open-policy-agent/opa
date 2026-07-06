@@ -1344,6 +1344,9 @@ func (c *Compiler) checkRuleConflicts() {
 		kinds := make(map[RuleKind]struct{}, len(rules))
 		completeRules := 0
 		partialRules := 0
+		// `p contains x` (set) vs `p[k] contains v` (object of sets): a mix is a conflict.
+		var hasMultiValueSet bool
+		var hasMultiValueObject bool
 		arities := make(map[int]struct{}, len(rules))
 		name := ""
 		var conflicts []ruleRef
@@ -1403,6 +1406,15 @@ func (c *Compiler) checkRuleConflicts() {
 			} else {
 				partialRules++
 			}
+
+			if r.Head.RuleKind() == MultiValue {
+				// A ground ref ends at the node (set); a longer one extends past it (object).
+				if ref.IsGround() {
+					hasMultiValueSet = true
+				} else {
+					hasMultiValueObject = true
+				}
+			}
 		}
 
 		// Functions cannot exist within a rule's dynamic extent, as there is no valid
@@ -1424,7 +1436,7 @@ func (c *Compiler) checkRuleConflicts() {
 		case conflicts != nil:
 			return !c.err(NewError(TypeErr, rules[0].Loc(), "rule %v conflicts with%v", name, formatConflict(conflicts, rw)))
 
-		case len(kinds) > 1 || len(arities) > 1 || (completeRules >= 1 && partialRules >= 1):
+		case len(kinds) > 1 || len(arities) > 1 || (completeRules >= 1 && partialRules >= 1) || (hasMultiValueSet && hasMultiValueObject):
 			return !c.err(NewError(TypeErr, rules[0].Loc(), "conflicting rules %v found", name))
 
 		case len(defaultRules) > 1:
