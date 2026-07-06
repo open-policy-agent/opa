@@ -115,6 +115,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: .go-version
+          cache: false
 
       - name: Build Linux and Windows
         run: make ci-build-windows ci-go-ci-build-linux ci-go-ci-build-linux-static
@@ -152,6 +153,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: .go-version
+          cache: false
 
       - name: Build Darwin
         run: |
