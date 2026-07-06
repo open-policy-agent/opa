@@ -358,7 +358,7 @@ func schemaFromProto(s *pb.SchemaAnnotation) (*ast.SchemaAnnotation, error) {
 		out.Path = ref
 	}
 	if sc := s.GetSchema(); sc != "" {
-		ref, err := parseSchemaRef(sc)
+		ref, err := ast.ParseSchemaRef(sc)
 		if err != nil {
 			return nil, fmt.Errorf("schema %q: %w", sc, err)
 		}
@@ -369,26 +369,6 @@ func schemaFromProto(s *pb.SchemaAnnotation) (*ast.SchemaAnnotation, error) {
 		out.Definition = &def
 	}
 	return out, nil
-}
-
-// parseSchemaRef mirrors the unexported v1/ast.parseSchemaRef. The bare
-// `schema` Var and Refs prefixed with the schema root aren't accepted by
-// ast.ParseRef.
-func parseSchemaRef(s string) (ast.Ref, error) {
-	term, err := ast.ParseTerm(s)
-	if err == nil {
-		switch v := term.Value.(type) {
-		case ast.Var:
-			if term.Equal(ast.SchemaRootDocument) {
-				return ast.SchemaRootRef.Copy(), nil
-			}
-		case ast.Ref:
-			if v.HasPrefix(ast.SchemaRootRef) {
-				return v, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("invalid schema reference %q", s)
 }
 
 func compileFromProto(c *pb.CompileAnnotation) (*ast.CompileAnnotation, error) {

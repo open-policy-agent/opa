@@ -5,6 +5,7 @@
 package ir_test
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -157,5 +158,27 @@ func TestPolicyToProtoUnknownStmtReturnsError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unsupportedStmt") {
 		t.Fatalf("error should name the offending type: %v", err)
+	}
+}
+
+func TestPolicyToProtoInt32OverflowReturnsError(t *testing.T) {
+	p := &ir.Policy{
+		Plans: &ir.Plans{Plans: []*ir.Plan{{
+			Name: "p",
+			Blocks: []*ir.Block{{Stmts: []ir.Stmt{
+				&ir.ReturnLocalStmt{Source: ir.Local(math.MaxInt32 + 1)},
+			}}},
+		}}},
+	}
+
+	got, err := ir.PolicyToProto(p)
+	if err == nil {
+		t.Fatal("expected error for int32 overflow, got nil")
+	}
+	if got != nil {
+		t.Fatalf("expected nil result on error, got %v", got)
+	}
+	if !strings.Contains(err.Error(), "overflows int32") {
+		t.Fatalf("error should mention the overflow: %v", err)
 	}
 }
