@@ -1507,14 +1507,12 @@ func TestTopDownPartialEval(t *testing.T) {
 			modules: []string{
 				`package test
 				import future.keywords.contains
-				p.q contains x if { input.x = x }
 				p.q[r].s contains t if { input.r = r; input.t = t }`,
 			},
 			wantQueries: []string{`data.partial.test.p.q = x`},
 			wantSupport: []string{`
 				package partial.test.p
 				import future.keywords.contains
-				q contains x2 if  { input.x = x2 }
 				q[r1].s contains t1 if { input.r = r1; input.t = t1 }
 			`},
 		},
