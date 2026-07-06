@@ -2822,6 +2822,25 @@ func TestTopDownPartialEval(t *testing.T) {
 			`},
 		},
 		{
+			// Regression test for https://github.com/open-policy-agent/opa/issues/5226,
+			// fixed by https://github.com/open-policy-agent/opa/pull/5913.
+			note:  "comprehensions: head var bound to unknown, used in comprehension",
+			query: `data.test.p`,
+			modules: []string{
+				`package test
+
+				p contains a if { q[a] }
+				q contains a if {
+					a = input
+					f = [1 | a]
+				}
+			`},
+			wantQueries: []string{`data.partial.test.p`},
+			wantSupport: []string{`package partial.test
+				p contains a2 if { a2 = input; f2 = [1 | a2]; a2 }
+			`},
+		},
+		{
 			note:        "comprehensions: ref heads (with live vars)",
 			query:       "x = [0]; y = {true | x[0]; input.y = 1}", // include an unknown in the comprehension to force saving
 			wantQueries: []string{`y = {true | x[0]; input.y = 1; x = [0]}; x = [0]`},
