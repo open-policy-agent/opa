@@ -76,9 +76,7 @@ func TestPretty(t *testing.T) {
     ref
      g
     x
-  body
-   expr index=0
-    true`
+  body`
 
 	result := strings.TrimSpace(buf.String())
 	expected = strings.TrimSpace(expected)

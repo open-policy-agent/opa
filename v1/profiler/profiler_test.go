@@ -434,7 +434,6 @@ func TestProfilerWithPartialEval(t *testing.T) {
 	profiler := New()
 
 	module := `package test
-import rego.v1
 
 default foo = false
 
@@ -480,8 +479,8 @@ allowed_operations = [
 		t.Fatalf("Expected 2 results for file but instead got %v", len(fr.Result))
 	}
 
-	expectedNumEval := []int{2, 1}
-	expectedNumRedo := []int{2, 1}
+	expectedNumEval := []int{1, 1}
+	expectedNumRedo := []int{1, 1}
 	expectedNumGenExpr := []int{1, 1}
 	expectedLocation := []string{"???", "data.partial.__result__"}
 

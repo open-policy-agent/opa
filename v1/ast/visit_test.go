@@ -60,7 +60,7 @@ p := 7`, ParserOptions{ProcessAnnotation: true})
 
 	NewGenericVisitor(vis.Visit).Walk(module)
 
-	exp := 19
+	exp := 16
 
 	if len(vis.elems) != exp {
 		t.Fatalf("expected %d elements but got %v: %v", exp, len(vis.elems), vis.elems)

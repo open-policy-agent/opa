@@ -6066,9 +6066,14 @@ func rewriteExprTermsInHead(gen *localVarGenerator, rule *Rule) {
 
 // isEmptyBody true for a rule like `pi := 3.14 if { true}`
 func isEmptyBody(body Body) bool {
-	if len(body) == 1 {
-		if term, ok := body[0].Terms.(*Term); ok {
-			return Boolean(true).Equal(term.Value)
+	n := len(body)
+	if n == 0 {
+		return true
+	}
+	if n == 1 {
+		expr := body[0]
+		if term, ok := expr.Terms.(*Term); ok {
+			return !expr.Negated && expr.With == nil && Boolean(true).Equal(term.Value)
 		}
 	}
 
@@ -6097,14 +6102,16 @@ func appendToBody(body Body, exprs ...*Expr) Body {
 	if len(exprs) == 0 {
 		return body
 	}
-
 	blen := len(body)
-	if blen == 1 && isEmptyBody(body) {
-		// body will no longer be empty, so instead of appending,
-		// replace the 'true' expression with the new expression.
+	if blen == 0 {
+		// body is empty, so just append the new expressions.
+	} else if isEmptyBody(body) {
+		// lone 'true' expression — instead of appending,
+		// replace it with the new expression.
 		exprs[0].Index = 0
 		body[0], exprs = exprs[0], exprs[1:]
 	}
+
 	for i, expr := range exprs {
 		expr.Index = blen + i
 	}
@@ -6496,13 +6503,6 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		if expr != nil {
 			cpy.Append(expr)
 		}
-	}
-
-	// If the body only contained a var statement it will be empty at this
-	// point. Append true to the body to ensure that it's non-empty (zero length
-	// bodies are not supported.)
-	if len(cpy) == 0 {
-		cpy.Append(NewExpr(BooleanTerm(true)))
 	}
 
 	errs = checkUnusedAssignedVars(body, stack, used, errs, strict)

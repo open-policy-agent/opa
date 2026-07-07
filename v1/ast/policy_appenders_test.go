@@ -40,7 +40,7 @@ package p
 # title: r
 r = true`,
 			ast.ParserOptions{ProcessAnnotation: true}),
-		want: "# METADATA\n# {\"scope\":\"package\",\"title\":\"p\"}\npackage p\n\n# METADATA\n# {\"scope\":\"rule\",\"title\":\"r\"}\nr = true if { true }",
+		want: "# METADATA\n# {\"scope\":\"package\",\"title\":\"p\"}\npackage p\n\n# METADATA\n# {\"scope\":\"rule\",\"title\":\"r\"}\nr = true",
 		// We don't count this correctly for annoations currently.
 		nolen: true,
 	},

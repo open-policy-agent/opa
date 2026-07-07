@@ -290,14 +290,10 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 	head.Value = rhs
 	head.Location = lhs.Location
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
-
 	return &Rule{
-		Location:      lhs.Location,
-		Head:          head,
-		Body:          body,
-		Module:        module,
-		generatedBody: true,
+		Location: lhs.Location,
+		Head:     head,
+		Module:   module,
 	}, nil
 }
 
@@ -314,12 +310,9 @@ func ParseCompleteDocRuleWithDotsFromTerm(module *Module, term *Term) (*Rule, er
 	head.generatedValue = true
 	head.Location = term.Location
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location))
-
 	return &Rule{
 		Location: term.Location,
 		Head:     head,
-		Body:     body,
 		Module:   module,
 	}, nil
 }
@@ -343,12 +336,9 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 	}
 	head.Location = rhs.Location
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
-
 	rule := &Rule{
 		Location: rhs.Location,
 		Head:     head,
-		Body:     body,
 		Module:   module,
 	}
 
@@ -379,12 +369,9 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 	}
 	head.Location = term.Location
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location))
-
 	rule := &Rule{
 		Location: term.Location,
 		Head:     head,
-		Body:     body,
 		Module:   module,
 	}
 
@@ -412,12 +399,9 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 	head.Location = lhs.Location
 	head.Args = Args(call[1:])
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
-
 	rule := &Rule{
 		Location: lhs.Location,
 		Head:     head,
-		Body:     body,
 		Module:   module,
 	}
 
@@ -427,7 +411,6 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 // ParseRuleFromCallExpr returns a rule if the terms can be interpreted as a
 // function returning true or some value (e.g., f(x) => f(x) = true { true }).
 func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
-
 	if len(terms) <= 1 {
 		return nil, errors.New("rule argument list must take at least one argument")
 	}
@@ -441,13 +424,10 @@ func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
 	head.Location = loc
 	head.Args = terms[1:]
 
-	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(loc)).SetLocation(loc))
-
 	rule := &Rule{
 		Location: loc,
 		Head:     head,
 		Module:   module,
-		Body:     body,
 	}
 	return rule, nil
 }

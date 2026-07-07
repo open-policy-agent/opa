@@ -1754,7 +1754,6 @@ query:1 %.*%          | Index data.test.p (matched 1 rule, early exit)       {}
 %.*%/test.rego:12     | | Eval x = data.test.v                               {}
 %.*%/test.rego:12     | | Index data.test.v (matched 1 rule, early exit)     {}
 %.*%/test.rego:4      | | Enter data.test.v                                  {}
-%.*%/test.rego:4      | | | Eval true                                        {}
 %.*%/test.rego:4      | | | Exit data.test.v early                           {}
 %.*%/test.rego:14     | | Eval x.foo[_] = "a"                                {x: {"bar": ["a", "b", "c", "d", ...}
 %.*%/test.rego:11     | | Exit data.test.p early                             {}
@@ -1764,7 +1763,6 @@ query:1 %.*%          | Redo data.test.p = _                                 {_:
 %.*%/test.rego:11     | Redo data.test.p                                     {}
 %.*%/test.rego:14     | | Redo x.foo[_] = "a"                                {_: 0, x: {"bar": ["a", "b", "c", "d", ...}
 %.*%/test.rego:12     | | Redo x = data.test.v                               {data.test.v: {"bar": ["a", "b", "c", "d", ..., x: {"bar": ["a", "b", "c", "d", ...}
-%.*%/test.rego:4      | | | Redo true                                        {}
 true
 `,
 		},
@@ -1911,7 +1909,6 @@ query:1 %.*%         | Index data.test.p (matched 1 rule, early exit)       {}
 %.*%/test.rego:7     | | Eval __local2__ = data.test.a                      {}
 %.*%/test.rego:7     | | Index data.test.a (matched 1 rule, early exit)     {}
 %.*%/test.rego:4     | | Enter data.test.a                                  {}
-%.*%/test.rego:4     | | | Eval true                                        {}
 %.*%/test.rego:4     | | | Exit data.test.a early                           {}
 %.*%/test.rego:7     | | Eval plus(__local2__, 1, __local0__)               {__local2__: 1}
 %.*%/test.rego:7     | | Eval __local0__ = 2                                {__local0__: 2}
@@ -1930,7 +1927,6 @@ query:1 %.*%         | Redo data.test.p = _                                 {_: 
 %.*%/test.rego:7     | | Redo __local0__ = 2                                {__local0__: 2}
 %.*%/test.rego:7     | | Redo plus(__local2__, 1, __local0__)               {__local0__: 2, __local2__: 1}
 %.*%/test.rego:7     | | Redo __local2__ = data.test.a                      {__local2__: 1, data.test.a: 1}
-%.*%/test.rego:4     | | | Redo true                                        {}
 true
 `,
 		},

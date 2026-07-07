@@ -111,7 +111,7 @@ func (r *Rule) appendWithOpts(opts toStringOpts, buf []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	if !r.Default {
+	if !r.Default && len(r.Body) > 0 {
 		switch opts.RegoVersion() {
 		case RegoV1, RegoV0CompatV1:
 			buf = append(buf, " if { "...)

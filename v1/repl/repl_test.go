@@ -2982,7 +2982,7 @@ func TestProfile(t *testing.T) {
 	store := newTestStore()
 	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
-	const numLines = 21
+	const numLines = 17
 
 	mod2 := []byte(`package rbac
 	import rego.v1
@@ -3056,7 +3056,7 @@ default allow = false
 	result := buffer.String()
 	lines := strings.Split(result, "\n")
 	if len(lines) != numLines {
-		t.Fatal("Expected 21 lines, got :", len(lines))
+		t.Fatal("Expected 20 lines, got :", len(lines))
 	}
 	buffer.Reset()
 }
