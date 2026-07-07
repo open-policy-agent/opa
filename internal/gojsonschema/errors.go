@@ -4,7 +4,14 @@ package gojsonschema
 import (
 	"bytes"
 	"sync"
-	"text/template"
+
+	// A method-less copy of text/template (see internal/methodlesstemplate). Locale
+	// format strings expand only simple {{.field}} placeholders over ErrorDetails
+	// (map[string]any), which has no methods, so eliding method calls is a no-op
+	// here; it keeps text/template's evalField MethodByName off the reachable
+	// graph, which otherwise disables the Go linker's method-level dead-code
+	// elimination binary-wide (golang/go#72895, #7903).
+	template "github.com/open-policy-agent/opa/internal/methodlesstemplate"
 )
 
 var errorTemplates = errorTemplate{template.New("errors-new"), sync.RWMutex{}}
