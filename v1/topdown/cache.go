@@ -133,7 +133,7 @@ func newVirtualCacheElem() *virtualCacheElem {
 }
 
 func newVirtualCacheHashMap() *util.HasherMap[*ast.Term, *virtualCacheElem] {
-	return util.NewHasherMap[*ast.Term, *virtualCacheElem](ast.TermValueEqual)
+	return util.NewHasherMap[*ast.Term, *virtualCacheElem]((*ast.Term).Equal)
 }
 
 // baseCache implements a trie structure to cache base documents read out of
@@ -301,7 +301,7 @@ func (c *comprehensionCacheElem) Put(key []*ast.Term, value *ast.Term) {
 }
 
 func newComprehensionCacheHashMap() *util.HasherMap[*ast.Term, *comprehensionCacheElem] {
-	return util.NewHasherMap[*ast.Term, *comprehensionCacheElem](ast.TermValueEqual)
+	return util.NewHasherMap[*ast.Term, *comprehensionCacheElem]((*ast.Term).Equal)
 }
 
 type functionMocksStack struct {
