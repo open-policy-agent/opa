@@ -337,6 +337,10 @@ func TermValueCompare(a, b *Term) int {
 }
 
 func TermValueEqual(a, b *Term) bool {
+	if a == b {
+		return true
+	}
+
 	return ValueEqual(a.Value, b.Value)
 }
 
