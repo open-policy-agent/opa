@@ -148,9 +148,8 @@ containers:
 ::: tip
 Consider specifying CPU and memory resource requests and limits for the OPA and other containers to prevent
 deployments from resource starvation.
-OPA automatically sets `GOMAXPROCS` via [`automaxprocs`](https://github.com/uber-go/automaxprocs) and `GOMEMLIMIT`
-via [`automemlimit`](https://github.com/KimMachineGun/automemlimit) based on cgroup limits. Both can be overridden
-by setting the environment variables explicitly.
+You can also start OPA with the [`GOMAXPROCS`](https://pkg.go.dev/runtime) environment variable to limit the number of
+cores that OPA can consume.
 :::
 
 ::: tip
