@@ -27,8 +27,6 @@ A simple example of a policy that contains this error follows, note the missing
 ```rego
 package policy
 
-import rego.v1
-
 allow if {
 // highlight-next-line
     "admin" in input roles
@@ -51,8 +49,6 @@ the example below, the `endswith` email check is meant to be on the next line:
 ```rego
 package policy
 
-import rego.v1
-
 allow if {
 // highlight-next-line
     "admin" in input.roles endswith(input.email, "@example.com")
@@ -63,8 +59,6 @@ This should be written like this, with the statements on separate lines:
 
 ```rego
 package policy
-
-import rego.v1
 
 allow if {
     "admin" in input.roles

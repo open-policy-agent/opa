@@ -21,8 +21,6 @@ for the `allow` rule:
 ```rego
 package policy
 
-import rego.v1
-
 default allow := false
 
 allow if {
@@ -40,16 +38,12 @@ example:
 # main.rego
 package policy
 
-import rego.v1
-
 default allow := false
 ```
 
 ```rego
 # admin.rego
 package policy
-
-import rego.v1
 
 default allow := false
 
@@ -62,7 +56,7 @@ Running OPA loading these two files produces the error:
 
 ```shell
 $ opa run -s *.rego
-... admin.rego:5: rego_type_error: multiple default rules data.policy.allow found
+... admin.rego:3: rego_type_error: multiple default rules data.policy.allow found
 ```
 
 ## How To Fix It

@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 internal_domain := "example.com"
 
 allow if count(deny) == 0

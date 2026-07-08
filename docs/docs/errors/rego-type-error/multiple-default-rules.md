@@ -20,8 +20,6 @@ In the example below, the default value for the `allow` rule is defined twice:
 ```rego
 package example
 
-import rego.v1
-
 default allow := false
 
 allow if input.admin

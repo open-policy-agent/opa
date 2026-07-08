@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 name_pattern := `^(\p{L}+\s?)+\p{L}+$`
 
 valid_name1 := regex.match(name_pattern, "Juan Pérez")

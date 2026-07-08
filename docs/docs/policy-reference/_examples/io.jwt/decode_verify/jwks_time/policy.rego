@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 jwks := `{
     "keys": [
         {

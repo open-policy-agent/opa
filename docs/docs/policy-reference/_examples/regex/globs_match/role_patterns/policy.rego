@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 user_roles := data.user_roles[input.user_id]
 
 action_requirements := data.action_requirements[input.action]

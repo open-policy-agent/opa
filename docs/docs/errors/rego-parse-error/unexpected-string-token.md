@@ -19,8 +19,6 @@ A simple example of a policy that contains this error follows, note the missing 
 ```rego
 package policy
 
-import rego.v1
-
 allow if {
     input.role "admin"
 }

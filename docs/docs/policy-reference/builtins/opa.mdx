@@ -51,8 +51,6 @@ depends on the contents of the `my_data` rule.
 ```rego
 package example
 
-import rego.v1
-
 my_data["numbers"] := [1,2,3]
 
 allow if {
@@ -78,8 +76,6 @@ Using print statements can be a good way to check what a value is.
 ```rego
 package example
 
-import rego.v1
-
 allow if {
     # highlight-next-line
     print(input.user)
@@ -98,8 +94,6 @@ are and make adjustments as needed.
 ```rego title="policy.rego"
 package example
 
-import rego.v1
-
 default allow := false
 
 allow if {
@@ -112,8 +106,6 @@ allow if {
 
 ```rego title="policy_test.rego"
 package example
-
-import rego.v1
 
 test_allow_with_bob if {
     allow with input as {"user": "bob"}

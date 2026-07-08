@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 # missing_paths creates a set missing input paths
 missing_paths contains path if {
 	some path in data.required_paths

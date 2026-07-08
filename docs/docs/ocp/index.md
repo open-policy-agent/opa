@@ -73,8 +73,6 @@ to `./files/sources/hello-world/rules/rules.rego`
 ```rego title="files/sources/hello-world/rules/rules.rego"
 package rules
 
-import rego.v1
-
 default allow := false
 
 allow if {

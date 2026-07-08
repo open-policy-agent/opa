@@ -96,8 +96,6 @@ Data filters and column masks are generated for the `data.filters.include` rule,
 ```rego
 package filters
 
-import rego.v1
-
 # METADATA
 # scope: document
 # description: Return all rows, for sake of the example.
@@ -210,8 +208,6 @@ The masking policy allows the real value through all roles _except_ the `reader`
 
 ```rego
 package filters
-
-import rego.v1
 
 # METADATA
 # scope: document

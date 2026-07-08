@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 uuid_v4_pattern := `[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}`
 
 aws_arn_pattern := `arn:(aws[a-zA-Z-]*):([a-zA-Z0-9-]+):([a-zA-Z0-9-]*):([0-9]*):([a-zA-Z0-9-:/]+)`

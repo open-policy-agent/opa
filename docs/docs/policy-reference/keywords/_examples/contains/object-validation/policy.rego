@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 approval_min := 350
 
 reasons[item.id] contains "category must be set" if {
