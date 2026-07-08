@@ -129,11 +129,14 @@ func builtinFormatInt(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	}
 
 	var format string
+	var radix int
 	switch base {
 	case ast.Number("2"):
 		format = "%b"
+		radix = 2
 	case ast.Number("8"):
 		format = "%o"
+		radix = 8
 	case ast.Number("10"):
 		// Fast path: for numbers whose decimal string is already interned (e.g.
 		// "0"–"100"), we can skip strconv.ParseInt entirely.
@@ -144,12 +147,23 @@ func builtinFormatInt(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 			return iter(ast.InternedIntegerString(i))
 		}
 		format = "%d"
+		radix = 10
 	case ast.Number("16"):
 		format = "%x"
+		radix = 16
 	default:
 		return builtins.NewOperandEnumErr(2, "2", "8", "10", "16")
 	}
 
+	// For integer inputs, format the exact big.Int. Routing integers through a
+	// float (as the fractional path below does) loses precision for values that
+	// need more than a float64's 53-bit mantissa, e.g. 18446744073709551617.
+	if i, ok := new(big.Int).SetString(string(input), 10); ok {
+		return iter(ast.InternedTerm(i.Text(radix)))
+	}
+
+	// Fractional inputs (e.g. 15.9) are truncated toward zero, matching the
+	// historical behaviour: format_int(15.9, 16) == "f", format_int(-15.9, 16) == "-f".
 	f := builtins.NumberToFloat(input)
 	i, _ := f.Int(nil)
 
