@@ -2158,7 +2158,7 @@ func TestTopDownPartialEval(t *testing.T) {
 					input.a == input.a
 				}`,
 			},
-			wantQueries: []string{`__localcp0__ = input.a`},
+			wantQueries: []string{`input.a`},
 		},
 		{
 			note:  "copy propagation: tautology, var ref, ref is input",
@@ -2169,7 +2169,7 @@ func TestTopDownPartialEval(t *testing.T) {
 					x.a == x.a
 				}`,
 			},
-			wantQueries: []string{`__localcp0__ = input.a`},
+			wantQueries: []string{`input.a`},
 		},
 		{
 			note:     "copy propagation: tautology, var ref, ref is unknown data",
@@ -2180,7 +2180,7 @@ func TestTopDownPartialEval(t *testing.T) {
 					data.bar.foo.a == data.bar.foo.a
 				}`,
 			},
-			wantQueries: []string{`__localcp0__ = data.bar.foo.a`},
+			wantQueries: []string{`data.bar.foo.a`},
 		},
 		{
 			note: "copy propagation: tautology, var ref, ref is input, via unknown",
@@ -2194,7 +2194,7 @@ func TestTopDownPartialEval(t *testing.T) {
 					input.foo.a == input.foo.a
 				}`,
 			},
-			wantQueries: []string{`__localcp0__ = input.foo.a`},
+			wantQueries: []string{`input.foo.a`},
 		},
 		{
 			note:  "copy propagation: tautology, var ref, ref is head var",
@@ -2204,7 +2204,19 @@ func TestTopDownPartialEval(t *testing.T) {
 					x.a == x.a
 				}`,
 			},
-			wantQueries: []string{`__localcp1__ = input.a`},
+			wantQueries: []string{`input.a`},
+		},
+		{
+			note:  "copy propagation: unused function argument, unknown ref (#6378)",
+			query: "data.test.allow == true",
+			// Calling a function with an unknown arg it ignores must not leak the
+			// internal placeholder var; the residual only requires the arg defined.
+			unknowns: []string{"input.project"},
+			modules: []string{`package test
+				allowed(_) if { input.subject.on_duty }
+				allow if { allowed(input.project) }`},
+			input:       `{"subject": {"on_duty": true}}`,
+			wantQueries: []string{`input.project`},
 		},
 		{
 			note:  "save set vars are namespaced",

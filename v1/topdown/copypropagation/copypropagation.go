@@ -34,6 +34,9 @@ type CopyPropagator struct {
 	ensureNonEmptyBody bool
 	compiler           *ast.Compiler
 	localvargen        *localVarGenerator
+	// placeholders holds vars synthesized to keep a ref alive for its definedness.
+	// They appear nowhere else, so their bindings can be emitted as the bare ref.
+	placeholders ast.VarSet
 }
 
 type localVarGenerator struct {
@@ -47,10 +50,17 @@ func (l *localVarGenerator) Generate() ast.Var {
 
 }
 
+// generatePlaceholder returns a fresh local variable, recorded as a placeholder.
+func (p *CopyPropagator) generatePlaceholder() ast.Var {
+	v := p.localvargen.Generate()
+	p.placeholders.Add(v)
+	return v
+}
+
 // New returns a new CopyPropagator that optimizes queries while preserving vars
 // in the livevars set.
 func New(livevars ast.VarSet) *CopyPropagator {
-	return &CopyPropagator{livevars: livevars, sorted: util.KeysSorted(livevars), localvargen: &localVarGenerator{}}
+	return &CopyPropagator{livevars: livevars, sorted: util.KeysSorted(livevars), localvargen: &localVarGenerator{}, placeholders: ast.NewVarSet()}
 }
 
 // WithEnsureNonEmptyBody configures p to ensure that results are always non-empty.
@@ -188,7 +198,14 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 		}
 
 		if providesSafety || (!safevarRef && !containedIn(b.v, result)) {
-			result.Append(removedEq)
+			// For a placeholder key, emit the bare ref rather than `__localcp0__ =
+			// input.project`: both only require the ref to be defined, but the
+			// equality leaks the internal var into results (#6378).
+			if ref, expr := p.placeholderRef(b); ref != nil {
+				result.Append(expr)
+			} else {
+				result.Append(removedEq)
+			}
 			safe.Update(outputVars)
 		}
 	}
@@ -311,7 +328,7 @@ func (p *CopyPropagator) updateBindings(pctx *plugContext, expr *ast.Expr) bool 
 		a, b := expr.Operand(0), expr.Operand(1)
 		if a.Equal(b) {
 			if p.livevarRef(a) {
-				pctx.removedEqs.Put(p.localvargen.Generate(), a.Value)
+				pctx.removedEqs.Put(p.generatePlaceholder(), a.Value)
 			}
 			return false
 		}
@@ -349,6 +366,20 @@ func (p *CopyPropagator) livevarRef(a *ast.Term) bool {
 	}
 
 	return false
+}
+
+// placeholderRef returns the ref a placeholder binding maps to, wrapped as a
+// bare expression, or (nil, nil) if b is not a placeholder-to-ref binding.
+func (p *CopyPropagator) placeholderRef(b *binding) (ast.Ref, *ast.Expr) {
+	k, ok := b.k.(ast.Var)
+	if !ok || !p.placeholders.Contains(k) {
+		return nil, nil
+	}
+	ref, ok := b.v.(ast.Ref)
+	if !ok {
+		return nil, nil
+	}
+	return ref, ast.NewExpr(ast.NewTerm(ref))
 }
 
 func (p *CopyPropagator) updateBindingsEq(a, b *ast.Term) (ast.Var, ast.Value, bool) {
