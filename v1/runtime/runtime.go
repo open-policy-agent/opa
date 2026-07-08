@@ -23,14 +23,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/fsnotify/fsnotify"
 	prometheus_sdk "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/internal/compiler"
 	"github.com/open-policy-agent/opa/internal/config"
@@ -650,23 +648,6 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 	}
 
 	checkUserPrivileges(rt.logger)
-
-	// automaxprocs was removed in #8696 in favour of Go 1.25's built-in cgroup CPU
-	// quota detection, but the built-in has a minimum of 2 vs automaxprocs's minimum
-	// of 1, causing unexpected memory pressure in containers with low CPU limits.
-	// #8771 was added for guidance on using GOMEMLIMIT but we have also
-	// restored automaxprocs for low-cpu defaults users expect.
-	undo, mpErr := maxprocs.Set(maxprocs.Logger(func(f string, a ...any) {
-		rt.logger.Debug(f, a...)
-	}))
-	if mpErr != nil {
-		rt.logger.WithFields(map[string]any{"err": mpErr}).Debug("Failed to set GOMAXPROCS from CPU quota.")
-	}
-	defer undo()
-
-	if _, mlErr := memlimit.SetGoMemLimitWithOpts(memlimit.WithLogger(logging.AsSlogLoggerWithPinnedLevel(rt.logger, logging.Debug))); mlErr != nil {
-		rt.logger.WithFields(map[string]any{"err": mlErr}).Debug("Failed to set GOMEMLIMIT from cgroup memory limit.")
-	}
 
 	if err := rt.Manager.Start(ctx); err != nil {
 		rt.logger.WithFields(map[string]any{"err": err}).Error("Failed to start plugins.")
