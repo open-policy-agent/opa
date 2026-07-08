@@ -5282,6 +5282,15 @@ func outputVarsForExprEq(expr *Expr, safe VarSet, output VarSet) VarSet {
 
 	output = outputVarsForTerms(expr, safe, output)
 	output.Update(safe)
+	if expr.fromAssignment {
+		// The LHS of `:=` is a pure output; excluding it from the safe basis
+		// stops the RHS being made safe by unifying backwards through the LHS.
+		// See issue #3546.
+		WalkVars(expr.Operand(0), func(v Var) bool {
+			delete(output, v)
+			return false
+		})
+	}
 	output.Update(Unify(output, expr.Operand(0), expr.Operand(1)))
 
 	diff := output.Diff(safe)
@@ -6850,6 +6859,7 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 	if len(errs) == numErrsBefore {
 		loc := expr.Operator()[0].Location
 		expr.SetOperator(RefTerm(VarTerm(Equality.Name).SetLocation(loc)).SetLocation(loc))
+		expr.fromAssignment = true
 	}
 
 	return expr, errs

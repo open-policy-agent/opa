@@ -5,6 +5,30 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Behavior change: stricter safety for assignment (`:=`)
+
+Today `:=` is documented as "syntactic sugar for `=`, local variable creation,
+and additional compiler checks," and the safety checker reflects that: after
+rewriting, `:=` is treated identically to `=` (unification), so an assignment's
+right-hand side can be made safe by unifying "backwards" through the left-hand
+side. This means policies like `x := y; x = 7` compile (binding `y` to `7`)
+even though `y` is never assigned, and `x := y; obj[x]` can silently degrade an
+expected constant-time lookup into full iteration.
+
+This change proposes tightening that: the RHS of `:=` is treated as a read that
+must be made safe by other expressions, and can no longer be satisfied through
+the LHS. Affected policies that previously compiled now fail with a
+`rego_unsafe_var_error`. Reference iteration on the RHS (e.g.
+`some k; v := obj[k]`) is unaffected.
+
+Note this is a deliberate semantic change, not a fix to match documented
+behavior — the intended semantics of `:=` in this case were never specified
+(see [#3546](https://github.com/open-policy-agent/opa/issues/3546)).
+
+### Backwards Compatibility
+
+- ast: treat the RHS of assignment (`:=`) as directional during safety checking ([#3546](https://github.com/open-policy-agent/opa/issues/3546))
+
 ## 1.18.2
 
 This release includes a bug fix for a `opa fmt` regression introduced in v1.18.0.

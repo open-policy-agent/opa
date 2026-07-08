@@ -273,6 +273,11 @@ type (
 
 		generatedFrom *Expr
 		generates     []*Expr
+
+		// fromAssignment marks an equality expression that was rewritten from
+		// `:=`, so the safety checker can keep the RHS from being made safe
+		// through the LHS. See reorderBodyForSafety.
+		fromAssignment bool
 	}
 
 	// SomeDecl represents a variable declaration statement. The symbols are variables.
