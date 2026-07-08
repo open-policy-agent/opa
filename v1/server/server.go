@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"net"
 	"net/http"
@@ -31,6 +30,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/open-policy-agent/opa/internal/json/patch"
+	// A method-less copy of html/template's text-rendering half (see
+	// internal/methodlesstemplate). The index page only substitutes build-info
+	// strings (see indexHTML below), which are set at build/link time, not
+	// attacker-controlled, so HTML auto-escaping buys nothing here; keeping
+	// html/template off the reachable graph is what lets the linker apply
+	// method-level dead-code elimination binary-wide (golang/go#72895, #7903).
+	template "github.com/open-policy-agent/opa/internal/methodlesstemplate"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/config"
