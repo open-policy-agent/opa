@@ -28,17 +28,17 @@ AGT Policies Africa is an OPA policy pack for AI agents operating under African
 data protection and financial-sector regulations. It provides ready-to-deploy
 Rego policies and YAML `PolicyDocument` definitions for 9 jurisdictions:
 
-| Country | Regulation |
-|---|---|
-| Nigeria | NDPA 2023, CBN NIP transaction limits, NFIU AML/CFT, BVN/NIN protection |
-| Kenya | Data Protection Act 2019 |
-| Ghana | Data Protection Act 2012 (Act 843) |
-| Rwanda | Law No. 058/2021 on Personal Data Protection |
-| Egypt | Personal Data Protection Law No. 151/2020 |
-| Mauritius | Data Protection Act 2017 |
-| South Africa | POPIA (Protection of Personal Information Act) |
-| Tanzania | Personal Data Protection Act 2022 |
-| Uganda | Data Protection and Privacy Act 2019 |
+| Country      | Regulation                                                              |
+| ------------ | ----------------------------------------------------------------------- |
+| Nigeria      | NDPA 2023, CBN NIP transaction limits, NFIU AML/CFT, BVN/NIN protection |
+| Kenya        | Data Protection Act 2019                                                |
+| Ghana        | Data Protection Act 2012 (Act 843)                                      |
+| Rwanda       | Law No. 058/2021 on Personal Data Protection                            |
+| Egypt        | Personal Data Protection Law No. 151/2020                               |
+| Mauritius    | Data Protection Act 2017                                                |
+| South Africa | POPIA (Protection of Personal Information Act)                          |
+| Tanzania     | Personal Data Protection Act 2022                                       |
+| Uganda       | Data Protection and Privacy Act 2019                                    |
 
 Policies enforce controls such as cross-border transfer adequacy checks,
 special-category and biometric data guards, breach notification suppression
