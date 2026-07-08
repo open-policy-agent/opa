@@ -21,8 +21,6 @@ A simple example of a policy that contains this error follows, note the extra `}
 ```rego
 package policy
 
-import rego.v1
-
 deny if {
     input.roles == {}}
     input.user != "admin"

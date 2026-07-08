@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 example_email_1 := "foo [at] example.com"
 
 example_email_2 := "foo@example.com"

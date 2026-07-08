@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 scope_pattern := `(\w+):(\w+)`
 
 scope_map[scope[2]] := scope[1] if {

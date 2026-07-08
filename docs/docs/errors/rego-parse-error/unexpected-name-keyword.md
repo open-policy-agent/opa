@@ -19,8 +19,6 @@ A simple example of a policy that contains this error follows, note the missing 
 ```rego
 package policy
 
-import rego.v1
-
 allow if {
     input.admin true
 }
@@ -39,8 +37,6 @@ with a misunderstanding of how the `else` keyword is used:
 
 ```rego
 package policy
-
-import rego.v1
 
 allow if {
     input.admin else "admin" in input.roles

@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 limit_period := 3 # days
 
 limit_count := 4 # requests

@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 errors contains "E0001" if _token_expired
 
 errors contains "E1004" if object.get(input, "email", "") == ""

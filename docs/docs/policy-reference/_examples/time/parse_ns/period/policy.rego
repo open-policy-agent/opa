@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 # 2006-01-02 is the time format string for yyyy-mm-dd
 start_date := time.parse_ns("2006-01-02", "1999-01-01")
 

@@ -20,8 +20,6 @@ A simple example of this case would be creating an object where the key is the s
 ```rego
 package policy
 
-import rego.v1
-
 obj := {k: v |
     k := "foo"
     some v in [1, 2]
@@ -33,8 +31,6 @@ This issue is also commonly seen with partial rules constructing objects. For ex
 
 ```rego
 package policy
-
-import rego.v1
 
 obj_rule[k] := v if {
     k := "foo"
@@ -49,8 +45,6 @@ policy:
 
 ```rego
 package policy
-
-import rego.v1
 
 deny[input.document] := msg if {
     doc := data.documents[input.document]
@@ -150,8 +144,6 @@ Sometimes, the policy needs to be restructured to avoid this error. For example,
 
 ```rego
 package policy
-
-import rego.v1
 
 deny contains msg if {
     some action in input.actions

@@ -16,10 +16,10 @@ anything that might be missing! The following examples will help demonstrate the
 ## Examples
 
 The below example shows the most likely occurrence of this error: having
-forgotten to import `if`, either via `import future.keywords.if`, or `import rego.v1` (OPA v0.59.0+):
+forgotten to import `if`, either via `import future.keywords.if`, or `import rego.v1` (OPA v0.59.0 to v0.x, before v1 syntax became the default):
 
 :::note
-Some that in OPA versions `>=1.0.0`, imports for `if` etc. are no longer
+Note that in OPA versions `>=1.0.0`, imports for `if` etc. are no longer
 required.
 :::
 

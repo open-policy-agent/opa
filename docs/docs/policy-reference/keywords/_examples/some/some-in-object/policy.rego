@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 example_object := {
 	"read": true,
 	"write": true,

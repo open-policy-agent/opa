@@ -17,8 +17,6 @@ Consider a package, `package1`, that defines a rule `name` like this:
 ```rego
 package package1
 
-import rego.v1
-
 name := "World"
 ```
 
@@ -28,8 +26,6 @@ To use the `name` rule in another package, `package2`, write something like this
 
 ```rego
 package package2
-
-import rego.v1
 
 // highlight-next-line
 output := sprintf("Hello, %v", [data.package1.name])
@@ -46,8 +42,6 @@ The same result can be achieved like this:
 ```rego
 package package2
 
-import rego.v1
-
 // highlight-next-line
 import data.package1
 
@@ -63,8 +57,6 @@ be too verbose. In such cases, it can be helpful to use an alias like this:
 
 ```rego
 package package2
-
-import rego.v1
 
 // highlight-next-line
 import data.package1 as p1

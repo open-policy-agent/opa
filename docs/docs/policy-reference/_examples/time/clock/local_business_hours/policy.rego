@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 request_time := time.parse_ns("RFC822Z", input.request_time)
 
 local_hours := data.business_hours[input.tz]

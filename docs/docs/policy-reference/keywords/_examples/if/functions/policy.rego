@@ -1,7 +1,5 @@
 package play
 
-import rego.v1
-
 default is_sudo(_) := false
 
 is_sudo(user) if {
