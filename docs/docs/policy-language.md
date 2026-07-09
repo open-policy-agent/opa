@@ -443,6 +443,23 @@ result := q["dev"]
 
 Variables appearing in the head of a rule must also appear in a non-negated equality expression within the same rule. This property ensures that if the rule is evaluated and all of the expressions evaluate to true for some set of variable bindings, the variable in the head of the rule will be defined.
 
+:::info
+A variable may reuse the name of a [built-in function](#built-in-functions),
+for example `count := 5`. Only `input` and `data` are reserved and cannot be
+shadowed. Within the rule, the name then refers to the variable rather than the
+built-in.
+
+- **Pro:** Rego doesn't force you to avoid a large and growing set of built-in
+  names when choosing local variable names, so policies don't break when new
+  built-ins are added.
+- **Con:** The shadowed built-in can no longer be called for the rest of that
+  rule, and readers may confuse the variable with the built-in. Because of this,
+  shadowing is best avoided — the [Regal](https://www.openpolicyagent.org/projects/regal)
+  linter flags it via the
+  [var-shadows-builtin](https://www.openpolicyagent.org/projects/regal/rules/bugs/var-shadows-builtin)
+  rule.
+:::
+
 ## References
 
 References are used to access nested documents.
@@ -2538,6 +2555,10 @@ be _safe_, i.e., it must be assigned elsewhere in the query.
 Built-ins can include "." characters in the name. This allows them to be
 namespaced. If you are adding custom built-ins to OPA, consider namespacing
 them to avoid naming conflicts, e.g., `org.example.special_func`.
+
+A [variable](#variables) may reuse the name of a built-in function, which
+shadows the built-in within that rule. This is allowed but best avoided; see the
+note under [Variables](#variables).
 
 See the [Policy Reference](./policy-reference#built-in-functions) document for
 details on each built-in function.
