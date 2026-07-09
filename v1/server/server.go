@@ -659,8 +659,9 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 
 func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 	h1s := http.Server{
-		Addr:    u.Host,
-		Handler: h,
+		Addr:              u.Host,
+		Handler:           h,
+		ReadHeaderTimeout: 32 * time.Second,
 	}
 	if s.h2cEnabled {
 		p := new(http.Protocols)
@@ -712,9 +713,10 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 	}
 
 	httpsServer := http.Server{
-		Addr:      u.Host,
-		Handler:   h,
-		TLSConfig: &tlsConfig,
+		Addr:              u.Host,
+		Handler:           h,
+		TLSConfig:         &tlsConfig,
+		ReadHeaderTimeout: 32 * time.Second,
 	}
 
 	l := newHTTPListener(&httpsServer, t)
@@ -739,7 +741,10 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 		os.Remove(socketPath)
 	}
 
-	domainSocketServer := http.Server{Handler: h}
+	domainSocketServer := http.Server{
+		Handler:           h,
+		ReadHeaderTimeout: 32 * time.Second,
+	}
 	if s.h2cEnabled {
 		p := new(http.Protocols)
 		p.SetHTTP1(true)
