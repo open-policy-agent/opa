@@ -201,7 +201,7 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 			// For a placeholder key, emit the bare ref rather than `__localcp0__ =
 			// input.project`: both only require the ref to be defined, but the
 			// equality leaks the internal var into results (#6378).
-			if ref, expr := p.placeholderRef(b); ref != nil {
+			if expr := p.placeholderRef(b); expr != nil {
 				result.Append(expr)
 			} else {
 				result.Append(removedEq)
@@ -369,17 +369,17 @@ func (p *CopyPropagator) livevarRef(a *ast.Term) bool {
 }
 
 // placeholderRef returns the ref a placeholder binding maps to, wrapped as a
-// bare expression, or (nil, nil) if b is not a placeholder-to-ref binding.
-func (p *CopyPropagator) placeholderRef(b *binding) (ast.Ref, *ast.Expr) {
+// bare expression, or nil if b is not a placeholder-to-ref binding.
+func (p *CopyPropagator) placeholderRef(b *binding) *ast.Expr {
 	k, ok := b.k.(ast.Var)
 	if !ok || !p.placeholders.Contains(k) {
-		return nil, nil
+		return nil
 	}
 	ref, ok := b.v.(ast.Ref)
 	if !ok {
-		return nil, nil
+		return nil
 	}
-	return ref, ast.NewExpr(ast.NewTerm(ref))
+	return ast.NewExpr(ast.NewTerm(ref))
 }
 
 func (p *CopyPropagator) updateBindingsEq(a, b *ast.Term) (ast.Var, ast.Value, bool) {
