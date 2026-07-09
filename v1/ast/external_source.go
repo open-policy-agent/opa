@@ -68,6 +68,25 @@ type ExternalSourceOptions struct {
 	// This is forward-compatible: new compiler stages added in future releases
 	// will be skipped automatically rather than running unexpectedly.
 	SkippedStages []StageID
+
+	// DistinguishAbsentFromUnknown controls how the resolver passed to Lookup
+	// (via LookupOptions.Resolver) reports references that do not resolve to a
+	// concrete value.
+	//
+	// When false (default), the legacy behavior is preserved for backwards
+	// compatibility: only input references are resolvable, and any input
+	// reference that cannot be resolved — whether it is genuinely absent from a
+	// concrete input or symbolic under partial evaluation — surfaces as
+	// UnknownValueErr. The two cases are indistinguishable.
+	//
+	// When true, the source opts into the same save-set-aware resolver the
+	// built-in rule indexer uses: a reference that is unknown under partial
+	// evaluation returns UnknownValueErr, while a reference that is simply
+	// absent from an otherwise-concrete input resolves to (nil, nil). This lets
+	// a source tell "deliberately symbolic" apart from "concretely missing"
+	// on a per-reference basis (e.g. input.foo unknown while input.bar is
+	// known). See ValueResolver and IsUnknownValueErr.
+	DistinguishAbsentFromUnknown bool
 }
 
 // LookupOption is a functional option for ExternalRuleIndex.Lookup calls.

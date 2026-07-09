@@ -2641,7 +2641,13 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 				} else {
 					// Call Tree() and cache the result
 					e.e.instr.startTimer(evalOpExternalRuleSource)
-					tree, updatedIndex, err := node.External.Tree(e.e.ctx, e.e.compiler.RuleTree, externalRef, e.e.input, e.e.metrics, e.e.requestMetadata, e.e.responseMetadata)
+					// Pass the eval itself as the resolver: it is save-set
+					// aware, so external sources that opt into
+					// ExternalSourceOptions.DistinguishAbsentFromUnknown can
+					// tell references that are unknown under partial evaluation
+					// apart from references that are simply absent from the
+					// concrete input.
+					tree, updatedIndex, err := node.External.Tree(e.e.ctx, e.e.compiler.RuleTree, externalRef, e.e, e.e.metrics, e.e.requestMetadata, e.e.responseMetadata)
 					e.e.instr.stopTimer(evalOpExternalRuleSource)
 					if err != nil {
 						return err

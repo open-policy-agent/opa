@@ -4298,16 +4298,44 @@ func (n *TreeNode) add(path Ref, val any) {
 	}
 }
 
+// ExternalIndex ties an ExternalRuleSource-provided index to the package Ref it
+// serves. It is internal plumbing exported only so the topdown evaluator can
+// reach it across the ast/topdown package boundary; it is not part of OPA's
+// supported public API and may change without notice. The stable surface for
+// implementing external rule sources is the ExternalRuleSource and
+// ExternalRuleIndex interfaces.
 type ExternalIndex struct {
 	Index ExternalRuleIndex
 	Ref   Ref
 }
 
-func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, input *Term, m metrics.Metrics, reqMD map[string]any, respMD map[string]any) (*TreeNode, ExternalRuleIndex, error) {
-	resolver := &termResolver{input: input}
+// Tree resolves external rules for prefix, using resolver to resolve references
+// while building search queries. Passing a save-set-aware resolver (e.g. the
+// topdown evaluator) lets sources that opt into
+// ExternalSourceOptions.DistinguishAbsentFromUnknown distinguish absent input
+// from values that are unknown under partial evaluation.
+//
+// Like ExternalIndex, Tree is internal plumbing exported only for the topdown
+// evaluator. It is not part of OPA's supported public API and may change
+// without notice.
+func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, resolver ValueResolver, m metrics.Metrics, reqMD map[string]any, respMD map[string]any) (*TreeNode, ExternalRuleIndex, error) {
+	o := ei.Index.Opts()
+
+	// Select the resolver handed to the source. By default we wrap the caller's
+	// resolver so external sources see the legacy behavior (absent and unknown
+	// both collapse to UnknownValueErr, non-input refs are never resolved).
+	// Sources that set DistinguishAbsentFromUnknown receive the caller's
+	// save-set-aware resolver unchanged, letting them tell absent from unknown.
+	lookupResolver := resolver
+	switch {
+	case lookupResolver == nil:
+		lookupResolver = unknownResolver{}
+	case o == nil || !o.DistinguishAbsentFromUnknown:
+		lookupResolver = legacyExternalResolver{inner: lookupResolver}
+	}
 
 	rules, updatedIndex, err := ei.Index.Lookup(ctx,
-		LookupResolver(resolver),
+		LookupResolver(lookupResolver),
 		LookupMetrics(m),
 		LookupRequestMetadata(reqMD),
 		LookupResponseMetadata(respMD),
@@ -4317,7 +4345,7 @@ func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, inp
 	}
 	c0 := NewCompiler()
 
-	if o := ei.Index.Opts(); o != nil {
+	if o != nil {
 		if len(o.SkippedStages) > 0 {
 			c0.WithSkipStages(o.SkippedStages...)
 		}
@@ -4356,23 +4384,36 @@ func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, inp
 	return node, updatedIndex, nil
 }
 
-type termResolver struct {
-	input *Term
+// legacyExternalResolver reproduces the historical external-source resolver
+// behavior on top of an arbitrary (typically save-set-aware) resolver: only
+// input references are resolvable, and any input reference that does not
+// resolve to a concrete value is reported as UnknownValueErr. This collapses
+// "absent from the concrete input" and "symbolic under partial evaluation"
+// into a single signal, matching what external sources saw before
+// ExternalSourceOptions.DistinguishAbsentFromUnknown existed.
+type legacyExternalResolver struct {
+	inner ValueResolver
 }
 
-func (r *termResolver) Resolve(ref Ref) (Value, error) {
-	if ref.HasPrefix(InputRootRef) {
-		if r.input == nil {
-			return nil, UnknownValueErr{}
-		}
-		v, err := r.input.Value.Find(ref[1:])
-		if err != nil {
-			return nil, UnknownValueErr{}
-		}
-		return v, nil
+func (r legacyExternalResolver) Resolve(ref Ref) (Value, error) {
+	if !ref.HasPrefix(InputRootRef) {
+		return nil, UnknownValueErr{}
 	}
-	return nil, UnknownValueErr{}
+	v, err := r.inner.Resolve(ref)
+	if err != nil {
+		return nil, err
+	}
+	if v == nil {
+		return nil, UnknownValueErr{}
+	}
+	return v, nil
 }
+
+// unknownResolver treats every reference as unknown. It is used as a safe
+// fallback when Tree is invoked without a resolver.
+type unknownResolver struct{}
+
+func (unknownResolver) Resolve(Ref) (Value, error) { return nil, UnknownValueErr{} }
 
 // Size returns the number of rules in the tree.
 func (n *TreeNode) Size() (s int) {
