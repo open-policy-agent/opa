@@ -1105,11 +1105,16 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 			m.opaReportNotifyCh <- struct{}{}
 		}
 
+		// Invoke triggers without holding m.mtx: they are arbitrary callbacks
+		// that may acquire other locks, which could deadlock (see #8873).
 		m.mtx.Lock()
-		for _, f := range m.registeredTriggers {
+		triggers := make([]func(storage.Transaction), len(m.registeredTriggers))
+		copy(triggers, m.registeredTriggers)
+		m.mtx.Unlock()
+
+		for _, f := range triggers {
 			f(txn)
 		}
-		m.mtx.Unlock()
 	}
 
 	// Similar to the compiler, look for a set of resolvers on the transaction

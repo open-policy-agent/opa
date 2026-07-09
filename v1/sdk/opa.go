@@ -133,9 +133,13 @@ func New(ctx context.Context, nopts Options) (*OPA, error) {
 // Plugin returns the named plugin. If the plugin does not exist, this function
 // returns nil.
 func (opa *OPA) Plugin(name string) plugins.Plugin {
+	// Release opa.mtx before calling into the manager to avoid inverting the
+	// lock order used by the manager's onCommit callback (see #8873).
 	opa.mtx.Lock()
-	defer opa.mtx.Unlock()
-	return opa.state.manager.Plugin(name)
+	mgr := opa.state.manager
+	opa.mtx.Unlock()
+
+	return mgr.Plugin(name)
 }
 
 // Configure updates the configuration of the OPA in-place. This function should
