@@ -43,14 +43,23 @@ const EventPage = (props) => {
   }, [eventStart, eventEnd]);
 
   const bannerUrl = `/img/event-banners/${event.banner}`;
+  const hasAgendaItems = event.agenda.some((dayAgenda) => dayAgenda.items.length > 0);
 
   return (
     <Layout title={event.title}>
-      {eventStatus === "after" && (
-        <div className={styles.eventPassedBanner}>
-          This event has now passed but you can still browse session links
-        </div>
-      )}
+      {eventStatus === "after"
+        ? (
+          <div className={styles.eventWarningBanner}>
+            This event has now passed but you can still browse session links
+          </div>
+        )
+        : (
+          !hasAgendaItems && (
+            <div className={styles.eventWarningBanner}>
+              Schedule TBC, check back nearer the event
+            </div>
+          )
+        )}
 
       <div className={styles.pageLayout}>
         <div className={styles.sidebar}>
@@ -86,21 +95,25 @@ const EventPage = (props) => {
             <Heading as="h2" className={styles.sectionTitle}>
               Agenda
             </Heading>
-            {event.agenda.map((dayAgenda, dayIndex) => (
-              <div key={dayIndex} className={styles.daySection}>
-                <h3 className={styles.dayTitle}>
-                  {dayAgenda.day}, {dayAgenda.date}
-                </h3>
-                <div className={styles.dayItems}>
-                  {dayAgenda.items.map((item, itemIndex) => (
-                    <AgendaItem
-                      key={itemIndex}
-                      item={item}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+            {hasAgendaItems
+              ? (
+                event.agenda.map((dayAgenda, dayIndex) => (
+                  <div key={dayIndex} className={styles.daySection}>
+                    <h3 className={styles.dayTitle}>
+                      {dayAgenda.day}, {dayAgenda.date}
+                    </h3>
+                    <div className={styles.dayItems}>
+                      {dayAgenda.items.map((item, itemIndex) => (
+                        <AgendaItem
+                          key={itemIndex}
+                          item={item}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )
+              : <p>TBC</p>}
           </div>
         </div>
       </div>

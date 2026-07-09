@@ -1,0 +1,29 @@
+{
+  "title": "OPA at KubeCon + CloudNativeCon North America 2026",
+  "location": "Salt Lake City, UT",
+  "startDate": "2026-11-09",
+  "endDate": "2026-11-12",
+  "banner": "2026-kubecon-na.png",
+  "agenda": [
+    {
+      "day": "Monday",
+      "date": "November 9",
+      "items": []
+    },
+    {
+      "day": "Tuesday",
+      "date": "November 10",
+      "items": []
+    },
+    {
+      "day": "Wednesday",
+      "date": "November 11",
+      "items": []
+    },
+    {
+      "day": "Thursday",
+      "date": "November 12",
+      "items": []
+    }
+  ]
+}
