@@ -458,6 +458,7 @@ built-in.
   linter flags it via the
   [var-shadows-builtin](https://www.openpolicyagent.org/projects/regal/rules/bugs/var-shadows-builtin)
   rule.
+
 :::
 
 ## References

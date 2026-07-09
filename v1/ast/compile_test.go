@@ -6029,7 +6029,7 @@ f(x, y, 1) := v if {
 	v := x[y[0]]
 }`
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		c := NewCompiler()
 		c.Compile(map[string]*Module{"test.rego": module(mod)})
 		if c.Failed() {
