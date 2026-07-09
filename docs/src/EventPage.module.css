@@ -1,4 +1,4 @@
-.eventPassedBanner {
+.eventWarningBanner {
     background-color: var(--ifm-color-warning-contrast-background);
     color: var(--ifm-color-warning-contrast-foreground);
     padding: 1rem 2rem;
