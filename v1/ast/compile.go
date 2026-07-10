@@ -4294,9 +4294,14 @@ func (n *TreeNode) add(path Ref, val any) {
 		case *Rule:
 			node.Values = append(node.Values, val)
 		case ExternalRuleIndex:
+			arity := 0
+			if o := val.Opts(); o != nil {
+				arity = o.ParamArity
+			}
 			node.External = &ExternalIndex{
 				Index: val,
 				Ref:   path,
+				Arity: arity,
 			}
 		}
 	}
@@ -4311,6 +4316,11 @@ func (n *TreeNode) add(path Ref, val any) {
 type ExternalIndex struct {
 	Index ExternalRuleIndex
 	Ref   Ref
+
+	// Arity mirrors ExternalSourceOptions.ParamArity: when greater than zero,
+	// Ref is a prefix and the next Arity ground elements of a query reference
+	// are consumed as lookup parameters (see the topdown evaluator).
+	Arity int
 }
 
 // Tree resolves external rules for prefix, using resolver to resolve references
@@ -4319,10 +4329,16 @@ type ExternalIndex struct {
 // ExternalSourceOptions.DistinguishAbsentFromUnknown distinguish absent input
 // from values that are unknown under partial evaluation.
 //
+// params carries the ground key values that followed the registered prefix for
+// a parametrized source (see ExternalSourceOptions.ParamArity); it is nil for
+// conventional sources. The returned subtree is always rooted at prefix (the
+// registered ref), regardless of params — the evaluator layers the parameter
+// levels back on top.
+//
 // Like ExternalIndex, Tree is internal plumbing exported only for the topdown
 // evaluator. It is not part of OPA's supported public API and may change
 // without notice.
-func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, resolver ValueResolver, m metrics.Metrics, reqMD map[string]any, respMD map[string]any) (*TreeNode, ExternalRuleIndex, error) {
+func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, params []Value, resolver ValueResolver, m metrics.Metrics, reqMD map[string]any, respMD map[string]any) (*TreeNode, ExternalRuleIndex, error) {
 	o := ei.Index.Opts()
 
 	// Select the resolver handed to the source. By default we wrap the caller's
@@ -4343,6 +4359,7 @@ func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, res
 		LookupMetrics(m),
 		LookupRequestMetadata(reqMD),
 		LookupResponseMetadata(respMD),
+		LookupParams(params),
 	)
 	if err != nil {
 		return nil, nil, err
@@ -4532,9 +4549,14 @@ func attachValueToNode(node *TreeNode, ref Ref, val any) {
 	case *Rule:
 		node.Values = append(node.Values, val)
 	case ExternalRuleIndex:
+		arity := 0
+		if o := val.Opts(); o != nil {
+			arity = o.ParamArity
+		}
 		node.External = &ExternalIndex{
 			Index: val,
 			Ref:   ref,
+			Arity: arity,
 		}
 	}
 }

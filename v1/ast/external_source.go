@@ -87,6 +87,25 @@ type ExternalSourceOptions struct {
 	// on a per-reference basis (e.g. input.foo unknown while input.bar is
 	// known). See ValueResolver and IsUnknownValueErr.
 	DistinguishAbsentFromUnknown bool
+
+	// ParamArity, when greater than zero, declares this source as
+	// *parametrized*: the Ref it is registered under is treated as a PREFIX,
+	// and the next ParamArity ground elements of a query reference are consumed
+	// as lookup parameters rather than as descents into a static rule tree.
+	//
+	// For example, registering the prefix data.foo with ParamArity 1 makes a
+	// reference like data.foo[<key>].<rule> resolve <key> as a parameter and
+	// hand it to Lookup via LookupOptions.Params. This lets a single registered
+	// source serve an unbounded family of sub-references — one distinct set of
+	// rules per key — without registering each key concretely, so references
+	// whose key only comes into existence at runtime resolve without a
+	// recompile.
+	//
+	// The parameter elements must be ground at evaluation time. A non-ground
+	// parameter yields an undefined result, except under partial evaluation
+	// where the reference is saved for residualization. When ParamArity is 0
+	// (the default) the source behaves as a conventional exact-ref source.
+	ParamArity int
 }
 
 // LookupOption is a functional option for ExternalRuleIndex.Lookup calls.
@@ -98,6 +117,7 @@ type LookupOptions struct {
 	resolver         ValueResolver
 	requestMetadata  map[string]any
 	responseMetadata map[string]any
+	params           []Value
 }
 
 // Metrics returns the metrics instance from the options, or nil if not set.
@@ -118,6 +138,14 @@ func (o *LookupOptions) RequestMetadata() map[string]any {
 
 func (o *LookupOptions) ResponseMetadata() map[string]any {
 	return o.responseMetadata
+}
+
+// Params returns the parameter values for a parametrized external source (see
+// ExternalSourceOptions.ParamArity). The slice holds the ground key values that
+// followed the registered prefix in the query reference, in order. It is empty
+// for conventional (non-parametrized) sources.
+func (o *LookupOptions) Params() []Value {
+	return o.params
 }
 
 // LookupMetrics returns a LookupOption that sets the metrics instance
@@ -143,5 +171,13 @@ func LookupRequestMetadata(m map[string]any) LookupOption {
 func LookupResponseMetadata(m map[string]any) LookupOption {
 	return func(opts *LookupOptions) {
 		opts.responseMetadata = m
+	}
+}
+
+// LookupParams returns a LookupOption that sets the parameter values handed to a
+// parametrized external source (see ExternalSourceOptions.ParamArity).
+func LookupParams(params []Value) LookupOption {
+	return func(opts *LookupOptions) {
+		opts.params = params
 	}
 }

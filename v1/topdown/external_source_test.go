@@ -3,6 +3,7 @@ package topdown
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -401,6 +402,153 @@ check if data.authz.allow`)
 	}
 	if !slices.ContainsFunc(errs, func(e *ast.Error) bool { return e.Code == ast.UnsafeVarErr }) {
 		t.Errorf("Expected unsafe var error, got: %v", err)
+	}
+}
+
+// paramExternalSource is a parametrized (prefix) external source: it is
+// registered under a prefix ref (e.g. data.directory.user) with ParamArity 1, and
+// synthesizes a distinct module per key on each Lookup from the parameter term.
+// It stands in for a real source that serves a different set of rules per key.
+type paramExternalSource struct {
+	refs      []ast.Ref
+	arity     int
+	callCount int32
+	keys      []string
+}
+
+func (s *paramExternalSource) Refs() []ast.Ref { return s.refs }
+
+func (s *paramExternalSource) getCallCount() int { return int(atomic.LoadInt32(&s.callCount)) }
+
+func (s *paramExternalSource) Init(_ context.Context, ref ast.Ref) (ast.ExternalRuleIndex, error) {
+	return &paramExternalIndex{prefix: ref, arity: s.arity, src: s}, nil
+}
+
+type paramExternalIndex struct {
+	prefix ast.Ref
+	arity  int
+	src    *paramExternalSource
+}
+
+func (idx *paramExternalIndex) Opts() *ast.ExternalSourceOptions {
+	return &ast.ExternalSourceOptions{ParamArity: idx.arity}
+}
+
+func (idx *paramExternalIndex) Lookup(_ context.Context, opts ...ast.LookupOption) ([]*ast.Rule, ast.ExternalRuleIndex, error) {
+	atomic.AddInt32(&idx.src.callCount, 1)
+
+	o := ast.LookupOptions{}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	params := o.Params()
+	if len(params) != idx.arity {
+		return nil, nil, fmt.Errorf("expected %d param(s), got %d", idx.arity, len(params))
+	}
+	key, ok := params[0].(ast.String)
+	if !ok {
+		return nil, nil, fmt.Errorf("expected string key, got %v", params[0])
+	}
+	idx.src.keys = append(idx.src.keys, string(key))
+
+	// The prefix (e.g. data.directory.user) is the Rego package of the synthesized
+	// module; its rules echo the key and gate on input.
+	pkgPath := idx.prefix.String()[len("data."):]
+	mod := ast.MustParseModule(fmt.Sprintf(
+		"package %s\nid := %q\nallow if input.account == %q",
+		pkgPath, string(key), string(key)))
+	return mod.Rules, nil, nil
+}
+
+func TestExternalSourceParametrizedDistinctKeys(t *testing.T) {
+	t.Parallel()
+
+	prefix := ast.MustParseRef("data.directory.user")
+	source := &paramExternalSource{refs: []ast.Ref{prefix}, arity: 1}
+
+	// Two distinct keys in a single evaluation must not collide.
+	staticModule := ast.MustParseModule(`package main
+check if {
+	data.directory.user["123"].id == "123"
+	data.directory.user["456"].id == "456"
+}`)
+
+	compiler := setupCompiler(t, prefix, source, staticModule)
+
+	qrs := runQuery(t, compiler, "data.main.check", nil)
+	if len(qrs) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(qrs))
+	}
+	if got := source.getCallCount(); got != 2 {
+		t.Errorf("Expected external source to be called twice (once per distinct key), got %d (keys=%v)", got, source.keys)
+	}
+}
+
+func TestExternalSourceParametrizedWrongKeyUndefined(t *testing.T) {
+	t.Parallel()
+
+	prefix := ast.MustParseRef("data.directory.user")
+	source := &paramExternalSource{refs: []ast.Ref{prefix}, arity: 1}
+
+	// The key's module echoes its own id; asking for a mismatched id is undefined.
+	staticModule := ast.MustParseModule(`package main
+check if data.directory.user["123"].id == "999"`)
+
+	compiler := setupCompiler(t, prefix, source, staticModule)
+
+	qrs := runQuery(t, compiler, "data.main.check", nil)
+	if len(qrs) != 0 {
+		t.Errorf("Expected 0 results for mismatched id, got %d", len(qrs))
+	}
+}
+
+func TestExternalSourceParametrizedInputGate(t *testing.T) {
+	t.Parallel()
+
+	prefix := ast.MustParseRef("data.directory.user")
+	source := &paramExternalSource{refs: []ast.Ref{prefix}, arity: 1}
+
+	staticModule := ast.MustParseModule(`package main
+check if data.directory.user["777"].allow`)
+
+	compiler := setupCompiler(t, prefix, source, staticModule)
+
+	t.Run("input matches key", func(t *testing.T) {
+		input := ast.MustParseTerm(`{"account": "777"}`)
+		qrs := runQuery(t, compiler, "data.main.check", input)
+		if len(qrs) != 1 {
+			t.Errorf("Expected 1 result, got %d", len(qrs))
+		}
+	})
+
+	t.Run("input does not match key", func(t *testing.T) {
+		input := ast.MustParseTerm(`{"account": "000"}`)
+		qrs := runQuery(t, compiler, "data.main.check", input)
+		if len(qrs) != 0 {
+			t.Errorf("Expected 0 results, got %d", len(qrs))
+		}
+	})
+}
+
+func TestExternalSourceParametrizedDynamicKeyFromInput(t *testing.T) {
+	t.Parallel()
+
+	prefix := ast.MustParseRef("data.directory.user")
+	source := &paramExternalSource{refs: []ast.Ref{prefix}, arity: 1}
+
+	// The key itself comes from input and is ground at eval time.
+	staticModule := ast.MustParseModule(`package main
+check if data.directory.user[input.account].id == input.account`)
+
+	compiler := setupCompiler(t, prefix, source, staticModule)
+
+	input := ast.MustParseTerm(`{"account": "555"}`)
+	qrs := runQuery(t, compiler, "data.main.check", input)
+	if len(qrs) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(qrs))
+	}
+	if len(source.keys) == 0 || source.keys[len(source.keys)-1] != "555" {
+		t.Errorf("Expected source to be queried with key 555, got keys=%v", source.keys)
 	}
 }
 
