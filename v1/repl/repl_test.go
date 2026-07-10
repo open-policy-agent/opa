@@ -17,6 +17,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/reeflective/readline"
+
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -212,7 +214,7 @@ r = 3 if { true }`)
 	}
 	buf.Reset()
 
-	result := repl.complete("")
+	result := repl.completeCandidates("")
 	expected := []string{
 		"data.a.b.c.p",
 		"data.a.b.c.q",
@@ -227,7 +229,7 @@ r = 3 if { true }`)
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
 
-	result = repl.complete("data.a.b")
+	result = repl.completeCandidates("data.a.b")
 	expected = []string{
 		"data.a.b.c.p",
 		"data.a.b.c.q",
@@ -241,7 +243,7 @@ r = 3 if { true }`)
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
 
-	result = repl.complete("data.a.b.c.p[x]")
+	result = repl.completeCandidates("data.a.b.c.p[x]")
 	expected = []string{}
 
 	if !reflect.DeepEqual(result, expected) {
@@ -255,13 +257,67 @@ r = 3 if { true }`)
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	result = repl.complete("x")
+	result = repl.completeCandidates("x")
 	expected = []string{
 		"xyz",
 	}
 
 	if !reflect.DeepEqual(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestREPLBracketedPasteTabNotCompleted(t *testing.T) {
+	feed := func(seq string) (line string, completerCalls int) {
+		store := newTestStore()
+		var buf bytes.Buffer
+		repl := newRepl(store, &buf)
+		// Seed a completion candidate so a tab has something to complete to.
+		if err := repl.OneShot(t.Context(), "import data.foo.bar as barbaz"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		shell := repl.newShell()
+		shell.Completer = func(l []rune, c int) readline.Completions {
+			completerCalls++
+			return repl.complete(l, c)
+		}
+
+		// The line-reader renders terminal escapes to os.Stdout; redirect it to
+		// keep test output clean. Safe because these tests do not run in parallel.
+		devnull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		if err != nil {
+			t.Fatalf("open devnull: %v", err)
+		}
+		defer devnull.Close()
+		origStdout := os.Stdout
+		os.Stdout = devnull
+		defer func() { os.Stdout = origStdout }()
+
+		shell.Keys.Feed(false, []rune(seq)...)
+		got, err := shell.Readline()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		return got, completerCalls
+	}
+
+	const (
+		bpStart = "\x1b[200~"
+		bpEnd   = "\x1b[201~"
+		payload = "x = [\"a\",\tbarbaz]"
+	)
+
+	// Bracketed paste: the tab must survive and completion must not fire.
+	if got, calls := feed(bpStart + payload + bpEnd + "\r"); got != payload || calls != 0 {
+		t.Fatalf("bracketed paste corrupted (regression of #962): got %q (want %q), completer called %d time(s) (want 0)", got, payload, calls)
+	}
+
+	// Sanity check: a raw tab (no paste markers) does trigger completion, which
+	// is the behaviour bracketed paste protects against. This guards the test
+	// itself from silently passing due to a mis-wired completer.
+	if _, calls := feed(payload + "\r"); calls == 0 {
+		t.Fatal("expected a raw tab to invoke the completer; test setup is not exercising completion")
 	}
 }
 

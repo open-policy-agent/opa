@@ -20,7 +20,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/peterh/liner"
+	"github.com/reeflective/readline"
 
 	"github.com/open-policy-agent/opa/internal/future"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
@@ -167,26 +167,31 @@ func (r *REPL) WithStderrWriter(w io.Writer) *REPL {
 	return r
 }
 
+// newShell initializes the readline line-reader used by Loop. Bracketed paste
+// is enabled so that pasted tabs/newlines are inserted literally instead of
+// triggering tab-completion or submitting the line (issue #962).
+func (r *REPL) newShell() *readline.Shell {
+	line := readline.NewShell()
+	_ = line.Config.Set("enable-bracketed-paste", true)
+	line.Prompt.Primary(r.getPrompt)
+	line.Completer = r.complete
+	r.loadHistory(line)
+	return line
+}
+
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
 func (r *REPL) Loop(ctx context.Context) error {
 
-	// Initialize the liner library.
-	line := liner.NewLiner()
-	defer line.Close()
-	line.SetCtrlCAborts(true)
-	line.SetMultiLineMode(true)
-	r.loadHistory(line)
+	line := r.newShell()
 
 	if len(r.banner) > 0 {
 		fmt.Fprintln(r.output, r.banner)
 	}
 
-	line.SetCompleter(r.complete)
-
 loop:
 	for {
 
-		input, err := line.Prompt(r.getPrompt())
+		input, err := line.Readline()
 
 		// prompt on ctrl+d
 		if err == io.EOF {
@@ -194,7 +199,7 @@ loop:
 		}
 
 		// reset on ctrl+c
-		if err == liner.ErrPromptAborted {
+		if errors.Is(err, readline.ErrInterrupt) {
 			continue
 		}
 
@@ -212,15 +217,15 @@ loop:
 				fmt.Fprintln(r.output, err)
 			}
 		}
-
-		line.AppendHistory(input)
 	}
 
 exitPrompt:
 	fmt.Fprintln(r.output)
 
+	line.Prompt.Primary(func() string { return exitPromptMessage })
+
 	for {
-		input, err := line.Prompt(exitPromptMessage)
+		input, err := line.Readline()
 
 		// exit on ctrl+d
 		if err == io.EOF {
@@ -228,7 +233,8 @@ exitPrompt:
 		}
 
 		// reset on ctrl+c
-		if err == liner.ErrPromptAborted {
+		if errors.Is(err, readline.ErrInterrupt) {
+			line.Prompt.Primary(r.getPrompt)
 			goto loop
 		}
 
@@ -242,12 +248,12 @@ exitPrompt:
 		case "", "y", "yes":
 			goto exit
 		case "n", "no":
+			line.Prompt.Primary(r.getPrompt)
 			goto loop
 		}
 	}
 
 exit:
-	r.saveHistory(line)
 	return nil
 }
 
@@ -379,7 +385,14 @@ func (r *REPL) SetOPAVersionReport(report [][2]string) {
 	r.report = report
 }
 
-func (r *REPL) complete(line string) []string {
+// complete adapts completeCandidates to the readline completer signature.
+// Only the text up to the cursor is used for prefix matching, matching the
+// behaviour of the previous line-reader.
+func (r *REPL) complete(line []rune, cursor int) readline.Completions {
+	return readline.CompleteValues(r.completeCandidates(string(line[:cursor]))...)
+}
+
+func (r *REPL) completeCandidates(line string) []string {
 	c := []string{}
 	set := map[string]struct{}{}
 	ctx := context.Background()
@@ -1244,11 +1257,14 @@ func (r *REPL) getPrompt() string {
 	return r.initPrompt
 }
 
-func (r *REPL) loadHistory(prompt *liner.State) {
-	if f, err := os.Open(r.historyPath); err == nil {
-		_, _ = prompt.ReadHistory(f) // ignore error
-		f.Close()
+func (r *REPL) loadHistory(line *readline.Shell) {
+	if r.historyPath == "" {
+		return
 	}
+	// AddFromFile loads existing history and persists accepted lines back to the
+	// file as they are entered, so the session is preserved even on an unclean
+	// exit.
+	line.History.AddFromFile("repl", r.historyPath)
 }
 
 func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[string]*ast.Module, error) {
@@ -1305,13 +1321,6 @@ func (r *REPL) printTypes(_ context.Context, typeEnv *ast.TypeEnv, body ast.Body
 
 	for v := range vis.Vars() {
 		fmt.Fprintf(r.output, "# %v: %v\n", v, typeEnv.GetByValue(v))
-	}
-}
-
-func (r *REPL) saveHistory(prompt *liner.State) {
-	if f, err := os.Create(r.historyPath); err == nil {
-		_, _ = prompt.WriteHistory(f) // ignore error
-		f.Close()
 	}
 }
 
