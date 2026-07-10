@@ -1322,6 +1322,65 @@ FAIL: 1/1
 `,
 		},
 		{
+			note: "object ref selection from local var",
+			files: map[string]string{
+				"/test.rego": `package test
+
+test_foo if {
+	tc := {"data": false, "expected": {"data": true}}
+	tc.data == tc.expected.data
+}`,
+			},
+			expected: `%ROOT%/test.rego:3:
+data.test.test_foo: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAILURES
+--------------------------------------------------------------------------------
+data.test.test_foo: FAIL (%TIME%)
+
+  %ROOT%/test.rego:5:
+    	tc.data == tc.expected.data
+    	|          |
+    	|          true
+    	tc.data: false
+    	tc: {"data": false, "expected": {"data": true}}
+
+--------------------------------------------------------------------------------
+FAIL: 1/1
+`,
+		},
+		{
+			note: "object ref selection alongside function call",
+			files: map[string]string{
+				"/test.rego": `package test
+
+test_foo if {
+	tc := {"content": "big string value", "inp": {"foo": false}, "outp": {"foo": true}}
+	foo(tc.inp) == tc.outp
+}
+
+foo(inp) := {"foo": inp.foo}`,
+			},
+			expected: `%ROOT%/test.rego:3:
+data.test.test_foo: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAILURES
+--------------------------------------------------------------------------------
+data.test.test_foo: FAIL (%TIME%)
+
+  %ROOT%/test.rego:5:
+    	foo(tc.inp) == tc.outp
+    	|   |          |
+    	|   |          {"foo": true}
+    	|   tc.inp: {"foo": false}
+    	|   tc: {"content": "big string value", "inp": {"foo": false}, "outp"...
+    	{"foo": false}
+
+--------------------------------------------------------------------------------
+FAIL: 1/1
+`,
+		},
+		{
 			note: "with, containing local vars",
 			files: map[string]string{
 				"/test.rego": `package test

@@ -598,6 +598,49 @@ type varInfo struct {
 	col     int // 0-indexed column
 }
 
+// resolveLocalRef resolves a ground ref whose base is a local variable (e.g. 'tc.data')
+// against the given local bindings, returning the selected value. It returns nil if the
+// ref can't be resolved: the base isn't a bound local, a path element isn't ground (after
+// resolving any variable keys), or the path doesn't exist in the value.
+func resolveLocalRef(ref ast.Ref, locals *ast.ValueMap) ast.Value {
+	if len(ref) < 2 || locals == nil {
+		return nil
+	}
+
+	base, ok := ref[0].Value.(ast.Var)
+	if !ok {
+		return nil
+	}
+
+	baseVal := locals.Get(base)
+	if baseVal == nil {
+		return nil
+	}
+
+	path := make(ast.Ref, 0, len(ref)-1)
+	for _, t := range ref[1:] {
+		if key, ok := t.Value.(ast.Var); ok {
+			// A variable key (e.g. 'y[i]') must itself be resolved from the local bindings.
+			keyVal := locals.Get(key)
+			if keyVal == nil {
+				return nil
+			}
+			path = append(path, ast.NewTerm(keyVal))
+			continue
+		}
+		if !t.IsGround() {
+			return nil
+		}
+		path = append(path, t)
+	}
+
+	val, err := baseVal.Find(path)
+	if err != nil {
+		return nil
+	}
+	return val
+}
+
 func (v varInfo) Value() string {
 	if v.val != nil {
 		return v.val.String()
@@ -691,6 +734,21 @@ func PrettyEvent(w io.Writer, e *Event, opts PrettyEventOpts) error {
 			case *ast.ArrayComprehension, *ast.SetComprehension, *ast.ObjectComprehension:
 				// we don't report on the internals of a comprehension, as it's already evaluated, and we won't have the local vars.
 				return true
+			case ast.Ref:
+				// For a ref that selects into a local variable (e.g. 'tc.data'), report the
+				// selected value rather than only the base variable's (potentially large) value.
+				// We keep descending (return false) so the base variable is still reported too.
+				if val := resolveLocalRef(v, e.Locals); val != nil {
+					info := varInfo{
+						VarMetadata: VarMetadata{Name: ast.Var(term.Location.Text)},
+						val:         val,
+						exprLoc:     term.Location,
+						col:         term.Location.Col,
+					}
+					if existing, exists := exprVars[info.Title()]; !exists || existing.val == nil {
+						exprVars[info.Title()] = info
+					}
+				}
 			case ast.Var:
 				var info *varInfo
 				if meta, ok := e.LocalMetadata[v]; ok {
