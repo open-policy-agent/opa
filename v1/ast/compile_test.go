@@ -1577,6 +1577,38 @@ i.j.k contains x7 if true
 
 }
 
+func TestCompilerCheckSafetyHeadRewrittenVarLocation(t *testing.T) {
+	// Unsafe vars in a rule head that get rewritten (e.g. by `some`) must still
+	// report a location. The lookup that provides it is keyed by the original
+	// variable name, so reading it after the name has been swapped for the
+	// rewritten one silently yields no location.
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"mod": MustParseModuleWithOpts(`package test
+
+r[x] := y if { some x; y := [1] }
+`, ParserOptions{AllFutureKeywords: true}),
+	}
+
+	compileStages(c, StageCheckSafetyRuleHeads)
+
+	if len(c.Errors) == 0 {
+		t.Fatal("expected an unsafe var error")
+	}
+
+	for _, err := range c.Errors {
+		if err.Code != UnsafeVarErr {
+			continue
+		}
+		if err.Location == nil {
+			t.Fatalf("expected a location on %v, got none", err)
+		}
+		if err.Location.Row != 3 {
+			t.Fatalf("expected the location to point at row 3, got row %v", err.Location.Row)
+		}
+	}
+}
+
 func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 	tests := []struct {
 		note     string

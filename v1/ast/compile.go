@@ -1608,11 +1608,15 @@ func (c *Compiler) checkSafetyRuleHeads() {
 				if vars.DiffCount(vis.vars) > 0 {
 					unsafe := vars.Diff(vis.vars)
 					for v := range unsafe {
+						// vars is keyed by the original name, so the location must be
+						// read before v is replaced with the rewritten one -- otherwise
+						// the lookup misses and the error is reported without a location.
+						loc := vars[v].Location
 						if w, ok := c.RewrittenVars[v]; ok {
 							v = w
 						}
 						if !v.IsGenerated() {
-							if !c.err(NewError(UnsafeVarErr, vars[v].Location, "var %v is unsafe", v)) {
+							if !c.err(NewError(UnsafeVarErr, loc, "var %v is unsafe", v)) {
 								return true
 							}
 						}
