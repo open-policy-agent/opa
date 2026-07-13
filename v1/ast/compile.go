@@ -4363,10 +4363,16 @@ type ExternalIndex struct {
 // ExternalSourceOptions.DistinguishAbsentFromUnknown distinguish absent input
 // from values that are unknown under partial evaluation.
 //
+// params carries the ground key values that followed the registered prefix for
+// a parametrized source (see ParametrizedExternalRuleIndex); it is nil for
+// conventional sources. The returned subtree is always rooted at prefix (the
+// registered ref), regardless of params — the evaluator layers the parameter
+// levels back on top.
+//
 // Like ExternalIndex, Tree is internal plumbing exported only for the topdown
 // evaluator. It is not part of OPA's supported public API and may change
 // without notice.
-func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, resolver ValueResolver, m metrics.Metrics, reqMD map[string]any, respMD map[string]any) (*TreeNode, ExternalRuleIndex, error) {
+func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, params []Value, resolver ValueResolver, m metrics.Metrics, reqMD map[string]any, respMD map[string]any) (*TreeNode, ExternalRuleIndex, error) {
 	o := ei.Index.Opts()
 
 	// Select the resolver handed to the source. By default we wrap the caller's
@@ -4387,6 +4393,7 @@ func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, res
 		LookupMetrics(m),
 		LookupRequestMetadata(reqMD),
 		LookupResponseMetadata(respMD),
+		LookupParams(params),
 	)
 	if err != nil {
 		return nil, nil, err

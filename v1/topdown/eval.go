@@ -2629,36 +2629,104 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 				externalRef := node.External.Ref
 				externalIndex := node.External.Index
 
-				// Initialize externalTreeStack if needed
-				if e.e.externalTreeStack == nil {
-					e.e.externalTreeStack = newExternalTreeStack(e.e)
+				// For a parametrized (prefix) external source, the leading
+				// elements of the reference after the prefix are lookup
+				// parameters rather than tree descents. The source reports how
+				// many via ParamArity, keyed off the reference tail's shape (so
+				// one prefix can back an uneven-depth tree). They must be ground;
+				// the resolved sub-tree is cached under the full reference
+				// (prefix + params) so distinct parameters do not collide within
+				// a single evaluation.
+				arity := 0
+				if p, ok := externalIndex.(ast.ParametrizedExternalRuleIndex); ok {
+					arity = p.ParamArity(e.ref[e.pos+1:])
+				}
+				var params []ast.Value
+				cacheRef := externalRef
+				expand := true
+
+				if arity > 0 {
+					params = make([]ast.Value, 0, arity)
+					cacheRef = make(ast.Ref, len(externalRef), len(externalRef)+arity)
+					copy(cacheRef, externalRef)
+					for i := 1; i <= arity; i++ {
+						idx := e.pos + i
+						if idx >= len(e.ref) {
+							expand = false
+							break
+						}
+						k := e.bindings.Plug(e.ref[idx])
+						if !k.IsGround() {
+							expand = false
+							break
+						}
+						params = append(params, k.Value)
+						cacheRef = append(cacheRef, k)
+					}
+
+					if !expand {
+						// The parameter key(s) are not ground, so we cannot
+						// select a concrete sub-source. Under partial evaluation
+						// the reference is unknown and must be residualized;
+						// otherwise it is simply undefined and we fall through
+						// with the bare (rule-less) external node.
+						if e.e.partial() {
+							saved := make(ast.Ref, len(e.ref))
+							for i := range e.ref {
+								saved[i] = e.bindings.Plug(e.ref[i])
+							}
+							return e.e.saveUnify(ast.NewTerm(saved), e.rterm, e.bindings, e.rbindings, iter)
+						}
+					}
 				}
 
-				// Check cache first
-				cachedNode, _, found := e.e.externalTreeStack.findCached(externalRef)
-				if found {
-					node = cachedNode
-				} else {
-					// Call Tree() and cache the result
-					e.e.instr.startTimer(evalOpExternalRuleSource)
-					// Pass the eval itself as the resolver: it is save-set
-					// aware, so external sources that opt into
-					// ExternalSourceOptions.DistinguishAbsentFromUnknown can
-					// tell references that are unknown under partial evaluation
-					// apart from references that are simply absent from the
-					// concrete input.
-					tree, updatedIndex, err := node.External.Tree(e.e.ctx, e.e.compiler.RuleTree, externalRef, e.e, e.e.metrics, e.e.requestMetadata, e.e.responseMetadata)
-					e.e.instr.stopTimer(evalOpExternalRuleSource)
-					if err != nil {
-						return err
+				if expand {
+					// Initialize externalTreeStack if needed
+					if e.e.externalTreeStack == nil {
+						e.e.externalTreeStack = newExternalTreeStack(e.e)
 					}
-					if tree != nil {
-						if updatedIndex != nil {
-							externalIndex = updatedIndex
+
+					// Check cache first
+					cachedNode, _, found := e.e.externalTreeStack.findCached(cacheRef)
+					var tree *ast.TreeNode
+					if found {
+						tree = cachedNode
+					} else {
+						// Call Tree() and cache the result.
+						e.e.instr.startTimer(evalOpExternalRuleSource)
+						// Pass the eval itself as the resolver: it is save-set
+						// aware, so external sources that opt into
+						// ExternalSourceOptions.DistinguishAbsentFromUnknown can
+						// tell references that are unknown under partial evaluation
+						// apart from references that are simply absent from the
+						// concrete input. The parameter terms (params) select the
+						// concrete sub-source for a parametrized prefix.
+						t, updatedIndex, err := node.External.Tree(e.e.ctx, e.e.compiler.RuleTree, externalRef, params, e.e, e.e.metrics, e.e.requestMetadata, e.e.responseMetadata)
+						e.e.instr.stopTimer(evalOpExternalRuleSource)
+						if err != nil {
+							return err
 						}
-						e.e.externalTreeStack.Push(externalRef, tree, externalIndex, e.e.input)
-						node = tree
-						pushedExternalTree = true
+						if t != nil {
+							if updatedIndex != nil {
+								externalIndex = updatedIndex
+							}
+							e.e.externalTreeStack.Push(cacheRef, t, externalIndex, e.e.input)
+							pushedExternalTree = true
+						}
+						tree = t
+					}
+
+					if tree != nil {
+						if arity > 0 {
+							// The resolved sub-tree is rooted at the prefix, but
+							// the walk still has to consume the parameter
+							// element(s). Re-insert them as ordinary tree levels
+							// so the descent below (and any further descent into
+							// rules) proceeds unchanged.
+							node = wrapExternalParams(cacheRef[len(externalRef):], tree)
+						} else {
+							node = tree
+						}
 					}
 				}
 			}
@@ -4915,6 +4983,21 @@ func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
 		ret = append(ret, w.Copy())
 	}
 	return ret
+}
+
+// wrapExternalParams re-inserts the parameter levels consumed by a
+// parametrized external source (see ast.ParametrizedExternalRuleIndex) on
+// top of the resolved sub-tree, which is rooted at the registered prefix. The
+// evaluator's descent can then consume the parameter element(s) as ordinary
+// tree levels. keys are the ground parameter terms in reference order.
+func wrapExternalParams(keys []*ast.Term, tree *ast.TreeNode) *ast.TreeNode {
+	node := tree
+	for i := len(keys) - 1; i >= 0; i-- {
+		node = &ast.TreeNode{
+			Children: map[ast.Value]*ast.TreeNode{keys[i].Value: node},
+		}
+	}
+	return node
 }
 
 // simpleTreeNode provides minimal tree structure for navigation
