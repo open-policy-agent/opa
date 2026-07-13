@@ -479,7 +479,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		// Build output from saved expressions.
 		body := ast.NewBody()
 
-		for _, elem := range e.saveStack.Stack[len(e.saveStack.Stack)-1] {
+		for _, elem := range e.saveStack.Peek() {
 			body.Append(elem.Plug(e.bindings))
 		}
 
