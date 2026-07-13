@@ -46,6 +46,39 @@ type ExternalRuleIndexCloser interface {
 	Close() error
 }
 
+// ParametrizedExternalRuleIndex is an optional interface implemented by external
+// rule indexes that serve a family of sub-references under their registered
+// prefix rather than a single exact ref. The Ref such a source is registered
+// under is treated as a PREFIX: the leading elements of a query reference that
+// follow the prefix are consumed as ground lookup parameters (handed to Lookup
+// via LookupOptions.Params) rather than as descents into a static rule tree.
+// This lets one registered source serve an unbounded family of sub-references —
+// one distinct set of rules per parameter tuple — without registering each
+// concretely, so references whose key only comes into existence at runtime
+// resolve without a recompile.
+//
+// An index that does not implement this interface behaves as a conventional
+// exact-ref source (equivalent to an arity of 0).
+type ParametrizedExternalRuleIndex interface {
+	ExternalRuleIndex
+
+	// ParamArity reports how many elements following the registered prefix this
+	// index consumes as lookup parameters, given the reference tail (the query
+	// reference elements after the prefix, or an empty Ref when none follow).
+	//
+	// The count may vary with the tail's *shape* — e.g. keying off a leading
+	// discriminator segment — which lets a single prefix back an uneven-depth
+	// tree. It must NOT depend on parameter *values*: ParamArity is consulted
+	// before the parameters are plugged, so the tail may contain non-ground
+	// elements, and the count decides the caching boundary. Returning 0 makes
+	// the reference resolve as a conventional exact ref.
+	//
+	// The parameter elements the count selects must be ground at evaluation
+	// time. A non-ground parameter yields an undefined result, except under
+	// partial evaluation where the reference is saved for residualization.
+	ParamArity(tail Ref) int
+}
+
 // ExternalSourceOptions contains options for registering an external rule source.
 type ExternalSourceOptions struct {
 	// VisibleRefs controls which parts of the surrounding rule tree the external
@@ -87,25 +120,6 @@ type ExternalSourceOptions struct {
 	// on a per-reference basis (e.g. input.foo unknown while input.bar is
 	// known). See ValueResolver and IsUnknownValueErr.
 	DistinguishAbsentFromUnknown bool
-
-	// ParamArity, when greater than zero, declares this source as
-	// *parametrized*: the Ref it is registered under is treated as a PREFIX,
-	// and the next ParamArity ground elements of a query reference are consumed
-	// as lookup parameters rather than as descents into a static rule tree.
-	//
-	// For example, registering the prefix data.foo with ParamArity 1 makes a
-	// reference like data.foo[<key>].<rule> resolve <key> as a parameter and
-	// hand it to Lookup via LookupOptions.Params. This lets a single registered
-	// source serve an unbounded family of sub-references — one distinct set of
-	// rules per key — without registering each key concretely, so references
-	// whose key only comes into existence at runtime resolve without a
-	// recompile.
-	//
-	// The parameter elements must be ground at evaluation time. A non-ground
-	// parameter yields an undefined result, except under partial evaluation
-	// where the reference is saved for residualization. When ParamArity is 0
-	// (the default) the source behaves as a conventional exact-ref source.
-	ParamArity int
 }
 
 // LookupOption is a functional option for ExternalRuleIndex.Lookup calls.
@@ -141,7 +155,7 @@ func (o *LookupOptions) ResponseMetadata() map[string]any {
 }
 
 // Params returns the parameter values for a parametrized external source (see
-// ExternalSourceOptions.ParamArity). The slice holds the ground key values that
+// ParametrizedExternalRuleIndex). The slice holds the ground key values that
 // followed the registered prefix in the query reference, in order. It is empty
 // for conventional (non-parametrized) sources.
 func (o *LookupOptions) Params() []Value {
@@ -175,7 +189,7 @@ func LookupResponseMetadata(m map[string]any) LookupOption {
 }
 
 // LookupParams returns a LookupOption that sets the parameter values handed to a
-// parametrized external source (see ExternalSourceOptions.ParamArity).
+// parametrized external source (see ParametrizedExternalRuleIndex).
 func LookupParams(params []Value) LookupOption {
 	return func(opts *LookupOptions) {
 		opts.params = params

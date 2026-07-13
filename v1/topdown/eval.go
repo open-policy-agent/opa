@@ -2629,12 +2629,18 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 				externalRef := node.External.Ref
 				externalIndex := node.External.Index
 
-				// For a parametrized (prefix) external source, the next Arity
-				// elements of the reference are lookup parameters rather than
-				// tree descents. They must be ground; the resolved sub-tree is
-				// cached under the full reference (prefix + params) so distinct
-				// parameters do not collide within a single evaluation.
-				arity := node.External.Arity
+				// For a parametrized (prefix) external source, the leading
+				// elements of the reference after the prefix are lookup
+				// parameters rather than tree descents. The source reports how
+				// many via ParamArity, keyed off the reference tail's shape (so
+				// one prefix can back an uneven-depth tree). They must be ground;
+				// the resolved sub-tree is cached under the full reference
+				// (prefix + params) so distinct parameters do not collide within
+				// a single evaluation.
+				arity := 0
+				if p, ok := externalIndex.(ast.ParametrizedExternalRuleIndex); ok {
+					arity = p.ParamArity(e.ref[e.pos+1:])
+				}
 				var params []ast.Value
 				cacheRef := externalRef
 				expand := true
@@ -4980,7 +4986,7 @@ func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
 }
 
 // wrapExternalParams re-inserts the parameter levels consumed by a
-// parametrized external source (see ast.ExternalSourceOptions.ParamArity) on
+// parametrized external source (see ast.ParametrizedExternalRuleIndex) on
 // top of the resolved sub-tree, which is rooted at the registered prefix. The
 // evaluator's descent can then consume the parameter element(s) as ordinary
 // tree levels. keys are the ground parameter terms in reference order.
