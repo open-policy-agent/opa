@@ -25,14 +25,17 @@ func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 	return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "object", "set", "string")
 }
 
+// termIterable is satisfied by both *ast.Array and ast.Set.
+type termIterable interface {
+	Iter(func(*ast.Term) error) error
+}
+
 // exactIntAccumulate accumulates the numbers in a with op on exact big.Ints, reporting false if
 // any element is not an integer, in which case the caller falls back to the float path.
 //
 // That float path accumulates in a big.Float carrying the default mantissa, so integers needing
 // more significant bits are silently rounded.
-func exactIntAccumulate(a interface{ Iter(func(*ast.Term) error) error }, init int64,
-	op func(z, x, y *big.Int) *big.Int) (ast.Number, bool) {
-
+func exactIntAccumulate(a termIterable, init int64, op func(z, x, y *big.Int) *big.Int) (ast.Number, bool) {
 	acc := big.NewInt(init)
 	exact := true
 
