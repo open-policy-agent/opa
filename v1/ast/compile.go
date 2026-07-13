@@ -4774,16 +4774,16 @@ type graphSort struct {
 // depend on Go's randomized map iteration (issue #3729). Head.Ref is used for
 // the tie-break rather than Rule.Ref so nodes with a nil Module don't panic.
 func sortGraphNodes(nodes []util.T) {
-	sort.SliceStable(nodes, func(i, j int) bool {
-		ri, iok := nodes[i].(*Rule)
-		rj, jok := nodes[j].(*Rule)
-		if !iok || !jok {
-			return false
+	slices.SortStableFunc(nodes, func(a, b util.T) int {
+		ra, aok := a.(*Rule)
+		rb, bok := b.(*Rule)
+		if !aok || !bok {
+			return 0
 		}
-		if c := ri.Location.Compare(rj.Location); c != 0 {
-			return c < 0
+		if c := ra.Location.Compare(rb.Location); c != 0 {
+			return c
 		}
-		return ri.Head.Ref().Compare(rj.Head.Ref()) < 0
+		return ra.Head.Ref().Compare(rb.Head.Ref())
 	})
 }
 
