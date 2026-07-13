@@ -11,6 +11,33 @@ type testStruct struct {
 	foo int
 }
 
+type resettableStruct struct {
+	ptr *int
+	n   int
+}
+
+func (r *resettableStruct) Reset() {
+	r.ptr, r.n = nil, 0
+}
+
+func TestResettablePool(t *testing.T) {
+	pool := NewResettablePool[resettableStruct, *resettableStruct]()
+
+	x := pool.Get()
+	v := 42
+	x.ptr, x.n = &v, 7
+	pool.Put(x)
+
+	if x.ptr != nil || x.n != 0 {
+		t.Fatalf("expected fields to be reset on Put, got ptr=%v n=%d", x.ptr, x.n)
+	}
+
+	y := pool.Get()
+	if y.ptr != nil || y.n != 0 {
+		t.Fatalf("expected a fresh/reset value from Get, got ptr=%v n=%d", y.ptr, y.n)
+	}
+}
+
 func BenchmarkNewPtrSlice(b *testing.B) {
 	for b.Loop() {
 		s := NewPtrSlice[testStruct](100)

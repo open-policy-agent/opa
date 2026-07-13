@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -130,52 +129,13 @@ type eval struct {
 	responseMetadata            map[string]any
 }
 
-type (
-	evfp struct{ pool sync.Pool }
-	evbp struct{ pool sync.Pool }
-)
-
-func (ep *evfp) Put(e *evalFunc) {
-	if e != nil {
-		e.e, e.terms, e.ir = nil, nil, nil
-		ep.pool.Put(e)
-	}
-}
-
-func (ep *evfp) Get() *evalFunc {
-	return ep.pool.Get().(*evalFunc)
-}
-
-func (ep *evbp) Put(e *evalBuiltin) {
-	if e != nil {
-		e.e, e.bi, e.bctx, e.f, e.terms = nil, nil, nil, nil, nil
-		ep.pool.Put(e)
-	}
-}
-
-func (ep *evbp) Get() *evalBuiltin {
-	return ep.pool.Get().(*evalBuiltin)
-}
-
 var (
-	evalPool      = util.NewSyncPool[eval]()
-	deecPool      = util.NewSyncPool[deferredEarlyExitContainer]()
-	resolverPool  = util.NewSyncPool[evalResolver]()
-	arraysRecPool = util.NewSyncPool[biunifyArraysRecParams]()
-	evalFuncPool  = &evfp{
-		pool: sync.Pool{
-			New: func() any {
-				return &evalFunc{}
-			},
-		},
-	}
-	evalBuiltinPool = &evbp{
-		pool: sync.Pool{
-			New: func() any {
-				return &evalBuiltin{}
-			},
-		},
-	}
+	evalPool        = util.NewSyncPool[eval]()
+	deecPool        = util.NewSyncPool[deferredEarlyExitContainer]()
+	resolverPool    = util.NewSyncPool[evalResolver]()
+	arraysRecPool   = util.NewSyncPool[biunifyArraysRecParams]()
+	evalFuncPool    = util.NewResettablePool[evalFunc, *evalFunc]()
+	evalBuiltinPool = util.NewResettablePool[evalBuiltin, *evalBuiltin]()
 )
 
 func (e *eval) Run(iter evalIterator) error {
@@ -2105,6 +2065,12 @@ type evalBuiltin struct {
 	terms []*ast.Term
 }
 
+// Reset clears the fields before this evalBuiltin is returned to its pool,
+// so pooling it doesn't keep terms/bindings from the previous call alive.
+func (e *evalBuiltin) Reset() {
+	e.e, e.bi, e.bctx, e.f, e.terms = nil, nil, nil, nil, nil
+}
+
 // Is this builtin non-deterministic, and did the caller provide an NDBCache?
 func (e *evalBuiltin) canUseNDBCache(bi *ast.Builtin) bool {
 	return bi.Nondeterministic && e.bctx != nil && e.bctx.NDBuiltinCache != nil
@@ -2218,6 +2184,12 @@ type evalFunc struct {
 	e     *eval
 	ir    *ast.IndexResult
 	terms []*ast.Term
+}
+
+// Reset clears the fields before this evalFunc is returned to its pool,
+// so pooling it doesn't keep terms/index results from the previous call alive.
+func (e *evalFunc) Reset() {
+	e.e, e.terms, e.ir = nil, nil, nil
 }
 
 func (e *evalFunc) eval(iter unifyIterator) error {
