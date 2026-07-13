@@ -269,12 +269,19 @@ func FloatToNumber(f *big.Float) ast.Number {
 // NumberToInt converts n to a big int.
 // If n cannot be converted to an big int, an error is returned.
 func NumberToInt(n ast.Number) (*big.Int, error) {
-	f := NumberToFloat(n)
-	r, accuracy := f.Int(nil)
-	if accuracy != big.Exact {
+	// Integer literals are parsed exactly. Going through NumberToFloat first would round any
+	// value needing more than the big.Float default mantissa, and because the rounded value is
+	// itself an integer, the accuracy check below cannot detect that it happened.
+	if i, ok := new(big.Int).SetString(string(n), 10); ok {
+		return i, nil
+	}
+	// Fractional and exponent forms. big.Rat parses both exactly, so a value such as 1e30 stays
+	// exact, and a genuinely fractional value is rejected rather than silently truncated.
+	r, ok := new(big.Rat).SetString(string(n))
+	if !ok || !r.IsInt() {
 		return nil, errors.New("illegal value")
 	}
-	return r, nil
+	return new(big.Int).Set(r.Num()), nil
 }
 
 // IntToNumber converts i to a number.
