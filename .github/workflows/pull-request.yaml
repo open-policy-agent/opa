@@ -521,6 +521,9 @@ jobs:
     - name: Test policies
       run: opa test --schema build/policy/schema --bundle build/policy
 
+    - name: Test embedded Rego policies
+      run: ./build/run-rego-tests.sh
+
     - name: Run file policy checks on changed files
       run: |
         if [ -n "${{ github.event.merge_group.base_sha }}" ]; then

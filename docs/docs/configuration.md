@@ -1039,6 +1039,30 @@ The `server` configuration sets:
 | `plugins`                        | `object`  | No (default: `{}`)                  | Location for custom plugin configuration.                                                                                                                                                                                                                                               |
 | `nd_builtin_cache`               | `boolean` | No (default: `false`)               | Enable the non-deterministic builtins caching system during policy evaluation, and include the contents of the cache in decision logs. Note that decision logs that are larger than `upload_size_limit_bytes` will drop the `nd_builtin_cache` key from the log entry before uploading. |
 
+## Configuration Validation
+
+When OPA starts, it validates its configuration using a built-in Rego policy.
+Two things come out of this:
+
+- **Defaults** (such as `default_decision` and `labels`) are injected.
+- **Unrecognized options** are reported. If the configuration contains a key OPA
+  doesn't recognize — usually a typo, or a CLI flag mistaken for a config option —
+  OPA logs a warning at startup rather than silently ignoring it:
+
+  ```bash
+  # note the typo: "decision_log" instead of "decision_logs"
+  $ opa run --server --set decision_log.console=true
+  {"level":"warning","msg":"unknown configuration option \"decision_log\" encountered", ...}
+  ```
+
+  Warnings are non-fatal. Sections that accept arbitrary keys (for example
+  `labels`, `plugins`, and service `credentials`) are not checked, so extending
+  them never produces false positives.
+
+Configuration loaded later via [discovery](#discovery) is validated the same way:
+defaults are injected and warnings are logged when the discovered configuration is
+applied.
+
 ## Using Environment Variables in Configuration
 
 > Only supported with the OPA runtime (`opa run`).

@@ -248,6 +248,50 @@ func TestEnvVarSubstitution(t *testing.T) {
 }`, version.Version))
 }
 
+func TestProcessBundleLogsConfigWarnings(t *testing.T) {
+	ctx := t.Context()
+
+	testLogger := test.New()
+	manager, err := plugins.New([]byte(`{
+		"services": {"default": {"url": "http://localhost:8181"}},
+		"discovery": {"name": "config"}
+	}`), "test-id", inmem.New(), plugins.Logger(testLogger))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disco, err := New(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The discovered config carries an unrecognized top-level option.
+	bundle := makeDataBundle(1, `
+		{
+			"config": {
+				"bundle": {"name": "test1"},
+				"decision_logz": {}
+			}
+		}
+	`)
+
+	if _, err := disco.processBundle(ctx, bundle); err != nil {
+		t.Fatal(err)
+	}
+
+	want := `unknown configuration option "decision_logz" encountered`
+	found := false
+	for _, e := range testLogger.Entries() {
+		if e.Message == want {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected warning %q to be logged, got entries: %+v", want, testLogger.Entries())
+	}
+}
+
 func TestProcessBundleV1Compatible(t *testing.T) {
 	ctx := t.Context()
 	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}

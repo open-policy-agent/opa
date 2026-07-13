@@ -13,6 +13,7 @@ rules:
         files:
           - "docs"
           - "internal/wasm/sdk/examples/*"
+          - "v1/config/*.rego"
   style:
     line-length:
       ignore:

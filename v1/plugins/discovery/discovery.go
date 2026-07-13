@@ -482,6 +482,12 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		return nil, err
 	}
 
+	// Surface configuration warnings (e.g. unrecognized options) for the
+	// discovered configuration, mirroring what the runtime does at boot.
+	for _, w := range config.Warnings {
+		c.logger.Warn(w)
+	}
+
 	// Note: We don't currently support changes to the discovery
 	// configuration. These changes are risky because errors would be
 	// unrecoverable (without keeping track of changes and rolling back...)
