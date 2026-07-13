@@ -1899,6 +1899,24 @@ obj := {
 				},
 			},
 		},
+		{
+			// Rewritten head vars, e.g. from `some`, must still report a location.
+			module: `package test
+
+r[x] := y if {
+	some x
+	y := [1]
+}`,
+			expectedErrs: []struct {
+				message  string
+				location int
+			}{
+				{
+					"var x is unsafe",
+					3,
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
