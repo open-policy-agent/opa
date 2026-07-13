@@ -36,6 +36,43 @@ func (p *SyncPool[T]) Put(x *T) {
 	}
 }
 
+// resettable is implemented by *T when used with [ResettablePool], allowing
+// pooled values to clear their internal state (e.g. drop pointers so they
+// don't outlive their useful life) before being returned to the pool.
+type resettable[T any] interface {
+	*T
+	Reset()
+}
+
+// ResettablePool is like [SyncPool], but for types whose pointer clears its
+// own fields via a Reset method before being pooled. Unlike a runtime
+// interface check on every Put, the PT type parameter is resolved at compile
+// time, so there's no extra dispatch cost over a hand-written pool.
+type ResettablePool[T any, PT resettable[T]] struct {
+	pool sync.Pool
+}
+
+func NewResettablePool[T any, PT resettable[T]]() *ResettablePool[T, PT] {
+	return &ResettablePool[T, PT]{
+		pool: sync.Pool{
+			New: func() any {
+				return new(T)
+			},
+		},
+	}
+}
+
+func (p *ResettablePool[T, PT]) Get() *T {
+	return p.pool.Get().(*T)
+}
+
+func (p *ResettablePool[T, PT]) Put(x *T) {
+	if x != nil {
+		PT(x).Reset()
+		p.pool.Put(x)
+	}
+}
+
 // NewPtrSlice returns a slice of pointers to T with length n,
 // with only 2 allocations performed no matter the size of n.
 // See:
