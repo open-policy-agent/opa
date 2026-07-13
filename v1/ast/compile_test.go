@@ -5931,6 +5931,156 @@ func TestRewriteDeclaredVarsStage(t *testing.T) {
 	}
 }
 
+func TestRewriteLocalVarsBuiltinShadowing(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "unify in body shadows built-in",
+			module: `
+				package test
+
+				p := count if { count = 5 }
+			`,
+			exp: `
+				package test
+
+				p := __local0__ if { __local0__ = 5 }
+			`,
+		},
+		{
+			note: "shadowing var used as ref head",
+			module: `
+				package test
+
+				p := v if { count = [1, 2, 3]; v := count[0] }
+			`,
+			exp: `
+				package test
+
+				p := __local1__ if { __local0__ = [1, 2, 3]; __local1__ = __local0__[0] }
+			`,
+		},
+		{
+			note: "shadow in function else-branch (issue #3729)",
+			module: `
+				package test
+
+				f(x, y, 1) := v if {
+					v := x[y]
+				} else := count if {
+					count = y
+				} else := [v] if {
+					v := x[y[0]]
+				}
+			`,
+			exp: `
+				package test
+
+				f(__local0__, __local1__, 1) := __local2__ if { __local2__ = __local0__[__local1__] } else = __local3__ if { __local3__ = __local1__ } else = [__local4__] if { __local4__ = __local0__[__local1__[0]] }
+			`,
+		},
+		{
+			note: "built-in call operator is preserved",
+			module: `
+				package test
+
+				p := n if { xs := [1, 2, 3]; n := count(xs) }
+			`,
+			exp: `
+				package test
+
+				p := __local1__ if { __local0__ = [1, 2, 3]; __local1__ = count(__local0__) }
+			`,
+		},
+		{
+			note: "built-in name as function mock is preserved",
+			module: `
+				package test
+
+				orig(x) := concat("", x)
+				p := y if { y := orig(["a", "b"]) with orig as count }
+			`,
+			exp: `
+				package test
+
+				orig(__local0__) := concat("", __local0__)
+				p := __local1__ if { __local1__ = data.test.orig(["a", "b"]) with data.test.orig as count }
+			`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+
+			c.Modules = map[string]*Module{
+				"test.rego": module(tc.module),
+			}
+
+			compileStages(c, StageRewriteLocalVars)
+
+			if len(c.Errors) > 0 {
+				t.Fatalf("Unexpected compile errors: %v", c.Errors)
+			}
+
+			exp := module(tc.exp)
+			result := c.Modules["test.rego"]
+
+			if exp.String() != result.String() {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
+			}
+		})
+	}
+}
+
+func TestCompileBuiltinShadowingDeterministic(t *testing.T) {
+	mod := `package test
+
+f(x, y, 1) := v if {
+	v := x[y]
+} else := count if {
+	count = y
+} else := [v] if {
+	v := x[y[0]]
+}`
+
+	for i := range 50 {
+		c := NewCompiler()
+		c.Compile(map[string]*Module{"test.rego": module(mod)})
+		if c.Failed() {
+			t.Fatalf("run %d: unexpected compile errors: %v", i, c.Errors)
+		}
+		tpe := c.TypeEnv.Get(MustParseRef("data.test.f"))
+		if _, ok := tpe.(*types.Function); !ok {
+			t.Fatalf("run %d: expected data.test.f to be a function type, got %v", i, tpe)
+		}
+	}
+}
+
+func TestCompileBuiltinShadowingHeadOnly(t *testing.T) {
+	c := NewCompiler()
+	c.Compile(map[string]*Module{"test.rego": module(`package test
+
+p := count if { true }`)})
+
+	if !c.Failed() {
+		t.Fatal("expected compile to fail with unsafe var error")
+	}
+
+	var found bool
+	for _, err := range c.Errors {
+		if err.Code == UnsafeVarErr {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected unsafe var error, got: %v", c.Errors)
+	}
+}
+
 func TestRewriteDeclaredVars(t *testing.T) {
 	tests := []struct {
 		note    string

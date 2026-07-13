@@ -3344,6 +3344,50 @@ func (c *Compiler) rewriteLocalVarsInRule(rule *Rule, unusedArgs VarSet, argsSta
 
 	stack := argsStack.Copy()
 
+	// A variable shadowing a built-in name (e.g. `count`) is allowed in Rego,
+	// but if left un-rewritten later stages (type checking, arity, partial
+	// eval) can mistake it for the built-in, causing spurious,
+	// map-order-dependent errors (issue #3729). Rewrite such variables to
+	// fresh locals, like `:=`-declared ones.
+	//
+	// Only variables bound in the body are rewritten. Excluded: head-only
+	// references (stay unsafe-var errors), call operators (SkipRefCallHead),
+	// and `with` targets/values (possible function mocks).
+	if len(c.builtins) > 0 {
+		bodyVis := NewVarVisitor().WithParams(VarVisitorParams{
+			SkipRefCallHead: true,
+			SkipClosures:    true,
+		})
+		bodyVis.Walk(rule.Body)
+		bodyVars := bodyVis.Vars()
+
+		declaredInBody := declaredVars(rule.Body)
+
+		withVars := NewVarSet()
+		NewGenericVisitor(func(x any) bool {
+			if w, ok := x.(*With); ok {
+				WalkVars(w, func(v Var) bool {
+					withVars.Add(v)
+					return false
+				})
+			}
+			return false
+		}).Walk(rule)
+
+		for _, v := range bodyVars.Sorted() {
+			if _, ok := c.builtins[v.String()]; !ok {
+				continue
+			}
+			if declaredInBody.Contains(v) || withVars.Contains(v) {
+				continue
+			}
+			if _, ok := stack.Declared(v); ok {
+				continue
+			}
+			stack.Insert(v, gen.Generate(), seenVar)
+		}
+	}
+
 	body, declared, errs := rewriteLocalVars(gen, stack, used, rule.Body, c.strict)
 
 	// For rewritten vars use the collection of all variables that
@@ -4717,7 +4761,12 @@ func (g *Graph) Sort() (sorted []util.T, ok bool) {
 		temp:   map[util.T]struct{}{},
 	}
 
+	nodesList := make([]util.T, 0, len(g.nodes))
 	for node := range g.nodes {
+		nodesList = append(nodesList, node)
+	}
+	sortGraphNodes(nodesList)
+	for _, node := range nodesList {
 		if !sorter.Visit(node) {
 			return nil, false
 		}
@@ -4765,6 +4814,24 @@ type graphSort struct {
 	temp   map[util.T]struct{}
 }
 
+// sortGraphNodes orders rule nodes deterministically (by location, then ref)
+// so the topological sort, and thus the rule type-checking order, doesn't
+// depend on Go's randomized map iteration (issue #3729). Head.Ref is used for
+// the tie-break rather than Rule.Ref so nodes with a nil Module don't panic.
+func sortGraphNodes(nodes []util.T) {
+	slices.SortStableFunc(nodes, func(a, b util.T) int {
+		ra, aok := a.(*Rule)
+		rb, bok := b.(*Rule)
+		if !aok || !bok {
+			return 0
+		}
+		if c := ra.Location.Compare(rb.Location); c != 0 {
+			return c
+		}
+		return ra.Head.Ref().Compare(rb.Head.Ref())
+	})
+}
+
 func (sort *graphSort) Marked(node util.T) bool {
 	_, marked := sort.marked[node]
 	return marked
@@ -4778,7 +4845,13 @@ func (sort *graphSort) Visit(node util.T) (ok bool) {
 		return true
 	}
 	sort.temp[node] = struct{}{}
-	for other := range sort.deps(node) {
+	deps := sort.deps(node)
+	depList := make([]util.T, 0, len(deps))
+	for other := range deps {
+		depList = append(depList, other)
+	}
+	sortGraphNodes(depList)
+	for _, other := range depList {
 		if !sort.Visit(other) {
 			return false
 		}
