@@ -1794,6 +1794,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"or, assignment does not bind to outer scope", `p if { {x := 1} or {y := 2}; x == 1; y == 2 }`, "{x,y,}"},
 		{"and, unification does not bind to outer scope", `p if { {x = 1} and {y = 2}; x == 1; y == 2 }`, "{x,y,}"},
 		{"or, unification does not bind to outer scope", `p if { {x = 1} or {y = 2}; x == 1; y == 2 }`, "{x,y,}"},
+		{"assignment RHS not made safe via LHS (issue 3546)", `p if { x := y; x = 7 }`, `{y,}`},
 	}
 
 	makeErrMsg := func(varName string) string {
@@ -1846,6 +1847,71 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 				}
 			}
 
+		})
+	}
+}
+
+// TestCompilerCheckSafetyAssignmentDirectional verifies that the RHS of `:=`
+// cannot be made safe through the LHS. See issue #3546.
+func TestCompilerCheckSafetyAssignmentDirectional(t *testing.T) {
+	tests := []struct {
+		note       string
+		module     string
+		wantUnsafe string // unsafe var name; empty means the module must compile
+	}{
+		{
+			note:       "RHS var never bound is unsafe",
+			module:     `p if { x := y; x = 7 }`,
+			wantUnsafe: "y",
+		},
+		{
+			note:       "RHS var only reachable by backwards unification is unsafe",
+			module:     `p := v if { x := y; x = 7; v := obj[x] }`,
+			wantUnsafe: "y",
+		},
+		{
+			note:   "RHS var bound by another expression is safe",
+			module: `p if { x := y; y = 7 }`,
+		},
+		{
+			note:   "RHS ref iteration still binds its own vars",
+			module: `obj := {"a": 1, "b": 2}` + "\n" + `p contains v if { some k; v := obj[k] }`,
+		},
+		{
+			note:   "chained assignments remain safe",
+			module: `p := y if { x := input.foo; y := x }`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{
+				"test": MustParseModule("package test\n\n" + tc.module),
+			}
+			compileStages(c, StageCheckSafetyRuleBodies)
+
+			if tc.wantUnsafe == "" {
+				if c.Failed() {
+					t.Fatalf("expected module to compile but got errors: %v", c.Errors)
+				}
+				return
+			}
+
+			if !c.Failed() {
+				t.Fatalf("expected var %q to be unsafe but module compiled", tc.wantUnsafe)
+			}
+			want := fmt.Sprintf("rego_unsafe_var_error: var %s is unsafe", tc.wantUnsafe)
+			found := false
+			for _, err := range c.Errors {
+				if strings.Contains(err.Error(), want) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("expected error %q, got: %v", want, c.Errors)
+			}
 		})
 	}
 }

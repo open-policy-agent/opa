@@ -94,7 +94,7 @@ cases:
         p contains 2
     want_defined: false
   - note: set composites
-    query: a := [1,x]; data.x.p[a]; x == "y"
+    query: a = [1,x]; data.x.p[a]; x == "y"
     modules:
       - |
         package x
