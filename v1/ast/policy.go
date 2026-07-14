@@ -1594,6 +1594,7 @@ func NewBuiltinExpr(terms ...*Term) *Expr {
 
 func (expr *Expr) CogeneratedExprs() []*Expr {
 	visited := map[*Expr]struct{}{}
+	var result []*Expr
 	visitCogeneratedExprs(expr, func(e *Expr) bool {
 		if expr.Equal(e) {
 			return true
@@ -1602,13 +1603,13 @@ func (expr *Expr) CogeneratedExprs() []*Expr {
 			return true
 		}
 		visited[e] = struct{}{}
+		// Append during visitation so the result order is deterministic; iterating
+		// the 'visited' map here would randomize the order and, in turn, make
+		// dependent output (e.g. PrettyEvent's --var-values) nondeterministic.
+		result = append(result, e)
 		return false
 	})
 
-	result := make([]*Expr, 0, len(visited))
-	for e := range visited {
-		result = append(result, e)
-	}
 	return result
 }
 
