@@ -321,6 +321,98 @@ func TestREPLBracketedPasteTabNotCompleted(t *testing.T) {
 	}
 }
 
+func TestREPLHistoryMigratesLegacyFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "history")
+
+	// A legacy peterh/liner history file: one command per line, plain text.
+	legacy := "a := 1\ndata.a.b.c\n"
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	h, err := newREPLHistory(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Prior history must be preserved, in order, rather than silently dropped.
+	if got := []string{lineAt(t, h, 0), lineAt(t, h, 1)}; !reflect.DeepEqual(got, []string{"a := 1", "data.a.b.c"}) {
+		t.Fatalf("legacy history not preserved: got %v", got)
+	}
+
+	// The file must have been rewritten in the JSON-lines format so a later
+	// launch reads it natively.
+	bs, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, line := range strings.Split(strings.TrimSpace(string(bs)), "\n") {
+		var item replHistoryItem
+		if err := json.Unmarshal([]byte(line), &item); err != nil {
+			t.Fatalf("line %d not migrated to JSON: %q (%v)", i, line, err)
+		}
+	}
+
+	// Reloading the migrated file yields the same entries (no double-counting).
+	h2, err := newREPLHistory(path)
+	if err != nil {
+		t.Fatalf("unexpected error reloading: %v", err)
+	}
+	if h2.Len() != 2 {
+		t.Fatalf("expected 2 entries after reload, got %d", h2.Len())
+	}
+}
+
+func TestREPLHistoryDoesNotPersistControlInput(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "history")
+	h, err := newREPLHistory(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// "exit" is control input, never a query, so it must not be recorded.
+	if _, err := h.Write("exit"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Write("  EXIT  "); err != nil { // parsed case-insensitively
+		t.Fatal(err)
+	}
+	if h.Len() != 0 {
+		t.Fatalf("exit should not be persisted, got %d entries", h.Len())
+	}
+
+	// While paused (exit prompt on screen), confirmation answers are dropped.
+	h.pause()
+	if _, err := h.Write("y"); err != nil {
+		t.Fatal(err)
+	}
+	if h.Len() != 0 {
+		t.Fatalf("paused history should not persist, got %d entries", h.Len())
+	}
+
+	// Resuming restores normal persistence, and "y" is a legitimate query.
+	h.resume()
+	if _, err := h.Write("y"); err != nil {
+		t.Fatal(err)
+	}
+	// Consecutive duplicates collapse, matching readline's file source.
+	if _, err := h.Write("y"); err != nil {
+		t.Fatal(err)
+	}
+	if h.Len() != 1 || lineAt(t, h, 0) != "y" {
+		t.Fatalf("expected single \"y\" entry, got %d entries", h.Len())
+	}
+}
+
+func lineAt(t *testing.T, h *replHistory, pos int) string {
+	t.Helper()
+	line, err := h.GetLine(pos)
+	if err != nil {
+		t.Fatalf("GetLine(%d): %v", pos, err)
+	}
+	return line
+}
+
 func TestDump(t *testing.T) {
 	ctx := t.Context()
 	input := `{"a": [1,2,3,4]}`
