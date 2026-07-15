@@ -6,7 +6,7 @@ date: 2022-08-22
 slug: august-newsletter-4c177ddc4829
 ---
 
-*August Edition!*
+_August Edition!_
 
 August is here and we are feeling the heat! Reply back to this email and let the OPA team know how you're beating the heat this year!
 

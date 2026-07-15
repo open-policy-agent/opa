@@ -5,7 +5,7 @@ date: 2017-05-12
 slug: authorizing-http-apis-ssh-and-puppet-with-opa-dc5341602ed5
 ---
 
-*This is a short post that shows how you can use the Open Policy Agent (OPA) project to enforce authorization policies across HTTP APIs, SSH, and Puppet. If you're interested in policy, authorization, compliance, or other related topics, check out [openpolicyagent.org](http://www.openpolicyagent.org/) or come chat with us on [Slack](http://slack.openpolicyagent.org).*
+_This is a short post that shows how you can use the Open Policy Agent (OPA) project to enforce authorization policies across HTTP APIs, SSH, and Puppet. If you're interested in policy, authorization, compliance, or other related topics, check out [openpolicyagent.org](http://www.openpolicyagent.org/) or come chat with us on [Slack](http://slack.openpolicyagent.org)._
 
 One goal of OPA is to solve authorization (who can do what) across the stack. To achieve this goal, OPA provides a **simple HTTP API to integrate at enforcement points and a **high-level declarative language to codify authorization policies. The policy language (Rego) is domain-agnostic and let's you define rich, fine-grained access controls over arbitrary JSON data.
 
@@ -54,7 +54,7 @@ This is a simplistic example but it helps show how OPA lets you leverage arbitra
 {"alice": "bob", "charlie": "betty"}
 ```
 
-It's worth pointing out that "manager_of" mapping could be defined statically or *dynamically* in the policy itself. Defining "manager_of" statically would look very familiar:
+It's worth pointing out that "manager_of" mapping could be defined statically or _dynamically_ in the policy itself. Defining "manager_of" statically would look very familiar:
 
 ```
 manager_of = {"alice": "bob", "charlie": "betty"}
@@ -115,7 +115,7 @@ In this case, the "roles" and "hosts" refer to external data loaded into OPA:
 }
 ```
 
-With PAM you can also control who can run sudo commands. Since our PAM module offloads authorization decisions to OPA, we can extend our authorization policy to cover sudo access without changing any code in the enforcement point. This example shows how you can restrict sudo access to users with an *admin* role:
+With PAM you can also control who can run sudo commands. Since our PAM module offloads authorization decisions to OPA, we can extend our authorization policy to cover sudo access without changing any code in the enforcement point. This example shows how you can restrict sudo access to users with an _admin_ role:
 
 ```rego
 package sudo.authz

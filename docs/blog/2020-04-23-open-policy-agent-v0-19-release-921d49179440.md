@@ -51,7 +51,7 @@ brew install opa
 
 ![Install OPA with homebrew and use 'man opa' to learn about it.](/img/blog/open-policy-agent-v0-19-release-921d49179440/2.gif)
 
-*Install OPA with homebrew and use 'man opa' to learn about it.*
+_Install OPA with homebrew and use 'man opa' to learn about it._
 
 [@jpeach](https://github.com/jpeach) submitted a number of patches that improve testing and support for the [http.send](https://www.openpolicyagent.org/docs/latest/policy-reference/#http) built-in function. For example, policies can now explicitly set TLS server names as well as certificates and keys when invoking the built-in function (previously they could only come from the environment or local files). This is useful if you want to specify those values in data or as local variables inside the policy itself.
 

@@ -9,7 +9,7 @@ slug: introducing-the-opa-print-function-809da6a13aee
 
 One of the key takeaways from the [Open Policy Agent 2021 Survey](/blog/open-policy-agent-2021-survey-summary-e749bbd7b824), was the need to improve the OPA debugging experience. Simply put, we need to make it easier to know what's going on when policies and rules are evaluated.
 
-However, whenever someone talks about an "experience," it's rarely a small task and a checkbox to be checked once completed. Rather, it's all the little things that when combined provide a great improvement to the greater goal. If the OPA project used JIRA, it would probably be a safe bet to classify the "improve debugging experience" story as an "epic." With some improvements made, many new ideas and feature requests are likely to emerge along the way, and it would be rather optimistic to think that such a story ever got *done*, in the sense that no new improvements could be made.
+However, whenever someone talks about an "experience," it's rarely a small task and a checkbox to be checked once completed. Rather, it's all the little things that when combined provide a great improvement to the greater goal. If the OPA project used JIRA, it would probably be a safe bet to classify the "improve debugging experience" story as an "epic." With some improvements made, many new ideas and feature requests are likely to emerge along the way, and it would be rather optimistic to think that such a story ever got _done_, in the sense that no new improvements could be made.
 
 To make things more complicated — and certainly more interesting — the OPA debugging experience isn't isolated to OPA itself. Improving the debugging experience for OPA entails not just looking at where things can be made better in OPA, but just as much in the tools commonly used when authoring Rego policies. These include tools like [VS Code](https://marketplace.visualstudio.com/items?itemName=tsandall.opa), [IntelliJ IDEA](https://plugins.jetbrains.com/plugin/14865-open-policy-agent) and all the [other editors](https://www.openpolicyagent.org/docs/latest/editor-and-ide-support/) commonly used for policy authoring.
 
@@ -35,7 +35,7 @@ The [trace](https://www.openpolicyagent.org/docs/latest/policy-reference/#debugg
 
 Another problem frequently mentioned in the context of debugging is how sometimes **opa eval**, or the **trace** built-in comes back with just… nothing.
 
-This brings us right into another topic often considered tricky with regards to debugging — OPA's handling of undefined. When OPA encounters undefined values, policy evaluation normally halts. Considering how Rego is a declarative *query* language, there isn't a whole lot more to do when a query comes back with nothing, just like a query language like SQL wouldn't have a whole lot more to do with an empty resultset. Since Rego rules are often compositions of many statements or other rules, it can sometimes be pretty difficult to tell where the undefined value that halted policy evaluation was introduced.
+This brings us right into another topic often considered tricky with regards to debugging — OPA's handling of undefined. When OPA encounters undefined values, policy evaluation normally halts. Considering how Rego is a declarative _query_ language, there isn't a whole lot more to do when a query comes back with nothing, just like a query language like SQL wouldn't have a whole lot more to do with an empty resultset. Since Rego rules are often compositions of many statements or other rules, it can sometimes be pretty difficult to tell where the undefined value that halted policy evaluation was introduced.
 
 What to do?
 
@@ -94,7 +94,7 @@ With the last argument "reserved" for the return value, how would an implementat
 
 ## Printing undefined
 
-The next problem to tackle in order for print to work nicely as a debugging tool was how to deal with undefined. Since we can expect print to be used to debug variables from **input** and **data** that might not be defined, it would be kind of a bummer if calling print *itself* halted policy evaluation! Ideally we'd be able to call the print function and have it print *something* even if some of the arguments provided pointed at undefined values. That way we could use the function to try and help also with the problem of identifying where in a policy undefined values have been introduced.
+The next problem to tackle in order for print to work nicely as a debugging tool was how to deal with undefined. Since we can expect print to be used to debug variables from **input** and **data** that might not be defined, it would be kind of a bummer if calling print _itself_ halted policy evaluation! Ideally we'd be able to call the print function and have it print _something_ even if some of the arguments provided pointed at undefined values. That way we could use the function to try and help also with the problem of identifying where in a policy undefined values have been introduced.
 
 This requirement meant some internal assumptions of how Rego is parsed had to change, and the end result is a print function that prints undefined values as `<undefined>`, without halting policy evaluation.
 
@@ -143,7 +143,7 @@ decision {
 }
 ```
 
-While printing the outcome of rule evaluation in tests like this is valuable, the decision rule *itself* might be composed of multiple rules, and being able to add a few print lines in those to understand why our result isn't what we expect can help us quickly pinpoint the problem.
+While printing the outcome of rule evaluation in tests like this is valuable, the decision rule _itself_ might be composed of multiple rules, and being able to add a few print lines in those to understand why our result isn't what we expect can help us quickly pinpoint the problem.
 
 ## Wrapping up
 

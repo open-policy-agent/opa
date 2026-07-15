@@ -6,7 +6,7 @@ slug: opa-1-0-is-coming-heres-what-you-need-to-know-c8fb0d258368
 ---
 
 ![Open Policy Agent Logo with "1.0" written below](/img/blog/opa-1-0-is-coming-heres-what-you-need-to-know-c8fb0d258368/1.png)
-*Towards Open Policy Agent 1.0*
+_Towards Open Policy Agent 1.0_
 
 December 28th marked the 8th anniversary of the first commit in the Open Policy Agent project. 5000+ commits from more than 400 contributors later, we're starting to prepare for OPA 1.0.
 
@@ -31,7 +31,7 @@ We'll get back to practical concerns by the end of the blog, but before that, le
 
 #### The future is now — no more import future.keywords
 
-Several keywords (in, every, *if* and contains*)* have been added to OPA since the start. Introducing new keywords means there's always a risk that existing policy might break in case identifiers, like rule names or variables, have been named in a way that clashes with the new keywords. In order to prevent this, access to these keywords have required an import of future.keywords. We now live in that future.
+Several keywords (in, every, _if_ and contains*)* have been added to OPA since the start. Introducing new keywords means there's always a risk that existing policy might break in case identifiers, like rule names or variables, have been named in a way that clashes with the new keywords. In order to prevent this, access to these keywords have required an import of future.keywords. We now live in that future.
 
 ![That was a problem for future me, and now I am future me.](/img/blog/opa-1-0-is-coming-heres-what-you-need-to-know-c8fb0d258368/2.jpeg)
 
@@ -50,7 +50,7 @@ allow {
 May with the help of if be expressed as a one-liner, with the curly brackets removed:
 
 ```rego
-allow if "admin" in user.roles 
+allow if "admin" in user.roles
 ```
 
 OPA 1.0 makes if a natural — and mandatory — part of every rule's anatomy.
@@ -59,7 +59,7 @@ OPA 1.0 makes if a natural — and mandatory — part of every rule's anatomy.
 
 #### The contains keyword made mandatory
 
-The contains keyword helps express multi-value (or as they're often called, partial) rules — i.e. rules that build a *set* of values. It also helps avoid ambiguities around certain classes of rules, like the fairly recently introduced "nested" rule type:
+The contains keyword helps express multi-value (or as they're often called, partial) rules — i.e. rules that build a _set_ of values. It also helps avoid ambiguities around certain classes of rules, like the fairly recently introduced "nested" rule type:
 
 ```rego
 users.names contains name if {

@@ -9,7 +9,7 @@ slug: i-have-a-plan-exploring-the-opa-intermediate-representation-ir-format-7319
 
 It isn't an overstatement to say that the versatility of Open Policy Agent (OPA) is a key factor in its success. As a general purpose policy engine, OPA needs to handle inputs from a disparate set of systems — Terraform, Kubernetes, CI/CD pipelines or custom applications, to name a few — and deliver decisions in a format understood by that particular system. Providing an agnostic approach to input and output data — anything that is or can be modeled hierarchically in a JSON or YAML document is potentially subject to policy — allows [integrating](https://www.openpolicyagent.org/docs/latest/ecosystem/) OPA with all kinds of systems, applications and tech stacks.
 
-But how does the data get passed between client application and OPA? Running OPA as a standalone service, and querying OPA for decisions over its [REST API](https://www.openpolicyagent.org/docs/latest/rest-api/), is by far the most common way to integrate OPA, and for good reasons! Running OPA as a separate component provides a nice, unified interface for communication, which commonly involves writing only a few lines of code in most modern programming languages. Additionally, many technologies allow extending the built-in functionality for e.g. authorization by utilizing *webhooks*, which are commonly REST requests with a JSON-encoded payload. Perfect integration point for OPA!
+But how does the data get passed between client application and OPA? Running OPA as a standalone service, and querying OPA for decisions over its [REST API](https://www.openpolicyagent.org/docs/latest/rest-api/), is by far the most common way to integrate OPA, and for good reasons! Running OPA as a separate component provides a nice, unified interface for communication, which commonly involves writing only a few lines of code in most modern programming languages. Additionally, many technologies allow extending the built-in functionality for e.g. authorization by utilizing _webhooks_, which are commonly REST requests with a JSON-encoded payload. Perfect integration point for OPA!
 
 There are however some scenarios where the standalone REST model proves to be challenging:
 
@@ -24,25 +24,25 @@ To accommodate these requirements, OPA provides a few [alternatives](https://www
 
 ## Wasm
 
-Rego policies compiled to Wasm modules offers a flexible, highly performant alternative to "regular" policy evaluation, with runtimes available for a [wide array](https://github.com/appcypher/awesome-wasm-runtimes) of languages, frameworks and platforms. As such, it should be considered an option for any OPA integration where the standalone server model falls short of the requirements. However, as ubiquitous as Wasm runtimes may be, they are not available *everywhere*. Embedded environments, exotic architectures or specialized hardware all constitute examples of environments where we're unlikely to encounter a Wasm runtime. But even with one available, Wasm *itself* is not without limitations, even by design!
+Rego policies compiled to Wasm modules offers a flexible, highly performant alternative to "regular" policy evaluation, with runtimes available for a [wide array](https://github.com/appcypher/awesome-wasm-runtimes) of languages, frameworks and platforms. As such, it should be considered an option for any OPA integration where the standalone server model falls short of the requirements. However, as ubiquitous as Wasm runtimes may be, they are not available _everywhere_. Embedded environments, exotic architectures or specialized hardware all constitute examples of environments where we're unlikely to encounter a Wasm runtime. But even with one available, Wasm _itself_ is not without limitations, even by design!
 
-With the goals of providing a safe, *sandboxed* environment, originally targeting web browsers, Wasm has several restrictions on what can and can't be done in the confines of the runtime. Interacting with the host system, or for that matter, other host systems — whether through system calls, network requests, or file system operations, is generally prohibited. While the WebAssembly System Interface (WASI) aims to offer an API for this exact purpose, and could potentially be used for certain features of Rego (like the http.send built-in function) in the future, relying on WASI means that a policy evaluated in one runtime might not work in another, as currently only a certain subset of the WASI API is implemented in any given runtime, and Wasm runtimes like those provided by web browsers likely have no interest in supporting interactions with the host system *at all*. Last, while some great progress has been made around WASI recently, it is still nowhere near the maturity of Wasm.
+With the goals of providing a safe, _sandboxed_ environment, originally targeting web browsers, Wasm has several restrictions on what can and can't be done in the confines of the runtime. Interacting with the host system, or for that matter, other host systems — whether through system calls, network requests, or file system operations, is generally prohibited. While the WebAssembly System Interface (WASI) aims to offer an API for this exact purpose, and could potentially be used for certain features of Rego (like the http.send built-in function) in the future, relying on WASI means that a policy evaluated in one runtime might not work in another, as currently only a certain subset of the WASI API is implemented in any given runtime, and Wasm runtimes like those provided by web browsers likely have no interest in supporting interactions with the host system _at all_. Last, while some great progress has been made around WASI recently, it is still nowhere near the maturity of Wasm.
 
 ## Intermediate Representation (IR)
 
 OPA v0.37.0, released early 2022, brought two major enhancements to OPA: [compiler strict mode](https://www.openpolicyagent.org/docs/latest/strict/) and [delta bundles](https://www.openpolicyagent.org/docs/latest/management-bundles/#delta-bundles). While those two features might have stolen the show of the release, the [changelog](https://github.com/open-policy-agent/opa/releases/tag/v0.37.0) additionally provides us with this:
 
-> The compile package and the opa build command support a new output format: "plan". It represents a *query plan*, steps needed to take to evaluate a query (with policies). The plan format is a JSON encoding of the intermediate representation (IR) used for compiling queries and policies into Wasm.
+> The compile package and the opa build command support a new output format: "plan". It represents a _query plan_, steps needed to take to evaluate a query (with policies). The plan format is a JSON encoding of the intermediate representation (IR) used for compiling queries and policies into Wasm.
 
-Interesting! Now, what does it mean? As alluded to in the last sentence, the low-level building blocks, or the *evaluation plan*, that eventually becomes Wasm, is now made available for consumption by other implementations. What would another implementation look like? That's up to you! While OPA may provide us with the low-level, step-by-step plan, for the evaluation of a query, it'll be on us to parse and evaluate that plan. Ever wanted to have your policy decisions served right inside of your Python app? Doable. Can't run the OPA server on your tiny microcontroller? You no longer need to. No runtime, no restrictions. What's the catch?
+Interesting! Now, what does it mean? As alluded to in the last sentence, the low-level building blocks, or the _evaluation plan_, that eventually becomes Wasm, is now made available for consumption by other implementations. What would another implementation look like? That's up to you! While OPA may provide us with the low-level, step-by-step plan, for the evaluation of a query, it'll be on us to parse and evaluate that plan. Ever wanted to have your policy decisions served right inside of your Python app? Doable. Can't run the OPA server on your tiny microcontroller? You no longer need to. No runtime, no restrictions. What's the catch?
 
 ## Bring Your Own OPA
 
 Using your programming language of choice to implement the full set of [instructions](https://www.openpolicyagent.org/docs/latest/ir/) included in the intermediate representation format isn't something you'd pull off in just a few hours. A robust implementation is likely going to necessitate quite some effort, and even if you decide to invest the days — or possibly, weeks — required for a greenfield implementation, implementing the IR instructions is only half of the story. OPA provides an impressive number of [built-in functions](https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-functions), requiring corresponding implementations in the platform you choose to target. You probably won't need every single built-in to accommodate your use case though, so starting with the ones known to be relevant for you is likely a smart idea. Rego modules compiled to Wasm, on the other hand, ship with [native implementations](https://github.com/open-policy-agent/opa/tree/main/wasm) of many of the built-ins. If you plan to build an IR compiler or evaluator in C or C++, leveraging those would give you a head start!
 
-Another aspect to consider is the management features provided by OPA. Similarly to Wasm, the scope of the IR format is limited to policy *evaluation*. Fetching bundles from remote endpoints, sending decision logs, or providing metrics and status reports is left as an exercise to the implementation. However, just like with the built-in functions, you likely won't need to support the full set of management capabilities shipped with OPA, but can pick and choose the parts that make sense to you. More interestingly, you're free to implement your *own* management features. Rather than pulling bundles from an S3 bucket, why not stream your permissions data from a Kafka topic? Or build a direct integration against that tool your organization uses for health checks, and so on. As laborious as a custom implementation may be, it opens up for some very interesting opportunities!
+Another aspect to consider is the management features provided by OPA. Similarly to Wasm, the scope of the IR format is limited to policy _evaluation_. Fetching bundles from remote endpoints, sending decision logs, or providing metrics and status reports is left as an exercise to the implementation. However, just like with the built-in functions, you likely won't need to support the full set of management capabilities shipped with OPA, but can pick and choose the parts that make sense to you. More interestingly, you're free to implement your _own_ management features. Rather than pulling bundles from an S3 bucket, why not stream your permissions data from a Kafka topic? Or build a direct integration against that tool your organization uses for health checks, and so on. As laborious as a custom implementation may be, it opens up for some very interesting opportunities!
 
-We're getting ahead of ourselves though. Before we dash off to write our own, next generation, OPA implementation in whatever the hottest programming language is these days, we should probably start by getting familiar with the IR format, and how to make sense of evaluation *plans*.
+We're getting ahead of ourselves though. Before we dash off to write our own, next generation, OPA implementation in whatever the hottest programming language is these days, we should probably start by getting familiar with the IR format, and how to make sense of evaluation _plans_.
 
 ## Making Plans
 
@@ -60,7 +60,7 @@ allow if is_admin
 is_admin if "admin" in input.user.roles
 ```
 
-Simple enough, right? Let's see what a plan might look like! In order to build one, we'll use the aptly named `opa build` command. This command is used to build [bundles](https://www.openpolicyagent.org/docs/latest/management-bundles/), and the `--target` flag allows us to say that rather than just copying Rego and data files into the bundle, we want OPA to compile either a `plan`, or a `wasm` and put that in the bundle for us too. When building a plan, we'll additionally need to provide an *entrypoint* — this would be the path to either a package or a rule, from which the plan should be built. The path to the entry points (more than one is allowed) will later be used to query an implementation capable of parsing and evaluating our plan. Let's build a bundle with the plan target, and the entrypoint set to that of our `allow` rule:
+Simple enough, right? Let's see what a plan might look like! In order to build one, we'll use the aptly named `opa build` command. This command is used to build [bundles](https://www.openpolicyagent.org/docs/latest/management-bundles/), and the `--target` flag allows us to say that rather than just copying Rego and data files into the bundle, we want OPA to compile either a `plan`, or a `wasm` and put that in the bundle for us too. When building a plan, we'll additionally need to provide an _entrypoint_ — this would be the path to either a package or a rule, from which the plan should be built. The path to the entry points (more than one is allowed) will later be used to query an implementation capable of parsing and evaluating our plan. Let's build a bundle with the plan target, and the entrypoint set to that of our `allow` rule:
 
 ```bash
 opa build --target plan --entrypoint policy/allow .
@@ -79,25 +79,25 @@ We now have a plan to work with! Let's see what's in that plan.json file. The fi
 ```json
 {
   "static": {
-    "strings": [{"value": "result"}, {"value": "user"}, {"value": "roles"}, {"value": "admin"}],
+    "strings": [{ "value": "result" }, { "value": "user" }, { "value": "roles" }, { "value": "admin" }],
     "builtin_funcs": [
       {
         "name": "internal.member_2",
         "decl": {
-          "args": [{"type": "any"}, {"type": "any"}],
-          "result": {"type": "boolean"},
+          "args": [{ "type": "any" }, { "type": "any" }],
+          "result": { "type": "boolean" },
           "type": "function"
         }
       }
     ],
-    "files": [{"value": "policy.rego"}]
+    "files": [{ "value": "policy.rego" }]
   }
 }
 ```
 
 The `strings` array contains references to all strings included in the plan, and will be referenced whenever needed in evaluation. We'll recognize the "user", "roles" and "admin" strings from our policy, while the "result" string has been added by the plan builder, to be used as a key in the result set from plan evaluation. Thanks, plan builder! The `builtin_funcs` array provides a list of all the built-in functions used in our policy, along with the types expected for their arguments and return values. While "internal.member_2" might look unfamiliar, it's the internal name used for the built-in function representing the `in` operator used in our policy! Finally, the files array contains a list of all files used to build the plan, which in our case is only `policy.rego`.
 
-The next attribute is the actual *plans*, and here's where things start to turn a bit cryptic. But don't worry, I'll walk you through it!
+The next attribute is the actual _plans_, and here's where things start to turn a bit cryptic. But don't worry, I'll walk you through it!
 
 ```json
 {
@@ -112,14 +112,14 @@ The next attribute is the actual *plans*, and here's where things start to turn 
                 "type": "CallStmt",
                 "stmt": {
                   "func": "g0.data.policy.allow",
-                  "args": [{"type": "local", "value": 0}, {"type": "local", "value": 1}],
+                  "args": [{ "type": "local", "value": 0 }, { "type": "local", "value": 1 }],
                   "result": 2
                 }
               },
               {
                 "type": "AssignVarStmt",
                 "stmt": {
-                  "source": {"type": "local", "value": 2},
+                  "source": { "type": "local", "value": 2 },
                   "target": 3
                 }
               },
@@ -132,8 +132,8 @@ The next attribute is the actual *plans*, and here's where things start to turn 
               {
                 "type": "ObjectInsertStmt",
                 "stmt": {
-                  "key": {"type": "string_index", "value": 0},
-                  "value": {"type": "local", "value": 3},
+                  "key": { "type": "string_index", "value": 0 },
+                  "value": { "type": "local", "value": 3 },
                   "object": 4
                 }
               },
@@ -154,15 +154,15 @@ The next attribute is the actual *plans*, and here's where things start to turn 
 
 ## Functions, statements, blocks
 
-For each entrypoint provided, we'll find a corresponding *plan*, which represents the planned evaluation path for that entrypoint. The `name` of the plan is our entrypoint ("policy/allow") and the `blocks` attribute contains the statements to be evaluated in order to "run" the plan. Quite literally in order too, as each statement block and statement will be evaluated in an entirely procedural fashion. Quite a contrast to the Rego code that produced it!
+For each entrypoint provided, we'll find a corresponding _plan_, which represents the planned evaluation path for that entrypoint. The `name` of the plan is our entrypoint ("policy/allow") and the `blocks` attribute contains the statements to be evaluated in order to "run" the plan. Quite literally in order too, as each statement block and statement will be evaluated in an entirely procedural fashion. Quite a contrast to the Rego code that produced it!
 
-The first statement is a `CallStmt`, which means we'll need to evaluate the function (i.e. `func`) corresponding to the provided name in the `funcs` object — in our case this has been named "g0.data.policy.allow" (mapped from our `allow` rule) — and we'll take a closer look at the `funcs` part in a minute. The `args` provided to the function is "local" value 0, and "local" value 1. These represent the global **input** and **data** variables that you're likely familiar with from your Rego policies, and "value" in this case is rather the "name" — or pointer — to the values in the local *scope*. Who said naming was one of the hardest problems in computer science? Not the OPA plan compiler!
+The first statement is a `CallStmt`, which means we'll need to evaluate the function (i.e. `func`) corresponding to the provided name in the `funcs` object — in our case this has been named "g0.data.policy.allow" (mapped from our `allow` rule) — and we'll take a closer look at the `funcs` part in a minute. The `args` provided to the function is "local" value 0, and "local" value 1. These represent the global **input** and **data** variables that you're likely familiar with from your Rego policies, and "value" in this case is rather the "name" — or pointer — to the values in the local _scope_. Who said naming was one of the hardest problems in computer science? Not the OPA plan compiler!
 
 ## Where the Locals Go
 
-Since you'll see a lot of references to `local` throughout compiled plans, learning how it's used is imperative to understanding the steps involved in plan execution. When a function is invoked, like our "g0.data.policy.allow" above, a local object is created to represent the inputs to that function. The *statements* that comprise the function may in turn both read from the local object, as well as write to it, effectively making it a bearer of local *state*.
+Since you'll see a lot of references to `local` throughout compiled plans, learning how it's used is imperative to understanding the steps involved in plan execution. When a function is invoked, like our "g0.data.policy.allow" above, a local object is created to represent the inputs to that function. The _statements_ that comprise the function may in turn both read from the local object, as well as write to it, effectively making it a bearer of local _state_.
 
-If a statement inside of a function involves calling *another* function, a new, "inner" `local` object will be created for the scope of that function, and the result of the function evaluation will be stored in the "outer" `local`, and so on.
+If a statement inside of a function involves calling _another_ function, a new, "inner" `local` object will be created for the scope of that function, and the result of the function evaluation will be stored in the "outer" `local`, and so on.
 
 Back to our `CallStmt`! We now know that it'll be invoked with the input (local 0) and data (local 1) as its arguments. The next attribute in the statement simply says "return": 2, meaning that whatever value is returned by the function should be stored in the next position — i.e. 2 — in the local state. Next up, the `AssignVarStmt` is used to assign the value at position 2 — that's our return value — to a new local value at position 3 (as defined by the "target" attribute). Moving on, we'll see a `MakeObjectStmt` used to create an empty object, which is placed at local value 4. In the next step, a key value pair is inserted into the object (`ObjectInsertStmt`) where the key is the "string_index" at position 0. Remember the `strings` attribute from the `static` object from before? This is it. The first item in that array is "result", so it looks like we're building a result set over here! The value associated with the result is good ol' local value 3, which we might recall was the result of invoking the "g0.data.policy.allow" function. Finally `ResultSetAddStmt` signals that we're done here. We have a result from the plan, and we're now ready to return it.
 
@@ -172,13 +172,13 @@ What about "g0.data.policy.allow" then? I promised we'd get back to the "funcs" 
 
 ![Evaluation plan statements and local state](/img/blog/i-have-a-plan-exploring-the-opa-intermediate-representation-ir-format-7319cd94b37d/1.png)
 
-*Evaluation plan statements and local state. As Medium does not have embeddable tables, you may find the spreadsheet from the image above [here](https://docs.google.com/spreadsheets/d/1pU9J3QkfKwkFOZf7UV_PWPHZspQvHOJxOw_zh4poLoQ/edit?usp=sharing).*
+_Evaluation plan statements and local state. As Medium does not have embeddable tables, you may find the spreadsheet from the image above [here](https://docs.google.com/spreadsheets/d/1pU9J3QkfKwkFOZf7UV_PWPHZspQvHOJxOw_zh4poLoQ/edit?usp=sharing)._
 
 To learn more about the different statements an evaluator implementation may encounter, consult the [OPA docs](https://www.openpolicyagent.org/docs/latest/ir/) on the topic.
 
 ## Planning Ahead
 
-Every aspect and instruction of the IR format would be too much for a single blog to cover, but the process of untangling an evaluation plan has hopefully been made clearer by now. While creating a full-fledged "OPA" native to your language or platform of choice might be a huge undertaking, even a basic implementation, with only a handful of built-in functions implemented, gets you surprisingly far towards something that actually feels *usable*. Open source implementations of course would have the benefit of others being able to contribute the parts that make the project usable to them. On the topic of open source implementations, are there any of those out there yet? In fact, there is!
+Every aspect and instruction of the IR format would be too much for a single blog to cover, but the process of untangling an evaluation plan has hopefully been made clearer by now. While creating a full-fledged "OPA" native to your language or platform of choice might be a huge undertaking, even a basic implementation, with only a handful of built-in functions implemented, gets you surprisingly far towards something that actually feels _usable_. Open source implementations of course would have the benefit of others being able to contribute the parts that make the project usable to them. On the topic of open source implementations, are there any of those out there yet? In fact, there is!
 
 ## Introducing Jarl
 

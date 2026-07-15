@@ -6,7 +6,7 @@ date: 2021-12-01
 slug: the-opa-monthly-newsletter-448a995a1f5e
 ---
 
-*November Edition*
+_November Edition_
 
 ## Intro
 

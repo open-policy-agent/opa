@@ -5,7 +5,7 @@ date: 2017-03-20
 slug: what-is-policy-part-two-policy-engines-7ee1d972386b
 ---
 
-*This is the second post in a two-part series about policy enforcement. If you're unfamiliar with the idea of policy enforcement check out [Part One: Enforcement](/blog/what-is-policy-part-one-enforcement-bad8ea8eb35c).*
+_This is the second post in a two-part series about policy enforcement. If you're unfamiliar with the idea of policy enforcement check out [Part One: Enforcement](/blog/what-is-policy-part-one-enforcement-bad8ea8eb35c)._
 
 Last time we examined alternative approaches to policy enforcement. We saw that tribal knowledge and documentation on wikis provide few guarantees about enforcement but also that automated solutions often make policy difficult to understand and expensive to maintain. In this post, we'll examine how policy engines can help balance the desire for automated enforcement and the need for ease-of-use.
 
@@ -21,7 +21,7 @@ For example, a policy-enabled API-gateway asks its policy engine whether a clien
 
 Decoupling allows us to define policy in a language different from the one used to implement the service that enforces policy. We can choose a higher-level language for expressing policy that makes policy easier to write, update, understand, analyze, and optimize. For example, it's much simpler (for most people) to read and write **"permit tcp host 1.2.3.4 port http"** than it is read or write the equivalent C (or Java or Python or …) code.
 
-Policy engines usually support **declarative languages** for defining policy. A declarative language lets us tell the system *what* we want it to do as opposed to imperative code where we tell the system *how* to do what we want. Declarative languages balance peoples' need for expressing policy with the policy engine's need to understand the policy definition.
+Policy engines usually support **declarative languages** for defining policy. A declarative language lets us tell the system _what_ we want it to do as opposed to imperative code where we tell the system _how_ to do what we want. Declarative languages balance peoples' need for expressing policy with the policy engine's need to understand the policy definition.
 
 Declarative languages are also nice because they can provide:
 

@@ -9,7 +9,7 @@ slug: type-checking-your-rego-policies-with-json-schema-in-opa-5f7ac4c8a958
 
 ### By Ansu Varghese, Mandana Vaziri, Torin Sandall
 
-***IBM Research & Styra***
+_**IBM Research & Styra**_
 
 The Open Policy Agent (OPA) is an open-source engine that unifies policy enforcement across the cloud native stack. It provides a query language called Rego that lets the user specify policy as code and an engine that evaluates the queries given input data.
 
@@ -25,7 +25,7 @@ This feature is now available in OPA v0.27.0. Let's check it out!
 
 ![Rego type checking demo](/img/blog/type-checking-your-rego-policies-with-json-schema-in-opa-5f7ac4c8a958/1.webp)
 
-*Rego type checking demo*
+_Rego type checking demo_
 
 Consider the following Rego code, which assumes as input a Kubernetes admission review. For resources that are Pods, it checks that the image name starts with a specific prefix.
 
@@ -48,23 +48,23 @@ Consider the following input document:
 ```json
 {
   "kind": "AdmissionReview",
-   "request": {
-     "kind": {
-       "kind": "Pod",
-       "version": "v1"
-     },
-     "object": {
-       "metadata": {
-         "name": "myapp"
-       },
-       "spec": {
-         "containers": [
-           {"image": "nginx", "name": "nginx-frontend"},
-           {"image": "mysql", "name": "mysql-backend"}
-         ]
-       }
-     }
-   }
+  "request": {
+    "kind": {
+      "kind": "Pod",
+      "version": "v1"
+    },
+    "object": {
+      "metadata": {
+        "name": "myapp"
+      },
+      "spec": {
+        "containers": [
+          { "image": "nginx", "name": "nginx-frontend" },
+          { "image": "mysql", "name": "mysql-backend" }
+        ]
+      }
+    }
+  }
 }
 ```
 

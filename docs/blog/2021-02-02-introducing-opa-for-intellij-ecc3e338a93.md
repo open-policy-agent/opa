@@ -6,7 +6,7 @@ slug: introducing-opa-for-intellij-ecc3e338a93
 description: "OPA Plugin for IntelliJ IDEA brings Rego language support and an IDE experience to your OPA workflow!"
 ---
 
-*[OPA Plugin](https://github.com/open-policy-agent/opa-idea-plugin) for IntelliJ IDEA brings Rego language support and an IDE experience to your OPA workflow!*
+_[OPA Plugin](https://github.com/open-policy-agent/opa-idea-plugin) for IntelliJ IDEA brings Rego language support and an IDE experience to your OPA workflow!_
 
 [IntelliJ IDEA](https://www.jetbrains.com/idea/) is one of the most popular IDEs for developers, offering built-in support for many programming languages such as Java, Kotlin, and Python. A new OPA plugin extends this support to policies written in the [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) query language, and it also works with [GoLand](https://www.jetbrains.com/go/) for Go developers. The plugin lets users write and evaluate policies directly inside the IDE.
 

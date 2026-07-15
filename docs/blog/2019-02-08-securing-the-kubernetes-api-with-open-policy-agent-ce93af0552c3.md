@@ -150,7 +150,7 @@ spec:
           servicePort: 80
 ```
 
-Below is the (essence of the) OPA policy that stops an ingress from being created/updated if there is an *existing* ingress that it would conflict with.
+Below is the (essence of the) OPA policy that stops an ingress from being created/updated if there is an _existing_ ingress that it would conflict with.
 
 ```rego
 deny {
@@ -178,4 +178,4 @@ In this post, we dug into the API security challenges faced by Kubernetes and ho
 - Kubernetes's API is YAML-centric, meaning that the arguments to API calls are (at least conceptually) arbitrary chunks of YAML.
 - A YAML-centric API is challenging for access control because it requires analyzing that YAML to make a decision. For example, the policy "ensure all images come from a trusted repository" requires navigating the YAML to find the list of all containers, iterating over that list, extracting the image name, and string-parsing that image name to extract the repository.
 - The Open Policy Agent's declarative policy language was designed to express policy over arbitrary JSON/YAML, so it includes implicit iteration, dot-notation, and 50+ builtins.
-- OPA also supports *context-aware* policies that let you analyze both the resource that a user is trying to create/update and all of the other Kubernetes resources that already exist. It's all just JSON/YAML to OPA. For example, the policy "prohibit ingresses with conflicting hostnames" requires comparing any new ingress that is being created to all the existing ingresses.
+- OPA also supports _context-aware_ policies that let you analyze both the resource that a user is trying to create/update and all of the other Kubernetes resources that already exist. It's all just JSON/YAML to OPA. For example, the policy "prohibit ingresses with conflicting hostnames" requires comparing any new ingress that is being created to all the existing ingresses.

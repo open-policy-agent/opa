@@ -6,7 +6,7 @@ date: 2023-01-25
 slug: september-newsletter-3266b098c5f5
 ---
 
-*September Edition!*
+_September Edition!_
 
 Happy September Everyone! This month's edition is coming in a little late, but don't worry, it's still packed with great information.
 

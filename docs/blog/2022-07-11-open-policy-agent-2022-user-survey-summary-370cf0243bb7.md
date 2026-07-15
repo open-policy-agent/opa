@@ -49,6 +49,6 @@ To sum it up, we saw consistency in the implementation goals and number of use c
 
 Thanks for your participation in this year's OPA User Survey. If you've sent us your mailing address, you can expect your t-shirt to arrive in your mailbox soon!
 
-*photo credit Kayla*
+_photo credit Kayla_
 
-*Happy OPA 2022 Survey from Charlie!*
+_Happy OPA 2022 Survey from Charlie!_

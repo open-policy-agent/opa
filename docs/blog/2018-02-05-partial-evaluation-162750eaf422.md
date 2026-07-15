@@ -5,11 +5,11 @@ date: 2018-02-05
 slug: partial-evaluation-162750eaf422
 ---
 
-We'd like to introduce a new OPA feature called *partial evaluation* which has several interesting applications. In this post we'll explain how partial evaluation works, and how it leverages rule indexing to optimize policy evaluation for low-latency use cases (e.g. microservice API authorization).
+We'd like to introduce a new OPA feature called _partial evaluation_ which has several interesting applications. In this post we'll explain how partial evaluation works, and how it leverages rule indexing to optimize policy evaluation for low-latency use cases (e.g. microservice API authorization).
 
 ## What Is Partial Evaluation?
 
-With partial evaluation, callers specify that certain inputs or pieces of data are *unknown*. OPA evaluates as much of the policy as possible without touching parts that depend on unknown values. The result of partial evaluation is *a new policy* that can be evaluated more efficiently than the original.
+With partial evaluation, callers specify that certain inputs or pieces of data are _unknown_. OPA evaluates as much of the policy as possible without touching parts that depend on unknown values. The result of partial evaluation is _a new policy_ that can be evaluated more efficiently than the original.
 
 ![Diagram comparing Normal Evaluation and Partial Evaluation flows](/img/blog/partial-evaluation-162750eaf422/banner.webp)
 
@@ -45,11 +45,11 @@ allowed_operations = [
 ]
 ```
 
-To use this policy, callers query OPA by asking for the value of **smart_home.allow** which will be **true** or **false** depending on whether the request should be allowed or denied. To answer the policy query, OPA *searches* the allowed_operations data to find a match.
+To use this policy, callers query OPA by asking for the value of **smart_home.allow** which will be **true** or **false** depending on whether the request should be allowed or denied. To answer the policy query, OPA _searches_ the allowed_operations data to find a match.
 
 The nice thing about this policy is that we only have to write the search logic (**allow**) once, up front. After that, we can expand the data set (**allowed_operations**) to cover more and more appliances.
 
-> In real scenarios, **allowed_operations** would be loaded into OPA as *data* instead of hardcoded in the policy. It's hardcoded into the policy to make the example simpler.
+> In real scenarios, **allowed_operations** would be loaded into OPA as _data_ instead of hardcoded in the policy. It's hardcoded into the policy to make the example simpler.
 
 The downside is that OPA needs to potentially search over the entire data set each time an API request is received. As we automate more of our home, the authorization decision will take longer to compute.
 
@@ -117,10 +117,10 @@ Suppose we have the policy from above, but instead of 3 resources, we have hundr
 
 ```json
 {
-    "input": {
-        "method": "GET",
-        "resource": "security-camera-493"
-    }
+  "input": {
+    "method": "GET",
+    "resource": "security-camera-493"
+  }
 }
 ```
 
@@ -134,12 +134,12 @@ In this case, the request is allowed and normal evaluation takes around **5ms** 
 
 ```json
 {
-    "metrics": {
-         "timer_rego_query_compile_ns": 71412,
-         "timer_rego_query_eval_ns": 5185152,
-         "timer_rego_query_parse_ns": 194950
-    },
-    "result": true
+  "metrics": {
+    "timer_rego_query_compile_ns": 71412,
+    "timer_rego_query_eval_ns": 5185152,
+    "timer_rego_query_parse_ns": 194950
+  },
+  "result": true
 }
 ```
 
@@ -154,13 +154,13 @@ Now when we run the call, we get back the same results, but we can see the query
 
 ```json
 {
-    "metrics": {
-        "timer_rego_partial_eval_ns": 10613556,
-        "timer_rego_query_compile_ns": 137427,
-        "timer_rego_query_eval_ns": 43921,
-        "timer_rego_query_parse_ns": 200871
-    },
-    "result": true
+  "metrics": {
+    "timer_rego_partial_eval_ns": 10613556,
+    "timer_rego_query_compile_ns": 137427,
+    "timer_rego_query_eval_ns": 43921,
+    "timer_rego_query_parse_ns": 200871
+  },
+  "result": true
 }
 ```
 
@@ -173,12 +173,12 @@ curl localhost:8181/v1/data/smart_home/allow?metrics&partial \
 
 ```json
 {
-    "metrics": {
-        "timer_rego_query_compile_ns": 78901,
-        "timer_rego_query_eval_ns": 50405,
-        "timer_rego_query_parse_ns": 22203
-    },
-    "result": true
+  "metrics": {
+    "timer_rego_query_compile_ns": 78901,
+    "timer_rego_query_eval_ns": 50405,
+    "timer_rego_query_parse_ns": 22203
+  },
+  "result": true
 }
 ```
 
@@ -195,32 +195,32 @@ For more information on how to embed OPA as a library and leverage the partial e
 
 An immediate application for partial evaluation is [RBAC](https://en.wikipedia.org/wiki/Role-based_access_control) policy enforcement. RBAC provides a simple, coarse-grained way of granting permissions by groupings. Determining whether to allow requests under RBAC involves identifying whether the caller has been associated with a role that grants permission to the perform the operation.
 
-In projects like [Kubernetes](https://kubernetes.io/docs/admin/authorization/rbac/) and [Istio](https://istio.io/docs/concepts/security/rbac.html), RBAC configuration is specified using *roles* and *role bindings*. Roles grant permission to perform operations and role bindings associate subjects (e.g., users or service accounts) to roles. Below is an example of some role and role binding data:
+In projects like [Kubernetes](https://kubernetes.io/docs/admin/authorization/rbac/) and [Istio](https://istio.io/docs/concepts/security/rbac.html), RBAC configuration is specified using _roles_ and _role bindings_. Roles grant permission to perform operations and role bindings associate subjects (e.g., users or service accounts) to roles. Below is an example of some role and role binding data:
 
 ```json
 {
-    "roles": [
-        {
-            "operation": "read",
-            "resource": "widgets",
-            "name": "widget-reader"
-        },
-        {
-            "operation": "write",
-            "resource": "widgets",
-            "name": "widget-writer"
-        }
-    ],
-    "bindings": [
-        {
-            "user": "inspector-alice",
-            "role": "widget-reader"
-        },
-        {
-            "user": "maker-bob",
-            "role": "widget-writer"
-        }
-    ]
+  "roles": [
+    {
+      "operation": "read",
+      "resource": "widgets",
+      "name": "widget-reader"
+    },
+    {
+      "operation": "write",
+      "resource": "widgets",
+      "name": "widget-writer"
+    }
+  ],
+  "bindings": [
+    {
+      "user": "inspector-alice",
+      "role": "widget-reader"
+    },
+    {
+      "user": "maker-bob",
+      "role": "widget-writer"
+    }
+  ]
 }
 ```
 

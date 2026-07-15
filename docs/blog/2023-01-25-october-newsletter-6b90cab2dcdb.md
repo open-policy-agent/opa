@@ -6,7 +6,7 @@ date: 2023-01-25
 slug: october-newsletter-6b90cab2dcdb
 ---
 
-*October Edition!*
+_October Edition!_
 
 October is here, the leaves are changing colors, and weather is starting to become cool.
 

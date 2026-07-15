@@ -6,7 +6,7 @@ date: 2023-01-25
 slug: november-newsletter-9f3bbcb29405
 ---
 
-*November Edition!*
+_November Edition!_
 
 November has arrived and we are looking forward to the holiday season!
 

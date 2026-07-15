@@ -40,13 +40,13 @@ Or, maybe it's information about the attributes for a pet at a pet store:
 
 ```json
 {
-    "id": "i0779921",
-    "name": "Lassie",
-    "breed": "collie",
-    "owners": [{
-        "first": "Rudd",
-        "last": "Weatherwax"
-    }]
+  "id": "i0779921",
+  "name": "Lassie",
+  "breed": "collie",
+  "owners": [{
+    "first": "Rudd",
+    "last": "Weatherwax"
+  }]
 }
 ```
 
@@ -128,10 +128,10 @@ For example, for a simple HTTP API the input JSON object could be:
 
 ```json
 {
-    "method": "GET",
-    "path": "/dogs/dog123",
-    "user": "alice",
-    "roles": ["customer", "guest"]
+  "method": "GET",
+  "path": "/dogs/dog123",
+  "user": "alice",
+  "roles": ["customer", "guest"]
 }
 ```
 
@@ -162,13 +162,13 @@ For example, suppose the following JSON object is the `input`.
 
 ```json
 {
-    "id": "i0779921",
-    "name": "Lassie",
-    "breed": "collie",
-    "owners": [{
-        "first": "Rudd",
-        "last": "Weatherwax"
-    }]
+  "id": "i0779921",
+  "name": "Lassie",
+  "breed": "collie",
+  "owners": [{
+    "first": "Rudd",
+    "last": "Weatherwax"
+  }]
 }
 ```
 
@@ -187,10 +187,10 @@ For example, say you want to allow an `admin` to perform any operation, and you'
 
 ```json
 {
-    "method": "GET",
-    "path": "/dogs/dog123",
-    "user": "alice",
-    "roles": ["customer", "guest"]
+  "method": "GET",
+  "path": "/dogs/dog123",
+  "user": "alice",
+  "roles": ["customer", "guest"]
 }
 ```
 

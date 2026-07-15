@@ -57,7 +57,7 @@ This approach works well for small inputs and keeps the enforcement model relati
 
 The downside is that it requires the service to know the exact context required by the policy. Each API endpoint exposed by the service (or set of services) could need custom logic to fetch the context to provide as input to the policy query. **Tight coupling between the service and the policy is difficult to maintain over time.** Moreover, as the size of the input grows, it may become prohibitive to fetch and supply context on every query.
 
-Another approach is to have the pet-veterinarian mapping replicated into OPA and cached in-memory. This approach requires an additional component to act as a *data source (DS)* that gathers the extra context required by policies and loads it into OPA.
+Another approach is to have the pet-veterinarian mapping replicated into OPA and cached in-memory. This approach requires an additional component to act as a _data source (DS)_ that gathers the extra context required by policies and loads it into OPA.
 
 ![A DS component feeds pet-veterinarian mappings into the DB, which OPA and petprofilesv1 use to make the allow decision](/img/blog/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4/3.webp)
 
@@ -79,7 +79,7 @@ We could also use built-in functions in OPA to execute HTTP requests or query ex
 
 In addition to challenges with replication, we also have to deal with APIs that return lists of resources.
 
-When designing service APIs, it's common to expose a *list* operation to return all the resources in a collection (e.g., the `petprofilesv1` service needs to expose `GET /pets`). Since list operations frequently return the same information (for each resource) as reads for individual resources, it's important that we apply the authorization policy to filter elements in the result.
+When designing service APIs, it's common to expose a _list_ operation to return all the resources in a collection (e.g., the `petprofilesv1` service needs to expose `GET /pets`). Since list operations frequently return the same information (for each resource) as reads for individual resources, it's important that we apply the authorization policy to filter elements in the result.
 
 While we could execute a policy query for each resource (or structure the policy to accept a list of resources to authorize access to), this approach complicates pagination models and does not scale well compared to filtering in the data store.
 
@@ -87,11 +87,11 @@ While we could execute a policy query for each resource (or structure the policy
 
 In the first section of this post we explained why it may be difficult to replicate context into OPA in a reliable, maintainable, and performant manner.
 
-As of the latest release of OPA (v0.9), services can leverage the [Partial Evaluation](/blog/partial-evaluation-162750eaf422) feature to avoid replicating context into OPA. When services use Partial Evaluation, they specify what portions of the data or input documents are *unknown*. When OPA evaluates the policy, any statements that depend on unknown values are not evaluated — they are saved and returned to the caller.
+As of the latest release of OPA (v0.9), services can leverage the [Partial Evaluation](/blog/partial-evaluation-162750eaf422) feature to avoid replicating context into OPA. When services use Partial Evaluation, they specify what portions of the data or input documents are _unknown_. When OPA evaluates the policy, any statements that depend on unknown values are not evaluated — they are saved and returned to the caller.
 
 By partially evaluating authorization policies, OPA can treat context that's unavailable during evaluation as unknown. For example, statements that depend on the pet-veterinarian mapping would be saved and returned to the caller.
 
-![Partial evaluation output: the unresolved condition data.pets["fluffy"].veterinarian = "alice" is returned alongside OPA](/img/blog/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4/4.webp)
+![Partial evaluation output: the unresolved condition data.pets.fluffy.veterinarian = "alice" is returned alongside OPA](/img/blog/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4/4.webp)
 
 The table below shows the output when the service queries OPA for a request from `alice` trying to access `fluffy`'s profile.
 
@@ -197,7 +197,7 @@ allowed[pet] {
 }
 ```
 
-In this example we have factored the authorization decision into helper rules named `allowed`. The `allowed` rules generate a *set* of pets the user is allowed to see.
+In this example we have factored the authorization decision into helper rules named `allowed`. The `allowed` rules generate a _set_ of pets the user is allowed to see.
 
 To integrate with OPA, the service invokes the Compile API and marks the `data.pets` path as unknown. For example, when `fluffy`'s veterinarian `alice` requests the profile from a device at the clinic, the query to OPA looks like this:
 
@@ -289,7 +289,7 @@ These statements will get translated into a SQL WHERE clause that return all of 
 (pets.veterinarian = "alice" AND pets.clinic = "SOMA")
 ```
 
-This example highlights how you can reuse the same data authorization policy across both the *get* and *list* APIs.
+This example highlights how you can reuse the same data authorization policy across both the _get_ and _list_ APIs.
 
 ## Try It Out
 
@@ -308,6 +308,6 @@ Next we plan to tackle:
 - Integrations with other kinds of databases, e.g., Elasticsearch.
 - Tooling to identify when policies exceed the supported fragments of Rego.
 - Indirection layers between the policy and underlying DB schema.
-- Other use cases that build on partial evaluation like *column masking*.
+- Other use cases that build on partial evaluation like _column masking_.
 
 If you have questions or comments, or you are interested in contributing, please reach out via [Slack](https://slack.openpolicyagent.org) or create tickets on [GitHub](https://github.com/open-policy-agent/opa).

@@ -121,13 +121,13 @@ A major advantage of treating policy as code is that code is testable. Unit test
 
 ### Policy and Data Distribution
 
-Policy is commonly only half of the equation when OPA makes decisions — having access to up-to-date *data* related to users, endpoints or resources is often just as important. Data tends to be more dynamic in nature than policy, and certain types of deployments require a **lot** of data. The combination of huge datasets and frequently changing data would previously require continuous transfer of all required data in a bundle — even when only a few attributes had been updated. The introduction of [delta bundles](https://www.openpolicyagent.org/docs/latest/management-bundles/#delta-bundles) solves this by providing a new bundle type containing only the changes to data made since the last fetch, i.e. the *delta*. A much-awaited feature, and one that will help ensure OPA covers even the most complex of use cases going forward.
+Policy is commonly only half of the equation when OPA makes decisions — having access to up-to-date _data_ related to users, endpoints or resources is often just as important. Data tends to be more dynamic in nature than policy, and certain types of deployments require a **lot** of data. The combination of huge datasets and frequently changing data would previously require continuous transfer of all required data in a bundle — even when only a few attributes had been updated. The introduction of [delta bundles](https://www.openpolicyagent.org/docs/latest/management-bundles/#delta-bundles) solves this by providing a new bundle type containing only the changes to data made since the last fetch, i.e. the _delta_. A much-awaited feature, and one that will help ensure OPA covers even the most complex of use cases going forward.
 
 Another introduction this year was support for [OCI](https://opencontainers.org/) [bundle registries](https://www.openpolicyagent.org/docs/latest/management-bundles/#oci-registry). In an increasingly containerized world, distribution of applications is no longer the only use case for containers, and providing policy and data using the same channels as you would for e.g. Docker images, simplify things considerably in many environments.
 
 ### Disk Storage
 
-While delta bundles may solve the problem of *distributing* large volumes of data, that data must eventually still be stored somewhere for OPA to make use of it. Up until this year, only a single option for storage was provided: in-memory. While this is normally the best place to store it for fast access, large datasets distributed in-memory across a large number of running instances quickly adds up, and many are those who learnt the hard way that the old slogan of "memory is cheap" isn't always true at scale. The [disk based storage](https://www.openpolicyagent.org/docs/latest/configuration/#disk-storage) option now provides a balance between performance and costs, and is a welcome addition to OPA in many types of integrations.
+While delta bundles may solve the problem of _distributing_ large volumes of data, that data must eventually still be stored somewhere for OPA to make use of it. Up until this year, only a single option for storage was provided: in-memory. While this is normally the best place to store it for fast access, large datasets distributed in-memory across a large number of running instances quickly adds up, and many are those who learnt the hard way that the old slogan of "memory is cheap" isn't always true at scale. The [disk based storage](https://www.openpolicyagent.org/docs/latest/configuration/#disk-storage) option now provides a balance between performance and costs, and is a welcome addition to OPA in many types of integrations.
 
 ### Compiler Strict mode
 
@@ -158,7 +158,7 @@ Some improvements are more understated, though no less noteworthy. As a mature s
 - The — optimize flag now works for more commands (previously only available for `opa build`)
 - Lazy objects optimization allows delaying evaluation of attributes until needed
 - Built-in function optimizations for `object.get`, `in`, `object.union_n`, and others
-- Two new highly optimized built-in functions for doing prefix and suffix matching *en masse*: `strings.any_prefix_match` and `strings.any_suffix_match`
+- Two new highly optimized built-in functions for doing prefix and suffix matching _en masse_: `strings.any_prefix_match` and `strings.any_suffix_match`
 - Internal optimizations to set element addition, object insertion and set union.
 
 ## Ecosystem and integrations

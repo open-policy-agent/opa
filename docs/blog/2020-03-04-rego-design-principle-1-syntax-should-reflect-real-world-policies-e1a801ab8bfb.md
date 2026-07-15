@@ -67,16 +67,16 @@ An equivalent JavaScript version, given for contrast:
 ```javascript
 // Not a Rego example.  A JavaScript example.
 function allow() {
-    return allow1() || allow2()
+  return allow1() || allow2();
 }
 
 function allow1() {
-    return input.method == "GET"
+  return input.method == "GET";
 }
 
 function allow2() {
-    return input.method == "POST" &&
-           input.is_admin == true
+  return input.method == "POST"
+    && input.is_admin == true;
 }
 ```
 

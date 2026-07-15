@@ -5,17 +5,17 @@ date: 2019-06-11
 slug: policy-driven-continuous-integration-with-open-policy-agent-b98a8748e536
 ---
 
-*Take sound security policy to the source*
+_Take sound security policy to the source_
 
 One of the things that I love most about [Open Policy Agent](https://openpolicyagent.org) (**OPA**) is that it was built to be interoperable with other systems. Anything that produces JSON — and nowadays most things do — can provide OPA with inputs for rendering policy judgments. Due to this interoperability, you can use OPA with container-based development tools like [Docker](https://www.openpolicyagent.org/docs/latest/docker-authorization/), infrastructure provisioning tools like [Terraform](https://www.openpolicyagent.org/docs/latest/terraform/), container orchestration platforms like [Kubernetes](https://www.openpolicyagent.org/docs/latest/kubernetes-admission-control/), and that's just scratching the surface.
 
 ## OPA and continuous integration
 
-Because OPA can integrate with just about anything, virtually every single part of a modern software "stack" can be policy driven, *including* continuous integration. With OPA you can create policies that govern which artifacts are allowed to be built *in the first place*, providing a powerful lever for keeping potentially malicious jobs and services from *ever* running on your systems (make sure those are also governed by OPA policies!).
+Because OPA can integrate with just about anything, virtually every single part of a modern software "stack" can be policy driven, _including_ continuous integration. With OPA you can create policies that govern which artifacts are allowed to be built _in the first place_, providing a powerful lever for keeping potentially malicious jobs and services from _ever_ running on your systems (make sure those are also governed by OPA policies!).
 
 Incidents like the recent `event-stream` debacle (see [details](https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident)) — amongst many others — demonstrate just how necessary these safeguards are.
 
-In fact, you're probably *already* applying policies at the CI level but doing so in an ad hoc way via a loose assemblage of scripts. OPA provides an excellent platform for making those implicit policies explicit and declarative. I'll provide a straightforward example for what policy-driven CI may look like in the next section.
+In fact, you're probably _already_ applying policies at the CI level but doing so in an ad hoc way via a loose assemblage of scripts. OPA provides an excellent platform for making those implicit policies explicit and declarative. I'll provide a straightforward example for what policy-driven CI may look like in the next section.
 
 > "You're probably already _applying policies at the CI level but doing so in an ad hoc way. OPA enables you to make your implicit policies explicit and declarative._"
 
@@ -23,7 +23,7 @@ In fact, you're probably *already* applying policies at the CI level but doing s
 
 As an example, let's say that I'm a developer working on a Node.js web server in a large organization. That organization enforces CI policies using a policy written in [Rego](https://www.openpolicyagent.org/docs/latest/how-do-i-write-policies), OPA's policy language. The CI provider is [GitHub Actions](https://developer.github.com/actions/), though the example could easily be ported to other CI providers. The code for this example is in the [lucperkins/opa-ci-example](https://github.com/lucperkins/opa-ci-example/) repository on GitHub.
 
-*The Rego policy governing package.json `dependencies`*
+_The Rego policy governing package.json `dependencies`_
 
 ```rego
 package ci
@@ -51,13 +51,13 @@ allow {
 
 This policy takes each project's `package.json` file as an input and applies the policy to that (notice the `input.dependencies`). Two things to note about the policy:
 
-- `default allow = false` means that my `package.json` dependencies are *presumed* faulty and must pass muster before the next CI stage (the installation stage) is reached. This is generally a good practice for Rego policies.
-- The `violations[pkg]` block creates a list of blacklist-violating packages that is returned in the evaluation output in case of violations, making it easier for developers to know *why* the evaluation is failing.
+- `default allow = false` means that my `package.json` dependencies are _presumed_ faulty and must pass muster before the next CI stage (the installation stage) is reached. This is generally a good practice for Rego policies.
+- The `violations[pkg]` block creates a list of blacklist-violating packages that is returned in the evaluation output in case of violations, making it easier for developers to know _why_ the evaluation is failing.
 - The evaluation succeeds (i.e. the script returns an exit code of 0) only if there are no violations (`count(violations) == 0`); otherwise, it fails.
 
 So that covers our dependencies policy. Now let's dive into the GitHub Action workflow definition.
 
-*The GitHub Actions workflow for this application*
+_The GitHub Actions workflow for this application_
 
 ```hcl
 workflow "OPA evaluation" {
@@ -113,7 +113,7 @@ If I'm a developer working on this project, I get highly readable, actionable fe
 
 Well… not so good. On my current [`dev`](https://github.com/lucperkins/opa-ci-example/tree/dev) branch, my `package.json` file looks like this.
 
-*The doomed-to-fail package.json*
+_The doomed-to-fail package.json_
 
 ```json
 {

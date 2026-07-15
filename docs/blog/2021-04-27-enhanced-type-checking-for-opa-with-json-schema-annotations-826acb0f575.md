@@ -8,7 +8,8 @@ slug: enhanced-type-checking-for-opa-with-json-schema-annotations-826acb0f575
 ![](/img/blog/enhanced-type-checking-for-opa-with-json-schema-annotations-826acb0f575/banner.webp)
 
 ### By Mandana Vaziri, Ansu Varghese, Torin Sandall
-***IBM Research & Styra***
+
+_**IBM Research & Styra**_
 
 ## What's happened?
 
@@ -101,6 +102,7 @@ Loading the schema directory can be done via:
 In this example, `input` is associated with the Admission Review schema (`input.json`), and `input.request.object` is set to the Kubernetes Pod schema (`pod.json`), with the second annotation overriding the first. The order of annotations is stated to matter "for overriding to work correctly."
 
 Notes on schema reference syntax:
+
 - Relative paths inside `mySchemasDir` are used, omitting the `.json` suffix
 - The global variable `schema` represents the top level of the directory
 - `schema.input` is valid; `schema.pod-schema` is invalid due to the hyphen — the correct syntax is `schema["pod-schema"]`

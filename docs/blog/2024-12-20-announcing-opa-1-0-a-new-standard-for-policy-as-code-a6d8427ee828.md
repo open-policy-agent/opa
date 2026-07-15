@@ -34,4 +34,4 @@ And that's a wrap! OPA 1.0 is here, it's a milestone release for our project and
 
 We want to extend our gratitude to our incredible community for always testing the latest versions, reporting bugs, contributing code and supporting fellow community members on their Rego journeys. We're not done yet and look forward to working together for years to come.
 
-*Happy holidays — the OPA team*
+_Happy holidays — the OPA team_
