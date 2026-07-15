@@ -5,7 +5,7 @@ date: 2021-01-04
 slug: open-policy-agent-2020-year-in-review-dc25b60308d7
 ---
 
-![](/img/blog/open-policy-agent-2020-year-in-review-dc25b60308d7/banner.webp)
+![Open Policy Agent 2020 year in review banner image](/img/blog/open-policy-agent-2020-year-in-review-dc25b60308d7/banner.webp)
 
 ## Introduction
 

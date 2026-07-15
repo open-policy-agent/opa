@@ -5,7 +5,7 @@ date: 2019-05-07
 slug: envoy-external-authorization-with-opa-578213ed567c
 ---
 
-![](/img/blog/envoy-external-authorization-with-opa-578213ed567c/banner.webp)
+![Envoy external authorization with OPA banner](/img/blog/envoy-external-authorization-with-opa-578213ed567c/banner.webp)
 
 Microservices improve productivity of individual development teams by breaking down applications into smaller, standalone parts. However, microservices alone do not solve age-old distributed systems problems like service discovery, authentication, and authorization. In fact, these problems are often more acute due to the heterogenous and ephemeral nature of microservice environments.
 
@@ -46,12 +46,12 @@ Ensure that you have recent versions of docker and docker-compose installed.
 
 **Step 2: Clone the repo and Start containers**
 
-Clone the OPA-Envoy-SPIRE repo with git clone git@github.com:ashutosh-narkar/opa-envoy-spire-ext-authz.git
+Clone the OPA-Envoy-SPIRE repo with `git clone git@github.com:ashutosh-narkar/opa-envoy-spire-ext-authz.git`
 
 ```bash
-$ cd opa-envoy-spire-ext-authz
-$ docker-compose up --build -d
-$ docker-compose ps
+cd opa-envoy-spire-ext-authz
+docker-compose up --build -d
+docker-compose ps
 ```
 
 The following containers should be running:
@@ -72,10 +72,10 @@ opa-envoy-spiffe-ext-authz_web_1            /bin/sh -c /usr/local/bin/ ...   Up 
 
 **Step 3: Start SPIRE Infrastructure**
 
-Start the SPIRE Agents and register the web, backend and db servers with the SPIRE Server. More information on the registration process can be found [here](https://spiffe.io/spire/overview/#workload-registration).
+Start the SPIRE Agents and register the web, backend and db servers with the SPIRE Server. More information on the registration process can be found in the [SPIRE workload registration guide](https://spiffe.io/spire/overview/#workload-registration).
 
 ```bash
-$ ./configure-spire.sh
+./configure-spire.sh
 ```
 
 **Step 4: Exercise Ingress Policy**
@@ -199,7 +199,7 @@ Try the OPA-Envoy Service-Service policy in the [Rego Playground](https://play.o
 
 X-Forwarded-Client-Cert header is injected by the Envoy proxy of the originating service and validated by the Envoy proxy of the destination service. Envoy is configured to forward the URI field in the client certificate. To identify the service making the request, this policy uses the URI field of the X-Forwarded-Client-Cert header which in this case is the SPIFFE ID of the backend server.
 
-> x-forwarded-client-cert (XFCC) is a proxy header which indicates certificate information of part or all of the clients or proxies that a request has flowed through, on its way from the client to the server. More information about the header and it's supported keys can be found [here](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-client-cert).
+> x-forwarded-client-cert (XFCC) is a proxy header which indicates certificate information of part or all of the clients or proxies that a request has flowed through, on its way from the client to the server. More information about the header and it's supported keys can be found in the [Envoy HTTP headers documentation](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-client-cert).
 
 ## Example Envoy configuration
 
@@ -277,7 +277,7 @@ admin:
       port_value: 8001
 ```
 
-## And that's it!
+## And that's it
 
 And that's how you use OPA as an External authorization service to enforce ingress and service-to-service security policies using Envoy's External authorization filter. OPA leverages the authentication framework provided by SPIFFE/SPIRE and by configuring Envoy to forward client certificate details, OPA is able to make authorization decisions based on the SPIFFE ID included in the URI SAN of the client X.509 certificate.
 

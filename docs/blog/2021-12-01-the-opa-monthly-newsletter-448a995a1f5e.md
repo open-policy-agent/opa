@@ -14,7 +14,7 @@ Hello everyone and welcome to the very first edition of the OPA Monthly Newslett
 
 ## Slack Updates
 
-![](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/2.png)
+![OPA Slack community member growth screenshot](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/2.png)
 
 Our Slack Org now hosts over 5,150 OPA community members!! The OPA team has been hard at work revamping the space to make it functional and valuable for all of our members. A little while ago you may remember we announced a [Slack Reorg](/blog/opa-slack-tune-up-b3c52492e2fc) to consolidate and update channel names and descriptions. This effort was to give everyone a clear understanding of what's going on and where to go.
 
@@ -43,15 +43,15 @@ For those not active on Twitter, we've collected some of the highlights and OPA 
 
 [https://twitter.com/that_tech_tea/status/1451930146835861504](https://twitter.com/that_tech_tea/status/1451930146835861504)
 
-![](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/3.jpeg)
+![Screenshot of that_tech_tea tweet mentioning OPA](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/3.jpeg)
 
 [https://twitter.com/nusairat/status/1458815340985520130](https://twitter.com/nusairat/status/1458815340985520130)
 
-![](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/4.jpeg)
+![Screenshot of nusairat tweet mentioning OPA](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/4.jpeg)
 
 [https://twitter.com/nmeisenzahl/status/1458419364433117184](https://twitter.com/nmeisenzahl/status/1458419364433117184)
 
-![](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/5.jpeg)
+![Screenshot of nmeisenzahl tweet sharing OPA slides](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/5.jpeg)
 
 Check out the slides and demos that [Nico Meisenzahl](https://twitter.com/nmeisenzahl) created:
 
@@ -90,7 +90,7 @@ The OPA Project is always changing, check out the latest updates and features fo
 
 ## Community Spotlights
 
-![](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/6.png)
+![Developer-Guy community spotlight for Cosign OPA integration](/img/blog/the-opa-monthly-newsletter-448a995a1f5e/6.png)
 
 - The one and only [Developer-Guy](https://github.com/developer-guy) has been working tirelessly to add OPA policy functionality to [Cosign](https://github.com/sigstore/cosign), Check out the [PR](https://github.com/sigstore/cosign/pull/641) to see the awesome work to connect the two projects.
 

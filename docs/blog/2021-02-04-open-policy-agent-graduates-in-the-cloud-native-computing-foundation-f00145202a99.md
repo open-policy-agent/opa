@@ -5,7 +5,7 @@ date: 2021-02-04
 slug: open-policy-agent-graduates-in-the-cloud-native-computing-foundation-f00145202a99
 ---
 
-![](/img/blog/open-policy-agent-graduates-in-the-cloud-native-computing-foundation-f00145202a99/banner.webp)
+![OPA graduates in the Cloud Native Computing Foundation banner](/img/blog/open-policy-agent-graduates-in-the-cloud-native-computing-foundation-f00145202a99/banner.webp)
 
 We're excited to announce that Open Policy Agent (OPA) is now a graduated project in the Cloud Native Computing Foundation (CNCF)! Graduation reflects the maturity of the project in terms of adoption, diversity of contributions, community and overall quality.
 

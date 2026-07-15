@@ -5,7 +5,7 @@ date: 2022-10-20
 slug: i-have-a-plan-exploring-the-opa-intermediate-representation-ir-format-7319cd94b37d
 ---
 
-![](/img/blog/i-have-a-plan-exploring-the-opa-intermediate-representation-ir-format-7319cd94b37d/banner.webp)
+![Diagram illustrating the OPA intermediate representation format](/img/blog/i-have-a-plan-exploring-the-opa-intermediate-representation-ir-format-7319cd94b37d/banner.webp)
 
 It isn't an overstatement to say that the versatility of Open Policy Agent (OPA) is a key factor in its success. As a general purpose policy engine, OPA needs to handle inputs from a disparate set of systems — Terraform, Kubernetes, CI/CD pipelines or custom applications, to name a few — and deliver decisions in a format understood by that particular system. Providing an agnostic approach to input and output data — anything that is or can be modeled hierarchically in a JSON or YAML document is potentially subject to policy — allows [integrating](https://www.openpolicyagent.org/docs/latest/ecosystem/) OPA with all kinds of systems, applications and tech stacks.
 
@@ -172,7 +172,7 @@ What about "g0.data.policy.allow" then? I promised we'd get back to the "funcs" 
 
 ![Evaluation plan statements and local state](/img/blog/i-have-a-plan-exploring-the-opa-intermediate-representation-ir-format-7319cd94b37d/1.png)
 
-_Evaluation plan statements and local state. As Medium does not have embeddable tables, you may find the spreadsheet from the image above [here](https://docs.google.com/spreadsheets/d/1pU9J3QkfKwkFOZf7UV_PWPHZspQvHOJxOw_zh4poLoQ/edit?usp=sharing)._
+_Evaluation plan statements and local state. As Medium does not have embeddable tables, you may find the spreadsheet from the image above in [this Google Sheets document](https://docs.google.com/spreadsheets/d/1pU9J3QkfKwkFOZf7UV_PWPHZspQvHOJxOw_zh4poLoQ/edit?usp=sharing)._
 
 To learn more about the different statements an evaluator implementation may encounter, consult the [OPA docs](https://www.openpolicyagent.org/docs/latest/ir/) on the topic.
 

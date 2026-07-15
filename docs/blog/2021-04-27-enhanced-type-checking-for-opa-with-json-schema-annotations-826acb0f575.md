@@ -5,9 +5,9 @@ date: 2021-04-27
 slug: enhanced-type-checking-for-opa-with-json-schema-annotations-826acb0f575
 ---
 
-![](/img/blog/enhanced-type-checking-for-opa-with-json-schema-annotations-826acb0f575/banner.webp)
+![Enhanced type checking for OPA with JSON schema](/img/blog/enhanced-type-checking-for-opa-with-json-schema-annotations-826acb0f575/banner.webp)
 
-### By Mandana Vaziri, Ansu Varghese, Torin Sandall
+## By Mandana Vaziri, Ansu Varghese, Torin Sandall
 
 _**IBM Research & Styra**_
 
@@ -72,7 +72,7 @@ These features are available in [**OPA v0.28.0**](https://github.com/open-policy
 
 ## What's the big deal you say?
 
-Example policies and schemas are available [here](https://github.com/aavarghese/opa-schema-examples).
+Example policies and schemas are available in the [opa-schema-examples repository](https://github.com/aavarghese/opa-schema-examples).
 
 The Kubernetes Admission Review example is revisited to demonstrate annotations and schema overriding. The `object` field in an Admission Review can contain any Kubernetes resource, and its [schema](https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/schemas/input.json) leaves that field generically typed.
 
@@ -173,18 +173,18 @@ Annotations can also apply at different scopes via the `scope` field in Metadata
 - **package** - applies to all of the rules in the package
 - **subpackages** - applies to all of the rules in the package and all subpackages (recursively)
 
-More details: https://www.openpolicyagent.org/docs/latest/schemas/#annotation-scopes
+More details: [Annotation scopes documentation](https://www.openpolicyagent.org/docs/latest/schemas/#annotation-scopes)
 
 ## What's Next?
 
 The article closes by noting future plans to extend schema support to additional JSON Schema features such as `additionalProperties`, with more updates promised in upcoming OPA releases.
 
-Further reading: https://www.openpolicyagent.org/docs/latest/schemas/
+Further reading: [OPA schemas documentation](https://www.openpolicyagent.org/docs/latest/schemas/)
 
 ## Links
 
-- Documentation: https://www.openpolicyagent.org/docs/latest/schemas/
-- Examples: https://github.com/aavarghese/opa-schema-examples/
-- JSON to JSON schema online tool: https://jsonschema.net/
-- JSON schema reference: http://json-schema.org/understanding-json-schema/reference/index.html
+- Documentation: [OPA schemas documentation](https://www.openpolicyagent.org/docs/latest/schemas/)
+- Examples: [opa-schema-examples repository](https://github.com/aavarghese/opa-schema-examples/)
+- JSON to JSON schema online tool: [jsonschema.net](https://jsonschema.net/)
+- JSON schema reference: [Understanding JSON Schema reference](http://json-schema.org/understanding-json-schema/reference/index.html)
 - Related blog: /blog/type-checking-your-rego-policies-with-json-schema-in-opa-5f7ac4c8a958

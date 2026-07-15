@@ -5,7 +5,7 @@ date: 2019-02-08
 slug: securing-the-kubernetes-api-with-open-policy-agent-ce93af0552c3
 ---
 
-![](/img/blog/securing-the-kubernetes-api-with-open-policy-agent-ce93af0552c3/banner.webp)
+![Banner image for securing the Kubernetes API with OPA](/img/blog/securing-the-kubernetes-api-with-open-policy-agent-ce93af0552c3/banner.webp)
 
 Kubernetes is being rolled out for production — it's mission critical. But it presents unique challenges around the age-old problem of who-can-do-what. Those challenges are exactly the ones the Open Policy Agent was designed to solve.
 

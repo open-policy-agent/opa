@@ -41,7 +41,7 @@ In `.rego` files, every line containing a rule head or package includes a "Run C
 
 Running a configuration from a rule head line shows `opa eval` results for that package/rule, using the bundle directory and input file set in the configuration.
 
-![](/img/blog/introducing-opa-for-intellij-ecc3e338a93/5.webp)
+![OPA eval results panel for a rule](/img/blog/introducing-opa-for-intellij-ecc3e338a93/5.webp)
 
 > Tip: you can use the shortcut `shift + F10` on Windows `^r` on Mac to re-run the last executed `Run Configuration`. It allows you to quickly check how changes affect your policies.
 
@@ -53,7 +53,7 @@ Running a configuration from a package line similarly shows `opa eval` results f
 
 Running a configuration from a `test_`-prefixed rule head runs `opa test`, with equivalent functionality available at the package level. Test results are displayed within the IDE.
 
-![](/img/blog/introducing-opa-for-intellij-ecc3e338a93/6.webp)
+![OPA test results displayed inside the IDE](/img/blog/introducing-opa-for-intellij-ecc3e338a93/6.webp)
 
 ## Coming Soon
 

@@ -5,7 +5,7 @@ date: 2019-11-19
 slug: opa-v0-15-1-rego-on-webassembly-81c226c51be4
 ---
 
-![](/img/blog/opa-v0-15-1-rego-on-webassembly-81c226c51be4/banner.webp)
+![OPA v0.15.1 release banner for Rego on WebAssembly](/img/blog/opa-v0-15-1-rego-on-webassembly-81c226c51be4/banner.webp)
 
 We're excited to announce that with OPA v0.15.1 you can compile any Rego policy into WebAssembly. This release is the culmination of many incremental improvements to the WebAssembly compiler in OPA that we demonstrated with a proof-of-concept at KubeCon 2018 in Seattle.
 

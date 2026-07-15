@@ -16,7 +16,7 @@ While many **features** have been added to OPA and the Rego language since 2015,
 
 With OPA 1.0, we're aiming to fix this.
 
-#### TL;DR
+## TL;DR
 
 If you have a busy day ahead and want to get right to something actionable — here's what you can do. From OPA [v0.59.0](https://github.com/open-policy-agent/opa/releases/tag/v0.59.0) and onwards, you can start to prepare for the changes in the upcoming 1.0 release following these steps:
 

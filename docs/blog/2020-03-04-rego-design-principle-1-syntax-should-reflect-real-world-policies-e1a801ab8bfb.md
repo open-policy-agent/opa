@@ -5,7 +5,7 @@ date: 2020-03-04
 slug: rego-design-principle-1-syntax-should-reflect-real-world-policies-e1a801ab8bfb
 ---
 
-![](/img/blog/rego-design-principle-1-syntax-should-reflect-real-world-policies-e1a801ab8bfb/banner.webp)
+![Banner image for Rego design principle number one blog post](/img/blog/rego-design-principle-1-syntax-should-reflect-real-world-policies-e1a801ab8bfb/banner.webp)
 
 Sometimes people ask why Rego, OPA's policy language, looks or behaves the way it does. Part of the answer is that Rego came about after having built two other general-purpose policy languages, and lessons learned from that process shaped this one. This multi-part post lays out the results of that journey — the key design principles for Rego, why they're important, and how they influenced the language.
 

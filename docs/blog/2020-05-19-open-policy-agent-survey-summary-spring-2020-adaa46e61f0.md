@@ -5,7 +5,7 @@ date: 2020-05-19
 slug: open-policy-agent-survey-summary-spring-2020-adaa46e61f0
 ---
 
-![](/img/blog/open-policy-agent-survey-summary-spring-2020-adaa46e61f0/banner.webp)
+![OPA Spring 2020 user survey summary banner](/img/blog/open-policy-agent-survey-summary-spring-2020-adaa46e61f0/banner.webp)
 
 Last month we surveyed the OPA community to learn more about user adoption and help us plan and improve the OPA project. We received 204 responses (up 175% from the last survey in April 2019) from over 150 organizations, with 91% of respondents indicating they are in some stage of OPA adoption (i.e., experimentation, pre-production, production.) This post highlights what we learned from the survey results.
 
@@ -94,6 +94,6 @@ The survey asked users: _"how can we improve the tutorials and documentation in 
 
 ## Wrap Up
 
-In the future, we plan to run the survey on a more regular basis with more consistent questions, so that we can compare historical results and observe trends over time. If you filled out the survey, thank you! We know you're excited to receive the t-shirts, and we're working on sending them your way! Due to the current situation, it might take a bit longer than we had expected. If you have not yet filled out the survey, you can still do so [here](https://styra.typeform.com/to/QrYJh8). As always, if you have any questions or additional feedback, we're available on the Slack, GitHub, etc.
+In the future, we plan to run the survey on a more regular basis with more consistent questions, so that we can compare historical results and observe trends over time. If you filled out the survey, thank you! We know you're excited to receive the t-shirts, and we're working on sending them your way! Due to the current situation, it might take a bit longer than we had expected. If you have not yet filled out the survey, you can still [fill out the survey](https://styra.typeform.com/to/QrYJh8). As always, if you have any questions or additional feedback, we're available on the Slack, GitHub, etc.
 
 _…even doggos love OPA [credit: [@webbergs](https://twitter.com/webbergs), idea: [@the_dvorkin](https://twitter.com/the_dvorkin)]_

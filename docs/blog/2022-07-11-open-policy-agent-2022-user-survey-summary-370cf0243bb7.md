@@ -5,7 +5,7 @@ date: 2022-07-11
 slug: open-policy-agent-2022-user-survey-summary-370cf0243bb7
 ---
 
-![](/img/blog/open-policy-agent-2022-user-survey-summary-370cf0243bb7/banner.webp)
+![Banner image for the OPA 2022 user survey summary](/img/blog/open-policy-agent-2022-user-survey-summary-370cf0243bb7/banner.webp)
 
 It's that time of year again! We have polled the Open Policy Agent (OPA) community to learn a bit more about what members are working on, their goals and how we can improve the project in the future. This year we had over 240 respondents, from various industries ranging from Software, Finance, E-commerce, Security, and more. With this new data set, we can learn if OPA usage has changed from the previous year, what features and tools are utilized the most and how to improve the OPA project as a whole for the community. To start, let's compare last year's survey results to this year's to see how things have changed or remained consistent:
 

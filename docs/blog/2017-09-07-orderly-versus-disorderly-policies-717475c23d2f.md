@@ -5,7 +5,7 @@ date: 2017-09-07
 slug: orderly-versus-disorderly-policies-717475c23d2f
 ---
 
-![](/img/blog/orderly-versus-disorderly-policies-717475c23d2f/banner.webp)
+![Banner image for the Orderly versus Disorderly Policies blog post](/img/blog/orderly-versus-disorderly-policies-717475c23d2f/banner.webp)
 
 One of the age-old questions with policy languages is: does the order of policy statements matter?
 

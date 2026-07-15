@@ -5,7 +5,7 @@ date: 2023-01-26
 slug: open-policy-agent-2022-year-in-review-79324ad54535
 ---
 
-![](/img/blog/open-policy-agent-2022-year-in-review-79324ad54535/banner.webp)
+![Banner image for OPA 2022 year in review blog post](/img/blog/open-policy-agent-2022-year-in-review-79324ad54535/banner.webp)
 
 It's a new year, and once again it's time to look back and reflect on the year that passed in the world of Open Policy Agent! 2022 was OPA's first full year as a CNCF graduated project, and while it would be easy to think that things would slow down after reaching that point of maturity and recognition, things have rather sped up. In community growth as well as pace of development — both of which we'll take a closer look at here.
 

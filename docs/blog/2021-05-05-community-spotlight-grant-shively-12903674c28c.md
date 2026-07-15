@@ -5,7 +5,7 @@ date: 2021-05-05
 slug: community-spotlight-grant-shively-12903674c28c
 ---
 
-![](/img/blog/community-spotlight-grant-shively-12903674c28c/banner.jpg)
+![Portrait photo of Grant Shively, GoDaddy principal software engineer](/img/blog/community-spotlight-grant-shively-12903674c28c/banner.jpg)
 
 "Community Spotlight" is a new series of blogs where we talk to people in and around the OPA community: users, integrators and contributors. Our first "spotlight" is [Grant Shively](https://www.linkedin.com/in/grant-shively/), principal software engineer at GoDaddy.
 

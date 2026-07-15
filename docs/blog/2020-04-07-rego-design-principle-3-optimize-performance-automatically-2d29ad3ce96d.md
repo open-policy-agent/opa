@@ -5,7 +5,7 @@ date: 2020-04-07
 slug: rego-design-principle-3-optimize-performance-automatically-2d29ad3ce96d
 ---
 
-![](/img/blog/rego-design-principle-3-optimize-performance-automatically-2d29ad3ce96d/banner.webp)
+![Banner for Rego design principle on automatic performance optimization](/img/blog/rego-design-principle-3-optimize-performance-automatically-2d29ad3ce96d/banner.webp)
 
 This is the third part of a blog series on the design principles behind Open Policy Agent's (OPA's) policy language Rego. Previously, we described how Rego's [syntax was designed to mirror the structure of real-world policies](/blog/rego-design-principle-1-syntax-should-reflect-real-world-policies-e1a801ab8bfb) and how Rego [embraces hierarchical data](/blog/rego-design-principle-2-embrace-hierarchical-data-8a4913bdfea1). In this part of the series, we look at Rego/OPA's commitment to automated performance optimization so that policy authors can focus on writing readable, maintainable policies, and OPA can shoulder the burden of evaluating those policies efficiently.
 

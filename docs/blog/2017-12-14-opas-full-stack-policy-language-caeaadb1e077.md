@@ -5,7 +5,7 @@ date: 2017-12-14
 slug: opas-full-stack-policy-language-caeaadb1e077
 ---
 
-![](/img/blog/opas-full-stack-policy-language-caeaadb1e077/banner.webp)
+![Banner image for OPA's full stack policy language post](/img/blog/opas-full-stack-policy-language-caeaadb1e077/banner.webp)
 
 The [Open Policy Agent](http://www.openpolicyagent.org/) (OPA) has been used to policy-enable software across several different domains across several layers of the stack: container management (Kubernetes), servers (Linux), public cloud infrastructure (Terraform), and microservice APIs (Istio, Linkerd, CloudFoundry). In this post we describe how OPA's policy language Rego manages to work for all these different domains and layers of the stack without requiring any changes or extensions to the language.
 

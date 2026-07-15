@@ -17,7 +17,7 @@ When policy engines are integrated into our systems, we refer to those systems a
 
 For example, a policy-enabled API-gateway asks its policy engine whether a client request should be allowed. The policy engine makes a decision, and the API-gateway rejects the request or forwards it along. Without the policy engine, the logic that decides whether to accept or reject is hard-coded/configured into the API-gateway.
 
-![](/img/blog/what-is-policy-part-two-policy-engines-7ee1d972386b/1.webp)
+![Diagram of a policy-enabled API gateway querying a policy engine](/img/blog/what-is-policy-part-two-policy-engines-7ee1d972386b/1.webp)
 
 Decoupling allows us to define policy in a language different from the one used to implement the service that enforces policy. We can choose a higher-level language for expressing policy that makes policy easier to write, update, understand, analyze, and optimize. For example, it's much simpler (for most people) to read and write **"permit tcp host 1.2.3.4 port http"** than it is read or write the equivalent C (or Java or Python or …) code.
 

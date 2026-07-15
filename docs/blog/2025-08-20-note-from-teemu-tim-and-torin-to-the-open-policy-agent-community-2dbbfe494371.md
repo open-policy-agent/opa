@@ -5,7 +5,7 @@ date: 2025-08-20
 slug: note-from-teemu-tim-and-torin-to-the-open-policy-agent-community-2dbbfe494371
 ---
 
-![](/img/blog/note-from-teemu-tim-and-torin-to-the-open-policy-agent-community-2dbbfe494371/banner.webp)
+![Banner announcing OPA creators joining Apple](/img/blog/note-from-teemu-tim-and-torin-to-the-open-policy-agent-community-2dbbfe494371/banner.webp)
 
 Today we're excited to announce that the creators of Open Policy Agent (along with many team members from Styra) have joined Apple to continue our decade-long mission of delivering an open source solution to unifying policy across the cloud-native stack.
 

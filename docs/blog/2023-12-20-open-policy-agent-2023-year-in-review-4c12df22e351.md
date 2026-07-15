@@ -5,7 +5,7 @@ date: 2023-12-20
 slug: open-policy-agent-2023-year-in-review-4c12df22e351
 ---
 
-![](/img/blog/open-policy-agent-2023-year-in-review-4c12df22e351/banner.webp)
+![Banner image for Open Policy Agent 2023 year in review post](/img/blog/open-policy-agent-2023-year-in-review-4c12df22e351/banner.webp)
 
 As 2023 draws to a close, the time has come to reflect on another important year for Open Policy Agent (OPA). Now more than two years deep into CNCF Graduated status, OPA continues to see accelerated growth in production deployments — and across a diverse range of use cases. Such use cases demand both performance and stability, while user base growth depends on learning resources and ease of use. This year, the OPA community has worked hard and delivered on all fronts, for new and experienced users alike. This post takes time to share how this was achieved; highlight prominent events and updates; celebrate input from the wider community and set the scene for a historic year of OPA in 2024.
 
@@ -154,7 +154,7 @@ The aforementioned linter, [Regal](https://www.openpolicyagent.org/integrations/
 
 If you're interested in listing your OPA integration or project, please see [the instructions](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem) or stop by the #ecosystem channel in the [OPA slack](https://communityinviter.com/apps/openpolicyagent/signup) if you have any questions.
 
-## Thanks!
+## Thanks
 
 2023 was an exciting year for OPA and its community. With so many projects using, integrating or extending OPA for all sorts of use cases — and so many users helping to contribute in all sorts of ways — this community is truly a great place to be. Thank you all who helped make it so! Your efforts are seen and appreciated.
 

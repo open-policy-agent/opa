@@ -5,7 +5,7 @@ date: 2021-08-31
 slug: open-policy-agent-2021-survey-summary-e749bbd7b824
 ---
 
-![](/img/blog/open-policy-agent-2021-survey-summary-e749bbd7b824/banner.webp)
+![OPA 2021 community survey results banner](/img/blog/open-policy-agent-2021-survey-summary-e749bbd7b824/banner.webp)
 
 _…happy OPA 2021 survey from Cal [credit: @eileen_kemp]_
 
@@ -91,4 +91,4 @@ Aside from debugging, the next most common request was better SDK support for OP
 
 ## Wrap Up
 
-Thanks to everyone who completed the survey! The OPA t-shirts for completing the survey will be shipped soon. If you have not filled out the survey but would like to do so, you can still find it [here](https://form.typeform.com/to/pL0jDuyT). As always, if you have questions or feedback, we're available on Slack, GitHub, etc.
+Thanks to everyone who completed the survey! The OPA t-shirts for completing the survey will be shipped soon. If you have not filled out the survey but would like to do so, you can still [complete the OPA survey](https://form.typeform.com/to/pL0jDuyT). As always, if you have questions or feedback, we're available on Slack, GitHub, etc.

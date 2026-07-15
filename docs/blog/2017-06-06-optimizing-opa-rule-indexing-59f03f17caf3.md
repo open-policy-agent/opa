@@ -68,15 +68,15 @@ func (index Index) GetRules(input Value) []Rule {
 
 To make the index lookup efficient, OPA builds a [Trie data structure](https://en.wikipedia.org/wiki/Trie) from equality expressions contained in rule sets. For example, OPA would build the following structure for the rule set above:
 
-![](/img/blog/optimizing-opa-rule-indexing-59f03f17caf3/1.webp)
+![Trie structure built from the example rule set](/img/blog/optimizing-opa-rule-indexing-59f03f17caf3/1.webp)
 
 When OPA looks up the rules to evaluate the query above, it traverses the Trie and collects rules that are required for the input. For simple equality expressions involving scalars this is straightforward however it becomes more complex when taking into account composites (arrays, objects), vars, and undefined values.
 
-![](/img/blog/optimizing-opa-rule-indexing-59f03f17caf3/2.png)
+![Trie traversal handling composites, vars, and undefined values](/img/blog/optimizing-opa-rule-indexing-59f03f17caf3/2.png)
 
 As we would expect, this approach provides an asymptotic performance improvement on queries that match the form supported by the index:
 
-![](/img/blog/optimizing-opa-rule-indexing-59f03f17caf3/3.png)
+![Benchmark chart showing query latency improvement from indexing](/img/blog/optimizing-opa-rule-indexing-59f03f17caf3/3.png)
 
 Currently, OPA can build this rule index for expressions of the form:
 

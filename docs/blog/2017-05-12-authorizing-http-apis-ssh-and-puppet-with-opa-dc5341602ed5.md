@@ -7,9 +7,9 @@ slug: authorizing-http-apis-ssh-and-puppet-with-opa-dc5341602ed5
 
 _This is a short post that shows how you can use the Open Policy Agent (OPA) project to enforce authorization policies across HTTP APIs, SSH, and Puppet. If you're interested in policy, authorization, compliance, or other related topics, check out [openpolicyagent.org](http://www.openpolicyagent.org/) or come chat with us on [Slack](http://slack.openpolicyagent.org)._
 
-One goal of OPA is to solve authorization (who can do what) across the stack. To achieve this goal, OPA provides a **simple HTTP API to integrate at enforcement points and a **high-level declarative language to codify authorization policies. The policy language (Rego) is domain-agnostic and let's you define rich, fine-grained access controls over arbitrary JSON data.
+One goal of OPA is to solve authorization (who can do what) across the stack. To achieve this goal, OPA provides a **simple HTTP API to integrate at enforcement points and a** high-level declarative language to codify authorization policies. The policy language (Rego) is domain-agnostic and let's you define rich, fine-grained access controls over arbitrary JSON data.
 
-When you write authorization policy in Rego, you're writing assertions over the state of the world represented as JSON. The state available to the authorization policy is provided either as **input to the authorization query or **pushed from an external data source and stored inside OPA. Because external state can be pushed into OPA, policies can leverage all kinds of context when making their authorization decisions.
+When you write authorization policy in Rego, you're writing assertions over the state of the world represented as JSON. The state available to the authorization policy is provided either as **input to the authorization query or** pushed from an external data source and stored inside OPA. Because external state can be pushed into OPA, policies can leverage all kinds of context when making their authorization decisions.
 
 Recently we built a handful of authorization integrations that use OPA at different points in the stack. As part of this effort we're reaching out to other projects that are looking to solve authorization in their domain. We've already built several integrations and examples spanning multiple layers:
 

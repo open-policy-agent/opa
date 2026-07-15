@@ -5,7 +5,7 @@ date: 2024-12-20
 slug: announcing-opa-1-0-a-new-standard-for-policy-as-code-a6d8427ee828
 ---
 
-![](/img/blog/announcing-opa-1-0-a-new-standard-for-policy-as-code-a6d8427ee828/banner.webp)
+![Banner graphic announcing the OPA 1.0 release](/img/blog/announcing-opa-1-0-a-new-standard-for-policy-as-code-a6d8427ee828/banner.webp)
 
 We are excited to announce OPA 1.0, a milestone release consolidating an improved developer experience for the future of Policy as Code. After nearly 10 years of innovations and contributions from over 450 developers, OPA 1.0 is finally here. The release makes new functionality designed to simplify policy writing and improve the language's consistency the default. This release marks the beginning of a new era for our project and represents a robust foundation for Policy as Code projects in the years ahead.
 

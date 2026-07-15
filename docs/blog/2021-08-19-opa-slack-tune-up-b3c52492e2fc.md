@@ -6,13 +6,13 @@ slug: opa-slack-tune-up-b3c52492e2fc
 description: Celebrating the growth of OPA community with a little cleanup.
 ---
 
-![](/img/blog/opa-slack-tune-up-b3c52492e2fc/banner.webp)
+![Banner illustration for the OPA Slack channel cleanup announcement](/img/blog/opa-slack-tune-up-b3c52492e2fc/banner.webp)
 
-## Celebrating the growth of OPA community with a little cleanup.
+## Celebrating the growth of OPA community with a little cleanup
 
 The OPA community now has over 4,600 members in Slack! This is a tremendous milestone and we are so excited to have all of the new members join us. With this explosion of new members, the total number of Slack channels has crept up on us. The OPA team has noticed having so many channels has created confusion for our new and existing members on where to post about specific topics or themes. To make Slack easier to navigate we are rolling out a new set of channel names and descriptions. We hope this new structure will make Slack a bit easier for everyone. However, if you have a suggestion on how to make it better we would love to know.
 
-## Primary / Default Channels.
+## Primary / Default Channels
 
 Any new members joining the OPA community will want to hang out here to start! Read about the latest announcements, introduce yourself in the community chit-chat and ask questions in the help channel.
 

@@ -65,7 +65,7 @@ This new builtin allows you to check if a set, array, or object is a subset of a
 
 - [Add parse_config and parse_config_file Rego functions to allow unit testing using config file snippets](https://www.conftest.dev/#writing-unit-tests)
 
-## Calling all OPA End-Users!
+## Calling all OPA End-Users
 
 OPA Summit is officially scheduled, are you ready to share your OPA development journey? Let me us know how you're using OPA and we will help you craft a presentation. This event will be colocated at Kubecon in Detroit this October.
 

@@ -5,7 +5,7 @@ date: 2021-10-29
 slug: introducing-the-opa-print-function-809da6a13aee
 ---
 
-![](/img/blog/introducing-the-opa-print-function-809da6a13aee/banner.webp)
+![Banner image for introducing the OPA print function post](/img/blog/introducing-the-opa-print-function-809da6a13aee/banner.webp)
 
 One of the key takeaways from the [Open Policy Agent 2021 Survey](/blog/open-policy-agent-2021-survey-summary-e749bbd7b824), was the need to improve the OPA debugging experience. Simply put, we need to make it easier to know what's going on when policies and rules are evaluated.
 
