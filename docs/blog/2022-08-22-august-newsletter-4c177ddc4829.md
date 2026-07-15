@@ -40,17 +40,14 @@ This new builtin allows you to check if a set, array, or object is a subset of a
 
 ## Events 📆
 
-### [Cloud Native Computing Meetup | August 25, 2022](https://www.meetup.com/cloud-native-computing-switzerland/events/283522028/?utm_content=215127640&utm_medium=social&utm_source=twitter&hss_channel=tw-2851142013)
-
-### [OPA Office Hours | August 9th, 2022](https://calendly.com/peter-styra/opa-office-hours)
+- [Cloud Native Computing Meetup | August 25, 2022](https://www.meetup.com/cloud-native-computing-switzerland/events/283522028/?utm_content=215127640&utm_medium=social&utm_source=twitter&hss_channel=tw-2851142013)
+- [OPA Office Hours | August 9th, 2022](https://calendly.com/peter-styra/opa-office-hours)
 
 ## Blogs
 
-### [Open Policy Agent (OPA) For Kubernetes](https://dev.to/thenjdevopsguy/open-policy-agent-opa-for-kubernetes-5895)
-
-### [High-Performance OPA](https://dimakorolev.substack.com/p/high-performance-opa)
-
-### [How to Shape OPA Data for Policy Performance](https://www.styra.com/blog/how-to-shape-opa-data-for-policy-performance/)
+- [Open Policy Agent (OPA) For Kubernetes](https://dev.to/thenjdevopsguy/open-policy-agent-opa-for-kubernetes-5895)
+- [High-Performance OPA](https://dimakorolev.substack.com/p/high-performance-opa)
+- [How to Shape OPA Data for Policy Performance](https://www.styra.com/blog/how-to-shape-opa-data-for-policy-performance/)
 
 ## Ecosystem
 

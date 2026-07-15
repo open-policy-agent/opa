@@ -53,9 +53,9 @@ const baseUrl = "/";
             blogTitle: "OPA Blog",
             blogDescription: "News, releases, and community updates from the Open Policy Agent project.",
             postsPerPage: 10,
-            blogSidebarTitle: "Recent posts",
+            blogSidebarTitle: "OPA Blog Posts",
             blogSidebarCount: "ALL",
-            showReadingTime: true,
+            showReadingTime: false,
             feedOptions: {
               type: ["rss", "atom"],
               title: "Open Policy Agent Blog",
