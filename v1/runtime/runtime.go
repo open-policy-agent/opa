@@ -533,6 +533,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
+	// Surface non-fatal config warnings (e.g. unrecognized options).
+	for _, w := range manager.Config.Warnings {
+		logger.Warn(w)
+	}
+
 	if err := manager.Init(ctx); err != nil {
 		return nil, fmt.Errorf("initialization error: %w", err)
 	}

@@ -138,6 +138,10 @@ go-test: generate
 go-test-short: generate
 	$(GO) test $(GO_TAGS) -short ./...
 
+.PHONY: rego-test
+rego-test: go-build
+	OPA=$(CURDIR)/$(BIN) ./build/run-rego-tests.sh
+
 .PHONY: race-detector
 race-detector: generate
 	CGO_ENABLED=1 GOFLAGS="$(GOFLAGS)" go test $(GO_TAGS),slow -race -vet=off ./...

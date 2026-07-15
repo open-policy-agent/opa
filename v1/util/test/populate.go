@@ -57,6 +57,14 @@ func populateDefaultTypes(t *testing.T, fieldType reflect.Type, fieldValue refle
 			return true
 		}
 
+		if fieldType.Elem().Kind() == reflect.String {
+			fieldValue.Set(reflect.ValueOf([]string{
+				fmt.Sprintf("test-%d-a", index),
+				fmt.Sprintf("test-%d-b", index),
+			}))
+			return true
+		}
+
 	case reflect.Pointer:
 		switch fieldType.Elem().Kind() {
 		case reflect.String:
