@@ -70,13 +70,13 @@ directly.
 
 ### Use indexed statements
 
-The linear-time fragment ensures that the cost of evaluation is no larger than the size of the policy. OPA lets you write non-linear policies, because sometimes you need to, and because sometimes it's convenient. The blog on [partial evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) describes one mechanism for converting non-linear policies into linear policies.
+The linear-time fragment ensures that the cost of evaluation is no larger than the size of the policy. OPA lets you write non-linear policies, because sometimes you need to, and because sometimes it's convenient. The blog on [partial evaluation](/blog/partial-evaluation-162750eaf422) describes one mechanism for converting non-linear policies into linear policies.
 
 But as the size of the policy grows, the cost of evaluation grows with it. Sometimes the policy can grow large enough that even the linear-fragment fails to meet the performance budget.
 
 In the linear fragment, OPA includes special algorithms that **index rules efficiently**, sometimes making evaluation constant-time, even as the policy grows. The more effective the indexing is the fewer rules need to be evaluated.
 
-Here is an example policy from the [rule-indexing blog](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) giving the details for these algorithms. See the rest of this section for details on indexed statements.
+Here is an example policy from the [rule-indexing blog](/blog/optimizing-opa-rule-indexing-59f03f17caf3) giving the details for these algorithms. See the rest of this section for details on indexed statements.
 
 ```rego
 package indexed
@@ -1015,7 +1015,7 @@ For high-performance use cases:
 
 - Write your policies to minimize iteration and search.
   - Use objects instead of arrays when you have a unique identifier for the elements of the array.
-  - Consider [partial-evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) to compile non-linear policies to linear policies.
-- Write your policies with indexed statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
+  - Consider [partial-evaluation](/blog/partial-evaluation-162750eaf422) to compile non-linear policies to linear policies.
+- Write your policies with indexed statements so that [rule-indexing](/blog/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
 - Use the profiler to help identify portions of the policy that would benefit the most from improved performance.
 - Use the benchmark tools to help get real world timing data and detect policy performance changes.

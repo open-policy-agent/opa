@@ -21,7 +21,7 @@ For a step-by-step walkthrough of evaluating a Rego policy _partially_, see [Eva
 
 The translation of data policies into queries (like SQL WHERE clauses) is driven by _partial evaluation (PE)_ of a Rego query.
 
-> With partial evaluation, callers specify that certain inputs or pieces of data are _unknown_. OPA evaluates as much of the policy as possible without touching parts that depend on unknown values.<sup>[1](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422)</sup>
+> With partial evaluation, callers specify that certain inputs or pieces of data are _unknown_. OPA evaluates as much of the policy as possible without touching parts that depend on unknown values.<sup>[1](/blog/partial-evaluation-162750eaf422)</sup>
 
 The _unknown_ values that remain during partial evaluation represent the pieces of data that represent your filter.
 

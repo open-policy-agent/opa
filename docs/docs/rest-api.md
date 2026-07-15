@@ -9,7 +9,7 @@ groups:
 - [Policy API](#policy-api) - manage policy loaded into the OPA instance.
 - [Data API](#data-api) - evaluate rules and retrieve data.
 - [Query API](#query-api) - execute ad hoc queries.
-- [Compile API](#compile-api) - access Rego's [Partial Evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) and data filtering functionality.
+- [Compile API](#compile-api) - access Rego's [Partial Evaluation](/blog/partial-evaluation-162750eaf422) and data filtering functionality.
 - [Health API](#health-api) - access instance operational health information.
 - [Config API](#config-api) - view instance configuration.
 - [Status API](#status-api) - view instance [status](./management-status) state.
@@ -1430,10 +1430,10 @@ The [Compile API](#compile-api) allows you to partially evaluate Rego queries
 and obtain a simplified version of the policy. This is most useful when building
 integrations where policy logic is to be translated and evaluated in another
 environment. For example,
-[this post](https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4)
+[this post](/blog/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4)
 on the OPA blog shows how SQL can be generated based on Compile API output.
 For more details on Partial Evaluation in OPA, please refer to
-[this blog post](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422).
+[this blog post](/blog/partial-evaluation-162750eaf422).
 
 Note that non-determinstic builtins (like `http.send`) are _not evaluated_ during PE.
 You can change that by providing `nondeterminsticBuiltins: true` in your payload options.

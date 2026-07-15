@@ -1,0 +1,59 @@
+tsandall:
+  name: Torin Sandall
+  image_url: /img/blog/authors/tsandall.png
+  page: true
+
+anderseknert:
+  name: Anders Eknert
+  image_url: /img/blog/authors/anderseknert.jpeg
+  page: true
+
+timhinrichs:
+  name: Tim Hinrichs
+  image_url: /img/blog/authors/timhinrichs.png
+  page: true
+
+peteroneilljr:
+  name: Peter O'Neill
+  image_url: /img/blog/authors/peteroneilljr.png
+  page: true
+
+charlie:
+  name: Charlie Egan
+  image_url: /img/blog/authors/charlie.jpeg
+  page: true
+
+shomron:
+  name: Oren Shomron
+  image_url: /img/blog/authors/shomron.png
+  page: true
+
+gshively11:
+  name: Grant Shively
+  image_url: /img/blog/authors/gshively11.png
+  page: true
+
+aavarghese:
+  name: Ansu Varghese
+  image_url: /img/blog/authors/aavarghese.png
+  page: true
+
+mandanavaziri:
+  name: Mandana Vaziri
+  image_url: /img/blog/authors/mandanavaziri.png
+  page: true
+
+soothseer:
+  name: Asad Ali
+  image_url: /img/blog/authors/soothseer.jpeg
+  page: true
+
+lperkins:
+  name: Luc Perkins
+  image_url: /img/blog/authors/lperkins.jpeg
+  page: true
+
+ashumania:
+  name: Ash Narkar
+  image_url: /img/blog/authors/ashumania.jpeg
+  page: true
