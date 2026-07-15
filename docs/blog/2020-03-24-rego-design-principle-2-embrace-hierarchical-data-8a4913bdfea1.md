@@ -7,7 +7,7 @@ slug: rego-design-principle-2-embrace-hierarchical-data-8a4913bdfea1
 
 ![](/img/blog/rego-design-principle-2-embrace-hierarchical-data-8a4913bdfea1/banner.webp)
 
-This is the second part of a blog series on the design principles behind Open Policy Agent's (OPA's) policy language Rego. Previously we described how Rego's [syntax was designed to mirror the structure of real-world policies](/blog/rego-design-principle-1-syntax-should-reflect-real-world-policies-e1a801ab8bfb). In this part of the series, we look at why and how Rego exclusively uses hierarchical data (e.g. JSON and YAML) to represent the raw informations it uses to make decisions and to represent the decisions themselves. In the next part of the series, we discuss why and how OPA aims to [optimize the performance of policy evaluation automatically](/blog/rego-design-principle-3-optimize-performance-automatically-2d29ad3ce96d).
+This is the second part of a blog series on the design principles behind Open Policy Agent's (OPA's) policy language Rego. Previously we described how Rego's [syntax was designed to mirror the structure of real-world policies](/blog/rego-design-principle-1-syntax-should-reflect-real-world-policies-e1a801ab8bfb). In this part of the series, we look at why and how Rego exclusively uses hierarchical data (e.g. JSON and YAML) to represent the raw information it uses to make decisions and to represent the decisions themselves. In the next part of the series, we discuss why and how OPA aims to [optimize the performance of policy evaluation automatically](/blog/rego-design-principle-3-optimize-performance-automatically-2d29ad3ce96d).
 
 ## Quick OPA Refresher
 
