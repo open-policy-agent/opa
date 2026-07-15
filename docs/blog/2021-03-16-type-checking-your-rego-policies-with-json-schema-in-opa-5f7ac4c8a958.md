@@ -1,13 +1,11 @@
 ---
 title: "Type checking your Rego policies with JSON schema in OPA"
-authors: ["mandanavaziri"]
+authors: ["aavarghese", "mandanavaziri", "tsandall"]
 date: 2021-03-16
 slug: type-checking-your-rego-policies-with-json-schema-in-opa-5f7ac4c8a958
 ---
 
 ![Diagram illustrating JSON schema type checking for Rego](/img/blog/type-checking-your-rego-policies-with-json-schema-in-opa-5f7ac4c8a958/banner.webp)
-
-## By Ansu Varghese, Mandana Vaziri, Torin Sandall
 
 _**IBM Research & Styra**_
 

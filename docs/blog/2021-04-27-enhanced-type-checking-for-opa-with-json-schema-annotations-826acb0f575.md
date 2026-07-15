@@ -1,13 +1,11 @@
 ---
 title: "Enhanced Type Checking for OPA with JSON Schema Annotations"
-authors: ["aavarghese"]
+authors: ["mandanavaziri", "aavarghese", "tsandall"]
 date: 2021-04-27
 slug: enhanced-type-checking-for-opa-with-json-schema-annotations-826acb0f575
 ---
 
 ![Enhanced type checking for OPA with JSON schema](/img/blog/enhanced-type-checking-for-opa-with-json-schema-annotations-826acb0f575/banner.webp)
-
-## By Mandana Vaziri, Ansu Varghese, Torin Sandall
 
 _**IBM Research & Styra**_
 
