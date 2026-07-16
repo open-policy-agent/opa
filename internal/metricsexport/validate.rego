@@ -22,8 +22,6 @@ _supported_types := {"", "otlp/grpc", "otlp/http"}
 
 _supported_encryption := {"off", "tls", "mtls"}
 
-_type_error_fmt := `unknown metrics_export.type %q, must be "otlp/grpc", "otlp/http" or "" (unset)`
-
 # The address defaults from the (case-insensitive) type, but only when the type
 # selects an exporter.
 _default_address := _default_grpc_address if lower(input.config.type) == "otlp/grpc"
@@ -46,19 +44,18 @@ _patches contains {"encryption": _default_encryption_scheme} if _empty(["encrypt
 _patches contains {"allow_insecure_tls": false} if _absent(["allow_insecure_tls"])
 
 errors contains msg if {
-	input.config.type
 	not lower(input.config.type) in _supported_types
-	msg := sprintf(_type_error_fmt, [input.config.type])
+	msg := $`unknown metrics_export.type "{input.config.type}", must be "otlp/grpc", "otlp/http" or "" (unset)`
 }
 
 errors contains msg if {
 	processed.export_interval_ms <= 0
-	msg := sprintf("metrics_export.export_interval_ms must be a positive value, got %d", [processed.export_interval_ms])
+	msg := $`metrics_export.export_interval_ms must be a positive value, got {processed.export_interval_ms}`
 }
 
 errors contains msg if {
 	not processed.encryption in _supported_encryption
-	msg := sprintf("unsupported metrics_export.encryption %q", [processed.encryption])
+	msg := $`unsupported metrics_export.encryption "{processed.encryption}"`
 }
 
 # _absent is true when the option at path is missing or explicitly null (a nil
