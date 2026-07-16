@@ -8,6 +8,8 @@
 #   Entrypoints: processed (config + defaults), errors (fatal).
 package opa.config.metrics_export
 
+import future.keywords.not
+
 _default_grpc_address := "localhost:4317"
 
 _default_http_address := "localhost:4318"
@@ -44,6 +46,7 @@ _patches contains {"encryption": _default_encryption_scheme} if _empty(["encrypt
 _patches contains {"allow_insecure_tls": false} if _absent(["allow_insecure_tls"])
 
 errors contains msg if {
+	input.config.type
 	not lower(input.config.type) in _supported_types
 	msg := $`unknown metrics_export.type "{input.config.type}", must be "otlp/grpc", "otlp/http" or "" (unset)`
 }
