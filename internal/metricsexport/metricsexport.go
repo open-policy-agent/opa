@@ -7,6 +7,7 @@ package metricsexport
 import (
 	"context"
 	"crypto/tls"
+	_ "embed"
 	"fmt"
 	"strings"
 	"time"
@@ -20,17 +21,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/open-policy-agent/opa/internal/configpolicy"
 	"github.com/open-policy-agent/opa/internal/tlsutil"
 	"github.com/open-policy-agent/opa/v1/config"
-	"github.com/open-policy-agent/opa/v1/util"
-)
-
-const (
-	defaultGRPCAddress      = "localhost:4317"
-	defaultHTTPAddress      = "localhost:4318"
-	defaultExportIntervalMs = 60000
-	defaultServiceName      = "opa"
-	defaultEncryptionScheme = "off"
 )
 
 type metricsExportConfig struct {
@@ -45,62 +38,22 @@ type metricsExportConfig struct {
 	TLSCACertFile         string `json:"tls_ca_cert_file,omitempty"`
 }
 
-var supportedEncryptionScheme = map[string]struct{}{
-	"off": {}, "tls": {}, "mtls": {},
-}
+//go:embed validate.rego
+var validationModule string
 
-func (c *metricsExportConfig) validateAndInjectDefaults() error {
-	switch strings.ToLower(c.Type) {
-	case "", "otlp/grpc", "otlp/http": // OK
-	default:
-		return fmt.Errorf("unknown metrics_export.type %q, must be \"otlp/grpc\", \"otlp/http\" or \"\" (unset)", c.Type)
-	}
+var validationPolicy = configpolicy.New(
+	"opa/config/metrics_export/validate.rego",
+	validationModule,
+	"data.opa.config.metrics_export = x",
+)
 
-	if c.Address == "" {
-		switch strings.ToLower(c.Type) {
-		case "otlp/grpc":
-			c.Address = defaultGRPCAddress
-		case "otlp/http":
-			c.Address = defaultHTTPAddress
-		}
-	}
-
-	if c.ServiceName == "" {
-		c.ServiceName = defaultServiceName
-	}
-
-	if c.ExportIntervalMs == nil {
-		v := defaultExportIntervalMs
-		c.ExportIntervalMs = &v
-	}
-	if *c.ExportIntervalMs <= 0 {
-		return fmt.Errorf("metrics_export.export_interval_ms must be a positive value, got %d", *c.ExportIntervalMs)
-	}
-
-	if c.EncryptionScheme == "" {
-		c.EncryptionScheme = defaultEncryptionScheme
-	}
-	if _, ok := supportedEncryptionScheme[c.EncryptionScheme]; !ok {
-		return fmt.Errorf("unsupported metrics_export.encryption %q", c.EncryptionScheme)
-	}
-
-	if c.EncryptionSkipVerify == nil {
-		v := false
-		c.EncryptionSkipVerify = &v
-	}
-
-	return nil
+func init() {
+	config.RegisterConfigSpec(config.SpecsFromStruct[metricsExportConfig]("metrics_export")...)
 }
 
 func parseMetricsExportConfig(raw []byte) (*metricsExportConfig, error) {
-	if raw == nil {
-		return &metricsExportConfig{}, nil
-	}
 	var cfg metricsExportConfig
-	if err := util.Unmarshal(raw, &cfg); err != nil {
-		return nil, err
-	}
-	if err := cfg.validateAndInjectDefaults(); err != nil {
+	if _, err := configpolicy.EvalConfigInto(context.TODO(), validationPolicy, raw, &cfg); err != nil {
 		return nil, err
 	}
 	return &cfg, nil

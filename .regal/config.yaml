@@ -14,6 +14,8 @@ rules:
           - "docs"
           - "internal/wasm/sdk/examples/*"
           - "v1/config/*.rego"
+          - "internal/metricsexport/*.rego"
+          - "v1/plugins/server/metrics/*.rego"
   style:
     line-length:
       ignore:

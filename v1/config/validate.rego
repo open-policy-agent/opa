@@ -79,9 +79,19 @@ _mismatch(path, pattern) if {
 
 _dotted(path) := concat(".", [sprintf("%v", [segment]) | some segment in path])
 
-# _specs enumerates the known keys of each "closed" object, derived from the
-# authoritative Go structs.
-_specs := [
+# _specs is the core specs combined with any specs registered by plugins or
+# subsystems (supplied as input.specs by the Go layer). Sections whose specs
+# have moved closer to their owning package (e.g. metrics_export,
+# distributed_tracing, server subsections) arrive via input.specs.
+_specs := array.concat(_core_specs, _input_specs)
+
+default _input_specs := []
+
+_input_specs := input.specs
+
+# _core_specs enumerates the known keys of each "closed" object owned by the
+# core config package, derived from the authoritative Go structs.
+_core_specs := [
 	{"pattern": [], "keys": {
 		"services", "labels", "discovery", "bundle", "bundles",
 		"decision_logs", "status", "plugins", "keys", "default_decision",
@@ -150,10 +160,6 @@ _specs := [
 	{"pattern": ["distributed_tracing", "batch_span_processor_options"], "keys": {
 		"blocking", "batch_timeout_ms", "export_timeout_ms",
 		"max_export_batch_size", "max_queue_size",
-	}},
-	{"pattern": ["metrics_export"], "keys": {
-		"type", "address", "export_interval_ms", "service_name", "encryption",
-		"allow_insecure_tls", "tls_cert_file", "tls_private_key_file", "tls_ca_cert_file",
 	}},
 	{"pattern": ["services", "*"], "keys": {
 		"name", "url", "headers", "allow_insecure_tls",

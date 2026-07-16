@@ -5,9 +5,12 @@
 package metricsexport
 
 import (
+	"slices"
 	"testing"
 
 	prometheus_client "github.com/prometheus/client_golang/prometheus"
+
+	"github.com/open-policy-agent/opa/v1/config"
 )
 
 func TestParseMetricsExportConfigDefaults(t *testing.T) {
@@ -123,4 +126,29 @@ func TestInitHTTPWithGatherer(t *testing.T) {
 		t.Fatal("expected non-nil MeterProvider")
 	}
 	_ = mp.Shutdown(t.Context())
+}
+
+// TestConfigNoWarningsForKnownMetricsExportOptions verifies the metrics_export
+// spec registered by this package lets config.ParseConfig recognize the
+// section's options.
+func TestConfigNoWarningsForKnownMetricsExportOptions(t *testing.T) {
+	raw := []byte(`{"metrics_export": {"type": "otlp/grpc", "export_interval_ms": 30000, "encryption": "tls"}}`)
+	conf, err := config.ParseConfig(raw, "id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(conf.Warnings) != 0 {
+		t.Fatalf("expected no warnings, got %v", conf.Warnings)
+	}
+}
+
+func TestConfigWarnsOnUnknownMetricsExportOption(t *testing.T) {
+	conf, err := config.ParseConfig([]byte(`{"metrics_export": {"typo": "otlp/grpc"}}`), "id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `unknown configuration option "metrics_export.typo" encountered`
+	if !slices.Contains(conf.Warnings, want) {
+		t.Fatalf("expected warning %q, got %v", want, conf.Warnings)
+	}
 }
