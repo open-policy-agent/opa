@@ -8,7 +8,7 @@ labels:
 inventors:
 - Apple
 blogs:
-- "https://blog.openpolicyagent.org/introducing-swift-opa-native-policy-evaluation-for-swift-d5136c8a662e"
+- "https://openpolicyagent.org/blog/introducing-swift-opa-native-policy-evaluation-for-swift-d5136c8a662e"
 code:
 - "https://github.com/open-policy-agent/swift-opa"
 tutorials:

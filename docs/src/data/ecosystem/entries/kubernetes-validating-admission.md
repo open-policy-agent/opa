@@ -78,7 +78,7 @@ videos:
 blogs:
 - https://medium.com/@sbueringer/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
 - https://medium.com/@jimmy.ray/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
-- https://blog.openpolicyagent.org/securing-the-kubernetes-api-with-open-policy-agent-ce93af0552c3
+- https://openpolicyagent.org/blog/securing-the-kubernetes-api-with-open-policy-agent-ce93af0552c3
 - https://itnext.io/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
 - https://medium.com/capital-one-tech/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
 - https://www.redhat.com/en/blog/fine-grained-policy-enforcement-in-openshift-with-open-policy-agent

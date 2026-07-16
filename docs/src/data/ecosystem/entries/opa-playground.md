@@ -10,8 +10,8 @@ labels:
 code:
 - https://play.openpolicyagent.org/
 blogs:
-- https://blog.openpolicyagent.org/the-rego-playground-977566855cec
-- https://blog.openpolicyagent.org/rego-playground-new-features-ec0345a73b9e
+- https://openpolicyagent.org/blog/the-rego-playground-977566855cec
+- https://openpolicyagent.org/blog/rego-playground-new-features-ec0345a73b9e
 docs_features:
   learning-rego:
     note: |

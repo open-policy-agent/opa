@@ -15,7 +15,7 @@ code:
 inventors:
 - styra
 blogs:
-- https://blog.openpolicyagent.org/envoy-external-authorization-with-opa-578213ed567c
+- https://openpolicyagent.org/blog/envoy-external-authorization-with-opa-578213ed567c
 videos:
 - title: 'OPA at Scale: How Pinterest Manages Policy Distribution'
   speakers:
