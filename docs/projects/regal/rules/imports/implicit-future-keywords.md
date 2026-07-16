@@ -1,6 +1,6 @@
 # implicit-future-keywords
 
-**Summary**: Implicit future keywords
+**Summary**: Avoid implicit future keyword imports
 
 **Category**: Imports
 

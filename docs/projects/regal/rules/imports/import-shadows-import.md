@@ -1,6 +1,6 @@
 # import-shadows-import
 
-**Summary**: Import shadows import
+**Summary**: Import shadows another import
 
 **Category**: Imports
 

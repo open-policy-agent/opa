@@ -39,6 +39,7 @@ considered OK, and the `double-negative` rule is limited to check for a limited 
 - `not no_`
 - `not non_`
 - `not not_`,
+- `not without_`
 
 ## Configuration Options
 

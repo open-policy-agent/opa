@@ -1,6 +1,6 @@
 # todo-comment
 
-**Summary**: Avoid TODO Comments
+**Summary**: Avoid TODO and FIXME comments
 
 **Category**: Style
 

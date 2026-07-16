@@ -286,11 +286,10 @@ Documentation:	https://www.openpolicyagent.org/projects/regal/rules/style/prefer
 <!-- markdownlint-restore -->
 <br />
 
-:::note
-If you're running Regal on an existing policy library, you may want to disable the `style` category initially, as it
-will likely generate a lot of violations. You can do this by passing the `--disable-category style` flag to
-`regal lint`.
-:::
+> **Note**
+> If you're running Regal on an existing policy library, you may want to disable the `style` category initially, as it
+> will likely generate a lot of violations. You can do this by passing the `--disable-category style` flag to
+> `regal lint`.
 
 ### Using Regal in Your Editor
 
