@@ -47,7 +47,22 @@ const baseUrl = "/";
             breadcrumbs: false,
             sidebarPath: require.resolve("./src/lib/sidebars.js"),
           },
-          blog: false,
+          blog: {
+            path: "blog",
+            routeBasePath: "blog",
+            blogTitle: "OPA Blog",
+            blogDescription: "News, releases, and community updates from the Open Policy Agent project.",
+            postsPerPage: 10,
+            blogSidebarTitle: "OPA Blog Posts",
+            blogSidebarCount: "ALL",
+            showReadingTime: false,
+            feedOptions: {
+              type: ["rss", "atom"],
+              title: "Open Policy Agent Blog",
+            },
+            onInlineTags: "ignore",
+            onUntruncatedBlogPosts: "ignore",
+          },
           theme: {
             customCss: require.resolve("./src/css/custom.css"),
           },
@@ -146,7 +161,7 @@ const baseUrl = "/";
               { to: "/support", label: "Support" },
               { to: "/community", label: "Community" },
               { to: "/survey", label: "Survey" },
-              { href: "https://blog.openpolicyagent.org/", label: "Blog" },
+              { to: "/blog", label: "Blog" },
             ],
           },
           {
@@ -679,6 +694,7 @@ The Linux Foundation has registered trademarks and uses trademarks. For a list o
       markdownExportPlugin,
     ],
     clientModules: [
+      require.resolve("./src/lib/gtagFallback.js"),
       require.resolve("./src/lib/playground.js"),
       require.resolve("./src/lib/kapa.js"),
     ],
