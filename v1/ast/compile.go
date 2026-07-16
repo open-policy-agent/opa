@@ -1906,7 +1906,7 @@ func (c *Compiler) checkTypes() {
 		WithInputType(c.inputType).
 		WithBuiltins(c.builtins).
 		WithRequiredCapabilities(c.Required).
-		WithVarRewriter(rewriteVarsInRef(c.RewrittenVars)).
+		WithVarRewriter(rewriteRefErrVars(c.localvargen.subjects, c.RewrittenVars)).
 		WithAllowUndefinedFunctionCalls(c.allowUndefinedFuncCalls)
 	var as *AnnotationSet
 	if c.useTypeCheckAnnotations {
@@ -3625,6 +3625,7 @@ type queryCompiler struct {
 	qctx                  *QueryContext
 	typeEnv               *TypeEnv
 	rewritten             map[Var]Var
+	refSubjects           map[Var]Value
 	after                 map[string][]QueryCompilerStageDefinition
 	unsafeBuiltins        map[string]struct{}
 	comprehensionIndices  map[*Term]*ComprehensionIndex
@@ -3813,15 +3814,19 @@ func (*queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (Bod
 	return node.(Body), nil
 }
 
-func (*queryCompiler) rewriteDynamicTerms(_ *QueryContext, body Body) (Body, error) {
+func (qc *queryCompiler) rewriteDynamicTerms(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
 	f := newEqualityFactory(gen)
-	return rewriteDynamics(f, body), nil
+	body = rewriteDynamics(f, body)
+	qc.refSubjects = mergeRefSubjects(qc.refSubjects, gen.subjects)
+	return body, nil
 }
 
-func (*queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, error) {
+func (qc *queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
-	return rewriteExprTermsInBody(gen, body), nil
+	body = rewriteExprTermsInBody(gen, body)
+	qc.refSubjects = gen.subjects
+	return body, nil
 }
 
 func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, error) {
@@ -3889,7 +3894,7 @@ func (qc *queryCompiler) checkTypes(_ *QueryContext, body Body) (Body, error) {
 	checker := newTypeChecker().
 		WithSchemaSet(qc.compiler.schemaSet).
 		WithInputType(qc.compiler.inputType).
-		WithVarRewriter(rewriteVarsInRef(qc.rewritten, qc.compiler.RewrittenVars))
+		WithVarRewriter(rewriteRefErrVars(qc.refSubjects, qc.rewritten, qc.compiler.RewrittenVars))
 	qc.typeEnv, errs = checker.CheckBody(qc.compiler.TypeEnv, body)
 	if len(errs) > 0 {
 		return nil, errs
@@ -5504,6 +5509,20 @@ type localVarGenerator struct {
 	exclude VarSet
 	suffix  string
 	next    int
+
+	// subjects maps a generated local back to the original term it replaced,
+	// so type errors can render the original expression (e.g. [1, 2][i]
+	// instead of __local0__[i]). Populated lazily.
+	subjects map[Var]Value
+}
+
+// recordSubject records that local stands in for value. The value is copied so
+// later rewrites can't mutate the compiled AST.
+func (l *localVarGenerator) recordSubject(local Var, value *Term) {
+	if l.subjects == nil {
+		l.subjects = map[Var]Value{}
+	}
+	l.subjects[local] = value.Copy().Value
 }
 
 func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Module) *localVarGenerator {
@@ -6127,6 +6146,7 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		generated.With = original.With
 		result.Append(generated)
 		connectGeneratedExprs(original, generated)
+		f.gen.recordSubject(generated.Operand(0).Value.(Var), term)
 		return result, result[len(result)-1].Operand(0)
 	case *Array:
 		for i := range v.Len() {
@@ -6156,18 +6176,21 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
 		result.Append(extra)
 		connectGeneratedExprs(original, extra)
+		f.gen.recordSubject(extra.Operand(0).Value.(Var), term)
 		return result, result[len(result)-1].Operand(0)
 	case *SetComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
 		result.Append(extra)
 		connectGeneratedExprs(original, extra)
+		f.gen.recordSubject(extra.Operand(0).Value.(Var), term)
 		return result, result[len(result)-1].Operand(0)
 	case *ObjectComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
 		result.Append(extra)
 		connectGeneratedExprs(original, extra)
+		f.gen.recordSubject(extra.Operand(0).Value.(Var), term)
 		return result, result[len(result)-1].Operand(0)
 	}
 	return result, term
@@ -6399,6 +6422,7 @@ func expandExprRef(gen *localVarGenerator, v []*Term) (support []*Expr) {
 		assignToLocal := f.Generate(subject)
 		support = append(support, assignToLocal)
 		v[0] = assignToLocal.Operand(0)
+		gen.recordSubject(v[0].Value.(Var), subject)
 	}
 	return
 }
@@ -7390,6 +7414,39 @@ func checkUnsafeBuiltins(unsafeBuiltinsMap map[string]struct{}, node any) Errors
 func rewriteVarsInRef(vars ...map[Var]Var) varRewriter {
 	return func(node Ref) Ref {
 		i, _ := TransformVars(node, func(v Var) (Value, error) {
+			for _, m := range vars {
+				if u, ok := m[v]; ok {
+					return u, nil
+				}
+			}
+			return v, nil
+		})
+		return i.(Ref)
+	}
+}
+
+// mergeRefSubjects merges src into dst, allocating dst if needed.
+func mergeRefSubjects(dst, src map[Var]Value) map[Var]Value {
+	if len(src) == 0 {
+		return dst
+	}
+	if dst == nil {
+		dst = make(map[Var]Value, len(src))
+	}
+	maps.Copy(dst, src)
+	return dst
+}
+
+// rewriteRefErrVars returns a varRewriter for rendering refs in type errors.
+// Beyond the var-to-var mappings of rewriteVarsInRef, it substitutes generated
+// locals recorded in localVarGenerator.subjects with the original term (so
+// errors show [1, 2][i] rather than __local0__[i]). It operates on a copy.
+func rewriteRefErrVars(subjects map[Var]Value, vars ...map[Var]Var) varRewriter {
+	return func(node Ref) Ref {
+		i, _ := TransformVars(node.Copy(), func(v Var) (Value, error) {
+			if val, ok := subjects[v]; ok {
+				return NewTerm(val).Copy().Value, nil
+			}
 			for _, m := range vars {
 				if u, ok := m[v]; ok {
 					return u, nil
