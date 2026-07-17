@@ -1,7 +1,11 @@
 package metrics
 
 import (
-	"github.com/open-policy-agent/opa/v1/util"
+	"context"
+	_ "embed"
+
+	"github.com/open-policy-agent/opa/internal/configpolicy"
+	"github.com/open-policy-agent/opa/v1/config"
 )
 
 var defaultHTTPRequestBuckets = []float64{
@@ -15,6 +19,19 @@ var defaultHTTPRequestBuckets = []float64{
 	0.01,
 	0.1,
 	1, // 1 second
+}
+
+//go:embed validate.rego
+var validationModule string
+
+var validationPolicy = configpolicy.New(
+	"opa/config/server/metrics/validate.rego",
+	validationModule,
+	"data.opa.config.server.metrics = x",
+)
+
+func init() {
+	config.RegisterConfigSpec(config.SpecsFromStruct[Config]("server", "metrics")...)
 }
 
 // Config represents the configuration for the Server.Metrics settings
@@ -50,44 +67,9 @@ func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
 
 // Parse returns a valid Config object with defaults injected.
 func (b *ConfigBuilder) Parse() (*Config, error) {
-	if b.raw == nil {
-		defaultConfig := &Config{
-			Prom: &Prom{
-				HTTPRequestDurationSeconds: &HTTPRequestDurationSeconds{
-					Buckets: defaultHTTPRequestBuckets,
-				},
-			},
-		}
-		return defaultConfig, nil
-	}
-
 	var result Config
-
-	if err := util.Unmarshal(b.raw, &result); err != nil {
+	if _, err := configpolicy.EvalConfigInto(context.TODO(), validationPolicy, b.raw, &result); err != nil {
 		return nil, err
 	}
-
-	return &result, result.validateAndInjectDefaults()
-}
-
-func (c *Config) validateAndInjectDefaults() error {
-	if c.Prom == nil {
-		c.Prom = &Prom{
-			HTTPRequestDurationSeconds: &HTTPRequestDurationSeconds{
-				Buckets: defaultHTTPRequestBuckets,
-			},
-		}
-	}
-
-	if c.Prom.HTTPRequestDurationSeconds == nil {
-		c.Prom.HTTPRequestDurationSeconds = &HTTPRequestDurationSeconds{
-			Buckets: defaultHTTPRequestBuckets,
-		}
-	}
-
-	if c.Prom.HTTPRequestDurationSeconds.Buckets == nil {
-		c.Prom.HTTPRequestDurationSeconds.Buckets = defaultHTTPRequestBuckets
-	}
-
-	return nil
+	return &result, nil
 }
