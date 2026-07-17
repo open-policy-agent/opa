@@ -8,8 +8,8 @@
 ```rego
 package policy
 
-# Using metasyntactic names
-foo := ["bar", "baz"]
+# Using metasyntactic name
+foo := ["developer", "admin"]
 
 # ...
 ```
@@ -18,7 +18,7 @@ foo := ["bar", "baz"]
 ```rego
 package policy
 
-# Using names relevant to the context
+# Using name relevant to the context
 roles := ["developer", "admin"]
 
 # ...

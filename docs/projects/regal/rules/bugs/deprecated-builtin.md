@@ -1,6 +1,6 @@
 # deprecated-builtin
 
-**Summary**: Deprecated built-in function
+**Summary**: Avoid using deprecated built-in functions
 
 **Category**: Bugs
 

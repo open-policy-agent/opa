@@ -48,7 +48,7 @@ Runs Regal against all staged `.rego` files, aborting the commit if any fail.
 
 Runs Regal against all staged `.rego` files, aborting the commit if any fail.
 
-- Downloads the latest `regal` binary from GitHub.
+- Downloads the latest `regal` binary from Github.
 
 ### `regal-fix`
 
@@ -77,4 +77,4 @@ Same as `regal-fix`, but uses the `regal` binary already on `$PATH`.
 
 Same as `regal-fix`, but downloads the latest `regal` binary from GitHub instead of building or relying on `$PATH`.
 
-- Downloads the latest `regal` binary from GitHub.
+- Downloads the latest `regal` binary from Github.

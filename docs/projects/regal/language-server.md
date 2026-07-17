@@ -142,9 +142,24 @@ be suggestions for:
   src={require('./assets/lsp/completion.png').default}
   alt="Screenshot of completion suggestions as displayed in Zed"/>
 
-New completion providers are added continuously, so if you have a suggestion for
-a new completion, please
-[open an issue](https://github.com/open-policy-agent/regal/issues)!
+New completion providers are added continuously, so if you have a suggestion for a new completion, please
+[file an issue](https://github.com/open-policy-agent/regal/issues)!
+
+#### Editor support
+
+VS Code currently prevents (or severely limits) displaying suggestions from language servers like Regal whenever
+GitHub Copilot's "ghost text suggestions" feature is enabled. Since this feature is typically enabled — possibly even by
+default, many users risk missing out on code completions provided by language servers without even realizing it. Whether
+overriding language server suggestions is intentional or not is currently unclear, as
+[the issue](https://github.com/microsoft/vscode/issues/315257) has been reported but not yet addressed by the VS Code
+maintainers.
+
+While AI-assisted suggestions occasionally can be helpful, they aren't based on the same deep understanding of the
+language or the context as those provided by language servers. Unless you heavily rely on GitHub Copilot's suggestions,
+**we recommend disabling the "ghost text suggestions" feature as long as Copilot is overriding language server
+suggestions**.
+
+The toggle is easily accessible from the UI, so you can even turn it on and off as needed.
 
 ### Code actions
 

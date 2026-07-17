@@ -1,6 +1,6 @@
 # non-loop-expression
 
-**Summary**: Non loop expression in loop
+**Summary**: Non-loop expression in loop
 
 **Category**: Performance
 

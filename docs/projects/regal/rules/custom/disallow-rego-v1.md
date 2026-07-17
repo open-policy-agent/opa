@@ -1,6 +1,6 @@
 # disallow-rego-v1
 
-**Summary**: Use of disallowed `import rego v1`
+**Summary**: Use of disallowed `import rego.v1`
 
 **Category**: Custom
 

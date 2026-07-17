@@ -47,6 +47,9 @@ rules:
       #
       # one of "error", "warning", "ignore"
       level: error
+      # maximum line length for a rule to be suggested as a one-liner
+      # default: 120
+      max-line-length: 120
 ```
 
 ## Related Resources
