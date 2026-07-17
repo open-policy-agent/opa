@@ -1,0 +1,36 @@
+---
+cases:
+  # Results are rendered with sprintf because the golden-case loader parses expected
+  # numbers as float64, which cannot represent these values. sprintf formats the exact
+  # integer, so the assertion is on the arithmetic rather than on the loader.
+  - note: "arithmetic/bignum exact (>64-bit integers through plus, minus, multiply)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := result if {
+        	result := {
+        		"add": sprintf("%v", [18446744073709551617 + 1]),
+        		"sub": sprintf("%v", [18446744073709551617 - 1]),
+        		"mul": sprintf("%v", [18446744073709551617 * 2]),
+        		"big_add": sprintf("%v", [123456789012345678901234567890 + 1]),
+        		"neg_sub": sprintf("%v", [-18446744073709551617 - 1]),
+        		"small_add": sprintf("%v", [2 + 3]),
+        		"float_add": sprintf("%v", [1.5 + 2.5]),
+        		"mixed_add": sprintf("%v", [1 + 2.5]),
+        		"float_mul": sprintf("%v", [2.5 * 2]),
+        	}
+        }
+    data: {}
+    want_result:
+      - x:
+          add: "18446744073709551618"
+          sub: "18446744073709551616"
+          mul: "36893488147419103234"
+          big_add: "123456789012345678901234567891"
+          neg_sub: "-18446744073709551618"
+          small_add: "5"
+          float_add: "4"
+          mixed_add: "3.5"
+          float_mul: "5"

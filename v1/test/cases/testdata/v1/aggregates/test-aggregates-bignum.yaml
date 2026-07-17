@@ -1,0 +1,34 @@
+---
+cases:
+  # Results are rendered with sprintf because the golden-case loader parses expected
+  # numbers as float64, which cannot represent these values. sprintf formats the exact
+  # integer, so the assertion is on the aggregate rather than on the loader.
+  - note: "aggregates/bignum exact (>64-bit integers through sum and product)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := result if {
+        	result := {
+        		"sum_array": sprintf("%v", [sum([18446744073709551617, 1])]),
+        		"sum_set": sprintf("%v", [sum({18446744073709551617, 1})]),
+        		"product_array": sprintf("%v", [product([18446744073709551617, 2])]),
+        		"sum_small": sprintf("%v", [sum([1, 2, 3])]),
+        		"product_small": sprintf("%v", [product([2, 3, 4])]),
+        		"sum_float": sprintf("%v", [sum([1.5, 2.5])]),
+        		"sum_mixed": sprintf("%v", [sum([1, 2.5])]),
+        		"product_float": sprintf("%v", [product([1.5, 2])]),
+        	}
+        }
+    data: {}
+    want_result:
+      - x:
+          sum_array: "18446744073709551618"
+          sum_set: "18446744073709551618"
+          product_array: "36893488147419103234"
+          sum_small: "6"
+          product_small: "24"
+          sum_float: "4"
+          sum_mixed: "3.5"
+          product_float: "3"

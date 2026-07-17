@@ -25,6 +25,44 @@ func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 	return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "object", "set", "string")
 }
 
+// termIterable is satisfied by both *ast.Array and ast.Set.
+type termIterable interface {
+	Iter(func(*ast.Term) error) error
+}
+
+// exactIntAccumulate accumulates the numbers in a with op on exact big.Ints, reporting false if
+// any element is not an integer, in which case the caller falls back to the float path.
+//
+// That float path accumulates in a big.Float carrying the default mantissa, so integers needing
+// more significant bits are silently rounded.
+func exactIntAccumulate(a termIterable, init int64, op func(z, x, y *big.Int) *big.Int) (ast.Number, bool) {
+	acc := big.NewInt(init)
+	exact := true
+
+	_ = a.Iter(func(x *ast.Term) error {
+		if !exact {
+			return nil
+		}
+		n, ok := x.Value.(ast.Number)
+		if !ok {
+			exact = false
+			return nil
+		}
+		i, err := builtins.NumberToInt(n)
+		if err != nil {
+			exact = false
+			return nil
+		}
+		op(acc, acc, i)
+		return nil
+	})
+
+	if !exact {
+		return "", false
+	}
+	return builtins.IntToNumber(acc), true
+}
+
 func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
 	case *ast.Array:
@@ -44,6 +82,10 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		}
 
 		// Non-integer values found, so we need to sum as floats.
+		if n, ok := exactIntAccumulate(a, 0, (*big.Int).Add); ok {
+			return iter(ast.NewTerm(n))
+		}
+
 		sum := big.NewFloat(0)
 		tmp := new(big.Float)
 		err := a.Iter(func(x *ast.Term) error {
@@ -74,6 +116,10 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			return iter(ast.InternedTerm(is))
 		}
 
+		if n, ok := exactIntAccumulate(a, 0, (*big.Int).Add); ok {
+			return iter(ast.NewTerm(n))
+		}
+
 		sum := big.NewFloat(0)
 		tmp := new(big.Float)
 		err := a.Iter(func(x *ast.Term) error {
@@ -95,6 +141,10 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 func builtinProduct(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
 	case *ast.Array:
+		if n, ok := exactIntAccumulate(a, 1, (*big.Int).Mul); ok {
+			return iter(ast.NewTerm(n))
+		}
+
 		product := big.NewFloat(1)
 		tmp := new(big.Float)
 		err := a.Iter(func(x *ast.Term) error {
@@ -110,6 +160,10 @@ func builtinProduct(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		}
 		return iter(ast.NewTerm(builtins.FloatToNumber(product)))
 	case ast.Set:
+		if n, ok := exactIntAccumulate(a, 1, (*big.Int).Mul); ok {
+			return iter(ast.NewTerm(n))
+		}
+
 		product := big.NewFloat(1)
 		tmp := new(big.Float)
 		err := a.Iter(func(x *ast.Term) error {
