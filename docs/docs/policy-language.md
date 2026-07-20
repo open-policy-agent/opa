@@ -2655,8 +2655,8 @@ comment block containing the YAML document is finished
 | `organizations`     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).                    |
 | `schemas`           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).                       |
 | `entrypoint`        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint).         |
-| `custom`            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                               |
 | `compile`           | list of references and a reference                          | A list of references treated as unknowns, and a rule that masks the document value. Read more in the [Metadata Compile section below](#metadata-compile).      |
+| `custom`            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                               |
 
 ### Metadata `Scope`
 
@@ -2941,7 +2941,7 @@ allow if {
 
 ### Metadata `compile`
 
-The `compile` annotation configures how a rule or document is treated at build time. It
+The `compile` annotation configures how a rule or document is treated during partial evaluation. It
 declares references that should be considered unknown during optimization, and optionally
 specifies a rule whose value masks the document produced by the annotated rule.
 
