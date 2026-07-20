@@ -29,8 +29,9 @@ type Variable interface {
 }
 
 type namedVar struct {
-	name  string
-	value ast.Value
+	name              string
+	value             ast.Value
+	maxVariableLength int
 }
 
 func (nv namedVar) Name() string {
@@ -42,17 +43,18 @@ func (nv namedVar) Type() string {
 }
 
 func (nv namedVar) Value() string {
-	return truncatedString(nv.value.String(), 100)
+	return truncatedString(nv.value.String(), nv.maxVariableLength)
 }
 
 type variableGetter func() []namedVar
 
 type variableManager struct {
-	getters []variableGetter
+	getters           []variableGetter
+	maxVariableLength int
 }
 
-func newVariableManager() *variableManager {
-	return &variableManager{}
+func newVariableManager(maxVariableLength int) *variableManager {
+	return &variableManager{maxVariableLength: maxVariableLength}
 }
 
 func (vs *variableManager) addVars(getter variableGetter) VarRef {
@@ -93,6 +95,7 @@ func (vs *variableManager) vars(varRef VarRef) ([]Variable, error) {
 	vars := make([]Variable, len(namedVar))
 
 	for i, nv := range namedVar {
+		nv.maxVariableLength = vs.maxVariableLength
 		vars[i] = variable{
 			v:   nv,
 			ref: vs.subVars(nv.value),
@@ -107,6 +110,9 @@ func (vs *variableManager) vars(varRef VarRef) ([]Variable, error) {
 }
 
 func truncatedString(s string, max int) string {
+	if max <= 0 {
+		return s
+	}
 	if len(s) > max {
 		return s[:max-2] + "..."
 	}
@@ -141,8 +147,9 @@ func (vs *variableManager) subVars(v ast.Value) VarRef {
 		vars := make([]namedVar, 0, obj.Len())
 		if err := obj.Iter(func(k, v *ast.Term) error {
 			vars = append(vars, namedVar{
-				name:  k.String(),
-				value: v.Value,
+				name:              k.String(),
+				value:             v.Value,
+				maxVariableLength: vs.maxVariableLength,
 			})
 			return nil
 		}); err != nil {
@@ -157,8 +164,9 @@ func (vs *variableManager) subVars(v ast.Value) VarRef {
 		vars := make([]namedVar, 0, arr.Len())
 		for i := range arr.Len() {
 			vars = append(vars, namedVar{
-				name:  strconv.Itoa(i),
-				value: arr.Elem(i).Value,
+				name:              strconv.Itoa(i),
+				value:             arr.Elem(i).Value,
+				maxVariableLength: vs.maxVariableLength,
 			})
 		}
 		return vs.addVars(func() []namedVar {
@@ -170,7 +178,8 @@ func (vs *variableManager) subVars(v ast.Value) VarRef {
 		vars := make([]namedVar, 0, set.Len())
 		for _, elem := range set.Slice() {
 			vars = append(vars, namedVar{
-				value: elem.Value,
+				value:             elem.Value,
+				maxVariableLength: vs.maxVariableLength,
 			})
 		}
 		return vs.addVars(func() []namedVar {
