@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -26,32 +25,50 @@ import (
 
 const defaultPublicKeyID = "default"
 
-type buildParams struct {
-	capabilities       *capabilitiesFlag
-	target             *util.EnumFlag
-	planFormat         *util.EnumFlag
-	bundleMode         bool
-	pruneUnused        bool
-	optimizationLevel  int
-	entrypoints        repeatedStringFlag
-	outputFile         string
-	revision           stringptrFlag
-	ignore             []string
-	debug              bool
-	algorithm          string
-	key                string
-	scope              string
-	pubKey             string
-	pubKeyID           string
-	claimsFile         string
-	excludeVerifyFiles []string
-	plugin             string
-	ns                 string
-	v0Compatible       bool
-	v1Compatible       bool
-	followSymlinks     bool
-	wasmIncludePrint   bool
-	stderr             io.Writer
+type (
+	buildParams struct {
+		capabilities       *capabilitiesFlag
+		target             *util.EnumFlag
+		planFormat         *util.EnumFlag
+		bundleMode         bool
+		pruneUnused        bool
+		optimizationLevel  int
+		entrypoints        repeatedStringFlag
+		outputFile         string
+		revision           stringptrFlag
+		ignore             []string
+		debug              bool
+		algorithm          string
+		key                string
+		scope              string
+		pubKey             string
+		pubKeyID           string
+		claimsFile         string
+		excludeVerifyFiles []string
+		plugin             string
+		ns                 string
+		v0Compatible       bool
+		v1Compatible       bool
+		followSymlinks     bool
+		wasmIncludePrint   bool
+		stderr             io.Writer
+	}
+	// deferredFileWriter is a wrapper around [*os.File] that defers the creation of the file until
+	// the first write, which allows us to pass a file writer without using an intermediate buffer,
+	// and without creating any file in case the build fails.
+	deferredFileWriter struct {
+		*os.File
+		path string
+	}
+)
+
+func (w *deferredFileWriter) Write(p []byte) (n int, err error) {
+	if w.File == nil {
+		if w.File, err = os.Create(w.path); err != nil {
+			return 0, err
+		}
+	}
+	return w.File.Write(p)
 }
 
 func newBuildParams() buildParams {
@@ -290,8 +307,6 @@ against ` + brand + ` v0.22.0:
 }
 
 func dobuild(params buildParams, args []string) error {
-	buf := bytes.NewBuffer(nil)
-
 	// generate the bundle verification and signing config
 	bvc, err := buildVerificationConfig(params.pubKey, params.pubKeyID, params.algorithm, params.scope, params.excludeVerifyFiles)
 	if err != nil {
@@ -303,12 +318,12 @@ func dobuild(params buildParams, args []string) error {
 		return err
 	}
 
-	if (bvc != nil || bsc != nil) && !params.bundleMode {
-		return errors.New("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
-	}
-
 	// if manifest files are found in the input directories and the -b flag is not set, this is likely a mistake.
 	if !params.bundleMode {
+		if bvc != nil || bsc != nil {
+			return errors.New("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
+		}
+
 		for _, arg := range args {
 			stat, err := os.Stat(arg)
 			if err != nil || !stat.IsDir() {
@@ -317,27 +332,27 @@ func dobuild(params buildParams, args []string) error {
 
 			for _, name := range []string{bundle.ManifestExt, bundle.ManifestProtoExt} {
 				if _, err := os.Stat(filepath.Join(arg, name)); err == nil {
-					fmt.Fprintf(params.stderr, "Warning: %s file found in %q but -b flag not specified. Manifest will be ignored.\n", name, arg)
+					fmt.Fprintf(params.stderr,
+						"Warning: %s file found in %q but -b flag not specified. Manifest will be ignored.\n",
+						name, arg,
+					)
 					break
 				}
 			}
 		}
 	}
 
-	capabilities := params.capabilities.C
-	if capabilities == nil {
-		// ensure custom builtins are properly captured
-		capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
-	}
+	out := &deferredFileWriter{path: params.outputFile}
+	defer out.Close()
 
 	compiler := compile.New().
-		WithCapabilities(capabilities).
+		WithCapabilities(util.Or(params.capabilities.C, capabilitiesForParamsVersion(params))).
 		WithTarget(params.target.String()).
 		WithPlanFormat(params.planFormat.String()).
 		WithAsBundle(params.bundleMode).
 		WithPruneUnused(params.pruneUnused).
 		WithOptimizationLevel(params.optimizationLevel).
-		WithOutput(buf).
+		WithOutput(out).
 		WithEntrypoints(params.entrypoints.v...).
 		WithRegoAnnotationEntrypoints(true).
 		WithPaths(args...).
@@ -370,22 +385,7 @@ func dobuild(params buildParams, args []string) error {
 		compiler = compiler.WithEnablePrintStatements(params.wasmIncludePrint)
 	}
 
-	err = compiler.Build(context.Background())
-	if err != nil {
-		return err
-	}
-
-	out, err := os.Create(params.outputFile)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(out, buf)
-	if err != nil {
-		return err
-	}
-
-	return out.Close()
+	return compiler.Build(context.Background())
 }
 
 func buildCommandLoaderFilter(bundleMode bool, ignore []string) func(string, os.FileInfo, int) bool {
@@ -408,15 +408,23 @@ func buildVerificationConfig(pubKey, pubKeyID, alg, scope string, excludeFiles [
 	if err != nil {
 		return nil, err
 	}
-	return bundle.NewVerificationConfig(map[string]*keys.Config{pubKeyID: keyConfig}, pubKeyID, scope, excludeFiles), nil
+	confMap := map[string]*keys.Config{pubKeyID: keyConfig}
+
+	return bundle.NewVerificationConfig(confMap, pubKeyID, scope, excludeFiles), nil
 }
 
 func buildSigningConfig(key, alg, claimsFile, plugin string) (*bundle.SigningConfig, error) {
-	if key == "" && (plugin != "" || claimsFile != "") {
-		return nil, errSigningConfigIncomplete
-	}
 	if key == "" {
+		if plugin != "" || claimsFile != "" {
+			return nil, errSigningConfigIncomplete
+		}
 		return nil, nil
 	}
 	return bundle.NewSigningConfig(key, alg, claimsFile).WithPlugin(plugin), nil
+}
+
+func capabilitiesForParamsVersion(params buildParams) func() *ast.Capabilities {
+	return func() *ast.Capabilities {
+		return ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(params.regoVersion()))
+	}
 }
