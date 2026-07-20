@@ -2953,7 +2953,7 @@ Allowed at `rule` and `document` scope.
   policy is built with `opa build --optimize`. Any reference not declared here (or via
   the `.manifest` roots) is assumed to be known and may be inlined during partial evaluation.
 - **`mask_rule`** (reference): A reference to a special rule that determines the value of
-  the document produced by the annotated rule. The mask rule is relative to the package it
+  the document produced by the annotated rule. The mask rule can be relative to the package it
   is used in and does not need to start with `data.`.
 
 #### Example
