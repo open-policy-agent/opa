@@ -19,7 +19,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/util"
-	"github.com/open-policy-agent/opa/v1/util/test"
 
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/disk"
@@ -1983,32 +1982,33 @@ func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
-	test.WithTempFS(nil, func(dir string) {
-		store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
-		compiler := ast.NewCompiler()
+	dir := t.TempDir()
+	t.Log(dir)
+	store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
+	compiler := ast.NewCompiler()
 
-		files := [][2]string{
-			{"/a/b/c/data.json", "[1,2,3]"},
-			{"/a/b/d/data.json", "true"},
-			{"/a/b/y/data.yaml", `foo: 1`},
-			{"/example/example.rego", `package example`},
-			{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
-			{"/.manifest", `{"revision": "rev-1"}`},
-		}
+	files := [][2]string{
+		{"/a/b/c/data.json", "[1,2,3]"},
+		{"/a/b/d/data.json", "true"},
+		{"/a/b/y/data.yaml", `foo: 1`},
+		{"/example/example.rego", `package example`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
+		{"/.manifest", `{"revision": "rev-1"}`},
+	}
 
-		bundle := must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
-			WithBundleEtag("foo").
-			WithLazyLoadingMode(true).
-			Read())(t)
+	bundle := must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
+		WithBundleEtag("foo").
+		WithLazyLoadingMode(true).
+		Read())(t)
 
-		bundles := map[string]*Bundle{"bundle1": &bundle}
+	bundles := map[string]*Bundle{"bundle1": &bundle}
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
 
-		// Ensure the bundle was activated
-		verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
-		verifyBundleModulesCompiled(t, compiler, bundles)
-		verifyResultRead(t, store, `{
+	// Ensure the bundle was activated
+	verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
+	verifyBundleModulesCompiled(t, compiler, bundles)
+	verifyResultRead(t, store, `{
 			"a": {
 				"b": {
 					"c": [1,2,3],
@@ -2035,20 +2035,20 @@ func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
 			}
 		}`)
 
-		files = [][2]string{
-			{"/c/data.json", `{"hello": "world"}`},
-			{"/.manifest", `{"revision": "rev-2"}`},
-		}
+	files = [][2]string{
+		{"/c/data.json", `{"hello": "world"}`},
+		{"/.manifest", `{"revision": "rev-2"}`},
+	}
 
-		bundle = must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
-			WithBundleEtag("bar").
-			WithLazyLoadingMode(true).
-			Read())(t)
+	bundle = must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
+		WithBundleEtag("bar").
+		WithLazyLoadingMode(true).
+		Read())(t)
 
-		bundles = map[string]*Bundle{"bundle1": &bundle}
+	bundles = map[string]*Bundle{"bundle1": &bundle}
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
-		verifyResultRead(t, store, `{
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	verifyResultRead(t, store, `{
 			"c": {
 				"hello": "world"
 			},
@@ -2064,7 +2064,6 @@ func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
 				}
 			}
 		}`)
-	})
 }
 
 func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
@@ -2136,31 +2135,30 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
-	test.WithTempFS(nil, func(dir string) {
-		store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
-		compiler := ast.NewCompiler()
-		mod1 := "package a\np = true"
+	store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()}))(t)
+	compiler := ast.NewCompiler()
+	mod1 := "package a\np = true"
 
-		b := Bundle{
-			Manifest: Manifest{Revision: "rev-1"},
-			Data: unpack(map[string]any{
-				"a.b":   "foo",
-				"a.e.f": "bar",
-				"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
-			}),
-			Modules: []ModuleFile{moduleFile("a/policy.rego", mod1)},
-			Etag:    "foo",
-		}
+	b := Bundle{
+		Manifest: Manifest{Revision: "rev-1"},
+		Data: unpack(map[string]any{
+			"a.b":   "foo",
+			"a.e.f": "bar",
+			"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
+		}),
+		Modules: []ModuleFile{moduleFile("a/policy.rego", mod1)},
+		Etag:    "foo",
+	}
 
-		bundle1 := bundleFromRoundtrip(t, "bundle1", b)
-		bundles := map[string]*Bundle{"bundle1": &bundle1}
+	bundle1 := bundleFromRoundtrip(t, "bundle1", b)
+	bundles := map[string]*Bundle{"bundle1": &bundle1}
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
 
-		// Ensure the snapshot bundle was activated
-		verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
-		verifyBundleModulesCompiled(t, compiler, bundles)
-		verifyResultRead(t, store, `{
+	// Ensure the snapshot bundle was activated
+	verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
+	verifyBundleModulesCompiled(t, compiler, bundles)
+	verifyResultRead(t, store, `{
 			"a": {
 				"b": "foo",
 				"e": {
@@ -2181,15 +2179,15 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
 			}
 		}`)
 
-		// add a new bundle with no roots. this means all the data from the currently activated should be removed
-		bundle2 := bundleFromRoundtrip(t, "bundle1", Bundle{
-			Manifest: Manifest{Revision: "rev-2"},
-			Data:     unpack(map[string]any{"c.hello": "world"}),
-			Etag:     "bar",
-		})
+	// add a new bundle with no roots. this means all the data from the currently activated should be removed
+	bundle2 := bundleFromRoundtrip(t, "bundle1", Bundle{
+		Manifest: Manifest{Revision: "rev-2"},
+		Data:     unpack(map[string]any{"c.hello": "world"}),
+		Etag:     "bar",
+	})
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: map[string]*Bundle{"bundle1": &bundle2}})
-		verifyResultRead(t, store, `{
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: map[string]*Bundle{"bundle1": &bundle2}})
+	verifyResultRead(t, store, `{
 			"c": {
 				"hello": "world"
 			},
@@ -2205,41 +2203,38 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
 				}
 			}
 		}`)
-	})
 }
 
 func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T) {
-	test.WithTempFS(nil, func(dir string) {
-		store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
-		compiler := ast.NewCompiler()
+	store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()}))(t)
+	compiler := ast.NewCompiler()
+	mod1 := "package a\np = true"
 
-		mod1 := "package a\np = true"
+	bundle1 := bundleFromRoundtrip(t, "bundle1", Bundle{
+		Manifest: Manifest{Revision: "snap-1", Roots: &[]string{"a"}},
+		Data: unpack(map[string]any{
+			"a.b":   "foo",
+			"a.e.f": "bar",
+			"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
+		}),
+		Modules: []ModuleFile{moduleFile("a/policy.rego", mod1)},
+		Etag:    "foo",
+	})
 
-		bundle1 := bundleFromRoundtrip(t, "bundle1", Bundle{
-			Manifest: Manifest{Revision: "snap-1", Roots: &[]string{"a"}},
-			Data: unpack(map[string]any{
-				"a.b":   "foo",
-				"a.e.f": "bar",
-				"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
-			}),
-			Modules: []ModuleFile{moduleFile("a/policy.rego", mod1)},
-			Etag:    "foo",
-		})
+	// create a delta bundle and activate it
 
-		// create a delta bundle and activate it
+	// add a new object member
+	bundle2 := bundleFromRoundtrip(t, "bundle2", Bundle{
+		Manifest: Manifest{Revision: "delta-1", Roots: &[]string{"x"}},
+		Patch:    Patch{Data: []PatchOperation{{Op: "upsert", Path: "/x/y", Value: []string{"foo", "bar"}}}},
+		Etag:     "bar",
+	})
+	bundles := map[string]*Bundle{"bundle1": &bundle1, "bundle2": &bundle2}
 
-		// add a new object member
-		bundle2 := bundleFromRoundtrip(t, "bundle2", Bundle{
-			Manifest: Manifest{Revision: "delta-1", Roots: &[]string{"x"}},
-			Patch:    Patch{Data: []PatchOperation{{Op: "upsert", Path: "/x/y", Value: []string{"foo", "bar"}}}},
-			Etag:     "bar",
-		})
-		bundles := map[string]*Bundle{"bundle1": &bundle1, "bundle2": &bundle2}
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
-
-		// Ensure the patches were applied
-		verifyResultRead(t, store, `{
+	// Ensure the patches were applied
+	verifyResultRead(t, store, `{
 			"a": {
 				"b": "foo",
 				"e": {
@@ -2269,36 +2264,33 @@ func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T)
 				}
 			}
 		}`)
-	})
 }
 
 func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
-	test.WithTempFS(nil, func(dir string) {
-		store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
+	store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()}))(t)
+	compiler := ast.NewCompiler()
+	mod1 := "package a\np = true"
 
-		compiler := ast.NewCompiler()
-		mod1 := "package a\np = true"
+	b := Bundle{
+		Manifest: Manifest{Revision: "rev-1", Roots: &[]string{"a"}},
+		Data: unpack(map[string]any{
+			"a.b":   "foo",
+			"a.e.f": "bar",
+			"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
+		}),
+		Modules: []ModuleFile{moduleFile("a/policy.rego", mod1)},
+		Etag:    "foo",
+	}
 
-		b := Bundle{
-			Manifest: Manifest{Revision: "rev-1", Roots: &[]string{"a"}},
-			Data: unpack(map[string]any{
-				"a.b":   "foo",
-				"a.e.f": "bar",
-				"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
-			}),
-			Modules: []ModuleFile{moduleFile("a/policy.rego", mod1)},
-			Etag:    "foo",
-		}
+	bundle1 := bundleFromRoundtrip(t, "bundle1", b)
+	bundles := map[string]*Bundle{"bundle1": &bundle1}
 
-		bundle1 := bundleFromRoundtrip(t, "bundle1", b)
-		bundles := map[string]*Bundle{"bundle1": &bundle1}
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
-
-		// Ensure the snapshot bundle was activated
-		verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
-		verifyBundleModulesCompiled(t, compiler, bundles)
-		verifyResultRead(t, store, `{
+	// Ensure the snapshot bundle was activated
+	verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
+	verifyBundleModulesCompiled(t, compiler, bundles)
+	verifyResultRead(t, store, `{
 			"a": {
 				"b": "foo",
 				"e": {
@@ -2319,18 +2311,18 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
 			}
 		}`)
 
-		// add a new bundle and verify data from the currently activated is removed
-		bundle2 := bundleFromRoundtrip(t, "bundle1", Bundle{
-			Manifest: Manifest{Revision: "rev-2", Roots: &[]string{"c"}},
-			Data:     unpack(map[string]any{"c.hello": "world"}),
-			Etag:     "bar",
-		})
-		bundles = map[string]*Bundle{"bundle1": &bundle2}
+	// add a new bundle and verify data from the currently activated is removed
+	bundle2 := bundleFromRoundtrip(t, "bundle1", Bundle{
+		Manifest: Manifest{Revision: "rev-2", Roots: &[]string{"c"}},
+		Data:     unpack(map[string]any{"c.hello": "world"}),
+		Etag:     "bar",
+	})
+	bundles = map[string]*Bundle{"bundle1": &bundle2}
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
 
-		// Ensure the snapshot bundle was activated
-		verifyResultRead(t, store, `{
+	// Ensure the snapshot bundle was activated
+	verifyResultRead(t, store, `{
 			"c": {
 				"hello": "world"
 			},
@@ -2346,34 +2338,33 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
 				}
 			}
 		}`)
-	})
 }
 
 func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
-	test.WithTempFS(nil, func(dir string) {
-		store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
-		compiler := ast.NewCompiler()
+	dir := t.TempDir()
+	store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
+	compiler := ast.NewCompiler()
 
-		b := Bundle{
-			Manifest: Manifest{Revision: "rev-1", Roots: &[]string{"a"}},
-			Data: unpack(map[string]any{
-				"a.b":   "foo",
-				"a.e.f": "bar",
-				"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
-			}),
-			Modules: []ModuleFile{moduleFile("a/policy.rego", "package a\np = true")},
-			Etag:    "foo",
-		}
+	b := Bundle{
+		Manifest: Manifest{Revision: "rev-1", Roots: &[]string{"a"}},
+		Data: unpack(map[string]any{
+			"a.b":   "foo",
+			"a.e.f": "bar",
+			"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
+		}),
+		Modules: []ModuleFile{moduleFile("a/policy.rego", "package a\np = true")},
+		Etag:    "foo",
+	}
 
-		bundle1 := bundleFromRoundtrip(t, "bundle1", b)
-		bundles := map[string]*Bundle{"bundle1": &bundle1}
+	bundle1 := bundleFromRoundtrip(t, "bundle1", b)
+	bundles := map[string]*Bundle{"bundle1": &bundle1}
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
 
-		// Ensure the snapshot bundle was activated
-		verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
-		verifyBundleModulesCompiled(t, compiler, bundles)
-		verifyResultRead(t, store, `{
+	// Ensure the snapshot bundle was activated
+	verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
+	verifyBundleModulesCompiled(t, compiler, bundles)
+	verifyResultRead(t, store, `{
 			"a": {
 				"b": "foo",
 				"e": {
@@ -2394,29 +2385,29 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
 			}
 		}`)
 
-		// add a new bundle but abort the transaction and verify only old the bundle data is kept in store
-		bundle2 := bundleFromRoundtrip(t, "bundle1", Bundle{
-			Manifest: Manifest{Revision: "rev-2", Roots: &[]string{"c"}},
-			Data:     unpack(map[string]any{"c.hello": "world"}),
-			Etag:     "bar",
-		})
+	// add a new bundle but abort the transaction and verify only old the bundle data is kept in store
+	bundle2 := bundleFromRoundtrip(t, "bundle1", Bundle{
+		Manifest: Manifest{Revision: "rev-2", Roots: &[]string{"c"}},
+		Data:     unpack(map[string]any{"c.hello": "world"}),
+		Etag:     "bar",
+	})
 
-		// can't use mustActivate here because we want to abort the txn!
-		txn := storage.NewTransactionOrDie(t.Context(), store, storage.WriteParams)
-		err := Activate(&ActivateOpts{
-			Ctx:      t.Context(),
-			Store:    store,
-			Txn:      txn,
-			Metrics:  metrics.NoOp(),
-			Compiler: compiler,
-			Bundles:  map[string]*Bundle{"bundle1": &bundle2},
-		})
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		store.Abort(t.Context(), txn)
+	// can't use mustActivate here because we want to abort the txn!
+	txn := storage.NewTransactionOrDie(t.Context(), store, storage.WriteParams)
+	err := Activate(&ActivateOpts{
+		Ctx:      t.Context(),
+		Store:    store,
+		Txn:      txn,
+		Metrics:  metrics.NoOp(),
+		Compiler: compiler,
+		Bundles:  map[string]*Bundle{"bundle1": &bundle2},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	store.Abort(t.Context(), txn)
 
-		verifyResultRead(t, store, `{
+	verifyResultRead(t, store, `{
 			"a": {
 				"b": "foo",
 				"e": {
@@ -2437,80 +2428,72 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
 			}
 		}`)
 
-		// check symlink is created
-		symlink := filepath.Join(dir, "active")
-		if _, err := os.Lstat(symlink); err != nil {
-			t.Fatal(err)
-		}
-
-		// check symlink target
-		if _, err := filepath.EvalSymlinks(symlink); err != nil {
-			t.Fatalf("eval symlinks: %v", err)
-		}
-	})
+	// check symlink is created and symlink target
+	symlink := filepath.Join(dir, "active")
+	must(os.Lstat(symlink))(t)
+	must(filepath.EvalSymlinks(symlink))(t)
 }
 
 func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
-	test.WithTempFS(nil, func(dir string) {
-		store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
-		compiler := ast.NewCompiler()
+	store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()}))(t)
+	compiler := ast.NewCompiler()
 
-		mod1 := "package a\np = true"
-		mod2 := "package b\np = true"
-		bundle1 := bundleFromRoundtrip(t, "bundle1", Bundle{
-			Manifest: Manifest{Roots: &[]string{"a"}},
-			Data: unpack(map[string]any{
-				"a.b":   "foo",
-				"a.e.f": "bar",
-				"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
-			}),
-			Modules: []ModuleFile{moduleFile("a/policy.rego", mod1)},
-			Etag:    "foo",
-		})
+	mod1 := "package a\np = true"
+	mod2 := "package b\np = true"
+	bundle1 := bundleFromRoundtrip(t, "bundle1", Bundle{
+		Manifest: Manifest{Roots: &[]string{"a"}},
+		Data: unpack(map[string]any{
+			"a.b":   "foo",
+			"a.e.f": "bar",
+			"a.x":   []map[string]string{{"name": "john"}, {"name": "jane"}},
+		}),
+		Modules: []ModuleFile{moduleFile("a/policy.rego", mod1)},
+		Etag:    "foo",
+	})
 
-		bundle2 := bundleFromRoundtrip(t, "bundle2", Bundle{
-			Manifest: Manifest{Roots: &[]string{"b", "c"}},
-			Modules:  []ModuleFile{moduleFile("b/policy.rego", mod2)},
-			Etag:     "foo",
-		})
+	bundle2 := bundleFromRoundtrip(t, "bundle2", Bundle{
+		Manifest: Manifest{Roots: &[]string{"b", "c"}},
+		Modules:  []ModuleFile{moduleFile("b/policy.rego", mod2)},
+		Etag:     "foo",
+	})
 
-		bundles := map[string]*Bundle{"bundle1": &bundle1, "bundle2": &bundle2}
+	bundles := map[string]*Bundle{"bundle1": &bundle1, "bundle2": &bundle2}
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
 
-		// Ensure the snapshot bundles were activated
-		verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
-		verifyBundleModulesCompiled(t, compiler, bundles)
+	// Ensure the snapshot bundles were activated
+	verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
+	verifyBundleModulesCompiled(t, compiler, bundles)
 
-		// create a delta bundle and activate it
-		deltaBundles := map[string]*Bundle{
-			"bundle1": {
-				Manifest: Manifest{Revision: "delta-1", Roots: &[]string{"a"}},
-				Patch: Patch{Data: []PatchOperation{
-					{Op: "upsert", Path: "/a/c/d", Value: []string{"foo", "bar"}},
-					{Op: "upsert", Path: "/a/c/d/-", Value: "baz"}, // append value to array
-					{Op: "replace", Path: "a/b", Value: "bar"},     // replace a value
-				}},
-				Etag: "bar",
-			},
-			"bundle2": {
-				Manifest: Manifest{Revision: "delta-2", Roots: &[]string{"b", "c"}},
-				Patch: Patch{Data: []PatchOperation{
-					{Op: "upsert", Path: "/c/d", Value: []string{"foo", "bar"}},
-				}},
-				Etag: "baz",
-			},
-			"bundle3": {
-				Manifest: Manifest{Roots: &[]string{"d"}},
-				Data:     unpack(map[string]any{"d.e": "foo"}),
-			},
-		}
+	// create a delta bundle and activate it
+	deltaBundles := map[string]*Bundle{
+		"bundle1": {
+			Manifest: Manifest{Revision: "delta-1", Roots: &[]string{"a"}},
+			Patch: Patch{Data: []PatchOperation{
+				{Op: "upsert", Path: "/a/c/d", Value: []string{"foo", "bar"}},
+				{Op: "upsert", Path: "/a/c/d/-", Value: "baz"}, // append value to array
+				{Op: "replace", Path: "a/b", Value: "bar"},     // replace a value
+			}},
+			Etag: "bar",
+		},
+		"bundle2": {
+			Manifest: Manifest{Revision: "delta-2", Roots: &[]string{"b", "c"}},
+			Patch: Patch{Data: []PatchOperation{
+				{Op: "upsert", Path: "/c/d", Value: []string{"foo", "bar"}},
+			}},
+			Etag: "baz",
+		},
+		"bundle3": {
+			Manifest: Manifest{Roots: &[]string{"d"}},
+			Data:     unpack(map[string]any{"d.e": "foo"}),
+		},
+	}
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: deltaBundles})
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: deltaBundles})
 
-		// check the modules from the snapshot bundles are on the compiler
-		verifyBundleModulesCompiled(t, compiler, bundles)
-		verifyResultRead(t, store, `{
+	// check the modules from the snapshot bundles are on the compiler
+	verifyBundleModulesCompiled(t, compiler, bundles)
+	verifyResultRead(t, store, `{
 			"a": {
 		     	"b": "bar",
 		     	"c": {
@@ -2549,7 +2532,6 @@ func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
 				}
 			}
 		}`)
-	})
 }
 
 func TestBundleLazyModeLifecycleOverlappingBundleRoots(t *testing.T) {
@@ -2608,33 +2590,32 @@ func TestBundleLazyModeLifecycleOverlappingBundleRoots(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleOverlappingBundleRootsDiskStorage(t *testing.T) {
-	test.WithTempFS(nil, func(dir string) {
-		store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
-		compiler := ast.NewCompiler()
+	store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()}))(t)
+	compiler := ast.NewCompiler()
 
-		bundle1 := bundleFromRoundtrip(t, "bundle1", Bundle{
-			Manifest: Manifest{Revision: "foo", Roots: &[]string{"a/b/c", "a/b/d", "a/b/e"}},
-			Data: unpack(map[string]any{
-				"a.b.c": "bar",
-				"a.b.d": []map[string]string{{"name": "john"}, {"name": "jane"}},
-				"a.b.e": []string{"foo", "bar"},
-			}),
-		})
+	bundle1 := bundleFromRoundtrip(t, "bundle1", Bundle{
+		Manifest: Manifest{Revision: "foo", Roots: &[]string{"a/b/c", "a/b/d", "a/b/e"}},
+		Data: unpack(map[string]any{
+			"a.b.c": "bar",
+			"a.b.d": []map[string]string{{"name": "john"}, {"name": "jane"}},
+			"a.b.e": []string{"foo", "bar"},
+		}),
+	})
 
-		bundle2 := bundleFromRoundtrip(t, "bundle2", Bundle{
-			Manifest: Manifest{Revision: "bar", Roots: &[]string{"a/b/f"}},
-			Data:     unpack(map[string]any{"a.b.f.hello": "world"}),
-		})
+	bundle2 := bundleFromRoundtrip(t, "bundle2", Bundle{
+		Manifest: Manifest{Revision: "bar", Roots: &[]string{"a/b/f"}},
+		Data:     unpack(map[string]any{"a.b.f.hello": "world"}),
+	})
 
-		bundles := map[string]*Bundle{"bundle1": &bundle1, "bundle2": &bundle2}
+	bundles := map[string]*Bundle{"bundle1": &bundle1, "bundle2": &bundle2}
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
 
-		// Ensure the snapshot bundles were activated
-		verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
+	// Ensure the snapshot bundles were activated
+	verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
 
-		// Ensure the patches were applied
-		verifyResultRead(t, store, `{
+	// Ensure the patches were applied
+	verifyResultRead(t, store, `{
 			"a": {
 				"b": {
 					"c": "bar",
@@ -2662,7 +2643,6 @@ func TestBundleLazyModeLifecycleOverlappingBundleRootsDiskStorage(t *testing.T) 
 				}
 			}
 		}`)
-	})
 }
 
 func TestBundleLazyModeLifecycleRawOverlappingBundleRoots(t *testing.T) {
@@ -2728,33 +2708,32 @@ func TestBundleLazyModeLifecycleRawOverlappingBundleRoots(t *testing.T) {
 }
 
 func TestBundleLazyModeLifecycleRawOverlappingBundleRootsDiskStorage(t *testing.T) {
-	test.WithTempFS(nil, func(dir string) {
-		store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: dir}))(t)
-		compiler := ast.NewCompiler()
+	store := must(disk.New(t.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()}))(t)
+	compiler := ast.NewCompiler()
 
-		bundle1 := bundleFromFiles(t, "bundle1", [][2]string{
-			{"/a/b/u/data.json", "[1,2,3]"},
-			{"/a/b/v/data.json", "true"},
-			{"/a/b/w/data.yaml", `foo: 1`},
-			{"/data.json", `{"a": {"b": {"x": true}}}`},
-			{"/.manifest", `{"revision": "foo", "roots": ["a/b"]}`},
-		})
+	bundle1 := bundleFromFiles(t, "bundle1", [][2]string{
+		{"/a/b/u/data.json", "[1,2,3]"},
+		{"/a/b/v/data.json", "true"},
+		{"/a/b/w/data.yaml", `foo: 1`},
+		{"/data.json", `{"a": {"b": {"x": true}}}`},
+		{"/.manifest", `{"revision": "foo", "roots": ["a/b"]}`},
+	})
 
-		bundle2 := bundleFromFiles(t, "bundle2", [][2]string{
-			{"/a/c/x/data.json", "[4,5,6]"},
-			{"/data.json", `{"a": {"c": {"y": true}}}`},
-			{"/.manifest", `{"revision": "bar", "roots": ["a/c"]}`},
-		})
+	bundle2 := bundleFromFiles(t, "bundle2", [][2]string{
+		{"/a/c/x/data.json", "[4,5,6]"},
+		{"/data.json", `{"a": {"c": {"y": true}}}`},
+		{"/.manifest", `{"revision": "bar", "roots": ["a/c"]}`},
+	})
 
-		bundles := map[string]*Bundle{"bundle1": &bundle1, "bundle2": &bundle2}
+	bundles := map[string]*Bundle{"bundle1": &bundle1, "bundle2": &bundle2}
 
-		mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
 
-		// Ensure the snapshot bundles were activated
-		verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
+	// Ensure the snapshot bundles were activated
+	verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
 
-		// Ensure the patches were applied
-		verifyResultRead(t, store, `{
+	// Ensure the patches were applied
+	verifyResultRead(t, store, `{
 			"a": {
 				"b": {
 					"u": [1,2,3],
@@ -2786,7 +2765,6 @@ func TestBundleLazyModeLifecycleRawOverlappingBundleRootsDiskStorage(t *testing.
 				}
 			}
 		}`)
-	})
 }
 
 func TestDeltaBundleLazyModeLifecycle(t *testing.T) {

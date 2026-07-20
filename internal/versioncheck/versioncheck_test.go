@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -156,7 +157,6 @@ func TestPretty(t *testing.T) {
 }
 
 func TestSlice(t *testing.T) {
-
 	var dr *DataResponse
 
 	if len(dr.Slice()) != 0 {
@@ -179,7 +179,7 @@ func TestSlice(t *testing.T) {
 		{"Release Notes", "https://example2.com"},
 	}
 
-	if !reflect.DeepEqual(exp, dr.Slice()) {
+	if !slices.Equal(exp, dr.Slice()) {
 		t.Fatalf("expected %v but got %v", exp, dr.Slice())
 	}
 }

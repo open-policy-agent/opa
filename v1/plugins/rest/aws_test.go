@@ -358,15 +358,13 @@ func TestMetadataCredentialService(t *testing.T) {
 	assertErr("unable to get ECS metadata authorization token", err, t)
 	os.Unsetenv(ecsFullPathEnvVar)
 
-	test.WithTempFS(nil, func(path string) {
-		// wrong path: bad file token
-		t.Setenv(ecsFullPathEnvVar, "fullPath")
-		t.Setenv(ecsAuthorizationTokenFileEnvVar, filepath.Join(path, "bad-file"))
-		_, err = cs.credentials(t.Context())
-		assertErr("failed to read ECS metadata authorization token from file", err, t)
-		os.Unsetenv(ecsFullPathEnvVar)
-		os.Unsetenv(ecsAuthorizationTokenFileEnvVar)
-	})
+	// wrong path: bad file token
+	t.Setenv(ecsFullPathEnvVar, "fullPath")
+	t.Setenv(ecsAuthorizationTokenFileEnvVar, filepath.Join(t.TempDir(), "bad-file"))
+	_, err = cs.credentials(t.Context())
+	assertErr("failed to read ECS metadata authorization token from file", err, t)
+	os.Unsetenv(ecsFullPathEnvVar)
+	os.Unsetenv(ecsAuthorizationTokenFileEnvVar)
 
 	// wrong path: creds not found
 	cs = awsMetadataCredentialService{

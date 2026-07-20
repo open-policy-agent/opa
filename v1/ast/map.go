@@ -10,7 +10,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// ValueMap represents a key/value map between AST term values. Any type of term
+// ValueMap represents a key/value map between AST term values. Any type of value
 // can be used as a key in the map.
 type ValueMap struct {
 	hashMap *util.TypedHashMap[Value, Value]

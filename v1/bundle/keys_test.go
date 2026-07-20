@@ -8,15 +8,14 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"errors"
+	"maps"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
-
 	tests := map[string]struct {
 		publicKeys map[string]*KeyConfig
 		vc         *VerificationConfig
@@ -56,7 +55,7 @@ func TestValidateAndInjectDefaultsVerificationConfig(t *testing.T) {
 				t.Fatalf("Unexpected error %v", err)
 			}
 
-			if !reflect.DeepEqual(tc.vc.PublicKeys, tc.publicKeys) {
+			if !maps.EqualFunc(tc.vc.PublicKeys, tc.publicKeys, (*KeyConfig).Equal) {
 				t.Fatalf("Expected public keys %v but got %v", tc.publicKeys, tc.vc.PublicKeys)
 			}
 		})
@@ -87,7 +86,6 @@ func TestGetPublicKey(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			kc, err := tc.vc.GetPublicKey(tc.input)
 			if tc.wantErr {
 				if err == nil {
@@ -101,7 +99,7 @@ func TestGetPublicKey(t *testing.T) {
 				t.Fatalf("Unexpected error %v", err)
 			}
 
-			if !reflect.DeepEqual(kc, tc.kc) {
+			if !kc.Equal(tc.kc) {
 				t.Fatalf("Expected key config %v but got %v", tc.kc, kc)
 			}
 		})

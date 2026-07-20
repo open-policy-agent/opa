@@ -224,7 +224,7 @@ func (m Manifest) Equal(other Manifest) bool {
 
 	// If both are nil, or both are empty, we consider them equal.
 	if !(len(m.FileRegoVersions) == 0 && len(other.FileRegoVersions) == 0) &&
-		!reflect.DeepEqual(m.FileRegoVersions, other.FileRegoVersions) {
+		!maps.Equal(m.FileRegoVersions, other.FileRegoVersions) {
 		return false
 	}
 

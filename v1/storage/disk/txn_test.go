@@ -13,7 +13,6 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"github.com/open-policy-agent/opa/v1/logging"
 	"github.com/open-policy-agent/opa/v1/storage"
-	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
 func randomString(n int) string {
@@ -37,39 +36,36 @@ func fixture(n int) map[string]any {
 func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testing.T) {
 	t.Parallel()
 
-	test.WithTempFS(nil, func(dir string) {
-		ctx := t.Context()
-		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
-			storage.MustParsePath("/foo"),
-		}})
-		if err != nil {
-			t.Fatal(err)
-		}
+	ctx := t.Context()
+	s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: t.TempDir(), Partitions: []storage.Path{
+		storage.MustParsePath("/foo"),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		nbKeys := 140_000 // 135_000 is ok, but 140_000 not
-		jsonFixture := fixture(nbKeys)
-		err = storage.Txn(ctx, s, storage.WriteParams, func(txn storage.Transaction) error {
-			err := s.Write(ctx, txn, storage.AddOp, storage.RootPath, jsonFixture)
-			if !errors.Is(err, badger.ErrTxnTooBig) {
-				t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
-			}
-			return err
-		})
+	nbKeys := 140_000 // 135_000 is ok, but 140_000 not
+	jsonFixture := fixture(nbKeys)
+	err = storage.Txn(ctx, s, storage.WriteParams, func(txn storage.Transaction) error {
+		err := s.Write(ctx, txn, storage.AddOp, storage.RootPath, jsonFixture)
 		if !errors.Is(err, badger.ErrTxnTooBig) {
 			t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
 		}
-
-		_, err = storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
-		var notFound *storage.Error
-		ok := errors.As(err, &notFound)
-		if !ok {
-			t.Errorf("expected %T, got %v", notFound, err)
-		}
-		if exp, act := storage.NotFoundErr, notFound.Code; exp != act {
-			t.Errorf("expected code %v, got %v", exp, act)
-		}
+		return err
 	})
+	if !errors.Is(err, badger.ErrTxnTooBig) {
+		t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
+	}
 
+	_, err = storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
+	var notFound *storage.Error
+	ok := errors.As(err, &notFound)
+	if !ok {
+		t.Errorf("expected %T, got %v", notFound, err)
+	}
+	if exp, act := storage.NotFoundErr, notFound.Code; exp != act {
+		t.Errorf("expected code %v, got %v", exp, act)
+	}
 }
 
 func TestDeleteTxnIsTooBigToFitIntoOneRequestWhenUseDiskStore(t *testing.T) {
@@ -79,55 +75,52 @@ func TestDeleteTxnIsTooBigToFitIntoOneRequestWhenUseDiskStore(t *testing.T) {
 
 	t.Parallel()
 
-	test.WithTempFS(nil, func(dir string) {
-		ctx := t.Context()
-		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
-			storage.MustParsePath("/foo"),
-		}})
+	dir := t.TempDir()
+	ctx := t.Context()
+	s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+		storage.MustParsePath("/foo"),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nbKeys := 200_000
+	jsonFixture := fixture(nbKeys)
+	foo := jsonFixture["foo"].(map[string]string)
+
+	// Write data in increments so we don't step over the too-large-txn limit
+	for k, v := range foo {
+		err := storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo/"+k), v)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nbKeys := 200_000
-		jsonFixture := fixture(nbKeys)
-		foo := jsonFixture["foo"].(map[string]string)
+	}
 
-		// Write data in increments so we don't step over the too-large-txn limit
-		for k, v := range foo {
-			err := storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo/"+k), v)
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
+	// check expected state
+	res, err := storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp, act := nbKeys, len(res.(map[string]any)); exp != act {
+		t.Fatalf("expected %d keys, read %d", exp, act)
+	}
 
-		// check expected state
-		res, err := storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if exp, act := nbKeys, len(res.(map[string]any)); exp != act {
-			t.Fatalf("expected %d keys, read %d", exp, act)
-		}
-
-		err = storage.Txn(ctx, s, storage.WriteParams, func(txn storage.Transaction) error {
-			err := s.Write(ctx, txn, storage.RemoveOp, storage.MustParsePath("/foo"), jsonFixture)
-			if !errors.Is(err, badger.ErrTxnTooBig) {
-				t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
-			}
-			return err
-		})
+	err = storage.Txn(ctx, s, storage.WriteParams, func(txn storage.Transaction) error {
+		err := s.Write(ctx, txn, storage.RemoveOp, storage.MustParsePath("/foo"), jsonFixture)
 		if !errors.Is(err, badger.ErrTxnTooBig) {
 			t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
 		}
-
-		// check expected state again
-		res, err = storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if exp, act := nbKeys, len(res.(map[string]any)); exp != act {
-			t.Fatalf("expected %d keys, read %d", exp, act)
-		}
-
+		return err
 	})
+	if !errors.Is(err, badger.ErrTxnTooBig) {
+		t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
+	}
 
+	// check expected state again
+	res, err = storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp, act := nbKeys, len(res.(map[string]any)); exp != act {
+		t.Fatalf("expected %d keys, read %d", exp, act)
+	}
 }
