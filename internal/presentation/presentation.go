@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -192,6 +193,17 @@ func NewOutputErrors(err error) []OutputError {
 				}
 			}
 		default:
+			// Unwrap wrapped errors (e.g. the bundle loader's
+			// fmt.Errorf("bundle %s: %w", ...)) to report the structured errors
+			// they hide individually rather than as one opaque string (#3663).
+			// Keep the wrapper's message if unwrapping reveals nothing structured.
+			hasStructuredCode := func(e OutputError) bool { return e.Code != "" }
+			if inner := errors.Unwrap(err); inner != nil {
+				if unwrapped := NewOutputErrors(inner); slices.ContainsFunc(unwrapped, hasStructuredCode) {
+					return unwrapped
+				}
+			}
+
 			// Any errors which don't have a structure we know about
 			// are converted to their string representation only.
 			errs = []OutputError{{
