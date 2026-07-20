@@ -2941,9 +2941,12 @@ allow if {
 
 ### Metadata `compile`
 
-The `compile` annotation configures how a rule or document is treated during partial evaluation. It
-declares references that should be considered unknown during optimization, and optionally
-specifies a rule whose value masks the document produced by the annotated rule.
+The `compile` annotation configures compile-time behavior of a rule or
+document. Its `unknowns` field declares which references are treated as
+unknown during partial evaluation; its `mask_rule` field optionally
+identifies a rule whose value masks the document produced by the
+annotated rule (a compile-to-filters concept, unrelated to bundle
+optimization).
 
 Allowed at `rule` and `document` scope.
 
@@ -2952,31 +2955,27 @@ Allowed at `rule` and `document` scope.
 - **`unknowns`** (list of references): References that are treated as unknown when the
   policy is built with `opa build --optimize`. Any reference not declared here (or via
   the `.manifest` roots) is assumed to be known and may be inlined during partial evaluation.
-- **`mask_rule`** (reference): A reference to a special rule that determines the value of
-  the document produced by the annotated rule. The mask rule can be relative to the package it
-  is used in and does not need to start with `data.`.
+- **`mask_rule`** (reference): A reference to a rule that determines the value of the
+  document produced by the annotated rule. This is used when compiling a policy into
+  filters, and is independent of bundle optimization. The mask rule can be relative to
+  the package it is used in and does not need to start with `data.`.
 
 #### Example
 
 ```rego
-package example
+package examples
 
 # METADATA
+# scope: document
 # compile:
 #   unknowns:
-#     - data.external.status
-#   mask_rule: allow_mask
-default allow := false
-
-allow if {
-  data.external.status == "ok"
-}
-
-allow_mask := false if not data.external.entitled
+#   - input.fruits
+#   mask_rule: data.filtering.mask
+include if input.fruits[_].name == "banana"
 ```
 
 See also [Optimization Levels](policy-performance.md#optimization-levels) for details on how
-these fields affect `opa build --optimize`.
+the `unknowns` field affects `opa build --optimize`.
 
 ### Accessing annotations
 
