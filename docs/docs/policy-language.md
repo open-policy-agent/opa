@@ -2655,6 +2655,7 @@ comment block containing the YAML document is finished
 | `organizations`     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).                    |
 | `schemas`           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).                       |
 | `entrypoint`        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint).         |
+| `compile`           | mapping of compile options                                 | Options controlling how the annotation target is processed by the [Compile API](./rest-api#compile-api) when generating data filters. Read more in the [Metadata Compile section below](#metadata-compile).           |
 | `custom`            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                               |
 
 ### Metadata `Scope`
@@ -2914,6 +2915,35 @@ The `build` and `eval` CLI commands will automatically pick up annotated entrypo
 Unless the `--prune-unused` flag is used, any rule transitively referring to a
 package or rule declared as an entrypoint will also be enumerated as an entrypoint.
 :::
+
+### Metadata `compile`
+
+The `compile` annotation configures how the annotation target is processed by the
+[Compile API](./rest-api#compile-api) when [compiling a policy into data
+filters](./rest-api#compiling-a-rego-policy-and-query-into-data-filters). It is a
+mapping supporting the following fields:
+
+| Field       | Type            | Description                                                                                                                                                                       |
+| ----------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unknowns`  | list of strings | References, each prefixed with `input` or `data`, to treat as unknown during partial evaluation. Used when the Compile API request does not provide its own `unknowns`.          |
+| `mask_rule` | string          | A reference to the rule evaluated to produce column masks. A relative reference (not prefixed with `data`) is resolved against the enclosing package. Overridden by the request's `options.maskRule`. |
+
+The annotation is read through the chain of annotations of the compiled rule, so it
+may be declared at `rule`, `document`, `package`, or `subpackages` scope. Values
+supplied in the Compile API request take precedence over those declared in the
+annotation.
+
+```rego
+package filters
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns:
+#     - input.fruits
+#   mask_rule: mask
+include if input.fruits.name == input.favorite
+```
 
 ### Metadata `custom`
 
