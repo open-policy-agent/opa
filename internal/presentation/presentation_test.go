@@ -123,6 +123,50 @@ func TestOutputJSONErrorStructuredASTErr(t *testing.T) {
 	validateJSONOutput(t, err, expected)
 }
 
+func TestOutputJSONErrorWrapped(t *testing.T) {
+	tests := map[string]struct {
+		err      error
+		expected string
+	}{
+		"structured errors are unwrapped and listed individually": {
+			err: fmt.Errorf("bundle /some/path: %w", ast.Errors{
+				&ast.Error{Code: "rego_parse_error", Message: "first"},
+				&ast.Error{Code: "rego_parse_error", Message: "second"},
+			}),
+			expected: `{
+  "errors": [
+    {
+      "message": "first",
+      "code": "rego_parse_error"
+    },
+    {
+      "message": "second",
+      "code": "rego_parse_error"
+    }
+  ]
+}
+`,
+		},
+		"plain error keeps the wrapper's message": {
+			err: fmt.Errorf("failed to load config: %w", errors.New("file not found")),
+			expected: `{
+  "errors": [
+    {
+      "message": "failed to load config: file not found"
+    }
+  ]
+}
+`,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			validateJSONOutput(t, tc.err, tc.expected)
+		})
+	}
+}
+
 func TestOutputJSONErrorStructuredStorageErr(t *testing.T) {
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(t.Context(), store)
