@@ -1424,58 +1424,56 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 }
 
 func TestExecMalformedRemoteBundle(t *testing.T) {
-	test.WithTempFS(map[string]string{}, func(dir string) {
-		bundlePath := "/bundles/bundle.tar.gz"
-		// Note(philipc): We add the "raw bundles" flag so that we can stuff a
-		// malformed bundle into the mock bundle server. Otherwise, the server
-		// will just return 503 errors forever, because it won't be able to
-		// build the bundle on its end.
-		s := sdk_test.MustNewServer(
-			sdk_test.RawBundles(true),
-			sdk_test.MockBundle(bundlePath, map[string]string{
-				"example.rego": `
+	bundlePath := "/bundles/bundle.tar.gz"
+	// Note(philipc): We add the "raw bundles" flag so that we can stuff a
+	// malformed bundle into the mock bundle server. Otherwise, the server
+	// will just return 503 errors forever, because it won't be able to
+	// build the bundle on its end.
+	s := sdk_test.MustNewServer(
+		sdk_test.RawBundles(true),
+		sdk_test.MockBundle(bundlePath, map[string]string{
+			"example.rego": `
 				package example
 
 				p := bits.sand(42, 43)  # typo of bits.and
 			`,
-			}))
+		}))
 
-		defer s.Stop()
+	defer s.Stop()
 
-		// Wait for the bundle server to be ready before running exec
-		bundleURL := s.URL() + bundlePath
-		test.EventuallyOrFatal(t, 1*time.Second, func() bool {
-			resp, err := http.Get(bundleURL)
-			if resp != nil {
-				defer resp.Body.Close()
-			}
-			return err == nil && resp.StatusCode == 200
-		})
-
-		var buf bytes.Buffer
-		params := exec.NewParams(&buf)
-		_ = params.OutputFormat.Set("json")
-		params.ConfigOverrides = []string{
-			"services.test.url=" + s.URL(),
-			"bundles.test.resource=" + bundlePath,
+	// Wait for the bundle server to be ready before running exec
+	bundleURL := s.URL() + bundlePath
+	test.EventuallyOrFatal(t, 1*time.Second, func() bool {
+		resp, err := http.Get(bundleURL)
+		if resp != nil {
+			defer resp.Body.Close()
 		}
-
-		// Note(philipc): We can set this timeout almost arbitrarily high or
-		// low-- the test will time out before it ever succeeds, due to the
-		// faulty bundle.
-		params.Timeout = time.Millisecond * 50
-
-		params.Paths = append(params.Paths, dir)
-		err := runExec(params)
-		if err == nil {
-			t.Fatalf("Expected error, got nil instead.")
-		}
-
-		exp := "runtime error: Bundle name: test, Code: bundle_error, HTTPCode: -1, Message: 1 error occurred: /example.rego:4: rego_type_error: undefined function bits.sand"
-		if !strings.HasPrefix(err.Error(), exp) {
-			t.Fatalf("Expected error: %s, got %s", exp, err.Error())
-		}
+		return err == nil && resp.StatusCode == 200
 	})
+
+	var buf bytes.Buffer
+	params := exec.NewParams(&buf)
+	_ = params.OutputFormat.Set("json")
+	params.ConfigOverrides = []string{
+		"services.test.url=" + s.URL(),
+		"bundles.test.resource=" + bundlePath,
+	}
+
+	// Note(philipc): We can set this timeout almost arbitrarily high or
+	// low-- the test will time out before it ever succeeds, due to the
+	// faulty bundle.
+	params.Timeout = time.Millisecond * 50
+
+	params.Paths = append(params.Paths, t.TempDir())
+	err := runExec(params)
+	if err == nil {
+		t.Fatalf("Expected error, got nil instead.")
+	}
+
+	exp := "runtime error: Bundle name: test, Code: bundle_error, HTTPCode: -1, Message: 1 error occurred: /example.rego:4: rego_type_error: undefined function bits.sand"
+	if !strings.HasPrefix(err.Error(), exp) {
+		t.Fatalf("Expected error: %s, got %s", exp, err.Error())
+	}
 }
 
 func TestExecStopsPlugins(t *testing.T) {

@@ -1206,46 +1206,45 @@ func TestCompileV1Observability(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	test.WithTempFS(nil, func(root string) {
-		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer disk.Close(ctx)
-		f := newFixtureWithStore(t, disk)
 
-		err = f.v1(http.MethodPut, "/policies/test", `package test
+	disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer disk.Close(ctx)
+	f := newFixtureWithStore(t, disk)
+
+	err = f.v1(http.MethodPut, "/policies/test", `package test
 	import rego.v1
 
 	p if { input.x = 1 }`, 200, "")
-		if err != nil {
-			t.Fatal(err)
-		}
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		compileReq := newReqV1(http.MethodPost, "/compile?metrics&explain=full", `{
+	compileReq := newReqV1(http.MethodPost, "/compile?metrics&explain=full", `{
 		"query": "data.test.p = true"
 	}`)
 
-		f.reset()
-		f.server.Handler.ServeHTTP(f.recorder, compileReq)
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, compileReq)
 
-		var response types.CompileResponseV1
-		if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
-			t.Fatal(err)
-		}
+	var response types.CompileResponseV1
+	if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
 
-		if len(response.Explanation) == 0 {
-			t.Fatal("Expected non-empty explanation")
-		}
+	if len(response.Explanation) == 0 {
+		t.Fatal("Expected non-empty explanation")
+	}
 
-		assertMetricsExist(t, response.Metrics, []string{
-			"timer_rego_partial_eval_ns",
-			"timer_rego_query_compile_ns",
-			"timer_rego_query_parse_ns",
-			"timer_server_handler_ns",
-			"counter_disk_read_keys",
-			"timer_disk_read_ns",
-		})
+	assertMetricsExist(t, response.Metrics, []string{
+		"timer_rego_partial_eval_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_query_parse_ns",
+		"timer_server_handler_ns",
+		"counter_disk_read_keys",
+		"timer_disk_read_ns",
 	})
 }
 
@@ -1707,23 +1706,21 @@ p = true if { false }`
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			test.WithTempFS(nil, func(root string) {
-				ctx, cancel := context.WithCancel(t.Context())
-				defer cancel()
-				disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer disk.Close(ctx)
-				executeRequests(t, tc.reqs,
-					variant{"inmem", nil},
-					variant{"disk", []any{
-						func(s *Server) {
-							s.WithStore(disk)
-						},
-					}},
-				)
-			})
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer disk.Close(ctx)
+			executeRequests(t, tc.reqs,
+				variant{"inmem", nil},
+				variant{"disk", []any{
+					func(s *Server) {
+						s.WithStore(disk)
+					},
+				}},
+			)
 		})
 	}
 }
@@ -1733,38 +1730,37 @@ func TestDataV1Metrics(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	test.WithTempFS(nil, func(root string) {
-		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer disk.Close(ctx)
 
-		f := newFixtureWithStore(t, disk)
-		put := newReqV1(http.MethodPut, `/data?metrics`, `{"foo":"bar"}`)
-		f.server.Handler.ServeHTTP(f.recorder, put)
+	disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer disk.Close(ctx)
 
-		if f.recorder.Code != 200 {
-			t.Fatalf("Expected success but got %v", f.recorder)
-		}
+	f := newFixtureWithStore(t, disk)
+	put := newReqV1(http.MethodPut, `/data?metrics`, `{"foo":"bar"}`)
+	f.server.Handler.ServeHTTP(f.recorder, put)
 
-		var result types.DataResponseV1
-		err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
-		if err != nil {
-			t.Fatalf("Unexpected error while unmarshalling result: %v", err)
-		}
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected success but got %v", f.recorder)
+	}
 
-		assertMetricsExist(t, result.Metrics, []string{
-			"counter_disk_read_keys",
-			"counter_disk_deleted_keys",
-			"counter_disk_written_keys",
-			"counter_disk_read_bytes",
-			"timer_rego_input_parse_ns",
-			"timer_server_handler_ns",
-			"timer_disk_read_ns",
-			"timer_disk_write_ns",
-			"timer_disk_commit_ns",
-		})
+	var result types.DataResponseV1
+	err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
+	if err != nil {
+		t.Fatalf("Unexpected error while unmarshalling result: %v", err)
+	}
+
+	assertMetricsExist(t, result.Metrics, []string{
+		"counter_disk_read_keys",
+		"counter_disk_deleted_keys",
+		"counter_disk_written_keys",
+		"counter_disk_read_bytes",
+		"timer_rego_input_parse_ns",
+		"timer_server_handler_ns",
+		"timer_disk_read_ns",
+		"timer_disk_write_ns",
+		"timer_disk_commit_ns",
 	})
 }
 
@@ -2632,125 +2628,124 @@ func TestBundleScope(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	test.WithTempFS(nil, func(root string) {
-		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer disk.Close(ctx)
 
-		for _, v := range []variant{
-			{"inmem", nil},
-			{"disk", []any{func(s *Server) { s.WithStore(disk) }}},
-		} {
-			t.Run(v.name, func(t *testing.T) {
-				f := newFixture(t, v.opts...)
+	disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer disk.Close(ctx)
 
-				txn := storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
+	for _, v := range []variant{
+		{"inmem", nil},
+		{"disk", []any{func(s *Server) { s.WithStore(disk) }}},
+	} {
+		t.Run(v.name, func(t *testing.T) {
+			f := newFixture(t, v.opts...)
 
-				if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
-					Revision: "AAAAA",
-					Roots:    &[]string{"a/b/c", "x/y", "foobar"},
-				}); err != nil {
-					t.Fatal(err)
-				}
+			txn := storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
 
-				if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
-					t.Fatal(err)
-				}
+			if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
+				Revision: "AAAAA",
+				Roots:    &[]string{"a/b/c", "x/y", "foobar"},
+			}); err != nil {
+				t.Fatal(err)
+			}
 
-				if err := f.server.store.Commit(ctx, txn); err != nil {
-					t.Fatal(err)
-				}
+			if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
+				t.Fatal(err)
+			}
 
-				cases := []tr{
-					{
-						method: "PUT",
-						path:   "/data/a/b",
-						body:   "1",
-						code:   http.StatusBadRequest,
-						resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
-					},
-					{
-						method: "PUT",
-						path:   "/data/a/b/c",
-						body:   "1",
-						code:   http.StatusBadRequest,
-						resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
-					},
-					{
-						method: "PUT",
-						path:   "/data/a/b/c/d",
-						body:   "1",
-						code:   http.StatusBadRequest,
-						resp:   `{"code": "invalid_parameter", "message": "path a/b/c/d is owned by bundle \"test-bundle\""}`,
-					},
-					{
-						method: "PUT",
-						path:   "/data/a/b/d",
-						body:   "1",
-						code:   http.StatusNoContent,
-					},
-					{
-						method: "PATCH",
-						path:   "/data/a",
-						body:   `[{"path": "/b/c", "op": "add", "value": 1}]`,
-						code:   http.StatusBadRequest,
-						resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
-					},
-					{
-						method: "DELETE",
-						path:   "/data/a",
-						code:   http.StatusBadRequest,
-						resp:   `{"code": "invalid_parameter", "message": "path a is owned by bundle \"test-bundle\""}`,
-					},
-					{
-						method: "PUT",
-						path:   "/policies/test1",
-						body:   `package a.b`,
-						code:   http.StatusBadRequest,
-						resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
-					},
-					{
-						method: "PUT",
-						path:   "/policies/someid",
-						body:   `package other.path`,
-						code:   http.StatusBadRequest,
-						resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle \"test-bundle\""}`,
-					},
-					{
-						method: "DELETE",
-						path:   "/policies/someid",
-						code:   http.StatusBadRequest,
-						resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle \"test-bundle\""}`,
-					},
-					{
-						method: "PUT",
-						path:   "/data/foo/bar",
-						body:   "1",
-						code:   http.StatusNoContent,
-					},
-					{
-						method: "PUT",
-						path:   "/data/foo",
-						body:   "1",
-						code:   http.StatusNoContent,
-					},
-					{
-						method: "PUT",
-						path:   "/data",
-						body:   `{"a": "b"}`,
-						code:   http.StatusBadRequest,
-						resp:   `{"code": "invalid_parameter", "message": "can't write to document root with bundle roots configured"}`,
-					},
-				}
+			if err := f.server.store.Commit(ctx, txn); err != nil {
+				t.Fatal(err)
+			}
 
-				if err := f.v1TestRequests(cases); err != nil {
-					t.Fatal(err)
-				}
-			})
-		}
-	})
+			cases := []tr{
+				{
+					method: "PUT",
+					path:   "/data/a/b",
+					body:   "1",
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/data/a/b/c",
+					body:   "1",
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/data/a/b/c/d",
+					body:   "1",
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path a/b/c/d is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/data/a/b/d",
+					body:   "1",
+					code:   http.StatusNoContent,
+				},
+				{
+					method: "PATCH",
+					path:   "/data/a",
+					body:   `[{"path": "/b/c", "op": "add", "value": 1}]`,
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "DELETE",
+					path:   "/data/a",
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path a is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/policies/test1",
+					body:   `package a.b`,
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/policies/someid",
+					body:   `package other.path`,
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "DELETE",
+					path:   "/policies/someid",
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/data/foo/bar",
+					body:   "1",
+					code:   http.StatusNoContent,
+				},
+				{
+					method: "PUT",
+					path:   "/data/foo",
+					body:   "1",
+					code:   http.StatusNoContent,
+				},
+				{
+					method: "PUT",
+					path:   "/data",
+					body:   `{"a": "b"}`,
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "can't write to document root with bundle roots configured"}`,
+				},
+			}
+
+			if err := f.v1TestRequests(cases); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 }
 
 func TestBundleScopeMultiBundle(t *testing.T) {
@@ -3417,67 +3412,66 @@ func TestDataMetricsEval(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	test.WithTempFS(nil, func(root string) {
-		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer disk.Close(ctx)
 
-		f := newFixtureWithStore(t, disk)
+	disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer disk.Close(ctx)
 
-		// Make a request to evaluate `data`
-		testDataMetrics(t, f, http.MethodPost, "/data?metrics", "", []string{
-			"counter_server_query_cache_hit",
-			"counter_disk_read_keys",
-			"counter_disk_read_bytes",
-			"timer_rego_input_parse_ns",
-			"timer_rego_query_compile_ns",
-			"timer_rego_query_eval_ns",
-			"timer_server_handler_ns",
-			"timer_disk_read_ns",
-			"timer_rego_external_resolve_ns",
-		})
+	f := newFixtureWithStore(t, disk)
 
-		// Repeat previous request, expect to have hit the query cache
-		// so fewer timers should have been reported.
-		testDataMetrics(t, f, http.MethodPost, "/data?metrics", "", []string{
-			"counter_server_query_cache_hit",
-			"counter_disk_read_keys",
-			"counter_disk_read_bytes",
-			"timer_disk_read_ns",
-			"timer_rego_external_resolve_ns",
-			"timer_rego_input_parse_ns",
-			"timer_rego_query_eval_ns",
-			"timer_server_handler_ns",
-		})
+	// Make a request to evaluate `data`
+	testDataMetrics(t, f, http.MethodPost, "/data?metrics", "", []string{
+		"counter_server_query_cache_hit",
+		"counter_disk_read_keys",
+		"counter_disk_read_bytes",
+		"timer_rego_input_parse_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_query_eval_ns",
+		"timer_server_handler_ns",
+		"timer_disk_read_ns",
+		"timer_rego_external_resolve_ns",
+	})
 
-		// Exercise the PUT, PATCH, and DELETE endpoints.
-		testDataMetrics(t, f, http.MethodPut, "/data/example?metrics", "{}", []string{
-			"counter_disk_read_keys",
-			"counter_disk_written_keys",
-			"timer_disk_commit_ns",
-			"timer_disk_read_ns",
-			"timer_disk_write_ns",
-			"timer_rego_input_parse_ns",
-			"timer_server_handler_ns",
-		})
+	// Repeat previous request, expect to have hit the query cache
+	// so fewer timers should have been reported.
+	testDataMetrics(t, f, http.MethodPost, "/data?metrics", "", []string{
+		"counter_server_query_cache_hit",
+		"counter_disk_read_keys",
+		"counter_disk_read_bytes",
+		"timer_disk_read_ns",
+		"timer_rego_external_resolve_ns",
+		"timer_rego_input_parse_ns",
+		"timer_rego_query_eval_ns",
+		"timer_server_handler_ns",
+	})
 
-		testDataMetrics(t, f, http.MethodPatch, "/data/example?metrics", "[]", []string{
-			"timer_disk_commit_ns",
-			"timer_rego_input_parse_ns",
-			"timer_server_handler_ns",
-		})
+	// Exercise the PUT, PATCH, and DELETE endpoints.
+	testDataMetrics(t, f, http.MethodPut, "/data/example?metrics", "{}", []string{
+		"counter_disk_read_keys",
+		"counter_disk_written_keys",
+		"timer_disk_commit_ns",
+		"timer_disk_read_ns",
+		"timer_disk_write_ns",
+		"timer_rego_input_parse_ns",
+		"timer_server_handler_ns",
+	})
 
-		testDataMetrics(t, f, http.MethodDelete, "/data/example?metrics", "{}", []string{
-			"counter_disk_deleted_keys",
-			"counter_disk_read_keys",
-			"counter_disk_read_bytes",
-			"timer_disk_commit_ns",
-			"timer_disk_read_ns",
-			"timer_disk_write_ns",
-			"timer_server_handler_ns",
-		})
+	testDataMetrics(t, f, http.MethodPatch, "/data/example?metrics", "[]", []string{
+		"timer_disk_commit_ns",
+		"timer_rego_input_parse_ns",
+		"timer_server_handler_ns",
+	})
+
+	testDataMetrics(t, f, http.MethodDelete, "/data/example?metrics", "{}", []string{
+		"counter_disk_deleted_keys",
+		"counter_disk_read_keys",
+		"counter_disk_read_bytes",
+		"timer_disk_commit_ns",
+		"timer_disk_read_ns",
+		"timer_disk_write_ns",
+		"timer_server_handler_ns",
 	})
 }
 
@@ -4720,59 +4714,58 @@ func TestQueryV1(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
-			test.WithTempFS(nil, func(root string) {
-				disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
-				if err != nil {
-					t.Fatal(err)
+
+			disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer disk.Close(ctx)
+
+			var opts []any
+			if tc.regoVersion != ast.RegoUndefined {
+				opts = append(opts, plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.regoVersion}))
+			}
+
+			f := newFixtureWithStore(t, disk, opts...)
+			get := newReqV1(http.MethodGet, fmt.Sprintf(`/query?q=%s&metrics`, tc.query), "")
+			f.server.Handler.ServeHTTP(f.recorder, get)
+
+			if tc.expErr {
+				if f.recorder.Code != 400 {
+					t.Fatalf("Expected error but got %v", f.recorder)
 				}
-				defer disk.Close(ctx)
-
-				var opts []any
-				if tc.regoVersion != ast.RegoUndefined {
-					opts = append(opts, plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.regoVersion}))
+			} else {
+				if f.recorder.Code != 200 {
+					t.Fatalf("Expected success but got %v", f.recorder)
 				}
 
-				f := newFixtureWithStore(t, disk, opts...)
-				get := newReqV1(http.MethodGet, fmt.Sprintf(`/query?q=%s&metrics`, tc.query), "")
-				f.server.Handler.ServeHTTP(f.recorder, get)
-
-				if tc.expErr {
-					if f.recorder.Code != 400 {
-						t.Fatalf("Expected error but got %v", f.recorder)
-					}
-				} else {
-					if f.recorder.Code != 200 {
-						t.Fatalf("Expected success but got %v", f.recorder)
-					}
-
-					var expected types.QueryResponseV1
-					err = util.UnmarshalJSON([]byte(`{
+				var expected types.QueryResponseV1
+				err = util.UnmarshalJSON([]byte(`{
 		"result": [{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]
 	}`), &expected)
-					if err != nil {
-						panic(err)
-					}
-
-					var result types.QueryResponseV1
-					err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
-					if err != nil {
-						t.Fatalf("Unexpected error while unmarshalling result: %v", err)
-					}
-
-					assertMetricsExist(t, result.Metrics, []string{
-						"counter_disk_read_keys",
-						"timer_rego_query_compile_ns",
-						"timer_rego_query_eval_ns",
-						// "timer_server_handler_ns", // TODO(sr): we're not consistent about timing this?
-						"timer_disk_read_ns",
-					})
-
-					result.Metrics = nil
-					if !reflect.DeepEqual(result, expected) {
-						t.Fatalf("Expected:\n\n%v\n\nbut got:\n\n%v", expected, result)
-					}
+				if err != nil {
+					panic(err)
 				}
-			})
+
+				var result types.QueryResponseV1
+				err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
+				if err != nil {
+					t.Fatalf("Unexpected error while unmarshalling result: %v", err)
+				}
+
+				assertMetricsExist(t, result.Metrics, []string{
+					"counter_disk_read_keys",
+					"timer_rego_query_compile_ns",
+					"timer_rego_query_eval_ns",
+					// "timer_server_handler_ns", // TODO(sr): we're not consistent about timing this?
+					"timer_disk_read_ns",
+				})
+
+				result.Metrics = nil
+				if !reflect.DeepEqual(result, expected) {
+					t.Fatalf("Expected:\n\n%v\n\nbut got:\n\n%v", expected, result)
+				}
+			}
 		})
 	}
 }

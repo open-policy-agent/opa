@@ -7,10 +7,10 @@ package inspect
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -23,8 +23,7 @@ import (
 )
 
 func TestGenerateBundleInfoWithFileDir(t *testing.T) {
-
-	files := map[string]string{
+	rootDir := test.TempDir(t, map[string]string{
 		"/fuz/data.json":   "[1,2,3]",
 		"/fuz/fuz.rego":    "package fuz\np = 1",
 		"/data.json":       `{"a": {"b": {"c": [123]}}}`,
@@ -32,51 +31,45 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 		"/baz/authz.rego":  "package foo\nx = 1",
 		"base.rego":        "package bar\nx = 1 { input > 7 }",
 		"/.manifest":       `{"roots": ["foo", "bar", "fuz", "baz", "a"], "revision": "rev"}`,
+	})
+
+	info, err := File(rootDir, false)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	test.WithTempFS(files, func(rootDir string) {
-		info, err := File(rootDir, false)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	expectedManifest := bundle.Manifest{
+		Revision: "rev",
+		Roots:    &[]string{"foo", "bar", "fuz", "baz", "a"},
+	}
 
-		expectedManifest := bundle.Manifest{
-			Revision:      "rev",
-			Roots:         &[]string{"foo", "bar", "fuz", "baz", "a"},
-			WasmResolvers: nil,
-			Metadata:      nil,
-		}
+	if !info.Manifest.Equal(expectedManifest) {
+		t.Fatalf("expected manifest %v, but got: %v", expectedManifest, info.Manifest)
+	}
 
-		if !info.Manifest.Equal(expectedManifest) {
-			t.Fatalf("expected manifest %v, but got: %v", expectedManifest, info.Manifest)
-		}
+	expectedNamespaces := map[string][]string{
+		"data":     {filepath.Join(rootDir, "data.json")},
+		"data.bar": {filepath.Join(rootDir, "base.rego")},
+		"data.foo": {filepath.Join(rootDir, "baz", "authz.rego"), filepath.Join(rootDir, "foo", "policy.rego")},
+		"data.fuz": {filepath.Join(rootDir, "fuz", "fuz.rego"), filepath.Join(rootDir, "fuz", "data.json")},
+	}
 
-		expectedNamespaces := map[string][]string{
-			"data":     {filepath.Join(rootDir, "data.json")},
-			"data.bar": {filepath.Join(rootDir, "base.rego")},
-			"data.foo": {filepath.Join(rootDir, "baz", "authz.rego"), filepath.Join(rootDir, "foo", "policy.rego")},
-			"data.fuz": {filepath.Join(rootDir, "fuz", "fuz.rego"), filepath.Join(rootDir, "fuz", "data.json")},
-		}
+	if !maps.EqualFunc(info.Namespaces, expectedNamespaces, slices.Equal) {
+		t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
+	}
 
-		if !reflect.DeepEqual(info.Namespaces, expectedNamespaces) {
-			t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
-		}
+	builtinNames := make([]string, 0, len(info.Required.Builtins))
+	for _, bi := range info.Required.Builtins {
+		builtinNames = append(builtinNames, bi.Name)
+	}
 
-		builtinNames := make([]string, 0, len(info.Required.Builtins))
-		for _, bi := range info.Required.Builtins {
-			builtinNames = append(builtinNames, bi.Name)
-		}
-
-		expBuiltinNames := []string{"eq", "gt"}
-
-		if !slices.Equal(expBuiltinNames, builtinNames) {
-			t.Fatalf("expected builtin names to be %v but got %v", expBuiltinNames, builtinNames)
-		}
-	})
+	expBuiltinNames := []string{"eq", "gt"}
+	if !slices.Equal(expBuiltinNames, builtinNames) {
+		t.Fatalf("expected builtin names to be %v but got %v", expBuiltinNames, builtinNames)
+	}
 }
 
 func TestBundleInfoHasAnnotationLocationDataSet(t *testing.T) {
-
 	files := map[string]string{
 		"/fuz/fuz.rego": `# METADATA
 # title: My package
@@ -85,100 +78,92 @@ package fuz
 p = 1`,
 	}
 
-	test.WithTempFS(files, func(rootDir string) {
-		info, err := File(rootDir, true)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	rootDir := test.TempDir(t, files)
+	info, err := File(rootDir, true)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		if got, exp := len(info.Annotations), 1; got != exp {
-			t.Fatalf("expected %d annotation, but got: %d", exp, got)
-		}
+	if got, exp := len(info.Annotations), 1; got != exp {
+		t.Fatalf("expected %d annotation, but got: %d", exp, got)
+	}
 
-		astJSON.SetOptions(astJSON.Options{
-			MarshalOptions: astJSON.MarshalOptions{
-				IncludeLocation: astJSON.NodeToggle{
-					AnnotationsRef: true,
-				},
+	astJSON.SetOptions(astJSON.Options{
+		MarshalOptions: astJSON.MarshalOptions{
+			IncludeLocation: astJSON.NodeToggle{
+				AnnotationsRef: true,
 			},
-		})
-		defer astJSON.SetOptions(astJSON.Defaults())
-
-		bs, err := json.Marshal(info.Annotations[0])
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		exp := fmt.Sprintf(`"location":{"file":"%s/fuz/fuz.rego","row":3,"col":1}`, rootDir)
-
-		if got := string(bs); !strings.Contains(got, exp) {
-			t.Fatalf("expected to find %q in %q", exp, got)
-		}
+		},
 	})
+	defer astJSON.SetOptions(astJSON.Defaults())
+
+	bs, err := json.Marshal(info.Annotations[0])
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	exp := fmt.Sprintf(`"location":{"file":"%s/fuz/fuz.rego","row":3,"col":1}`, rootDir)
+
+	if got := string(bs); !strings.Contains(got, exp) {
+		t.Fatalf("expected to find %q in %q", exp, got)
+	}
 }
 
 func TestGenerateBundleInfoWithFile(t *testing.T) {
-	files := map[string]string{
-		"bundle.tar.gz": "",
+	mod := "package b.c\np=1"
+	bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
+
+	f, err := os.Create(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	mod := "package b.c\np=1"
-
-	test.WithTempFS(files, func(rootDir string) {
-		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
-
-		f, err := os.Create(bundleFile)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-
-		b := &bundle.Bundle{
-			Manifest: bundle.Manifest{
-				Roots:    &[]string{"a", "b/c"},
-				Revision: "123",
+	b := &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots:    &[]string{"a", "b/c"},
+			Revision: "123",
+		},
+		Data: map[string]any{
+			"a": map[string]any{
+				"b": []int{4, 5, 6},
 			},
-			Data: map[string]any{
-				"a": map[string]any{
-					"b": []int{4, 5, 6},
-				},
+		},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    path.Join(bundleFile, "policy.rego"),
+				Path:   "/policy.rego",
+				Raw:    []byte(mod),
+				Parsed: ast.MustParseModule(mod),
 			},
-			Modules: []bundle.ModuleFile{
-				{
-					URL:    path.Join(bundleFile, "policy.rego"),
-					Path:   "/policy.rego",
-					Raw:    []byte(mod),
-					Parsed: ast.MustParseModule(mod),
-				},
-			},
-		}
+		},
+	}
 
-		err = bundle.Write(f, *b)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-		err = f.Close()
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
+	err = bundle.Write(f, *b)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	err = f.Close()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
-		info, err := File(bundleFile, false)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	info, err := File(bundleFile, false)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		if !info.Manifest.Equal(b.Manifest) {
-			t.Fatalf("expected manifest %v, but got: %v", b.Manifest, info.Manifest)
-		}
+	if !info.Manifest.Equal(b.Manifest) {
+		t.Fatalf("expected manifest %v, but got: %v", b.Manifest, info.Manifest)
+	}
 
-		expectedNamespaces := map[string][]string{
-			"data":     {"/data.json"},
-			"data.b.c": {"/policy.rego"},
-		}
+	expectedNamespaces := map[string][]string{
+		"data":     {"/data.json"},
+		"data.b.c": {"/policy.rego"},
+	}
 
-		if !reflect.DeepEqual(info.Namespaces, expectedNamespaces) {
-			t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
-		}
-	})
+	if !maps.EqualFunc(info.Namespaces, expectedNamespaces, slices.Equal) {
+		t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
+	}
 }
 
 func TestGenerateBundleInfoWithBundleTarGz(t *testing.T) {
@@ -198,83 +183,90 @@ func TestGenerateBundleInfoWithBundleTarGz(t *testing.T) {
 	}
 
 	buf := archive.MustWriteTarGz(files)
+	bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
 
-	test.WithTempFS(nil, func(rootDir string) {
-		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+	out, err := os.Create(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		out, err := os.Create(bundleFile)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
+	_, err = out.Write(buf.Bytes())
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	info, err := File(bundleFile, false)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	metadata := map[string]any{"foo": "bar"}
+	wasmResolvers := []bundle.WasmResolver{{
+		Entrypoint: "http/example/authz/allow",
+		Module:     "/policy.wasm",
+	}, {
+		Entrypoint: "http/example/foo/allow",
+		Module:     "/example/policy.wasm"},
+	}
+
+	expectedManifest := bundle.Manifest{
+		Revision:      "quickbrownfaux",
+		WasmResolvers: wasmResolvers,
+		Metadata:      metadata,
+	}
+
+	if !info.Manifest.Equal(expectedManifest) {
+		t.Fatalf("expected manifest %v, but got: %v", expectedManifest, info.Manifest)
+	}
+
+	expectedNamespaces := map[string][]string{
+		"data.example":                  {"/example/example.rego"},
+		"data":                          {"/data.json"},
+		"data.a.b.c":                    {"/a/b/c/data.json"},
+		"data.a.b.d":                    {"/a/b/d/data.json"},
+		"data.a.b.y":                    {"/a/b/y/foo.rego", "/a/b/y/data.yaml"},
+		"data.http.example.authz.allow": {"/policy.wasm"},
+		"data.http.example.foo.allow":   {"/example/policy.wasm"},
+	}
+
+	if !maps.EqualFunc(info.Namespaces, expectedNamespaces, slices.Equal) {
+		t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
+	}
+
+	expectedWasmModules := make([]map[string]any, 0, 2)
+	expectedWasmModule1 := map[string]any{
+		"path":        "/example/policy.wasm",
+		"url":         filepath.Join(bundleFile, "example", "policy.wasm"),
+		"entrypoints": []string{"data.http.example.foo.allow"},
+	}
+
+	expectedWasmModule2 := map[string]any{
+		"path":        "/policy.wasm",
+		"url":         filepath.Join(bundleFile, "policy.wasm"),
+		"entrypoints": []string{"data.http.example.authz.allow"},
+	}
+
+	expectedWasmModules = append(expectedWasmModules, expectedWasmModule1, expectedWasmModule2)
+	if !wasmModulesEqual(info.WasmModules, expectedWasmModules) {
+		t.Fatalf("expected wasm modules %v, but got %v", expectedWasmModules, info.WasmModules)
+	}
+
+	expectedSign := bundle.SignaturesConfig{Signatures: []string{signedTokenHS256}}
+	if info.Signatures.Plugin != "" || !slices.Equal(info.Signatures.Signatures, expectedSign.Signatures) {
+		t.Fatalf("expected signatures %v, but got %v", expectedSign, info.Signatures)
+	}
+}
+
+func wasmModulesEqual(a, b []map[string]any) bool {
+	for i := range a {
+		am, bm := a[i], b[i]
+		if am["path"] != bm["path"] || am["url"] != bm["url"] {
+			return false
 		}
 
-		_, err = out.Write(buf.Bytes())
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
+		if !slices.Equal(am["entrypoints"].([]string), bm["entrypoints"].([]string)) {
+			return false
 		}
-
-		info, err := File(bundleFile, false)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		metadata := map[string]any{"foo": "bar"}
-		wasmResolvers := []bundle.WasmResolver{{
-			Entrypoint: "http/example/authz/allow",
-			Module:     "/policy.wasm",
-		}, {
-			Entrypoint: "http/example/foo/allow",
-			Module:     "/example/policy.wasm"},
-		}
-
-		expectedManifest := bundle.Manifest{
-			Revision:      "quickbrownfaux",
-			WasmResolvers: wasmResolvers,
-			Metadata:      metadata,
-		}
-
-		if !info.Manifest.Equal(expectedManifest) {
-			t.Fatalf("expected manifest %v, but got: %v", expectedManifest, info.Manifest)
-		}
-
-		expectedNamespaces := map[string][]string{
-			"data.example":                  {"/example/example.rego"},
-			"data":                          {"/data.json"},
-			"data.a.b.c":                    {"/a/b/c/data.json"},
-			"data.a.b.d":                    {"/a/b/d/data.json"},
-			"data.a.b.y":                    {"/a/b/y/foo.rego", "/a/b/y/data.yaml"},
-			"data.http.example.authz.allow": {"/policy.wasm"},
-			"data.http.example.foo.allow":   {"/example/policy.wasm"},
-		}
-
-		if !reflect.DeepEqual(info.Namespaces, expectedNamespaces) {
-			t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
-		}
-
-		expectedWasmModules := make([]map[string]any, 0, 2)
-		expectedWasmModule1 := map[string]any{
-			"path":        "/example/policy.wasm",
-			"url":         filepath.Join(bundleFile, "example", "policy.wasm"),
-			"entrypoints": []string{"data.http.example.foo.allow"},
-		}
-
-		expectedWasmModule2 := map[string]any{
-			"path":        "/policy.wasm",
-			"url":         filepath.Join(bundleFile, "policy.wasm"),
-			"entrypoints": []string{"data.http.example.authz.allow"},
-		}
-
-		expectedWasmModules = append(expectedWasmModules, expectedWasmModule1, expectedWasmModule2)
-
-		if !reflect.DeepEqual(info.WasmModules, expectedWasmModules) {
-			t.Fatalf("expected wasm modules %v, but got %v", expectedWasmModules, info.WasmModules)
-		}
-
-		expectedSign := bundle.SignaturesConfig{
-			Signatures: []string{signedTokenHS256},
-		}
-
-		if !reflect.DeepEqual(info.Signatures, expectedSign) {
-			t.Fatalf("expected signature config %v, but got %v", expectedSign, info.Signatures)
-		}
-	})
+	}
+	return len(a) == len(b)
 }

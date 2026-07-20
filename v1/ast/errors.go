@@ -87,7 +87,6 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-
 	var prefix string
 
 	if e.Location != nil {
@@ -117,6 +116,34 @@ func (e *Error) Error() string {
 	}
 
 	return sb.String()
+}
+
+func (e *Error) Equal(other *Error) bool {
+	if e == other {
+		return true
+	}
+
+	if e == nil || other == nil {
+		return false
+	}
+
+	if e.Code != other.Code || e.Message != other.Message {
+		return false
+	}
+
+	if !e.Location.Equal(other.Location) {
+		return false
+	}
+
+	if (e.Details == nil) != (other.Details == nil) {
+		return false
+	}
+
+	if e.Details != nil && !slices.Equal(e.Details.Lines(), other.Details.Lines()) {
+		return false
+	}
+
+	return true
 }
 
 // NewError returns a new Error object.

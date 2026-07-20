@@ -6,8 +6,9 @@ package bundle
 
 import (
 	"encoding/json"
+	"maps"
 	"net/url"
-	"reflect"
+	"slices"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -82,7 +83,7 @@ func TestManifestProtoRoundTrip(t *testing.T) {
 	if !m.Equal(*got) {
 		t.Fatal("manifest semantic equality failed after round trip")
 	}
-	if !reflect.DeepEqual(m.FileRegoVersions, got.FileRegoVersions) {
+	if !maps.Equal(m.FileRegoVersions, got.FileRegoVersions) {
 		t.Fatalf("file rego versions: want %v, got %v", m.FileRegoVersions, got.FileRegoVersions)
 	}
 	if got.WasmResolvers[0].Annotations[0].Compile.MaskRule.String() != "data.mask.rule" {
@@ -184,7 +185,7 @@ func TestManifestRootsPresenceRoundTrip(t *testing.T) {
 			if (tc.in == nil) != (out.Roots == nil) {
 				t.Fatalf("roots nil-ness lost: in=%v out=%v", tc.in, out.Roots)
 			}
-			if tc.in != nil && !reflect.DeepEqual(*tc.in, *out.Roots) {
+			if tc.in != nil && !slices.Equal(*tc.in, *out.Roots) {
 				t.Fatalf("roots values lost: want %v, got %v", *tc.in, *out.Roots)
 			}
 		})

@@ -3,9 +3,9 @@ package keys
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -62,7 +62,6 @@ func TestParseKeysConfig(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			kc, err := ParseKeysConfig([]byte(tc.input))
 			if tc.wantErr {
 				if err == nil {
@@ -76,7 +75,7 @@ func TestParseKeysConfig(t *testing.T) {
 				t.Fatalf("Unexpected error %v", err)
 			}
 
-			if !reflect.DeepEqual(kc, tc.result) {
+			if !maps.EqualFunc(kc, tc.result, (*Config).Equal) {
 				t.Fatalf("Expected key config %v but got %v", tc.result, kc)
 			}
 		})
@@ -111,7 +110,7 @@ ypZ/TdlnuGC1cOpAVyU7k32IJ9CRbt3nwEf5U54LRXLLQjFixWZHwKdDiMTF4ws0
 			Scope:     "read",
 		}
 
-		if !reflect.DeepEqual(kc, expected) {
+		if !kc.Equal(expected) {
 			t.Fatalf("Expected key config %v but got %v", expected, kc)
 		}
 
@@ -127,7 +126,7 @@ ypZ/TdlnuGC1cOpAVyU7k32IJ9CRbt3nwEf5U54LRXLLQjFixWZHwKdDiMTF4ws0
 			Scope:     "",
 		}
 
-		if !reflect.DeepEqual(kc, expected) {
+		if !kc.Equal(expected) {
 			t.Fatalf("Expected key config %v but got %v", expected, kc)
 		}
 	})

@@ -10,7 +10,6 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -1127,7 +1126,6 @@ func TestCheckRefErrUnsupported(t *testing.T) {
 }
 
 func TestCheckRefErrInvalid(t *testing.T) {
-
 	env := newTestEnv([]string{
 		`p { true }`,
 		`q = {"foo": 1, "bar": 2} { true }`,
@@ -1293,7 +1291,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 				!details.Ref.Equal(wantRef) ||
 				types.Compare(details.Want, tc.want) != 0 ||
 				types.Compare(details.Have, tc.have) != 0 ||
-				!reflect.DeepEqual(details.OneOf, tc.oneOf) {
+				!slices.EqualFunc(details.OneOf, tc.oneOf, ValueEqual) {
 				t.Fatalf("Expected (%v, %v, %v, %v, %v) but got: (%v, %v, %v, %v, %v)", wantRef, tc.pos, tc.have, tc.want, tc.oneOf, details.Ref, details.Pos, details.Have, details.Want, details.OneOf)
 			}
 		})

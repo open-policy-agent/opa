@@ -33,6 +33,9 @@ type Config struct {
 
 // Equal returns true if this key config is equal to the other.
 func (k *Config) Equal(other *Config) bool {
+	if k == other {
+		return true
+	}
 	return other != nil && *k == *other
 }
 

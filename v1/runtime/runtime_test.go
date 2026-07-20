@@ -286,60 +286,57 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 func TestRuntimeReplWithBundleBuiltWithV1Compatibility(t *testing.T) {
 	ctx := t.Context()
 
-	test.WithTempFS(nil, func(rootDir string) {
-		p := filepath.Join(rootDir, "bundle.tar.gz")
-
-		mod := `package test
+	p := filepath.Join(t.TempDir(), "bundle.tar.gz")
+	mod := `package test
 			p := 7 if 3 < 4
 		`
 
-		files := [][2]string{
-			{"/.manifest", `{"revision": "foo", "rego_version": 1}`},
-			{"/x.rego", mod},
-		}
+	files := [][2]string{
+		{"/.manifest", `{"revision": "foo", "rego_version": 1}`},
+		{"/x.rego", mod},
+	}
 
-		buf := archive.MustWriteTarGz(files)
-		bf, err := os.Create(p)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		_, err = bf.Write(buf.Bytes())
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	buf := archive.MustWriteTarGz(files)
+	bf, err := os.Create(p)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	_, err = bf.Write(buf.Bytes())
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		output := test.BlockingWriter{}
+	output := test.BlockingWriter{}
 
-		params := NewParams()
-		params.Output = &output
-		params.Paths = []string{p}
-		params.BundleMode = true
+	params := NewParams()
+	params.Output = &output
+	params.Paths = []string{p}
+	params.BundleMode = true
 
-		rt, err := NewRuntime(ctx, params)
-		if err != nil {
-			t.Fatal(err)
-		}
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		go func() { _ = rt.StartREPL(ctx) }()
+	go func() { _ = rt.StartREPL(ctx) }()
 
-		if !test.Eventually(t, 5*time.Second, func() bool {
-			return strings.Contains(output.String(), "Run 'help' to see a list of commands and check for updates.")
-		}) {
-			t.Fatal("Timed out waiting for REPL to start")
-		}
-		output.Reset()
+	if !test.Eventually(t, 5*time.Second, func() bool {
+		return strings.Contains(output.String(), "Run 'help' to see a list of commands and check for updates.")
+	}) {
+		t.Fatal("Timed out waiting for REPL to start")
+	}
+	output.Reset()
 
-		if err := rt.repl.OneShot(ctx, "data.test.p"); err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	if err := rt.repl.OneShot(ctx, "data.test.p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		actual := strings.TrimSpace(output.String())
-		expected := "7"
+	actual := strings.TrimSpace(output.String())
+	expected := "7"
 
-		if actual != expected {
-			t.Fatalf("expected data.test.p to be %v, got %v", expected, actual)
-		}
-	})
+	if actual != expected {
+		t.Fatalf("expected data.test.p to be %v, got %v", expected, actual)
+	}
 }
 
 func TestRuntimeReplProcessWatchV1Compatible(t *testing.T) {
@@ -2099,8 +2096,8 @@ func TestExtraMiddleware(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if act, exp := string(buf), "bar"; !reflect.DeepEqual(act, exp) {
-		t.Errorf("got %v (%[1]T), want %v (%[2]T)", act, exp)
+	if act, exp := string(buf), "bar"; act != exp {
+		t.Errorf("got %s, want %s", act, exp)
 	}
 }
 
@@ -2175,7 +2172,7 @@ allow if {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if act, exp := string(buf), `{"example":"A"}`; !reflect.DeepEqual(act, exp) {
-		t.Errorf("got %v (%[1]T), want %v (%[2]T)", act, exp)
+	if act, exp := string(buf), `{"example":"A"}`; act != exp {
+		t.Errorf("got %s, want %s", act, exp)
 	}
 }

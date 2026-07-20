@@ -2332,63 +2332,62 @@ main := 7 {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			test.WithTempFS(map[string]string{}, func(rootDir string) {
-				f, err := os.Create(filepath.Join(rootDir, "bundle.tar.gz"))
-				if err != nil {
-					t.Fatal(err)
-				}
-				buf := archive.MustWriteTarGz([][2]string{{"main.rego", tc.policy}})
-				_, err = f.Write(buf.Bytes())
-				if err != nil {
-					t.Fatal(err)
-				}
+			rootDir := t.TempDir()
+			f, err := os.Create(filepath.Join(rootDir, "bundle.tar.gz"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			buf := archive.MustWriteTarGz([][2]string{{"main.rego", tc.policy}})
+			_, err = f.Write(buf.Bytes())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				c := fmt.Sprintf(`services:
+			c := fmt.Sprintf(`services:
 bundles:
   test:
     resource: "file://%s/bundle.tar.gz"`, rootDir)
 
-				var readyCh chan struct{}
-				logger := loggingtest.New()
-				logger.SetLevel(logging.Info)
-				if tc.expErr != "" {
-					readyCh = make(chan struct{})
-				}
+			var readyCh chan struct{}
+			logger := loggingtest.New()
+			logger.SetLevel(logging.Info)
+			if tc.expErr != "" {
+				readyCh = make(chan struct{})
+			}
 
-				ctx := t.Context()
-				opa, err := sdk.New(ctx, sdk.Options{
-					Logger:       logger,
-					Ready:        readyCh,
-					Config:       strings.NewReader(c),
-					RegoVersion:  ast.RegoV0,
-					V1Compatible: tc.v1Compatible,
-				})
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if tc.expErr != "" {
-					if !test.Eventually(t, 5*time.Second, func() bool {
-						entries := logger.Entries()
-						for _, e := range entries {
-							if strings.Contains(e.Message, tc.expErr) {
-								return true
-							}
-						}
-						return false
-					}) {
-						t.Fatalf("timed out waiting for logged error:\n\n%s\n\ngot\n\n%v:", tc.expErr, logger.Entries())
-					}
-				} else {
-					exp := json.Number("7")
-
-					if result, err := opa.Decision(ctx, sdk.DecisionOptions{}); err != nil {
-						t.Fatal(err)
-					} else if result.Result != exp {
-						t.Fatalf("expected %v but got %v", exp, result.Result)
-					}
-				}
+			ctx := t.Context()
+			opa, err := sdk.New(ctx, sdk.Options{
+				Logger:       logger,
+				Ready:        readyCh,
+				Config:       strings.NewReader(c),
+				RegoVersion:  ast.RegoV0,
+				V1Compatible: tc.v1Compatible,
 			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.expErr != "" {
+				if !test.Eventually(t, 5*time.Second, func() bool {
+					entries := logger.Entries()
+					for _, e := range entries {
+						if strings.Contains(e.Message, tc.expErr) {
+							return true
+						}
+					}
+					return false
+				}) {
+					t.Fatalf("timed out waiting for logged error:\n\n%s\n\ngot\n\n%v:", tc.expErr, logger.Entries())
+				}
+			} else {
+				exp := json.Number("7")
+
+				if result, err := opa.Decision(ctx, sdk.DecisionOptions{}); err != nil {
+					t.Fatal(err)
+				} else if result.Result != exp {
+					t.Fatalf("expected %v but got %v", exp, result.Result)
+				}
+			}
 		})
 	}
 }
