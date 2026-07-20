@@ -1,0 +1,1 @@
+Merging a base allowlist with extra entries

@@ -1,0 +1,6 @@
+{
+  "extra_registries": [
+    "registry.internal/staging"
+  ],
+  "image": "docker.io/library/nginx:1.27"
+}

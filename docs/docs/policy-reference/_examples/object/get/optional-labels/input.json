@@ -1,0 +1,17 @@
+{
+  "workloads": [
+    {
+      "name": "frontend",
+      "labels": {
+        "app": "web",
+        "env": "prod"
+      }
+    },
+    {
+      "name": "scratch",
+      "labels": {
+        "app": "jobs"
+      }
+    }
+  ]
+}

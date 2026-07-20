@@ -1,0 +1,6 @@
+{
+  "deny": [
+    "container \"batch\" memory limit 2Gi exceeds namespace cap 1Gi"
+  ],
+  "max_memory": 1073741824
+}

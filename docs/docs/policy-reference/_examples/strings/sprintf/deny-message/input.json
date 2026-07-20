@@ -1,0 +1,6 @@
+{
+  "user": "alice",
+  "role": "guest",
+  "action": "delete",
+  "resource": "orders/42"
+}
