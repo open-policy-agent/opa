@@ -2942,11 +2942,11 @@ allow if {
 ### Metadata `compile`
 
 The `compile` annotation configures compile-time behavior of a rule or
-document. Its `unknowns` field declares which references are treated as
-unknown during partial evaluation; its `mask_rule` field optionally
-identifies a rule whose value masks the document produced by the
-annotated rule (a compile-to-filters concept, unrelated to bundle
-optimization).
+document for partial evaluation. Its `unknowns` field declares which
+references are treated as unknown; its `mask_rule` field optionally
+references a rule whose value defines how to mask sensitive column values
+in the rows the annotated rule returns (used for compiling policies into
+data filters, unrelated to bundle optimization).
 
 Allowed at `rule` and `document` scope.
 
@@ -2955,27 +2955,40 @@ Allowed at `rule` and `document` scope.
 - **`unknowns`** (list of references): References that are treated as unknown when the
   policy is built with `opa build --optimize`. Any reference not declared here (or via
   the `.manifest` roots) is assumed to be known and may be inlined during partial evaluation.
-- **`mask_rule`** (reference): A reference to a rule that determines the value of the
-  document produced by the annotated rule. This is used when compiling a policy into
-  filters, and is independent of bundle optimization. The mask rule can be relative to
-  the package it is used in and does not need to start with `data.`.
+- **`mask_rule`** (reference): A reference to a rule whose value defines column masks
+  for the annotated rule. The mask rule returns an object describing, per table and
+  column, how sensitive values should be replaced before they reach the client. It can
+  be relative to the package it is used in and does not need to start with `data.`. See
+  [Column Masking](/docs/filtering/column-masks) for details.
 
 #### Example
 
+The annotated rule (`filters.include`) decides which rows are returned; the
+mask rule (`filters.masks`) defines how sensitive columns in those rows are
+replaced:
+
 ```rego
-package examples
+package filters
 
 # METADATA
 # scope: document
 # compile:
-#   unknowns:
-#   - input.fruits
-#   mask_rule: data.filtering.mask
-include if input.fruits[_].name == "banana"
+#   unknowns: ["input.tickets"]
+#   mask_rule: data.filters.masks
+include if input.tickets[_]
+```
+
+```rego
+package filters
+
+# METADATA
+# scope: document
+masks.tickets.description.replace.value := "<description masked>"
 ```
 
 See also [Optimization Levels](policy-performance.md#optimization-levels) for details on how
-the `unknowns` field affects `opa build --optimize`.
+the `unknowns` field affects `opa build --optimize`, and
+[Column Masking](/docs/filtering/column-masks) for the masking feature.
 
 ### Accessing annotations
 
