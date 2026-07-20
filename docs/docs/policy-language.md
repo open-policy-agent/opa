@@ -2941,54 +2941,40 @@ allow if {
 
 ### Metadata `compile`
 
-The `compile` annotation configures compile-time behavior of a rule or
-document for partial evaluation. Its `unknowns` field declares which
-references are treated as unknown; its `mask_rule` field optionally
-references a rule whose value defines how to mask sensitive column values
-in the rows the annotated rule returns (used for compiling policies into
-data filters, unrelated to bundle optimization).
+The `compile` annotation has two independent functions:
 
-Allowed at `rule` and `document` scope.
+- `unknowns` declares references that are treated as unknown during partial evaluation;
+  see [Optimization Levels](policy-performance.md#optimization-levels)
+- `mask_rule` references a rule whose value defines column masks, used when compiling
+  a policy into data filters; see [Column Masking](/docs/filtering/column-masks)
 
 #### Fields
 
 - **`unknowns`** (list of references): References that are treated as unknown when the
   policy is built with `opa build --optimize`. Any reference not declared here (or via
   the `.manifest` roots) is assumed to be known and may be inlined during partial evaluation.
-- **`mask_rule`** (reference): A reference to a rule whose value defines column masks
-  for the annotated rule. The mask rule returns an object describing, per table and
-  column, how sensitive values should be replaced before they reach the client. It can
-  be relative to the package it is used in and does not need to start with `data.`. See
-  [Column Masking](/docs/filtering/column-masks) for details.
+- **`mask_rule`** (reference): A reference to a rule whose value defines column masks for
+  the annotated rule. It is resolved relative to the package it is used in, so it does not
+  need to start with `data.`; a short relative name (e.g., `mask`) resolves against the
+  annotated rule's package. See [Column Masking](/docs/filtering/column-masks) for details.
 
 #### Example
 
-The annotated rule (`filters.include`) decides which rows are returned; the
-mask rule (`filters.masks`) defines how sensitive columns in those rows are
-replaced:
-
 ```rego
-package filters
+package opa.examples
 
 # METADATA
 # scope: document
 # compile:
-#   unknowns: ["input.tickets"]
-#   mask_rule: data.filters.masks
-include if input.tickets[_]
+#   unknowns:
+#   - input.fruits
+#   mask_rule: mask
+include if input.fruits.name == "banana"
+mask.fruits.owner.replace.value := "___"
 ```
 
-```rego
-package filters
-
-# METADATA
-# scope: document
-masks.tickets.description.replace.value := "<description masked>"
-```
-
-See also [Optimization Levels](policy-performance.md#optimization-levels) for details on how
-the `unknowns` field affects `opa build --optimize`, and
-[Column Masking](/docs/filtering/column-masks) for the masking feature.
+See also [Optimization Levels](policy-performance.md#optimization-levels) for partial evaluation,
+and [Column Masking](/docs/filtering/column-masks) for masking.
 
 ### Accessing annotations
 
