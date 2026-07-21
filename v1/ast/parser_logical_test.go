@@ -1610,3 +1610,73 @@ func TestParseLogical_ParenWith(t *testing.T) {
 		assertParseErrorContains(t, tc.note, tc.input, tc.expected, opts)
 	}
 }
+
+func TestParseLogical_ParenSerialization(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	tests := []struct {
+		note   string
+		input  string
+		expect string
+	}{
+		{"or under and, rhs", "a and (b or c)", "a and (b or c)"},
+		{"or under and, lhs", "(a or b) and c", "(a or b) and c"},
+		{"and under or needs no parens", "a or b and c", "a or b and c"},
+		{"same-op or, no parens", "a or b or c", "a or b or c"},
+		{"same-op or rhs keeps parens", "a or (b or c)", "a or (b or c)"},
+		{"left-assoc or drops parens", "(a or b) or c", "a or b or c"},
+		{"same-op and, no parens", "a and b and c", "a and b and c"},
+		{"same-op and rhs keeps parens", "a and (b and c)", "a and (b and c)"},
+		{"left-assoc and drops parens", "(a and b) and c", "a and b and c"},
+		{"redundant same-precedence dropped", "(a and b) or c", "a and b or c"},
+		{"groups on both sides", "(a or b) and (c or d)", "(a or b) and (c or d)"},
+		{"not group", "not (a or b)", "not (a or b)"},
+		{"not group, drops redundant group", "not (a)", "not a"},
+		{"not group as operand", "x and not (a or b)", "x and not (a or b)"},
+		{"explicit body stays braces", "a and ({b or c})", "a and { b or c }"},
+		{"with operand group, lhs", "(a with input as x) or b", "(a with input as x) or b"},
+		{"with operand group, rhs", "a or (b with input as x)", "a or (b with input as x)"},
+		{"with binds to whole group, outer", "(a and b with input as x)", "a and b with input as x"},
+		{"with binds to whole group, inner", "(a and b) with input as x", "a and b with input as x"},
+		{"with no parens", "a and b with input as x", "a and b with input as x"},
+		{"deeply redundant parens minimized", "(((((a or ((b)))) and c)))", "(a or b) and c"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			body, err := ParseBodyWithOpts(tc.input, opts)
+			if err != nil {
+				t.Fatalf("parse %q: %v", tc.input, err)
+			}
+			expr := body[0]
+
+			got := expr.String()
+			if got != tc.expect {
+				t.Errorf("String(): want %q, got %q", tc.expect, got)
+			}
+
+			// AppendText must match String().
+			at, err := expr.AppendText(nil)
+			if err != nil {
+				t.Fatalf("AppendText: %v", err)
+			}
+			if string(at) != got {
+				t.Errorf("AppendText: want %q, got %q", got, string(at))
+			}
+
+			// StringLength must match the rendered length.
+			if n := expr.StringLength(); n != len(got) {
+				t.Errorf("StringLength: want %d, got %d (for %q)", len(got), n, got)
+			}
+
+			// String() must re-parse to an equal AST.
+			reparsed, err := ParseBodyWithOpts(got, opts)
+			if err != nil {
+				t.Fatalf("re-parse %q: %v", got, err)
+			}
+			if !body.Equal(reparsed) {
+				t.Errorf("re-parse not equal:\noriginal: %v\nreparsed: %v", body, reparsed)
+			}
+		})
+	}
+}

@@ -651,6 +651,9 @@ func (n *Not) IsGround() bool {
 
 func (n *Not) String() string {
 	if !n.ExplicitBody && len(n.Body) == 1 {
+		if notBodyNeedsParens(n.Body) {
+			return "not (" + n.Body.String() + ")"
+		}
 		return "not " + n.Body.String()
 	}
 

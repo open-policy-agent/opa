@@ -335,17 +335,25 @@ func (o *LogicalOr) AppendText(buf []byte) ([]byte, error) {
 
 func appendLogical(buf []byte, op string, lhs, rhs Body, explicitLhs, explicitRhs bool) ([]byte, error) {
 	var err error
-	if buf, err = appendLogicalOperand(buf, lhs, explicitLhs); err != nil {
+	if buf, err = appendLogicalOperand(buf, lhs, explicitLhs, op, false); err != nil {
 		return nil, err
 	}
 	buf = append(buf, ' ')
 	buf = append(buf, op...)
 	buf = append(buf, ' ')
-	return appendLogicalOperand(buf, rhs, explicitRhs)
+	return appendLogicalOperand(buf, rhs, explicitRhs, op, true)
 }
 
-func appendLogicalOperand(buf []byte, b Body, explicit bool) ([]byte, error) {
+func appendLogicalOperand(buf []byte, b Body, explicit bool, parentOp string, rhs bool) ([]byte, error) {
 	if !explicit && len(b) == 1 {
+		if logicalOperandNeedsParens(b, parentOp, rhs) {
+			buf = append(buf, '(')
+			var err error
+			if buf, err = b.AppendText(buf); err != nil {
+				return nil, err
+			}
+			return append(buf, ')'), nil
+		}
 		return b.AppendText(buf)
 	}
 
