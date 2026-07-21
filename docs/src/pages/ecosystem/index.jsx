@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 import Link from "@docusaurus/Link";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 
@@ -94,7 +95,7 @@ const EcosystemIndex = (props) => {
                   return (
                     <a
                       key={lang.id}
-                      href={`./ecosystem/by-language/${lang.id}`}
+                      href={useBaseUrl(`/ecosystem/by-language/${lang.id}`)}
                       className={styles.languageLink}
                     >
                       <img
@@ -128,7 +129,8 @@ const EcosystemIndex = (props) => {
                   <ul>
                     {featuresInCategory.map((feature) => (
                       <li key={feature.id}>
-                        <a href={`./ecosystem/by-feature/${feature.id}`}>{feature.title}</a> – {feature.description}
+                        <a href={useBaseUrl(`/ecosystem/by-feature/${feature.id}`)}>{feature.title}</a> –{" "}
+                        {feature.description}
                       </li>
                     ))}
                   </ul>
