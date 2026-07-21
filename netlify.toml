@@ -27,6 +27,11 @@ function = "badge"
 path = "/docs/*"
 function = "version-redirect"
 
+# Canonicalize legacy .html URLs onto their clean-path equivalents.
+[[edge_functions]]
+path = "/*"
+function = "clean-html-urls"
+
 # function to process form notifications from netlify forms and send them to slack
 [[edge_functions]]
 path = "/api/feedback"
