@@ -930,6 +930,90 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{},
 		},
 		{
+			// Regression test: elements of a collection literal in `x in [...]`
+			// used to be inserted into the trie as-is (see updateMemberRefInValue),
+			// without restricting them to scalars/arrays like the equality-based
+			// indexing does (see indexValue). A non-scalar element (object or set)
+			// made the trie panic with "illegal value", since it only knew how to
+			// store scalars and arrays of scalars. Since the ref can't be indexed
+			// precisely here, it falls back to the trie's "any" node (like Var):
+			// the rule remains a candidate for every input, and it's up to body
+			// evaluation (not the index) to determine the actual result.
+			note: "internal.member_2: composite (object) element in rhs array (no match, but still a candidate)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, [{"nested": 1}])
+			}`),
+			ruleset: "p",
+			input:   `{"role": "other"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, [{"nested": 1}]) }`},
+		},
+		{
+			// Same fallback as above, for the other composite type in the case (Set).
+			note: "internal.member_2: composite (set) element in rhs array (candidate regardless of match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, [{1, 2}])
+			}`),
+			ruleset: "p",
+			input:   `{"role": "other"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, [{1, 2}]) }`},
+		},
+		{
+			// insertArray's handling of array elements had the same gap for
+			// nested arrays specifically (no "any" fallback for a non-scalar
+			// head element), independent of the object/set case above. Unlike
+			// that case, this fallback lives under the ref's "array" child (not
+			// its top-level "any" node), so it only makes the rule a candidate
+			// for inputs that are themselves arrays of matching length - it
+			// doesn't degrade indexing for unrelated input types.
+			note: "internal.member_2: nested array-in-array element in rhs (array input still a candidate)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, [[[1, 2]], [[3, 4]]])
+			}`),
+			ruleset: "p",
+			input:   `{"role": [[9, 9]]}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, [[[1, 2]], [[3, 4]]]) }`},
+		},
+		{
+			// A non-array input can never equal either collection element (both
+			// are arrays), so the index stays precise here: no panic, and no
+			// over-broad "any" fallback leaking into unrelated input types.
+			note: "internal.member_2: nested array-in-array element in rhs (scalar input not a candidate)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, [[[1, 2]], [[3, 4]]])
+			}`),
+			ruleset:    "p",
+			input:      `{"role": "other"}`,
+			expectedRS: []string{},
+		},
+		{
+			// insertArray's fallback for a non-scalar, non-array head element
+			// (object/set nested inside an array, as opposed to the object/set
+			// case above which is a direct element of the outer collection)
+			// exercises the same "any" branch as the *Array case just above, but
+			// for Object/Set.
+			note: "internal.member_2: composite (object) element nested inside array element in rhs (candidate regardless of match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, [[1, {"nested": 1}]])
+			}`),
+			ruleset: "p",
+			input:   `{"role": [1, "x"]}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, [[1, {"nested": 1}]]) }`},
+		},
+		{
 			note: "internal.member_2: var with array value in rhs (match)",
 			module: module(`package test
 			p if {
