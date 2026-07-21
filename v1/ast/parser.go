@@ -3109,7 +3109,12 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 	}
 
 	result = &Annotations{
-		comments:      b.comments,
+		// NOTE: b.comments is backed by a reused buffer (the metadataParser is
+		// pooled and Reset truncates rather than reallocates), so it must be
+		// cloned here. Aliasing it lets a later block's Append overwrite this
+		// annotation's comments, corrupting EndLoc and downstream row-range
+		// logic (e.g. bundle optimization's comment pruning).
+		comments:      slices.Clone(b.comments),
 		Scope:         raw.Scope,
 		Entrypoint:    raw.Entrypoint,
 		Title:         raw.Title,
