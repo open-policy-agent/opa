@@ -1949,103 +1949,102 @@ q contains 1 if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			test.WithTempFS(nil, func(root string) {
-				var roots []string
-				for name, files := range tc.bundles {
-					p := filepath.Join(root, name)
-					roots = append(roots, p)
-					filePairs := make([][2]string, 0, len(files))
-					for k, v := range files {
-						filePairs = append(filePairs, [2]string{k, v})
-					}
-					buf := archive.MustWriteTarGz(filePairs)
-					bf, err := os.Create(p)
-					if err != nil {
-						t.Fatalf("Unexpected error: %v", err)
-					}
-					_, err = bf.Write(buf.Bytes())
-					if err != nil {
-						t.Fatalf("Unexpected error: %v", err)
+			root := t.TempDir()
+			var roots []string
+			for name, files := range tc.bundles {
+				p := filepath.Join(root, name)
+				roots = append(roots, p)
+				filePairs := make([][2]string, 0, len(files))
+				for k, v := range files {
+					filePairs = append(filePairs, [2]string{k, v})
+				}
+				buf := archive.MustWriteTarGz(filePairs)
+				bf, err := os.Create(p)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				_, err = bf.Write(buf.Bytes())
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+			}
+
+			params := newBuildParams()
+			params.outputFile = path.Join(root, "bundle.tar.gz")
+			params.bundleMode = true
+			params.v0Compatible = tc.v0Compatible
+			params.v1Compatible = tc.v1Compatible
+
+			if tc.capabilities != nil {
+				params.capabilities.C = tc.capabilities
+			}
+
+			err := dobuild(params, roots)
+			if tc.expErrs != nil {
+				if err == nil {
+					t.Fatal("expected error but got none")
+				}
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(err.Error(), expErr) {
+						t.Fatalf("expected error:\n\n%q\n\nbut got:\n\n%v", expErr, err)
 					}
 				}
-
-				params := newBuildParams()
-				params.outputFile = path.Join(root, "bundle.tar.gz")
-				params.bundleMode = true
-				params.v0Compatible = tc.v0Compatible
-				params.v1Compatible = tc.v1Compatible
-
-				if tc.capabilities != nil {
-					params.capabilities.C = tc.capabilities
+			} else {
+				if err != nil {
+					t.Fatal(err)
 				}
 
-				err := dobuild(params, roots)
-				if tc.expErrs != nil {
-					if err == nil {
-						t.Fatal("expected error but got none")
-					}
-					for _, expErr := range tc.expErrs {
-						if !strings.Contains(err.Error(), expErr) {
-							t.Fatalf("expected error:\n\n%q\n\nbut got:\n\n%v", expErr, err)
-						}
-					}
-				} else {
-					if err != nil {
+				_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				f, err := os.Open(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() {
+					_ = f.Close()
+				}()
+
+				gr, err := gzip.NewReader(f)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				tr := tar.NewReader(gr)
+
+				for {
+					f, err := tr.Next()
+					if err == io.EOF {
+						break
+					} else if err != nil {
 						t.Fatal(err)
 					}
 
-					_, err = loader.NewFileLoader().AsBundle(params.outputFile)
-					if err != nil {
-						t.Fatal(err)
-					}
-
-					f, err := os.Open(params.outputFile)
-					if err != nil {
-						t.Fatal(err)
-					}
-					defer func() {
-						_ = f.Close()
-					}()
-
-					gr, err := gzip.NewReader(f)
-					if err != nil {
-						t.Fatal(err)
-					}
-
-					tr := tar.NewReader(gr)
-
-					for {
-						f, err := tr.Next()
-						if err == io.EOF {
-							break
-						} else if err != nil {
-							t.Fatal(err)
-						}
-
-						found := false
-						for expName, expVal := range tc.expBundle {
-							expName = strings.ReplaceAll(expName, "%ROOT%", root)
-							if f.Name == expName {
-								found = true
-								b, err := io.ReadAll(tr)
-								if err != nil {
-									t.Fatal(err)
-								}
-								expVal = strings.ReplaceAll(expVal, "%ROOT%", root)
-								expVal = strings.ReplaceAll(expVal, "%DEFAULT_REGO_VERSION%",
-									strconv.Itoa(ast.DefaultRegoVersion.Int()))
-								if string(b) != expVal {
-									t.Fatalf("expected %v:\n\n%v\n\nbut got:\n\n%v", expName, expVal, string(b))
-								}
-								break
+					found := false
+					for expName, expVal := range tc.expBundle {
+						expName = strings.ReplaceAll(expName, "%ROOT%", root)
+						if f.Name == expName {
+							found = true
+							b, err := io.ReadAll(tr)
+							if err != nil {
+								t.Fatal(err)
 							}
-						}
-						if !found {
-							t.Fatalf("unexpected file in bundle: %v", f.Name)
+							expVal = strings.ReplaceAll(expVal, "%ROOT%", root)
+							expVal = strings.ReplaceAll(expVal, "%DEFAULT_REGO_VERSION%",
+								strconv.Itoa(ast.DefaultRegoVersion.Int()))
+							if string(b) != expVal {
+								t.Fatalf("expected %v:\n\n%v\n\nbut got:\n\n%v", expName, expVal, string(b))
+							}
+							break
 						}
 					}
+					if !found {
+						t.Fatalf("unexpected file in bundle: %v", f.Name)
+					}
 				}
-			})
+			}
 		})
 	}
 }

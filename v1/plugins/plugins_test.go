@@ -7,6 +7,7 @@ package plugins
 import (
 	"context"
 	"errors"
+	"maps"
 	"net/http"
 	"reflect"
 	"testing"
@@ -130,7 +131,7 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	if len(currentStatus) != 1 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != message {
 		t.Fatalf("Expected 1 statuses in current plugin status map with state OK and message 'foo', got: %+v", currentStatus)
 	}
-	if !reflect.DeepEqual(currentStatus, l1Status) || !reflect.DeepEqual(l1Status, l2Status) {
+	if !maps.EqualFunc(currentStatus, l1Status, (*Status).Equal) || !maps.EqualFunc(l1Status, l2Status, (*Status).Equal) {
 		t.Fatalf("Unexpected status in updates:\n\n\texpecting: %+v\n\n\tgot: l1: %+v  l2: %+v\n", currentStatus, l1Status, l2Status)
 	}
 
@@ -144,7 +145,7 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != message || currentStatus["p2"].State != StateErr {
 		t.Fatalf("Unexpected current plugin status, got: %+v", currentStatus)
 	}
-	if !reflect.DeepEqual(currentStatus, l2Status) {
+	if !maps.EqualFunc(currentStatus, l2Status, (*Status).Equal) {
 		t.Fatalf("Unexpected status in updates:\n\n\texpecting: %+v\n\n\tgot: %+v\n", currentStatus, l2Status)
 	}
 	if l1Status != nil {

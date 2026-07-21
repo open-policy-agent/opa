@@ -1022,115 +1022,113 @@ func TestPluginStartLazyLoadInMem(t *testing.T) {
 func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 	t.Parallel()
 
-	test.WithTempFS(nil, func(dir string) {
-		ctx := t.Context()
-		met := metrics.New()
-		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
-			Dir: dir,
-			Partitions: []storage.Path{
-				storage.MustParsePath("/foo"),
+	ctx := t.Context()
+	met := metrics.New()
+	store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+		Dir: t.TempDir(),
+		Partitions: []storage.Path{
+			storage.MustParsePath("/foo"),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := getTestManagerWithOpts(nil, store)
+	defer manager.Stop(ctx)
+	plugin := New(&Config{}, manager)
+	bundleName := "test-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: met}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	module := "package foo\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
 			},
-		})
-		if err != nil {
-			t.Fatal(err)
+		},
+	}
+
+	b.Manifest.Init()
+
+	met = metrics.New()
+	err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: met})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// NOTE(sr): These assertions reflect the current behaviour only! Not prescriptive.
+	name := "disk_deleted_keys"
+	if exp, act := 3, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		t.Errorf("%s: expected %v, got %v", name, exp, act)
+	}
+	name = "disk_written_keys"
+	if exp, act := 6, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		t.Errorf("%s: expected %v, got %v", name, exp, act)
+	}
+	name = "disk_read_keys"
+	if exp, act := 13, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		t.Errorf("%s: expected %v, got %v", name, exp, act)
+	}
+	name = "disk_read_bytes"
+	if exp, act := 269, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		t.Errorf("%s: expected %v, got %v", name, exp, act)
+	}
+	for _, timer := range []string{
+		"disk_commit",
+		"disk_write",
+		"disk_read",
+	} {
+		if act := met.Timer(timer).Int64(); act <= 0 {
+			t.Errorf("%s: expected non-zero timer, got %v", timer, act)
 		}
-		manager := getTestManagerWithOpts(nil, store)
-		defer manager.Stop(ctx)
-		plugin := New(&Config{}, manager)
-		bundleName := "test-bundle"
-		plugin.status[bundleName] = &Status{Name: bundleName, Metrics: met}
-		plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+	}
+	if t.Failed() {
+		t.Logf("all metrics: %v", met.All())
+	}
 
-		ensurePluginState(t, plugin, plugins.StateNotReady)
+	// Ensure we can read it all back -- this is the only bundle plugin test using disk storage,
+	// so some duplicating with TestPluginOneShot is OK:
 
-		module := "package foo\n\ncorge=1"
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
 
-		b := bundle.Bundle{
-			Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-			Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]any),
-			Modules: []bundle.ModuleFile{
-				{
-					Path:   "/foo/bar",
-					Parsed: ast.MustParseModule(module),
-					Raw:    []byte(module),
-				},
-			},
-		}
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
 
-		b.Manifest.Init()
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package foo\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
 
-		met = metrics.New()
-		err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: met})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		ensurePluginState(t, plugin, plugins.StateOK)
-
-		// NOTE(sr): These assertions reflect the current behaviour only! Not prescriptive.
-		name := "disk_deleted_keys"
-		if exp, act := 3, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
-			t.Errorf("%s: expected %v, got %v", name, exp, act)
-		}
-		name = "disk_written_keys"
-		if exp, act := 6, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
-			t.Errorf("%s: expected %v, got %v", name, exp, act)
-		}
-		name = "disk_read_keys"
-		if exp, act := 13, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
-			t.Errorf("%s: expected %v, got %v", name, exp, act)
-		}
-		name = "disk_read_bytes"
-		if exp, act := 269, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
-			t.Errorf("%s: expected %v, got %v", name, exp, act)
-		}
-		for _, timer := range []string{
-			"disk_commit",
-			"disk_write",
-			"disk_read",
-		} {
-			if act := met.Timer(timer).Int64(); act <= 0 {
-				t.Errorf("%s: expected non-zero timer, got %v", timer, act)
-			}
-		}
-		if t.Failed() {
-			t.Logf("all metrics: %v", met.All())
-		}
-
-		// Ensure we can read it all back -- this is the only bundle plugin test using disk storage,
-		// so some duplicating with TestPluginOneShot is OK:
-
-		txn := storage.NewTransactionOrDie(ctx, manager.Store)
-		defer manager.Store.Abort(ctx, txn)
-
-		ids, err := manager.Store.ListPolicies(ctx, txn)
-		if err != nil {
-			t.Fatal(err)
-		} else if len(ids) != 1 {
-			t.Fatal("Expected 1 policy")
-		}
-
-		bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
-		exp := []byte("package foo\n\ncorge=1")
-		if err != nil {
-			t.Fatal(err)
-		} else if !bytes.Equal(bs, exp) {
-			t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
-		}
-
-		data, err := manager.Store.Read(ctx, txn, storage.RootPath)
-		expData := util.MustUnmarshalJSON([]byte(`{
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
+	expData := util.MustUnmarshalJSON([]byte(`{
 			"foo": {"bar": 1, "baz": "qux"},
 			"system": {
 				"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}
 			}
 		}`))
-		if err != nil {
-			t.Fatal(err)
-		} else if !reflect.DeepEqual(data, expData) {
-			t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
-		}
-	})
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
 }
 
 func TestPluginOneShotDeltaBundle(t *testing.T) {
@@ -5362,58 +5360,57 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 func TestPluginUsingFileLoader(t *testing.T) {
 	t.Parallel()
 
-	test.WithTempFS(map[string]string{}, func(dir string) {
-		b := bundle.Bundle{
-			Data: map[string]any{},
-			Modules: []bundle.ModuleFile{
-				{
-					URL: "test.rego",
-					Raw: []byte(`package test
+	dir := t.TempDir()
+	b := bundle.Bundle{
+		Data: map[string]any{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL: "test.rego",
+				Raw: []byte(`package test
 
 					p = 7`),
-				},
 			},
-		}
+		},
+	}
 
-		name := path.Join(dir, "bundle.tar.gz")
+	name := path.Join(dir, "bundle.tar.gz")
 
-		f, err := os.Create(name)
-		if err != nil {
-			t.Fatal(err)
-		}
+	f, err := os.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		if err := bundle.NewWriter(f).Write(b); err != nil {
-			t.Fatal(err)
-		}
+	if err := bundle.NewWriter(f).Write(b); err != nil {
+		t.Fatal(err)
+	}
 
-		f.Close()
+	f.Close()
 
-		mgr := getTestManager()
-		url := "file://" + name
+	mgr := getTestManager()
+	url := "file://" + name
 
-		p := New(&Config{Bundles: map[string]*Source{
-			"test": {
-				SizeLimitBytes: 1e5,
-				Resource:       url,
-			},
-		}}, mgr)
+	p := New(&Config{Bundles: map[string]*Source{
+		"test": {
+			SizeLimitBytes: 1e5,
+			Resource:       url,
+		},
+	}}, mgr)
 
-		ch := make(chan Status)
+	ch := make(chan Status)
 
-		p.Register("test", func(s Status) {
-			ch <- s
-		})
-
-		if err := p.Start(t.Context()); err != nil {
-			t.Fatal(err)
-		}
-
-		s := <-ch
-
-		if s.LastSuccessfulActivation.IsZero() {
-			t.Fatal("expected successful activation")
-		}
+	p.Register("test", func(s Status) {
+		ch <- s
 	})
+
+	if err := p.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	s := <-ch
+
+	if s.LastSuccessfulActivation.IsZero() {
+		t.Fatal("expected successful activation")
+	}
 }
 
 func TestPluginUsingFileLoaderV1Compatible(t *testing.T) {
@@ -5532,72 +5529,71 @@ p contains 7 if {
 			}
 			popts := ast.ParserOptions{RegoVersion: regoVersion}
 
-			test.WithTempFS(map[string]string{}, func(dir string) {
-				b := bundle.Bundle{
-					Data: map[string]any{},
-					Modules: []bundle.ModuleFile{
-						{
-							URL: "test.rego",
-							Raw: []byte(tc.module),
-						},
+			dir := t.TempDir()
+			b := bundle.Bundle{
+				Data: map[string]any{},
+				Modules: []bundle.ModuleFile{
+					{
+						URL: "test.rego",
+						Raw: []byte(tc.module),
 					},
-				}
+				},
+			}
 
-				name := path.Join(dir, "bundle.tar.gz")
+			name := path.Join(dir, "bundle.tar.gz")
 
-				f, err := os.Create(name)
-				if err != nil {
-					t.Fatal(err)
-				}
+			f, err := os.Create(name)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				if err := bundle.NewWriter(f).Write(b); err != nil {
-					t.Fatal(err)
-				}
+			if err := bundle.NewWriter(f).Write(b); err != nil {
+				t.Fatal(err)
+			}
 
-				f.Close()
+			f.Close()
 
-				manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(popts))
-				if err != nil {
-					t.Fatal("unexpected error:", err)
-				}
-				url := "file://" + name
+			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(), plugins.WithParserOptions(popts))
+			if err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+			url := "file://" + name
 
-				p := New(&Config{Bundles: map[string]*Source{
-					"test": {
-						SizeLimitBytes: 1e5,
-						Resource:       url,
-					},
-				}}, manager)
+			p := New(&Config{Bundles: map[string]*Source{
+				"test": {
+					SizeLimitBytes: 1e5,
+					Resource:       url,
+				},
+			}}, manager)
 
-				ch := make(chan Status)
+			ch := make(chan Status)
 
-				p.Register("test", func(s Status) {
-					ch <- s
-				})
+			p.Register("test", func(s Status) {
+				ch <- s
+			})
 
-				if err := p.Start(t.Context()); err != nil {
-					t.Fatal(err)
-				}
+			if err := p.Start(t.Context()); err != nil {
+				t.Fatal(err)
+			}
 
-				s := <-ch
+			s := <-ch
 
-				if tc.expErrs != nil {
-					for _, expErr := range tc.expErrs {
-						found := false
-						for _, e := range s.Errors {
-							if strings.Contains(e.Error(), expErr) {
-								found = true
-								break
-							}
-						}
-						if !found {
-							t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
+			if tc.expErrs != nil {
+				for _, expErr := range tc.expErrs {
+					found := false
+					for _, e := range s.Errors {
+						if strings.Contains(e.Error(), expErr) {
+							found = true
+							break
 						}
 					}
-				} else if s.LastSuccessfulActivation.IsZero() {
-					t.Fatal("expected successful activation")
+					if !found {
+						t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
+					}
 				}
-			})
+			} else if s.LastSuccessfulActivation.IsZero() {
+				t.Fatal("expected successful activation")
+			}
 		})
 	}
 }
@@ -5841,77 +5837,76 @@ p contains 7 if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			test.WithTempFS(map[string]string{}, func(dir string) {
-				manifest := bundle.Manifest{}
-				manifest.SetRegoVersion(tc.bundleRegoVersion)
-				b := bundle.Bundle{
-					Manifest: manifest,
-					Data:     map[string]any{},
-					Modules: []bundle.ModuleFile{
-						{
-							URL: "test.rego",
-							Raw: []byte(tc.module),
-						},
+			dir := t.TempDir()
+			manifest := bundle.Manifest{}
+			manifest.SetRegoVersion(tc.bundleRegoVersion)
+			b := bundle.Bundle{
+				Manifest: manifest,
+				Data:     map[string]any{},
+				Modules: []bundle.ModuleFile{
+					{
+						URL: "test.rego",
+						Raw: []byte(tc.module),
 					},
-				}
+				},
+			}
 
-				name := path.Join(dir, "bundle.tar.gz")
+			name := path.Join(dir, "bundle.tar.gz")
 
-				f, err := os.Create(name)
-				if err != nil {
-					t.Fatal(err)
-				}
+			f, err := os.Create(name)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				if err := bundle.NewWriter(f).Write(b); err != nil {
-					t.Fatal(err)
-				}
+			if err := bundle.NewWriter(f).Write(b); err != nil {
+				t.Fatal(err)
+			}
 
-				f.Close()
+			f.Close()
 
-				managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
-				manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
-					plugins.WithParserOptions(managerPopts))
-				if err != nil {
-					t.Fatal("unexpected error:", err)
-				}
-				url := "file://" + name
+			managerPopts := ast.ParserOptions{RegoVersion: tc.managerRegoVersion}
+			manager, err := plugins.New(nil, "test-instance-id", inmemtst.New(),
+				plugins.WithParserOptions(managerPopts))
+			if err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+			url := "file://" + name
 
-				p := New(&Config{Bundles: map[string]*Source{
-					"test": {
-						SizeLimitBytes: 1e5,
-						Resource:       url,
-					},
-				}}, manager)
+			p := New(&Config{Bundles: map[string]*Source{
+				"test": {
+					SizeLimitBytes: 1e5,
+					Resource:       url,
+				},
+			}}, manager)
 
-				ch := make(chan Status)
+			ch := make(chan Status)
 
-				p.Register("test", func(s Status) {
-					ch <- s
-				})
+			p.Register("test", func(s Status) {
+				ch <- s
+			})
 
-				if err := p.Start(t.Context()); err != nil {
-					t.Fatal(err)
-				}
+			if err := p.Start(t.Context()); err != nil {
+				t.Fatal(err)
+			}
 
-				s := <-ch
+			s := <-ch
 
-				if tc.expErrs != nil {
-					for _, expErr := range tc.expErrs {
-						found := false
-						for _, e := range s.Errors {
-							if strings.Contains(e.Error(), expErr) {
-								found = true
-								break
-							}
-						}
-						if !found {
-							t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
+			if tc.expErrs != nil {
+				for _, expErr := range tc.expErrs {
+					found := false
+					for _, e := range s.Errors {
+						if strings.Contains(e.Error(), expErr) {
+							found = true
+							break
 						}
 					}
-				} else if s.LastSuccessfulActivation.IsZero() {
-					t.Fatal("expected successful activation")
+					if !found {
+						t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
+					}
 				}
-			})
+			} else if s.LastSuccessfulActivation.IsZero() {
+				t.Fatal("expected successful activation")
+			}
 		})
 	}
 }
@@ -6436,21 +6431,21 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 	}))
 	defer s.Close()
 
-	test.WithTempFS(nil, func(dir string) {
-		ctx := t.Context()
+	dir := t.TempDir()
+	ctx := t.Context()
 
-		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
-			Dir: dir,
-			Partitions: []storage.Path{
-				storage.MustParsePath("/foo"),
-			},
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
+	store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+		Dir: dir,
+		Partitions: []storage.Path{
+			storage.MustParsePath("/foo"),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		// setup plugin pointing at fake server
-		manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
+	// setup plugin pointing at fake server
+	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{
 		"services": {
 				"default": {
 					"url": %q
@@ -6458,132 +6453,131 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 			}
 		}`, s.URL), store)
 
-		var mode plugins.TriggerMode = "manual"
+	var mode plugins.TriggerMode = "manual"
 
-		plugin := New(&Config{
-			Bundles: map[string]*Source{
-				"test": {
-					Service:        "default",
-					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
-					Config:         download.Config{Trigger: &mode},
-				},
+	plugin := New(&Config{
+		Bundles: map[string]*Source{
+			"test": {
+				Service:        "default",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &mode},
 			},
-		}, manager)
+		},
+	}, manager)
 
-		statusCh := make(chan map[string]*Status)
+	statusCh := make(chan map[string]*Status)
 
-		// register for bundle updates to observe changes and start the plugin
-		plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
-			statusCh <- st
-		})
-
-		err = plugin.Start(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		// manually trigger bundle download
-		go func() {
-			_ = plugin.Loaders()["test"].Trigger(ctx)
-		}()
-
-		// wait for bundle update and then verify that activated bundle etag written to store
-		<-statusCh
-
-		txn := storage.NewTransactionOrDie(ctx, manager.Store)
-
-		actual, err := manager.Store.Read(ctx, txn, storage.MustParsePath("/system/bundles/test/etag"))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if actual != "foo" {
-			t.Fatalf("Expected etag foo but got %v", actual)
-		}
-
-		// Stop the "read" transaction
-		manager.Store.Abort(ctx, txn)
-
-		// Stop the plugin and reinitialize it. Verify that etag is retrieved from store in the bundle request.
-		// The server should respond with a 304 as OPA has the right bundle loaded.
-		plugin.Stop(ctx)
-
-		plugin = New(&Config{
-			Bundles: map[string]*Source{
-				"test": {
-					Service:        "default",
-					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
-					Config:         download.Config{Trigger: &mode},
-				},
-			},
-		}, manager)
-
-		statusCh = make(chan map[string]*Status)
-
-		// register for bundle updates to observe changes and start the plugin
-		plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
-			statusCh <- st
-		})
-
-		err = plugin.Start(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		val, ok := plugin.etags["test"]
-		if !ok {
-			t.Fatal("Expected etag entry for bundle \"test\"")
-		}
-
-		if val != "foo" {
-			t.Fatalf("Expected etag foo but got %v", val)
-		}
-
-		// manually trigger bundle download
-		go func() {
-			_ = plugin.Loaders()["test"].Trigger(ctx)
-		}()
-
-		<-statusCh
-
-		if notModifiedCount != 1 {
-			t.Fatalf("Expected one bundle response with HTTP status 304 but got %v", notModifiedCount)
-		}
-
-		// reconfigure the plugin
-		cfg := &Config{
-			Bundles: map[string]*Source{
-				"test": {
-					Service:        "default",
-					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
-					Config:         download.Config{Trigger: &mode},
-					Resource:       "/new/path/bundles/bundle.tar.gz",
-				},
-			},
-		}
-
-		plugin.Reconfigure(ctx, cfg)
-
-		// manually trigger bundle download
-		go func() {
-			_ = plugin.Loaders()["test"].Trigger(ctx)
-		}()
-
-		<-statusCh
-
-		if notModifiedCount != 2 {
-			t.Fatalf("Expected two bundle responses with HTTP status 304 but got %v", notModifiedCount)
-		}
-
-		val, ok = plugin.etags["test"]
-		if !ok {
-			t.Fatal("Expected etag entry for bundle \"test\"")
-		}
-
-		if val != "foo" {
-			t.Fatalf("Expected etag foo but got %v", val)
-		}
+	// register for bundle updates to observe changes and start the plugin
+	plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+		statusCh <- st
 	})
+
+	err = plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// manually trigger bundle download
+	go func() {
+		_ = plugin.Loaders()["test"].Trigger(ctx)
+	}()
+
+	// wait for bundle update and then verify that activated bundle etag written to store
+	<-statusCh
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+
+	actual, err := manager.Store.Read(ctx, txn, storage.MustParsePath("/system/bundles/test/etag"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual != "foo" {
+		t.Fatalf("Expected etag foo but got %v", actual)
+	}
+
+	// Stop the "read" transaction
+	manager.Store.Abort(ctx, txn)
+
+	// Stop the plugin and reinitialize it. Verify that etag is retrieved from store in the bundle request.
+	// The server should respond with a 304 as OPA has the right bundle loaded.
+	plugin.Stop(ctx)
+
+	plugin = New(&Config{
+		Bundles: map[string]*Source{
+			"test": {
+				Service:        "default",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &mode},
+			},
+		},
+	}, manager)
+
+	statusCh = make(chan map[string]*Status)
+
+	// register for bundle updates to observe changes and start the plugin
+	plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+		statusCh <- st
+	})
+
+	err = plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	val, ok := plugin.etags["test"]
+	if !ok {
+		t.Fatal("Expected etag entry for bundle \"test\"")
+	}
+
+	if val != "foo" {
+		t.Fatalf("Expected etag foo but got %v", val)
+	}
+
+	// manually trigger bundle download
+	go func() {
+		_ = plugin.Loaders()["test"].Trigger(ctx)
+	}()
+
+	<-statusCh
+
+	if notModifiedCount != 1 {
+		t.Fatalf("Expected one bundle response with HTTP status 304 but got %v", notModifiedCount)
+	}
+
+	// reconfigure the plugin
+	cfg := &Config{
+		Bundles: map[string]*Source{
+			"test": {
+				Service:        "default",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &mode},
+				Resource:       "/new/path/bundles/bundle.tar.gz",
+			},
+		},
+	}
+
+	plugin.Reconfigure(ctx, cfg)
+
+	// manually trigger bundle download
+	go func() {
+		_ = plugin.Loaders()["test"].Trigger(ctx)
+	}()
+
+	<-statusCh
+
+	if notModifiedCount != 2 {
+		t.Fatalf("Expected two bundle responses with HTTP status 304 but got %v", notModifiedCount)
+	}
+
+	val, ok = plugin.etags["test"]
+	if !ok {
+		t.Fatal("Expected etag entry for bundle \"test\"")
+	}
+
+	if val != "foo" {
+		t.Fatalf("Expected etag foo but got %v", val)
+	}
 }
 
 func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
@@ -6790,59 +6784,58 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 func TestPluginManualTriggerActivationErrorFile(t *testing.T) {
 	t.Parallel()
 
-	test.WithTempFS(map[string]string{}, func(dir string) {
-		mockBundle := bundle.Bundle{
-			Data: map[string]any{},
-			Modules: []bundle.ModuleFile{
-				{
-					URL: "policy.rego",
-					Raw: []byte(`package test
+	dir := t.TempDir()
+	mockBundle := bundle.Bundle{
+		Data: map[string]any{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL: "policy.rego",
+				Raw: []byte(`package test
 					res := unknown.function(unknown.input)`),
-				},
 			},
-		}
+		},
+	}
 
-		name := path.Join(dir, "bundle.tar.gz")
+	name := path.Join(dir, "bundle.tar.gz")
 
-		f, err := os.Create(name)
-		if err != nil {
-			t.Fatal(err)
-		}
+	f, err := os.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		if err := bundle.NewWriter(f).Write(mockBundle); err != nil {
-			t.Fatal(err)
-		}
+	if err := bundle.NewWriter(f).Write(mockBundle); err != nil {
+		t.Fatal(err)
+	}
 
-		if err := f.Close(); err != nil {
-			t.Fatal(err)
-		}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 
-		mgr := getTestManager()
-		url := "file://" + name
+	mgr := getTestManager()
+	url := "file://" + name
 
-		var mode plugins.TriggerMode = "manual"
-		plugin := New(&Config{Bundles: map[string]*Source{
-			"test": {
-				SizeLimitBytes: 1e5,
-				Resource:       url,
-				Config:         download.Config{Trigger: &mode},
-			},
-		}}, mgr)
+	var mode plugins.TriggerMode = "manual"
+	plugin := New(&Config{Bundles: map[string]*Source{
+		"test": {
+			SizeLimitBytes: 1e5,
+			Resource:       url,
+			Config:         download.Config{Trigger: &mode},
+		},
+	}}, mgr)
 
-		ctx := t.Context()
-		err = plugin.Start(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer plugin.Stop(ctx)
+	ctx := t.Context()
+	err = plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer plugin.Stop(ctx)
 
-		err = plugin.Loaders()["test"].Trigger(ctx)
+	err = plugin.Loaders()["test"].Trigger(ctx)
 
-		expectedError := "1 error occurred: /policy.rego:2: rego_type_error: undefined function unknown.function"
-		if err.Error() != expectedError {
-			t.Fatalf("Expected the error: %s but got %s", expectedError, err.Error())
-		}
-	})
+	expectedError := "1 error occurred: /policy.rego:2: rego_type_error: undefined function unknown.function"
+	if err.Error() != expectedError {
+		t.Fatalf("Expected the error: %s but got %s", expectedError, err.Error())
+	}
 }
 
 func TestPluginManualTriggerActivationErrorServer(t *testing.T) {
@@ -7045,14 +7038,11 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 	}))
 	defer s2.Close()
 
-	test.WithTempFS(nil, func(dir string) {
-		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
-			Dir: dir,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		config := fmt.Appendf(nil, `{
+	store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := fmt.Appendf(nil, `{
 		"services": {
 			"default": {
 				"url": %q
@@ -7063,97 +7053,96 @@ func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
 		}
 	}`, s1.URL, s2.URL)
 
-		manager := getTestManagerWithOpts(config, store)
-		defer manager.Stop(ctx)
+	manager := getTestManagerWithOpts(config, store)
+	defer manager.Stop(ctx)
 
-		var mode plugins.TriggerMode = "manual"
+	var mode plugins.TriggerMode = "manual"
 
-		plugin := New(&Config{
-			Bundles: map[string]*Source{
-				"test-1": {
-					Service:        "default",
-					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
-					Config:         download.Config{Trigger: &mode},
-				},
-				"test-2": {
-					Service:        "acmecorp",
-					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
-					Config:         download.Config{Trigger: &mode},
-				},
+	plugin := New(&Config{
+		Bundles: map[string]*Source{
+			"test-1": {
+				Service:        "default",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &mode},
 			},
-		}, manager)
-		defer plugin.Stop(ctx)
+			"test-2": {
+				Service:        "acmecorp",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &mode},
+			},
+		},
+	}, manager)
+	defer plugin.Stop(ctx)
 
-		statusCh := make(chan map[string]*Status)
+	statusCh := make(chan map[string]*Status)
 
-		// register for bundle updates to observe changes and start the plugin
-		plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
-			statusCh <- st
-		})
+	// register for bundle updates to observe changes and start the plugin
+	plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+		statusCh <- st
+	})
 
-		err = plugin.Start(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
+	err = plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		// manually trigger bundle download on all configured bundles
-		go func() {
-			_ = plugin.Trigger(ctx)
-		}()
+	// manually trigger bundle download on all configured bundles
+	go func() {
+		_ = plugin.Trigger(ctx)
+	}()
 
-		// wait for bundle update and then assert on data content
-		<-statusCh
-		<-statusCh
+	// wait for bundle update and then assert on data content
+	<-statusCh
+	<-statusCh
 
-		result, err := storage.ReadOne(ctx, manager.Store, storage.Path{"p"})
-		if err != nil {
-			t.Fatal(err)
-		}
+	result, err := storage.ReadOne(ctx, manager.Store, storage.Path{"p"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		if !reflect.DeepEqual(result, mockBundle1.Data["p"]) {
-			t.Fatalf("expected data to be %v but got %v", mockBundle1.Data, result)
-		}
+	if !reflect.DeepEqual(result, mockBundle1.Data["p"]) {
+		t.Fatalf("expected data to be %v but got %v", mockBundle1.Data, result)
+	}
 
-		result, err = storage.ReadOne(ctx, manager.Store, storage.Path{"q"})
-		if err != nil {
-			t.Fatal(err)
-		}
+	result, err = storage.ReadOne(ctx, manager.Store, storage.Path{"q"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		if !reflect.DeepEqual(result, mockBundle2.Data["q"]) {
-			t.Fatalf("expected data to be %v but got %v", mockBundle2.Data, result)
-		}
+	if !reflect.DeepEqual(result, mockBundle2.Data["q"]) {
+		t.Fatalf("expected data to be %v but got %v", mockBundle2.Data, result)
+	}
 
-		txn := storage.NewTransactionOrDie(ctx, manager.Store)
-		defer manager.Store.Abort(ctx, txn)
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
 
-		ids, err := manager.Store.ListPolicies(ctx, txn)
-		if err != nil {
-			t.Fatal(err)
-		} else if len(ids) != 1 {
-			t.Fatal("Expected 1 policy")
-		}
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
 
-		bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
-		exp := []byte("package authz\n\ncorge=1")
-		if err != nil {
-			t.Fatal(err)
-		} else if !bytes.Equal(bs, exp) {
-			t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
-		}
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package authz\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
 
-		data, err := manager.Store.Read(ctx, txn, storage.RootPath)
-		expData := util.MustUnmarshalJSON([]byte(`{
+	data, err := manager.Store.Read(ctx, txn, storage.RootPath)
+	expData := util.MustUnmarshalJSON([]byte(`{
 			"p": "x1", "q": "x2",
 			"system": {
 				"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}}
 			}
 		}`))
-		if err != nil {
-			t.Fatal(err)
-		} else if !reflect.DeepEqual(data, expData) {
-			t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
-		}
-	})
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
 }
 
 func TestPluginManualTriggerMultiple(t *testing.T) {

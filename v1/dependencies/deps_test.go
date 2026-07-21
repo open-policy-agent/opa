@@ -5,6 +5,7 @@
 package dependencies
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"testing"
@@ -505,15 +506,10 @@ func runDeps(t *testing.T, x any) (min, full []ast.Ref) {
 	return min, full
 }
 
-// For some reason, reflect.DeepEqual doesn't work on Ref slices.
 func assertRefSliceEq(t *testing.T, exp, result []ast.Ref) {
-	if len(result) != len(exp) {
-		t.Fatalf("Expected refs %v, got %v", exp, result)
-	}
+	t.Helper()
 
-	for i, e := range exp {
-		if !e.Equal(result[i]) {
-			t.Fatalf("Expected refs %v, got %v", exp, result)
-		}
+	if !slices.EqualFunc(exp, result, ast.RefEqual) {
+		t.Fatalf("Expected refs %v, got %v", exp, result)
 	}
 }

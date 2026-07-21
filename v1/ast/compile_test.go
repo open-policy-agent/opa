@@ -10672,21 +10672,19 @@ func TestCompileCustomBuiltins(t *testing.T) {
 }
 
 func TestCompilerLazyLoadingError(t *testing.T) {
-
 	testLoader := func(map[string]*Module) (map[string]*Module, error) {
 		return nil, errors.New("something went horribly wrong")
 	}
 
 	compiler := NewCompiler().WithModuleLoader(testLoader)
-
 	compiler.Compile(nil)
 
 	expected := Errors{
 		NewError(CompileErr, nil, "something went horribly wrong"),
 	}
 
-	if !reflect.DeepEqual(expected, compiler.Errors) {
-		t.Fatalf("Expected error %v but got: %v", expected, compiler.Errors)
+	if !slices.EqualFunc(expected, compiler.Errors, (*Error).Equal) {
+		t.Fatalf("Expected %v but got: %v", expected, compiler.Errors)
 	}
 }
 

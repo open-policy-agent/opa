@@ -13,7 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -222,10 +222,10 @@ r = 3 if { true }`)
 		"data.repl.s",
 	}
 
-	sort.Strings(result)
-	sort.Strings(expected)
+	slices.Sort(result)
+	slices.Sort(expected)
 
-	if !reflect.DeepEqual(result, expected) {
+	if !slices.Equal(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
 
@@ -236,17 +236,17 @@ r = 3 if { true }`)
 		"data.a.b.d.r",
 	}
 
-	sort.Strings(result)
-	sort.Strings(expected)
+	slices.Sort(result)
+	slices.Sort(expected)
 
-	if !reflect.DeepEqual(result, expected) {
+	if !slices.Equal(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
 
 	result = repl.completeCandidates("data.a.b.c.p[x]")
 	expected = []string{}
 
-	if !reflect.DeepEqual(result, expected) {
+	if !slices.Equal(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
 
@@ -258,11 +258,9 @@ r = 3 if { true }`)
 	}
 
 	result = repl.completeCandidates("x")
-	expected = []string{
-		"xyz",
-	}
+	expected = []string{"xyz"}
 
-	if !reflect.DeepEqual(result, expected) {
+	if !slices.Equal(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
 }

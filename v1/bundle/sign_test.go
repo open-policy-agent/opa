@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/open-policy-agent/opa/v1/util/test"
-
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jws"
 )
@@ -94,52 +92,51 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 		input = append(input, file)
 	}
 
-	test.WithTempFS(map[string]string{}, func(rootDir string) {
-		claims := make(map[string]any)
-		claims["scope"] = "read"
+	rootDir := t.TempDir()
+	claims := make(map[string]any)
+	claims["scope"] = "read"
 
-		claimBytes, err := json.Marshal(claims)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
+	claimBytes, err := json.Marshal(claims)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
-		// create claims file
-		claimsFile := filepath.Join(rootDir, "claims.json")
-		if err := os.WriteFile(claimsFile, claimBytes, 0644); err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
+	// create claims file
+	claimsFile := filepath.Join(rootDir, "claims.json")
+	if err := os.WriteFile(claimsFile, claimBytes, 0644); err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
-		keyid := "foo"
+	keyid := "foo"
 
-		sc := NewSigningConfig("secret", "HS256", filepath.Join(rootDir, "claims.json"))
+	sc := NewSigningConfig("secret", "HS256", filepath.Join(rootDir, "claims.json"))
 
-		token, err := GenerateSignedToken(input, sc, keyid)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
+	token, err := GenerateSignedToken(input, sc, keyid)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
-		// verify the signed token
-		alg := jwa.HS256()
-		_, err = jws.Verify([]byte(token), jws.WithKey(alg, []byte("secret")))
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
+	// verify the signed token
+	alg := jwa.HS256()
+	_, err = jws.Verify([]byte(token), jws.WithKey(alg, []byte("secret")))
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
-		// check the kid is in the header
-		m, err := jws.ParseString(token)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
+	// check the kid is in the header
+	m, err := jws.ParseString(token)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
-		signatures := m.Signatures()
-		if len(signatures) != 1 {
-			t.Fatalf("There should be exactly one signature, got %d", len(signatures))
-		}
+	signatures := m.Signatures()
+	if len(signatures) != 1 {
+		t.Fatalf("There should be exactly one signature, got %d", len(signatures))
+	}
 
-		if v, ok := signatures[0].ProtectedHeaders().KeyID(); !ok || v != keyid {
-			t.Errorf("key id not set")
-		}
-	})
+	if v, ok := signatures[0].ProtectedHeaders().KeyID(); !ok || v != keyid {
+		t.Errorf("key id not set")
+	}
 }
 
 func TestGeneratePayload(t *testing.T) {

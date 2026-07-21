@@ -7,7 +7,6 @@ package profiler
 
 import (
 	_ "encoding/json"
-	"reflect"
 	"testing"
 	"time"
 
@@ -507,12 +506,9 @@ allowed_operations = [
 func TestProfilerTraceConfig(t *testing.T) {
 	ct := topdown.QueryTracer(New())
 	conf := ct.Config()
+	expected := topdown.TraceConfig{PlugLocalVars: false}
 
-	expected := topdown.TraceConfig{
-		PlugLocalVars: false,
-	}
-
-	if !reflect.DeepEqual(expected, conf) {
+	if expected != conf {
 		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
 	}
 }

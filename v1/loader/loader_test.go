@@ -666,54 +666,52 @@ func TestGetBundleDirectoryLoader(t *testing.T) {
 }
 
 func TestLoadBundle(t *testing.T) {
+	rootDir := t.TempDir()
 
-	test.WithTempFS(nil, func(rootDir string) {
+	f, err := os.Create(filepath.Join(rootDir, "bundle.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		f, err := os.Create(filepath.Join(rootDir, "bundle.tar.gz"))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var testBundle = bundle.Bundle{
-			Modules: []bundle.ModuleFile{
-				{
-					Path: "x.rego",
-					Raw: []byte(`
+	var testBundle = bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			{
+				Path: "x.rego",
+				Raw: []byte(`
 				package baz
 
 				p = 1`),
-				},
 			},
-			Data: map[string]any{
-				"foo": "bar",
-			},
-			Manifest: bundle.Manifest{
-				Revision: "",
-				Roots:    &[]string{""},
-			},
-		}
+		},
+		Data: map[string]any{
+			"foo": "bar",
+		},
+		Manifest: bundle.Manifest{
+			Revision: "",
+			Roots:    &[]string{""},
+		},
+	}
 
-		if err := bundle.Write(f, testBundle); err != nil {
-			t.Fatal(err)
-		}
+	if err := bundle.Write(f, testBundle); err != nil {
+		t.Fatal(err)
+	}
 
-		paths := mustListPaths(rootDir, false)[1:]
-		loaded, err := NewFileLoader().All(paths)
-		if err != nil {
-			t.Fatal(err)
-		}
+	paths := mustListPaths(rootDir, false)[1:]
+	loaded, err := NewFileLoader().All(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		actualData := testBundle.Data
-		actualData["system"] = map[string]any{"bundle": map[string]any{"manifest": map[string]any{"revision": "", "roots": []any{""}}}}
+	actualData := testBundle.Data
+	actualData["system"] = map[string]any{"bundle": map[string]any{"manifest": map[string]any{"revision": "", "roots": []any{""}}}}
 
-		if !reflect.DeepEqual(actualData, loaded.Documents) {
-			t.Fatalf("Expected %v but got: %v", actualData, loaded.Documents)
-		}
+	if !reflect.DeepEqual(actualData, loaded.Documents) {
+		t.Fatalf("Expected %v but got: %v", actualData, loaded.Documents)
+	}
 
-		if !bytes.Equal(testBundle.Modules[0].Raw, loaded.Modules["/x.rego"].Raw) {
-			t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["/x.rego"].Raw)
-		}
-	})
+	if !bytes.Equal(testBundle.Modules[0].Raw, loaded.Modules["/x.rego"].Raw) {
+		t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["/x.rego"].Raw)
+	}
 }
 
 func TestLoadBundleWithReader(t *testing.T) {
@@ -772,58 +770,55 @@ func TestLoadBundleWithReader(t *testing.T) {
 }
 
 func TestLoadBundleSubDir(t *testing.T) {
+	rootDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(rootDir, "a", "b"), 0777); err != nil {
+		t.Fatal(err)
+	}
 
-	test.WithTempFS(nil, func(rootDir string) {
+	f, err := os.Create(filepath.Join(rootDir, "a", "b", "bundle.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		if err := os.MkdirAll(filepath.Join(rootDir, "a", "b"), 0777); err != nil {
-			t.Fatal(err)
-		}
-
-		f, err := os.Create(filepath.Join(rootDir, "a", "b", "bundle.tar.gz"))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var testBundle = bundle.Bundle{
-			Modules: []bundle.ModuleFile{
-				{
-					Path: "x.rego",
-					Raw: []byte(`
+	var testBundle = bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			{
+				Path: "x.rego",
+				Raw: []byte(`
 				package baz
 
 				p = 1`),
-				},
 			},
-			Data: map[string]any{
-				"foo": "bar",
-			},
-			Manifest: bundle.Manifest{
-				Revision: "",
-				Roots:    &[]string{""},
-			},
-		}
+		},
+		Data: map[string]any{
+			"foo": "bar",
+		},
+		Manifest: bundle.Manifest{
+			Revision: "",
+			Roots:    &[]string{""},
+		},
+	}
 
-		if err := bundle.Write(f, testBundle); err != nil {
-			t.Fatal(err)
-		}
+	if err := bundle.Write(f, testBundle); err != nil {
+		t.Fatal(err)
+	}
 
-		paths := mustListPaths(rootDir, false)[1:]
-		loaded, err := NewFileLoader().All(paths)
-		if err != nil {
-			t.Fatal(err)
-		}
+	paths := mustListPaths(rootDir, false)[1:]
+	loaded, err := NewFileLoader().All(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		actualData := testBundle.Data
-		actualData["system"] = map[string]any{"bundle": map[string]any{"manifest": map[string]any{"revision": "", "roots": []any{""}}}}
+	actualData := testBundle.Data
+	actualData["system"] = map[string]any{"bundle": map[string]any{"manifest": map[string]any{"revision": "", "roots": []any{""}}}}
 
-		if !reflect.DeepEqual(map[string]any{"b": testBundle.Data}, loaded.Documents) {
-			t.Fatalf("Expected %v but got: %v", testBundle.Data, loaded.Documents)
-		}
+	if !reflect.DeepEqual(map[string]any{"b": testBundle.Data}, loaded.Documents) {
+		t.Fatalf("Expected %v but got: %v", testBundle.Data, loaded.Documents)
+	}
 
-		if !bytes.Equal(testBundle.Modules[0].Raw, loaded.Modules["/x.rego"].Raw) {
-			t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["/x.rego"].Raw)
-		}
-	})
+	if !bytes.Equal(testBundle.Modules[0].Raw, loaded.Modules["/x.rego"].Raw) {
+		t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["/x.rego"].Raw)
+	}
 }
 
 func TestAsBundleWithDir(t *testing.T) {

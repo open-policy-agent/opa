@@ -85,6 +85,13 @@ func (b *failTracer) Hints(unknowns []ast.Ref) []Hint {
 			continue
 		}
 		miss := string(tblPart)
+		if slices.Contains(candidates, miss) {
+			// The top-level segment is already a declared unknown, so the
+			// failure comes from something deeper in the ref that this
+			// fuzzy match can't see. Suggesting the ref itself as a "fix"
+			// would be a no-op, so skip it.
+			continue
+		}
 		rs := ref[1:].String()
 		if _, ok := seenRefs[rs]; ok {
 			continue

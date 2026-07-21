@@ -345,6 +345,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 				profiler:                    options.Profiler,
 				instrument:                  options.Instrument,
 				evaluatedRules:              tracker,
+				httpRoundTripper:            options.HTTPRoundTripper,
 			})
 			if record.Error == nil {
 				record.Results = &result.Result
@@ -371,6 +372,14 @@ type DecisionOptions struct {
 	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
 	Instrument          bool                // if true, instrumentation will be enabled
 	DecisionID          string              // the identifier for this decision; if not set, a globally unique identifier will be generated
+
+	// HTTPRoundTripper customizes the http.RoundTripper used by http.send
+	// during this decision. The provided function receives the http.Transport
+	// OPA would otherwise use — which may be nil for plain-HTTP requests
+	// without TLS or unix-socket options — and returns the http.RoundTripper
+	// to use in its place, typically a wrapper around the received transport.
+	// When nil, OPA's default behavior is preserved.
+	HTTPRoundTripper topdown.CustomizeRoundTripper
 }
 
 // DecisionResult contains the output of query evaluation.
@@ -576,6 +585,7 @@ type evalArgs struct {
 	profiler                    topdown.QueryTracer
 	instrument                  bool
 	evaluatedRules              *topdown.EvaluatedRuleTracker
+	httpRoundTripper            topdown.CustomizeRoundTripper
 }
 
 func evaluate(ctx context.Context, args evalArgs) (any, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
@@ -644,6 +654,7 @@ func evaluate(ctx context.Context, args evalArgs) (any, types.ProvenanceV1, ast.
 		rego.EvalMetrics(args.m),
 		rego.EvalQueryTracer(args.profiler),
 		rego.EvalInstrument(args.instrument),
+		rego.EvalHTTPRoundTripper(args.httpRoundTripper),
 	)
 	if err != nil {
 		return nil, provenance, inputAST, bundles, err

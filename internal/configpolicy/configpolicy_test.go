@@ -6,6 +6,7 @@ package configpolicy
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -45,7 +46,7 @@ func TestPolicyEvalWarnings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !reflect.DeepEqual(warnings, []string{"a warning"}) {
+	if !slices.Equal(warnings, []string{"a warning"}) {
 		t.Fatalf("unexpected warnings: %v", warnings)
 	}
 }
@@ -183,7 +184,7 @@ func TestStringSet(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			if got := StringSet(tc.in); !reflect.DeepEqual(got, tc.want) {
+			if got := StringSet(tc.in); !slices.Equal(got, tc.want) {
 				t.Fatalf("want %v, got %v", tc.want, got)
 			}
 		})

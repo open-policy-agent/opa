@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -2331,63 +2332,62 @@ main := 7 {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			test.WithTempFS(map[string]string{}, func(rootDir string) {
-				f, err := os.Create(filepath.Join(rootDir, "bundle.tar.gz"))
-				if err != nil {
-					t.Fatal(err)
-				}
-				buf := archive.MustWriteTarGz([][2]string{{"main.rego", tc.policy}})
-				_, err = f.Write(buf.Bytes())
-				if err != nil {
-					t.Fatal(err)
-				}
+			rootDir := t.TempDir()
+			f, err := os.Create(filepath.Join(rootDir, "bundle.tar.gz"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			buf := archive.MustWriteTarGz([][2]string{{"main.rego", tc.policy}})
+			_, err = f.Write(buf.Bytes())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				c := fmt.Sprintf(`services:
+			c := fmt.Sprintf(`services:
 bundles:
   test:
     resource: "file://%s/bundle.tar.gz"`, rootDir)
 
-				var readyCh chan struct{}
-				logger := loggingtest.New()
-				logger.SetLevel(logging.Info)
-				if tc.expErr != "" {
-					readyCh = make(chan struct{})
-				}
+			var readyCh chan struct{}
+			logger := loggingtest.New()
+			logger.SetLevel(logging.Info)
+			if tc.expErr != "" {
+				readyCh = make(chan struct{})
+			}
 
-				ctx := t.Context()
-				opa, err := sdk.New(ctx, sdk.Options{
-					Logger:       logger,
-					Ready:        readyCh,
-					Config:       strings.NewReader(c),
-					RegoVersion:  ast.RegoV0,
-					V1Compatible: tc.v1Compatible,
-				})
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if tc.expErr != "" {
-					if !test.Eventually(t, 5*time.Second, func() bool {
-						entries := logger.Entries()
-						for _, e := range entries {
-							if strings.Contains(e.Message, tc.expErr) {
-								return true
-							}
-						}
-						return false
-					}) {
-						t.Fatalf("timed out waiting for logged error:\n\n%s\n\ngot\n\n%v:", tc.expErr, logger.Entries())
-					}
-				} else {
-					exp := json.Number("7")
-
-					if result, err := opa.Decision(ctx, sdk.DecisionOptions{}); err != nil {
-						t.Fatal(err)
-					} else if result.Result != exp {
-						t.Fatalf("expected %v but got %v", exp, result.Result)
-					}
-				}
+			ctx := t.Context()
+			opa, err := sdk.New(ctx, sdk.Options{
+				Logger:       logger,
+				Ready:        readyCh,
+				Config:       strings.NewReader(c),
+				RegoVersion:  ast.RegoV0,
+				V1Compatible: tc.v1Compatible,
 			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.expErr != "" {
+				if !test.Eventually(t, 5*time.Second, func() bool {
+					entries := logger.Entries()
+					for _, e := range entries {
+						if strings.Contains(e.Message, tc.expErr) {
+							return true
+						}
+					}
+					return false
+				}) {
+					t.Fatalf("timed out waiting for logged error:\n\n%s\n\ngot\n\n%v:", tc.expErr, logger.Entries())
+				}
+			} else {
+				exp := json.Number("7")
+
+				if result, err := opa.Decision(ctx, sdk.DecisionOptions{}); err != nil {
+					t.Fatal(err)
+				} else if result.Result != exp {
+					t.Fatalf("expected %v but got %v", exp, result.Result)
+				}
+			}
 		})
 	}
 }
@@ -3195,4 +3195,106 @@ func TestBufferedLoggerWithoutLoggerPlugin(t *testing.T) {
 	if err != nil && !sdk.IsUndefinedErr(err) {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+// TestDecisionWithHTTPRoundTripper verifies that DecisionOptions.HTTPRoundTripper
+// wraps the http.Transport used by http.send during a single Decision, and that
+// leaving it nil preserves the default behavior.
+func TestDecisionWithHTTPRoundTripper(t *testing.T) {
+	ctx := t.Context()
+
+	var upstreamHits atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamHits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	bundleServer := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": fmt.Sprintf(`
+package system
+import rego.v1
+
+allowed if {
+	resp := http.send({"method": "GET", "url": %q})
+	resp.status_code == 200
+}
+`, upstream.URL),
+		}),
+	)
+	defer bundleServer.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {"test": {"url": %q}},
+		"bundles": {"test": {"resource": "/bundles/bundle.tar.gz"}}
+	}`, bundleServer.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{Config: strings.NewReader(config)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opa.Stop(ctx)
+
+	assertAllowed := func(t *testing.T, result *sdk.DecisionResult) {
+		t.Helper()
+		v, ok := result.Result.(bool)
+		if !ok || !v {
+			t.Fatalf("expected allowed=true, got %v", result.Result)
+		}
+	}
+
+	t.Run("nil HTTPRoundTripper is a no-op", func(t *testing.T) {
+		before := upstreamHits.Load()
+		result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/allowed"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertAllowed(t, result)
+		if got := upstreamHits.Load() - before; got != 1 {
+			t.Fatalf("upstream hits = %d, want 1", got)
+		}
+	})
+
+	t.Run("custom HTTPRoundTripper wraps the transport", func(t *testing.T) {
+		var wraps, trips atomic.Int32
+		customize := func(base *http.Transport) http.RoundTripper {
+			wraps.Add(1)
+			// Base transport is nil for plain HTTP without TLS/unix-socket
+			// options (see topdown.createHTTPRequest); fall back to the
+			// default in that case, matching topdown/http_test.go's
+			// secretTransport.Transform.
+			if base == nil {
+				base = http.DefaultTransport.(*http.Transport)
+			}
+			return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+				trips.Add(1)
+				return base.RoundTrip(req)
+			})
+		}
+		before := upstreamHits.Load()
+		result, err := opa.Decision(ctx, sdk.DecisionOptions{
+			Path:             "/system/allowed",
+			HTTPRoundTripper: customize,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertAllowed(t, result)
+		if got := wraps.Load(); got != 1 {
+			t.Fatalf("CustomizeRoundTripper invoked %d times, want 1", got)
+		}
+		if got := trips.Load(); got != 1 {
+			t.Fatalf("wrapped RoundTrip invoked %d times, want 1", got)
+		}
+		if got := upstreamHits.Load() - before; got != 1 {
+			t.Fatalf("upstream hits = %d, want 1", got)
+		}
+	})
 }

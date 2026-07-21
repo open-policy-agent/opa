@@ -2,10 +2,11 @@ package rest
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/keys"
@@ -20,10 +21,11 @@ func assertStringsEqual(t *testing.T, expected string, actual string, label stri
 
 func assertParamsEqual(t *testing.T, expected url.Values, actual url.Values, label string) {
 	t.Helper()
-	if !reflect.DeepEqual(expected, actual) {
+	if !maps.EqualFunc(expected, actual, slices.Equal) {
 		t.Errorf("%s: expected %s, got %s", label, expected.Encode(), actual.Encode())
 	}
 }
+
 func TestAzureManagedIdentitiesAuthPlugin_NewClient(t *testing.T) {
 	tests := []struct {
 		label      string

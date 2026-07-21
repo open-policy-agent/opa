@@ -30,44 +30,43 @@ func TestDoInspect(t *testing.T) {
 
 	buf := archive.MustWriteTarGz(files)
 
-	test.WithTempFS(nil, func(rootDir string) {
-		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+	rootDir := t.TempDir()
+	bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
 
-		bf, err := os.Create(bundleFile)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	bf, err := os.Create(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		_, err = bf.Write(buf.Bytes())
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	_, err = bf.Write(buf.Bytes())
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		var out bytes.Buffer
-		params := newInspectCommandParams()
-		err = params.outputFormat.Set(formats.JSON)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
+	var out bytes.Buffer
+	params := newInspectCommandParams()
+	err = params.outputFormat.Set(formats.JSON)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
-		err = doInspect(params, bundleFile, &out)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
+	err = doInspect(params, bundleFile, &out)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
-		res := `{
+	res := `{
     "capabilities": {"features": ["rego_v1"]},
     "manifest": {"revision": "rev", "roots": ["foo", "bar", "fuz", "baz", "a", "x"]},
     "signatures_config": {},
     "namespaces": {"data": ["/data.json"], "data.foo": ["/example/foo.rego"]}
   }`
 
-		exp := util.MustUnmarshalJSON([]byte(res))
-		result := util.MustUnmarshalJSON(out.Bytes())
-		if !reflect.DeepEqual(exp, result) {
-			t.Fatalf("expected inspect output to be:\n\n%v\n\ngot:\n\n%v", exp, result)
-		}
-	})
+	exp := util.MustUnmarshalJSON([]byte(res))
+	result := util.MustUnmarshalJSON(out.Bytes())
+	if !reflect.DeepEqual(exp, result) {
+		t.Fatalf("expected inspect output to be:\n\n%v\n\ngot:\n\n%v", exp, result)
+	}
 }
 
 func TestDoInspectPretty(t *testing.T) {
@@ -93,28 +92,26 @@ func TestDoInspectPretty(t *testing.T) {
 	}
 
 	buf := archive.MustWriteTarGz(files)
+	bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
 
-	test.WithTempFS(nil, func(rootDir string) {
-		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+	bf, err := os.Create(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		bf, err := os.Create(bundleFile)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	_, err = bf.Write(buf.Bytes())
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		_, err = bf.Write(buf.Bytes())
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	var out bytes.Buffer
+	err = doInspect(newInspectCommandParams(), bundleFile, &out)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
-		var out bytes.Buffer
-		err = doInspect(newInspectCommandParams(), bundleFile, &out)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
-
-		output := strings.TrimSpace(out.String())
-		expected := strings.TrimSpace(`
+	output := strings.TrimSpace(out.String())
+	expected := strings.TrimSpace(`
  MANIFEST:
 ┌──────────┬────────────────────────────────────────────────────┐
 │  FIELD   │                       VALUE                        │
@@ -144,15 +141,12 @@ NAMESPACES:
 └─────────────────────────────┴────────────────────────────────────────────────────┘
 `)
 
-		if output != expected {
-			t.Fatalf("Unexpected output. Expected:\n\n%v\n\nGot:\n\n%v", expected, output)
-		}
-
-	})
+	if output != expected {
+		t.Fatalf("Unexpected output. Expected:\n\n%v\n\nGot:\n\n%v", expected, output)
+	}
 }
 
 func TestDoInspectPrettyManifestOnlySingleRoot(t *testing.T) {
-
 	root := fmt.Sprintf("metadata/%v/features", strings.Repeat("foobar", 6))
 
 	manifest := fmt.Sprintf(`{"roots": ["%s"],
@@ -163,28 +157,26 @@ func TestDoInspectPrettyManifestOnlySingleRoot(t *testing.T) {
 	}
 
 	buf := archive.MustWriteTarGz(files)
+	bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
 
-	test.WithTempFS(nil, func(rootDir string) {
-		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+	bf, err := os.Create(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		bf, err := os.Create(bundleFile)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	_, err = bf.Write(buf.Bytes())
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		_, err = bf.Write(buf.Bytes())
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	var out bytes.Buffer
+	err = doInspect(newInspectCommandParams(), bundleFile, &out)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
-		var out bytes.Buffer
-		err = doInspect(newInspectCommandParams(), bundleFile, &out)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
-
-		output := strings.TrimSpace(out.String())
-		expected := strings.TrimSpace(`
+	output := strings.TrimSpace(out.String())
+	expected := strings.TrimSpace(`
 MANIFEST:
 ┌──────────┬────────────────────────────────────────────────────┐
 │  FIELD   │                       VALUE                        │
@@ -194,11 +186,9 @@ MANIFEST:
 └──────────┴────────────────────────────────────────────────────┘
 `)
 
-		if output != expected {
-			t.Fatalf("Unexpected output. Expected:\n\n%v\n\nGot:\n\n%v", expected, output)
-		}
-
-	})
+	if output != expected {
+		t.Fatalf("Unexpected output. Expected:\n\n%v\n\nGot:\n\n%v", expected, output)
+	}
 }
 
 func TestInspectMultiBundleError(t *testing.T) {
@@ -669,32 +659,31 @@ p = 1`},
 	buf := archive.MustWriteTarGz(files)
 
 	t.Run("pretty", func(t *testing.T) {
-		test.WithTempFS(nil, func(rootDir string) {
-			bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+		bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
 
-			bf, err := os.Create(bundleFile)
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
+		bf, err := os.Create(bundleFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 
-			_, err = bf.Write(buf.Bytes())
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
+		_, err = bf.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 
-			ps := newInspectCommandParams()
-			ps.listAnnotations = true
-			var out bytes.Buffer
+		ps := newInspectCommandParams()
+		ps.listAnnotations = true
+		var out bytes.Buffer
 
-			err = doInspect(ps, bundleFile, &out)
-			if err != nil {
-				t.Fatalf("Unexpected error %v", err)
-			}
+		err = doInspect(ps, bundleFile, &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
 
-			bs := out.Bytes()
-			idx := bytes.Index(bs, []byte(`ANNOTATIONS`)) // skip NAMESPACE box
-			output := strings.TrimSpace(string(bs[idx:]))
-			expected := strings.TrimSpace(`
+		bs := out.Bytes()
+		idx := bytes.Index(bs, []byte(`ANNOTATIONS`)) // skip NAMESPACE box
+		output := strings.TrimSpace(string(bs[idx:]))
+		expected := strings.TrimSpace(`
 ANNOTATIONS:
 pkg-title
 =========
@@ -780,41 +769,39 @@ Related Resources:
 Custom:
  rule: "rule-custom"`)
 
-			if output != expected {
-				t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
-			}
+		if output != expected {
+			t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
+		}
 
-		})
 	})
 
 	t.Run("json", func(t *testing.T) {
-		test.WithTempFS(nil, func(rootDir string) {
-			bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+		bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
 
-			bf, err := os.Create(bundleFile)
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
+		bf, err := os.Create(bundleFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 
-			_, err = bf.Write(buf.Bytes())
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
+		_, err = bf.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 
-			ps := newInspectCommandParams()
-			ps.listAnnotations = true
-			err = ps.outputFormat.Set(formats.JSON)
-			if err != nil {
-				t.Fatalf("Unexpected error: %s", err)
-			}
-			var out bytes.Buffer
+		ps := newInspectCommandParams()
+		ps.listAnnotations = true
+		err = ps.outputFormat.Set(formats.JSON)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		var out bytes.Buffer
 
-			err = doInspect(ps, bundleFile, &out)
-			if err != nil {
-				t.Fatalf("Unexpected error %v", err)
-			}
+		err = doInspect(ps, bundleFile, &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
 
-			expected := strings.TrimSpace(fmt.Sprintf(`{
+		expected := strings.TrimSpace(fmt.Sprintf(`{
   "manifest": {
     "revision": "",
     "roots": [
@@ -1067,14 +1054,12 @@ Custom:
     ]
   }
 }`, bundleFile))
-			exp := util.MustUnmarshalJSON([]byte(expected))
+		exp := util.MustUnmarshalJSON([]byte(expected))
 
-			bs := out.Bytes()
-			result := util.MustUnmarshalJSON(bs)
-			if !reflect.DeepEqual(exp, result) {
-				t.Fatalf("expected inspect output to be:\n\n%v\n\ngot:\n\n%v", exp, result)
-			}
-		})
+		result := util.MustUnmarshalJSON(out.Bytes())
+		if !reflect.DeepEqual(exp, result) {
+			t.Fatalf("expected inspect output to be:\n\n%v\n\ngot:\n\n%v", exp, result)
+		}
 	})
 }
 
@@ -1158,45 +1143,41 @@ p contains v if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			test.WithTempFS(nil, func(rootDir string) {
-				buf := archive.MustWriteTarGz([][2]string{{"/policy.rego", tc.module}})
+			buf := archive.MustWriteTarGz([][2]string{{"/policy.rego", tc.module}})
+			bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
 
-				bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+			bf, err := os.Create(bundleFile)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
 
-				bf, err := os.Create(bundleFile)
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
+			_, err = bf.Write(buf.Bytes())
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			var out bytes.Buffer
+			params := newInspectCommandParams()
+			params.v0Compatible = tc.v0Compatible
+			err = params.outputFormat.Set(formats.JSON)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			err = doInspect(params, bundleFile, &out)
+			if len(tc.expErrs) > 0 {
+				if err == nil {
+					t.Fatalf("Expected error but got nil")
 				}
 
-				_, err = bf.Write(buf.Bytes())
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
-
-				var out bytes.Buffer
-				params := newInspectCommandParams()
-				params.v0Compatible = tc.v0Compatible
-				err = params.outputFormat.Set(formats.JSON)
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
-				}
-
-				err = doInspect(params, bundleFile, &out)
-
-				if len(tc.expErrs) > 0 {
-					if err == nil {
-						t.Fatalf("Expected error but got nil")
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(err.Error(), expErr) {
+						t.Fatalf("Expected error:\n\n%v\n\nbut got:\n\n%v", expErr, err.Error())
 					}
-
-					for _, expErr := range tc.expErrs {
-						if !strings.Contains(err.Error(), expErr) {
-							t.Fatalf("Expected error:\n\n%v\n\nbut got:\n\n%v", expErr, err.Error())
-						}
-					}
-				} else if err != nil {
-					t.Fatalf("Unexpected error %v", err)
 				}
-			})
+			} else if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
 		})
 	}
 }
@@ -1886,38 +1867,35 @@ test_p if {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			buf := archive.MustWriteTarGz(tc.files)
+			bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
 
-			test.WithTempFS(nil, func(rootDir string) {
-				bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+			bf, err := os.Create(bundleFile)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
 
-				bf, err := os.Create(bundleFile)
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
+			_, err = bf.Write(buf.Bytes())
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
 
-				_, err = bf.Write(buf.Bytes())
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
+			var out bytes.Buffer
+			params := newInspectCommandParams()
+			err = params.outputFormat.Set(formats.JSON)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
 
-				var out bytes.Buffer
-				params := newInspectCommandParams()
-				err = params.outputFormat.Set(formats.JSON)
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
-				}
+			err = doInspect(params, bundleFile, &out)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
 
-				err = doInspect(params, bundleFile, &out)
-				if err != nil {
-					t.Fatalf("Unexpected error %v", err)
-				}
-
-				bs := out.Bytes()
-				output := strings.TrimSpace(string(bs))
-				if output != tc.expected {
-					t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", tc.expected, output)
-				}
-			})
+			bs := out.Bytes()
+			output := strings.TrimSpace(string(bs))
+			if output != tc.expected {
+				t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", tc.expected, output)
+			}
 		})
 	}
 }
@@ -1934,36 +1912,34 @@ p if {
 	}
 
 	buf := archive.MustWriteTarGz(files)
+	bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
 
-	test.WithTempFS(nil, func(rootDir string) {
-		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+	bf, err := os.Create(bundleFile)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		bf, err := os.Create(bundleFile)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	_, err = bf.Write(buf.Bytes())
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		_, err = bf.Write(buf.Bytes())
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	var out bytes.Buffer
+	params := newInspectCommandParams()
+	err = params.outputFormat.Set(formats.JSON)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
-		var out bytes.Buffer
-		params := newInspectCommandParams()
-		err = params.outputFormat.Set(formats.JSON)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
+	err = doInspect(params, bundleFile, &out)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
-		err = doInspect(params, bundleFile, &out)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
-
-		bs := out.Bytes()
-		output := strings.TrimSpace(string(bs))
-		// Note: unknown data.x.y() function doesn't appear in the output, but also didn't cause an error.
-		expected := strings.TrimSpace(`{
+	bs := out.Bytes()
+	output := strings.TrimSpace(string(bs))
+	// Note: unknown data.x.y() function doesn't appear in the output, but also didn't cause an error.
+	expected := strings.TrimSpace(`{
   "manifest": {
     "revision": "",
     "roots": [
@@ -2021,10 +1997,9 @@ p if {
   }
 }`)
 
-		if output != expected {
-			t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", expected, output)
-		}
-	})
+	if output != expected {
+		t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", expected, output)
+	}
 }
 
 func TestDoInspectSingleFileWithAnnotations(t *testing.T) {
