@@ -141,6 +141,7 @@ var DefaultBuiltins = [...]*Builtin{
 	StartsWith,
 	EndsWith,
 	Split,
+	SplitN,
 	Replace,
 	ReplaceN,
 	Trim,
@@ -1274,6 +1275,21 @@ var Split = &Builtin{
 		types.Args(
 			types.Named("x", types.S).Description("string that is split"),
 			types.Named("delimiter", types.S).Description("delimiter used for splitting"),
+		),
+		types.Named("ys", types.NewArray(nil, types.S)).Description("split parts"),
+	),
+	Categories:  stringsCat,
+	CanSkipBctx: true,
+}
+
+var SplitN = &Builtin{
+	Name:        "strings.split_n",
+	Description: "Returns an array of at most `n` parts of `x` split on `delimiter`. If `n` is positive, returns the first `n` parts. If `n` is negative, returns the last `abs(n)` parts. If `n` is zero, returns an empty array. If `abs(n)` exceeds the number of parts, all parts are returned.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S).Description("string that is split"),
+			types.Named("delimiter", types.S).Description("delimiter used for splitting"),
+			types.Named("n", types.N).Description("number of parts to return; positive selects from the left, negative from the right, zero returns an empty array"),
 		),
 		types.Named("ys", types.NewArray(nil, types.S)).Description("split parts"),
 	),
