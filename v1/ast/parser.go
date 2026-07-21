@@ -1246,15 +1246,23 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 				if outer == nil {
 					return nil
 				}
-				if p.s.tok == tokens.With {
-					if outer.With = p.parseWith(); outer.With == nil {
-						return nil
-					}
-				}
-				return outer
+				return p.attachWith(outer)
 			}
 		}
 		p.restore(s)
+	}
+
+	// LHS/whole parenthesized group at statement start: `(a or b)`,
+	// `(a or b) and c`, or `({a}) and c`. parseLogicalGroup only commits when the
+	// parens hold or precede an and/or; otherwise (`({})`, `({a})`, `(a == b)`) it
+	// restores and we fall through so parseExpr handles the term.
+	if p.s.tok == tokens.LParen && p.logicalKeywordsActive() {
+		if body, explicit, loc, committed := p.parseLogicalGroup(false); committed {
+			if body == nil {
+				return nil
+			}
+			return p.foldLogicalTail(body, explicit, loc)
+		}
 	}
 
 	// Check that we're not parsing a ref
@@ -1280,14 +1288,10 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 
 	if negated && p.notBodies && p.s.tok == tokens.LBrace {
 		nb := p.parseNotBody(notLoc)
-
-		if nb != nil && p.s.tok == tokens.With {
-			if nb.With = p.parseWith(); nb.With == nil {
-				return nil
-			}
+		if nb == nil {
+			return nil
 		}
-
-		return nb
+		return p.attachWith(nb)
 	}
 
 	switch p.s.tok {
@@ -1324,6 +1328,22 @@ func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
 	startOffset := p.s.loc.Offset
 	startLoc := p.s.Loc()
 	s := p.save()
+
+	// Negated parenthesized group: `not (a or b)`. The parens are an operand of
+	// `not`, so any `{...}` inside is a body.
+	if negated && p.notBodies && p.s.tok == tokens.LParen && p.logicalKeywordsActive() {
+		if body, explicit, _, committed := p.parseLogicalGroup(true); committed {
+			if body == nil {
+				return nil
+			}
+
+			spanned := p.extendLoc(notLoc)
+			not := NewExpr(&Not{Body: body, ExplicitBody: explicit, Location: spanned}).SetLocation(spanned)
+
+			return p.foldLogicalTail(NewBody(not), false, spanned)
+		}
+	}
+
 	expr := p.parseExpr()
 	if expr != nil {
 		var withLoc *Location
@@ -1370,10 +1390,7 @@ func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
 
 		if p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
 			if withLoc != nil {
-				kw := p.s.tok.String()
-				p.errorf(withLoc,
-					"`with` modifier is not allowed on operand of `%s`; wrap the operand in `{...}` to scope, or move `with` after the %s expression to apply it to the whole expression",
-					kw, kw)
+				p.errWithOnOperand(withLoc, p.s.tok.String())
 				return nil
 			}
 
@@ -1386,12 +1403,7 @@ func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
 			if outer == nil {
 				return nil
 			}
-			if p.s.tok == tokens.With {
-				if outer.With = p.parseWith(); outer.With == nil {
-					return nil
-				}
-			}
-			return outer
+			return p.attachWith(outer)
 		}
 	}
 	return expr
@@ -1443,6 +1455,35 @@ func (p *Parser) parseWith() []*With {
 	}
 
 	return withs
+}
+
+func (p *Parser) attachWith(e *Expr) *Expr {
+	if e != nil && p.s.tok == tokens.With {
+		if e.With = p.parseWith(); e.With == nil {
+			return nil
+		}
+	}
+	return e
+}
+
+func (p *Parser) errWithOnOperand(loc *Location, kw string) {
+	p.errorf(loc,
+		"`with` modifier is not allowed on operand of `%s`",
+		kw)
+	p.hint(fmt.Sprintf(
+		"Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `%s` expression to apply it to the whole expression",
+		kw))
+}
+
+func (p *Parser) foldLogicalTail(body Body, explicit bool, loc *Location) *Expr {
+	if p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
+		outer := p.parseLogicalOrChain(body, explicit, loc)
+		if outer == nil {
+			return nil
+		}
+		return p.attachWith(outer)
+	}
+	return p.attachWith(body[0])
 }
 
 func (p *Parser) parseSome() *Expr {
@@ -1692,6 +1733,26 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 		return NewBody(nb), false, nb.Location
 	}
 
+	// Parenthesized logical group operand: `(a or b)` or, when negated,
+	// `not (a or b)`. This is an operand of and/or/not, so a `{...}` inside is a
+	// body. If the parens don't hold a logical group parseLogicalGroup restores
+	// state and we fall through so parseExpr can handle `(a == b)` as a term.
+	if p.s.tok == tokens.LParen && p.logicalKeywordsActive() && (!negated || p.notBodies) {
+		if body, explicit, loc, committed := p.parseLogicalGroup(true); committed {
+			if body == nil {
+				return nil, false, nil
+			}
+
+			if negated {
+				spanned := p.extendLoc(notLoc)
+				not := NewExpr(&Not{Body: body, ExplicitBody: explicit, Location: spanned}).SetLocation(spanned)
+				return NewBody(not), false, spanned
+			}
+
+			return body, explicit, loc
+		}
+	}
+
 	startOffset := p.s.loc.Offset
 	startLoc := p.s.Loc()
 	expr := p.parseExpr()
@@ -1714,6 +1775,139 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 	}
 
 	return NewBody(expr), false, expr.Location
+}
+
+// isLogicalBody reports whether b is a single-expression body wrapping a
+// LogicalAnd/LogicalOr node, i.e. the result of a parenthesized or nested group.
+func isLogicalBody(b Body) bool {
+	if len(b) != 1 {
+		return false
+	}
+	switch b[0].Terms.(type) {
+	case *LogicalAnd, *LogicalOr:
+		return true
+	}
+	return false
+}
+
+// expectRParen consumes the closing `)` of a group, reporting an error if the
+// current token is not `)`.
+func (p *Parser) expectRParen() bool {
+	if p.s.tok != tokens.RParen {
+		p.error(p.s.Loc(), "expected ) to close parenthesized group")
+		return false
+	}
+	p.scan()
+	return true
+}
+
+// parseLogicalGroup attempts to parse a parenthesized grouping of `and`/`or`/`not`
+// operands starting at the current `(`.
+//
+// operandContext reports whether the `(` is already an operand of `and`/`or`/`not`.
+func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, bool) {
+	if !p.enter() {
+		return nil, false, nil, true
+	}
+	defer p.leave()
+
+	s := p.save()
+	openLoc := p.s.Loc()
+	p.scan() // consume `(`
+
+	if p.s.tok == tokens.RParen {
+		if operandContext {
+			p.error(openLoc, "empty parenthesized group")
+			return nil, false, nil, true
+		}
+		p.restore(s)
+		return nil, false, nil, false
+	}
+
+	// A leading `{` is a body only in an operand context; otherwise it's an
+	// object/set literal and we backtrack to the term parser.
+	braceLead := p.s.tok == tokens.LBrace
+
+	lhsBody, lhsExplicit, lhsLoc := p.parseLogicalOperand()
+	if lhsBody == nil {
+		// An empty `{}` operand (e.g. `not ({})`) is a body error.
+		if operandContext && braceLead {
+			return nil, false, nil, true
+		}
+
+		p.restore(s)
+
+		return nil, false, nil, false
+	}
+
+	switch {
+	case p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr:
+		expr := p.parseLogicalOrChain(lhsBody, lhsExplicit, lhsLoc)
+		if expr == nil {
+			return nil, false, nil, true
+		}
+
+		// A trailing `with` binds to the whole group, e.g. `(a and b with x)`.
+		if expr = p.attachWith(expr); expr == nil {
+			return nil, false, nil, true
+		}
+
+		if !p.expectRParen() {
+			return nil, false, nil, true
+		}
+
+		return NewBody(expr), false, p.extendLoc(openLoc), true
+
+	case p.s.tok == tokens.With && !lhsExplicit && len(lhsBody) == 1:
+		// Single-operand group carrying a `with`, e.g. `(a with x)`; the `with`
+		// binds to the sole operand.
+		withLoc := p.s.Loc()
+		if p.attachWith(lhsBody[0]) == nil {
+			return nil, false, nil, true
+		}
+
+		// A `with` on the operand followed by `and`/`or` is ambiguous.
+		if p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
+			p.errWithOnOperand(withLoc, p.s.tok.String())
+			return nil, false, nil, true
+		}
+
+		if !p.expectRParen() {
+			return nil, false, nil, true
+		}
+
+		if operandContext || p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
+			return lhsBody, false, p.extendLoc(openLoc), true
+		}
+
+		p.restore(s)
+		return nil, false, nil, false
+
+	case lhsExplicit:
+		// `({ body })`
+		if !p.expectRParen() {
+			return nil, false, nil, true
+		}
+
+		if operandContext || p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
+			return lhsBody, true, p.extendLoc(openLoc), true
+		}
+
+		p.restore(s)
+		return nil, false, nil, false
+
+	case isLogicalBody(lhsBody):
+		// `(( ... ))` — redundant parens around a nested group.
+		if !p.expectRParen() {
+			return nil, false, nil, true
+		}
+		return lhsBody, false, p.extendLoc(openLoc), true
+
+	default:
+		// Single non-logical operand, e.g. `(a == b)`: not a group.
+		p.restore(s)
+		return nil, false, nil, false
+	}
 }
 
 func (p *Parser) parseEvery() *Expr {

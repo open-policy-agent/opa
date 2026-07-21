@@ -292,6 +292,11 @@ func TestParseLogical_WithModifier(t *testing.T) {
 			input:     "a with input as v or b",
 			expectErr: "`with` modifier is not allowed on operand of `or`",
 		},
+		{
+			note:      "with mid-chain cannot be followed by another operator",
+			input:     "a and b with input as v or c",
+			expectErr: "unexpected or keyword",
+		},
 	}
 	for _, tc := range errorTests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -867,5 +872,741 @@ func TestParseLogical_InnerExprHasLocation(t *testing.T) {
 	}
 	if inner.Location.File != "test.rego" {
 		t.Errorf("Expected file to be test.rego but got: %v", inner.Location.File)
+	}
+}
+
+func TestParseLogical_ParenGrouping(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	tests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "rhs group",
+			input: "a and (b or c)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("b"))),
+					Rhs: NewBody(NewExpr(VarTerm("c"))),
+				})),
+			}},
+		},
+		{
+			note:  "lhs group",
+			input: "(a or b) and c",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("c"))),
+			}},
+		},
+		{
+			note:  "outer group unwrapped",
+			input: "(a or b)",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
+			note:  "nested groups",
+			input: "(a and (b or c)) and d",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(&LogicalOr{
+						Lhs: NewBody(NewExpr(VarTerm("b"))),
+						Rhs: NewBody(NewExpr(VarTerm("c"))),
+					})),
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("d"))),
+			}},
+		},
+		{
+			note:  "redundant parens around group collapse",
+			input: "((a or b))",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
+			note:  "redundant parens around operand collapse",
+			input: "a or ((b))",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
+			note:  "group on both sides",
+			input: "(a or b) and (c or d)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				})),
+				Rhs: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("c"))),
+					Rhs: NewBody(NewExpr(VarTerm("d"))),
+				})),
+			}},
+		},
+		{
+			note:  "group forces right nesting of same operator",
+			input: "a or (b or c)",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("b"))),
+					Rhs: NewBody(NewExpr(VarTerm("c"))),
+				})),
+			}},
+		},
+		{
+			note:  "not inside group binds under or",
+			input: "(not a or b)",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(&Not{Body: NewBody(NewExpr(VarTerm("a")))})),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
+			note:  "redundant parens around single operand drop",
+			input: "(a) and (b)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
+			note:  "group forces right nesting of and",
+			input: "a and (b and c)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(&LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("b"))),
+					Rhs: NewBody(NewExpr(VarTerm("c"))),
+				})),
+			}},
+		},
+		{
+			note:  "redundant parens preserve same-precedence tree",
+			input: "(a and b) or c",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(&LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("c"))),
+			}},
+		},
+		{
+			note:  "comparison operands inside groups",
+			input: "(a == b) or (c == d)",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(Equal.Expr(VarTerm("a"), VarTerm("b"))),
+				Rhs: NewBody(Equal.Expr(VarTerm("c"), VarTerm("d"))),
+			}},
+		},
+		{
+			note:  "deeply mixed and/or groups",
+			input: "a or (b and (c or d))",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(&LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("b"))),
+					Rhs: NewBody(NewExpr(&LogicalOr{
+						Lhs: NewBody(NewExpr(VarTerm("c"))),
+						Rhs: NewBody(NewExpr(VarTerm("d"))),
+					})),
+				})),
+			}},
+		},
+		{
+			note:  "explicit body lhs with paren group rhs",
+			input: "{x; y} and (a or b)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("x")), NewExpr(VarTerm("y"))),
+				Rhs: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				})),
+				ExplicitLhs: true,
+			}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+		})
+	}
+}
+
+func TestParseLogical_ParenErrors(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	tests := []struct {
+		note     string
+		input    string
+		expected string
+	}{
+		{
+			note:     "empty group",
+			input:    "a or ()",
+			expected: "empty parenthesized group",
+		},
+		{
+			note:     "empty explicit body in group",
+			input:    "a or ({})",
+			expected: "found empty body",
+		},
+		{
+			note:     "unterminated group",
+			input:    "a and (b or c",
+			expected: "expected ) to close parenthesized group",
+		},
+		{
+			note:     "non-logical group operand backtracks to term path",
+			input:    "a or (x = 1)",
+			expected: "non-terminated expression",
+		},
+		{
+			note:     "empty group at statement start backtracks to term",
+			input:    "() and a",
+			expected: "unexpected ) token",
+		},
+		{
+			note:     "group opening with an operator",
+			input:    "a and ( or b)",
+			expected: "unexpected or keyword",
+		},
+		{
+			note:     "assignment in group backtracks to term path",
+			input:    "a and (x := 1)",
+			expected: "non-terminated expression",
+		},
+		{
+			note:     "some in group backtracks to term path",
+			input:    "a or (some x in xs)",
+			expected: "unexpected some keyword",
+		},
+		{
+			note:     "multi-statement needs explicit body",
+			input:    "a and (x; y)",
+			expected: "non-terminated expression",
+		},
+		{
+			note:     "empty not group",
+			input:    "not ()",
+			expected: "empty parenthesized group",
+		},
+		{
+			note:     "logical group cannot be compared",
+			input:    "(a or b) == c",
+			expected: "unexpected equal token",
+		},
+	}
+
+	for _, tc := range tests {
+		assertParseErrorContains(t, tc.note, tc.input, tc.expected, opts)
+	}
+}
+
+func TestParseLogical_ParenBraceContext(t *testing.T) {
+	opts := logicalParserOpts()
+	notOpts := logicalParserOpts("not")
+
+	tests := []struct {
+		note  string
+		input string
+		exp   *Expr
+		opts  *ParserOptions
+	}{
+		// Operand context: `{...}` is a body.
+		{
+			note:  "not operand brace is a body if future not kw imported",
+			opts:  &notOpts,
+			input: "not ({true})",
+			exp:   &Expr{Terms: &Not{Body: NewBody(NewExpr(BooleanTerm(true)))}},
+		},
+		{
+			note:  "not operand brace is not a body if future not kw unimported",
+			input: "not ({true})",
+			exp: &Expr{
+				Terms:   SetTerm(BooleanTerm(true)),
+				Negated: true,
+			},
+		},
+		{
+			note:  "and operand braces are bodies",
+			input: "({a}) and ({b})",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
+			note:  "rhs operand brace is a body",
+			input: "a and ({b})",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+
+		// Non-operand context: `({...})` is an object/set term, unchanged.
+		{
+			note:  "empty object",
+			input: "({})",
+			exp:   &Expr{Terms: ObjectTerm()},
+		},
+		{
+			note:  "set",
+			input: "({a})",
+			exp:   &Expr{Terms: SetTerm(VarTerm("a"))},
+		},
+		{
+			note:  "object on rhs of assign",
+			input: "a := ({b})",
+			exp:   Assign.Expr(VarTerm("a"), SetTerm(VarTerm("b"))),
+		},
+		{
+			note:  "empty object as call arg",
+			input: "g(({}))",
+			exp:   &Expr{Terms: []*Term{RefTerm(VarTerm("g")), ObjectTerm()}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var popts ParserOptions
+			if tc.opts != nil {
+				popts = *tc.opts
+			} else {
+				popts = opts
+			}
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, popts)
+		})
+	}
+}
+
+func TestParseLogical_ParenExplicit(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	tests := []struct {
+		note        string
+		input       string
+		explicitLhs bool
+		explicitRhs bool
+	}{
+		{
+			note:        "paren group rhs stays implicit",
+			input:       "a and (b or c)",
+			explicitLhs: false,
+			explicitRhs: false,
+		},
+		{
+			note:        "wrapped explicit body rhs is explicit",
+			input:       "a and ({b})",
+			explicitLhs: false,
+			explicitRhs: true,
+		},
+		{
+			note:        "wrapped explicit body with logical content is explicit",
+			input:       "a and ({b or c})",
+			explicitLhs: false,
+			explicitRhs: true,
+		},
+		{
+			note:        "wrapped explicit body lhs before and is explicit",
+			input:       "({a}) and c",
+			explicitLhs: true,
+			explicitRhs: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			body, err := ParseBodyWithOpts(tc.input, opts)
+			if err != nil {
+				t.Fatalf("unexpected parse error: %v", err)
+			}
+			and, ok := body[0].Terms.(*LogicalAnd)
+			if !ok {
+				t.Fatalf("expected *LogicalAnd, got %T", body[0].Terms)
+			}
+			if and.ExplicitLhs != tc.explicitLhs || and.ExplicitRhs != tc.explicitRhs {
+				t.Errorf("explicit flags: got (lhs=%v, rhs=%v), want (lhs=%v, rhs=%v)",
+					and.ExplicitLhs, and.ExplicitRhs, tc.explicitLhs, tc.explicitRhs)
+			}
+		})
+	}
+}
+
+func TestParseLogical_ParenNot(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	tests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "not group or",
+			input: "not (a or b)",
+			exp: &Expr{
+				Terms: &Not{
+					Body: NewBody(NewExpr(&LogicalOr{
+						Lhs: NewBody(NewExpr(VarTerm("a"))),
+						Rhs: NewBody(NewExpr(VarTerm("b"))),
+					})),
+				},
+			},
+		},
+		{
+			note:  "not group and",
+			input: "not (a and b)",
+			exp: &Expr{
+				Terms: &Not{
+					Body: NewBody(NewExpr(&LogicalAnd{
+						Lhs: NewBody(NewExpr(VarTerm("a"))),
+						Rhs: NewBody(NewExpr(VarTerm("b"))),
+					})),
+				},
+			},
+		},
+		{
+			note:  "not group as operand of and",
+			input: "x and not (a or b)",
+			exp: &Expr{
+				Terms: &LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("x"))),
+					Rhs: NewBody(NewExpr(&Not{
+						Body: NewBody(NewExpr(&LogicalOr{
+							Lhs: NewBody(NewExpr(VarTerm("a"))),
+							Rhs: NewBody(NewExpr(VarTerm("b"))),
+						})),
+					})),
+				},
+			},
+		},
+		{
+			note:  "not nested group",
+			input: "not ((a or b) and c)",
+			exp: &Expr{
+				Terms: &Not{
+					Body: NewBody(NewExpr(&LogicalAnd{
+						Lhs: NewBody(NewExpr(&LogicalOr{
+							Lhs: NewBody(NewExpr(VarTerm("a"))),
+							Rhs: NewBody(NewExpr(VarTerm("b"))),
+						})),
+						Rhs: NewBody(NewExpr(VarTerm("c"))),
+					})),
+				},
+			},
+		},
+		{
+			note:  "not group binds tighter than trailing and",
+			input: "not (a or b) and c",
+			exp: &Expr{
+				Terms: &LogicalAnd{
+					Lhs: NewBody(NewExpr(&Not{
+						Body: NewBody(NewExpr(&LogicalOr{
+							Lhs: NewBody(NewExpr(VarTerm("a"))),
+							Rhs: NewBody(NewExpr(VarTerm("b"))),
+						})),
+					})),
+					Rhs: NewBody(NewExpr(VarTerm("c"))),
+				},
+			},
+		},
+		{
+			note:  "not group binds tighter than trailing or",
+			input: "not (a or b) or c",
+			exp: &Expr{
+				Terms: &LogicalOr{
+					Lhs: NewBody(NewExpr(&Not{
+						Body: NewBody(NewExpr(&LogicalOr{
+							Lhs: NewBody(NewExpr(VarTerm("a"))),
+							Rhs: NewBody(NewExpr(VarTerm("b"))),
+						})),
+					})),
+					Rhs: NewBody(NewExpr(VarTerm("c"))),
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+		})
+	}
+}
+
+func TestParseLogical_ParenRedundant(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	tests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "double-wrapped and-chain",
+			input: "((a and b))",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
+			note:  "deeply nested redundant parens",
+			input: "(((((a or ((b)))) and c)))",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("c"))),
+			}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+		})
+	}
+}
+
+func TestParseLogical_ParenWith(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	successTests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "with on standalone group, or",
+			input: "(a or b) with input as x",
+			exp: &Expr{
+				Terms: &LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				},
+				With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+			},
+		},
+		{
+			note:  "with on standalone group, and",
+			input: "(a and b) with input as x",
+			exp: &Expr{
+				Terms: &LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				},
+				With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+			},
+		},
+		{
+			note:  "with on group chain attaches to outer",
+			input: "(a or b) and c with input as x",
+			exp: &Expr{
+				Terms: &LogicalAnd{
+					Lhs: NewBody(NewExpr(&LogicalOr{
+						Lhs: NewBody(NewExpr(VarTerm("a"))),
+						Rhs: NewBody(NewExpr(VarTerm("b"))),
+					})),
+					Rhs: NewBody(NewExpr(VarTerm("c"))),
+				},
+				With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+			},
+		},
+		{
+			note:  "with on group chain attaches to inner",
+			input: "(a or b with input as x) and c",
+			exp: &Expr{
+				Terms: &LogicalAnd{
+					Lhs: NewBody(&Expr{
+						Terms: &LogicalOr{
+							Lhs: NewBody(NewExpr(VarTerm("a"))),
+							Rhs: NewBody(NewExpr(VarTerm("b"))),
+						},
+						With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+					}),
+					Rhs: NewBody(NewExpr(VarTerm("c"))),
+				},
+			},
+		},
+		{
+			note:  "with on not group",
+			input: "not (a or b) with input as x",
+			exp: &Expr{
+				Terms: &Not{Body: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				}))},
+				With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+			},
+		},
+		{
+			note:  "with on lhs operand group",
+			input: "(a with input as x) and b",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(&Expr{
+					Terms: VarTerm("a"),
+					With:  []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+				}),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
+			note:  "with on rhs operand group",
+			input: "a and (b with input as x)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(&Expr{
+					Terms: VarTerm("b"),
+					With:  []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+				}),
+			}},
+		},
+		{
+			note:  "with inside group binds to whole group",
+			input: "(a and b with input as x)",
+			exp: &Expr{
+				Terms: &LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				},
+				With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+			},
+		},
+		{
+			note:  "with after group binds to whole group",
+			input: "(a and b) with input as x",
+			exp: &Expr{
+				Terms: &LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				},
+				With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+			},
+		}, {
+			note:  "with without group (baseline)",
+			input: "a and b with input as x",
+			exp: &Expr{
+				Terms: &LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				},
+				With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+			},
+		},
+		{
+			note:  "with on each operand group",
+			input: "(a with input as x) and (b with input as y)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(&Expr{
+					Terms: VarTerm("a"),
+					With:  []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+				}),
+				Rhs: NewBody(&Expr{
+					Terms: VarTerm("b"),
+					With:  []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("y")}},
+				}),
+			}},
+		},
+		{
+			note:  "with on single-operand not group",
+			input: "not (a with input as x)",
+			exp: &Expr{Terms: &Not{
+				Body: NewBody(&Expr{
+					Terms: VarTerm("a"),
+					With:  []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+				}),
+			}},
+		},
+		{
+			note:  "with inside not group binds to group",
+			input: "not (a or b with input as x)",
+			exp: &Expr{Terms: &Not{Body: NewBody(&Expr{
+				Terms: &LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(NewExpr(VarTerm("b"))),
+				},
+				With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+			})}},
+		},
+		{
+			note:  "with on rhs group content",
+			input: "a and (b or c with input as x)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(&Expr{
+					Terms: &LogicalOr{
+						Lhs: NewBody(NewExpr(VarTerm("b"))),
+						Rhs: NewBody(NewExpr(VarTerm("c"))),
+					},
+					With: []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("x")}},
+				}),
+			}},
+		},
+		{
+			note:  "with on mid-chain group",
+			input: "a and (b with input as v) and c",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("a"))),
+					Rhs: NewBody(&Expr{
+						Terms: VarTerm("b"),
+						With:  []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("v")}},
+					}),
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("c"))),
+			}},
+		},
+	}
+	for _, tc := range successTests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+		})
+	}
+
+	// A `with` may appear at the end of a group (binding to the whole group), but
+	// not mid-group before an `and`/`or` — that must bind to the whole group, so
+	// the `with` is reported as disallowed on the operand.
+	errorTests := []struct {
+		note     string
+		input    string
+		expected string
+	}{
+		{
+			note:     "mid-group with before and",
+			input:    "(a with input as v and b)",
+			expected: "`with` modifier is not allowed on operand of `and`",
+		},
+		{
+			note:     "mid-group with before or",
+			input:    "(a with input as v or b)",
+			expected: "`with` modifier is not allowed on operand of `or`",
+		},
+		{
+			note:     "mid-group with inside not group",
+			input:    "not (a with input as v and b)",
+			expected: "`with` modifier is not allowed on operand of `and`",
+		},
+	}
+	for _, tc := range errorTests {
+		assertParseErrorContains(t, tc.note, tc.input, tc.expected, opts)
 	}
 }
