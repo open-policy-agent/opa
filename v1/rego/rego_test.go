@@ -997,6 +997,46 @@ func TestRegoDisableIndexingWithMatch(t *testing.T) {
 	}
 }
 
+// TestRegoRuleIndexMemberWithCompositeValues guards against a regression where
+// building the rule index for `<ref> in <collection>` panicked with "illegal
+// value" whenever the collection contained non-scalar elements (objects,
+// sets, or arrays thereof), since the index trie only knew how to store
+// scalars and arrays of scalars.
+func TestRegoRuleIndexMemberWithCompositeValues(t *testing.T) {
+	mod := `
+	package test
+
+	allow if input.resource in [{"nested": 1}]
+	`
+
+	cases := []struct {
+		note    string
+		input   map[string]any
+		allowed bool
+	}{
+		{"matches composite element", map[string]any{"resource": map[string]any{"nested": 1.0}}, true},
+		{"does not match composite element", map[string]any{"resource": map[string]any{"nested": 2.0}}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			rs, err := New(
+				Query("data.test.allow"),
+				Module("test.rego", mod),
+				Input(tc.input),
+			).Eval(t.Context())
+			if err != nil {
+				t.Fatalf("unexpected error (this is the panic path if the fix regresses): %s", err)
+			}
+
+			allowed := len(rs) == 1 && len(rs[0].Expressions) == 1 && rs[0].Expressions[0].Value == true
+			if allowed != tc.allowed {
+				t.Fatalf("expected allowed=%v, got %v (result: %v)", tc.allowed, allowed, rs)
+			}
+		})
+	}
+}
+
 func TestRegoCatchPathConflicts(t *testing.T) {
 	r := New(
 		Query("data"),
