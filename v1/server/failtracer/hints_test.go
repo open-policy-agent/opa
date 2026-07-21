@@ -85,6 +85,14 @@ func TestHints(t *testing.T) {
 			},
 		},
 		{
+			note: "top-level ref already correct, no self-referential hint",
+			evts: []topdown.Event{
+				evtFromExpr(`__local1__ = input.resource.heading`),
+			},
+			unknowns: []string{"input.resource"},
+			exp:      nil,
+		},
+		{
 			note: "same typo, multiple fail events",
 			evts: []topdown.Event{
 				evtFromExpr(`__local1__ = input.fruit.price`),
