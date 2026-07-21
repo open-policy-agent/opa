@@ -129,7 +129,8 @@ const EcosystemIndex = (props) => {
                   <ul>
                     {featuresInCategory.map((feature) => (
                       <li key={feature.id}>
-                        <a href={useBaseUrl(`/ecosystem/by-feature/${feature.id}`)}>{feature.title}</a> – {feature.description}
+                        <a href={useBaseUrl(`/ecosystem/by-feature/${feature.id}`)}>{feature.title}</a> –{" "}
+                        {feature.description}
                       </li>
                     ))}
                   </ul>
