@@ -285,12 +285,12 @@ func TestParseLogical_WithModifier(t *testing.T) {
 		{
 			note:      "and, with on lhs implicit operand is an error",
 			input:     "a with input as v and b",
-			expectErr: "`with` modifier is not allowed on operand of `and`",
+			expectErr: "`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)",
 		},
 		{
 			note:      "or, with on lhs implicit operand is an error",
 			input:     "a with input as v or b",
-			expectErr: "`with` modifier is not allowed on operand of `or`",
+			expectErr: "`with` modifier is not allowed on operand of `or` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `or` expression to apply it to the whole expression)",
 		},
 		{
 			note:      "with mid-chain cannot be followed by another operator",

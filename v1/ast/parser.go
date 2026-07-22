@@ -1467,12 +1467,12 @@ func (p *Parser) attachWith(e *Expr) *Expr {
 }
 
 func (p *Parser) errWithOnOperand(loc *Location, kw string) {
-	p.errorf(loc,
-		"`with` modifier is not allowed on operand of `%s`",
-		kw)
 	p.hint(fmt.Sprintf(
 		"Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `%s` expression to apply it to the whole expression",
 		kw))
+	p.errorf(loc,
+		"`with` modifier is not allowed on operand of `%s`",
+		kw)
 }
 
 func (p *Parser) foldLogicalTail(body Body, explicit bool, loc *Location) *Expr {
