@@ -764,15 +764,15 @@ func (p *Parser) parseImport() *Import {
 		t := r[0]
 		name := string(t.Value.(Var))
 		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
-			p.errorf(t.Location, "unexpected import path, must not end with a keyword, got: %s", name)
 			p.hint("import a different path or use an alias")
+			p.errorf(t.Location, "unexpected import path, must not end with a keyword, got: %s", name)
 		}
 	} else if !FutureRootDocument.Equal(r[0]) {
 		t := r[len(r)-1]
 		name := string(t.Value.(String))
 		if IsKeywordInRegoVersion(name, p.po.EffectiveRegoVersion()) {
-			p.errorf(t.Location, "unexpected import path, must not end with a keyword, got: %s", name)
 			p.hint("import a different path or use an alias")
+			p.errorf(t.Location, "unexpected import path, must not end with a keyword, got: %s", name)
 		}
 	}
 
