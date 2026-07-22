@@ -3081,6 +3081,16 @@ func (b *metadataParser) Append(c *Comment) {
 
 var yamlLineErrRegex = regexp.MustCompile(`^yaml:(?: unmarshal errors:[\n\s]*)? line ([[:digit:]]+):`)
 
+// endLoc returns the location of the last comment in the METADATA block, or nil
+// if there are none. Only this location is retained on Annotations (for
+// EndLoc), so the comment slice itself is never aliased onto the result.
+func endLoc(comments []*Comment) *location.Location {
+	if len(comments) == 0 {
+		return nil
+	}
+	return comments[len(comments)-1].Location
+}
+
 func (b *metadataParser) Parse() (result *Annotations, err error) {
 	if len(bytes.TrimSpace(b.buf.Bytes())) == 0 {
 		return nil, errors.New("expected METADATA block, found whitespace")
@@ -3109,7 +3119,11 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 	}
 
 	result = &Annotations{
-		comments:      b.comments,
+		// NOTE: only the last comment's location is retained (as endLoc); the
+		// comment slice itself is backed by a reused buffer (the metadataParser
+		// is pooled and Reset truncates rather than reallocates), so it must not
+		// be aliased here.
+		endLoc:        endLoc(b.comments),
 		Scope:         raw.Scope,
 		Entrypoint:    raw.Entrypoint,
 		Title:         raw.Title,

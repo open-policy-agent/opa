@@ -40,8 +40,8 @@ type (
 		Labels           map[string]any               `json:"labels,omitempty"`
 		Location         *Location                    `json:"location,omitempty"`
 
-		comments []*Comment
-		node     Node
+		endLoc *Location
+		node   Node
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -108,11 +108,10 @@ func (a *Annotations) SetLoc(l *Location) {
 
 // EndLoc returns the location of this annotation's last comment line.
 func (a *Annotations) EndLoc() *Location {
-	count := len(a.comments)
-	if count == 0 {
+	if a.endLoc == nil {
 		return a.Location
 	}
-	return a.comments[count-1].Location
+	return a.endLoc
 }
 
 // Compare returns an integer indicating if a is less than, equal to, or greater
