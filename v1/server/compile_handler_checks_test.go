@@ -576,6 +576,13 @@ include if user == input.fruits.user`,
 			result: "WHERE fruits.colour IS NOT NULL",
 		},
 		{
+			note:   "dynamic field key with SQL syntax is quoted",
+			rego:   `include if input.fruits[input.column] == "allowed"`,
+			input:  map[string]any{"column": `name = 'allowed' OR 1=1 --`},
+			target: "application/vnd.opa.sql.sqlite+json",
+			result: `WHERE fruits."name = 'allowed' OR 1=1 --" = 'allowed'`,
+		},
+		{
 			note:   "equality with var (prisma)",
 			rego:   `include if input.fruits.colour = _`,
 			target: "application/vnd.opa.ucast.prisma+json",

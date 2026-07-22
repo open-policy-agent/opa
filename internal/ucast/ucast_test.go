@@ -91,6 +91,38 @@ func TestUCASTNodeAsSQL(t *testing.T) {
 			Dialect: "postgres",
 			Result:  "WHERE NOT name = E'bob'",
 		},
+		{
+			// Guards the no-op path: quoting ordinary column names would change
+			// the SQL generated for every existing filter.
+			Note:    "plain identifier stays unquoted",
+			Source:  UCASTNode{Type: "field", Field: "public.fruit.display_name_2", Op: "eq", Value: "apple"},
+			Dialect: "postgres",
+			Result:  `WHERE public.fruit.display_name_2 = E'apple'`,
+		},
+		{
+			Note:    "SQL syntax in field is quoted",
+			Source:  UCASTNode{Type: "field", Field: "fruit.name = 'allowed' OR 1=1 --", Op: "eq", Value: "allowed"},
+			Dialect: "postgres",
+			Result:  `WHERE fruit."name = 'allowed' OR 1=1 --" = E'allowed'`,
+		},
+		{
+			Note:    "SQL syntax in field reference value is quoted",
+			Source:  UCASTNode{Type: "field", Field: "fruit.name", Op: "eq", Value: FieldRef{Field: "other.name OR 1=1"}},
+			Dialect: "postgres",
+			Result:  `WHERE fruit.name = other."name OR 1=1"`,
+		},
+		{
+			Note:    "embedded identifier quote is escaped",
+			Source:  UCASTNode{Type: "field", Field: `fruit.na"me`, Op: "eq", Value: "allowed"},
+			Dialect: "postgres",
+			Result:  `WHERE fruit."na""me" = E'allowed'`,
+		},
+		{
+			Note:    "embedded MySQL identifier quote is escaped",
+			Source:  UCASTNode{Type: "field", Field: "fruit.na`me", Op: "eq", Value: "allowed"},
+			Dialect: "mysql",
+			Result:  "WHERE fruit.`na``me` = 'allowed'",
+		},
 	}
 
 	for _, tc := range tests {
