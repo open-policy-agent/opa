@@ -31,6 +31,24 @@ func TestTruncatedString(t *testing.T) {
 			expected: strings.Repeat("a", 200),
 		},
 		{
+			name:     "no truncation when max is 1 (avoids negative slice)",
+			s:        "abcdefghij",
+			max:      1,
+			expected: "abcdefghij",
+		},
+		{
+			name:     "no truncation when max is 2",
+			s:        "abcdefghij",
+			max:      2,
+			expected: "abcdefghij",
+		},
+		{
+			name:     "no truncation when max is 3",
+			s:        "abcdefghij",
+			max:      3,
+			expected: "abcdefghij",
+		},
+		{
 			name:     "truncation at default limit",
 			s:        strings.Repeat("a", 200),
 			max:      100,

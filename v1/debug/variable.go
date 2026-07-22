@@ -110,7 +110,7 @@ func (vs *variableManager) vars(varRef VarRef) ([]Variable, error) {
 }
 
 func truncatedString(s string, max int) string {
-	if max <= 0 {
+	if max <= 3 {
 		return s
 	}
 	if len(s) > max {
