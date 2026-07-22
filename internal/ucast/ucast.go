@@ -82,6 +82,7 @@ func (u *UCASTNode) asSQL(cond *sqlbuilder.Cond, dialect string) (string, error)
 
 	switch {
 	case slices.Contains(fieldOps, operator) || uType == "field":
+		field = quoteField(cond.Args.Flavor, field)
 		switch value {
 		case nil:
 			return "", nil
@@ -96,7 +97,7 @@ func (u *UCASTNode) asSQL(cond *sqlbuilder.Cond, dialect string) (string, error)
 			}
 		default:
 			if fr, ok := value.(FieldRef); ok {
-				value = sqlbuilder.Raw(fr.Field)
+				value = sqlbuilder.Raw(quoteField(cond.Args.Flavor, fr.Field))
 			}
 		}
 		switch operator {
@@ -212,6 +213,46 @@ func (u *UCASTNode) asSQL(cond *sqlbuilder.Cond, dialect string) (string, error)
 	default:
 		return "", fmt.Errorf("unrecognized operator: %s", operator)
 	}
+}
+
+// quoteField quotes the segments of a dot-separated field reference that cannot
+// be emitted as bare SQL identifiers. Fields are built from partially evaluated
+// refs, so a dynamic key such as input.fruits[input.column] can put arbitrary
+// text in an identifier position. Segments that are already bare identifiers are
+// left alone: quoting them would make them case-sensitive on Postgres and would
+// change the output of every existing filter.
+func quoteField(flavor sqlbuilder.Flavor, field string) string {
+	// The quote character has to match what sqlbuilder.Flavor.Quote emits for
+	// the flavors dialectToFlavor returns.
+	quote := `"`
+	if flavor == sqlbuilder.MySQL {
+		quote = "`"
+	}
+	segments := strings.Split(field, ".")
+	for i, seg := range segments {
+		if !isBareIdent(seg) {
+			segments[i] = flavor.Quote(strings.ReplaceAll(seg, quote, quote+quote))
+		}
+	}
+	return strings.Join(segments, ".")
+}
+
+// isBareIdent reports whether s needs no quoting: a letter or underscore
+// followed by letters, digits or underscores. Deliberately narrower than any
+// dialect's identifier rules -- anything else is quoted.
+func isBareIdent(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := range len(s) {
+		switch c := s[i]; {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c == '_':
+		case i > 0 && c >= '0' && c <= '9':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func prefix(p any) (string, error) {
