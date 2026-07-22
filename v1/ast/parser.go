@@ -1790,6 +1790,21 @@ func isLogicalBody(b Body) bool {
 	return false
 }
 
+// isNegatedOperand reports whether b is a single negated operand, e.g. `not a`
+// (either a *Not node or an expression with Negated set).
+func isNegatedOperand(b Body) bool {
+	if len(b) != 1 {
+		return false
+	}
+
+	if b[0].Negated {
+		return true
+	}
+
+	_, ok := b[0].Terms.(*Not)
+	return ok
+}
+
 // expectRParen consumes the closing `)` of a group, reporting an error if the
 // current token is not `)`.
 func (p *Parser) expectRParen() bool {
@@ -1897,7 +1912,14 @@ func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, 
 		return nil, false, nil, false
 
 	case isLogicalBody(lhsBody):
-		// `(( ... ))` — redundant parens around a nested group.
+		// `(( ... ))`; redundant parens around a nested group.
+		if !p.expectRParen() {
+			return nil, false, nil, true
+		}
+		return lhsBody, false, p.extendLoc(openLoc), true
+
+	case isNegatedOperand(lhsBody):
+		// `(not ...)`
 		if !p.expectRParen() {
 			return nil, false, nil, true
 		}

@@ -969,6 +969,32 @@ func TestParseLogical_ParenGrouping(t *testing.T) {
 			}},
 		},
 		{
+			note:  "not inside group",
+			input: "(not a)",
+			exp:   NewExpr(&Not{Body: NewBody(NewExpr(VarTerm("a")))}),
+		},
+		{
+			note:  "not with grouped operand",
+			input: "not (a)",
+			exp:   NewExpr(&Not{Body: NewBody(NewExpr(VarTerm("a")))}),
+		},
+		{
+			note:  "not inside group binds under or",
+			input: "(not a or b)",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(&Not{Body: NewBody(NewExpr(VarTerm("a")))})),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
+			note:  "not with grouped operand inside or",
+			input: "not (a) or b",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(&Not{Body: NewBody(NewExpr(VarTerm("a")))})),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			}},
+		},
+		{
 			note:  "not inside group binds under or",
 			input: "(not a or b)",
 			exp: &Expr{Terms: &LogicalOr{
@@ -1631,7 +1657,8 @@ func TestParseLogical_ParenSerialization(t *testing.T) {
 		{"redundant same-precedence dropped", "(a and b) or c", "a and b or c"},
 		{"groups on both sides", "(a or b) and (c or d)", "(a or b) and (c or d)"},
 		{"not group", "not (a or b)", "not (a or b)"},
-		{"not group, drops redundant group", "not (a)", "not a"},
+		{"not group, drops redundant outer group", "(not a)", "not a"},
+		{"not group, drops redundant operand group", "not (a)", "not a"},
 		{"not group as operand", "x and not (a or b)", "x and not (a or b)"},
 		{"explicit body stays braces", "a and ({b or c})", "a and { b or c }"},
 		{"with operand group, lhs", "(a with input as x) or b", "(a with input as x) or b"},
