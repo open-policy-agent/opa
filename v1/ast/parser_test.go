@@ -8197,6 +8197,64 @@ allow if {
 	assertLocationText(t, "# METADATA\n# title: rule", m.Rules[0].Annotations[0].Location)
 }
 
+func TestAnnotationsEndLocNotAliased(t *testing.T) {
+	module := `package test
+
+# METADATA
+# scope: document
+# description: |
+#   a document
+
+# METADATA
+# title: p
+# scope: rule
+# description: |
+#   rule p
+p := true
+
+# METADATA
+# title: q
+# scope: rule
+# description: |
+#   rule q
+q := true
+`
+
+	m, err := ParseModuleWithOpts("test.rego", module, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(m.Annotations) != 3 {
+		t.Fatalf("expected 3 annotations, got %d", len(m.Annotations))
+	}
+
+	// Each annotation's EndLoc() must be the row of its own last comment line,
+	// not a line belonging to a later block.
+	expected := []struct {
+		scope    string
+		startRow int
+		endRow   int
+	}{
+		{"document", 3, 6},
+		{"rule", 8, 12},
+		{"rule", 15, 19},
+	}
+
+	for i, exp := range expected {
+		a := m.Annotations[i]
+		if a.Scope != exp.scope {
+			t.Errorf("annotation %d: expected scope %q, got %q", i, exp.scope, a.Scope)
+		}
+		if a.Location.Row != exp.startRow {
+			t.Errorf("annotation %d (%s): expected start row %d, got %d", i, a.Scope, exp.startRow, a.Location.Row)
+		}
+		if got := a.EndLoc().Row; got != exp.endRow {
+			t.Errorf("annotation %d (%s): expected EndLoc row %d, got %d (comments aliased?)", i, a.Scope, exp.endRow, got)
+		}
+	}
+}
+
 func TestMaxParsingRecursionDepth(t *testing.T) {
 	tests := []struct {
 		name        string

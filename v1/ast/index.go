@@ -813,6 +813,18 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 	case *Array:
 		node.array = util.Or(node.array, newTrieNodeImpl)
 		return node.array.insertArray(value)
+
+	// `x in <collection>` (see updateMemberRefInValue) inserts each element of
+	// the literal collection as-is, without restricting it to scalars/arrays
+	// like the equality-based indexing does (see indexValue). A ground
+	// Object or Set element can't be indexed precisely, so - like Var - it
+	// falls back to the "any" node: the rule stays a candidate for every
+	// input value. (The other composite Value types - Ref, comprehensions,
+	// Call - can't actually reach here: the compiler rewrites them into
+	// separate statements, bound to a Var, before the index is built.)
+	case Object, Set:
+		node.any = util.Or(node.any, newTrieNodeImpl)
+		return node.any
 	}
 
 	panic("illegal value")
@@ -834,6 +846,14 @@ func (node *trieNode) insertArray(arr *Array) *trieNode {
 			node.scalars.Put(head, child)
 		}
 		return child.insertArray(arr.Slice(1, -1))
+
+	// Same reasoning as in insertValue above: an array element can itself be
+	// a nested array, object, or set, none of which can be indexed precisely
+	// at this position, so fall back to "any" and keep indexing the
+	// remaining elements.
+	case *Array, Object, Set:
+		node.any = util.Or(node.any, newTrieNodeImpl)
+		return node.any.insertArray(arr.Slice(1, -1))
 	}
 
 	panic("illegal value")
