@@ -6,7 +6,6 @@ package ast
 
 import (
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 
@@ -26,7 +25,7 @@ var (
 
 	// anyValue is a fake variable we used to put "naked ref" expressions
 	// into the rule index
-	anyValue = Var("__any__")
+	anyValue Value = Var("__any__")
 )
 
 type (
@@ -329,7 +328,6 @@ func (i *refindex) isVar() bool {
 // given rule. If the expression cannot be indexed the update does not affect
 // the indices.
 func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
-
 	if len(expr.With) > 0 {
 		// NOTE(tsandall): In the future, we may need to consider expressions
 		// that have with statements applied to them.
@@ -349,8 +347,8 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 			// check for type "Var" here. But since it's impossible to call a
 			// function with a undefined argument, there's no point to recording
 			// "needs to be anything" for function args
-			if ref, ok := ts.Value.(Ref); ok { // "naked ref"
-				i.updateEq(rule, ref, anyValue, nil)
+			if _, ok := ts.Value.(Ref); ok { // "naked ref"
+				i.updateEq(rule, ts.Value, anyValue, nil)
 			}
 		}
 	}
@@ -393,25 +391,17 @@ func (i *refindices) isValidIndexRef(ref Ref) bool {
 // before less frequently appearing references.
 func (i *refindices) Sorted() []Ref {
 	if i.sorted == nil {
-		counts := make([]int, 0, i.frequency.Len())
-		i.sorted = make([]Ref, 0, i.frequency.Len())
-
-		i.frequency.Iter(func(k Ref, v int) bool {
-			counts = append(counts, v)
-			i.sorted = append(i.sorted, k)
-			return false
-		})
-
-		sort.Slice(i.sorted, func(a, b int) bool {
-			if counts[a] > counts[b] {
-				return true
-			} else if counts[b] > counts[a] {
-				return false
+		i.sorted = util.SortedFunc(i.frequency.Keys(), func(a, b Ref) int {
+			countsA, _ := i.frequency.Get(a)
+			countsB, _ := i.frequency.Get(b)
+			if countsA < countsB { // descending, we want highest-freq first
+				return 1
+			} else if countsA > countsB {
+				return -1
 			}
-			return i.sorted[a][0].Loc().Compare(i.sorted[b][0].Loc()) < 0
+			return a[0].Loc().Compare(b[0].Loc())
 		})
 	}
-
 	return i.sorted
 }
 
@@ -607,12 +597,12 @@ func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term)
 // as we're not capturing `var = var` expressions in the index.
 func resolveVarToRef(ri []*refindex, args []*Term, v Var) Ref {
 	for _, other := range ri {
-		if ov, ok := other.Value.(Var); ok && ov.Equal(v) {
+		if v.Equal(other.Value) {
 			return other.Ref
 		}
 	}
 	for j, arg := range args {
-		if arg.Value.Compare(v) == 0 {
+		if v.Equal(arg.Value) {
 			return Ref{FunctionArgRootDocument, InternedTerm(j)}
 		}
 	}
@@ -628,7 +618,6 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 
 	for pos, other := range i.rules[rule] {
 		if other.Ref.Equal(index.Ref) {
-
 			if ValueEqual(other.Value, index.Value) {
 				return
 			}
@@ -737,9 +726,7 @@ func (a *ruleNode) prioEqual(b *ruleNode) bool {
 }
 
 func newTrieNodeImpl() *trieNode {
-	return &trieNode{
-		scalars: util.NewHasherMap[Value, *trieNode](ValueEqual),
-	}
+	return &trieNode{}
 }
 
 func (node *trieNode) Do(walker trieWalker) {
@@ -807,6 +794,9 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 		child, ok := node.scalars.Get(value)
 		if !ok {
 			child = newTrieNodeImpl()
+			if node.scalars == nil {
+				node.scalars = util.NewHasherMap[Value, *trieNode](ValueEqual)
+			}
 			node.scalars.Put(value, child)
 		}
 		return child
@@ -843,6 +833,9 @@ func (node *trieNode) insertArray(arr *Array) *trieNode {
 		child, ok := node.scalars.Get(head)
 		if !ok {
 			child = newTrieNodeImpl()
+			if node.scalars == nil {
+				node.scalars = util.NewHasherMap[Value, *trieNode](ValueEqual)
+			}
 			node.scalars.Put(head, child)
 		}
 		return child.insertArray(arr.Slice(1, -1))
@@ -1152,7 +1145,7 @@ func splitStringEscaped(s string, delim string) []string {
 func stringSliceToArray(s []string) *Array {
 	arr := make([]*Term, len(s))
 	for i, v := range s {
-		arr[i] = StringTerm(v)
+		arr[i] = InternedTerm(v)
 	}
 	return NewArray(arr...)
 }
