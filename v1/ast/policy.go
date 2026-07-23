@@ -1919,14 +1919,61 @@ func unmarshalLogical(typeName string, lhs, rhs *Body, explicitLhs, explicitRhs 
 }
 
 func formatBinaryLogical(op string, lhs, rhs Body, explicitLhs, explicitRhs bool) string {
-	return formatLogicalOperand(lhs, explicitLhs) + " " + op + " " + formatLogicalOperand(rhs, explicitRhs)
+	return formatLogicalOperand(lhs, explicitLhs, op, false) + " " + op + " " + formatLogicalOperand(rhs, explicitRhs, op, true)
 }
 
-func formatLogicalOperand(b Body, explicit bool) string {
-	if explicit {
+func formatLogicalOperand(b Body, explicit bool, parentOp string, rhs bool) string {
+	if explicit || len(b) != 1 {
 		return "{ " + b.String() + " }"
 	}
+
+	if logicalOperandNeedsParens(b, parentOp, rhs) {
+		return "(" + b.String() + ")"
+	}
+
 	return b.String()
+}
+
+func logicalOperandNeedsParens(b Body, parentOp string, rhs bool) bool {
+	if len(b) != 1 {
+		return false
+	}
+
+	e := b[0]
+	if len(e.With) > 0 {
+		return true
+	}
+
+	switch e.Terms.(type) {
+	case *LogicalOr:
+		// `or` binds looser than `and`: always parenthesize under `and`; under
+		// `or`, parenthesize only the rhs to preserve right-nesting.
+		return parentOp == "and" || rhs
+	case *LogicalAnd:
+		// `and` binds tighter: no parens under `or`; under `and`, parenthesize
+		// only the rhs to preserve right-nesting.
+		return parentOp == "and" && rhs
+	}
+	return false
+}
+
+func notBodyNeedsParens(b Body) bool {
+	if len(b) != 1 {
+		return false
+	}
+
+	e := b[0]
+	if len(e.With) > 0 {
+		return true
+	}
+
+	switch e.Terms.(type) {
+	case *LogicalOr, *LogicalAnd:
+		// `not` binds tighter than `and`/`or`
+		return true
+	}
+
+	return false
 }
 
 func (w *With) String() string {

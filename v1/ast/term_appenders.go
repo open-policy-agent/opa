@@ -289,6 +289,14 @@ func appendComprehensionTerm(buf []byte, term *Term) ([]byte, error) {
 
 func (not *Not) AppendText(buf []byte) ([]byte, error) {
 	if !not.ExplicitBody && len(not.Body) == 1 {
+		if notBodyNeedsParens(not.Body) {
+			buf = append(buf, "not ("...)
+			var err error
+			if buf, err = not.Body.AppendText(buf); err != nil {
+				return nil, err
+			}
+			return append(buf, ')'), nil
+		}
 		buf = append(buf, "not "...)
 		return not.Body.AppendText(buf)
 	}

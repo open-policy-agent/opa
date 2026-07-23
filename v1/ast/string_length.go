@@ -365,6 +365,10 @@ func (c *Comment) StringLength() int {
 
 func (not *Not) StringLength() int {
 	if !not.ExplicitBody && len(not.Body) == 1 {
+		if notBodyNeedsParens(not.Body) {
+			// "not (...)"
+			return 6 + not.Body.StringLength()
+		}
 		// "not ..."
 		return 4 + not.Body.StringLength()
 	}
@@ -373,19 +377,22 @@ func (not *Not) StringLength() int {
 }
 
 func (a *LogicalAnd) StringLength() int {
-	return logicalOperandStringLength(a.Lhs, a.ExplicitLhs) +
+	return logicalOperandStringLength(a.Lhs, a.ExplicitLhs, "and", false) +
 		5 + // " and "
-		logicalOperandStringLength(a.Rhs, a.ExplicitRhs)
+		logicalOperandStringLength(a.Rhs, a.ExplicitRhs, "and", true)
 }
 
 func (o *LogicalOr) StringLength() int {
-	return logicalOperandStringLength(o.Lhs, o.ExplicitLhs) +
+	return logicalOperandStringLength(o.Lhs, o.ExplicitLhs, "or", false) +
 		4 + // " or "
-		logicalOperandStringLength(o.Rhs, o.ExplicitRhs)
+		logicalOperandStringLength(o.Rhs, o.ExplicitRhs, "or", true)
 }
 
-func logicalOperandStringLength(b Body, explicit bool) int {
+func logicalOperandStringLength(b Body, explicit bool, parentOp string, rhs bool) int {
 	if !explicit && len(b) == 1 {
+		if logicalOperandNeedsParens(b, parentOp, rhs) {
+			return b.StringLength() + 2 // "(" + body + ")"
+		}
 		return b.StringLength()
 	}
 	return b.StringLength() + 4 // "{ " + body + " }"

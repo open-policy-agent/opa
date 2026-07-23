@@ -165,6 +165,14 @@ func TestLogical_String(t *testing.T) {
 			want: "{ x } and { y }",
 		},
 		{
+			note: "and, implicit multi-expr body",
+			node: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("x")), NewExpr(VarTerm("y"))),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			},
+			want: "{ x; y } and z",
+		},
+		{
 			note: "or, explicit lhs",
 			node: &LogicalOr{
 				Lhs:         NewBody(NewExpr(VarTerm("x")), NewExpr(VarTerm("a"))),
@@ -191,6 +199,75 @@ func TestLogical_String(t *testing.T) {
 				ExplicitRhs: true,
 			},
 			want: "{ x } or { y }",
+		},
+		{
+			note: "or, implicit multi-expr body",
+			node: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("x")), NewExpr(VarTerm("y"))),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			},
+			want: "{ x; y } or z",
+		},
+
+		// Paren emission
+		{
+			note: "or under and (rhs) gets parens",
+			node: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("x"))),
+				Rhs: NewBody(NewExpr(newLogicalOr("a", "b"))),
+			},
+			want: "x and (a or b)",
+		},
+		{
+			note: "or under and (lhs) gets parens",
+			node: &LogicalAnd{
+				Lhs: NewBody(NewExpr(newLogicalOr("a", "b"))),
+				Rhs: NewBody(NewExpr(VarTerm("x"))),
+			},
+			want: "(a or b) and x",
+		},
+		{
+			note: "and under or needs no parens",
+			node: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("x"))),
+				Rhs: NewBody(NewExpr(newLogicalAnd("a", "b"))),
+			},
+			want: "x or a and b",
+		},
+		{
+			note: "same-op or rhs gets parens",
+			node: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("x"))),
+				Rhs: NewBody(NewExpr(newLogicalOr("a", "b"))),
+			},
+			want: "x or (a or b)",
+		},
+		{
+			note: "same-op or lhs needs no parens",
+			node: &LogicalOr{
+				Lhs: NewBody(NewExpr(newLogicalOr("a", "b"))),
+				Rhs: NewBody(NewExpr(VarTerm("x"))),
+			},
+			want: "a or b or x",
+		},
+		{
+			note: "same-op and rhs gets parens",
+			node: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("x"))),
+				Rhs: NewBody(NewExpr(newLogicalAnd("a", "b"))),
+			},
+			want: "x and (a and b)",
+		},
+		{
+			note: "operand with modifier gets parens",
+			node: &LogicalOr{
+				Lhs: NewBody(&Expr{
+					Terms: VarTerm("a"),
+					With:  []*With{{Target: NewTerm(InputRootRef), Value: VarTerm("v")}},
+				}),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			},
+			want: "(a with input as v) or b",
 		},
 	}
 	for _, tc := range tests {

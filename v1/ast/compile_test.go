@@ -15828,12 +15828,135 @@ func TestCompilerAndOrImports(t *testing.T) {
 			`,
 			expMod: `package logic
 				p := __local3__ if {
-					__local3__ = [__local2__ | 
+					__local3__ = [__local2__ |
 						__local2__ = input.x[__local1__]
 						gt(__local2__, 0) or lt(__local2__, 10)
 					]
 				}
 			`,
+		},
+
+		// Parenthesized grouping
+		{
+			note: "group rhs, safe refs",
+			module: `package logic
+				p if {
+					input.a and (input.b or input.c)
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					input.a and (input.b or input.c)
+				}
+			`,
+		},
+		{
+			note: "group lhs, safe refs",
+			module: `package logic
+				p if {
+					(input.a or input.b) and input.c
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					(input.a or input.b) and input.c
+				}
+			`,
+		},
+		{
+			note: "nested groups, redundant outer parens dropped",
+			module: `package logic
+				p if {
+					(input.a and (input.b or input.c)) and input.d
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					input.a and (input.b or input.c) and input.d
+				}
+			`,
+		},
+		{
+			note: "group operand, assignment rewrite",
+			module: `package logic
+				p if {
+					x := 1
+					y := 2
+					z := 3
+					(x or y) and z
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					__local0__ = 1
+					__local1__ = 2
+					__local2__ = 3
+					(__local0__ or __local1__) and __local2__
+				}
+			`,
+		},
+		{
+			note: "not group",
+			module: `package logic
+				import future.keywords.not
+				p if {
+					not (input.a or input.b)
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package logic
+				p = true if {
+					not (input.a or input.b)
+				}
+			`, ParserOptions{
+				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+				FutureKeywords: []string{"and", "or", "not"},
+			}),
+		},
+		{
+			note: "standalone group, unsafe operands caught",
+			module: `package logic
+				p if {
+					(x or y)
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var x is unsafe",
+				},
+				&Error{
+					Code:    CompileErr,
+					Message: "var y is unsafe",
+				},
+			},
+		},
+		{
+			note: "nested unsafe var found deep in group",
+			module: `package logic
+				p if {
+					input.a and (input.b or (input.c and z))
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "var z is unsafe",
+				},
+			},
+		},
+		{
+			note: "unsafe operands found on both group sides",
+			module: `package logic
+				p if {
+					(x or y) and (u or v)
+				}
+			`,
+			expErrs: Errors{
+				&Error{Code: CompileErr, Message: "var x is unsafe"},
+				&Error{Code: CompileErr, Message: "var y is unsafe"},
+				&Error{Code: CompileErr, Message: "var u is unsafe"},
+				&Error{Code: CompileErr, Message: "var v is unsafe"},
+			},
 		},
 	}
 
@@ -15865,6 +15988,85 @@ func TestCompilerAndOrImports(t *testing.T) {
 
 			for n, m := range c.Modules {
 				t.Logf("compiled module %s:\n\n%v\n\n%s", n, m, mermaidGraph(m))
+			}
+		})
+	}
+}
+
+func TestCompilerLogicalGroupRewrites(t *testing.T) {
+	popts := ParserOptions{
+		Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+		FutureKeywords: []string{"and", "or", "not"},
+	}
+
+	tests := []struct {
+		note    string
+		module  string
+		expBody string
+	}{
+		{
+			note: "group operand rewritten to multi-expr body (lhs)",
+			module: `package logic
+				p if {
+					(startswith(lower(input.x), "a") or input.b)
+				}
+			`,
+			expBody: `{
+				__local1__ = input.x
+				lower(__local1__, __local0__)
+				startswith(__local0__, "a")
+			} or input.b`,
+		},
+		{
+			note: "group operand rewritten to multi-expr body (rhs)",
+			module: `package logic
+				p if {
+					input.b or (contains(lower(input.x), "z"))
+				}
+			`,
+			expBody: `input.b or {
+				__local1__ = input.x
+				lower(__local1__, __local0__)
+				contains(__local0__, "z")
+			}`,
+		},
+		{
+			note: "with on group operand survives, value hoisted",
+			module: `package logic
+				p if {
+					(input.ok with input as {"x": count(input.items)}) or input.b
+				}
+			`,
+			expBody: `{
+				__local1__ = input.items
+				count(__local1__, __local0__)
+				input.ok with input as {"x": __local0__}
+			} or input.b`,
+		},
+		{
+			note: "with on whole group survives, value hoisted to outer body",
+			module: `package logic
+				p if {
+					(input.a or input.b with input as {"x": count(input.items)})
+				}
+			`,
+			expBody: `__local1__ = input.items
+				count(__local1__, __local0__)
+				input.a or input.b with input as {"x": __local0__}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Compile(map[string]*Module{"mod.rego": MustParseModuleWithOpts(tc.module, popts)})
+			if c.Failed() {
+				t.Fatalf("unexpected compile errors: %v", c.Errors)
+			}
+			got := c.Modules["mod.rego"].Rules[0].Body
+			want := MustParseBodyWithOpts(tc.expBody, popts)
+			if !got.Equal(want) {
+				t.Errorf("compiled body:\n  want: %s\n  got:  %s", want, got)
 			}
 		})
 	}

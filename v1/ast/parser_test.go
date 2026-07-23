@@ -779,7 +779,7 @@ func TestImportContainingKeywords(t *testing.T) {
 					// Keywords are not allowed as the last component of import paths ..
 
 					input = "import input." + kw
-					expErr = fmt.Sprintf(`rego_parse_error: unexpected import path, must not end with a keyword, got: %s
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected import path, must not end with a keyword, got: %s (hint: import a different path or use an alias)
 	import input.%s
 	             ^`, kw, kw)
 					t.Run(input, func(t *testing.T) {
@@ -787,7 +787,7 @@ func TestImportContainingKeywords(t *testing.T) {
 					})
 
 					input = "import data." + kw
-					expErr = fmt.Sprintf(`rego_parse_error: unexpected import path, must not end with a keyword, got: %s
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected import path, must not end with a keyword, got: %s (hint: import a different path or use an alias)
 	import data.%s
 	            ^`, kw, kw)
 					t.Run(input, func(t *testing.T) {
@@ -795,7 +795,7 @@ func TestImportContainingKeywords(t *testing.T) {
 					})
 
 					input = "import data.foo." + kw
-					expErr = fmt.Sprintf(`rego_parse_error: unexpected import path, must not end with a keyword, got: %s
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected import path, must not end with a keyword, got: %s (hint: import a different path or use an alias)
 	import data.foo.%s
 	                ^`, kw, kw)
 					t.Run(input, func(t *testing.T) {
@@ -803,7 +803,7 @@ func TestImportContainingKeywords(t *testing.T) {
 					})
 
 					input = `import data["foo"].` + kw
-					expErr = fmt.Sprintf(`rego_parse_error: unexpected import path, must not end with a keyword, got: %s
+					expErr = fmt.Sprintf(`rego_parse_error: unexpected import path, must not end with a keyword, got: %s (hint: import a different path or use an alias)
 	import data["foo"].%s
 	                   ^`, kw, kw)
 					t.Run(input, func(t *testing.T) {

@@ -1,0 +1,231 @@
+---
+cases:
+  - note: "logic_op/grouping: a and (b or c) short-circuits when a is false"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          input.a and (input.b or input.c)
+        }
+    input:
+      a: false
+      b: false
+      c: true
+    want_result: []
+  - note: "logic_op/grouping: no parens, a and b or c"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          input.a and input.b or input.c
+        }
+    input:
+      a: false
+      b: true
+      c: true
+    want_result:
+      - x: true
+  - note: "logic_op/grouping: a and (b or c)"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          input.a and (input.b or input.c)
+        }
+    input:
+      a: true
+      b: true
+      c: false
+    want_result:
+      - x: true
+
+  - note: "logic_op/grouping: (a or b) and c"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          (input.a or input.b) and input.c
+        }
+    input:
+      a: false
+      b: true
+      c: true
+    want_result:
+      - x: true
+  - note: "logic_op/grouping: (a or b) and c, short-circuit"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          (input.a or input.b) and input.c
+        }
+    input:
+      a: true
+      b: true
+      c: false
+    want_result: []
+
+  - note: "logic_op/grouping: (a or b) and (c or d) parity with braces"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          (input.a or input.b) and (input.c or input.d)
+        }
+    input:
+      a: true
+      b: false
+      c: false
+      d: true
+    want_result:
+      - x: true
+  - note: "logic_op/grouping: { a or b } and { c or d } parity with parens"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          { input.a or input.b } and { input.c or input.d }
+        }
+    input:
+      a: true
+      b: false
+      c: false
+      d: true
+    want_result:
+      - x: true
+
+  - note: "logic_op/grouping: (a and (b or c)) and d"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+        import future.keywords.or
+
+        p if {
+          (input.a and (input.b or input.c)) and input.d
+        }
+    input:
+      a: true
+      b: false
+      c: true
+      d: true
+    want_result:
+      - x: true
+
+  - note: "logic_op/grouping: redundant parens (((a or b)))"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          (((input.a or input.b)))
+        }
+    input:
+      a: false
+      b: true
+    want_result:
+      - x: true
+
+  - note: "logic_op/grouping: not (a or b), neither true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+        import future.keywords.not
+
+        p if {
+          not (input.a or input.b)
+        }
+    input:
+      a: false
+      b: false
+    want_result:
+      - x: true
+  - note: "logic_op/grouping: not (a or b), one true"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+        import future.keywords.not
+
+        p if {
+          not (input.a or input.b)
+        }
+    input:
+      a: true
+      b: false
+    want_result: []
+
+  - note: "logic_op/grouping: (a with ...) and b, with scoped to operand"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          (input.x < 2 with input.x as 1) and input.x == 5
+        }
+    input:
+      x: 5
+    want_result:
+      - x: true
+
+  - note: "logic_op/grouping: (a or b with ...) binds with to whole group"
+    experimental_keywords: true
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          (input.x > 0 or input.y > 0 with input as {"x": 0, "y": 1})
+        }
+    want_result:
+      - x: true
