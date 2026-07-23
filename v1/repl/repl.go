@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/reeflective/readline"
+	"golang.org/x/term"
 
 	"github.com/open-policy-agent/opa/internal/future"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
@@ -44,6 +45,7 @@ import (
 type REPL struct {
 	output  io.Writer
 	stderr  io.Writer
+	input   io.Reader
 	store   storage.Store
 	runtime *ast.Term
 
@@ -118,6 +120,7 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 
 	return &REPL{
 		output:       output,
+		input:        os.Stdin,
 		store:        store,
 		modules:      map[string]*ast.Module{},
 		capabilities: ast.CapabilitiesForThisVersion(),
@@ -171,6 +174,16 @@ func (r *REPL) WithStderrWriter(w io.Writer) *REPL {
 	return r
 }
 
+// WithConsoleInput sets the reader the REPL reads query input from. It defaults
+// to os.Stdin; a nil reader is ignored. Non-terminal input (a pipe, a file,
+// /dev/null) uses a plain line reader instead of the terminal editor.
+func (r *REPL) WithConsoleInput(in io.Reader) *REPL {
+	if in != nil {
+		r.input = in
+	}
+	return r
+}
+
 // newShell initializes the readline line-reader used by Loop. Bracketed paste
 // is enabled so that pasted tabs/newlines are inserted literally instead of
 // triggering tab-completion or submitting the line (issue #962).
@@ -187,8 +200,63 @@ func (r *REPL) newShell() *readline.Shell {
 	return line
 }
 
-// Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
+// Loop reads, evaluates, and prints query results until the input is exhausted
+// (EOF), the user exits, or an unexpected error occurs.
+//
+// An interactive terminal gets the full readline editor (history, completion,
+// bracketed paste); any non-terminal input (a pipe, a file, /dev/null) gets a
+// plain line reader that stops cleanly at EOF. The readline editor must not be
+// driven against a non-TTY: on macOS it busy-loops at 100% CPU without ever
+// seeing EOF.
 func (r *REPL) Loop(ctx context.Context) error {
+	if r.inputIsTerminal() {
+		return r.loopInteractive(ctx)
+	}
+	return r.loopPiped(ctx)
+}
+
+// inputIsTerminal reports whether the configured input is an interactive
+// terminal. Any non-*os.File reader (e.g. a pipe used in tests) is not.
+func (r *REPL) inputIsTerminal() bool {
+	f, ok := r.input.(*os.File)
+	if !ok {
+		return false
+	}
+	return term.IsTerminal(int(f.Fd()))
+}
+
+// maxConsoleLineBytes bounds a single line read from non-interactive input.
+const maxConsoleLineBytes = 1024 * 1024
+
+// loopPiped reads and evaluates input line-by-line, returning at EOF.
+func (r *REPL) loopPiped(ctx context.Context) error {
+	if len(r.banner) > 0 {
+		fmt.Fprintln(r.output, r.banner)
+	}
+
+	scanner := bufio.NewScanner(r.input)
+	scanner.Buffer(make([]byte, 0, bufio.MaxScanTokenSize), maxConsoleLineBytes)
+
+	for scanner.Scan() {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		if err := r.OneShot(ctx, scanner.Text()); err != nil {
+			switch err.(type) {
+			case stop:
+				return nil
+			default:
+				fmt.Fprintln(r.output, err)
+			}
+		}
+	}
+
+	return scanner.Err()
+}
+
+// loopInteractive will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
+func (r *REPL) loopInteractive(ctx context.Context) error {
 
 	line := r.newShell()
 

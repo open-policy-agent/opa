@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/reeflective/readline"
 
@@ -317,6 +318,57 @@ func TestREPLBracketedPasteTabNotCompleted(t *testing.T) {
 	if _, calls := feed(payload + "\r"); calls == 0 {
 		t.Fatal("expected a raw tab to invoke the completer; test setup is not exercising completion")
 	}
+}
+
+func TestREPLLoopNonInteractiveInput(t *testing.T) {
+	// runLoop feeds input as a non-terminal reader; it fails if Loop doesn't
+	// return before the deadline (a regression would hang or spin here).
+	runLoop := func(t *testing.T, input string) (string, error) {
+		t.Helper()
+
+		var buf bytes.Buffer
+		repl := New(newTestStore(), "", &buf, "", 0, "").
+			WithStderrWriter(&buf).
+			WithConsoleInput(strings.NewReader(input))
+
+		done := make(chan error, 1)
+		go func() { done <- repl.Loop(t.Context()) }()
+
+		select {
+		case err := <-done:
+			return buf.String(), err
+		case <-time.After(10 * time.Second):
+			t.Fatal("Loop did not return for non-interactive input; it should stop at EOF, not block or spin")
+			return "", nil
+		}
+	}
+
+	t.Run("evaluates piped lines and stops at EOF", func(t *testing.T) {
+		out, err := runLoop(t, "1 + 1\n2 + 3\n")
+		if err != nil {
+			t.Fatalf("Loop returned error: %v", err)
+		}
+		if !strings.Contains(out, "2") || !strings.Contains(out, "5") {
+			t.Fatalf("expected both piped queries to be evaluated, got: %q", out)
+		}
+	})
+
+	t.Run("exit command stops the loop", func(t *testing.T) {
+		// Anything after "exit" must not be evaluated.
+		out, err := runLoop(t, "exit\n1 + 1\n")
+		if err != nil {
+			t.Fatalf("Loop returned error: %v", err)
+		}
+		if strings.Contains(out, "2") {
+			t.Fatalf("expected input after exit to be ignored, got: %q", out)
+		}
+	})
+
+	t.Run("empty input returns immediately at EOF", func(t *testing.T) {
+		if _, err := runLoop(t, ""); err != nil {
+			t.Fatalf("Loop returned error for empty input: %v", err)
+		}
+	})
 }
 
 func TestREPLHistoryMigratesLegacyFile(t *testing.T) {
