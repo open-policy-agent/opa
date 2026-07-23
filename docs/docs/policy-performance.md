@@ -962,6 +962,9 @@ The `--optimize` (or `-O`) flag on the `opa build` command controls how bundles 
 > Optimization applies partial evaluation to precompute _known_ values in the policy. The goal of
 > partial evaluation is to convert non-linear-time policies into linear-time policies.
 
+References that should be treated as unknown during optimization can be declared per rule or
+document via the [`compile` annotation](policy-language.md#metadata-compile).
+
 By specifying the `--optimize` flag, users can control how much time and resources are spent
 attempting to optimize the bundle. Generally, higher optimization levels require more time
 and resources. Currently, OPA supports three optimization levels. The exact optimizations applied

@@ -2655,6 +2655,7 @@ comment block containing the YAML document is finished
 | `organizations`     | list of strings                                             | A list of organizations related to the annotation target. Read more in the [Metadata Organizations section below](#metadata-organizations).                    |
 | `schemas`           | list of object                                              | A list of associations between value paths and schema definitions. Read more in the [Metadata Schemas section below](#metadata-schemas).                       |
 | `entrypoint`        | boolean                                                     | Whether or not the annotation target is to be used as a policy entrypoint. Read more in the [Metadata Entrypoint section below](#metadata-entrypoint).         |
+| `compile`           | list of references and a reference                          | A list of references treated as unknowns, and a rule that masks the document value. Read more in the [Metadata Compile section below](#metadata-compile).      |
 | `custom`            | mapping of arbitrary data                                   | A custom mapping of named parameters holding arbitrary data. Read more in the [Metadata Custom section below](#metadata-custom).                               |
 
 ### Metadata `Scope`
@@ -2937,6 +2938,43 @@ allow if {
   ...
 }
 ```
+
+### Metadata `compile`
+
+The `compile` annotation has two independent functions:
+
+- `unknowns` declares references that are treated as unknown during partial evaluation;
+  see [Optimization Levels](policy-performance.md#optimization-levels)
+- `mask_rule` references a rule whose value defines column masks, used when compiling
+  a policy into data filters; see [Column Masking](/docs/filtering/column-masks)
+
+#### Fields
+
+- **`unknowns`** (list of references): References that are treated as unknown when the
+  policy is built with `opa build --optimize`. Any reference not declared here (or via
+  the `.manifest` roots) is assumed to be known and may be inlined during partial evaluation.
+- **`mask_rule`** (reference): A reference to a rule whose value defines column masks for
+  the annotated rule. It is resolved relative to the package it is used in, so it does not
+  need to start with `data.`; a short relative name (e.g., `mask`) resolves against the
+  annotated rule's package. See [Column Masking](/docs/filtering/column-masks) for details.
+
+#### Example
+
+```rego
+package opa.examples
+
+# METADATA
+# scope: document
+# compile:
+#   unknowns:
+#   - input.fruits
+#   mask_rule: mask
+include if input.fruits.name == "banana"
+mask.fruits.owner.replace.value := "___"
+```
+
+See also [Optimization Levels](policy-performance.md#optimization-levels) for partial evaluation,
+and [Column Masking](/docs/filtering/column-masks) for masking.
 
 ### Accessing annotations
 
