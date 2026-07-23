@@ -282,7 +282,7 @@ func (bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) ast.Va
 		return result
 	}
 
-	if r, ok := b.(ast.Ref); ok && r.OutputVars().Contains(v) {
+	if ast.NewTerm(b).Vars().Contains(v) {
 		return result
 	}
 
