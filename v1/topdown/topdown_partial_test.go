@@ -2141,6 +2141,18 @@ func TestTopDownPartialEval(t *testing.T) {
 			`},
 		},
 		{
+			note:  "copy propagation: circular reference, intersection call (bug 6428)",
+			query: "data.test.p",
+			modules: []string{`package test
+				p if {
+					bt = {tag | some i; tag = input.book.tags[i]}
+					ut = {tag | some j; tag = input.user.tags[j]}
+					bt & ut == bt
+				}`,
+			},
+			wantQueries: []string{`bt1 = {tag1 | tag1 = input.book.tags[__local0__1]}; ut1 = {tag1 | tag1 = input.user.tags[__local1__1]}; bt1 = and(bt1, ut1)`},
+		},
+		{
 			note:        "copy propagation: tautology in query, input ref",
 			query:       "input.a == input.a",
 			wantQueries: []string{`__localq1__ = input.a`},
