@@ -1,0 +1,6 @@
+{
+  "allow": false,
+  "deny": [
+    "path \"/api/v2/users\" is outside /api/v1/"
+  ]
+}

@@ -3,3 +3,13 @@ title: Array Built-ins
 sidebar_label: Arrays
 ---
 <BuiltinTable category={"array"}/>
+
+## Examples
+
+### `array.concat`
+
+`array.concat` returns a new array with the elements of the second array
+appended to the first. Policies use it to extend a base list — for example
+default registries or hosts — with extra values from input or data.
+
+<PlaygroundExample dir={require.context('../_examples/array/concat/merge-allowlists')} />

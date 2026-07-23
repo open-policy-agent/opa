@@ -1,0 +1,11 @@
+{
+  "allow": false,
+  "allowed_registries": [
+    "registry.internal/prod",
+    "ghcr.io/example",
+    "registry.internal/staging"
+  ],
+  "deny": [
+    "image \"docker.io/library/nginx:1.27\" is not from an allowed registry: [\"registry.internal/prod\", \"ghcr.io/example\", \"registry.internal/staging\"]"
+  ]
+}

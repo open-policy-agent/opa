@@ -1,0 +1,21 @@
+{
+  "allow": false,
+  "deny": [
+    "missing required scopes: {\"write:payments\"}"
+  ],
+  "granted": [
+    "read:orders",
+    "read:profile",
+    "write:orders"
+  ],
+  "missing": [
+    "write:payments"
+  ],
+  "present": [
+    "read:orders"
+  ],
+  "required": [
+    "read:orders",
+    "write:payments"
+  ]
+}

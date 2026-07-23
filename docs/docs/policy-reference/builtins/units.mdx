@@ -3,3 +3,17 @@ title: Unit Built-ins
 sidebar_label: Units
 ---
 <BuiltinTable category={"units"}/>
+
+## Examples
+
+### `units.parse`
+
+`units.parse` turns a string with an optional unit suffix into a number.
+It accepts decimal SI suffixes (`K`, `M`, `G`, …), binary suffixes
+(`Ki`, `Mi`, `Gi`, …), and a lower-case `m` for milli. `m` and `M` are
+case-sensitive so milli and mega stay distinct.
+
+A common use is comparing resource limits that arrive with different
+suffixes in the same policy check.
+
+<PlaygroundExample dir={require.context('../_examples/units/parse/memory-limits')} />

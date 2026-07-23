@@ -1,0 +1,13 @@
+{
+  "namespace_memory_limit": "1Gi",
+  "containers": [
+    {
+      "name": "app",
+      "memory_limit": "512Mi"
+    },
+    {
+      "name": "batch",
+      "memory_limit": "2Gi"
+    }
+  ]
+}
