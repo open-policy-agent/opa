@@ -9,6 +9,8 @@
 package repl
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -19,8 +21,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/peterh/liner"
+	"github.com/reeflective/readline"
 
 	"github.com/open-policy-agent/opa/internal/future"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
@@ -72,6 +75,7 @@ type REPL struct {
 	prettyLimit       int
 	report            [][2]string
 	target            string // target type (wasm, rego, etc.)
+	history           *replHistory
 	mtx               sync.Mutex
 }
 
@@ -167,26 +171,42 @@ func (r *REPL) WithStderrWriter(w io.Writer) *REPL {
 	return r
 }
 
+// newShell initializes the readline line-reader used by Loop. Bracketed paste
+// is enabled so that pasted tabs/newlines are inserted literally instead of
+// triggering tab-completion or submitting the line (issue #962).
+func (r *REPL) newShell() *readline.Shell {
+	line := readline.NewShell()
+	// Enabling bracketed paste is the fix for #962; surface a warning if the
+	// config key ever stops being honored so the bug can't silently return.
+	if err := line.Config.Set("enable-bracketed-paste", true); err != nil {
+		fmt.Fprintln(r.stderrWriter(), "warning: failed to enable bracketed paste:", err)
+	}
+	line.Prompt.Primary(r.getPrompt)
+	line.Completer = r.complete
+	r.loadHistory(line)
+	return line
+}
+
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
 func (r *REPL) Loop(ctx context.Context) error {
 
-	// Initialize the liner library.
-	line := liner.NewLiner()
-	defer line.Close()
-	line.SetCtrlCAborts(true)
-	line.SetMultiLineMode(true)
-	r.loadHistory(line)
+	line := r.newShell()
 
 	if len(r.banner) > 0 {
 		fmt.Fprintln(r.output, r.banner)
 	}
 
-	line.SetCompleter(r.complete)
-
 loop:
+	// Restoring the prompt (and resuming history persistence) here means every
+	// path back into the main loop is covered by a single reset, so a future
+	// exit path can't forget to undo the exit-prompt overrides below.
+	if r.history != nil {
+		r.history.resume()
+	}
+	line.Prompt.Primary(r.getPrompt)
 	for {
 
-		input, err := line.Prompt(r.getPrompt())
+		input, err := line.Readline()
 
 		// prompt on ctrl+d
 		if err == io.EOF {
@@ -194,7 +214,7 @@ loop:
 		}
 
 		// reset on ctrl+c
-		if err == liner.ErrPromptAborted {
+		if errors.Is(err, readline.ErrInterrupt) {
 			continue
 		}
 
@@ -212,15 +232,20 @@ loop:
 				fmt.Fprintln(r.output, err)
 			}
 		}
-
-		line.AppendHistory(input)
 	}
 
 exitPrompt:
 	fmt.Fprintln(r.output)
 
+	// The exit-prompt confirmation ("y"/"n") is control input, not a query, so
+	// pause persistence while it is on screen. The loop: label resumes it.
+	if r.history != nil {
+		r.history.pause()
+	}
+	line.Prompt.Primary(func() string { return exitPromptMessage })
+
 	for {
-		input, err := line.Prompt(exitPromptMessage)
+		input, err := line.Readline()
 
 		// exit on ctrl+d
 		if err == io.EOF {
@@ -228,7 +253,7 @@ exitPrompt:
 		}
 
 		// reset on ctrl+c
-		if err == liner.ErrPromptAborted {
+		if errors.Is(err, readline.ErrInterrupt) {
 			goto loop
 		}
 
@@ -247,7 +272,6 @@ exitPrompt:
 	}
 
 exit:
-	r.saveHistory(line)
 	return nil
 }
 
@@ -379,7 +403,14 @@ func (r *REPL) SetOPAVersionReport(report [][2]string) {
 	r.report = report
 }
 
-func (r *REPL) complete(line string) []string {
+// complete adapts completeCandidates to the readline completer signature.
+// Only the text up to the cursor is used for prefix matching, matching the
+// behaviour of the previous line-reader.
+func (r *REPL) complete(line []rune, cursor int) readline.Completions {
+	return readline.CompleteValues(r.completeCandidates(string(line[:cursor]))...)
+}
+
+func (r *REPL) completeCandidates(line string) []string {
 	c := []string{}
 	set := map[string]struct{}{}
 	ctx := context.Background()
@@ -1244,12 +1275,165 @@ func (r *REPL) getPrompt() string {
 	return r.initPrompt
 }
 
-func (r *REPL) loadHistory(prompt *liner.State) {
-	if f, err := os.Open(r.historyPath); err == nil {
-		_, _ = prompt.ReadHistory(f) // ignore error
-		f.Close()
+func (r *REPL) loadHistory(line *readline.Shell) {
+	if r.historyPath == "" {
+		return
 	}
+	h, err := newREPLHistory(r.historyPath)
+	if err != nil {
+		// Non-fatal: newREPLHistory still returns a usable (empty, writable)
+		// source, so the session continues without prior history.
+		fmt.Fprintln(r.stderrWriter(), "warning: failed to load REPL history:", err)
+	}
+	r.history = h
+	line.History.Add("repl", h)
 }
+
+// replHistoryItem is one persisted history entry. The JSON shape matches the
+// file format used by reeflective/readline so the two readers stay
+// interchangeable.
+type replHistoryItem struct {
+	DateTime time.Time `json:"datetime"`
+	Block    string    `json:"block"`
+}
+
+// replHistory is a file-backed readline history source tailored to the REPL:
+//
+//   - Legacy plain-text history files written by the previous line-reader
+//     (peterh/liner, one command per line) are migrated in place to the
+//     JSON-lines format on load, so prior history survives the upgrade instead
+//     of being silently dropped (see the #8882 review).
+//   - REPL control input is not persisted: the "exit" command is always
+//     skipped, and persistence is paused around the Ctrl+D exit prompt so its
+//     confirmation answer is not recorded. This matches the previous reader,
+//     which only appended a line once it had been evaluated as a query.
+type replHistory struct {
+	path    string
+	items   []replHistoryItem
+	persist bool
+}
+
+// newREPLHistory loads (migrating if necessary) the history file at path. A
+// load error is returned but is not fatal: the returned source is always
+// usable, falling back to empty in-memory history that still accepts writes.
+func newREPLHistory(path string) (*replHistory, error) {
+	h := &replHistory{path: path, persist: true}
+	migrated, err := h.load()
+	if err != nil {
+		return h, err
+	}
+	if migrated {
+		// Rewrite once so legacy plain-text entries are stored in the new
+		// format; subsequent accepted lines are simply appended.
+		return h, h.flush()
+	}
+	return h, nil
+}
+
+// load reads the history file into memory, reporting whether any legacy
+// plain-text lines were encountered (and thus whether the file must be
+// rewritten). A missing file is not an error.
+func (h *replHistory) load() (migrated bool, err error) {
+	f, err := os.Open(h.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		var item replHistoryItem
+		if err := json.Unmarshal([]byte(line), &item); err == nil && item.Block != "" {
+			h.items = append(h.items, item)
+			continue
+		}
+
+		// Not JSON: a legacy one-command-per-line entry. Preserve it and flag
+		// the file for rewriting into the new format.
+		if block := strings.TrimSpace(line); block != "" {
+			h.items = append(h.items, replHistoryItem{Block: block})
+			migrated = true
+		}
+	}
+
+	return migrated, scanner.Err()
+}
+
+// flush rewrites the entire history file from the in-memory items.
+func (h *replHistory) flush() error {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	for i := range h.items {
+		if err := enc.Encode(h.items[i]); err != nil {
+			return err
+		}
+	}
+	return os.WriteFile(h.path, buf.Bytes(), 0o600)
+}
+
+// pause and resume toggle whether accepted lines are persisted; they keep the
+// exit-prompt confirmation out of the history.
+func (h *replHistory) pause()  { h.persist = false }
+func (h *replHistory) resume() { h.persist = true }
+
+// Write implements the readline history source interface. readline calls it for
+// every accepted line, before the REPL inspects the returned input.
+func (h *replHistory) Write(line string) (int, error) {
+	block := strings.TrimSpace(line)
+	if !h.persist || block == "" {
+		return len(h.items), nil
+	}
+
+	// Never persist the exit command: it is control input, not a query.
+	if c := newCommand(block); c != nil && c.op == "exit" {
+		return len(h.items), nil
+	}
+
+	// Skip consecutive duplicates, mirroring readline's own file source.
+	if n := len(h.items); n > 0 && h.items[n-1].Block == block {
+		return n, nil
+	}
+
+	item := replHistoryItem{DateTime: time.Now(), Block: block}
+	h.items = append(h.items, item)
+
+	if h.path == "" {
+		return len(h.items), nil
+	}
+
+	data, err := json.Marshal(item)
+	if err != nil {
+		return len(h.items), err
+	}
+
+	f, err := os.OpenFile(h.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return len(h.items), err
+	}
+	defer f.Close()
+
+	_, err = f.Write(append(data, '\n'))
+	return len(h.items), err
+}
+
+// GetLine implements the readline history source interface.
+func (h *replHistory) GetLine(pos int) (string, error) {
+	if pos < 0 || pos >= len(h.items) {
+		return "", fmt.Errorf("history index %d out of range", pos)
+	}
+	return h.items[pos].Block, nil
+}
+
+// Len implements the readline history source interface.
+func (h *replHistory) Len() int { return len(h.items) }
+
+// Dump implements the readline history source interface.
+func (h *replHistory) Dump() any { return h.items }
 
 func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[string]*ast.Module, error) {
 	modules := make(map[string]*ast.Module)
@@ -1305,13 +1489,6 @@ func (r *REPL) printTypes(_ context.Context, typeEnv *ast.TypeEnv, body ast.Body
 
 	for v := range vis.Vars() {
 		fmt.Fprintf(r.output, "# %v: %v\n", v, typeEnv.GetByValue(v))
-	}
-}
-
-func (r *REPL) saveHistory(prompt *liner.State) {
-	if f, err := os.Create(r.historyPath); err == nil {
-		_, _ = prompt.WriteHistory(f) // ignore error
-		f.Close()
 	}
 }
 
