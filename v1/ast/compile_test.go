@@ -12794,11 +12794,11 @@ func TestKeepModules(t *testing.T) {
 		}
 		newName := Var("q")
 		mods["bar.rego"].Rules[0].Head.Name = newName
-		if exp, act := newName, mod.Rules[0].Head.Name; !exp.Equal(act) {
+		if exp, act := newName, mod.Rules[0].Head.Name; exp != act {
 			t.Errorf("expected modified rule name %v, found %v", exp, act)
 		}
 		mods["extra.rego"].Rules[0].Head.Name = newName
-		if exp, act := newName, extra.Rules[0].Head.Name; !exp.Equal(act) {
+		if exp, act := newName, extra.Rules[0].Head.Name; exp != act {
 			t.Errorf("expected modified rule name %v, found %v", exp, act)
 		}
 	})

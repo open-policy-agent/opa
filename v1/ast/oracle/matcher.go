@@ -184,13 +184,7 @@ func (r *matchResult) addRef(loc *ast.Location) {
 
 // termMatchesVar checks if a term contains a variable matching the given name.
 func termMatchesVar(t *ast.Term, name ast.Var) bool {
-	if t == nil {
-		return false
-	}
-
-	v, ok := t.Value.(ast.Var)
-
-	return ok && v.Equal(name)
+	return t != nil && name.Equal(t.Value)
 }
 
 // findRulesDefinition looks up rules for a given ref. Rules appear in various

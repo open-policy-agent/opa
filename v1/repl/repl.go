@@ -788,7 +788,7 @@ func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
 	rules := []*ast.Rule{}
 
 	for _, r := range mod.Rules {
-		if !r.Head.Name.Equal(name) {
+		if r.Head.Name != name {
 			rules = append(rules, r)
 		}
 	}

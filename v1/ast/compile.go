@@ -2235,7 +2235,7 @@ func (c *Compiler) resolveAllRefs() {
 				}
 
 				for v, u := range globals {
-					if v.Equal(imp.Name()) && !u.used {
+					if v == imp.Name() && !u.used {
 						if !c.err(NewError(CompileErr, imp.Location, "%s unused", imp.String())) {
 							return
 						}
@@ -6535,7 +6535,7 @@ func (s localDeclaredVars) Insert(x, y Var, occurrence varOccurrence) {
 	// If the variable has been rewritten (where x != y, with y being
 	// the generated value), store it in the map of rewritten vars.
 	// Assume that the generated values are unique for the compilation.
-	if !x.Equal(y) {
+	if x != y {
 		s.rewritten[y] = x
 	}
 }
@@ -7013,7 +7013,7 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 	case Call:
 		ref := v[0]
 		WalkVars(ref, func(v Var) bool {
-			if gv, ok := stack.Declared(v); ok && !gv.Equal(v) {
+			if gv, ok := stack.Declared(v); ok && gv != v {
 				// We will rewrite the ref of a function call, which is never ok since we don't have first-class functions.
 				errs = append(errs, NewError(CompileErr, term.Location, "called function %s shadowed", ref))
 				return true
@@ -7068,11 +7068,11 @@ func rewriteDeclaredVarsInWithRecursive(g *localVarGenerator, stack *localDeclar
 	if sdwInput, ok := stack.Declared(InputRootDocument.Value.(Var)); ok { // Was "input" shadowed...
 		switch value := w.Target.Value.(type) {
 		case Var:
-			if sdwInput.Equal(value) { // ...and replaced? If so, fix it
+			if sdwInput == value { // ...and replaced? If so, fix it
 				w.Target.Value = InputRootRef
 			}
 		case Ref:
-			if sdwInput.Equal(value[0].Value.(Var)) {
+			if sdwInput.Equal(value[0].Value) {
 				w.Target.Value.(Ref)[0].Value = InputRootDocument.Value
 			}
 		}

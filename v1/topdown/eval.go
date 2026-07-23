@@ -3383,7 +3383,7 @@ func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, _ ast.Ref) (b
 				head.Key = ruleRef[len(ruleRef)-1]
 			}
 
-			if head.Name.Equal(ast.Var("")) && (len(ruleRef) == 1 || (len(ruleRef) == 2 && rule.Head.RuleKind() == ast.SingleValue)) {
+			if head.Name == "" && (len(ruleRef) == 1 || (len(ruleRef) == 2 && rule.Head.RuleKind() == ast.SingleValue)) {
 				head.Name = ruleRef[0].Value.(ast.Var)
 			}
 

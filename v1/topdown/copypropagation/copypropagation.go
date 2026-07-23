@@ -261,11 +261,10 @@ func (t bindingPlugTransform) Transform(x any) (any, error) {
 }
 
 func (bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) ast.Value {
-
 	var result ast.Value = v
 
 	// Apply union-find to remove redundant variables from input.
-	root, ok := pctx.uf.Find(v)
+	root, ok := pctx.uf.Find(result)
 	if ok {
 		result = root.Value()
 	}
@@ -275,7 +274,7 @@ func (bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) ast.Va
 	if !ok {
 		return result
 	}
-	b := pctx.removedEqs.Get(v)
+	b := pctx.removedEqs.Get(result)
 	if b == nil {
 		return result
 	}
