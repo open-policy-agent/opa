@@ -640,7 +640,12 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	if (w.fmtOpts.regoV1 || w.fmtOpts.ifs) && partialSetException {
 		w.write(" if")
 		if len(rule.Body) == 1 {
-			if rule.Body[0].Location.Row == rule.Head.Location.Row {
+			// Keep `if <term>` on one line when the single body term sits on the
+			// same line as the end of the head. Comparing against the head's
+			// start row would wrongly expand the condition into a block whenever
+			// the head value spans multiple lines (e.g. a multi-line call).
+			headEndRow := rule.Head.Location.Row + strings.Count(string(rule.Head.Location.Text), "\n")
+			if rule.Body[0].Location.Row == headEndRow {
 				w.write(" ")
 				var err error
 				comments, err = w.writeExpr(rule.Body[0], comments)
