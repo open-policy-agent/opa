@@ -16,15 +16,18 @@ type OCIDownloader struct {
 	client           rest.Client                         // HTTP client to use for bundle downloading
 	path             string                              // path for OCI image as <registry>/<org>/<repo>:<tag>
 	localStorePath   string                              // path for the local OCI storage
+	localStoreIsTemp bool                                // whether localStorePath should be removed when stopping
 	trigger          chan chan struct{}                  // channel to signal downloads when manual triggering is enabled
 	stop             chan chan struct{}                  // used to signal plugin to stop running
 	f                func(context.Context, Update) error // callback function invoked when download updates occur
 	sizeLimitBytes   *int64                              // max bundle file size in bytes (passed to reader)
 	bvc              *bundle.VerificationConfig
 	wg               sync.WaitGroup
+	triggerWG        sync.WaitGroup
 	logger           logging.Logger
-	mtx              sync.Mutex
+	stateMtx         sync.Mutex
 	stopped          bool
+	stopOnce         sync.Once
 	persist          bool
 	store            *oci.Store
 	etag             string
