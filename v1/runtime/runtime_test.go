@@ -283,6 +283,35 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 	})
 }
 
+func startREPLForTest(t *testing.T, ctx context.Context, params *Params) *Runtime {
+	t.Helper()
+
+	pr, pw := io.Pipe()
+	params.ConsoleInput = pr
+
+	rt, err := NewRuntime(ctx, *params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = rt.StartREPL(ctx)
+	}()
+
+	t.Cleanup(func() {
+		_ = pw.Close() // signal EOF so the REPL loop returns
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("timed out waiting for REPL goroutine to exit after closing input")
+		}
+	})
+
+	return rt
+}
+
 func TestRuntimeReplWithBundleBuiltWithV1Compatibility(t *testing.T) {
 	ctx := t.Context()
 
@@ -313,12 +342,7 @@ func TestRuntimeReplWithBundleBuiltWithV1Compatibility(t *testing.T) {
 	params.Paths = []string{p}
 	params.BundleMode = true
 
-	rt, err := NewRuntime(ctx, params)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	go func() { _ = rt.StartREPL(ctx) }()
+	rt := startREPLForTest(t, ctx, &params)
 
 	if !test.Eventually(t, 5*time.Second, func() bool {
 		return strings.Contains(output.String(), "Run 'help' to see a list of commands and check for updates.")
@@ -451,12 +475,7 @@ p contains 1 if {
 				params.V0Compatible = tc.v0Compatible
 				params.V1Compatible = tc.v1Compatible
 
-				rt, err := NewRuntime(ctx, params)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				go func() { _ = rt.StartREPL(ctx) }()
+				_ = startREPLForTest(t, ctx, &params)
 
 				if !test.Eventually(t, 5*time.Second, func() bool {
 					return strings.Contains(output.String(), "Run 'help' to see a list of commands and check for updates.")
