@@ -390,7 +390,7 @@ func (mod *Module) Copy() *Module {
 
 // Equal returns true if mod equals other.
 func (mod *Module) Equal(other *Module) bool {
-	return mod.Compare(other) == 0
+	return mod == other || mod.Compare(other) == 0
 }
 
 func (mod *Module) String() string {
@@ -644,12 +644,13 @@ func (imp *Import) MarshalJSON() ([]byte, error) {
 // Compare returns an integer indicating whether rule is less than, equal to,
 // or greater than other.
 func (rule *Rule) Compare(other *Rule) int {
+	if rule == other {
+		return 0
+	}
 	if rule == nil {
-		if other == nil {
-			return 0
-		}
 		return -1
-	} else if other == nil {
+	}
+	if other == nil {
 		return 1
 	}
 	if cmp := rule.Head.Compare(other.Head); cmp != 0 {
@@ -1081,16 +1082,22 @@ func (body Body) Set(expr *Expr, pos int) {
 //
 // If body is a subset of other, it is considered less than (and vice versa).
 func (body Body) Compare(other Body) int {
-	minLen := min(len(other), len(body))
+	if isEmptyBody(body) && isEmptyBody(other) {
+		// nil body considered equal to empty `{ true }` as
+		// that used to be how an empty body was represented
+		return 0
+	}
+	bl, ol := len(body), len(other)
+	minLen := min(bl, ol)
 	for i := range minLen {
 		if cmp := body[i].Compare(other[i]); cmp != 0 {
 			return cmp
 		}
 	}
-	if len(body) < len(other) {
+	if bl < ol {
 		return -1
 	}
-	if len(other) < len(body) {
+	if ol < bl {
 		return 1
 	}
 	return 0

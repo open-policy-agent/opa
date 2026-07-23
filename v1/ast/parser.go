@@ -843,13 +843,10 @@ func (p *Parser) parseRules() []*Rule {
 			return nil
 		}
 
-		if len(rule.Head.Args) > 0 {
-			if !p.validateDefaultRuleArgs(&rule) {
-				return nil
-			}
+		if len(rule.Head.Args) > 0 && !p.validateDefaultRuleArgs(&rule) {
+			return nil
 		}
 
-		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
 		return []*Rule{&rule}
 	}
 
@@ -925,10 +922,7 @@ func (p *Parser) parseRules() []*Rule {
 		p.scan()
 
 	case usesContains:
-		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
-		rule.generatedBody = true
 		rule.Location = rule.Head.Location
-
 		return []*Rule{&rule}
 
 	default:
@@ -958,7 +952,6 @@ func (p *Parser) parseRules() []*Rule {
 	rules := []*Rule{&rule}
 
 	for p.s.tok == tokens.LBrace {
-
 		if rule.Else != nil {
 			p.error(p.s.Loc(), "expected else keyword")
 			return nil
@@ -1178,20 +1171,22 @@ func (p *Parser) parseBody(end tokens.Token) Body {
 }
 
 func (p *Parser) parseQuery(requireSemi bool, end tokens.Token) Body {
-	body := Body{}
-
 	if p.s.tok == end {
 		p.error(p.s.Loc(), "found empty body")
 		return nil
 	}
 
+	var body Body
 	for {
 		expr := p.parseLiteral()
 		if expr == nil {
 			return nil
 		}
-
-		body.Append(expr)
+		if body == nil {
+			body = NewBody(expr)
+		} else {
+			body.Append(expr)
+		}
 
 		if p.s.tok == tokens.Semicolon {
 			p.scan()

@@ -691,13 +691,10 @@ main = true
 
 	stats := p.ReportTopNResults(10, []string{"line"})
 
-	if exp, act := 2, len(stats); exp != act {
+	if exp, act := 1, len(stats); exp != act {
 		t.Fatalf("expected %d stats, got %d", exp, act)
 	}
-	if exp, act := "true", string(stats[0].Location.Text); exp != act {
-		t.Errorf("expected location %q got %q", exp, act)
-	}
-	if exp, act := "data.system.main", string(stats[1].Location.Text); exp != act {
+	if exp, act := "data.system.main", string(stats[0].Location.Text); exp != act {
 		t.Errorf("expected location %q got %q", exp, act)
 	}
 

@@ -2365,7 +2365,14 @@ func (e *evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, e
 	return cacheKey, false, nil
 }
 
-func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.Term, cacheKey ast.Ref, prev *ast.Term, findOne bool) (*ast.Term, error) {
+func (e *evalFunc) evalOneRule(
+	iter unifyIterator,
+	rule *ast.Rule,
+	args []*ast.Term,
+	cacheKey ast.Ref,
+	prev *ast.Term,
+	findOne bool,
+) (*ast.Term, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
@@ -3980,7 +3987,7 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, packagePath 
 
 			if !e.e.inliningControl.shallow {
 				cp := copypropagation.New(head.Vars()).
-					WithEnsureNonEmptyBody(true).
+					WithEnsureNonEmptyBody(!rule.Default).
 					WithCompiler(e.e.compiler)
 				plugged = applyCopyPropagation(cp, e.e.instr, plugged)
 			}

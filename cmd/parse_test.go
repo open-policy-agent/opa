@@ -38,8 +38,6 @@ func TestParseExit0(t *testing.T) {
     p
    1
   body
-   expr index=0
-    true
 `
 
 	if got, want := string(stdout), expectedOutput; got != want {
@@ -62,7 +60,6 @@ func TestParseExit1(t *testing.T) {
 }
 
 func TestParseJSONOutput(t *testing.T) {
-
 	files := map[string]string{
 		"x.rego": `package x
 		
@@ -94,15 +91,7 @@ func TestParseJSONOutput(t *testing.T) {
   },
   "rules": [
     {
-      "body": [
-        {
-          "index": 0,
-          "terms": {
-            "type": "boolean",
-            "value": true
-          }
-        }
-      ],
+      "body": [],
       "head": {
         "name": "p",
         "value": {
@@ -178,27 +167,7 @@ p = 1
   },
   "rules": [
     {
-      "body": [
-        {
-          "index": 0,
-          "location": {
-            "file": "TEMPDIR/x.rego",
-            "row": 3,
-            "col": 5,
-            "text": "MQ=="
-          },
-          "terms": {
-            "location": {
-              "file": "TEMPDIR/x.rego",
-              "row": 3,
-              "col": 5,
-              "text": "MQ=="
-            },
-            "type": "boolean",
-            "value": true
-          }
-        }
-      ],
+      "body": [],
       "head": {
         "name": "p",
         "value": {
@@ -665,15 +634,7 @@ func TestParseRefsJSONOutput(t *testing.T) {
   },
   "rules": [
     {
-      "body": [
-        {
-          "index": 0,
-          "terms": {
-            "type": "boolean",
-            "value": true
-          }
-        }
-      ],
+      "body": [],
       "head": {
         "value": {
           "type": "boolean",
@@ -757,27 +718,7 @@ a.b.c := true
   },
   "rules": [
     {
-      "body": [
-        {
-          "index": 0,
-          "location": {
-            "file": "TEMPDIR/x.rego",
-            "row": 3,
-            "col": 10,
-            "text": "dHJ1ZQ=="
-          },
-          "terms": {
-            "location": {
-              "file": "TEMPDIR/x.rego",
-              "row": 3,
-              "col": 10,
-              "text": "dHJ1ZQ=="
-            },
-            "type": "boolean",
-            "value": true
-          }
-        }
-      ],
+      "body": [],
       "head": {
         "value": {
           "location": {
@@ -956,27 +897,7 @@ allow = true if {
   ],
   "rules": [
     {
-      "body": [
-        {
-          "index": 0,
-          "location": {
-            "file": "TEMPDIR/x.rego",
-            "row": 4,
-            "col": 1,
-            "text": "ZGVmYXVsdA=="
-          },
-          "terms": {
-            "location": {
-              "file": "TEMPDIR/x.rego",
-              "row": 4,
-              "col": 1,
-              "text": "ZGVmYXVsdA=="
-            },
-            "type": "boolean",
-            "value": true
-          }
-        }
-      ],
+      "body": [],
       "default": true,
       "head": {
         "name": "allow",

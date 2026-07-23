@@ -960,7 +960,7 @@ import rego.v1
 
 # METADATA
 # {"scope":"rule"}
-p := 7 if { true }`
+p := 7`
 
 	if module.String() != exp {
 		t.Fatalf("expected %q but got %q", exp, module.String())
@@ -992,12 +992,12 @@ g := 5 {
 } else := 7`,
 			exp: `package test
 
-a := 1 { true }
-b[1] { true }
-c[1] := 2 { true }
-d.e.f := 3 { true }
-e.f.g[1] = true { true }
-f.g.h[1] := 4 { true }
+a := 1
+b[1]
+c[1] := 2
+d.e.f := 3
+e.f.g[1] = true
+f.g.h[1] := 4
 g := 5 { false } else = 6 { false } else = 7 { true }`,
 		},
 		{
@@ -1023,12 +1023,12 @@ g := 5 if {
 
 import rego.v1
 
-a := 1 if { true }
-b contains 1 if { true }
-c[1] := 2 if { true }
-d.e.f := 3 if { true }
-e.f.g contains 1 if { true }
-f.g.h[1] := 4 if { true }
+a := 1
+b contains 1
+c[1] := 2
+d.e.f := 3
+e.f.g contains 1
+f.g.h[1] := 4
 g := 5 if { false } else = 6 if { false } else = 7 if { true }`,
 		},
 		{
@@ -1050,12 +1050,12 @@ g := 5 if {
 } else := 7`,
 			exp: `package test
 
-a := 1 if { true }
-b contains 1 if { true }
-c[1] := 2 if { true }
-d.e.f := 3 if { true }
-e.f.g contains 1 if { true }
-f.g.h[1] := 4 if { true }
+a := 1
+b contains 1
+c[1] := 2
+d.e.f := 3
+e.f.g contains 1
+f.g.h[1] := 4
 g := 5 if { false } else = 6 if { false } else = 7 if { true }`,
 		},
 	}

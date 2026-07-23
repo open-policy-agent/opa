@@ -5187,7 +5187,6 @@ p = [x | x := rego.metadata.chain()]`,
 
 p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] if {
 	__local2__ = [{"path": ["test", "p"]}]
-	true
 }`,
 		},
 		{
@@ -5215,7 +5214,6 @@ p = {x | x := rego.metadata.chain()}`,
 
 p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} if {
 	__local2__ = [{"path": ["test", "p"]}]
-	true
 }`,
 		},
 		{
@@ -5243,7 +5241,6 @@ p = {i: x | x := rego.metadata.chain()[i]}`,
 
 p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} if {
 	__local2__ = [{"path": ["test", "p"]}]
-	true
 }`,
 		},
 		{

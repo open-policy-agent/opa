@@ -1159,9 +1159,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1176,9 +1173,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1193,9 +1187,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1210,9 +1201,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1227,9 +1215,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1256,9 +1241,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1274,9 +1256,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1292,9 +1271,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1310,9 +1286,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1328,9 +1301,6 @@ func TestRuleHeadsContainingKeywords(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1608,9 +1578,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp, popts)
@@ -1625,9 +1592,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp, popts)
@@ -1642,9 +1606,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp, popts)
@@ -1659,9 +1620,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp, popts)
@@ -1676,9 +1634,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Assign:    true,
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp, popts)
@@ -1705,9 +1660,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1723,9 +1675,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1741,9 +1690,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1759,9 +1705,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -1777,9 +1720,6 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 					Args:      []*Term{VarTerm("$0"), VarTerm("$1")},
 				},
 				Default: true,
-				Body: NewBody(
-					NewExpr(BooleanTerm(true)),
-				),
 			}
 			t.Run(note, func(t *testing.T) {
 				assertParseRule(t, note, input, exp)
@@ -3608,7 +3548,6 @@ func TestIsValidImportPath(t *testing.T) {
 }
 
 func TestRule(t *testing.T) {
-
 	assertParseRule(t, "constant", `p = true { true }`, &Rule{
 		Head: NewHead(Var("p"), nil, BooleanTerm(true)),
 		Body: NewBody(
@@ -3694,7 +3633,6 @@ func TestRule(t *testing.T) {
 	assertParseRule(t, "default", `default allow = false`, &Rule{
 		Default: true,
 		Head:    NewHead(Var("allow"), nil, MustParseTerm("false")),
-		Body:    NewBody(NewExpr(BooleanTerm(true))),
 	})
 
 	assertParseRule(t, "default w/ assignment", `default allow := false`, &Rule{
@@ -3705,13 +3643,11 @@ func TestRule(t *testing.T) {
 			Value:     BooleanTerm(false),
 			Assign:    true,
 		},
-		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 
 	assertParseRule(t, "default w/ comprehension", `default widgets = [x | x = data.fooz[_]]`, &Rule{
 		Default: true,
 		Head:    NewHead(Var("widgets"), nil, MustParseTerm(`[x | x = data.fooz[_]]`)),
-		Body:    NewBody(NewExpr(BooleanTerm(true))),
 	})
 
 	assertParseRule(t, "one line with braces", `p[x] { x = data.a[_]; count(x, 3) }`, &Rule{
@@ -3915,7 +3851,6 @@ func TestRule(t *testing.T) {
 			Reference: Ref{VarTerm("a")},
 			Value:     BooleanTerm(true),
 		},
-		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 	assertParseRule(t, "empty arguments", `f() { x := 1 }`, &Rule{
 		Head: &Head{
