@@ -1348,8 +1348,7 @@ func TestWriterRejectsMixedPlanManifestFormats(t *testing.T) {
 			}},
 		}
 		b.SetManifestProto(true)
-		var buf bytes.Buffer
-		err := NewWriter(&buf).Write(b)
+		err := NewWriter(io.Discard).Write(b)
 		if err == nil || !strings.Contains(err.Error(), "proto manifest but JSON plan") {
 			t.Fatalf("expected mixed-format error, got: %v", err)
 		}
@@ -1362,8 +1361,7 @@ func TestWriterRejectsMixedPlanManifestFormats(t *testing.T) {
 				Path: PlanProtoFile, URL: PlanProtoFile, Raw: []byte{0x00},
 			}},
 		}
-		var buf bytes.Buffer
-		err := NewWriter(&buf).Write(b)
+		err := NewWriter(io.Discard).Write(b)
 		if err == nil || !strings.Contains(err.Error(), "JSON manifest but proto plan") {
 			t.Fatalf("expected mixed-format error, got: %v", err)
 		}
@@ -1376,8 +1374,7 @@ func TestWriterRejectsMixedPlanManifestFormats(t *testing.T) {
 				Path: PlanProtoFile, URL: PlanProtoFile, Raw: []byte{0x00},
 			}},
 		}
-		var buf bytes.Buffer
-		if err := NewWriter(&buf).Write(b); err != nil {
+		if err := NewWriter(io.Discard).Write(b); err != nil {
 			t.Fatalf("expected empty-manifest write to succeed, got: %v", err)
 		}
 	})
@@ -1390,8 +1387,7 @@ func TestWriterRejectsMixedPlanManifestFormats(t *testing.T) {
 			}},
 		}
 		b.SetManifestProto(true)
-		var buf bytes.Buffer
-		if err := NewWriter(&buf).Write(b); err != nil {
+		if err := NewWriter(io.Discard).Write(b); err != nil {
 			t.Fatalf("expected uniform-proto write to succeed, got: %v", err)
 		}
 	})

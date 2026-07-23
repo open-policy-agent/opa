@@ -1238,8 +1238,8 @@ func removeDuplicate(list []Value) []Value {
 	return newResult
 }
 
-func getArgTypes(env *TypeEnv, args []*Term) []types.Type {
-	pre := make([]types.Type, len(args))
+func getArgTypes(env *TypeEnv, args []*Term) (pre []types.Type) {
+	pre = make([]types.Type, len(args))
 	for i := range args {
 		pre[i] = env.GetByValue(args[i].Value)
 	}

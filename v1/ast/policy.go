@@ -402,7 +402,7 @@ func (mod *Module) String() string {
 func (mod *Module) RuleSet(name Var) RuleSet {
 	rs := NewRuleSet()
 	for _, rule := range mod.Rules {
-		if rule.Head.Name.Equal(name) {
+		if rule.Head.Name == name {
 			rs.Add(rule)
 		}
 	}
@@ -1081,19 +1081,7 @@ func (body Body) Set(expr *Expr, pos int) {
 //
 // If body is a subset of other, it is considered less than (and vice versa).
 func (body Body) Compare(other Body) int {
-	minLen := min(len(other), len(body))
-	for i := range minLen {
-		if cmp := body[i].Compare(other[i]); cmp != 0 {
-			return cmp
-		}
-	}
-	if len(body) < len(other) {
-		return -1
-	}
-	if len(other) < len(body) {
-		return 1
-	}
-	return 0
+	return slices.CompareFunc(body, other, (*Expr).Compare)
 }
 
 // Copy returns a deep copy of body.
@@ -2142,14 +2130,6 @@ func isGlobalBuiltin(expr *Expr, name Var) bool {
 		return false
 	}
 
-	// NOTE(tsandall): do not use Term#Equal or Value#Compare to avoid
-	// allocation here.
 	ref, ok := terms[0].Value.(Ref)
-	if !ok || len(ref) != 1 {
-		return false
-	}
-	if head, ok := ref[0].Value.(Var); ok {
-		return head.Equal(name)
-	}
-	return false
+	return ok && len(ref) == 1 && name.Equal(ref[0].Value)
 }

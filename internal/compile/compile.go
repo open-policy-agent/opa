@@ -148,7 +148,7 @@ func ShortsFromMappings(mappings map[string]any) Set[string] {
 // number of rules present on the compiler. It should be used only for
 // error messages.
 func FuzzyRuleNameMatchHint(comp *ast.Compiler, input string) string {
-	rules := comp.GetRules(ast.Ref{ast.DefaultRootDocument})
+	rules := comp.GetRules(ast.DefaultRootRef)
 	ruleNames := make([]string, 0, len(rules))
 	for _, rule := range rules {
 		if rule.Default {

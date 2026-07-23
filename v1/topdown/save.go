@@ -292,7 +292,7 @@ func (s *saveSupport) Exists(path ast.Ref) bool {
 	if len(ruleRef) == 1 {
 		name := ruleRef[0].Value.(ast.Var)
 		for _, rule := range module.Rules {
-			if rule.Head.Name.Equal(name) {
+			if rule.Head.Name == name {
 				return true
 			}
 		}
@@ -580,7 +580,7 @@ func (i *inliningControl) DisabledVar(v ast.Var, ignoreInternal bool) bool {
 	}
 
 	for _, frame := range i.disable {
-		if (!frame.internal || !ignoreInternal) && frame.v.Equal(v) {
+		if (!frame.internal || !ignoreInternal) && frame.v == v {
 			return true
 		}
 	}
