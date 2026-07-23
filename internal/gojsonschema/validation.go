@@ -419,8 +419,9 @@ func (v *SubSchema) validateCommon(currentSubSchema *SubSchema, value any, resul
 		}
 	}
 
-	// enum:
-	if len(currentSubSchema.enum) > 0 {
+	// enum: nil means the keyword is absent; non-nil (including empty) means
+	// the instance must deep-equal one of the listed values.
+	if currentSubSchema.enum != nil {
 		vString, err := marshalWithoutNumber(value)
 		if err != nil {
 			result.addInternalError(new(InternalError), context, value, ErrorDetails{"error": err})

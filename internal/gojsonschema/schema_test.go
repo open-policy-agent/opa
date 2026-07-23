@@ -410,3 +410,56 @@ func TestIncorrectRef(t *testing.T) {
 		t.Errorf("Expected error 'Object has no key 'fail'' but got '%s'", err.Error())
 	}
 }
+
+// Empty enum is unsatisfiable: every instance must fail validation.
+// Note: draft meta-schemas require minItems:1 on enum, so this is only
+// exercised when meta-schema validation is off (the default for NewSchema
+// and for OPA's json.match_schema builtin).
+func TestEmptyEnumUnsatisfiable(t *testing.T) {
+	schema, err := NewSchema(NewStringLoader(`{"enum": []}`))
+	if err != nil {
+		t.Fatalf("unexpected schema compile error: %v", err)
+	}
+
+	// Also ensure a missing enum keyword still accepts any value.
+	noEnum, err := NewSchema(NewStringLoader(`{}`))
+	if err != nil {
+		t.Fatalf("unexpected schema compile error: %v", err)
+	}
+
+	cases := []string{`"a"`, `1`, `null`, `true`, `[]`, `{}`}
+	for _, data := range cases {
+		result, err := schema.Validate(NewStringLoader(data))
+		if err != nil {
+			t.Fatalf("data %s: unexpected error: %v", data, err)
+		}
+		if result.Valid() {
+			t.Errorf("data %s: expected empty enum to fail, got valid", data)
+		}
+		if len(result.Errors()) == 0 || result.Errors()[0].Type() != "enum" {
+			t.Errorf("data %s: expected enum error, got %v", data, result.Errors())
+		}
+
+		ok, err := noEnum.Validate(NewStringLoader(data))
+		if err != nil {
+			t.Fatalf("data %s: unexpected error for missing enum: %v", data, err)
+		}
+		if !ok.Valid() {
+			t.Errorf("data %s: schema without enum should accept instance", data)
+		}
+	}
+
+	// Non-empty enum control cases.
+	normal, err := NewSchema(NewStringLoader(`{"enum": ["a", "b", "c"]}`))
+	if err != nil {
+		t.Fatalf("unexpected schema compile error: %v", err)
+	}
+	pass, err := normal.Validate(NewStringLoader(`"a"`))
+	if err != nil || !pass.Valid() {
+		t.Fatalf("expected listed enum value to pass, err=%v valid=%v", err, pass != nil && pass.Valid())
+	}
+	fail, err := normal.Validate(NewStringLoader(`"z"`))
+	if err != nil || fail.Valid() {
+		t.Fatalf("expected unlisted enum value to fail, err=%v valid=%v", err, fail != nil && fail.Valid())
+	}
+}
