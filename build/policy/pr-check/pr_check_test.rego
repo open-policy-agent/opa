@@ -59,6 +59,8 @@ example_proto_changelist := [{"filename": "v1/ir/plan.proto"}]
 
 example_buf_yaml_changelist := [{"filename": "buf.yaml"}]
 
+example_workflow_only_changelist := [{"filename": ".github/workflows/pull-request.yaml"}]
+
 test_run_docs_check_expect if {
 	pr_check.changes.docs with input as example_docs_changelist
 }
@@ -141,6 +143,16 @@ test_run_no_proto_check_for_unrelated if {
 test_run_no_proto_check_for_stray_proto if {
 	stray := [{"filename": "docs/examples/foo.proto"}]
 	not pr_check.changes.proto with input as stray
+}
+
+# A change to a CI workflow file can affect any job, so every check must run.
+test_workflow_change_triggers_all_checks if {
+	pr_check.changes.docs with input as example_workflow_only_changelist
+	pr_check.changes.go with input as example_workflow_only_changelist
+	pr_check.changes.wasm with input as example_workflow_only_changelist
+	pr_check.changes.rego with input as example_workflow_only_changelist
+	pr_check.changes.yaml with input as example_workflow_only_changelist
+	pr_check.changes.proto with input as example_workflow_only_changelist
 }
 
 # A .proto-only PR must still trigger the go-test job, since the
