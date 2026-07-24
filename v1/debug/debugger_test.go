@@ -2113,7 +2113,7 @@ func setupDebuggerSession(ctx context.Context, stk stack, launchProperties Launc
 		opts = append(opts, SetEventHandler(eh))
 	}
 
-	varManager := newVariableManager()
+	varManager := newVariableManager(100)
 	d := newDebugger(opts...)
 	t := newThread(1, "test", stk, varManager, vc, store, l)
 	s := newSession(ctx, d, varManager, launchProperties, []*thread{t})

@@ -36,6 +36,13 @@ func SetEventHandler(handler EventHandler) DebuggerOption {
 	return v1.SetEventHandler(handler)
 }
 
+// SetMaxVariableLength sets the maximum length of variable values displayed in the debugger.
+// Values longer than this limit will be truncated. A value of 0 disables truncation.
+// If not set, the default is 100 characters.
+func SetMaxVariableLength(maxVariableLength int) DebuggerOption {
+	return v1.SetMaxVariableLength(maxVariableLength)
+}
+
 type LaunchEvalProperties = v1.LaunchEvalProperties
 
 type LaunchTestProperties = v1.LaunchTestProperties
