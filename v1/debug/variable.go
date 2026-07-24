@@ -109,6 +109,10 @@ func (vs *variableManager) vars(varRef VarRef) ([]Variable, error) {
 	return vars, nil
 }
 
+// truncatedString truncates s to at most max characters. When max <= 3 it returns
+// s unchanged to avoid a negative slice index (s[:max-2]) and to prevent producing
+// output longer than max. Otherwise strings longer than max are truncated to
+// s[:max-2] + "...".
 func truncatedString(s string, max int) string {
 	if max <= 3 {
 		return s
@@ -147,9 +151,8 @@ func (vs *variableManager) subVars(v ast.Value) VarRef {
 		vars := make([]namedVar, 0, obj.Len())
 		if err := obj.Iter(func(k, v *ast.Term) error {
 			vars = append(vars, namedVar{
-				name:              k.String(),
-				value:             v.Value,
-				maxVariableLength: vs.maxVariableLength,
+				name:  k.String(),
+				value: v.Value,
 			})
 			return nil
 		}); err != nil {
@@ -164,9 +167,8 @@ func (vs *variableManager) subVars(v ast.Value) VarRef {
 		vars := make([]namedVar, 0, arr.Len())
 		for i := range arr.Len() {
 			vars = append(vars, namedVar{
-				name:              strconv.Itoa(i),
-				value:             arr.Elem(i).Value,
-				maxVariableLength: vs.maxVariableLength,
+				name:  strconv.Itoa(i),
+				value: arr.Elem(i).Value,
 			})
 		}
 		return vs.addVars(func() []namedVar {
@@ -178,8 +180,7 @@ func (vs *variableManager) subVars(v ast.Value) VarRef {
 		vars := make([]namedVar, 0, set.Len())
 		for _, elem := range set.Slice() {
 			vars = append(vars, namedVar{
-				value:             elem.Value,
-				maxVariableLength: vs.maxVariableLength,
+				value: elem.Value,
 			})
 		}
 		return vs.addVars(func() []namedVar {
