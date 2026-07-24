@@ -89,6 +89,10 @@ information on external authorization:
 - [Network](https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/ext_authz_filter#config-network-filters-ext-authz)
   and [HTTP](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_authz_filter#config-http-filters-ext-authz)
   for details on configuring the External Authorization filter.
+- [Best practices](https://www.envoyproxy.io/docs/envoy/latest/configuration/best_practices/edge)
+  for hardening Envoy. Enable `normalize_path`, `merge_slashes`, and
+  `path_with_escaped_slashes_action` so that path-based authorization decisions match the
+  path the upstream serves. See the `parsed_path` note in the [Policy Primer](./envoy/primer).
 
 ## Ecosystem Projects
 
