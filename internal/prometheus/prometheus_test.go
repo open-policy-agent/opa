@@ -4,7 +4,8 @@
 //
 // NOTE: Different go runtime metrics in pretty much
 // every Go version. Let's only test these on latest.
-//go:build go1.26
+
+//go:build !go1.27
 
 package prometheus
 

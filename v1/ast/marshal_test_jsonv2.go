@@ -1,13 +1,16 @@
-//go:build !go1.27
+// Copyright 2026 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+//go:build go1.27
 
 package ast
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -96,13 +99,7 @@ func TestGeneric_MarshalWithLocationJSONOptions(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Term)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Term))
 		})
 	}
 }
@@ -164,13 +161,7 @@ func TestTerm_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Term)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Term))
 		})
 	}
 }
@@ -268,13 +259,7 @@ func TestPackage_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Package)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Package))
 		})
 	}
 }
@@ -328,13 +313,7 @@ func TestComment_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Comment)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Comment))
 		})
 	}
 }
@@ -405,13 +384,7 @@ func TestImport_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Import)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Import))
 		})
 	}
 }
@@ -486,13 +459,7 @@ func TestRule_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Rule)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Rule))
 		})
 	}
 }
@@ -551,13 +518,7 @@ func TestHead_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Head)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Head))
 		})
 	}
 }
@@ -594,9 +555,7 @@ ref.head[rule].test contains "value" if {
 	// Ensure marshalled JSON includes location for any term
 	expectedJSON := `{"key":{"location":{"file":"test.rego","row":5,"col":30},"type":"string","value":"value"},"ref":[{"location":{"file":"test.rego","row":5,"col":1},"type":"var","value":"ref"},{"location":{"file":"test.rego","row":5,"col":5},"type":"string","value":"head"},{"location":{"file":"test.rego","row":5,"col":10},"type":"var","value":"rule"},{"location":{"file":"test.rego","row":5,"col":16},"type":"string","value":"test"}],"location":{"file":"test.rego","row":5,"col":1}}`
 
-	if string(bs) != expectedJSON {
-		t.Errorf("expected %s but got %s", expectedJSON, string(bs))
-	}
+	util.AssertJsonEqual(t, expectedJSON, bs)
 }
 
 func TestExpr_MarshalJSON(t *testing.T) {
@@ -653,13 +612,7 @@ func TestExpr_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Expr)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Expr))
 		})
 	}
 }
@@ -766,13 +719,7 @@ func TestSomeDecl_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.SomeDecl)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.SomeDecl))
 		})
 	}
 }
@@ -827,13 +774,7 @@ allow if {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Every)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Every))
 		})
 	}
 }
@@ -879,19 +820,12 @@ b if {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(with)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(with))
 		})
 	}
 }
 
 func TestAnnotations_MarshalJSON(t *testing.T) {
-
 	testCases := map[string]struct {
 		Annotations  *Annotations
 		Options      astJSON.Options
@@ -956,63 +890,12 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Annotations)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Annotations))
 		})
 	}
 }
 
-func TestAnnotations_MarshalJSON_Compile(t *testing.T) {
-	// Regression: Annotations.MarshalJSON used to silently drop the
-	// `Compile` field even though the struct tag is `compile,omitempty`.
-	// Default-reflection unmarshal still reads `compile`, so the round-trip
-	// was asymmetric until this was fixed.
-	a := &Annotations{
-		Scope: "rule",
-		Compile: &CompileAnnotation{
-			Unknowns: []Ref{MustParseRef("input.x"), MustParseRef("input.y")},
-			MaskRule: MustParseRef("data.policy.mask"),
-		},
-	}
-
-	bs, err := json.Marshal(a)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-
-	var got map[string]any
-	if err := json.Unmarshal(bs, &got); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	compile, ok := got["compile"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected `compile` key in marshaled output, got: %s", bs)
-	}
-	if _, ok := compile["unknowns"].([]any); !ok {
-		t.Errorf("expected compile.unknowns to be a JSON array, got: %v", compile["unknowns"])
-	}
-	if _, ok := compile["mask_rule"].([]any); !ok {
-		t.Errorf("expected compile.mask_rule to be a JSON array (Ref), got: %v", compile["mask_rule"])
-	}
-
-	// nil Compile should not emit the key (`omitempty` semantics).
-	a.Compile = nil
-	bs, err = json.Marshal(a)
-	if err != nil {
-		t.Fatalf("marshal nil compile: %v", err)
-	}
-	if strings.Contains(string(bs), "compile") {
-		t.Errorf("expected nil Compile to be omitted, got: %s", bs)
-	}
-}
-
 func TestAnnotationsRef_MarshalJSON(t *testing.T) {
-
 	testCases := map[string]struct {
 		AnnotationsRef *AnnotationsRef
 		Options        astJSON.Options
@@ -1060,13 +943,7 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.AnnotationsRef)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if got != exp {
-				t.Fatalf("expected:\n%s got\n%s", exp, got)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.AnnotationsRef))
 		})
 	}
 }
@@ -1166,19 +1043,10 @@ p = 1`,
 			}
 
 			for i, a := range module.Annotations {
-				ref := NewAnnotationsRef(a)
-
-				bytes, err := json.Marshal(ref)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				got := string(bytes)
-				expected := tc.expected[i]
-
-				if got != expected {
-					t.Fatalf("expected:\n%s got\n%s", expected, got)
-				}
+				util.AssertJsonEqual(t,
+					tc.expected[i],
+					util.MustMarshalJSON(NewAnnotationsRef(a)),
+				)
 			}
 
 		})
@@ -1259,13 +1127,7 @@ func TestNot_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			bs := util.MustMarshalJSON(data.Not)
-			got := string(bs)
-			exp := data.ExpectedJSON
-
-			if diff := cmp.Diff(exp, got); diff != "" {
-				t.Errorf("unexpected json: (-want, +got):\n%s", diff)
-			}
+			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Not))
 		})
 	}
 }

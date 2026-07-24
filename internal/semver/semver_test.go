@@ -165,7 +165,7 @@ func BenchmarkAppendText(b *testing.B) {
 	v := MustParse("1.2.3-alpha.1+build.123")
 
 	for b.Loop() {
-		_, err := v.AppendText(nil)
+		_, err := v.AppendString(nil)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -181,7 +181,7 @@ func BenchmarkAppendTextPreAllocated(b *testing.B) {
 	buf := make([]byte, 0, 32)
 
 	for b.Loop() {
-		if buf, err = v.AppendText(buf); err != nil {
+		if buf, err = v.AppendString(buf); err != nil {
 			b.Fatal(err)
 		}
 		if string(buf) != "1.2.3-alpha.1+build.123" {
