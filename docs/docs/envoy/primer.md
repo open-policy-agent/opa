@@ -452,6 +452,24 @@ default allow := false
 allow if input.parsed_path == ["people"]
 ```
 
+:::warning
+`parsed_path` (and `parsed_query`) are derived from the request path exactly as Envoy
+forwards it: the path is percent-decoded but **not** otherwise normalized. Dot-segments
+(`.`, `..`) are not removed, and an encoded slash (`%2f`) is decoded to a `/` separator.
+As a result, `parsed_path` may not match the resource the upstream serves after it
+normalizes the path, and a policy that authorizes on path segments (e.g.
+`parsed_path[0] == "public"`) can be bypassed by requests such as `/public/../private` or
+`/public/..%2fprivate`.
+
+Path normalization is the proxy's responsibility. Follow Envoy's
+[best practices](https://www.envoyproxy.io/docs/envoy/latest/configuration/best_practices/edge)
+and enable `normalize_path` and `merge_slashes`, together with
+`path_with_escaped_slashes_action` (`REJECT_REQUEST`, `UNESCAPE_AND_REDIRECT`, or
+`UNESCAPE_AND_FORWARD`), so that OPA and the upstream evaluate the same path. Leaving
+`path_with_escaped_slashes_action` at `KEEP_UNCHANGED` is an explicit decision your policy
+must then account for.
+:::
+
 The `parsed_query` field in the input is also generated from the `path` field in the HTTP request. This field provides
 the HTTP URL query as a map of string array. The below sample policy allows anyone to access the path
 `/people?lang=en&id=1&id=2`.
