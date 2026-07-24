@@ -208,9 +208,11 @@ func NewHasherMap[K Hasher, V any](keq func(K, K) bool) *HasherMap[K, V] {
 
 // Get returns the value for k.
 func (h *HasherMap[K, V]) Get(k K) (V, bool) {
-	for entry := h.table[k.Hash()]; entry != nil; entry = entry.next {
-		if h.keq(entry.k, k) {
-			return entry.v, true
+	if h != nil {
+		for entry := h.table[k.Hash()]; entry != nil; entry = entry.next {
+			if h.keq(entry.k, k) {
+				return entry.v, true
+			}
 		}
 	}
 	var zero V
@@ -250,11 +252,28 @@ func (h *HasherMap[K, V]) Delete(k K) {
 	}
 }
 
+// Keys returns a slice containing all keys in the HasherMap.
+func (h *HasherMap[K, V]) Keys() []K {
+	if h == nil {
+		return nil
+	}
+	keys := make([]K, 0, h.size)
+	for _, entry := range h.table {
+		for ; entry != nil; entry = entry.next {
+			keys = append(keys, entry.k)
+		}
+	}
+	return keys
+}
+
 // Iter invokes the iter function for each element in the HasherMap.
 // If the iter function returns true, iteration stops and the return value is true.
 // If the iter function never returns true, iteration proceeds through all elements
 // and the return value is false.
 func (h *HasherMap[K, V]) Iter(iter func(K, V) bool) bool {
+	if h == nil {
+		return false
+	}
 	for _, entry := range h.table {
 		for ; entry != nil; entry = entry.next {
 			if iter(entry.k, entry.v) {
@@ -265,7 +284,10 @@ func (h *HasherMap[K, V]) Iter(iter func(K, V) bool) bool {
 	return false
 }
 
-// Len returns the current size of this HashMap.
+// Len returns the current size of this HashMap, or 0 if the HasherMap is nil.
 func (h *HasherMap[K, V]) Len() int {
+	if h == nil {
+		return 0
+	}
 	return h.size
 }

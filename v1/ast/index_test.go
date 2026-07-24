@@ -1508,6 +1508,46 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 	}
 }
 
+func TestRefIndicesSorted(t *testing.T) {
+	ri := newrefindices(func(Ref) bool { return false })
+
+	// Insert refs with distinct frequencies in an order that doesn't match
+	// the expected (frequency-descending) output, so that a sort which
+	// fails to keep each ref paired with its own count would be caught.
+	freqs := map[string]int{
+		"input.a": 1,
+		"input.b": 7,
+		"input.c": 2,
+		"input.d": 6,
+		"input.e": 3,
+		"input.f": 5,
+		"input.g": 4,
+	}
+
+	for ref, n := range freqs {
+		r := MustParseRef(ref)
+		for range n {
+			count, _ := ri.frequency.Get(r)
+			ri.frequency.Put(r, count+1)
+		}
+	}
+
+	sorted := ri.Sorted()
+
+	if len(sorted) != len(freqs) {
+		t.Fatalf("expected %d refs, got %d", len(freqs), len(sorted))
+	}
+
+	prevCount := -1
+	for _, ref := range sorted {
+		count := freqs[ref.String()]
+		if prevCount != -1 && count > prevCount {
+			t.Fatalf("expected refs sorted by descending frequency, but got %v with count %d after count %d", sorted, count, prevCount)
+		}
+		prevCount = count
+	}
+}
+
 func TestSplitStringEscaped(t *testing.T) {
 	tests := []struct {
 		input  string
