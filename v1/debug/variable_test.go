@@ -1,4 +1,4 @@
-// Copyright 2024 The OPA Authors.  All rights reserved.
+// Copyright 2026 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
@@ -12,6 +12,7 @@ import (
 )
 
 func TestTruncatedString(t *testing.T) {
+	t.Helper()
 	tests := []struct {
 		name     string
 		s        string
@@ -92,6 +93,7 @@ func TestTruncatedString(t *testing.T) {
 
 func TestVariableValueLengthLimit(t *testing.T) {
 	// A string value longer than the default 100-character limit.
+	t.Helper()
 	// ast.String.String() renders strings with surrounding quotes, so the
 	// expected values below include those quote characters.
 	longValue := strings.Repeat("x", 150)
