@@ -7,6 +7,7 @@ package cover
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -141,10 +142,13 @@ func TestCoverRangeCases(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
-		module     string
-		query      string
-		covered    []Range
-		notCovered []Range
+		module           string
+		query            string
+		reportKey        string // defaults to "test.rego" if empty
+		covered          []Range
+		notCovered       []Range
+		indexExcluded    []Range
+		notIndexExcluded []Range
 	}{
 		"rule head and value expression on same row counted once": {
 			module: `package test
@@ -177,6 +181,159 @@ test_foo if {
 			},
 			notCovered: []Range{
 				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}}, // foo head
+			},
+		},
+		"index-excluded rule body is not covered": {
+			module: `package test
+
+allow if {
+	input.action == "read"
+}
+
+allow if {
+	input.action in {"delete", "update"}
+}
+
+test_allow_write if {
+	allow with input as {"action": "write"}
+}
+`,
+			query: "data.test.test_allow_write",
+			covered: []Range{
+				{Start: Position{Row: 12, Col: 2}, End: Position{Row: 12, Col: 41}},
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
+			},
+			indexExcluded: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
+			},
+		},
+		"index-excluded rule body is not covered, bundle key mismatch": {
+			// Lookup must key on loc.File, not the modules map key, since bundle
+			// modules key differently from their parse-time Location.File.
+			module: `package test
+
+allow if {
+	input.action == "read"
+}
+
+allow if {
+	input.action in {"delete", "update"}
+}
+
+test_allow_write if {
+	allow with input as {"action": "write"}
+}
+`,
+			query:     "data.test.test_allow_write",
+			reportKey: "bundle/test.rego",
+			indexExcluded: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
+			},
+		},
+		"index-excluded root rule: else branch also excluded": {
+			module: `package test
+
+allow if {
+	input.action == "read"
+} else if {
+	input.action == "admin"
+}
+
+allow if {
+	input.action in {"delete", "update"}
+}
+
+test_allow_write if {
+	allow with input as {"action": "write"}
+}
+`,
+			query: "data.test.test_allow_write",
+			covered: []Range{
+				{Start: Position{Row: 14, Col: 2}, End: Position{Row: 14, Col: 41}},
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},    // allow head (root)
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},   // input.action == "read"
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 24}},   // input.action == "admin" (else body)
+				{Start: Position{Row: 9, Col: 1}, End: Position{Row: 9, Col: 6}},    // allow head (second)
+				{Start: Position{Row: 10, Col: 2}, End: Position{Row: 10, Col: 38}}, // input.action in ...
+			},
+			indexExcluded: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},    // allow head (root)
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},   // input.action == "read"
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 24}},   // input.action == "admin" (else body)
+				{Start: Position{Row: 9, Col: 1}, End: Position{Row: 9, Col: 6}},    // allow head (second)
+				{Start: Position{Row: 10, Col: 2}, End: Position{Row: 10, Col: 38}}, // input.action in ...
+			},
+		},
+		"else rule promoted to root by indexer: short-circuited else body is not falsely index-excluded": {
+			// Lookup can promote the else-rule into the "root" slot; input.foo is
+			// merely short-circuited by 1 == 2, not index-excluded.
+			module: `package test
+
+allow if {
+	input.undef
+} else if {
+	1 == 2
+	input.foo
+}
+
+test_allow if {
+	allow with input as {"foo": true}
+}
+`,
+			query: "data.test.test_allow",
+			covered: []Range{
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 8}},    // 1 == 2
+				{Start: Position{Row: 11, Col: 2}, End: Position{Row: 11, Col: 35}}, // test_allow body
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},    // allow head (primary)
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}},   // input.undef
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},    // else head
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}},   // input.foo (short-circuited, not index-excluded)
+				{Start: Position{Row: 10, Col: 1}, End: Position{Row: 10, Col: 11}}, // test_allow head
+			},
+			indexExcluded: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},  // allow head (primary)
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}}, // input.undef
+			},
+			notIndexExcluded: []Range{
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},    // else head: reached, just never exits
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}},   // input.foo: short-circuited, NOT index-excluded
+				{Start: Position{Row: 10, Col: 1}, End: Position{Row: 10, Col: 11}}, // test_allow head: reached, just never exits
+			},
+		},
+		"negated expression rule is not covered without indexer exclusion": {
+			module: `package test
+
+allow if {
+	not input.blocked
+}
+
+other if {
+	true
+}
+`,
+			query: "data.test.other",
+			covered: []Range{
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 6}},
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 19}},
 			},
 		},
 		"semicolon-separated expressions short-circuit": {
@@ -224,10 +381,15 @@ test_foo if {
 				t.Fatalf("failed to evaluate: %v", err)
 			}
 
-			report := cover.Report(map[string]*ast.Module{"test.rego": parsedModule})
-			fr, ok := report.Files["test.rego"]
+			reportKey := tc.reportKey
+			if reportKey == "" {
+				reportKey = "test.rego"
+			}
+
+			report := cover.Report(map[string]*ast.Module{reportKey: parsedModule})
+			fr, ok := report.Files[reportKey]
 			if !ok {
-				t.Fatal("expected file report for test.rego")
+				t.Fatalf("expected file report for %q", reportKey)
 			}
 
 			for _, r := range tc.covered {
@@ -241,6 +403,22 @@ test_foo if {
 					t.Errorf("expected range %v to be not covered", r)
 				}
 			}
+
+			for _, r := range tc.indexExcluded {
+				if notCoveredKind(t, fr, r) != KindIndexExcluded {
+					t.Errorf("expected range %v to be indexer excluded", r)
+				}
+				// index-excluded ranges must also appear in not_covered (backward compat)
+				if !fr.isRangeNotCovered(r) {
+					t.Errorf("expected index-excluded range %v to also be in not_covered", r)
+				}
+			}
+
+			for _, r := range tc.notIndexExcluded {
+				if kind := notCoveredKind(t, fr, r); kind != "" {
+					t.Errorf("expected range %v to NOT be indexer excluded, got kind %q", r, kind)
+				}
+			}
 		})
 	}
 }
@@ -248,9 +426,24 @@ test_foo if {
 func TestCoverQueryTracerInterface(t *testing.T) {
 	ct := topdown.QueryTracer(New())
 	conf := ct.Config()
-	expected := topdown.TraceConfig{PlugLocalVars: false}
+	expected := topdown.TraceConfig{
+		PlugLocalVars: false,
+		ReportOps:     []topdown.Op{topdown.IndexExcludedOp},
+	}
 
-	if expected != conf {
+	if !reflect.DeepEqual(expected, conf) {
 		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
 	}
+}
+
+// notCoveredKind returns the Kind of the not-covered range in fr containing
+// r, or "" if r is not found among fr.NotCovered.
+func notCoveredKind(t *testing.T, fr *FileReport, r Range) Kind {
+	t.Helper()
+	for _, candidate := range fr.NotCovered {
+		if candidate.contains(r) {
+			return candidate.Kind
+		}
+	}
+	return ""
 }
