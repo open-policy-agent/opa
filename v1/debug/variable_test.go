@@ -92,14 +92,13 @@ func TestTruncatedString(t *testing.T) {
 }
 
 func TestVariableValueLengthLimit(t *testing.T) {
-	// A string value longer than the default 100-character limit.
 	t.Helper()
+	// A string value longer than the default 100-character limit.
 	// ast.String.String() renders strings with surrounding quotes, so the
 	// expected values below include those quote characters.
 	longValue := strings.Repeat("x", 150)
 	// A string value under the limit.
 	shortValue := strings.Repeat("y", 50)
-
 	tests := []struct {
 		name              string
 		maxVariableLength int
