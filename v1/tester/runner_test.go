@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -1196,5 +1197,90 @@ func TestReporterFormatsWithExplicitParallel(t *testing.T) {
 				tc.exp(str)
 			})
 		})
+	}
+}
+
+func TestResultJSONRoundTrip(t *testing.T) {
+	loc := ast.NewLocation([]byte("data.foo"), "test.rego", 3, 5)
+
+	tests := []struct {
+		note string
+		err  error
+		// exp is the error the round-tripped Result is expected to carry. It
+		// is nil for errors that have no JSON representation of their own:
+		// those marshal to an empty object, so only the presence of an error
+		// survives the round trip.
+		exp error
+	}{
+		{
+			note: "plain error",
+			err:  errors.New("test error"),
+		},
+		{
+			note: "topdown error",
+			err:  &topdown.Error{Code: topdown.CancelErr, Message: "context deadline exceeded"},
+			exp:  &topdown.Error{Code: topdown.CancelErr, Message: "context deadline exceeded"},
+		},
+		{
+			note: "topdown error with location",
+			err:  &topdown.Error{Code: topdown.InternalErr, Message: "boom", Location: loc},
+			exp:  &topdown.Error{Code: topdown.InternalErr, Message: "boom", Location: loc},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			result := &tester.Result{Name: "test_a", Error: tc.err}
+
+			var act tester.Result
+			if err := util.UnmarshalJSON(util.MustMarshalJSON(result), &act); err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if act.Error == nil {
+				t.Fatal("Expected error to survive the round trip, got nil")
+			}
+
+			if tc.exp == nil {
+				return
+			}
+
+			if act.Error.Error() != tc.exp.Error() {
+				t.Fatalf("Expected error %q, got %q", tc.exp.Error(), act.Error.Error())
+			}
+		})
+	}
+}
+
+func TestResultUnmarshalJSONEvalError(t *testing.T) {
+	// Payload as emitted by `opa test --format json` when a test errors out.
+	bs := []byte(`{
+		"location": {"file": "main_test.rego", "row": 285, "col": 1},
+		"package": "data.regal.main_test",
+		"name": "test_lint_from_stdin",
+		"error": {"code": "eval_cancel_error", "message": "context deadline exceeded"},
+		"duration": 5009256675
+	}`)
+
+	var result tester.Result
+	if err := util.UnmarshalJSON(bs, &result); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if result.Error == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	var tdErr *topdown.Error
+	if !errors.As(result.Error, &tdErr) {
+		t.Fatalf("Expected *topdown.Error, got %T", result.Error)
+	}
+
+	if tdErr.Code != topdown.CancelErr {
+		t.Errorf("Expected code %q, got %q", topdown.CancelErr, tdErr.Code)
+	}
+
+	if exp := "context deadline exceeded"; tdErr.Message != exp {
+		t.Errorf("Expected message %q, got %q", exp, tdErr.Message)
 	}
 }

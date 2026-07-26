@@ -175,6 +175,50 @@ func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trac
 	}
 }
 
+// resultError mirrors the JSON shape *topdown.Error marshals to, which is the
+// form errors take in the output of `opa test --format json`.
+type resultError struct {
+	Code     string        `json:"code,omitempty"`
+	Message  string        `json:"message,omitempty"`
+	Location *ast.Location `json:"location,omitempty"`
+}
+
+func (e *resultError) error() error {
+	if e == nil {
+		return nil
+	}
+
+	if e.Code != "" {
+		return &topdown.Error{Code: e.Code, Message: e.Message, Location: e.Location}
+	}
+
+	return errors.New(e.Message)
+}
+
+// resultAlias drops the methods of Result so that unmarshalling into it below
+// doesn't recurse. The anonymous struct shadows the embedded error interface
+// field, which is marshallable but not unmarshallable, with a concrete type.
+type resultAlias Result
+
+// UnmarshalJSON reads back the JSON produced for a Result. Marshalling is left
+// to the default encoder so that existing output is unchanged.
+func (r *Result) UnmarshalJSON(bs []byte) error {
+	aux := struct {
+		*resultAlias
+		Error *resultError `json:"error,omitempty"`
+	}{
+		resultAlias: (*resultAlias)(r),
+	}
+
+	if err := json.Unmarshal(bs, &aux); err != nil {
+		return err
+	}
+
+	r.Error = aux.Error.error()
+
+	return nil
+}
+
 // Pass returns true if the test case passed.
 func (r *Result) Pass() bool {
 	return !r.Fail && !r.Skip && r.Error == nil
