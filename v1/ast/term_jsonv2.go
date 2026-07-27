@@ -22,6 +22,7 @@ var (
 	_ json.MarshalerTo = &object{}
 	_ json.MarshalerTo = &TemplateString{}
 	_ json.MarshalerTo = &Ref{}
+	_ json.MarshalerTo = &lazyObj{}
 	_ json.MarshalerTo = Boolean(false)
 	_ json.MarshalerTo = Null{}
 	_ json.MarshalerTo = Number("")
@@ -135,6 +136,10 @@ func (obj *object) MarshalJSONTo(e *jsontext.Encoder) error {
 		e.WriteToken(jsontext.EndArray)
 	}
 	return e.WriteToken(jsontext.EndArray)
+}
+
+func (l *lazyObj) MarshalJSONTo(e *jsontext.Encoder) error {
+	return l.force().(*object).MarshalJSONTo(e)
 }
 
 func (l *lazyObj) MarshalJSON() ([]byte, error) {
