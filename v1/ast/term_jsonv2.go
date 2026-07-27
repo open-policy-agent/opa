@@ -22,7 +22,36 @@ var (
 	_ json.MarshalerTo = &object{}
 	_ json.MarshalerTo = &TemplateString{}
 	_ json.MarshalerTo = &Ref{}
+	_ json.MarshalerTo = Boolean(false)
+	_ json.MarshalerTo = Null{}
+	_ json.MarshalerTo = Number("")
+	_ json.MarshalerTo = String("")
 )
+
+// These are here to ensure that we do not fall down to TextAppender, which
+// Go 1.27's encoding/json would otherwise use, encoding these as JSON strings.
+
+func (b Boolean) MarshalJSONTo(e *jsontext.Encoder) error {
+	return e.WriteToken(jsontext.Bool(bool(b)))
+}
+
+func (Null) MarshalJSONTo(e *jsontext.Encoder) error {
+	// Encoded as an empty object rather than null, as that's the representation
+	// callers have come to expect. See also [marshalValueTo].
+	return e.WriteValue([]byte("{}"))
+}
+
+func (num Number) MarshalJSONTo(e *jsontext.Encoder) error {
+	if num == "" {
+		// Matches encoding/json v1, which encodes an empty json.Number as 0.
+		return e.WriteToken(jsontext.Int(0))
+	}
+	return e.WriteValue(jsontext.Value(num))
+}
+
+func (str String) MarshalJSONTo(e *jsontext.Encoder) error {
+	return e.WriteToken(jsontext.String(string(str)))
+}
 
 func (t *Term) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 	e.WriteToken(jsontext.BeginObject)

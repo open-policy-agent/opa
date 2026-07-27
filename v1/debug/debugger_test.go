@@ -1964,10 +1964,6 @@ func TestDebuggerScopeVariables(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if tc.note != "result" {
-			continue
-		}
-
 		t.Run(tc.note, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
