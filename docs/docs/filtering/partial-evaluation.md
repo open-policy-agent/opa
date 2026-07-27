@@ -31,6 +31,10 @@ include if {
 include if input.products.price == "free"
 ```
 
+The `compile` annotation declares which references are treated as _unknowns_ for
+this policy. See the [`compile` metadata annotation](../policy-language#metadata-compile)
+reference for the full set of supported fields.
+
 This walkthrough follows the policy in the same way the evaluator does, using the following input:
 
 ```json
