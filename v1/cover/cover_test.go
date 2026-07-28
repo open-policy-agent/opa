@@ -144,6 +144,7 @@ func TestCoverRangeCases(t *testing.T) {
 	cases := map[string]struct {
 		module           string
 		query            string
+		input            any
 		reportKey        string // defaults to "test.rego" if empty
 		covered          []Range
 		notCovered       []Range
@@ -193,6 +194,33 @@ allow if {
 allow if {
 	input.action in {"delete", "update"}
 }
+`,
+			query: "data.test.allow",
+			input: map[string]any{"action": "write"},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
+			},
+			indexExcluded: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
+			},
+		},
+		"index exclusions inside a with scope": {
+			// with pushes a new eval frame and exclusions there must still be reported
+			module: `package test
+
+allow if {
+	input.action == "read"
+}
+
+allow if {
+	input.action in {"delete", "update"}
+}
 
 test_allow_write if {
 	allow with input as {"action": "write"}
@@ -227,12 +255,9 @@ allow if {
 allow if {
 	input.action in {"delete", "update"}
 }
-
-test_allow_write if {
-	allow with input as {"action": "write"}
-}
 `,
-			query:     "data.test.test_allow_write",
+			query:     "data.test.allow",
+			input:     map[string]any{"action": "write"},
 			reportKey: "bundle/test.rego",
 			indexExcluded: []Range{
 				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
@@ -253,15 +278,9 @@ allow if {
 allow if {
 	input.action in {"delete", "update"}
 }
-
-test_allow_write if {
-	allow with input as {"action": "write"}
-}
 `,
-			query: "data.test.test_allow_write",
-			covered: []Range{
-				{Start: Position{Row: 14, Col: 2}, End: Position{Row: 14, Col: 41}},
-			},
+			query: "data.test.allow",
+			input: map[string]any{"action": "write"},
 			notCovered: []Range{
 				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},    // allow head (root)
 				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},   // input.action == "read"
@@ -288,31 +307,25 @@ allow if {
 	1 == 2
 	input.foo
 }
-
-test_allow if {
-	allow with input as {"foo": true}
-}
 `,
-			query: "data.test.test_allow",
+			query: "data.test.allow",
+			input: map[string]any{"foo": true},
 			covered: []Range{
-				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 8}},    // 1 == 2
-				{Start: Position{Row: 11, Col: 2}, End: Position{Row: 11, Col: 35}}, // test_allow body
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 8}}, // 1 == 2
 			},
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},    // allow head (primary)
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}},   // input.undef
-				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},    // else head
-				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}},   // input.foo (short-circuited, not index-excluded)
-				{Start: Position{Row: 10, Col: 1}, End: Position{Row: 10, Col: 11}}, // test_allow head
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},  // allow head (primary)
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}}, // input.undef
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},  // else head
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}}, // input.foo (short-circuited, not index-excluded)
 			},
 			indexExcluded: []Range{
 				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},  // allow head (primary)
 				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}}, // input.undef
 			},
 			notIndexExcluded: []Range{
-				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},    // else head: reached, just never exits
-				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}},   // input.foo: short-circuited, NOT index-excluded
-				{Start: Position{Row: 10, Col: 1}, End: Position{Row: 10, Col: 11}}, // test_allow head: reached, just never exits
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},  // else head: reached, just never exits
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}}, // input.foo: short-circuited, NOT index-excluded
 			},
 		},
 		"negated expression rule is not covered without indexer exclusion": {
@@ -371,11 +384,16 @@ test_foo if {
 				t.Fatalf("failed to parse module: %v", err)
 			}
 
-			eval := rego.New(
+			args := []func(*rego.Rego){
 				rego.ParsedModule(parsedModule),
 				rego.Query(tc.query),
 				rego.QueryTracer(cover),
-			)
+			}
+			if tc.input != nil {
+				args = append(args, rego.Input(tc.input))
+			}
+
+			eval := rego.New(args...)
 			_, err = eval.Eval(t.Context())
 			if err != nil {
 				t.Fatalf("failed to evaluate: %v", err)
