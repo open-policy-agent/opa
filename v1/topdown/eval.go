@@ -122,7 +122,7 @@ type eval struct {
 	traceEnabled                bool
 	plugTraceVars               bool
 	reportOps                   opSet
-	indexExclusions             map[ast.RuleIndex]map[*ast.Rule]struct{}
+	indexMatches                map[ast.RuleIndex]map[*ast.Rule]struct{}
 	skipSaveNamespace           bool
 	findOne                     bool
 	strictObjects               bool
@@ -1820,10 +1820,10 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term, index ast.RuleIndex) (*as
 	}
 
 	if e.indexing && e.reportOps.contains(IndexExcludedOp) {
-		matched, ok := e.indexExclusions[index]
+		matched, ok := e.indexMatches[index]
 		if !ok {
 			matched = make(map[*ast.Rule]struct{}, len(result.Rules))
-			e.indexExclusions[index] = matched
+			e.indexMatches[index] = matched
 		}
 		for _, r := range result.Rules {
 			matched[r] = struct{}{}
@@ -1840,11 +1840,11 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term, index ast.RuleIndex) (*as
 
 // flushIndexExclusions runs once evaluation is done: for every rule an
 // indexer knows about (AllRules) that was never matched during evaluation
-// (e.indexExclusions, populated by getRules), it emits an IndexExcludedOp
+// (e.indexMatches, populated by getRules), it emits an IndexExcludedOp
 // "leftover" event. Events are attributed to e, the top-level eval, since the
 // frame that originally recorded the match may already be pooled/recycled.
 func (e *eval) flushIndexExclusions() {
-	for index, matched := range e.indexExclusions {
+	for index, matched := range e.indexMatches {
 		allResult, err := index.AllRules(nil)
 		if err != nil || allResult == nil {
 			continue
