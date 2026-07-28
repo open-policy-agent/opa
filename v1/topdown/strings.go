@@ -557,6 +557,55 @@ func builtinSplit(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 	return iter(ast.ArrayTerm(util.SplitMap(text, delim, ast.InternedTerm)...))
 }
 
+func builtinSplitN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	s, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	d, err := builtins.StringOperand(operands[1].Value, 2)
+	if err != nil {
+		return err
+	}
+
+	n, err := builtins.IntOperand(operands[2].Value, 3)
+	if err != nil {
+		return err
+	}
+
+	text, delim := string(s), string(d)
+
+	var result []*ast.Term
+	if n >= 0 {
+		// n+1 may overflow for very large n; a negative limit means no limit.
+		limit := n + 1
+		if limit < 0 {
+			limit = -1
+		}
+		parts := strings.SplitN(text, delim, limit)
+		end := n
+		if end > len(parts) {
+			end = len(parts)
+		}
+		result = make([]*ast.Term, end)
+		for i := range result {
+			result[i] = ast.InternedTerm(parts[i])
+		}
+	} else {
+		parts := strings.Split(text, delim)
+		start := len(parts) + n
+		if start < 0 {
+			start = 0
+		}
+		result = make([]*ast.Term, len(parts)-start)
+		for i, p := range parts[start:] {
+			result[i] = ast.InternedTerm(p)
+		}
+	}
+
+	return iter(ast.ArrayTerm(result...))
+}
+
 func builtinReplace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	s, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
@@ -831,6 +880,7 @@ func init() {
 	RegisterBuiltinFunc(ast.Upper.Name, builtinUpper)
 	RegisterBuiltinFunc(ast.Lower.Name, builtinLower)
 	RegisterBuiltinFunc(ast.Split.Name, builtinSplit)
+	RegisterBuiltinFunc(ast.SplitN.Name, builtinSplitN)
 	RegisterBuiltinFunc(ast.Replace.Name, builtinReplace)
 	RegisterBuiltinFunc(ast.ReplaceN.Name, builtinReplaceN)
 	RegisterBuiltinFunc(ast.Trim.Name, builtinTrim)

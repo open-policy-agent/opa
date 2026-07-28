@@ -185,6 +185,7 @@
       "strings.render_template",
       "strings.replace_n",
       "strings.reverse",
+      "strings.split_n",
       "substring",
       "trim",
       "trim_left",
@@ -24639,6 +24640,36 @@
       "type": "string"
     },
     "wasm": true
+  },
+  "strings.split_n": {
+    "args": [
+      {
+        "description": "string that is split",
+        "name": "x",
+        "type": "string"
+      },
+      {
+        "description": "delimiter used for splitting",
+        "name": "delimiter",
+        "type": "string"
+      },
+      {
+        "description": "number of parts to return; positive selects from the left, negative from the right, zero returns an empty array",
+        "name": "n",
+        "type": "number"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns an array of at most `n` parts of `x` split on `delimiter`. If `n` is positive, returns the first `n` parts. If `n` is negative, returns the last `abs(n)` parts. If `n` is zero, returns an empty array. If `abs(n)` exceeds the number of parts, all parts are returned.",
+    "introduced": "edge",
+    "result": {
+      "description": "split parts",
+      "name": "ys",
+      "type": "array[string]"
+    },
+    "wasm": false
   },
   "substring": {
     "args": [

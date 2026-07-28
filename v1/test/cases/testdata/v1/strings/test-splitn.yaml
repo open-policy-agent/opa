@@ -1,0 +1,194 @@
+---
+cases:
+  - note: strings/split_n/positive_basic
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c.d", ".", 2)
+        }
+    want_result:
+      - x: ["a", "b"]
+  - note: strings/split_n/positive_one
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c.d", ".", 1)
+        }
+    want_result:
+      - x: ["a"]
+  - note: strings/split_n/positive_exact
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c.d", ".", 4)
+        }
+    want_result:
+      - x: ["a", "b", "c", "d"]
+  - note: strings/split_n/positive_more_than_parts
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c.d", ".", 10)
+        }
+    want_result:
+      - x: ["a", "b", "c", "d"]
+  - note: strings/split_n/zero
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c.d", ".", 0)
+        }
+    want_result:
+      - x: []
+  - note: strings/split_n/negative_basic
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c.d", ".", -2)
+        }
+    want_result:
+      - x: ["c", "d"]
+  - note: strings/split_n/negative_one
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c.d", ".", -1)
+        }
+    want_result:
+      - x: ["d"]
+  - note: strings/split_n/negative_exact
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c.d", ".", -4)
+        }
+    want_result:
+      - x: ["a", "b", "c", "d"]
+  - note: strings/split_n/negative_more_than_parts
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c.d", ".", -10)
+        }
+    want_result:
+      - x: ["a", "b", "c", "d"]
+  - note: strings/split_n/no_delimiter_found_positive
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("abc", ".", 2)
+        }
+    want_result:
+      - x: ["abc"]
+  - note: strings/split_n/no_delimiter_found_negative
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("abc", ".", -2)
+        }
+    want_result:
+      - x: ["abc"]
+  - note: strings/split_n/empty_string
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("", ".", 2)
+        }
+    want_result:
+      - x: [""]
+  - note: strings/split_n/empty_delimiter_positive
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("abc", "", 2)
+        }
+    want_result:
+      - x: ["a", "b"]
+  - note: strings/split_n/empty_delimiter_negative
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("abc", "", -2)
+        }
+    want_result:
+      - x: ["b", "c"]
+  - note: strings/split_n/non_integer_n
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := result if {
+        	result := strings.split_n("a.b.c", ".", 1.5)
+        }
+    strict_error: true
+    want_error_code: eval_type_error
+    want_error: "strings.split_n: operand 3 must be integer number but got floating-point number"
+  - note: strings/split_n/usecase_positive
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [name, email] if {
+        	[name, email] := strings.split_n(input.user, ";", 2)
+        }
+    input:
+      user: "alice;alice@example.com;admin;active"
+    want_result:
+      - x: ["alice", "alice@example.com"]
+  - note: strings/split_n/usecase_negative
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [name, email] if {
+        	[name, email] := strings.split_n(input.user, ";", -2)
+        }
+    input:
+      user: "admin;active;alice;alice@example.com"
+    want_result:
+      - x: ["alice", "alice@example.com"]
