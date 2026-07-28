@@ -1827,6 +1827,11 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term, index ast.RuleIndex) (*as
 		}
 		for _, r := range result.Rules {
 			matched[r] = struct{}{}
+			// The index selects a rule's else-chain along with its root, so
+			// those aren't excluded either, even if their bodies never run.
+			for _, elseRule := range result.Else[r] {
+				matched[elseRule] = struct{}{}
+			}
 		}
 	}
 

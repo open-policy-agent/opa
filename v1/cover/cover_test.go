@@ -328,6 +328,35 @@ allow if {
 				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}}, // input.foo: short-circuited, NOT index-excluded
 			},
 		},
+		"else body included in index but short-circuited by earlier branch": {
+			module: `package test
+
+allow if {        # covered
+	input.foo     # covered
+} else if {       # not_covered
+	input.foo     # not_covered: root branch already succeeded
+	not input.bar # not_covered
+}
+`,
+			query: "data.test.allow",
+			input: map[string]any{"foo": true},
+			covered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 11}},
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 11}},
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 15}},
+			},
+			// None of the else rows are index-excluded: the whole chain was
+			// selected by the index, the else body just never ran.
+			notIndexExcluded: []Range{
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 11}},
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 15}},
+			},
+		},
 		"negated expression rule is not covered without indexer exclusion": {
 			module: `package test
 
