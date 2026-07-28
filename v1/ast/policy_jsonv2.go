@@ -51,6 +51,11 @@ func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {
 		util.WriteMarshalerToArray(e, a.Schemas)
 	}
 
+	if a.Compile != nil {
+		e.WriteToken(jsontext.String("compile"))
+		json.MarshalEncode(e, a.Compile)
+	}
+
 	if len(a.Custom) > 0 {
 		e.WriteToken(jsontext.String("custom"))
 		json.MarshalEncode(e, a.Custom)

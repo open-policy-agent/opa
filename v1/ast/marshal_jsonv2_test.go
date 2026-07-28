@@ -911,6 +911,50 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 	}
 }
 
+func TestAnnotations_MarshalJSON_Compile(t *testing.T) {
+	// Regression: Annotations.MarshalJSON used to silently drop the
+	// `Compile` field even though the struct tag is `compile,omitempty`.
+	// Default-reflection unmarshal still reads `compile`, so the round-trip
+	// was asymmetric until this was fixed.
+	a := &Annotations{
+		Scope: "rule",
+		Compile: &CompileAnnotation{
+			Unknowns: []Ref{MustParseRef("input.x"), MustParseRef("input.y")},
+			MaskRule: MustParseRef("data.policy.mask"),
+		},
+	}
+
+	bs, err := json.Marshal(a)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(bs, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	compile, ok := got["compile"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected `compile` key in marshaled output, got: %s", bs)
+	}
+	if _, ok := compile["unknowns"].([]any); !ok {
+		t.Errorf("expected compile.unknowns to be a JSON array, got: %v", compile["unknowns"])
+	}
+	if _, ok := compile["mask_rule"].([]any); !ok {
+		t.Errorf("expected compile.mask_rule to be a JSON array (Ref), got: %v", compile["mask_rule"])
+	}
+
+	// nil Compile should not emit the key (`omitempty` semantics).
+	a.Compile = nil
+	bs, err = json.Marshal(a)
+	if err != nil {
+		t.Fatalf("marshal nil compile: %v", err)
+	}
+	if strings.Contains(string(bs), "compile") {
+		t.Errorf("expected nil Compile to be omitted, got: %s", bs)
+	}
+}
+
 func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 	testCases := map[string]struct {
 		AnnotationsRef *AnnotationsRef
