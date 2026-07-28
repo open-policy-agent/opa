@@ -48,11 +48,12 @@ func (*Cover) Config() topdown.TraceConfig {
 }
 
 // Report returns a coverage Report for the given modules.
-//
-// TODO: Report ranges over c.coveredRanges / c.notCoveredRanges without
-// holding c.mu. Calling Report while tracing is still in flight on another
-// goroutine is a concurrent map read/write, not just a stale read.
 func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
+	// No caller reports mid-trace, but guard so that doing so would only be a
+	// stale read.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	report.Files = map[string]*FileReport{}
 	for file, coveredRanges := range c.coveredRanges {
 		fr, ok := report.Files[file]
