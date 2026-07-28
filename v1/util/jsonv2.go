@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
-	"testing"
 )
 
 type stringOrBytes interface {
@@ -27,20 +26,6 @@ func JsonEqual[A, B stringOrBytes](a A, b B) bool {
 	v2.Canonicalize()
 
 	return bytes.Equal(v1, v2)
-}
-
-// AssertJsonEqual is the test helper version of JsonEqual.
-func AssertJsonEqual[A, B stringOrBytes](t *testing.T, exp A, got B) {
-	t.Helper()
-
-	expVal, gotVal := jsontext.Value(exp), jsontext.Value(got)
-
-	expVal.Canonicalize()
-	gotVal.Canonicalize()
-
-	if !bytes.Equal(expVal, gotVal) {
-		t.Errorf("expected JSON to be equal:\n%s\n%s", expVal, gotVal)
-	}
 }
 
 // WriteMarshalerToArray writes the JSON array of items to the encoder.

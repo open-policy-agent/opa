@@ -7,6 +7,8 @@
 package ast
 
 import (
+	"bytes"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"strings"
 	"testing"
@@ -14,6 +16,20 @@ import (
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+// assertJsonEqual is the test helper version of util.JsonEqual.
+func assertJsonEqual[A, B string | []byte](t *testing.T, exp A, got B) {
+	t.Helper()
+
+	expVal, gotVal := jsontext.Value(exp), jsontext.Value(got)
+
+	expVal.Canonicalize()
+	gotVal.Canonicalize()
+
+	if !bytes.Equal(expVal, gotVal) {
+		t.Errorf("expected JSON to be equal:\n%s\n%s", expVal, gotVal)
+	}
+}
 
 func resetJSONOptions() {
 	astJSON.SetOptions(astJSON.Defaults())
@@ -99,7 +115,7 @@ func TestGeneric_MarshalWithLocationJSONOptions(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Term))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Term))
 		})
 	}
 }
@@ -161,7 +177,7 @@ func TestTerm_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Term))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Term))
 		})
 	}
 }
@@ -259,7 +275,7 @@ func TestPackage_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Package))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Package))
 		})
 	}
 }
@@ -313,7 +329,7 @@ func TestComment_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Comment))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Comment))
 		})
 	}
 }
@@ -384,7 +400,7 @@ func TestImport_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Import))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Import))
 		})
 	}
 }
@@ -459,7 +475,7 @@ func TestRule_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Rule))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Rule))
 		})
 	}
 }
@@ -518,7 +534,7 @@ func TestHead_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Head))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Head))
 		})
 	}
 }
@@ -555,7 +571,7 @@ ref.head[rule].test contains "value" if {
 	// Ensure marshalled JSON includes location for any term
 	expectedJSON := `{"key":{"location":{"file":"test.rego","row":5,"col":30},"type":"string","value":"value"},"ref":[{"location":{"file":"test.rego","row":5,"col":1},"type":"var","value":"ref"},{"location":{"file":"test.rego","row":5,"col":5},"type":"string","value":"head"},{"location":{"file":"test.rego","row":5,"col":10},"type":"var","value":"rule"},{"location":{"file":"test.rego","row":5,"col":16},"type":"string","value":"test"}],"location":{"file":"test.rego","row":5,"col":1}}`
 
-	util.AssertJsonEqual(t, expectedJSON, bs)
+	assertJsonEqual(t, expectedJSON, bs)
 }
 
 func TestExpr_MarshalJSON(t *testing.T) {
@@ -612,7 +628,7 @@ func TestExpr_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Expr))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Expr))
 		})
 	}
 }
@@ -719,7 +735,7 @@ func TestSomeDecl_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.SomeDecl))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.SomeDecl))
 		})
 	}
 }
@@ -774,7 +790,7 @@ allow if {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Every))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Every))
 		})
 	}
 }
@@ -820,7 +836,7 @@ b if {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(with))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(with))
 		})
 	}
 }
@@ -890,7 +906,7 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Annotations))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Annotations))
 		})
 	}
 }
@@ -943,7 +959,7 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.AnnotationsRef))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.AnnotationsRef))
 		})
 	}
 }
@@ -1043,7 +1059,7 @@ p = 1`,
 			}
 
 			for i, a := range module.Annotations {
-				util.AssertJsonEqual(t,
+				assertJsonEqual(t,
 					tc.expected[i],
 					util.MustMarshalJSON(NewAnnotationsRef(a)),
 				)
@@ -1127,7 +1143,7 @@ func TestNot_MarshalJSON(t *testing.T) {
 			astJSON.SetOptions(data.Options)
 			t.Cleanup(resetJSONOptions)
 
-			util.AssertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Not))
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Not))
 		})
 	}
 }
