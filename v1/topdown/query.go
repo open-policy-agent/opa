@@ -360,9 +360,9 @@ func (q *Query) WithEvaluatedRuleTracker(t *EvaluatedRuleTracker) *Query {
 	return q
 }
 
-// newIndexExclusions allocates the indexExclusions map up front, before eval
+// newIndexMatches allocates the indexMatches map up front, before eval
 // frames are cloned, so all frames share the same underlying map.
-func (q *Query) newIndexExclusions() map[ast.RuleIndex]map[*ast.Rule]struct{} {
+func (q *Query) newIndexMatches() map[ast.RuleIndex]map[*ast.Rule]struct{} {
 	if q.indexing && q.reportOps.contains(IndexExcludedOp) {
 		return map[ast.RuleIndex]map[*ast.Rule]struct{}{}
 	}
@@ -431,7 +431,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		traceEnabled:                len(q.tracers) > 0,
 		plugTraceVars:               q.plugTraceVars,
 		reportOps:                   q.reportOps,
-		indexExclusions:             q.newIndexExclusions(),
+		indexMatches:                q.newIndexMatches(),
 		instr:                       q.instr,
 		builtins:                    q.builtins,
 		builtinCache:                builtins.Cache{},
@@ -527,7 +527,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		return nil
 	})
 
-	// no-op if e.indexExclusions is nil (no tracer asked for IndexExcludedOp)
+	// no-op if e.indexMatches is nil (no tracer asked for IndexExcludedOp)
 	e.flushIndexExclusions()
 
 	support = e.saveSupport.List()
@@ -638,7 +638,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		traceEnabled:                len(q.tracers) > 0,
 		plugTraceVars:               q.plugTraceVars,
 		reportOps:                   q.reportOps,
-		indexExclusions:             q.newIndexExclusions(),
+		indexMatches:                q.newIndexMatches(),
 		instr:                       q.instr,
 		builtins:                    q.builtins,
 		builtinCache:                builtins.Cache{},
@@ -673,7 +673,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		return iter(qr)
 	})
 
-	// no-op if e.indexExclusions is nil (no tracer asked for IndexExcludedOp)
+	// no-op if e.indexMatches is nil (no tracer asked for IndexExcludedOp)
 	e.flushIndexExclusions()
 
 	if len(e.builtinErrors.errs) > 0 {
