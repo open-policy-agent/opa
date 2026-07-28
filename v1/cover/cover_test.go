@@ -142,14 +142,12 @@ func TestCoverRangeCases(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
-		module           string
-		query            string
-		input            any
-		reportKey        string // defaults to "test.rego" if empty
-		covered          []Range
-		notCovered       []Range
-		indexExcluded    []Range
-		notIndexExcluded []Range
+		module     string
+		query      string
+		input      any
+		reportKey  string // defaults to "test.rego" if empty
+		covered    []Range
+		notCovered []Range
 	}{
 		"rule head and value expression on same row counted once": {
 			module: `package test
@@ -161,10 +159,12 @@ allow if { true }
 `,
 			query: "data.test.allow",
 			covered: []Range{
-				{Start: Position{Row: 6, Col: 1}, End: Position{Row: 6, Col: 6}}, // allow head
+				{Start: Position{Row: 6, Col: 1}, End: Position{Row: 6, Col: 6}},   // allow head
+				{Start: Position{Row: 6, Col: 12}, End: Position{Row: 6, Col: 16}}, // true
 			},
 			notCovered: []Range{
 				{Start: Position{Row: 4, Col: 1}, End: Position{Row: 4, Col: 9}}, // foo := 1 head
+				{Start: Position{Row: 4, Col: 8}, End: Position{Row: 4, Col: 9}}, // its generated value expr
 			},
 		},
 		"inline rule head not covered": {
@@ -179,6 +179,8 @@ test_foo if {
 			query: "data.test.test_foo",
 			covered: []Range{
 				{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}}, // false expr
+				{Start: Position{Row: 5, Col: 1}, End: Position{Row: 5, Col: 9}},  // test_foo head
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 9}},  // not foo
 			},
 			notCovered: []Range{
 				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}}, // foo head
@@ -198,16 +200,10 @@ allow if {
 			query: "data.test.allow",
 			input: map[string]any{"action": "write"},
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
-				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
-				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
-			},
-			indexExcluded: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
-				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
-				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kind: KindIndexExcluded},
 			},
 		},
 		"index exclusions inside a with scope": {
@@ -228,19 +224,15 @@ test_allow_write if {
 `,
 			query: "data.test.test_allow_write",
 			covered: []Range{
-				{Start: Position{Row: 12, Col: 2}, End: Position{Row: 12, Col: 41}},
+				{Start: Position{Row: 12, Col: 2}, End: Position{Row: 12, Col: 41}}, // the with expr
 			},
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
-				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
-				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
-			},
-			indexExcluded: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
-				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
-				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kind: KindIndexExcluded},
+				// both allow bodies were excluded, so the test rule never exits
+				{Start: Position{Row: 11, Col: 1}, End: Position{Row: 11, Col: 17}},
 			},
 		},
 		"index-excluded rule body is not covered, bundle key mismatch": {
@@ -259,11 +251,11 @@ allow if {
 			query:     "data.test.allow",
 			input:     map[string]any{"action": "write"},
 			reportKey: "bundle/test.rego",
-			indexExcluded: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},
-				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
-				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kind: KindIndexExcluded},
 			},
 		},
 		"index-excluded root rule: else branch also excluded": {
@@ -282,18 +274,12 @@ allow if {
 			query: "data.test.allow",
 			input: map[string]any{"action": "write"},
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},    // allow head (root)
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},   // input.action == "read"
-				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 24}},   // input.action == "admin" (else body)
-				{Start: Position{Row: 9, Col: 1}, End: Position{Row: 9, Col: 6}},    // allow head (second)
-				{Start: Position{Row: 10, Col: 2}, End: Position{Row: 10, Col: 38}}, // input.action in ...
-			},
-			indexExcluded: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},    // allow head (root)
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}},   // input.action == "read"
-				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 24}},   // input.action == "admin" (else body)
-				{Start: Position{Row: 9, Col: 1}, End: Position{Row: 9, Col: 6}},    // allow head (second)
-				{Start: Position{Row: 10, Col: 2}, End: Position{Row: 10, Col: 38}}, // input.action in ...
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},    // allow head (root)
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kind: KindIndexExcluded},   // input.action == "read"
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}, Kind: KindIndexExcluded},    // else head
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 25}, Kind: KindIndexExcluded},   // input.action == "admin"
+				{Start: Position{Row: 9, Col: 1}, End: Position{Row: 9, Col: 6}, Kind: KindIndexExcluded},    // allow head (second)
+				{Start: Position{Row: 10, Col: 2}, End: Position{Row: 10, Col: 38}, Kind: KindIndexExcluded}, // input.action in ...
 			},
 		},
 		"else rule promoted to root by indexer: short-circuited else body is not falsely index-excluded": {
@@ -314,18 +300,10 @@ allow if {
 				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 8}}, // 1 == 2
 			},
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},  // allow head (primary)
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}}, // input.undef
-				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},  // else head
-				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}}, // input.foo (short-circuited, not index-excluded)
-			},
-			indexExcluded: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},  // allow head (primary)
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}}, // input.undef
-			},
-			notIndexExcluded: []Range{
-				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},  // else head: reached, just never exits
-				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}}, // input.foo: short-circuited, NOT index-excluded
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},  // allow head (primary)
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}, Kind: KindIndexExcluded}, // input.undef
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},                           // else head: reached, just never exits
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}},                          // input.foo: short-circuited, NOT index-excluded
 			},
 		},
 		"else body included in index but short-circuited by earlier branch": {
@@ -344,17 +322,32 @@ allow if {        # covered
 				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
 				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 11}},
 			},
+			// None of the else rows carry a Kind: the whole chain was selected
+			// by the index, the else body just never ran.
 			notCovered: []Range{
 				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},
 				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 11}},
 				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 15}},
 			},
-			// None of the else rows are index-excluded: the whole chain was
-			// selected by the index, the else body just never ran.
-			notIndexExcluded: []Range{
-				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},
-				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 11}},
-				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 15}},
+		},
+		"multi-line expression is one range spanning its rows": {
+			// Ranges are per AST node, so a head is always separate from its
+			// body exprs, but an expr written over several rows is one range.
+			module: `package test
+
+allow if {
+	input.action in {
+		"delete",
+		"update",
+	}
+}
+`,
+			query: "data.test.allow",
+			input: map[string]any{"action": "delete"},
+			covered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},  // allow head, single row
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 14}}, // `input.action`, single row
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 7, Col: 3}},  // whole `in` expr, rows 4-7
 			},
 		},
 		"negated expression rule is not covered without indexer exclusion": {
@@ -395,8 +388,11 @@ test_foo if {
 				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 6}},   // true
 				{Start: Position{Row: 4, Col: 8}, End: Position{Row: 4, Col: 12}},  // true
 				{Start: Position{Row: 4, Col: 14}, End: Position{Row: 4, Col: 19}}, // false (caused failure)
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 9}},   // test_foo head
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 9}},   // not foo
 			},
 			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}},   // foo head
 				{Start: Position{Row: 4, Col: 21}, End: Position{Row: 4, Col: 26}}, // false (never evaluated)
 			},
 		},
@@ -439,35 +435,23 @@ test_foo if {
 				t.Fatalf("expected file report for %q", reportKey)
 			}
 
-			for _, r := range tc.covered {
-				if !fr.isRangeCovered(r) {
-					t.Errorf("expected range %v to be covered", r)
-				}
-			}
-
-			for _, r := range tc.notCovered {
-				if !fr.isRangeNotCovered(r) {
-					t.Errorf("expected range %v to be not covered", r)
-				}
-			}
-
-			for _, r := range tc.indexExcluded {
-				if notCoveredKind(t, fr, r) != KindIndexExcluded {
-					t.Errorf("expected range %v to be indexer excluded", r)
-				}
-				// index-excluded ranges must also appear in not_covered (backward compat)
-				if !fr.isRangeNotCovered(r) {
-					t.Errorf("expected index-excluded range %v to also be in not_covered", r)
-				}
-			}
-
-			for _, r := range tc.notIndexExcluded {
-				if kind := notCoveredKind(t, fr, r); kind != "" {
-					t.Errorf("expected range %v to NOT be indexer excluded, got kind %q", r, kind)
-				}
-			}
+			assertRanges(t, "covered", tc.covered, fr.Covered)
+			assertRanges(t, "not_covered", tc.notCovered, fr.NotCovered)
 		})
 	}
+}
+
+// assertRanges compares an expected range list against the full list reported
+// for a file, so both extents and membership are pinned.
+func assertRanges(t *testing.T, label string, expected, actual []Range) {
+	t.Helper()
+	if len(expected) == 0 && len(actual) == 0 {
+		return
+	}
+	if reflect.DeepEqual(expected, actual) {
+		return
+	}
+	t.Errorf("%s ranges mismatch:\nexpected: %+v\nactual:   %+v", label, expected, actual)
 }
 
 func TestCoverQueryTracerInterface(t *testing.T) {
@@ -481,16 +465,4 @@ func TestCoverQueryTracerInterface(t *testing.T) {
 	if !reflect.DeepEqual(expected, conf) {
 		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
 	}
-}
-
-// notCoveredKind returns the Kind of the not-covered range in fr containing
-// r, or "" if r is not found among fr.NotCovered.
-func notCoveredKind(t *testing.T, fr *FileReport, r Range) Kind {
-	t.Helper()
-	for _, candidate := range fr.NotCovered {
-		if candidate.contains(r) {
-			return candidate.Kind
-		}
-	}
-	return ""
 }
