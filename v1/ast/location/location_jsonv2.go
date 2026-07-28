@@ -35,7 +35,9 @@ func (loc *Location) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 	e.WriteToken(jsontext.String("col"))
 	e.WriteToken(jsontext.Int(int64(loc.Col)))
 
-	if jsonOptions.IncludeLocationText {
+	// NOTE: len check to match the `json:"text,omitempty"` behaviour of the
+	// pre-go1.27 marshaller.
+	if jsonOptions.IncludeLocationText && len(loc.Text) > 0 {
 		e.WriteToken(jsontext.String("text"))
 		e.WriteToken(jsontext.String(base64.StdEncoding.EncodeToString(loc.Text)))
 	}

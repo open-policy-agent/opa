@@ -126,6 +126,19 @@ func TestLocationMarshal(t *testing.T) {
 			},
 			exp: `{"file":"file","row":1,"col":1,"text":"dGV4dA=="}`,
 		},
+		"including text, but no text present": {
+			loc: &Location{
+				File: "file",
+				Row:  1,
+				Col:  1,
+			},
+			options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{
+					IncludeLocationText: true,
+				},
+			},
+			exp: `{"file":"file","row":1,"col":1}`,
+		},
 		"excluding file": {
 			loc: &Location{
 				File: "file",
