@@ -3,7 +3,6 @@
 package ast
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
@@ -79,12 +78,7 @@ func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {
 }
 
 func (a *Annotations) MarshalJSON() ([]byte, error) {
-	bs, err := util.MarshalMarshalerTo(a)
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes.TrimRight(bs, "\n"), nil
+	return util.MarshalMarshalerTo(a)
 }
 
 func (s *SchemaAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {

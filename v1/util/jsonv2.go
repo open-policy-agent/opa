@@ -54,11 +54,9 @@ func WriteMarshalerToArray[T json.MarshalerTo](e *jsontext.Encoder, items []T) e
 	return e.WriteToken(jsontext.EndArray)
 }
 
-// MarshalMarshalerTo provides a MarshalJSON implementation
-// for any type that implements json.MarshalerTo.
+// MarshalMarshalerTo provides a MarshalJSON implementation for any type that
+// implements json.MarshalerTo. json.Marshal dispatches to MarshalJSONTo, so this
+// doesn't recurse; the constraint is what guarantees that at compile time.
 func MarshalMarshalerTo[T json.MarshalerTo](v T) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	err := v.MarshalJSONTo(jsontext.NewEncoder(buf))
-
-	return buf.Bytes(), err
+	return json.Marshal(v)
 }
