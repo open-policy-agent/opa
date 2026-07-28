@@ -240,7 +240,7 @@ func (pkg *Package) marshalJSONTo(e *jsontext.Encoder, annotations []*Annotation
 		}
 	}
 
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Package {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Package && pkg.Location != nil {
 		e.WriteToken(jsontext.String("location"))
 		pkg.Location.MarshalJSONTo(e)
 	}
@@ -392,14 +392,10 @@ func (q *Every) MarshalJSONTo(e *jsontext.Encoder) error {
 		return err
 	}
 
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Every {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Every && q.Location != nil {
 		e.WriteToken(jsontext.String("location"))
-		if q.Location != nil {
-			if err := q.Location.MarshalJSONTo(e); err != nil {
-				return err
-			}
-		} else {
-			e.WriteToken(jsontext.Null)
+		if err := q.Location.MarshalJSONTo(e); err != nil {
+			return err
 		}
 	}
 
@@ -518,14 +514,10 @@ func (w *With) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.String("value"))
 	w.Value.MarshalJSONTo(e)
 
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.With {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.With && w.Location != nil {
 		e.WriteToken(jsontext.String("location"))
-		if w.Location != nil {
-			if err := w.Location.MarshalJSONTo(e); err != nil {
-				return err
-			}
-		} else {
-			e.WriteToken(jsontext.Null)
+		if err := w.Location.MarshalJSONTo(e); err != nil {
+			return err
 		}
 	}
 

@@ -268,6 +268,19 @@ func TestPackage_MarshalJSON(t *testing.T) {
 			},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"path":[]}`,
 		},
+		"location included, but nil": {
+			Package: &Package{
+				Path: EmptyRef(),
+			},
+			Options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{
+					IncludeLocation: astJSON.NodeToggle{
+						Package: true,
+					},
+				},
+			},
+			ExpectedJSON: `{"path":[]}`,
+		},
 	}
 
 	for name, data := range testCases {
