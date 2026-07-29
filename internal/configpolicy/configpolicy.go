@@ -110,13 +110,18 @@ func (p *Policy) Eval(ctx context.Context, input any) (map[string]any, []string,
 
 // EvalConfigInto decodes raw config bytes (absent/empty/null → empty object),
 // evaluates the policy with input {"config": <raw>} to inject defaults, and
-// decodes the processed config into out, returning any warnings. The typed
-// unmarshal into out is what enforces field types, so a mistyped option
-// surfaces here rather than in the policy.
+// decodes the processed config into out, returning any warnings. Field types the
+// policy does not check are enforced by the typed unmarshal into out, so a
+// mistyped option surfaces here rather than in the policy.
 func EvalConfigInto[T any](ctx context.Context, p *Policy, raw []byte, out *T) ([]string, error) {
 	rawConfig, err := unmarshalRawConfig(raw)
 	if err != nil {
 		return nil, err
+	}
+	if _, ok := rawConfig.(map[string]any); !ok {
+		// Caught here rather than in the policy, which would fail to produce a
+		// processed config and report the far less obvious infrastructure error.
+		return nil, fmt.Errorf("%s: config must be an object", p.name)
 	}
 
 	processed, warnings, err := p.Eval(ctx, map[string]any{"config": rawConfig})

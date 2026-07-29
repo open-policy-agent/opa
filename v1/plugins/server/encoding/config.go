@@ -50,8 +50,14 @@ func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
 
 // Parse returns a valid Config object with defaults injected.
 func (b *ConfigBuilder) Parse() (*Config, error) {
+	return b.ParseWithContext(context.Background())
+}
+
+// ParseWithContext returns a valid Config object with defaults injected, using
+// ctx to evaluate the validation policy.
+func (b *ConfigBuilder) ParseWithContext(ctx context.Context) (*Config, error) {
 	var result Config
-	if _, err := configpolicy.EvalConfigInto(context.TODO(), validationPolicy, b.raw, &result); err != nil {
+	if _, err := configpolicy.EvalConfigInto(ctx, validationPolicy, b.raw, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil

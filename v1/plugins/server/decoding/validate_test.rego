@@ -37,12 +37,53 @@ test_rejects_non_positive_max_length[tc.note] if {
 	"invalid value for server.decoding.gzip.max_length field, should be a positive number" in result
 }
 
-test_rejects_non_positive_top_level_max_length if {
-	result := decoding.errors with input as {"config": {"max_length": -10}}
+test_rejects_non_positive_top_level_max_length[tc.note] if {
+	some tc in [
+		{"note": "zero", "config": {"max_length": 0}},
+		{"note": "negative", "config": {"max_length": -10}},
+	]
+
+	result := decoding.errors with input as {"config": tc.config}
 	"invalid value for server.decoding.max_length field, should be a positive number" in result
+}
+
+# A non-number max_length is rejected here rather than left to the Go unmarshal,
+# so the message names the option instead of the Go field.
+test_rejects_non_number_max_length[tc.note] if {
+	some tc in [
+		{"note": "string", "config": {"max_length": "foobar"}, "want": "server.decoding.max_length"},
+		{"note": "boolean", "config": {"max_length": true}, "want": "server.decoding.max_length"},
+		{"note": "array", "config": {"max_length": [1]}, "want": "server.decoding.max_length"},
+		{
+			"note": "nested string",
+			"config": {"gzip": {"max_length": "foobar"}},
+			"want": "server.decoding.gzip.max_length",
+		},
+	]
+
+	result := decoding.errors with input as {"config": tc.config}
+	sprintf("invalid value for %s field, should be a positive number", [tc.want]) in result
+}
+
+# Without this check the gzip defaults would be merged over the bad value,
+# silently replacing it with a well-formed object.
+test_rejects_non_object_gzip[tc.note] if {
+	some tc in [
+		{"note": "array", "config": {"gzip": [1, 2, 3]}},
+		{"note": "string", "config": {"gzip": "nope"}},
+		{"note": "number", "config": {"gzip": 7}},
+	]
+
+	result := decoding.errors with input as {"config": tc.config}
+	"invalid value for server.decoding.gzip field, should be an object" in result
 }
 
 test_valid_config_has_no_errors if {
 	result := decoding.errors with input as {"config": {"max_length": 42, "gzip": {"max_length": 42}}}
+	count(result) == 0
+}
+
+test_empty_config_has_no_errors if {
+	result := decoding.errors with input as {"config": {}}
 	count(result) == 0
 }
