@@ -194,47 +194,6 @@ func (s *set) MarshalJSON() ([]byte, error) {
 	return util.MarshalMarshalerTo(s)
 }
 
-func (o *LogicalOr) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(o)
-}
-
-func (o *LogicalOr) MarshalJSONTo(e *jsontext.Encoder) error {
-	e.WriteToken(jsontext.BeginObject)
-
-	e.WriteToken(jsontext.String("type"))
-	e.WriteToken(jsontext.String("or"))
-
-	e.WriteToken(jsontext.String("lhs"))
-	o.Lhs.MarshalJSONTo(e)
-
-	e.WriteToken(jsontext.String("rhs"))
-	o.Rhs.MarshalJSONTo(e)
-
-	if o.ExplicitLhs {
-		e.WriteToken(jsontext.String("explicit_lhs"))
-		e.WriteToken(jsontext.True)
-	}
-	if o.ExplicitRhs {
-		e.WriteToken(jsontext.String("explicit_rhs"))
-		e.WriteToken(jsontext.True)
-	}
-
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Or && o.Location != nil {
-		e.WriteToken(jsontext.String("location"))
-		o.Location.MarshalJSONTo(e)
-	}
-
-	return e.WriteToken(jsontext.EndObject)
-}
-
-func (o *LogicalOr) UnmarshalJSON(bs []byte) error {
-	v := map[string]any{}
-	if err := util.UnmarshalJSON(bs, &v); err != nil {
-		return err
-	}
-	return unmarshalLogical("or", &o.Lhs, &o.Rhs, &o.ExplicitLhs, &o.ExplicitRhs, v)
-}
-
 func marshalValueTo(e *jsontext.Encoder, val Value) (err error) {
 	switch v := val.(type) {
 	case json.MarshalerTo:
