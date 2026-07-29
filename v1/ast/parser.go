@@ -3740,9 +3740,9 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 
 		if keyword == "not" {
 			p.notBodies = true
-		} else {
-			kwds = []string{keyword} // overwrite
 		}
+
+		kwds = []string{keyword} // overwrite
 	}
 
 	for _, kw := range kwds {

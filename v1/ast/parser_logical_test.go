@@ -448,7 +448,9 @@ func TestParseLogical_RefsContainingAndOr(t *testing.T) {
 func TestParseLogical_NoLeakageOnImport(t *testing.T) {
 	t.Run("import error does not leak keyword names", func(t *testing.T) {
 		opts := ParserOptions{Capabilities: CapabilitiesForThisVersion()}
-		input := "package x\nimport future.keywords.and\n"
+		input := `package x
+			import future.keywords.and
+		`
 		_, _, err := ParseStatementsWithOpts("", input, opts)
 		if err == nil {
 			t.Fatal("expected parse error for import of and without experimental caps")
@@ -468,9 +470,108 @@ func TestParseLogical_NoLeakageOnImport(t *testing.T) {
 			Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 			FutureKeywords: []string{"and"},
 		}
-		input := "package x\nallow if { x and y }\n"
+		input := `package x
+			allow if { x and y }
+		`
 		if _, _, err := ParseStatementsWithOpts("", input, opts); err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("unrelated keyword import does not activate logical keywords", func(t *testing.T) {
+		tests := []struct {
+			note   string
+			module string
+		}{
+			{
+				note: "and, only future.keywords.not imported",
+				module: `package x
+					import future.keywords.not
+
+					p if input.a and input.b
+				`,
+			},
+			{
+				note: "or, only future.keywords.not imported",
+				module: `package x
+					import future.keywords.not
+
+					p if input.a or input.b
+				`,
+			},
+			{
+				note: "and, only future.keywords.in imported",
+				module: `package x
+					import future.keywords.in
+
+					p if input.a and input.b
+				`,
+			},
+			{
+				note: "or, only future.keywords.in imported",
+				module: `package x
+					import future.keywords.in
+
+					p if input.a or input.b
+				`,
+			},
+		}
+		opts := ParserOptions{
+			RegoVersion:  RegoV1,
+			Capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+		}
+		for _, tc := range tests {
+			t.Run(tc.note, func(t *testing.T) {
+				// `and`/`or` are plain identifiers here, so three bare terms in a
+				// row is not a valid expression. Asserting on the error text would
+				// be brittle; what matters is that no logical node is produced.
+				mod, err := ParseModuleWithOpts("test.rego", tc.module, opts)
+				if err == nil {
+					t.Fatalf("expected parse error, got body: %v (%T)",
+						mod.Rules[0].Body, mod.Rules[0].Body[0].Terms)
+				}
+			})
+		}
+	})
+
+	t.Run("unrelated keyword import does not reserve logical keywords as var names", func(t *testing.T) {
+		tests := []struct {
+			note   string
+			module string
+		}{
+			{
+				note: "and",
+				module: `package x
+					import future.keywords.not
+
+					p if {
+						and := 1
+						and == 1
+					}
+				`,
+			},
+			{
+				note: "or",
+				module: `package x
+					import future.keywords.not
+
+					p if {
+						or := 1
+						or == 1
+					}
+				`,
+			},
+		}
+		opts := ParserOptions{
+			RegoVersion:  RegoV1,
+			Capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+		}
+		for _, tc := range tests {
+			t.Run(tc.note, func(t *testing.T) {
+				if _, err := ParseModuleWithOpts("test.rego", tc.module, opts); err != nil {
+					t.Errorf("expected %q to remain usable as a variable name, got: %v", tc.note, err)
+				}
+			})
 		}
 	})
 }
