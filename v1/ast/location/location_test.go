@@ -170,6 +170,34 @@ func TestLocationMarshal(t *testing.T) {
 	}
 }
 
+func TestLocationUnmarshal(t *testing.T) {
+	// Location has no custom unmarshaller on any Go version: decoding goes
+	// through the struct tags, which means the ignored ("-") fields are not
+	// populated and unknown keys are tolerated.
+	in := `{"file":"p.rego","row":1,"col":2,"text":"dGVzdA==","tabs":[1],"unexpected":true}`
+
+	var loc Location
+	if err := util.UnmarshalJSON([]byte(in), &loc); err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, act := "p.rego", loc.File; exp != act {
+		t.Errorf("Expected file %q but got %q", exp, act)
+	}
+	if exp, act := 1, loc.Row; exp != act {
+		t.Errorf("Expected row %v but got %v", exp, act)
+	}
+	if exp, act := 2, loc.Col; exp != act {
+		t.Errorf("Expected col %v but got %v", exp, act)
+	}
+	if loc.Text != nil {
+		t.Errorf("Expected no text but got %q", string(loc.Text))
+	}
+	if loc.Tabs != nil {
+		t.Errorf("Expected no tabs but got %v", loc.Tabs)
+	}
+}
+
 func TestLocationString(t *testing.T) {
 	tests := []struct {
 		loc *Location
