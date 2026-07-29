@@ -194,7 +194,7 @@ func (m *Module) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
 	e.WriteToken(jsontext.String("package"))
-	m.Package.marshalJSONTo(e, m.Annotations)
+	m.Package.MarshalJSONTo(e)
 
 	if len(m.Imports) > 0 {
 		e.WriteToken(jsontext.String("imports"))
@@ -220,25 +220,7 @@ func (m *Module) MarshalJSONTo(e *jsontext.Encoder) error {
 }
 
 func (pkg *Package) MarshalJSONTo(e *jsontext.Encoder) error {
-	return pkg.marshalJSONTo(e, nil)
-}
-
-func (pkg *Package) marshalJSONTo(e *jsontext.Encoder, annotations []*Annotations) error {
 	e.WriteToken(jsontext.BeginObject)
-
-	if len(annotations) > 0 {
-		// TODO: filter in place, or range over function
-		var packageAnnotations []*Annotations
-		for _, a := range annotations {
-			if a.Scope == "package" || a.Scope == "subpackages" {
-				packageAnnotations = append(packageAnnotations, a)
-			}
-		}
-		if len(packageAnnotations) > 0 {
-			e.WriteToken(jsontext.String("annotations"))
-			util.WriteMarshalerToArray(e, packageAnnotations)
-		}
-	}
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Package && pkg.Location != nil {
 		e.WriteToken(jsontext.String("location"))

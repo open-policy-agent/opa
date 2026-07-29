@@ -292,6 +292,23 @@ func TestPackage_MarshalJSON(t *testing.T) {
 	}
 }
 
+// TestModule_MarshalJSON_PackageScopedAnnotations asserts that package-scoped
+// annotations are only emitted in the module's annotations list, and never
+// nested under the package object.
+func TestModule_MarshalJSON_PackageScopedAnnotations(t *testing.T) {
+	module := &Module{
+		Package:     MustParsePackage("package foo"),
+		Annotations: []*Annotations{{Scope: "package", Title: "pkg"}},
+	}
+
+	exp := `{"package":{"path":[{"type":"var","value":"data"},{"type":"string","value":"foo"}]},` +
+		`"annotations":[{"scope":"package","title":"pkg"}]}`
+
+	if got := string(util.MustMarshalJSON(module)); got != exp {
+		t.Fatalf("expected:\n%s got\n%s", exp, got)
+	}
+}
+
 // TODO: Comment has inconsistent JSON field names starting with an upper case letter. Comment Location is
 // also always included for legacy reasons
 func TestComment_MarshalJSON(t *testing.T) {
