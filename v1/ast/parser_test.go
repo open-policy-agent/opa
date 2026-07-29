@@ -2937,10 +2937,13 @@ func TestFutureImports(t *testing.T) {
 
 func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 	// These tests assert that "import future..." and "import rego.v1" statements in policies cause
-	// the proper keywords to be added to the parser's list of known keywords.
+	// the proper keywords to be added to the parser's list of known keywords, and that they don't add any others.
 	tests := []struct {
-		note, imp string
-		exp       map[string]tokens.Token
+		note, imp    string
+		regoVersion  RegoVersion
+		capabilities *Capabilities
+		exp          map[string]tokens.Token
+		absent       []string
 	}{
 		{
 			note: "simple import",
@@ -2979,10 +2982,57 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 				"if":       tokens.If,
 			},
 		},
+		{
+			// A single-keyword import must not activate any other keyword.
+			note:        "not imported in v0 does not enable the v0 future keywords",
+			regoVersion: RegoV0,
+			imp:         "import future.keywords.not",
+			absent:      []string{"in", "every", "contains", "if"},
+		},
+		{
+			note:         "not imported in v0 does not enable experimental future keywords",
+			regoVersion:  RegoV0,
+			capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+			imp:          "import future.keywords.not",
+			absent:       []string{"and", "or"},
+		},
+		{
+			note:        "in imported in v0 does not enable the other v0 future keywords",
+			regoVersion: RegoV0,
+			imp:         "import future.keywords.in",
+			exp:         map[string]tokens.Token{"in": tokens.In},
+			absent:      []string{"every", "contains", "if"},
+		},
+		{
+			note:         "not imported does not enable experimental keywords",
+			capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+			imp:          "import future.keywords.not",
+			absent:       []string{"and", "or"},
+		},
+		{
+			note:         "in imported does not enable experimental keywords",
+			capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+			imp:          "import future.keywords.in",
+			exp:          map[string]tokens.Token{"in": tokens.In},
+			absent:       []string{"and", "or"},
+		},
+		{
+			note:         "and imported does not enable or",
+			capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+			imp:          "import future.keywords.and",
+			exp:          map[string]tokens.Token{"and": tokens.LogicalAnd},
+			absent:       []string{"or"},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			parser := NewParser().WithFilename("").WithReader(bytes.NewBufferString(tc.imp))
+			if tc.regoVersion != RegoUndefined {
+				parser = parser.WithRegoVersion(tc.regoVersion)
+			}
+			if tc.capabilities != nil {
+				parser = parser.WithCapabilities(tc.capabilities)
+			}
 			_, _, errs := parser.Parse()
 			if exp, act := 0, len(errs); exp != act {
 				t.Fatalf("expected %d errors, got %d: %v", exp, act, errs)
@@ -2991,6 +3041,11 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 				act := parser.s.s.Keyword(kw)
 				if act != exp {
 					t.Errorf("expected keyword %q to yield token %v, got %v", kw, exp, act)
+				}
+			}
+			for _, kw := range tc.absent {
+				if parser.s.s.IsKeyword(kw) {
+					t.Errorf("expected %q not to be a keyword, but it yields token %v", kw, parser.s.s.Keyword(kw))
 				}
 			}
 		})
