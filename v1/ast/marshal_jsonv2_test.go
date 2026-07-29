@@ -1024,6 +1024,18 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 			},
 			ExpectedJSON: `{"annotations":{"scope":""},"location":{"file":"example.rego","row":1,"col":4},"path":[]}`,
 		},
+		"no annotations, location included": {
+			AnnotationsRef: &AnnotationsRef{
+				Path:     []*Term{},
+				Location: NewLocation([]byte{}, "example.rego", 1, 4),
+			},
+			Options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{
+					IncludeLocation: astJSON.NodeToggle{AnnotationsRef: true},
+				},
+			},
+			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":4},"path":[]}`,
+		},
 	}
 
 	for name, data := range testCases {

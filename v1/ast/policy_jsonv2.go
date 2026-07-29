@@ -130,19 +130,9 @@ func (ar *AnnotationsRef) MarshalJSONTo(e *jsontext.Encoder) error {
 		ar.Annotations.MarshalJSONTo(e)
 	}
 
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.AnnotationsRef {
-		// The location set for the schema ref terms is wrong (always set to
-		// row 1) and not really useful anyway.. so strip it out before marshalling
-		for _, schema := range ar.Annotations.Schemas {
-			for _, term := range schema.Path {
-				term.Location = nil
-			}
-		}
-
-		if ar.Location != nil {
-			e.WriteToken(jsontext.String("location"))
-			ar.Location.MarshalJSONTo(e)
-		}
+	if ar.Location != nil && astJSON.GetOptions().MarshalOptions.IncludeLocation.AnnotationsRef {
+		e.WriteToken(jsontext.String("location"))
+		ar.Location.MarshalJSONTo(e)
 	}
 
 	e.WriteToken(jsontext.String("path"))
