@@ -32,6 +32,8 @@ func (mod *Module) UnmarshalJSON(bs []byte) error {
 		return err
 	}
 
+	// The decoded rules have no module pointer, as it isn't part of the JSON
+	// representation; without this, an unmarshalled module can't be compiled.
 	WalkRules(mod, func(rule *Rule) bool {
 		rule.Module = mod
 		return false
@@ -123,19 +125,36 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 		if ar.Location != nil {
 			data["location"] = ar.Location
 		}
-
-		// The location set for the schema ref terms is wrong (always set to
-		// row 1) and not really useful anyway.. so strip it out before marshalling
-		for _, schema := range ar.Annotations.Schemas {
-			if schema.Path != nil {
-				for _, term := range schema.Path {
-					term.Location = nil
-				}
-			}
-		}
 	}
 
 	return json.Marshal(data)
+}
+
+// schemaAnnotationJSON mirrors SchemaAnnotation's JSON tags, with location-free
+// path terms.
+type schemaAnnotationJSON struct {
+	Path       []termJSON `json:"path"`
+	Schema     Ref        `json:"schema,omitempty"`
+	Definition *any       `json:"definition,omitempty"`
+}
+
+func (s *SchemaAnnotation) MarshalJSON() ([]byte, error) {
+	d := schemaAnnotationJSON{
+		Schema:     s.Schema,
+		Definition: s.Definition,
+	}
+
+	if s.Path != nil {
+		d.Path = make([]termJSON, len(s.Path))
+		for i, t := range s.Path {
+			// The location is omitted: path terms are parsed on their own from
+			// the annotation's YAML key, so their locations are offsets into that
+			// key (always row 1) rather than positions in the module.
+			d.Path[i] = termJSON{Type: ValueName(t.Value), Value: t.Value}
+		}
+	}
+
+	return json.Marshal(d)
 }
 
 func (d *SomeDecl) MarshalJSON() ([]byte, error) {

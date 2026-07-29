@@ -1463,3 +1463,245 @@ func TestNot_UnmarshalJSON_Errors(t *testing.T) {
 		})
 	}
 }
+
+func TestArgs_MarshalJSON(t *testing.T) {
+	x := VarTerm("x").SetLocation(NewLocation([]byte("x"), "example.rego", 1, 2))
+
+	testCases := map[string]struct {
+		Args         Args
+		Options      astJSON.Options
+		ExpectedJSON string
+	}{
+		"nil": {
+			Args:         nil,
+			ExpectedJSON: `null`,
+		},
+		"empty": {
+			Args:         Args{},
+			ExpectedJSON: `[]`,
+		},
+		"base case": {
+			Args:         Args{x, VarTerm("y")},
+			ExpectedJSON: `[{"type":"var","value":"x"},{"type":"var","value":"y"}]`,
+		},
+		"term location included": {
+			Args: Args{x},
+			Options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Term: true}},
+			},
+			ExpectedJSON: `[{"location":{"file":"example.rego","row":1,"col":2},"type":"var","value":"x"}]`,
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			astJSON.SetOptions(data.Options)
+			t.Cleanup(resetJSONOptions)
+
+			bs := util.MustMarshalJSON(data.Args)
+			got := string(bs)
+			exp := data.ExpectedJSON
+
+			if got != exp {
+				t.Fatalf("expected:\n%s got\n%s", exp, got)
+			}
+		})
+	}
+}
+
+func TestVar_MarshalJSON(t *testing.T) {
+	testCases := map[string]struct {
+		Var          Var
+		ExpectedJSON string
+	}{
+		"base case": {
+			Var:          Var("x"),
+			ExpectedJSON: `"x"`,
+		},
+		"empty": {
+			Var:          Var(""),
+			ExpectedJSON: `""`,
+		},
+		"wildcard": {
+			Var:          Var("$01"),
+			ExpectedJSON: `"$01"`,
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			bs := util.MustMarshalJSON(data.Var)
+			got := string(bs)
+			exp := data.ExpectedJSON
+
+			if got != exp {
+				t.Fatalf("expected:\n%s got\n%s", exp, got)
+			}
+		})
+	}
+}
+
+func TestAuthorAnnotation_MarshalJSON(t *testing.T) {
+	testCases := map[string]struct {
+		Author       *AuthorAnnotation
+		ExpectedJSON string
+	}{
+		"base case": {
+			Author:       &AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+			ExpectedJSON: `{"name":"John Doe","email":"john@example.com"}`,
+		},
+		"no email": {
+			Author:       &AuthorAnnotation{Name: "John Doe"},
+			ExpectedJSON: `{"name":"John Doe"}`,
+		},
+		"empty": {
+			Author:       &AuthorAnnotation{},
+			ExpectedJSON: `{"name":""}`,
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			bs := util.MustMarshalJSON(data.Author)
+			got := string(bs)
+			exp := data.ExpectedJSON
+
+			if got != exp {
+				t.Fatalf("expected:\n%s got\n%s", exp, got)
+			}
+		})
+	}
+}
+
+func TestSchemaAnnotation_MarshalJSON(t *testing.T) {
+	loc := NewLocation([]byte("input"), "example.rego", 1, 2)
+	path := Ref{VarTerm("input").SetLocation(loc), StringTerm("foo").SetLocation(loc)}
+	definition := any(map[string]any{"type": "boolean"})
+
+	testCases := map[string]struct {
+		Schema       *SchemaAnnotation
+		Options      astJSON.Options
+		ExpectedJSON string
+	}{
+		"empty": {
+			Schema:       &SchemaAnnotation{},
+			ExpectedJSON: `{"path":null}`,
+		},
+		"path and schema": {
+			Schema:       &SchemaAnnotation{Path: path, Schema: MustParseRef("schema.foo")},
+			ExpectedJSON: `{"path":[{"type":"var","value":"input"},{"type":"string","value":"foo"}],"schema":[{"type":"var","value":"schema"},{"type":"string","value":"foo"}]}`,
+		},
+		"path and definition": {
+			Schema:       &SchemaAnnotation{Path: path, Definition: &definition},
+			ExpectedJSON: `{"path":[{"type":"var","value":"input"},{"type":"string","value":"foo"}],"definition":{"type":"boolean"}}`,
+		},
+		"term location included": {
+			Schema: &SchemaAnnotation{Path: path},
+			Options: astJSON.Options{
+				MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Term: true}},
+			},
+			ExpectedJSON: `{"path":[{"type":"var","value":"input"},{"type":"string","value":"foo"}]}`,
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			astJSON.SetOptions(data.Options)
+			t.Cleanup(resetJSONOptions)
+
+			bs := util.MustMarshalJSON(data.Schema)
+			got := string(bs)
+			exp := data.ExpectedJSON
+
+			if got != exp {
+				t.Fatalf("expected:\n%s got\n%s", exp, got)
+			}
+		})
+	}
+
+	t.Run("path terms are not mutated", func(t *testing.T) {
+		astJSON.SetOptions(astJSON.Options{
+			MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Term: true, AnnotationsRef: true}},
+		})
+		t.Cleanup(resetJSONOptions)
+
+		s := &SchemaAnnotation{Path: Ref{VarTerm("input").SetLocation(loc)}}
+		util.MustMarshalJSON(s)
+
+		if s.Path[0].Location != loc {
+			t.Fatalf("expected path term location to be left alone, got %v", s.Path[0].Location)
+		}
+	})
+}
+
+func TestModule_UnmarshalJSON(t *testing.T) {
+	mod := MustParseModule(`package test
+
+p if { q }
+q := 1
+r := 2 if { input.x } else := 3 if { input.y }
+`)
+
+	bs := util.MustMarshalJSON(mod)
+
+	var roundtrip Module
+	if err := util.UnmarshalJSON(bs, &roundtrip); err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, got := len(mod.Rules), len(roundtrip.Rules); exp != got {
+		t.Fatalf("expected %d rules, got %d", exp, got)
+	}
+
+	WalkRules(&roundtrip, func(rule *Rule) bool {
+		if rule.Module != &roundtrip {
+			t.Errorf("rule %v: expected module pointer to be set, got %v", rule.Head, rule.Module)
+		}
+		return false
+	})
+}
+
+func TestTemplateString_MarshalJSON(t *testing.T) {
+	testCases := map[string]struct {
+		TemplateString *TemplateString
+		ExpectedJSON   string
+	}{
+		"nil parts": {
+			TemplateString: &TemplateString{},
+			ExpectedJSON:   `{"parts":null,"multi_line":false}`,
+		},
+		"empty parts": {
+			TemplateString: &TemplateString{Parts: []Node{}},
+			ExpectedJSON:   `{"parts":[],"multi_line":false}`,
+		},
+		"base case": {
+			TemplateString: &TemplateString{Parts: []Node{StringTerm("foo"), VarTerm("x")}, MultiLine: true},
+			ExpectedJSON:   `{"parts":[{"type":"string","value":"foo"},{"type":"var","value":"x"}],"multi_line":true}`,
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			bs := util.MustMarshalJSON(data.TemplateString)
+			got := string(bs)
+			exp := data.ExpectedJSON
+
+			if got != exp {
+				t.Fatalf("expected:\n%s got\n%s", exp, got)
+			}
+		})
+	}
+}
+
+func TestSchemaAnnotation_MarshalJSON_InvalidDefinition(t *testing.T) {
+	definition := any(func() {})
+
+	_, err := json.Marshal(&SchemaAnnotation{Path: MustParseRef("input.x"), Definition: &definition})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	// The encoder's wording differs between encoding/json v1 and v2.
+	if exp := "func()"; !strings.Contains(err.Error(), exp) {
+		t.Fatalf("expected error containing %q, got: %v", exp, err)
+	}
+}

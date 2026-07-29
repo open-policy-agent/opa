@@ -23,10 +23,13 @@ var (
 	_ json.MarshalerTo = &TemplateString{}
 	_ json.MarshalerTo = &Ref{}
 	_ json.MarshalerTo = &lazyObj{}
+	_ json.MarshalerTo = Args{}
 	_ json.MarshalerTo = Boolean(false)
 	_ json.MarshalerTo = Null{}
 	_ json.MarshalerTo = Number("")
 	_ json.MarshalerTo = String("")
+	_ json.MarshalerTo = Var("")
+	_ json.Unmarshaler = &Not{}
 )
 
 // These are here to ensure that we do not fall down to TextAppender, which
@@ -40,6 +43,12 @@ func (Null) MarshalJSONTo(e *jsontext.Encoder) error {
 	// Encoded as an empty object rather than null, as that's the representation
 	// callers have come to expect. See also [marshalValueTo].
 	return e.WriteValue([]byte("{}"))
+}
+
+func (v Var) MarshalJSONTo(e *jsontext.Encoder) error {
+	// Must produce the var name as a JSON string, wildcard vars included: that's
+	// what encoding/json v1 does for a type whose underlying kind is string.
+	return e.WriteToken(jsontext.String(string(v)))
 }
 
 func (num Number) MarshalJSONTo(e *jsontext.Encoder) error {
@@ -86,16 +95,23 @@ func (r Ref) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 func (t *TemplateString) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 	e.WriteToken(jsontext.BeginObject)
 	e.WriteToken(jsontext.String("parts"))
-	e.WriteToken(jsontext.BeginArray)
-	for _, p := range t.Parts {
-		switch v := p.(type) {
-		case *Expr:
-			v.MarshalJSONTo(e)
-		case *Term:
-			v.MarshalJSONTo(e)
+	if t.Parts == nil {
+		// Parts has no omitempty tag, so it's always written. Matches
+		// encoding/json v1, which encodes a nil slice as null rather than as an
+		// empty array.
+		e.WriteToken(jsontext.Null)
+	} else {
+		e.WriteToken(jsontext.BeginArray)
+		for _, p := range t.Parts {
+			switch v := p.(type) {
+			case *Expr:
+				v.MarshalJSONTo(e)
+			case *Term:
+				v.MarshalJSONTo(e)
+			}
 		}
+		e.WriteToken(jsontext.EndArray)
 	}
-	e.WriteToken(jsontext.EndArray)
 
 	e.WriteToken(jsontext.String("multi_line"))
 	e.WriteToken(jsontext.Bool(t.MultiLine))
@@ -124,6 +140,15 @@ func (n *Not) MarshalJSONTo(e *jsontext.Encoder) error {
 
 func (n *Not) MarshalJSON() ([]byte, error) {
 	return util.MarshalMarshalerTo(n)
+}
+
+func (n *Not) UnmarshalJSON(bs []byte) error {
+	v := map[string]any{}
+	if err := util.UnmarshalJSON(bs, &v); err != nil {
+		return err
+	}
+
+	return unmarshalNot(n, v)
 }
 
 func (obj *object) MarshalJSONTo(e *jsontext.Encoder) error {
@@ -212,10 +237,6 @@ func (o *LogicalOr) UnmarshalJSON(bs []byte) error {
 
 func marshalValueTo(e *jsontext.Encoder, val Value) (err error) {
 	switch v := val.(type) {
-	case Var:
-		err = e.WriteToken(jsontext.String(string(v)))
-	case Null:
-		err = e.WriteValue([]byte("{}")) // why? this seems to be relied on by some tests
 	case json.MarshalerTo:
 		err = v.MarshalJSONTo(e)
 	case encoding.TextAppender:

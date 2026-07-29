@@ -12,6 +12,42 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+var _ json.Unmarshaler = &Module{}
+
+// UnmarshalJSON parses bs and stores the result in mod. The rules in the module
+// will have their module pointer set to mod.
+func (mod *Module) UnmarshalJSON(bs []byte) error {
+
+	// Declare a new type and use a type conversion to avoid recursively calling
+	// Module#UnmarshalJSON.
+	type module Module
+
+	if err := util.UnmarshalJSON(bs, (*module)(mod)); err != nil {
+		return err
+	}
+
+	// The decoded rules have no module pointer, as it isn't part of the JSON
+	// representation; without this, an unmarshalled module can't be compiled.
+	WalkRules(mod, func(rule *Rule) bool {
+		rule.Module = mod
+		return false
+	})
+
+	return nil
+}
+
+// MarshalJSONTo is here to ensure that we do not fall down to TextAppender,
+// which Go 1.27's encoding/json would otherwise use, encoding args as the Rego
+// representation of the argument list rather than as a JSON array.
+func (a Args) MarshalJSONTo(e *jsontext.Encoder) error {
+	if a == nil {
+		// Matches encoding/json v1, which encodes a nil slice as null rather
+		// than as an empty array.
+		return e.WriteToken(jsontext.Null)
+	}
+	return util.WriteMarshalerToArray(e, a)
+}
+
 func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
@@ -124,11 +160,17 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 func (s *SchemaAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
-	if len(s.Path) > 0 {
-		e.WriteToken(jsontext.String("path"))
+	// Path has no omitempty tag, so it's always written. A nil ref is written
+	// as null, matching encoding/json v1's treatment of a nil slice.
+	e.WriteToken(jsontext.String("path"))
+	if s.Path == nil {
+		e.WriteToken(jsontext.Null)
+	} else {
 		e.WriteToken(jsontext.BeginArray)
 		for _, t := range s.Path {
-			// No location here, as it's incorrect
+			// The location is omitted: path terms are parsed on their own from
+			// the annotation's YAML key, so their locations are offsets into that
+			// key (always row 1) rather than positions in the module.
 			e.WriteToken(jsontext.BeginObject)
 			e.WriteToken(jsontext.String("type"))
 			e.WriteToken(jsontext.String(ValueName(t.Value)))
@@ -146,11 +188,9 @@ func (s *SchemaAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
 
 	if s.Definition != nil {
 		e.WriteToken(jsontext.String("definition"))
-		raw := *s.Definition
-		if _, err := InterfaceToValue(raw); err != nil {
-			return fmt.Errorf("invalid definition in schema annotation: %w", err)
+		if err := json.MarshalEncode(e, s.Definition); err != nil {
+			return err
 		}
-		json.MarshalEncode(e, s.Definition)
 	}
 
 	return e.WriteToken(jsontext.EndObject)
@@ -177,10 +217,9 @@ func (rr *RelatedResourceAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
 func (a *AuthorAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
-	if len(a.Name) > 0 {
-		e.WriteToken(jsontext.String("name"))
-		e.WriteToken(jsontext.String(a.Name))
-	}
+	// Name has no omitempty tag, so it's always written.
+	e.WriteToken(jsontext.String("name"))
+	e.WriteToken(jsontext.String(a.Name))
 
 	if len(a.Email) > 0 {
 		e.WriteToken(jsontext.String("email"))
@@ -330,6 +369,8 @@ func (c Call) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 func (c *Comment) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
+	// Comment has no JSON tags, hence the capitalised keys, the base64 encoded
+	// text, and the location being written even when it's nil.
 	e.WriteToken(jsontext.String("Text"))
 
 	buf := make([]byte, base64.StdEncoding.EncodedLen(len(c.Text)))
