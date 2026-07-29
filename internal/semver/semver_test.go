@@ -161,7 +161,7 @@ func BenchmarkString(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendText(b *testing.B) {
+func BenchmarkAppendString(b *testing.B) {
 	v := MustParse("1.2.3-alpha.1+build.123")
 
 	for b.Loop() {
@@ -172,7 +172,7 @@ func BenchmarkAppendText(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendTextPreAllocated(b *testing.B) {
+func BenchmarkAppendStringPreAllocated(b *testing.B) {
 	v, err := Parse("1.2.3-alpha.1+build.123")
 	if err != nil {
 		b.Fatal(err)
