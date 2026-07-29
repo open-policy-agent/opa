@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -609,7 +610,11 @@ func TestParseOutputWithNotImport(t *testing.T) {
 				t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
 			}
 
-			if !util.JsonEqual(stdout, tc.exp) {
+			if tc.format == formats.Pretty {
+				if diff := cmp.Diff(tc.exp, string(stdout)); diff != "" {
+					t.Errorf("unexpected result (-want, +got):\n%s", diff)
+				}
+			} else if !util.JsonEqual(stdout, tc.exp) {
 				t.Fatalf("Expected output\n%v\n, got\n%v", tc.exp, string(stdout))
 			}
 		})
