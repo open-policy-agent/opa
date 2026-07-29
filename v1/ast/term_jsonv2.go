@@ -64,12 +64,15 @@ func (str String) MarshalJSONTo(e *jsontext.Encoder) error {
 }
 
 func (t *Term) MarshalJSONTo(e *jsontext.Encoder) (err error) {
+	// Token write errors are unchecked: an unbalanced value fails at the closing
+	// token. A marshaller can fail having written a balanced value, so is checked.
 	e.WriteToken(jsontext.BeginObject)
 
 	includeLocation := astJSON.GetOptions().MarshalOptions.IncludeLocation
 	if t.Location != nil && includeLocation.Term {
-		e.WriteToken(jsontext.String("location"))
-		t.Location.MarshalJSONTo(e)
+		if err := util.WriteField(e, "location", t.Location); err != nil {
+			return err
+		}
 	}
 
 	e.WriteToken(jsontext.String("type"))
@@ -93,6 +96,8 @@ func (r Ref) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 }
 
 func (t *TemplateString) MarshalJSONTo(e *jsontext.Encoder) (err error) {
+	// Token write errors are unchecked: an unbalanced value fails at the closing
+	// token. A marshaller can fail having written a balanced value, so is checked.
 	e.WriteToken(jsontext.BeginObject)
 	e.WriteToken(jsontext.String("parts"))
 	if t.Parts == nil {
@@ -105,9 +110,13 @@ func (t *TemplateString) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 		for _, p := range t.Parts {
 			switch v := p.(type) {
 			case *Expr:
-				v.MarshalJSONTo(e)
+				if err := v.MarshalJSONTo(e); err != nil {
+					return err
+				}
 			case *Term:
-				v.MarshalJSONTo(e)
+				if err := v.MarshalJSONTo(e); err != nil {
+					return err
+				}
 			}
 		}
 		e.WriteToken(jsontext.EndArray)
@@ -124,15 +133,17 @@ func (n *Not) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.String("type"))
 	e.WriteToken(jsontext.String("not"))
 
-	e.WriteToken(jsontext.String("body"))
-	n.Body.MarshalJSONTo(e)
+	if err := util.WriteField(e, "body", n.Body); err != nil {
+		return err
+	}
 
 	e.WriteToken(jsontext.String("explicit_body"))
 	e.WriteToken(jsontext.Bool(n.ExplicitBody))
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Not && n.Location != nil {
-		e.WriteToken(jsontext.String("location"))
-		n.Location.MarshalJSONTo(e)
+		if err := util.WriteField(e, "location", n.Location); err != nil {
+			return err
+		}
 	}
 
 	return e.WriteToken(jsontext.EndObject)
@@ -152,12 +163,18 @@ func (n *Not) UnmarshalJSON(bs []byte) error {
 }
 
 func (obj *object) MarshalJSONTo(e *jsontext.Encoder) error {
+	// Token write errors are unchecked: an unbalanced value fails at the closing
+	// token. A marshaller can fail having written a balanced value, so is checked.
 	e.WriteToken(jsontext.BeginArray)
 
 	for _, node := range obj.sortedKeys() {
 		e.WriteToken(jsontext.BeginArray)
-		node.key.MarshalJSONTo(e)
-		node.value.MarshalJSONTo(e)
+		if err := node.key.MarshalJSONTo(e); err != nil {
+			return err
+		}
+		if err := node.value.MarshalJSONTo(e); err != nil {
+			return err
+		}
 		e.WriteToken(jsontext.EndArray)
 	}
 	return e.WriteToken(jsontext.EndArray)

@@ -4,7 +4,7 @@ package ast
 
 import (
 	"encoding/json/jsontext"
-	"encoding/json/v2"
+	"fmt"
 
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -30,38 +30,45 @@ func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {
 	}
 
 	if len(a.Organizations) > 0 {
-		e.WriteToken(jsontext.String("organizations"))
-		json.MarshalEncode(e, a.Organizations)
+		if err := util.WriteFieldValue(e, "organizations", a.Organizations); err != nil {
+			return err
+		}
 	}
 
 	if len(a.RelatedResources) > 0 {
-		e.WriteToken(jsontext.String("related_resources"))
-		util.WriteMarshalerToArray(e, a.RelatedResources)
+		if err := util.WriteFieldArray(e, "related_resources", a.RelatedResources); err != nil {
+			return err
+		}
 	}
 
 	if len(a.Authors) > 0 {
-		e.WriteToken(jsontext.String("authors"))
-		util.WriteMarshalerToArray(e, a.Authors)
+		if err := util.WriteFieldArray(e, "authors", a.Authors); err != nil {
+			return err
+		}
 	}
 
 	if len(a.Schemas) > 0 {
-		e.WriteToken(jsontext.String("schemas"))
-		util.WriteMarshalerToArray(e, a.Schemas)
+		if err := util.WriteFieldArray(e, "schemas", a.Schemas); err != nil {
+			return err
+		}
 	}
 
 	if a.Compile != nil {
-		e.WriteToken(jsontext.String("compile"))
-		json.MarshalEncode(e, a.Compile)
+		if err := util.WriteFieldValue(e, "compile", a.Compile); err != nil {
+			return err
+		}
 	}
 
 	if len(a.Custom) > 0 {
-		e.WriteToken(jsontext.String("custom"))
-		json.MarshalEncode(e, a.Custom)
+		if err := util.WriteFieldValue(e, "custom", a.Custom); err != nil {
+			return err
+		}
 	}
 
 	if len(a.Labels) > 0 {
-		e.WriteToken(jsontext.String("labels"))
-		json.MarshalEncode(e, a.Labels)
+		if err := util.WriteFieldValue(e, "labels", a.Labels); err != nil {
+			return err
+		}
 	}
 
 	e.WriteToken(jsontext.String("scope"))
@@ -73,8 +80,9 @@ func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {
 	}
 
 	if a.Location != nil && astJSON.GetOptions().MarshalOptions.IncludeLocation.Annotations {
-		e.WriteToken(jsontext.String("location"))
-		a.Location.MarshalJSONTo(e)
+		if err := util.WriteField(e, "location", a.Location); err != nil {
+			return err
+		}
 	}
 
 	return e.WriteToken(jsontext.EndObject)
@@ -88,17 +96,18 @@ func (ar *AnnotationsRef) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
 	if ar.Annotations != nil {
-		e.WriteToken(jsontext.String("annotations"))
-		ar.Annotations.MarshalJSONTo(e)
+		if err := util.WriteField(e, "annotations", ar.Annotations); err != nil {
+			return err
+		}
 	}
 
 	if ar.Location != nil && astJSON.GetOptions().MarshalOptions.IncludeLocation.AnnotationsRef {
-		e.WriteToken(jsontext.String("location"))
-		ar.Location.MarshalJSONTo(e)
+		if err := util.WriteField(e, "location", ar.Location); err != nil {
+			return err
+		}
 	}
 
-	e.WriteToken(jsontext.String("path"))
-	if err := ar.Path.MarshalJSONTo(e); err != nil {
+	if err := util.WriteField(e, "path", ar.Path); err != nil {
 		return err
 	}
 
@@ -110,6 +119,8 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 }
 
 func (s *SchemaAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
+	// Token write errors are unchecked: an unbalanced value fails at the closing
+	// token. A marshaller can fail having written a balanced value, so is checked.
 	e.WriteToken(jsontext.BeginObject)
 
 	// Path has no omitempty tag, so it's always written. A nil ref is written
@@ -127,20 +138,22 @@ func (s *SchemaAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
 			e.WriteToken(jsontext.String("type"))
 			e.WriteToken(jsontext.String(ValueName(t.Value)))
 			e.WriteToken(jsontext.String("value"))
-			marshalValueTo(e, t.Value)
+			if err := marshalValueTo(e, t.Value); err != nil {
+				return fmt.Errorf("failed to marshal schema path term of %s: %w", ValueName(t.Value), err)
+			}
 			e.WriteToken(jsontext.EndObject)
 		}
 		e.WriteToken(jsontext.EndArray)
 	}
 
 	if len(s.Schema) > 0 {
-		e.WriteToken(jsontext.String("schema"))
-		s.Schema.MarshalJSONTo(e)
+		if err := util.WriteField(e, "schema", s.Schema); err != nil {
+			return err
+		}
 	}
 
 	if s.Definition != nil {
-		e.WriteToken(jsontext.String("definition"))
-		if err := json.MarshalEncode(e, s.Definition); err != nil {
+		if err := util.WriteFieldValue(e, "definition", s.Definition); err != nil {
 			return err
 		}
 	}

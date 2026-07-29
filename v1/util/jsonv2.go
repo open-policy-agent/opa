@@ -39,6 +39,25 @@ func WriteMarshalerToArray[T json.MarshalerTo](e *jsontext.Encoder, items []T) e
 	return e.WriteToken(jsontext.EndArray)
 }
 
+// WriteField writes the object member name and then v's JSON encoding, so that
+// the member is written and checked in one statement.
+func WriteField[T json.MarshalerTo](e *jsontext.Encoder, name string, v T) error {
+	e.WriteToken(jsontext.String(name))
+	return v.MarshalJSONTo(e)
+}
+
+// WriteFieldArray writes the object member name and then the JSON array of items.
+func WriteFieldArray[T json.MarshalerTo](e *jsontext.Encoder, name string, items []T) error {
+	e.WriteToken(jsontext.String(name))
+	return WriteMarshalerToArray(e, items)
+}
+
+// WriteFieldValue is [WriteField] for values that don't implement [json.MarshalerTo].
+func WriteFieldValue(e *jsontext.Encoder, name string, v any) error {
+	e.WriteToken(jsontext.String(name))
+	return json.MarshalEncode(e, v)
+}
+
 // MarshalMarshalerTo provides a MarshalJSON implementation for any type that
 // implements json.MarshalerTo. json.Marshal dispatches to MarshalJSONTo, so this
 // doesn't recurse; the constraint is what guarantees that at compile time.
