@@ -92,7 +92,7 @@ func (term *Term) MarshalJSON() ([]byte, error) {
 }
 
 func (r Ref) MarshalJSONTo(e *jsontext.Encoder) (err error) {
-	return util.WriteMarshalerToArray(e, r)
+	return util.WriteMarshalerToArrayOrNull(e, r)
 }
 
 func (t *TemplateString) MarshalJSONTo(e *jsontext.Encoder) (err error) {

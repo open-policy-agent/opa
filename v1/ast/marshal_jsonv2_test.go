@@ -136,6 +136,10 @@ func TestTerm_MarshalJSON(t *testing.T) {
 			}(),
 			ExpectedJSON: `{"type":"string","value":"example"}`,
 		},
+		"ref with no parts": {
+			Term:         RefTerm(),
+			ExpectedJSON: `{"type":"ref","value":null}`,
+		},
 		"location excluded": {
 			Term: func() *Term {
 				v, _ := InterfaceToValue("example")
@@ -627,6 +631,10 @@ func TestExpr_MarshalJSON(t *testing.T) {
 			Expr:         expr,
 			ExpectedJSON: `{"index":0,"terms":{"type":"boolean","value":true}}`,
 		},
+		"nil terms slice": {
+			Expr:         &Expr{Terms: []*Term(nil)},
+			ExpectedJSON: `{"index":0,"terms":null}`,
+		},
 		"location excluded": {
 			Expr: expr,
 			Options: astJSON.Options{
@@ -717,6 +725,28 @@ func TestExpr_UnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestCall_MarshalJSON(t *testing.T) {
+	testCases := map[string]struct {
+		Call         Call
+		ExpectedJSON string
+	}{
+		"base case": {
+			Call:         Call{VarTerm("eq"), NumberTerm("1")},
+			ExpectedJSON: `[{"type":"var","value":"eq"},{"type":"number","value":1}]`,
+		},
+		"nil call": {
+			Call:         Call(nil),
+			ExpectedJSON: `null`,
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			assertJsonEqual(t, data.ExpectedJSON, util.MustMarshalJSON(data.Call))
+		})
+	}
+}
+
 func TestSomeDecl_MarshalJSON(t *testing.T) {
 	v, _ := InterfaceToValue("example")
 	term := &Term{
@@ -735,6 +765,10 @@ func TestSomeDecl_MarshalJSON(t *testing.T) {
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
 			},
 			ExpectedJSON: `{"symbols":[{"type":"string","value":"example"}]}`,
+		},
+		"nil symbols": {
+			SomeDecl:     &SomeDecl{},
+			ExpectedJSON: `{"symbols":null}`,
 		},
 		"location excluded": {
 			SomeDecl: &SomeDecl{

@@ -58,6 +58,16 @@ func WriteFieldValue(e *jsontext.Encoder, name string, v any) error {
 	return json.MarshalEncode(e, v)
 }
 
+// WriteMarshalerToArrayOrNull is [WriteMarshalerToArray] but writes null for a nil
+// slice, as encoding/json v1 does. Types whose pre-1.27 MarshalJSON returns "[]"
+// for an empty value must keep using [WriteMarshalerToArray].
+func WriteMarshalerToArrayOrNull[T json.MarshalerTo](e *jsontext.Encoder, items []T) error {
+	if items == nil {
+		return e.WriteToken(jsontext.Null)
+	}
+	return WriteMarshalerToArray(e, items)
+}
+
 // MarshalMarshalerTo provides a MarshalJSON implementation for any type that
 // implements json.MarshalerTo. json.Marshal dispatches to MarshalJSONTo, so this
 // doesn't recurse; the constraint is what guarantees that at compile time.

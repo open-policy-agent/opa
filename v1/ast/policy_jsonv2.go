@@ -40,12 +40,7 @@ func (mod *Module) UnmarshalJSON(bs []byte) error {
 // which Go 1.27's encoding/json would otherwise use, encoding args as the Rego
 // representation of the argument list rather than as a JSON array.
 func (a Args) MarshalJSONTo(e *jsontext.Encoder) error {
-	if a == nil {
-		// Matches encoding/json v1, which encodes a nil slice as null rather
-		// than as an empty array.
-		return e.WriteToken(jsontext.Null)
-	}
-	return util.WriteMarshalerToArray(e, a)
+	return util.WriteMarshalerToArrayOrNull(e, a)
 }
 
 func (m *Module) MarshalJSONTo(e *jsontext.Encoder) error {
@@ -201,7 +196,7 @@ func (h *Head) MarshalJSONTo(e *jsontext.Encoder) error {
 }
 
 func (c Call) MarshalJSONTo(e *jsontext.Encoder) (err error) {
-	return util.WriteMarshalerToArray(e, c)
+	return util.WriteMarshalerToArrayOrNull(e, c)
 }
 
 func (c *Comment) MarshalJSONTo(e *jsontext.Encoder) error {
@@ -314,7 +309,7 @@ func (e *Expr) MarshalJSONTo(enc *jsontext.Encoder) error {
 	var err error
 	switch t := e.Terms.(type) {
 	case []*Term:
-		err = util.WriteMarshalerToArray(enc, t)
+		err = util.WriteMarshalerToArrayOrNull(enc, t)
 	case json.MarshalerTo:
 		err = t.MarshalJSONTo(enc)
 	default:
@@ -434,7 +429,8 @@ func (w *With) MarshalJSONTo(e *jsontext.Encoder) error {
 func (d *SomeDecl) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
-	if err := util.WriteFieldArray(e, "symbols", d.Symbols); err != nil {
+	e.WriteToken(jsontext.String("symbols"))
+	if err := util.WriteMarshalerToArrayOrNull(e, d.Symbols); err != nil {
 		return err
 	}
 
