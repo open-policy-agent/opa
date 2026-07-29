@@ -101,7 +101,7 @@ func Compare(a, b string) int {
 	return aV.Compare(bV)
 }
 
-// AppendText appends the textual representation of the version to b and returns the extended buffer.
+// AppendString appends the textual representation of the version to b and returns the extended buffer.
 // This method conforms to the encoding.TextAppender interface, and is useful for serializing the Version
 // without allocating, provided the caller has pre-allocated sufficient space in b.
 func (v Version) AppendString(b []byte) ([]byte, error) {
