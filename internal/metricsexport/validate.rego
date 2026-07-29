@@ -5,7 +5,7 @@
 #   handled by unmarshaling into the Go struct.
 #
 #   Input: {"config": <raw metrics_export config>}
-#   Entrypoints: processed (config + defaults), errors (fatal).
+#   Rules read by the Go layer: processed (config + defaults), errors (fatal).
 package opa.config.metrics_export
 
 import future.keywords.not
@@ -31,7 +31,6 @@ _default_address := _default_grpc_address if lower(input.config.type) == "otlp/g
 _default_address := _default_http_address if lower(input.config.type) == "otlp/http"
 
 # METADATA
-# entrypoint: true
 # description: the config with metrics_export defaults injected for absent options.
 processed := object.union_n(array.concat([input.config], [patch | some patch in _patches]))
 

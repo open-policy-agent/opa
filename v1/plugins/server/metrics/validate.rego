@@ -6,14 +6,13 @@
 #   into the Go struct.
 #
 #   Input: {"config": <raw server.metrics config>}
-#   Entrypoint: processed (config + defaults).
+#   Rule read by the Go layer: processed (config + defaults).
 package opa.config.server.metrics
 
 # _default_buckets mirrors defaultHTTPRequestBuckets in config.go.
 _default_buckets := [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1]
 
 # METADATA
-# entrypoint: true
 # description: the config with the default histogram buckets injected when absent.
 processed := object.union_n(array.concat([input.config], [patch | some patch in _patches]))
 

@@ -8,7 +8,7 @@
 #   replace each plugin's own config validation.
 #
 #   Input: {"config": <raw config>, "runtime": {"id", "version"}}
-#   Entrypoints: processed (config + defaults), errors (fatal), warnings.
+#   Rules read by the Go layer: processed (config + defaults), errors (fatal), warnings.
 package opa.config
 
 _default_decision := "/system/main"
@@ -16,7 +16,6 @@ _default_decision := "/system/main"
 _default_authorization_decision := "/system/authz/allow"
 
 # METADATA
-# entrypoint: true
 # description: |
 #   The user config with every _patches fragment merged over it. A fragment
 #   wins where it overlaps, so enforced values (labels id/version) always apply,

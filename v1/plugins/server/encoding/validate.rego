@@ -6,7 +6,7 @@
 #   handled by unmarshaling into the Go struct.
 #
 #   Input: {"config": <raw server.encoding config>}
-#   Entrypoints: processed (config + defaults), errors (fatal).
+#   Rules read by the Go layer: processed (config + defaults), errors (fatal).
 package opa.config.server.encoding
 
 # Defaults mirror encoding/config.go.
@@ -19,7 +19,6 @@ _default_compression_level := 9
 _accepted_compression_levels := {0, 1, 9}
 
 # METADATA
-# entrypoint: true
 # description: the config with gzip encoding defaults injected for absent options.
 processed := object.union_n(array.concat([input.config], [patch | some patch in _patches]))
 
