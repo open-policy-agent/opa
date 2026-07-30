@@ -2,6 +2,14 @@ package opa.config.server.decoding_test
 
 import data.opa.config.server.decoding
 
+# _non_numbers are values a max_length option must be rejected for, shared by the
+# top-level and gzip cases.
+_non_numbers := [
+	{"note": "string", "value": "foobar"},
+	{"note": "boolean", "value": true},
+	{"note": "array", "value": [1]},
+]
+
 test_injects_defaults[tc.note] if {
 	some tc in [
 		{"note": "empty config", "config": {}},
@@ -27,7 +35,7 @@ test_preserves_unknown_keys if {
 	result.gzip.random_key == 0
 }
 
-test_rejects_non_positive_max_length[tc.note] if {
+test_rejects_non_positive_gzip_max_length[tc.note] if {
 	some tc in [
 		{"note": "zero", "config": {"gzip": {"max_length": 0}}},
 		{"note": "negative", "config": {"gzip": {"max_length": -10}}},
@@ -49,20 +57,18 @@ test_rejects_non_positive_top_level_max_length[tc.note] if {
 
 # A non-number max_length is rejected here rather than left to the Go unmarshal,
 # so the message names the option instead of the Go field.
-test_rejects_non_number_max_length[tc.note] if {
-	some tc in [
-		{"note": "string", "config": {"max_length": "foobar"}, "want": "server.decoding.max_length"},
-		{"note": "boolean", "config": {"max_length": true}, "want": "server.decoding.max_length"},
-		{"note": "array", "config": {"max_length": [1]}, "want": "server.decoding.max_length"},
-		{
-			"note": "nested string",
-			"config": {"gzip": {"max_length": "foobar"}},
-			"want": "server.decoding.gzip.max_length",
-		},
-	]
+test_rejects_non_number_top_level_max_length[tc.note] if {
+	some tc in _non_numbers
 
-	result := decoding.errors with input as {"config": tc.config}
-	sprintf("invalid value for %s field, should be a positive number", [tc.want]) in result
+	result := decoding.errors with input as {"config": {"max_length": tc.value}}
+	"invalid value for server.decoding.max_length field, should be a positive number" in result
+}
+
+test_rejects_non_number_gzip_max_length[tc.note] if {
+	some tc in _non_numbers
+
+	result := decoding.errors with input as {"config": {"gzip": {"max_length": tc.value}}}
+	"invalid value for server.decoding.gzip.max_length field, should be a positive number" in result
 }
 
 # Without this check the gzip defaults would be merged over the bad value,

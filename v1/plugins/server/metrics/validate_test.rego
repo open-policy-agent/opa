@@ -6,7 +6,7 @@ _default_buckets := [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1]
 
 _buckets_field := "server.metrics.prom.http_request_duration_seconds.buckets"
 
-_buckets_msg := sprintf("invalid value for %s field, should be an array of numbers", [_buckets_field])
+_buckets_msg := $`invalid value for {_buckets_field} field, should be an array of numbers`
 
 test_injects_default_buckets[tc.note] if {
 	some tc in [
