@@ -3948,3 +3948,38 @@ func TestWithQueryImports(t *testing.T) {
 		})
 	}
 }
+
+func TestEvalJSONOutputBytes(t *testing.T) {
+	params := newEvalCommandParams()
+
+	var buf bytes.Buffer
+
+	defined, err := eval([]string{"1 == 1"}, params, &buf, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !defined {
+		t.Fatal("expected result to be defined")
+	}
+
+	expected := `{
+  "result": [
+    {
+      "expressions": [
+        {
+          "value": true,
+          "text": "1 == 1",
+          "location": {
+            "row": 1,
+            "col": 1
+          }
+        }
+      ]
+    }
+  ]
+}
+`
+	if diff := cmp.Diff(expected, buf.String()); diff != "" {
+		t.Fatalf("unexpected JSON output (-want +got):\n%s", diff)
+	}
+}

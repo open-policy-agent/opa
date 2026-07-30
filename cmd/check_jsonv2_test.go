@@ -7,6 +7,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -16,7 +17,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/open-policy-agent/opa/internal/file/archive"
+	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -290,6 +294,46 @@ func TestCheckFailsOnInvalidRego(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), expectedError) {
 			t.Fatalf("expected error %v but received %v", expectedError, err)
+		}
+	})
+}
+
+func TestCheckJSONOutputBytes(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+{}`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newCheckParams()
+
+		checkErr := checkModules(params, []string{root})
+		if checkErr == nil {
+			t.Fatal("expected error but received none")
+		}
+
+		var buf bytes.Buffer
+		if err := pr.JSON(&buf, pr.Output{Errors: pr.NewOutputErrors(checkErr)}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expected := strings.ReplaceAll(`{
+  "errors": [
+    {
+      "message": "object cannot be used for rule name",
+      "code": "rego_parse_error",
+      "location": {
+        "file": "TEMPDIR/test.rego",
+        "row": 2,
+        "col": 1
+      }
+    }
+  ]
+}
+`, "TEMPDIR", root)
+
+		if diff := cmp.Diff(expected, buf.String()); diff != "" {
+			t.Errorf("unexpected result (-want, +got):\n%s", diff)
 		}
 	})
 }

@@ -13,6 +13,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -78,6 +79,72 @@ func TestCapabilitiesFile(t *testing.T) {
 			}
 		})
 
+	})
+}
+
+func TestCapabilitiesJSONOutputBytes(t *testing.T) {
+	files := map[string]string{
+		"test-capabilities.json": `
+		{
+			"builtins": [
+				{
+					"name": "plus",
+					"infix": "+",
+					"decl": {
+						"type": "function",
+						"args": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "number"
+							}
+						],
+						"result": {
+							"type": "number"
+						}
+					}
+				}
+			]
+		}
+		`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := capabilitiesParams{
+			file: path.Join(root, "test-capabilities.json"),
+		}
+		got, err := doCapabilities(params)
+		if err != nil {
+			t.Fatal("expected success", err)
+		}
+
+		expected := `{
+  "builtins": [
+    {
+      "name": "plus",
+      "decl": {
+        "args": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "result": {
+          "type": "number"
+        },
+        "type": "function"
+      },
+      "infix": "+"
+    }
+  ]
+}`
+
+		if diff := cmp.Diff(expected, got); diff != "" {
+			t.Errorf("unexpected result (-want, +got):\n%s", diff)
+		}
 	})
 }
 

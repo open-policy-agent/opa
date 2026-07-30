@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -101,6 +102,52 @@ q = true`,
 		})
 	}
 
+}
+
+func TestOracleFindDefinitionJSONOutputBytes(t *testing.T) {
+	onDiskModule := `package test
+
+p if { r }
+
+r = true`
+	stdin := bytes.NewBufferString(`package test
+
+p if { q }
+
+q = true`)
+
+	files := map[string]string{
+		"test.rego":    onDiskModule,
+		"document.txt": "this should not be included",
+		"ignore.json":  `{"neither": "should this"}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		params := findDefinitionParams{
+			bundlePaths: repeatedStringFlag{
+				v:     []string{rootDir},
+				isSet: true,
+			},
+			stdinBuffer: true,
+		}
+
+		stdout := bytes.NewBuffer(nil)
+
+		err := dofindDefinition(params, stdin, stdout, []string{path.Join(rootDir, "test.rego:10")})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		exp := `{
+  "error": {
+    "code": "oracle_no_match_found"
+  }
+}
+`
+		if diff := cmp.Diff(exp, stdout.String()); diff != "" {
+			t.Errorf("unexpected result (-want, +got):\n%s", diff)
+		}
+	})
 }
 
 func expectJSON(t *testing.T, err error, buffer *bytes.Buffer, exp string) {

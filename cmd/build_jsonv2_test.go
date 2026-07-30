@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/loader"
@@ -3416,4 +3417,68 @@ Warning: .manifest file found in %q but -b flag not specified. Manifest will be 
 			})
 		})
 	}
+}
+
+func TestBuildPlanJSONOutputBytes(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+			package test
+			p = 1
+		`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newBuildParams()
+		if err := params.target.Set("plan"); err != nil {
+			t.Fatal(err)
+		}
+		params.entrypoints.v = []string{"test"}
+		params.outputFile = path.Join(root, "bundle.tar.gz")
+
+		if err := dobuild(params, []string{root}); err != nil {
+			t.Fatal(err)
+		}
+
+		f, err := os.Open(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+
+		gr, err := gzip.NewReader(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tr := tar.NewReader(gr)
+		var planBytes []byte
+		var found bool
+
+		for {
+			h, err := tr.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if h.Name == "/plan.json" {
+				found = true
+				if planBytes, err = io.ReadAll(tr); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+
+		if !found {
+			t.Fatal("plan.json not found")
+		}
+
+		got := strings.ReplaceAll(string(planBytes), root, "TEMPDIR")
+
+		expected := `{"static":{"strings":[{"value":"result"},{"value":"p"},{"value":"1"},{"value":"test"}],"files":[{"value":"TEMPDIR/test.rego"}]},"plans":{"plans":[{"name":"test","blocks":[{"stmts":[{"type":"MakeObjectStmt","stmt":{"target":2,"file":0,"col":0,"row":0}},{"type":"BlockStmt","stmt":{"blocks":[{"stmts":[{"type":"CallStmt","stmt":{"func":"g0.data.test.p","args":[{"type":"local","value":0},{"type":"local","value":1}],"result":3,"file":0,"col":0,"row":0}},{"type":"ObjectInsertStmt","stmt":{"key":{"type":"string_index","value":1},"value":{"type":"local","value":3},"object":2,"file":0,"col":0,"row":0}}]}],"file":0,"col":0,"row":0}},{"type":"BlockStmt","stmt":{"blocks":[{"stmts":[{"type":"BlockStmt","stmt":{"blocks":[{"stmts":[{"type":"DotStmt","stmt":{"source":{"type":"local","value":1},"key":{"type":"string_index","value":3},"target":5,"file":0,"col":0,"row":0}},{"type":"ObjectMergeStmt","stmt":{"a":5,"b":2,"target":4,"file":0,"col":0,"row":0}},{"type":"BreakStmt","stmt":{"index":1,"file":0,"col":0,"row":0}}]}],"file":0,"col":0,"row":0}},{"type":"AssignVarStmt","stmt":{"source":{"type":"local","value":2},"target":4,"file":0,"col":0,"row":0}}]}],"file":0,"col":0,"row":0}},{"type":"AssignVarStmt","stmt":{"source":{"type":"local","value":4},"target":6,"file":0,"col":0,"row":0}},{"type":"MakeObjectStmt","stmt":{"target":7,"file":0,"col":0,"row":0}},{"type":"ObjectInsertStmt","stmt":{"key":{"type":"string_index","value":0},"value":{"type":"local","value":6},"object":7,"file":0,"col":0,"row":0}},{"type":"ResultSetAddStmt","stmt":{"value":7,"file":0,"col":0,"row":0}}]}]}]},"funcs":{"funcs":[{"name":"g0.data.test.p","params":[0,1],"return":2,"blocks":[{"stmts":[{"type":"ResetLocalStmt","stmt":{"target":3,"file":0,"col":4,"row":3}},{"type":"MakeNumberRefStmt","stmt":{"file":0,"col":4,"row":3,"index":2,"Index":2,"target":4}},{"type":"AssignVarOnceStmt","stmt":{"source":{"type":"local","value":4},"target":3,"file":0,"col":4,"row":3}}]},{"stmts":[{"type":"IsDefinedStmt","stmt":{"source":3,"file":0,"col":4,"row":3}},{"type":"AssignVarOnceStmt","stmt":{"source":{"type":"local","value":3},"target":2,"file":0,"col":4,"row":3}}]},{"stmts":[{"type":"ReturnLocalStmt","stmt":{"source":2,"file":0,"col":4,"row":3}}]}],"path":["g0","test","p"]}]}}`
+
+		if diff := cmp.Diff(expected, got); diff != "" {
+			t.Errorf("unexpected result (-want, +got):\n%s", diff)
+		}
+	})
 }

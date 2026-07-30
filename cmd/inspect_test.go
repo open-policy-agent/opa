@@ -16,12 +16,69 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/util"
 
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
+
+func TestDoInspectJSONOutputBytes(t *testing.T) {
+	files := [][2]string{
+		{"/.manifest", `{"revision": "rev", "roots": ["foo", "bar", "fuz", "baz", "a", "x"]}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
+		{"/example/foo.rego", `package foo`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+	bundleFile := filepath.Join(t.TempDir(), "bundle.tar.gz")
+	if err := os.WriteFile(bundleFile, buf.Bytes(), 0o644); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	var out bytes.Buffer
+	params := newInspectCommandParams()
+	if err := params.outputFormat.Set(formats.JSON); err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if err := doInspect(params, bundleFile, &out); err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	expected := `{
+  "manifest": {
+    "revision": "rev",
+    "roots": [
+      "foo",
+      "bar",
+      "fuz",
+      "baz",
+      "a",
+      "x"
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data": [
+      "/data.json"
+    ],
+    "data.foo": [
+      "/example/foo.rego"
+    ]
+  },
+  "capabilities": {
+    "features": [
+      "rego_v1"
+    ]
+  }
+}
+`
+	if diff := cmp.Diff(expected, out.String()); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
+	}
+}
 
 func TestDoInspect(t *testing.T) {
 	files := [][2]string{

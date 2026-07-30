@@ -18,12 +18,49 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
 	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/repl"
+	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/test/e2e"
 	"github.com/open-policy-agent/opa/v1/util/test"
 	"github.com/spf13/cobra"
 )
+
+func TestREPLJSONOutputBytes(t *testing.T) {
+	store := inmem.New()
+	var buf bytes.Buffer
+	r := repl.New(store, "", &buf, "json", 0, "")
+
+	ctx := context.Background()
+	if err := r.OneShot(ctx, "1 == 1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected := `{
+  "result": [
+    {
+      "expressions": [
+        {
+          "value": true,
+          "text": "1 == 1",
+          "location": {
+            "row": 1,
+            "col": 1
+          }
+        }
+      ]
+    }
+  ]
+}
+`
+
+	if diff := cmp.Diff(expected, buf.String()); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
+	}
+}
 
 func TestRunServerBase(t *testing.T) {
 	params := newTestRunParams()
