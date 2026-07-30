@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"runtime"
+	"strings"
 	"testing"
 	"weak"
 )
@@ -1345,5 +1346,29 @@ allow if true
 
 	if watch.Value() != nil {
 		t.Fatal("AnnotationSet was not garbage-collected: mergedLabels cache likely holds a retaining cycle")
+	}
+}
+
+func TestAnnotations_StringDeterministic(t *testing.T) {
+	a := &Annotations{
+		Scope:       "rule",
+		Description: "<b>&</b>",
+		Custom: map[string]any{
+			"zeta": 1, "alpha": 2, "mu": 3, "beta": 4, "omega": 5,
+		},
+	}
+
+	exp := a.String()
+	for i := range 10 {
+		if got := a.String(); got != exp {
+			t.Fatalf("String() is not deterministic across calls:\ncall 0: %s\ncall %d: %s", exp, i+1, got)
+		}
+	}
+
+	if raw := "<b>&</b>"; strings.Contains(exp, raw) {
+		t.Fatalf("expected HTML characters to be escaped, but found raw %s in %s", raw, exp)
+	}
+	if escaped := `\u003cb\u003e\u0026\u003c/b\u003e`; !strings.Contains(exp, escaped) {
+		t.Fatalf("expected HTML characters to be escaped as %s, got %s", escaped, exp)
 	}
 }
