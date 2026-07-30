@@ -42,7 +42,7 @@ func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {
 	}
 
 	if len(a.Authors) > 0 {
-		if err := util.WriteFieldArray(e, "authors", a.Authors); err != nil {
+		if err := util.WriteFieldValue(e, "authors", a.Authors); err != nil {
 			return err
 		}
 	}
@@ -178,21 +178,6 @@ func (rr *RelatedResourceAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
 	if len(rr.Description) > 0 {
 		e.WriteToken(jsontext.String("description"))
 		e.WriteToken(jsontext.String(rr.Description))
-	}
-
-	return e.WriteToken(jsontext.EndObject)
-}
-
-func (a *AuthorAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
-	e.WriteToken(jsontext.BeginObject)
-
-	// Name has no omitempty tag, so it's always written.
-	e.WriteToken(jsontext.String("name"))
-	e.WriteToken(jsontext.String(a.Name))
-
-	if len(a.Email) > 0 {
-		e.WriteToken(jsontext.String("email"))
-		e.WriteToken(jsontext.String(a.Email))
 	}
 
 	return e.WriteToken(jsontext.EndObject)
