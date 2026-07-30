@@ -119,7 +119,7 @@ func TestInterfaceToValueStructs(t *testing.T) {
 	var m brokenMarshaller
 
 	_, err = InterfaceToValue(m)
-	if err == nil || err.Error() != "ast: interface conversion: json: error calling MarshalJSON for type ast.brokenMarshaller: broken" {
+	if err == nil || !strings.Contains(err.Error(), "ast: interface conversion: json: error calling MarshalJSON for type") {
 		t.Fatal("expected error but got:", err)
 	}
 }

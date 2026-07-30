@@ -231,9 +231,15 @@ func TestEventBuffer_Upload(t *testing.T) {
 			numberOfEvents:       4,
 			uploadSizeLimitBytes: 196, // Each test event is 195 bytes
 			handleFunc: func(w http.ResponseWriter, r *http.Request) {
+				// No. of events that fit in a chunk depends on how gzip packs
+				// them, which varies between Go versions. So here we confirm
+				// the len and that we get at least one event.
+				if r.ContentLength > 196 {
+					t.Errorf("uploaded chunk of %d bytes exceeds the limit of 196", r.ContentLength)
+				}
 				events := decodeLogEvent(t, r.Body)
-				if len(events) != 1 {
-					t.Errorf("expected 1 events, got %d", len(events))
+				if len(events) == 0 {
+					t.Error("expected a chunk to hold at least one event")
 				}
 				allEvents = append(allEvents, events...)
 				w.WriteHeader(http.StatusOK)

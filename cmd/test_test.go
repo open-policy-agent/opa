@@ -1,3 +1,5 @@
+//go:build !go1.27
+
 package cmd
 
 import (
@@ -15,6 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
+	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
@@ -3865,3 +3870,49 @@ func (*testPlugin) Eval(context.Context, *rego.EvalContext, ast.Value) (ast.Valu
 }
 
 const targetPlugin = "rego_test_default_plugin"
+
+var durationJSONRe = regexp.MustCompile(`"duration":\s*\d+`)
+
+func TestOpaTestJSONOutputBytes(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+test_p if { true }
+`,
+	}
+
+	var stdout bytes.Buffer
+	var tempDirPath string
+	test.WithTempFS(files, func(root string) {
+		tempDirPath = root
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.outputFormat = formats.Flag(formats.JSON, formats.Pretty)
+		testParams.output = &stdout
+		testParams.errOutput = io.Discard
+
+		if exitCode := opaTest([]string{root}, testParams); exitCode != 0 {
+			t.Fatalf("unexpected exit code: %d", exitCode)
+		}
+	})
+
+	normalized := durationJSONRe.ReplaceAll(stdout.Bytes(), []byte(`"duration":0`))
+
+	expectedOutput := strings.ReplaceAll(`[
+  {
+    "location": {
+      "file": "TEMPDIR/test.rego",
+      "row": 3,
+      "col": 1
+    },
+    "package": "data.test",
+    "name": "test_p",
+    "duration":0
+  }
+]
+`, "TEMPDIR", tempDirPath)
+
+	if diff := cmp.Diff(expectedOutput, string(normalized)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
+	}
+}

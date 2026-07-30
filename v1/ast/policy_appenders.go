@@ -223,6 +223,10 @@ func (a Args) AppendText(buf []byte) ([]byte, error) {
 	return append(buf, ')'), nil
 }
 
+func (body Body) AppendText(buf []byte) ([]byte, error) {
+	return AppendDelimeted(buf, body, "; ")
+}
+
 func (expr *Expr) AppendText(buf []byte) ([]byte, error) {
 	if expr.Negated {
 		buf = append(buf, "not "...)

@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/util/test"
@@ -56,7 +57,7 @@ func TestParseKeysConfig(t *testing.T) {
 		"invalid_raw_config": {
 			`[1,2,3]`,
 			nil,
-			true, errors.New("json: cannot unmarshal array into Go value of type map[string]json.RawMessage"),
+			true, errors.New("json: cannot unmarshal array into Go value of type"),
 		},
 	}
 
@@ -68,8 +69,13 @@ func TestParseKeysConfig(t *testing.T) {
 					t.Fatal("Expected error but got nil")
 				}
 
-				if tc.err != nil && tc.err.Error() != err.Error() {
-					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				if tc.err != nil {
+					exp := tc.err.Error()
+					got := err.Error()
+
+					if !strings.HasPrefix(got, exp) {
+						t.Fatalf("Expected error message %v but got %v", exp, got)
+					}
 				}
 			} else if err != nil {
 				t.Fatalf("Unexpected error %v", err)

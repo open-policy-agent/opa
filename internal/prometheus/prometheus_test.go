@@ -3,8 +3,10 @@
 // license that can be found in the LICENSE file.
 //
 // NOTE: Different go runtime metrics in pretty much
-// every Go version. Let's only test these on latest.
-//go:build go1.26
+// every Go version. The expected metrics below are those of Go 1.26, so pin
+// this test to exactly that version: it fails on both older and newer ones.
+
+//go:build go1.26 && !go1.27
 
 package prometheus
 

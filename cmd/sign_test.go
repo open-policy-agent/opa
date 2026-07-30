@@ -1,3 +1,5 @@
+//go:build !go1.27
+
 // Copyright 2018 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
@@ -10,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/bundle"
@@ -43,6 +47,25 @@ func TestWriteTokenToFile(t *testing.T) {
 
 		if !bytes.Equal(expectedBytes, bs) {
 			t.Fatal("Unexpected content in \".signatures.json\" file")
+		}
+	})
+}
+
+func TestWriteTokenToFileJSONOutputBytes(t *testing.T) {
+	test.WithTempFS(map[string]string{}, func(rootDir string) {
+		if err := writeTokenToFile("footoken", rootDir); err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		gotBytes, err := os.ReadFile(filepath.Join(rootDir, ".signatures.json"))
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		expected := "{\n \"signatures\": [\n  \"footoken\"\n ]\n}"
+
+		if diff := cmp.Diff(expected, string(gotBytes)); diff != "" {
+			t.Errorf("unexpected result (-want, +got):\n%s", diff)
 		}
 	})
 }

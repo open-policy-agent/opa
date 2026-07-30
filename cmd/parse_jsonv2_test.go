@@ -1,0 +1,1531 @@
+//go:build go1.27
+
+package cmd
+
+import (
+	"bytes"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/open-policy-agent/opa/cmd/formats"
+	"github.com/open-policy-agent/opa/v1/util/test"
+)
+
+func TestParseExit0(t *testing.T) {
+	files := map[string]string{
+		"x.rego": `package x
+		
+		p = 1
+		`,
+	}
+	errc, stdout, stderr, _ := testParse(t, files, &configuredParseParams)
+	if errc != 0 {
+		t.Fatalf("Expected exit code 0, got %v", errc)
+	}
+	if len(stderr) > 0 {
+		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+	}
+
+	expectedOutput := `module
+ package
+  ref
+   data
+   "x"
+ rule
+  head
+   ref
+    p
+   1
+  body
+   expr index=0
+    true
+`
+
+	if got, want := string(stdout), expectedOutput; got != want {
+		t.Fatalf("Expected output\n%v\n, got\n%v", want, got)
+	}
+}
+
+func TestParseExit1(t *testing.T) {
+
+	files := map[string]string{
+		"x.rego": `???`,
+	}
+	errc, _, stderr, _ := testParse(t, files, &configuredParseParams)
+	if errc != 1 {
+		t.Fatalf("Expected exit code 1, got %v", errc)
+	}
+	if len(stderr) == 0 {
+		t.Fatalf("Expected output in stderr")
+	}
+}
+
+func TestParseJSONOutput(t *testing.T) {
+	files := map[string]string{
+		"x.rego": `package x
+		
+		p = 1
+		`,
+	}
+	errc, stdout, stderr, _ := testParse(t, files, &parseParams{
+		format: formats.Flag(formats.JSON, formats.Pretty),
+	})
+	if errc != 0 {
+		t.Fatalf("Expected exit code 0, got %v", errc)
+	}
+	if len(stderr) > 0 {
+		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+	}
+
+	expectedOutput := `{
+  "package": {
+    "path": [
+      {
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "type": "string",
+        "value": "x"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "head": {
+        "name": "p",
+        "ref": [
+          {
+            "type": "var",
+            "value": "p"
+          }
+        ],
+        "value": {
+          "type": "number",
+          "value": 1
+        }
+      },
+      "body": [
+        {
+          "index": 0,
+          "terms": {
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ]
+    }
+  ]
+}
+`
+
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
+	}
+}
+
+func TestParseJSONOutputWithLocations(t *testing.T) {
+	files := map[string]string{
+		"x.rego": `package x
+
+p = 1
+`,
+	}
+	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
+		format:      formats.Flag(formats.JSON, formats.Pretty),
+		jsonInclude: "locations",
+	})
+	if errc != 0 {
+		t.Fatalf("Expected exit code 0, got %v", errc)
+	}
+	if len(stderr) > 0 {
+		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+	}
+
+	expectedOutput := strings.ReplaceAll(`{
+  "package": {
+    "location": {
+      "file": "TEMPDIR/x.rego",
+      "row": 1,
+      "col": 1,
+      "text": "cGFja2FnZQ=="
+    },
+    "path": [
+      {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 1,
+          "col": 9,
+          "text": "eA=="
+        },
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 1,
+          "col": 9,
+          "text": "eA=="
+        },
+        "type": "string",
+        "value": "x"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "head": {
+        "name": "p",
+        "ref": [
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 1,
+              "text": "cA=="
+            },
+            "type": "var",
+            "value": "p"
+          }
+        ],
+        "value": {
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 3,
+            "col": 5,
+            "text": "MQ=="
+          },
+          "type": "number",
+          "value": 1
+        },
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 3,
+          "col": 1,
+          "text": "cCA9IDE="
+        }
+      },
+      "body": [
+        {
+          "index": 0,
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 3,
+            "col": 5,
+            "text": "MQ=="
+          },
+          "terms": {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 5,
+              "text": "MQ=="
+            },
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ],
+      "location": {
+        "file": "TEMPDIR/x.rego",
+        "row": 3,
+        "col": 1,
+        "text": "cCA9IDE="
+      }
+    }
+  ]
+}
+`, "TEMPDIR", tempDirPath)
+
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
+	}
+}
+
+func TestParseOutputWithNotImport(t *testing.T) {
+	cases := []struct {
+		format string
+		exp    string
+	}{
+		{
+			format: formats.JSON,
+			exp: `{
+  "package": {
+    "path": [
+      {
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "type": "string",
+        "value": "test"
+      }
+    ]
+  },
+  "imports": [
+    {
+      "path": {
+        "type": "ref",
+        "value": [
+          {
+            "type": "var",
+            "value": "future"
+          },
+          {
+            "type": "string",
+            "value": "keywords"
+          },
+          {
+            "type": "string",
+            "value": "not"
+          }
+        ]
+      }
+    }
+  ],
+  "rules": [
+    {
+      "head": {
+        "name": "implicit_body",
+        "ref": [
+          {
+            "type": "var",
+            "value": "implicit_body"
+          }
+        ],
+        "value": {
+          "type": "boolean",
+          "value": true
+        }
+      },
+      "body": [
+        {
+          "index": 0,
+          "terms": {
+            "type": "not",
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "plus"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "input"
+                          },
+                          {
+                            "type": "string",
+                            "value": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 42
+                  }
+                ]
+              }
+            ],
+            "explicit_body": false
+          }
+        }
+      ]
+    },
+    {
+      "head": {
+        "name": "explicit_body",
+        "ref": [
+          {
+            "type": "var",
+            "value": "explicit_body"
+          }
+        ],
+        "value": {
+          "type": "boolean",
+          "value": true
+        }
+      },
+      "body": [
+        {
+          "index": 0,
+          "terms": {
+            "type": "not",
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "x"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "z"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "plus"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "x"
+                      },
+                      {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 3,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "z"
+                  },
+                  {
+                    "type": "number",
+                    "value": 42
+                  }
+                ]
+              }
+            ],
+            "explicit_body": true
+          }
+        }
+      ]
+    }
+  ]
+}
+`,
+		},
+		{
+			format: formats.Pretty,
+			exp: `module
+ package
+  ref
+   data
+   "test"
+ import
+  ref
+   future
+   "keywords"
+   "not"
+  
+ rule
+  head
+   ref
+    implicit_body
+   true
+  body
+   expr index=0
+    not
+     body
+      expr index=0
+       ref
+        equal
+       call
+        ref
+         plus
+        ref
+         input
+         "x"
+        2
+       42
+ rule
+  head
+   ref
+    explicit_body
+   true
+  body
+   expr index=0
+    not
+     body
+      expr index=0
+       ref
+        assign
+       x
+       ref
+        input
+        "x"
+      expr index=1
+       ref
+        assign
+       y
+       2
+      expr index=2
+       ref
+        assign
+       z
+       call
+        ref
+         plus
+        x
+        y
+      expr index=3
+       ref
+        equal
+       z
+       42
+`,
+		},
+	}
+
+	files := map[string]string{
+		"x.rego": `package test
+
+			import future.keywords.not
+			
+			implicit_body if {
+				not input.x + 2 == 42
+			}
+			
+			explicit_body if {
+				not {
+					x := input.x
+					y := 2
+					z := x + y
+					z == 42
+				}
+			}
+		`,
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.format, func(t *testing.T) {
+			errc, stdout, stderr, _ := testParse(t, files, &parseParams{
+				format: formats.Flag(tc.format),
+			})
+			if errc != 0 {
+				t.Fatalf("Expected exit code 0, got %v", errc)
+			}
+			if len(stderr) > 0 {
+				t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+			}
+
+			if diff := cmp.Diff(tc.exp, string(stdout)); diff != "" {
+				t.Errorf("unexpected result (-want, +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestParseRefsJSONOutput(t *testing.T) {
+	files := map[string]string{
+		"x.rego": `package x
+		
+    a.b.c := true
+		`,
+	}
+	errc, stdout, stderr, _ := testParse(t, files, &parseParams{
+		format: formats.Flag(formats.JSON, formats.Pretty),
+	})
+	if errc != 0 {
+		t.Fatalf("Expected exit code 0, got %v", errc)
+	}
+	if len(stderr) > 0 {
+		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+	}
+
+	expectedOutput := `{
+  "package": {
+    "path": [
+      {
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "type": "string",
+        "value": "x"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "head": {
+        "ref": [
+          {
+            "type": "var",
+            "value": "a"
+          },
+          {
+            "type": "string",
+            "value": "b"
+          },
+          {
+            "type": "string",
+            "value": "c"
+          }
+        ],
+        "value": {
+          "type": "boolean",
+          "value": true
+        },
+        "assign": true
+      },
+      "body": [
+        {
+          "index": 0,
+          "terms": {
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ]
+    }
+  ]
+}
+`
+
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
+	}
+}
+
+func TestParseRefsJSONOutputWithLocations(t *testing.T) {
+	files := map[string]string{
+		"x.rego": `package x
+
+a.b.c := true
+`,
+	}
+	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
+		format:      formats.Flag(formats.JSON, formats.Pretty),
+		jsonInclude: "locations",
+	})
+	if errc != 0 {
+		t.Fatalf("Expected exit code 0, got %v", errc)
+	}
+	if len(stderr) > 0 {
+		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+	}
+
+	expectedOutput := strings.ReplaceAll(`{
+  "package": {
+    "location": {
+      "file": "TEMPDIR/x.rego",
+      "row": 1,
+      "col": 1,
+      "text": "cGFja2FnZQ=="
+    },
+    "path": [
+      {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 1,
+          "col": 9,
+          "text": "eA=="
+        },
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 1,
+          "col": 9,
+          "text": "eA=="
+        },
+        "type": "string",
+        "value": "x"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "head": {
+        "ref": [
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 1,
+              "text": "YQ=="
+            },
+            "type": "var",
+            "value": "a"
+          },
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 3,
+              "text": "Yg=="
+            },
+            "type": "string",
+            "value": "b"
+          },
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 5,
+              "text": "Yw=="
+            },
+            "type": "string",
+            "value": "c"
+          }
+        ],
+        "value": {
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 3,
+            "col": 10,
+            "text": "dHJ1ZQ=="
+          },
+          "type": "boolean",
+          "value": true
+        },
+        "assign": true,
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 3,
+          "col": 1,
+          "text": "YS5iLmMgOj0gdHJ1ZQ=="
+        }
+      },
+      "body": [
+        {
+          "index": 0,
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 3,
+            "col": 10,
+            "text": "dHJ1ZQ=="
+          },
+          "terms": {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 10,
+              "text": "dHJ1ZQ=="
+            },
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ],
+      "location": {
+        "file": "TEMPDIR/x.rego",
+        "row": 3,
+        "col": 1,
+        "text": "YS5iLmMgOj0gdHJ1ZQ=="
+      }
+    }
+  ]
+}
+`, "TEMPDIR", tempDirPath)
+
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
+	}
+}
+func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
+
+	files := map[string]string{
+		"x.rego": `package x
+import rego.v1
+
+default allow = false
+allow = true if {
+  input.method == "GET"
+  input.path = ["getUser", user]
+  input.user == user
+}
+`,
+	}
+	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
+		format:      formats.Flag(formats.JSON, formats.Pretty),
+		jsonInclude: "locations",
+	})
+	if errc != 0 {
+		t.Fatalf("Expected exit code 0, got %v", errc)
+	}
+	if len(stderr) > 0 {
+		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+	}
+
+	expectedOutput := strings.ReplaceAll(`{
+  "package": {
+    "location": {
+      "file": "TEMPDIR/x.rego",
+      "row": 1,
+      "col": 1,
+      "text": "cGFja2FnZQ=="
+    },
+    "path": [
+      {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 1,
+          "col": 9,
+          "text": "eA=="
+        },
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 1,
+          "col": 9,
+          "text": "eA=="
+        },
+        "type": "string",
+        "value": "x"
+      }
+    ]
+  },
+  "imports": [
+    {
+      "path": {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 2,
+          "col": 8,
+          "text": "cmVnby52MQ=="
+        },
+        "type": "ref",
+        "value": [
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 2,
+              "col": 8,
+              "text": "cmVnbw=="
+            },
+            "type": "var",
+            "value": "rego"
+          },
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 2,
+              "col": 13,
+              "text": "djE="
+            },
+            "type": "string",
+            "value": "v1"
+          }
+        ]
+      },
+      "location": {
+        "file": "TEMPDIR/x.rego",
+        "row": 2,
+        "col": 1,
+        "text": "aW1wb3J0"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "default": true,
+      "head": {
+        "name": "allow",
+        "ref": [
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 4,
+              "col": 9,
+              "text": "YWxsb3c="
+            },
+            "type": "var",
+            "value": "allow"
+          }
+        ],
+        "value": {
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 4,
+            "col": 17,
+            "text": "ZmFsc2U="
+          },
+          "type": "boolean",
+          "value": false
+        },
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 4,
+          "col": 9,
+          "text": "YWxsb3cgPSBmYWxzZQ=="
+        }
+      },
+      "body": [
+        {
+          "index": 0,
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 4,
+            "col": 1,
+            "text": "ZGVmYXVsdA=="
+          },
+          "terms": {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 4,
+              "col": 1,
+              "text": "ZGVmYXVsdA=="
+            },
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ],
+      "location": {
+        "file": "TEMPDIR/x.rego",
+        "row": 4,
+        "col": 1,
+        "text": "ZGVmYXVsdA=="
+      }
+    },
+    {
+      "head": {
+        "name": "allow",
+        "ref": [
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 5,
+              "col": 1,
+              "text": "YWxsb3c="
+            },
+            "type": "var",
+            "value": "allow"
+          }
+        ],
+        "value": {
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 5,
+            "col": 9,
+            "text": "dHJ1ZQ=="
+          },
+          "type": "boolean",
+          "value": true
+        },
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 5,
+          "col": 1,
+          "text": "YWxsb3cgPSB0cnVl"
+        }
+      },
+      "body": [
+        {
+          "index": 0,
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 6,
+            "col": 3,
+            "text": "aW5wdXQubWV0aG9kID09ICJHRVQi"
+          },
+          "terms": [
+            {
+              "location": {
+                "file": "TEMPDIR/x.rego",
+                "row": 6,
+                "col": 16,
+                "text": "PT0="
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 6,
+                    "col": 16,
+                    "text": "PT0="
+                  },
+                  "type": "var",
+                  "value": "equal"
+                }
+              ]
+            },
+            {
+              "location": {
+                "file": "TEMPDIR/x.rego",
+                "row": 6,
+                "col": 3,
+                "text": "aW5wdXQubWV0aG9k"
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 6,
+                    "col": 3,
+                    "text": "aW5wdXQ="
+                  },
+                  "type": "var",
+                  "value": "input"
+                },
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 6,
+                    "col": 9,
+                    "text": "bWV0aG9k"
+                  },
+                  "type": "string",
+                  "value": "method"
+                }
+              ]
+            },
+            {
+              "location": {
+                "file": "TEMPDIR/x.rego",
+                "row": 6,
+                "col": 19,
+                "text": "IkdFVCI="
+              },
+              "type": "string",
+              "value": "GET"
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 7,
+            "col": 3,
+            "text": "aW5wdXQucGF0aCA9IFsiZ2V0VXNlciIsIHVzZXJd"
+          },
+          "terms": [
+            {
+              "location": {
+                "file": "TEMPDIR/x.rego",
+                "row": 7,
+                "col": 14,
+                "text": "PQ=="
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 7,
+                    "col": 14,
+                    "text": "PQ=="
+                  },
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "location": {
+                "file": "TEMPDIR/x.rego",
+                "row": 7,
+                "col": 3,
+                "text": "aW5wdXQucGF0aA=="
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 7,
+                    "col": 3,
+                    "text": "aW5wdXQ="
+                  },
+                  "type": "var",
+                  "value": "input"
+                },
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 7,
+                    "col": 9,
+                    "text": "cGF0aA=="
+                  },
+                  "type": "string",
+                  "value": "path"
+                }
+              ]
+            },
+            {
+              "location": {
+                "file": "TEMPDIR/x.rego",
+                "row": 7,
+                "col": 16,
+                "text": "WyJnZXRVc2VyIiwgdXNlcl0="
+              },
+              "type": "array",
+              "value": [
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 7,
+                    "col": 17,
+                    "text": "ImdldFVzZXIi"
+                  },
+                  "type": "string",
+                  "value": "getUser"
+                },
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 7,
+                    "col": 28,
+                    "text": "dXNlcg=="
+                  },
+                  "type": "var",
+                  "value": "user"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 8,
+            "col": 3,
+            "text": "aW5wdXQudXNlciA9PSB1c2Vy"
+          },
+          "terms": [
+            {
+              "location": {
+                "file": "TEMPDIR/x.rego",
+                "row": 8,
+                "col": 14,
+                "text": "PT0="
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 8,
+                    "col": 14,
+                    "text": "PT0="
+                  },
+                  "type": "var",
+                  "value": "equal"
+                }
+              ]
+            },
+            {
+              "location": {
+                "file": "TEMPDIR/x.rego",
+                "row": 8,
+                "col": 3,
+                "text": "aW5wdXQudXNlcg=="
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 8,
+                    "col": 3,
+                    "text": "aW5wdXQ="
+                  },
+                  "type": "var",
+                  "value": "input"
+                },
+                {
+                  "location": {
+                    "file": "TEMPDIR/x.rego",
+                    "row": 8,
+                    "col": 9,
+                    "text": "dXNlcg=="
+                  },
+                  "type": "string",
+                  "value": "user"
+                }
+              ]
+            },
+            {
+              "location": {
+                "file": "TEMPDIR/x.rego",
+                "row": 8,
+                "col": 17,
+                "text": "dXNlcg=="
+              },
+              "type": "var",
+              "value": "user"
+            }
+          ]
+        }
+      ],
+      "location": {
+        "file": "TEMPDIR/x.rego",
+        "row": 5,
+        "col": 1,
+        "text": "YWxsb3cgPSB0cnVlIGlmIHsKICBpbnB1dC5tZXRob2QgPT0gIkdFVCIKICBpbnB1dC5wYXRoID0gWyJnZXRVc2VyIiwgdXNlcl0KICBpbnB1dC51c2VyID09IHVzZXIKfQ=="
+      }
+    }
+  ]
+}
+`, "TEMPDIR", tempDirPath)
+
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
+	}
+}
+
+func TestParseJSONOutputComments(t *testing.T) {
+	files := map[string]string{
+		"x.rego": `package x
+		
+		# comment
+		p = 1
+		`,
+	}
+	errc, stdout, stderr, _ := testParse(t, files, &parseParams{
+		format:      formats.Flag(formats.JSON, formats.Pretty),
+		jsonInclude: "comments",
+	})
+	if errc != 0 {
+		t.Fatalf("Expected exit code 0, got %v", errc)
+	}
+	if len(stderr) > 0 {
+		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+	}
+
+	expectedCommentTextValue := "IGNvbW1lbnQ="
+
+	if !strings.Contains(string(stdout), expectedCommentTextValue) {
+		t.Fatalf("Comment text value %q missing in output: %s", expectedCommentTextValue, string(stdout))
+	}
+}
+
+func TestParse_DefaultRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		expErrs []string
+	}{
+		{
+			note: "v0 module",
+			module: `package test
+a[x] {
+	x := 42
+}`,
+			expErrs: []string{
+				"`if` keyword is required before rule body",
+				"`contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1 module",
+			module: `package test
+a contains x if {
+	x := 42
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.rego": tc.module,
+			}
+
+			_, _, stderr, _ := testParse(t, files, &parseParams{
+				format: formats.Flag(formats.Pretty, formats.JSON),
+			})
+
+			if len(tc.expErrs) > 0 {
+				errs := string(stderr)
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(errs, expErr) {
+						t.Fatalf("Expected error:\n\n%q\n\ngot:\n\n%s", expErr, errs)
+					}
+				}
+			} else if len(stderr) > 0 {
+				t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+			}
+		})
+	}
+}
+
+func TestParseCompatibleFlags(t *testing.T) {
+	tests := []struct {
+		note         string
+		v0Compatible bool
+		v1Compatible bool
+		policy       string
+		expErrs      []string
+	}{
+		{
+			note:         "v0, keywords not used",
+			v0Compatible: true,
+			policy: `package test
+p[v] { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v0, keywords not imported",
+			v0Compatible: true,
+			policy: `package test
+p contains v if { 
+	v := input.x
+}`,
+			expErrs: []string{
+				"var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v0, keywords imported",
+			v0Compatible: true,
+			policy: `package test
+import future.keywords
+p contains v if { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v0, rego.v1 imported",
+			v0Compatible: true,
+			policy: `package test
+import rego.v1
+p contains v if { 
+	v := input.x
+}`,
+		},
+
+		{
+			note:         "v1, keywords not used",
+			v1Compatible: true,
+			policy: `package test
+p[v] { 
+	v := input.x
+}`,
+			expErrs: []string{
+				"`if` keyword is required before rule body",
+				"`contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v1, keywords not imported",
+			v1Compatible: true,
+			policy: `package test
+p contains v if { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v1, keywords imported",
+			v1Compatible: true,
+			policy: `package test
+import future.keywords
+p contains v if { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v1, rego.v1 imported",
+			v1Compatible: true,
+			policy: `package test
+import rego.v1
+p contains v if { 
+	v := input.x
+}`,
+		},
+
+		// v0 takes precedence over v1
+		{
+			note:         "v0+v1, keywords not used",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+p[v] { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v0+v1, keywords not imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+p contains v if { 
+	v := input.x
+}`,
+			expErrs: []string{
+				"var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v0+1, keywords imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+import future.keywords
+p contains v if { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v0+v1, rego.v1 imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+import rego.v1
+p contains v if { 
+	v := input.x
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"policy.rego": tc.policy,
+			}
+
+			_, _, stderr, _ := testParse(t, files, &parseParams{
+				format:       formats.Flag(formats.Pretty, formats.JSON),
+				v0Compatible: tc.v0Compatible,
+				v1Compatible: tc.v1Compatible,
+			})
+
+			if len(tc.expErrs) > 0 {
+				errs := string(stderr)
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(errs, expErr) {
+						t.Fatalf("Expected error:\n\n%q\n\ngot:\n\n%s", expErr, errs)
+					}
+				}
+			} else if len(stderr) > 0 {
+				t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+			}
+		})
+	}
+}
+
+// Runs parse and returns the exit code, stdout, and stderr contents
+func testParse(t *testing.T, files map[string]string, params *parseParams) (int, []byte, []byte, string) {
+	t.Helper()
+
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+	var errc int
+
+	var tempDirUsed string
+	path := test.TempDir(t, files)
+
+	args := make([]string, 0, len(files))
+	for file := range files {
+		args = append(args, filepath.Join(path, file))
+	}
+	errc = parse(args, params, stdout, stderr)
+
+	tempDirUsed = path
+
+	return errc, stdout.Bytes(), stderr.Bytes(), tempDirUsed
+}

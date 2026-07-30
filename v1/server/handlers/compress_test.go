@@ -154,7 +154,10 @@ func TestHandlerOnEndpointsWithoutCompression(t *testing.T) {
 
 func zipString(input string) []byte {
 	var b bytes.Buffer
-	gz := gzip.NewWriter(&b)
+	gz, err := gzip.NewWriterLevel(&b, defaultCompressionLevel)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if _, err := gz.Write([]byte(input)); err != nil {
 		log.Fatal(err)
 	}

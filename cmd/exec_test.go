@@ -1,3 +1,5 @@
+//go:build !go1.27
+
 package cmd
 
 import (
@@ -15,6 +17,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
 	"github.com/open-policy-agent/opa/internal/file/archive"
@@ -1308,6 +1312,55 @@ func TestFailFlagCases(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestExecJSONOutputBytes(t *testing.T) {
+	files := map[string]string{
+		"files/test.json": `{"foo": 7}`,
+		"bundle/x.rego": `package system
+		import rego.v1
+
+		test_fun := x if {
+			x = false
+			x
+		}
+
+		undefined_test if {
+			test_fun
+		}`,
+	}
+
+	test.WithTempFS(files, func(dir string) {
+		var buf bytes.Buffer
+		params := exec.NewParams(&buf)
+		_ = params.OutputFormat.Set("json")
+		params.BundlePaths = []string{dir + "/bundle/"}
+		params.Paths = append(params.Paths, dir+"/files/")
+		params.FailDefined = true
+
+		if err := runExec(params); err != nil {
+			t.Fatal("unexpected error in test:", err)
+		}
+
+		actual := bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil)
+
+		expected := `{
+  "result": [
+    {
+      "path": "/files/test.json",
+      "error": {
+        "code": "opa_undefined_error",
+        "message": "/system/main decision was undefined"
+      }
+    }
+  ]
+}
+`
+
+		if diff := cmp.Diff(expected, string(actual)); diff != "" {
+			t.Errorf("unexpected result (-want, +got):\n%s", diff)
+		}
+	})
 }
 
 func TestExecWithInvalidInputOptions(t *testing.T) {

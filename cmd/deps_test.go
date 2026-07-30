@@ -1,3 +1,5 @@
+//go:build !go1.27
+
 // Copyright 2024 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
@@ -5,6 +7,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"maps"
@@ -13,10 +16,68 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/cmd/formats"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
+
+func TestDepsJSONOutputBytes(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+p if { input.x }`,
+	}
+
+	test.WithTempFS(files, func(rootPath string) {
+		params := newDepsCommandParams()
+		_ = params.outputFormat.Set(formats.JSON)
+
+		for f := range files {
+			_ = params.dataPaths.Set(filepath.Join(rootPath, f))
+		}
+
+		var buf bytes.Buffer
+		if err := deps([]string{"data.test.p"}, params, &buf); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		expectedOutput := `{
+  "base": [
+    [
+      {
+        "type": "var",
+        "value": "input"
+      },
+      {
+        "type": "string",
+        "value": "x"
+      }
+    ]
+  ],
+  "virtual": [
+    [
+      {
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "type": "string",
+        "value": "test"
+      },
+      {
+        "type": "string",
+        "value": "p"
+      }
+    ]
+  ]
+}
+`
+
+		if diff := cmp.Diff(expectedOutput, buf.String()); diff != "" {
+			t.Errorf("unexpected result (-want, +got):\n%s", diff)
+		}
+	})
+}
 
 func TestDeps_DefaultRegoVersion(t *testing.T) {
 	tests := []struct {

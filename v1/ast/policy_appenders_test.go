@@ -253,3 +253,31 @@ func BenchmarkNoNodeTypeAllocatesOnAppend(b *testing.B) {
 		})
 	}
 }
+
+// TestModuleStringAnnotationsDeterministic guards against a regression where
+// Module#String, which renders "# METADATA" comments by calling
+// Annotations#String (see Module#AppendText), produced a different rendering
+// of a metadata annotation's custom/labels map on every call, because the
+// underlying marshaler didn't fix the map key order. That would make repeated
+// formatting of the same module non-idempotent.
+func TestModuleStringAnnotationsDeterministic(t *testing.T) {
+	module := ast.MustParseModuleWithOpts(`# METADATA
+# title: p
+# custom:
+#   zeta: 1
+#   alpha: 2
+#   mu: 3
+#   beta: 4
+#   omega: 5
+package p
+
+r = true`,
+		ast.ParserOptions{ProcessAnnotation: true})
+
+	exp := module.String()
+	for i := range 10 {
+		if got := module.String(); got != exp {
+			t.Fatalf("Module#String is not deterministic across calls:\ncall 0: %s\ncall %d: %s", exp, i+1, got)
+		}
+	}
+}

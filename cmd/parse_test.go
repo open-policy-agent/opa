@@ -1,3 +1,5 @@
+//go:build !go1.27
+
 package cmd
 
 import (
@@ -12,7 +14,6 @@ import (
 )
 
 func TestParseExit0(t *testing.T) {
-
 	files := map[string]string{
 		"x.rego": `package x
 		
@@ -62,7 +63,6 @@ func TestParseExit1(t *testing.T) {
 }
 
 func TestParseJSONOutput(t *testing.T) {
-
 	files := map[string]string{
 		"x.rego": `package x
 		
@@ -121,13 +121,12 @@ func TestParseJSONOutput(t *testing.T) {
 }
 `
 
-	if got, want := string(stdout), expectedOutput; got != want {
-		t.Fatalf("Expected output\n%v\n, got\n%v", want, got)
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 
 func TestParseJSONOutputWithLocations(t *testing.T) {
-
 	files := map[string]string{
 		"x.rego": `package x
 
@@ -241,21 +240,8 @@ p = 1
 }
 `, "TEMPDIR", tempDirPath)
 
-	gotLines := strings.Split(string(stdout), "\n")
-	wantLines := strings.Split(expectedOutput, "\n")
-	min := len(gotLines)
-	if len(wantLines) < min {
-		min = len(wantLines)
-	}
-
-	for i := range min {
-		if gotLines[i] != wantLines[i] {
-			t.Fatalf("Expected line %d to be\n%v\n, got\n%v", i, wantLines[i], gotLines[i])
-		}
-	}
-
-	if len(gotLines) != len(wantLines) {
-		t.Fatalf("Expected %d lines, got %d", len(wantLines), len(gotLines))
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 
@@ -633,7 +619,6 @@ func TestParseOutputWithNotImport(t *testing.T) {
 }
 
 func TestParseRefsJSONOutput(t *testing.T) {
-
 	files := map[string]string{
 		"x.rego": `package x
 		
@@ -700,13 +685,12 @@ func TestParseRefsJSONOutput(t *testing.T) {
 }
 `
 
-	if got, want := string(stdout), expectedOutput; got != want {
-		t.Fatalf("Expected output\n%v\n, got\n%v", want, got)
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 
 func TestParseRefsJSONOutputWithLocations(t *testing.T) {
-
 	files := map[string]string{
 		"x.rego": `package x
 
@@ -840,21 +824,8 @@ a.b.c := true
 }
 `, "TEMPDIR", tempDirPath)
 
-	gotLines := strings.Split(string(stdout), "\n")
-	wantLines := strings.Split(expectedOutput, "\n")
-	min := len(gotLines)
-	if len(wantLines) < min {
-		min = len(wantLines)
-	}
-
-	for i := range min {
-		if gotLines[i] != wantLines[i] {
-			t.Fatalf("Expected line %d to be\n%v\n, got\n%v", i, wantLines[i], gotLines[i])
-		}
-	}
-
-	if len(gotLines) != len(wantLines) {
-		t.Fatalf("Expected %d lines, got %d", len(wantLines), len(gotLines))
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
@@ -1301,26 +1272,12 @@ allow = true if {
 }
 `, "TEMPDIR", tempDirPath)
 
-	gotLines := strings.Split(string(stdout), "\n")
-	wantLines := strings.Split(expectedOutput, "\n")
-	min := len(gotLines)
-	if len(wantLines) < min {
-		min = len(wantLines)
-	}
-
-	for i := range min {
-		if gotLines[i] != wantLines[i] {
-			t.Fatalf("Expected line %d to be\n%v\n, got\n%v", i, wantLines[i], gotLines[i])
-		}
-	}
-
-	if len(gotLines) != len(wantLines) {
-		t.Fatalf("Expected %d lines, got %d", len(wantLines), len(gotLines))
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 
 func TestParseJSONOutputComments(t *testing.T) {
-
 	files := map[string]string{
 		"x.rego": `package x
 		
@@ -1560,15 +1517,15 @@ func testParse(t *testing.T, files map[string]string, params *parseParams) (int,
 	var errc int
 
 	var tempDirUsed string
-	test.WithTempFS(files, func(path string) {
-		args := make([]string, 0, len(files))
-		for file := range files {
-			args = append(args, filepath.Join(path, file))
-		}
-		errc = parse(args, params, stdout, stderr)
+	path := test.TempDir(t, files)
 
-		tempDirUsed = path
-	})
+	args := make([]string, 0, len(files))
+	for file := range files {
+		args = append(args, filepath.Join(path, file))
+	}
+	errc = parse(args, params, stdout, stderr)
+
+	tempDirUsed = path
 
 	return errc, stdout.Bytes(), stderr.Bytes(), tempDirUsed
 }

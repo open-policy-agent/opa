@@ -5722,7 +5722,7 @@ func newStreamedReqUnversioned(method string, path string, body io.Reader) *http
 
 func mustUnmarshalTrace(t types.TraceV1) (trace types.TraceV1Raw) {
 	if err := json.Unmarshal(t, &trace); err != nil {
-		panic("not reached")
+		panic(err)
 	}
 	return trace
 }
