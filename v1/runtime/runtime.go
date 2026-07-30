@@ -453,7 +453,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		params.Router = http.NewServeMux()
 	}
 
-	metricsConfig, parseConfigErr := extractMetricsConfig(config, params)
+	metricsConfig, parseConfigErr := extractMetricsConfig(ctx, config, params)
 	if parseConfigErr != nil {
 		return nil, parseConfigErr
 	}
@@ -585,7 +585,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 }
 
 // extractMetricsConfig returns the configuration for server metrics and parsing errors if any
-func extractMetricsConfig(config []byte, params Params) (*metrics_config.Config, error) {
+func extractMetricsConfig(ctx context.Context, config []byte, params Params) (*metrics_config.Config, error) {
 	opaParsedConfig, opaParsedConfigErr := opa_config.ParseConfig(config, params.ID)
 	if opaParsedConfigErr != nil {
 		return nil, opaParsedConfigErr
@@ -597,7 +597,7 @@ func extractMetricsConfig(config []byte, params Params) (*metrics_config.Config,
 	}
 
 	configBuilder := metrics_config.NewConfigBuilder()
-	metricsParsedConfig, metricsParsedConfigErr := configBuilder.WithBytes(serverMetricsData).Parse()
+	metricsParsedConfig, metricsParsedConfigErr := configBuilder.WithBytes(serverMetricsData).ParseWithContext(ctx)
 	if metricsParsedConfigErr != nil {
 		return nil, fmt.Errorf("server metrics configuration parse error: %w", metricsParsedConfigErr)
 	}
