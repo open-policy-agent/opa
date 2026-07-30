@@ -43,38 +43,18 @@ func (a Args) MarshalJSONTo(e *jsontext.Encoder) error {
 	return util.WriteMarshalerToArrayOrNull(e, a)
 }
 
+// MarshalJSONTo is here to ensure that we do not fall down to TextAppender,
+// which Go 1.27's encoding/json would otherwise use, encoding the module as
+// Rego source rather than as JSON. Module's own fields are fully described by
+// their struct tags, so the encoding is left to them, as it is pre-1.27. The
+// field types provide their own MarshalJSONTo where one is needed.
 func (m *Module) MarshalJSONTo(e *jsontext.Encoder) error {
-	e.WriteToken(jsontext.BeginObject)
+	// Declare a new type and use a type conversion to avoid recursively calling
+	// Module#MarshalJSONTo. It's the highest precedence marshaller, so there is
+	// nothing below it to fall to, and the new type has no methods of its own.
+	type module Module
 
-	if err := util.WriteField(e, "package", m.Package); err != nil {
-		return err
-	}
-
-	if len(m.Imports) > 0 {
-		if err := util.WriteFieldArray(e, "imports", m.Imports); err != nil {
-			return err
-		}
-	}
-
-	if len(m.Rules) > 0 {
-		if err := util.WriteFieldArray(e, "rules", m.Rules); err != nil {
-			return err
-		}
-	}
-
-	if len(m.Annotations) > 0 {
-		if err := util.WriteFieldArray(e, "annotations", m.Annotations); err != nil {
-			return err
-		}
-	}
-
-	if len(m.Comments) > 0 {
-		if err := util.WriteFieldArray(e, "comments", m.Comments); err != nil {
-			return err
-		}
-	}
-
-	return e.WriteToken(jsontext.EndObject)
+	return json.MarshalEncode(e, (*module)(m))
 }
 
 func (pkg *Package) MarshalJSONTo(e *jsontext.Encoder) error {
