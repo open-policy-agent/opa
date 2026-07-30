@@ -455,9 +455,7 @@ func TestRuleHeadJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	exp := []byte(`{"body":[],"head":{"name":"allow","ref":[{"type":"var","value":"allow"}]}}`)
-	if !util.JsonEqual(bs, exp) {
-		t.Errorf("expected %s but got %s", string(exp), string(bs))
-	}
+	assertJsonEqual(t, exp, bs)
 
 	var readRule Rule
 	if err := json.Unmarshal(bs, &readRule); err != nil {
@@ -471,9 +469,7 @@ func TestRuleHeadJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !util.JsonEqual(bs, bs0) {
-		t.Errorf("expected json repr to match %q, got %q", string(bs), string(bs0))
-	}
+	assertJsonEqual(t, bs, bs0)
 
 	var readAgainRule Rule
 	if err := json.Unmarshal(bs, &readAgainRule); err != nil {
@@ -930,9 +926,7 @@ func TestAnnotationsString(t *testing.T) {
 	// NOTE(tsandall): for now, annotations are represented as JSON objects
 	// which are a subset of YAML. We could improve this in the future.
 	exp := `{"authors":[{"name":"John Doe","email":"john@example.com"},{"name":"Jane Doe"}],"custom":{"flag":true,"list":[1,2,3],"map":{"one":1,"two":{"3":"three"}}},"description":"baz","organizations":["mi","fa"],"related_resources":[{"ref":"https://example.com"},{"description":"Some resource","ref":"https://example.com/2"}],"schemas":[{"path":[{"type":"var","value":"data"},{"type":"string","value":"bar"}],"schema":[{"type":"var","value":"schema"},{"type":"string","value":"baz"}]}],"scope":"foo","title":"bar"}`
-	if !util.JsonEqual([]byte(exp), []byte(a.String())) {
-		t.Fatalf("expected\n%s\nbut got\n%s", exp, a.String())
-	}
+	assertJsonEqual(t, exp, a.String())
 }
 
 func mustParseURL(str string) url.URL {

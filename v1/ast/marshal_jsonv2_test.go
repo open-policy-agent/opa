@@ -7,8 +7,6 @@
 package ast
 
 import (
-	"bytes"
-	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"strings"
 	"testing"
@@ -16,20 +14,6 @@ import (
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
 )
-
-// assertJsonEqual is the test helper version of util.JsonEqual.
-func assertJsonEqual[A, B string | []byte](t *testing.T, exp A, got B) {
-	t.Helper()
-
-	expVal, gotVal := jsontext.Value(exp), jsontext.Value(got)
-
-	expVal.Canonicalize()
-	gotVal.Canonicalize()
-
-	if !bytes.Equal(expVal, gotVal) {
-		t.Errorf("expected JSON to be equal:\n%s\n%s", expVal, gotVal)
-	}
-}
 
 func resetJSONOptions() {
 	astJSON.SetOptions(astJSON.Defaults())
