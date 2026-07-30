@@ -12,7 +12,24 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-var _ json.Unmarshaler = &Module{}
+var (
+	_ json.Unmarshaler = &Module{}
+
+	// These are exported types, so losing MarshalJSON here would be a breaking
+	// API change even though callers should go through json.Marshal, not this
+	// method directly.
+	_ json.Marshaler = Body{}
+	_ json.Marshaler = &Expr{}
+	_ json.Marshaler = &Package{}
+	_ json.Marshaler = &Import{}
+	_ json.Marshaler = &Rule{}
+	_ json.Marshaler = &Head{}
+	_ json.Marshaler = &With{}
+	_ json.Marshaler = &SomeDecl{}
+	_ json.Marshaler = &Every{}
+	_ json.Marshaler = &LogicalAnd{}
+	_ json.Marshaler = &LogicalOr{}
+)
 
 // UnmarshalJSON parses bs and stores the result in mod. The rules in the module
 // will have their module pointer set to mod.

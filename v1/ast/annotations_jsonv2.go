@@ -4,10 +4,21 @@ package ast
 
 import (
 	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
+)
+
+// These are exported types, so losing MarshalJSON here would be a breaking
+// API change even though callers should go through json.Marshal, not this
+// method directly.
+var (
+	_ json.Marshaler = &Annotations{}
+	_ json.Marshaler = &AnnotationsRef{}
+	_ json.Marshaler = &SchemaAnnotation{}
+	_ json.Marshaler = &RelatedResourceAnnotation{}
 )
 
 func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {

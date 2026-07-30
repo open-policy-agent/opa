@@ -9,9 +9,21 @@ package location
 import (
 	"encoding/base64"
 	"encoding/json/jsontext"
+	"encoding/json/v2"
 
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
+	"github.com/open-policy-agent/opa/v1/util"
 )
+
+// Location is an exported type, so losing MarshalJSON here would be a
+// breaking API change even though callers should go through json.Marshal,
+// not this method directly.
+var _ json.Marshaler = &Location{}
+
+// MarshalJSON returns the JSON encoding of loc.
+func (loc *Location) MarshalJSON() ([]byte, error) {
+	return util.MarshalMarshalerTo(loc)
+}
 
 func (loc *Location) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 	e.WriteToken(jsontext.BeginObject)

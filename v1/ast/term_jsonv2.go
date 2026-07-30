@@ -30,6 +30,17 @@ var (
 	_ json.MarshalerTo = String("")
 	_ json.MarshalerTo = Var("")
 	_ json.Unmarshaler = &Not{}
+
+	// These are exported types, so losing MarshalJSON here would be a breaking
+	// API change even though callers should go through json.Marshal, not this
+	// method directly.
+	_ json.Marshaler = Number("")
+	_ json.Marshaler = &Term{}
+	_ json.Marshaler = &Not{}
+	_ json.Marshaler = &lazyObj{}
+	_ json.Marshaler = &object{}
+	_ json.Marshaler = &Array{}
+	_ json.Marshaler = &set{}
 )
 
 // These are here to ensure that we do not fall down to TextAppender, which
@@ -57,6 +68,11 @@ func (num Number) MarshalJSONTo(e *jsontext.Encoder) error {
 		return e.WriteToken(jsontext.Int(0))
 	}
 	return e.WriteValue(jsontext.Value(num))
+}
+
+// MarshalJSON returns JSON encoded bytes representing num.
+func (num Number) MarshalJSON() ([]byte, error) {
+	return util.MarshalMarshalerTo(num)
 }
 
 func (str String) MarshalJSONTo(e *jsontext.Encoder) error {
