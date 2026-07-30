@@ -3,11 +3,44 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.19.0
 
-### Behavior change: stricter safety for assignment (`:=`)
+This release contains a mix of new features and bug fixes. Notably:
 
-Today `:=` is documented as "syntactic sugar for `=`, local variable creation,
+- A fixed SQL injection vector in the Compile API
+- Stricter safety checking for Rego assignments (`:=`)
+- A cgo-free, faster WebAssembly runtime (wazero replaces wasmtime-go)
+- Startup warnings for unknown configuration options
+- A new `strings.split_n` built-in function
+- A REPL line reader that handles pasted input correctly, migrating existing history files
+
+### Fix SQL injection vector in Compile API: Quote SQL filter field identifiers ([#8945](https://github.com/open-policy-agent/opa/pull/8945))
+
+The field names in the SQL emitted by the Compile API come from partially evaluated refs, so a
+policy that selects a dynamic key — such as `input.fruits[input.column]` — puts caller-controlled
+text in an identifier position. That text was emitted verbatim, which turns
+
+```sql
+WHERE fruit.name = 'allowed'
+```
+
+into
+
+```sql
+WHERE fruit.name = 'allowed' OR 1=1 -- = 'allowed'
+```
+
+and an application appending the filter to its query returns rows the policy denies.
+
+Field segments that are not bare identifiers are now quoted at the UCAST-to-SQL boundary, with any
+embedded quote character escaped. Ordinary column names stay unquoted, so existing filters keep
+their current shape and remain case-insensitive on Postgres.
+
+Authored by @thevilledev
+
+### Behavior change: stricter safety for assignment (`:=`) ([#3546](https://github.com/open-policy-agent/opa/issues/3546))
+
+The assignment operator (`:=`) is documented as "syntactic sugar for `=`, local variable creation,
 and additional compiler checks," and the safety checker reflects that: after
 rewriting, `:=` is treated identically to `=` (unification), so an assignment's
 right-hand side can be made safe by unifying "backwards" through the left-hand
@@ -15,19 +48,181 @@ side. This means policies like `x := y; x = 7` compile (binding `y` to `7`)
 even though `y` is never assigned, and `x := y; obj[x]` can silently degrade an
 expected constant-time lookup into full iteration.
 
-This change proposes tightening that: the RHS of `:=` is treated as a read that
+This change makes the right-hand-side of `:=` be treated as a read that
 must be made safe by other expressions, and can no longer be satisfied through
-the LHS. Affected policies that previously compiled now fail with a
-`rego_unsafe_var_error`. Reference iteration on the RHS (e.g.
+the left-hand-side. Affected policies that previously compiled now fail with a
+`rego_unsafe_var_error`. Reference iteration on the right-hand-side (e.g.
 `some k; v := obj[k]`) is unaffected.
 
-Note this is a deliberate semantic change, not a fix to match documented
-behavior — the intended semantics of `:=` in this case were never specified
-(see [#3546](https://github.com/open-policy-agent/opa/issues/3546)).
+Note: this is a deliberate semantic change, not a fix to match documented
+behavior — the intended semantics of `:=` in this case were never specified.
 
-### Backwards Compatibility
+Authored by @sspaink, reported by @tsandall
 
-- ast: treat the RHS of assignment (`:=`) as directional during safety checking ([#3546](https://github.com/open-policy-agent/opa/issues/3546))
+### WebAssembly runtime: wasmtime-go replaced with wazero ([#7557](https://github.com/open-policy-agent/opa/issues/7557))
+
+OPA's WebAssembly runtime — used by the `wasm` evaluation target and the WASM SDK — now runs on
+the pure-Go [wazero](https://wazero.io/) runtime instead of `bytecodealliance/wasmtime-go`. This
+removes the cgo dependency from this path, so `wasm`-enabled builds no longer need a C toolchain.
+
+Compiled policy modules are now cached process-wide, so repeated VM creation for the same policy
+skips recompilation. On an Apple M4 Max this makes wasm cold start (compile + instantiate + first
+eval) about 73% faster, and warm evaluation about 29% faster with ~28% fewer allocations.
+
+Authored by @srenatus, reported by @sspaink
+
+### Configuration validation moved to Rego, with warnings on unknown options ([#8891](https://github.com/open-policy-agent/opa/pull/8891))
+
+Top-level configuration validation and default injection (`default_decision`,
+`default_authorization_decision`, `labels`) is now expressed as an embedded Rego policy rather than
+hand-written Go, as is the validation of `server.metrics` and `metrics_export`.
+
+The user-visible effect is that unrecognized configuration options are reported instead of being
+silently ignored. A typo such as `decision_log` instead of `decision_logs` now logs a warning at
+startup:
+
+```json
+{"level":"warning","msg":"unknown configuration option \"decision_log\" encountered"}
+```
+
+These are warnings, not errors: OPA starts as before, and sections that are intentionally
+user-extensible are left alone, so extra keys there do not warn. Embedders reading configuration
+through `config.ParseConfig` can find the same messages on `Config.Warnings`.
+
+Authored by @sspaink
+
+### Add `strings.split_n` built-in function ([#8344](https://github.com/open-policy-agent/opa/issues/8344))
+
+Policies often need only the first or last few parts of a split string, but the existing `split`
+built-in always returns every part, so the count has to be worked around with wildcards or a slice.
+
+`strings.split_n` takes the first `n` split parts from the front or the back of the string,
+depending on whether `n` is positive or negative:
+
+```rego
+result := strings.split_n("a.b.c.d", ".", 2)
+# result == ["a", "b"]
+```
+
+```rego
+result := strings.split_n("a.b.c.d", ".", -2)
+# result == ["c", "d"]
+```
+
+If `abs(n)` is larger than the number of parts, all parts are returned. An `n` of `0` returns an
+empty array.
+
+Authored by @wonju-dev, reported by @anderseknert
+
+### Improved REPL line editing, with history file migration ([#962](https://github.com/open-policy-agent/opa/issues/962))
+
+Pasting a tab-indented snippet into the REPL triggered tab-completion on the pasted tab, corrupting
+the input (e.g. injecting a completion candidate mid-line and producing a spurious parse error).
+Fixing that requires bracketed paste, where the terminal wraps pasted text in markers so the line
+reader inserts it literally instead of treating an embedded tab as a completion request. The
+previous reader, `peterh/liner`, has no bracketed-paste support and is unmaintained (last release
+2021), so it has been replaced with `reeflective/readline`.
+
+The new reader persists history as JSON lines instead of one command per line. Existing history
+files (`~/.opa_history` by default, or the path given to `--history`) are detected and migrated in
+place the first time the REPL loads them, so history written by earlier versions of OPA is kept.
+OPA's own multi-line buffering is unchanged, and `readline`'s native multi-line editing is left
+disabled to avoid changing REPL behavior.
+
+Authored by @sspaink, reported by @aeneasr
+
+### Runtime, SDK, Tooling
+
+- cmd: Avoid intermediate buffer when writing bundle ([#8909](https://github.com/open-policy-agent/opa/pull/8909)) authored by @anderseknert
+- cmd/build: Add `--format` flag for proto/JSON plan bundles to `opa build` ([#8825](https://github.com/open-policy-agent/opa/pull/8825)) authored by @sspaink
+- cmd/check: Report wrapped structured errors individually ([#3663](https://github.com/open-policy-agent/opa/issues/3663)) authored by @sspaink, reported by @oren-zohar
+- compile: Preserve package annotations in wasm bundle builds ([#8854](https://github.com/open-policy-agent/opa/issues/8854)) authored by @srenatus, reported by @me-viper
+- format: Keep rule body inline when the head spans multiple lines ([#8894](https://github.com/open-policy-agent/opa/issues/8894)) authored by @Kunalbehbud, reported by @charlieegan3
+- repl: Use a plain line reader for non-terminal input ([#8941](https://github.com/open-policy-agent/opa/pull/8941)) authored by @sspaink
+- server: Set `ReadHeaderTimeout` to `32s` on all HTTP servers ([#8877](https://github.com/open-policy-agent/opa/pull/8877)) authored by @RinZ27
+- server/failtracer: Skip self-referential undefined-ref hints ([#8916](https://github.com/open-policy-agent/opa/pull/8916)) authored by @srenatus
+- sdk: Allow customizing HTTP `RoundTripper` per `Decision` ([#8884](https://github.com/open-policy-agent/opa/pull/8884)) authored by @paulo-raca
+- sdk: Fix deadlock between OPA.Plugin and manager onCommit ([#8873](https://github.com/open-policy-agent/opa/issues/8873)) reported and authored by @sspaink
+- tester: Make Result JSON round-trippable ([#8014](https://github.com/open-policy-agent/opa/issues/8014)) authored by @vsolano9, reported by @anderseknert
+- topdown: Resolve ground refs in `--var-values` cmd output ([#7830](https://github.com/open-policy-agent/opa/issues/7830)) authored by @sspaink, reported by @charlieegan3
+
+### Compiler, Topdown and Rego
+
+- ast: Add support for Go 1.27 & jsonv2 ([#8947](https://github.com/open-policy-agent/opa/pull/8947)) authored by @anderseknert and @charlieegan3
+- ast: Fix aliased comment buffer in annotation parser ([#8757](https://github.com/open-policy-agent/opa/issues/8757)) authored by @sspaink, reported by @0hardik1
+- ast: Fix non-deterministic type errors when shadowing a built-in ([#3729](https://github.com/open-policy-agent/opa/issues/3729)) authored by @sspaink, reported by @srenatus
+- ast: Fix leaky `future.keywords.not` import in Rego v0 ([#8953](https://github.com/open-policy-agent/opa/pull/8953)) authored by @johanfylling
+- ast: Fix panic when indexing composite literal values in `x in [...]` ([#8918](https://github.com/open-policy-agent/opa/issues/8918)) reported and authored by @srenatus
+- ast: Fix `TermValueEqual` performance regression ([#8863](https://github.com/open-policy-agent/opa/pull/8863)) authored by @mchitten
+- ast: Improve rule conflict error ([#6391](https://github.com/open-policy-agent/opa/issues/6391)) authored by @unichronic, reported by @johanfylling
+- ast: Make `CogeneratedExprs` return deterministic order ([#8895](https://github.com/open-policy-agent/opa/pull/8895)) authored by @sspaink
+- ast: Reject partial set and -object rules sharing a name ([#8860](https://github.com/open-policy-agent/opa/issues/8860)) authored by @sspaink, reported by @shomron
+- ast: Restore location on unsafe var errors for rewritten head vars ([#8719](https://github.com/open-policy-agent/opa/issues/8719)) authored by @Atishyy27, reported by @anderseknert
+- ast: Use more precise return types for `object.*` builtins ([#8692](https://github.com/open-policy-agent/opa/issues/8692)) reported and authored by @anderseknert
+- ast+topdown: Let rule external sources distinguish absent from unknown ([#8878](https://github.com/open-policy-agent/opa/pull/8878)) authored by @srenatus
+- ast+topdown: Parametrized (prefix) external rule sources ([#8881](https://github.com/open-policy-agent/opa/pull/8881)) authored by @srenatus
+- topdown: Fix `"a", "a" in {"a"}` not returning `true` ([#8747](https://github.com/open-policy-agent/opa/pull/8747)) authored by @anderseknert
+- topdown: Fix `format_int` precision loss for integers larger than 64 bits ([#8857](https://github.com/open-policy-agent/opa/pull/8857)) authored by @Synvoya
+- topdown: Fix precision loss for integers larger than 64 bits in arithmetic and aggregates ([#6281](https://github.com/open-policy-agent/opa/issues/6281)) authored by @Atishyy27, reported by @tsandall
+- topdown: Don't leak internal vars in Partial-Evaluation results ([#6378](https://github.com/open-policy-agent/opa/issues/6378)) authored by @sspaink, reported by @nkey0
+- topdown/copypropagation: Avoid circular reference in Partial-Evaluation through call ([#6428](https://github.com/open-policy-agent/opa/issues/6428)) authored by @sspaink, reported by @nkey0
+- topdown+util: Add generic `SliceStack`/`GroupStack`, unify refStack/functionMocksStack/saveStack ([#8886](https://github.com/open-policy-agent/opa/pull/8886)) authored by @srenatus
+- topdown+util: Replace hand-rolled evalFunc/evalBuiltin pools with generic ResettablePool ([#8886](https://github.com/open-policy-agent/opa/pull/8886)) authored by @srenatus
+- perf: Avoid allocations with custom Atoi and Atoi64 helpers ([#8758](https://github.com/open-policy-agent/opa/pull/8758)) authored by @anderseknert
+- perf: Lazy init of scalars map in indexer ([#8936](https://github.com/open-policy-agent/opa/pull/8936)) authored by @anderseknert
+- perf: Reduce allocations in index lookup ([#8835](https://github.com/open-policy-agent/opa/pull/8835)) authored by @anderseknert
+- planner: Avoid redundant `ruletrie.Children()` call in `Depth()` ([#8886](https://github.com/open-policy-agent/opa/pull/8886)) authored by @srenatus
+- planner: Unify `functionMocksStack` on generic `GroupStack[T]` ([#8886](https://github.com/open-policy-agent/opa/pull/8886)) authored by @srenatus
+
+### Docs, Website, Ecosystem
+
+- ecosystem: Add agt-policies-africa — African data protection OPA policy pack ([#8850](https://github.com/open-policy-agent/opa/pull/8850)) authored by @kingztech2019
+- ecosystem: Add Ghostunnel and NATS Plugin to Ecosystem ([#8871](https://github.com/open-policy-agent/opa/pull/8871)) authored by @charlieegan3
+- ecosystem: Add Sencillo projects to ecosystem ([#8818](https://github.com/open-policy-agent/opa/pull/8818)) authored by @hooksie1
+- docs: Add kubecon NA page ([#8876](https://github.com/open-policy-agent/opa/pull/8876)) authored by @charlieegan3
+- docs: Add recommendations to follow Envoy's best practices ([#8944](https://github.com/open-policy-agent/opa/pull/8944)) authored by @johanfylling
+- docs: Document rule indexer support for `in`, bare refs; modernize rego ([#8822](https://github.com/open-policy-agent/opa/issues/8822)) authored by @srenatus, reported by @tsandall
+- docs: Document the compile metadata annotation ([#8824](https://github.com/open-policy-agent/opa/issues/8824)) authored by @youdie006, reported by @anderseknert
+- docs: Fix broken OAuth2/OIDC policy examples ([#8840](https://github.com/open-policy-agent/opa/pull/8840)) authored by @mailnike
+- docs: Fix decision_logs buffer_size_limit_events default in prose ([#8866](https://github.com/open-policy-agent/opa/pull/8866)) authored by @s3onghyun
+- docs: Remove import rego.v1 ([#8867](https://github.com/open-policy-agent/opa/pull/8867)) authored by @charlieegan3
+- docs: Some minor bug fixes to improve reporting ([#8917](https://github.com/open-policy-agent/opa/pull/8917)) authored by @charlieegan3
+- docs: The Zed Rego extension link points at github.com/StyraInc/zed-rego (404). The repo now lives at github.com/StyraOSS/zed-rego. ([#8883](https://github.com/open-policy-agent/opa/pull/8883)) authored by @mailnike
+- docs: Update cheatsheet files ([#8868](https://github.com/open-policy-agent/opa/pull/8868)) authored by @charlieegan3
+- docs: Update regal and blog links ([#8901](https://github.com/open-policy-agent/opa/pull/8901)) authored by @charlieegan3
+- docs: Updates examples to use some...in, add link to debugger ([#8806](https://github.com/open-policy-agent/opa/pull/8806)) authored by @charlieegan3
+- website: Improve partial evaluation / data filtering documentation ([#8625](https://github.com/open-policy-agent/opa/pull/8625)) authored by @mmzzuu
+- website: Import blog from medium ([#8898](https://github.com/open-policy-agent/opa/pull/8898)) authored by @charlieegan3
+
+### Miscellaneous
+
+- ast: Add benchmark for rule index ref ordering ([#8943](https://github.com/open-policy-agent/opa/pull/8943)) authored by @srenatus
+- ast: Various style fixes ([#8938](https://github.com/open-policy-agent/opa/pull/8938)) authored by @anderseknert
+- build: Add Dockerfile.rego to validate image builds ([#8401](https://github.com/open-policy-agent/opa/issues/8401)) authored by @jasdeepbhalla, reported by @anderseknert
+- build: Get just the needed commits for CI ([#8940](https://github.com/open-policy-agent/opa/pull/8940)) authored by @charlieegan3
+- test: Start decommissioning `test.WithTempFS` ([#8908](https://github.com/open-policy-agent/opa/pull/8908)) authored by @anderseknert
+- topdown: Add regression test for partial eval local names ([#5226](https://github.com/open-policy-agent/opa/issues/5226)) authored by @sspaink, reported by @fab29p
+- topdown: Fix Partial-Evaluation test rejected by new conflict check ([#8860](https://github.com/open-policy-agent/opa/issues/8860)) authored by @sspaink, reported by @shomron
+- topdown: Vendor a method-less text/template to restore whole-binary linker DCE ([#7903](https://github.com/open-policy-agent/opa/issues/7903)) authored by @rchildress87, reported by @kruskall
+- workflows: Remove cpp from CodeQL language matrix ([#8864](https://github.com/open-policy-agent/opa/pull/8864)) authored by @sspaink
+- workflows: Prune benchmarks to last 250 runs ([#8834](https://github.com/open-policy-agent/opa/pull/8834)) authored by @srenatus
+- Dependency updates; notably:
+  - build(go): Bump Go from 1.26.4 to 1.26.5 ([#8875](https://github.com/open-policy-agent/opa/pull/8875)) authored by @srenatus
+  - build(deps): Add github.com/reeflective/readline 1.3.0
+  - build(deps): Add golang.org/x/term 0.45.0
+  - build(deps): Bump github.com/dgraph-io/badger/v4 from 4.9.2 to 4.9.4
+  - build(deps): Bump github.com/go-logr/logr from 1.4.3 to 1.4.4
+  - build(deps): Bump github.com/huandu/go-sqlbuilder from 1.41.0 to 1.42.1
+  - build(deps): Bump github.com/prometheus/client_golang from 1.23.2 to 1.24.0
+  - build(deps): Bump github.com/vektah/gqlparser/v2 from 2.5.34 to 2.5.36
+  - build(deps): Bump golang.org/x/sync from 0.21.0 to 0.22.0
+  - build(deps): Bump golang.org/x/text from 0.38.0 to 0.40.0
+  - build(deps): Bump google.golang.org/grpc from 1.81.1 to 1.82.1
+  - build(deps): Bump oras.land/oras-go/v2 from 2.6.1 to 2.6.2  ([#8889](https://github.com/open-policy-agent/opa/pull/8889)) authored by @ahbarrios
+    Addressing [GHSA-fxhp-mv3v-67qp](https://github.com/oras-project/oras-go/security/advisories/GHSA-fxhp-mv3v-67qp)
+  - build(deps): Drop github.com/peterh/liner
+  - build(deps): Drop github.com/KimMachineGun/automemlimit ([#8869](https://github.com/open-policy-agent/opa/pull/8869)) authored by @charlieegan3
+  - build(deps): Drop go.uber.org/automaxprocs ([#8869](https://github.com/open-policy-agent/opa/pull/8869)) authored by @charlieegan3
 
 ## 1.18.2
 
@@ -158,20 +353,6 @@ Authored by @sspaink, reported by @SpecLad
     - build(deps): Bump oras.land/oras-go/v2 from v2.6.0 to v2.6.1
     - build(deps): bump golang.org/x/crypto to v0.52.0 and golang.org/x/net to v0.55.0 ([#8745](https://github.com/open-policy-agent/opa/pull/8745)) authored by @BGebken
     - build: bump go 1.26.3 -> 1.26.4 ([#8726](https://github.com/open-policy-agent/opa/pull/8726)) authored by @srenatus
-
-### WebAssembly runtime: wasmtime-go replaced with wazero
-
-OPA's WebAssembly runtime — used by the `wasm` evaluation target and the WASM SDK — now runs on
-the pure-Go [wazero](https://wazero.io/) runtime instead of `bytecodealliance/wasmtime-go`. This
-removes the cgo dependency from this path, so `wasm`-enabled builds no longer need a C toolchain.
-
-Compiled policy modules are now cached process-wide, so repeated VM creation for the same policy
-skips recompilation. On an Apple M4 Max this makes wasm cold start (compile + instantiate + first
-eval) about 73% faster, and warm evaluation about 29% faster with ~28% fewer allocations.
-
-One side effect worth noting: wasm linear memory is now allocated on the Go heap rather than in C,
-so memory profiles and `B/op` figures for wasm evaluations account for it (it was previously
-invisible to Go's allocator).
 
 ## 1.17.1
 
