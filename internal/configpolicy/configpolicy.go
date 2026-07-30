@@ -9,10 +9,14 @@
 //	processed - the input config with defaults injected (required)
 //	errors    - a set/array of fatal error strings (joined into one error)
 //	warnings  - a set/array of non-fatal warning strings
+//
+// Every policy is compiled together with util.rego, so a policy can import
+// data.opa.config.util for the helpers shared across the validation policies.
 package configpolicy
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +29,13 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+// The shared helpers are compiled into every policy, so a validation policy can
+// import data.opa.config.util rather than repeat them.
+const utilModuleName = "opa/config/util.rego"
+
+//go:embed util.rego
+var utilModule string
 
 // Policy is an embedded validation policy, compiled once on first use and
 // evaluated repeatedly. Safe for concurrent use.
@@ -165,8 +176,14 @@ func (p *Policy) Compiler() (*ast.Compiler, error) {
 			p.compileErr = fmt.Errorf("%s: %w", p.name, err)
 			return
 		}
+		helpers, err := ast.ParseModuleWithOpts(utilModuleName, utilModule, popts)
+		if err != nil {
+			p.compileErr = fmt.Errorf("%s: %w", utilModuleName, err)
+			return
+		}
+		modules := map[string]*ast.Module{p.name: module, utilModuleName: helpers}
 		compiler := ast.NewCompiler()
-		if compiler.Compile(map[string]*ast.Module{p.name: module}); compiler.Failed() {
+		if compiler.Compile(modules); compiler.Failed() {
 			p.compileErr = fmt.Errorf("%s: %w", p.name, compiler.Errors)
 			return
 		}

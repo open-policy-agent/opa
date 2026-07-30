@@ -14,6 +14,7 @@ rules:
           - "docs"
           - "internal/wasm/sdk/examples/*"
           - "v1/config/*.rego"
+          - "internal/configpolicy/*.rego"
           - "internal/metricsexport/*.rego"
           - "v1/plugins/server/metrics/*.rego"
           - "v1/plugins/server/encoding/*.rego"

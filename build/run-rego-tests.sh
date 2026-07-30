@@ -7,6 +7,11 @@ set -euo pipefail
 
 OPA="${OPA:-opa}"
 
+# The config validation policies import the helpers in this module, which the Go
+# layer compiles into every policy, so it is loaded alongside each directory here.
+CONFIG_UTIL=internal/configpolicy/util.rego
+CONFIG_UTIL_DIR="./$(dirname "$CONFIG_UTIL")"
+
 dirs=$(find . -name '*_test.rego' \
 	-not -path './build/policy/*' \
 	-not -path '*/testdata/*' \
@@ -23,8 +28,12 @@ fi
 
 status=0
 for d in $dirs; do
-	echo "==> ${OPA} test ${d}"
-	"$OPA" test "$d" || status=1
+	paths=("$d")
+	if [ "$d" != "$CONFIG_UTIL_DIR" ]; then
+		paths+=("$CONFIG_UTIL")
+	fi
+	echo "==> ${OPA} test ${paths[*]}"
+	"$OPA" test "${paths[@]}" || status=1
 done
 
 exit "$status"
