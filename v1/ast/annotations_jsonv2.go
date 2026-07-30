@@ -118,6 +118,10 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 	return util.MarshalMarshalerTo(ar)
 }
 
+func (s *SchemaAnnotation) MarshalJSON() ([]byte, error) {
+	return util.MarshalMarshalerTo(s)
+}
+
 func (s *SchemaAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
 	// Token write errors are unchecked: an unbalanced value fails at the closing
 	// token. A marshaller can fail having written a balanced value, so is checked.
