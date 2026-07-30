@@ -1,3 +1,5 @@
+//go:build !go1.27
+
 package cmd
 
 import (
@@ -8,7 +10,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/cmd/formats"
-	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -120,8 +121,8 @@ func TestParseJSONOutput(t *testing.T) {
 }
 `
 
-	if !util.JsonEqual(stdout, expectedOutput) {
-		t.Fatalf("Expected output\n%v\n, got\n%v", expectedOutput, string(stdout))
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 
@@ -239,8 +240,8 @@ p = 1
 }
 `, "TEMPDIR", tempDirPath)
 
-	if !util.JsonEqual(stdout, expectedOutput) {
-		t.Fatalf("Expected output\n%v\n, got\n%v", expectedOutput, string(stdout))
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 
@@ -610,12 +611,8 @@ func TestParseOutputWithNotImport(t *testing.T) {
 				t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
 			}
 
-			if tc.format == formats.Pretty {
-				if diff := cmp.Diff(tc.exp, string(stdout)); diff != "" {
-					t.Errorf("unexpected result (-want, +got):\n%s", diff)
-				}
-			} else if !util.JsonEqual(stdout, tc.exp) {
-				t.Fatalf("Expected output\n%v\n, got\n%v", tc.exp, string(stdout))
+			if diff := cmp.Diff(tc.exp, string(stdout)); diff != "" {
+				t.Errorf("unexpected result (-want, +got):\n%s", diff)
 			}
 		})
 	}
@@ -688,8 +685,8 @@ func TestParseRefsJSONOutput(t *testing.T) {
 }
 `
 
-	if !util.JsonEqual(stdout, expectedOutput) {
-		t.Fatalf("Expected output\n%v\n, got\n%v", expectedOutput, string(stdout))
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 
@@ -827,8 +824,8 @@ a.b.c := true
 }
 `, "TEMPDIR", tempDirPath)
 
-	if !util.JsonEqual(stdout, expectedOutput) {
-		t.Fatalf("Expected output\n%v\n, got\n%v", expectedOutput, string(stdout))
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
@@ -1275,8 +1272,8 @@ allow = true if {
 }
 `, "TEMPDIR", tempDirPath)
 
-	if !util.JsonEqual(stdout, expectedOutput) {
-		t.Fatalf("Expected output\n%v\n, got\n%v", expectedOutput, string(stdout))
+	if diff := cmp.Diff(expectedOutput, string(stdout)); diff != "" {
+		t.Errorf("unexpected result (-want, +got):\n%s", diff)
 	}
 }
 
