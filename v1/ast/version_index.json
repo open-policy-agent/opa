@@ -845,6 +845,11 @@
       "Minor": 36,
       "Patch": 0
     },
+    "strings.split_n": {
+      "Major": 1,
+      "Minor": 19,
+      "Patch": 0
+    },
     "substring": {
       "Major": 0,
       "Minor": 17,

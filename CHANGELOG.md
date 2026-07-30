@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.19.0
 
 ### Behavior change: stricter safety for assignment (`:=`)
 
@@ -28,6 +28,105 @@ behavior — the intended semantics of `:=` in this case were never specified
 ### Backwards Compatibility
 
 - ast: treat the RHS of assignment (`:=`) as directional during safety checking ([#3546](https://github.com/open-policy-agent/opa/issues/3546))
+
+### Fixes
+
+- Add Dockerfile.rego to validate image builds ([#8401](https://github.com/open-policy-agent/opa/issues/8401)) authored by @jasdeepbhalla, reported by @anderseknert
+- ast: Add strings.split_n built-in function ([#8344](https://github.com/open-policy-agent/opa/issues/8344)) authored by @wonju-dev, reported by @anderseknert
+- ast: Fix AnnotationSet memory leak via runtime.AddCleanup cycle ([#8817](https://github.com/open-policy-agent/opa/issues/8817)) authored by @srenatus, reported by @keydon
+- ast: Fix aliased comment buffer in annotation parser ([#8757](https://github.com/open-policy-agent/opa/issues/8757)) authored by @sspaink, reported by @0hardik1
+- ast: Fix non-deterministic type errors when shadowing a built-in ([#3729](https://github.com/open-policy-agent/opa/issues/3729)) authored by @sspaink, reported by @srenatus
+- ast: Fix panic when indexing composite literal values in `x in [...]` ([#8918](https://github.com/open-policy-agent/opa/issues/8918)) reported and authored by @srenatus
+- ast: Improve rule conflict error ([#6391](https://github.com/open-policy-agent/opa/issues/6391)) authored by @unichronic, reported by @johanfylling
+- ast: Make := RHS directional in safety checks ([#3546](https://github.com/open-policy-agent/opa/issues/3546)) authored by @sspaink, reported by @tsandall
+- ast: Reject partial set and object rules sharing a name ([#8860](https://github.com/open-policy-agent/opa/issues/8860)) authored by @sspaink, reported by @shomron
+- ast: Restore location on unsafe var errors for rewritten head vars ([#8719](https://github.com/open-policy-agent/opa/issues/8719)) authored by @Atishyy27, reported by @anderseknert
+- ast: Support paren grouping of `and`/`or` expressions ([#8782](https://github.com/open-policy-agent/opa/issues/8782)) reported and authored by @johanfylling
+- ast: Use more precise return types for object.* builtins ([#8692](https://github.com/open-policy-agent/opa/issues/8692)) reported and authored by @anderseknert
+- cmd/check: Report wrapped structured errors individually ([#3663](https://github.com/open-policy-agent/opa/issues/3663)) authored by @sspaink, reported by @oren-zohar
+- compile: Preserve package annotations in wasm bundle builds ([#8854](https://github.com/open-policy-agent/opa/issues/8854)) authored by @srenatus, reported by @me-viper
+- docs: Document rule indexer support for `in`, bare refs; modernize rego ([#8822](https://github.com/open-policy-agent/opa/issues/8822)) authored by @srenatus, reported by @tsandall
+- docs: Document the compile metadata annotation ([#8824](https://github.com/open-policy-agent/opa/issues/8824)) authored by @youdie006, reported by @anderseknert
+- format: Fix regression in fix of #8557 ([#8557](https://github.com/open-policy-agent/opa/issues/8557)) reported and authored by @anderseknert
+- format: Keep rule body inline when the head spans multiple lines ([#8894](https://github.com/open-policy-agent/opa/issues/8894)) authored by @Kunalbehbud, reported by @charlieegan3
+- planner: Support `and`/`or` logical operators ([#8681](https://github.com/open-policy-agent/opa/issues/8681)) reported and authored by @johanfylling
+- repl: Enable bracketed paste to fix pasted tabs ([#962](https://github.com/open-policy-agent/opa/issues/962)) authored by @sspaink, reported by @aeneasr
+- sdk: Fix deadlock between OPA.Plugin and manager onCommit ([#8873](https://github.com/open-policy-agent/opa/issues/8873)) reported and authored by @sspaink
+- tester: Make Result JSON round-trippable ([#8014](https://github.com/open-policy-agent/opa/issues/8014)) authored by @vsolano9, reported by @anderseknert
+- topdown/copypropagation: Avoid circular reference through call ([#6428](https://github.com/open-policy-agent/opa/issues/6428)) authored by @sspaink, reported by @nkey0
+- topdown: Add regression test for partial eval local names ([#5226](https://github.com/open-policy-agent/opa/issues/5226)) authored by @sspaink, reported by @fab29p
+- topdown: Fix partial-eval test rejected by new conflict check ([#8860](https://github.com/open-policy-agent/opa/issues/8860)) authored by @sspaink, reported by @shomron
+- topdown: Fix precision loss for integers larger than 64 bits in arithmetic and aggregates ([#6281](https://github.com/open-policy-agent/opa/issues/6281)) authored by @Atishyy27, reported by @tsandall
+- topdown: Resolve ground refs in --var-values output ([#7830](https://github.com/open-policy-agent/opa/issues/7830)) authored by @sspaink, reported by @charlieegan3
+- topdown: Vendor a method-less text/template to restore whole-binary linker DCE ([#7903](https://github.com/open-policy-agent/opa/issues/7903)) authored by @rchildress87, reported by @kruskall
+- topdown: `and`/`or` expression evaluation ([#8679](https://github.com/open-policy-agent/opa/issues/8679)) reported and authored by @johanfylling
+- topdown: don't leak internal vars in partial eval results ([#6378](https://github.com/open-policy-agent/opa/issues/6378)) authored by @sspaink, reported by @nkey0
+- wasm: Replace wasmtime-go with wazero ([#7557](https://github.com/open-policy-agent/opa/issues/7557)) authored by @srenatus, reported by @sspaink
+
+### Miscellaneous
+
+- Bump oras-go@v2.6.2 to address GHSA-fxhp-mv3v-67qp found it in deps ([#8889](https://github.com/open-policy-agent/opa/pull/8889)) authored by @ahbarrios
+- Dependency updates; notably:
+  - build(deps): Add github.com/reeflective/readline 1.3.0
+  - build(deps): Add golang.org/x/term 0.45.0
+  - build(deps): Bump github.com/dgraph-io/badger/v4 from 4.9.2 to 4.9.4
+  - build(deps): Bump github.com/go-logr/logr from 1.4.3 to 1.4.4
+  - build(deps): Bump github.com/huandu/go-sqlbuilder from 1.41.0 to 1.42.1
+  - build(deps): Bump github.com/prometheus/client_golang from 1.23.2 to 1.24.0
+  - build(deps): Bump github.com/vektah/gqlparser/v2 from 2.5.34 to 2.5.36
+  - build(deps): Bump golang.org/x/sync from 0.21.0 to 0.22.0
+  - build(deps): Bump golang.org/x/text from 0.38.0 to 0.40.0
+  - build(deps): Bump google.golang.org/grpc from 1.81.1 to 1.82.1
+  - build(deps): Drop github.com/peterh/liner (was 1.2.2)
+- ast+topdown: Let external sources distinguish absent from unknown ([#8878](https://github.com/open-policy-agent/opa/pull/8878)) authored by @srenatus
+- ast+topdown: Parametrized (prefix) external rule sources ([#8881](https://github.com/open-policy-agent/opa/pull/8881)) authored by @srenatus
+- ast: Add benchmark for rule index ref ordering ([#8943](https://github.com/open-policy-agent/opa/pull/8943)) authored by @srenatus
+- ast: Add support for Go 1.27 & jsonv2 ([#8947](https://github.com/open-policy-agent/opa/pull/8947)) authored by @anderseknert
+- ast: Fix AnnotationSet memory leak via runtime.AddCleanup cycle ([#8830](https://github.com/open-policy-agent/opa/pull/8830)) authored by @srenatus
+- ast: Fix TermValueEqual performance regression ([#8863](https://github.com/open-policy-agent/opa/pull/8863)) authored by @mchitten
+- ast: Fix leaky `future.keywords.not` import in Rego v0 ([#8953](https://github.com/open-policy-agent/opa/pull/8953)) authored by @johanfylling
+- ast: Make CogeneratedExprs return deterministic order ([#8895](https://github.com/open-policy-agent/opa/pull/8895)) authored by @sspaink
+- ast: Various style fixes ([#8938](https://github.com/open-policy-agent/opa/pull/8938)) authored by @anderseknert
+- build(go): Bump to 1.26.5 ([#8875](https://github.com/open-policy-agent/opa/pull/8875)) authored by @srenatus
+- build: Get just the needed commits for CI ([#8940](https://github.com/open-policy-agent/opa/pull/8940)) authored by @charlieegan3
+- bundle: Add --format flag for proto/JSON plan bundles ([#8825](https://github.com/open-policy-agent/opa/pull/8825)) authored by @sspaink
+- capabilities: Integrate Patch v1.18.2 ([#8852](https://github.com/open-policy-agent/opa/pull/8852)) authored by @srenatus
+- cmd: Avoid intermediate buffer when writing bundle ([#8909](https://github.com/open-policy-agent/opa/pull/8909)) authored by @anderseknert
+- config: Migrate server.metrics and metrics_export validation to Rego ([#8900](https://github.com/open-policy-agent/opa/pull/8900)) authored by @sspaink
+- config: Validate configuration with Rego and warn on unknown options ([#8891](https://github.com/open-policy-agent/opa/pull/8891)) authored by @sspaink
+- docs/website: Improve partial evaluation / data filtering documentation ([#8625](https://github.com/open-policy-agent/opa/pull/8625)) authored by @mmzzuu
+- docs: Add Ghostunnel and NATS Plugin to Ecosystem ([#8871](https://github.com/open-policy-agent/opa/pull/8871)) authored by @charlieegan3
+- docs: Add kubecon NA page ([#8876](https://github.com/open-policy-agent/opa/pull/8876)) authored by @charlieegan3
+- docs: Add recommendations to follow Envoy's best practices ([#8944](https://github.com/open-policy-agent/opa/pull/8944)) authored by @johanfylling
+- docs: Fix broken OAuth2/OIDC policy examples ([#8840](https://github.com/open-policy-agent/opa/pull/8840)) authored by @mailnike
+- docs: Fix decision_logs buffer_size_limit_events default in prose ([#8866](https://github.com/open-policy-agent/opa/pull/8866)) authored by @s3onghyun
+- docs: Remove import rego.v1 ([#8867](https://github.com/open-policy-agent/opa/pull/8867)) authored by @charlieegan3
+- docs: Some minor bug fixes to improve reporting ([#8917](https://github.com/open-policy-agent/opa/pull/8917)) authored by @charlieegan3
+- docs: The Zed Rego extension link points at github.com/StyraInc/zed-rego (404). The repo now lives at github.com/StyraOSS/zed-rego. ([#8883](https://github.com/open-policy-agent/opa/pull/8883)) authored by @mailnike
+- docs: Update cheatsheet files ([#8868](https://github.com/open-policy-agent/opa/pull/8868)) authored by @charlieegan3
+- docs: Update regal and blog links ([#8901](https://github.com/open-policy-agent/opa/pull/8901)) authored by @charlieegan3
+- docs: Updates examples to use some...in, add link to debugger ([#8806](https://github.com/open-policy-agent/opa/pull/8806)) authored by @charlieegan3
+- ecosystem: Add Sencillo projects to ecosystem ([#8818](https://github.com/open-policy-agent/opa/pull/8818)) authored by @hooksie1
+- ecosystem: Add agt-policies-africa — African data protection OPA policy pack ([#8850](https://github.com/open-policy-agent/opa/pull/8850)) authored by @kingztech2019
+- github: Remove cpp from CodeQL language matrix ([#8864](https://github.com/open-policy-agent/opa/pull/8864)) authored by @sspaink
+- perf: Avoid allocations with custom Atoi and Atoi64 helpers ([#8758](https://github.com/open-policy-agent/opa/pull/8758)) authored by @anderseknert
+- perf: Lazy init of scalars map in indexer ([#8936](https://github.com/open-policy-agent/opa/pull/8936)) authored by @anderseknert
+- perf: Reduce allocations in index lookup ([#8835](https://github.com/open-policy-agent/opa/pull/8835)) authored by @anderseknert
+- planner: Avoid redundant ruletrie.Children() call in Depth() ([#8886](https://github.com/open-policy-agent/opa/pull/8886)) authored by @srenatus
+- planner: Unify functionMocksStack on generic GroupStack[T] ([#8886](https://github.com/open-policy-agent/opa/pull/8886)) authored by @srenatus
+- repl: Use a plain line reader for non-terminal input ([#8941](https://github.com/open-policy-agent/opa/pull/8941)) authored by @sspaink
+- runtime: Remove goautomaxprocs and automemlimit ([#8869](https://github.com/open-policy-agent/opa/pull/8869)) authored by @charlieegan3
+- sdk: Allow customizing HTTP RoundTripper per Decision ([#8884](https://github.com/open-policy-agent/opa/pull/8884)) authored by @paulo-raca
+- server/failtracer: Skip self-referential undefined-ref hints ([#8916](https://github.com/open-policy-agent/opa/pull/8916)) authored by @srenatus
+- server: Set ReadHeaderTimeout to 32s on all HTTP servers ([#8877](https://github.com/open-policy-agent/opa/pull/8877)) authored by @RinZ27
+- test: Start decomissioning `test.WithTempFS` ([#8908](https://github.com/open-policy-agent/opa/pull/8908)) authored by @anderseknert
+- topdown+util: Add generic SliceStack/GroupStack, unify refStack/functionMocksStack/saveStack ([#8886](https://github.com/open-policy-agent/opa/pull/8886)) authored by @srenatus
+- topdown+util: Replace hand-rolled evalFunc/evalBuiltin pools with generic ResettablePool ([#8886](https://github.com/open-policy-agent/opa/pull/8886)) authored by @srenatus
+- topdown: Fix `"a", "a" in {"a"}` not returning true ([#8747](https://github.com/open-policy-agent/opa/pull/8747)) authored by @anderseknert
+- topdown: Fix `format_int` precision loss for integers larger than 64 bits ([#8857](https://github.com/open-policy-agent/opa/pull/8857)) authored by @Synvoya
+- ucast: Quote SQL filter field identifiers ([#8945](https://github.com/open-policy-agent/opa/pull/8945)) authored by @thevilledev
+- website: Import blog from medium ([#8898](https://github.com/open-policy-agent/opa/pull/8898)) authored by @charlieegan3
+- workflows: Prune benchmarks to last 250 runs ([#8834](https://github.com/open-policy-agent/opa/pull/8834)) authored by @srenatus
 
 ## 1.18.2
 
