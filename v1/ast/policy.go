@@ -1396,17 +1396,6 @@ func (expr *Expr) String() string {
 	return util.ByteSliceToString(buf)
 }
 
-// exprJSON is used for JSON serialization of Expr to avoid map allocation overhead.
-// Field order is alphabetical to match previous map-based output.
-type exprJSON struct {
-	Generated bool      `json:"generated,omitempty"`
-	Index     int       `json:"index"`
-	Location  *Location `json:"location,omitempty"`
-	Negated   bool      `json:"negated,omitempty"`
-	Terms     any       `json:"terms"`
-	With      []*With   `json:"with,omitempty"`
-}
-
 // Vars returns a VarSet containing variables in expr. The params can be set to
 // control which vars are included.
 func (expr *Expr) Vars(params VarVisitorParams) VarSet {
@@ -1732,14 +1721,6 @@ func (w *With) Loc() *Location {
 // SetLoc sets the location on w.
 func (w *With) SetLoc(loc *Location) {
 	w.Location = loc
-}
-
-// withJSON is used for JSON serialization of With to avoid map allocation overhead.
-// Field order is alphabetical to match previous map-based output.
-type withJSON struct {
-	Location *Location `json:"location,omitempty"`
-	Target   *Term     `json:"target"`
-	Value    *Term     `json:"value"`
 }
 
 // Copy returns a deep copy of the AST node x. If x is not an AST node, x is returned unmodified.

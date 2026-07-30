@@ -20,6 +20,25 @@ type ruleJSON struct {
 	Location    *Location      `json:"location,omitempty"`
 }
 
+// exprJSON is used for JSON serialization of Expr to avoid map allocation overhead.
+// Field order is alphabetical to match previous map-based output.
+type exprJSON struct {
+	Generated bool      `json:"generated,omitempty"`
+	Index     int       `json:"index"`
+	Location  *Location `json:"location,omitempty"`
+	Negated   bool      `json:"negated,omitempty"`
+	Terms     any       `json:"terms"`
+	With      []*With   `json:"with,omitempty"`
+}
+
+// withJSON is used for JSON serialization of With to avoid map allocation overhead.
+// Field order is alphabetical to match previous map-based output.
+type withJSON struct {
+	Location *Location `json:"location,omitempty"`
+	Target   *Term     `json:"target"`
+	Value    *Term     `json:"value"`
+}
+
 // UnmarshalJSON parses bs and stores the result in mod. The rules in the module
 // will have their module pointer set to mod.
 func (mod *Module) UnmarshalJSON(bs []byte) error {
