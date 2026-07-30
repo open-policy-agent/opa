@@ -216,10 +216,19 @@ func marshalValueTo(e *jsontext.Encoder, val Value) (err error) {
 	case json.MarshalerTo:
 		err = v.MarshalJSONTo(e)
 	case encoding.TextAppender:
-		buf, _ := v.AppendText(e.AvailableBuffer())
-		err = e.WriteValue(buf)
+		var text []byte
+		if text, err = v.AppendText(nil); err != nil {
+			return err
+		}
+
+		if text, err = jsontext.AppendQuote(e.AvailableBuffer(), text); err != nil {
+			return err
+		}
+
+		err = e.WriteValue(text)
 	default:
 		err = json.MarshalEncode(e, v)
 	}
+
 	return err
 }
