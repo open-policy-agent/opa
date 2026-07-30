@@ -8,6 +8,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
+	"github.com/open-policy-agent/opa/internal/jsonv2"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -72,7 +73,7 @@ func (num Number) MarshalJSONTo(e *jsontext.Encoder) error {
 
 // MarshalJSON returns JSON encoded bytes representing num.
 func (num Number) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(num)
+	return jsonv2.MarshalMarshalerTo(num)
 }
 
 func (str String) MarshalJSONTo(e *jsontext.Encoder) error {
@@ -86,7 +87,7 @@ func (t *Term) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 
 	includeLocation := astJSON.GetOptions().MarshalOptions.IncludeLocation
 	if t.Location != nil && includeLocation.Term {
-		if err := util.WriteField(e, "location", t.Location); err != nil {
+		if err := jsonv2.WriteField(e, "location", t.Location); err != nil {
 			return err
 		}
 	}
@@ -104,11 +105,11 @@ func (t *Term) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 
 // MarshalJSON returns the JSON encoding of the term.
 func (term *Term) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(term)
+	return jsonv2.MarshalMarshalerTo(term)
 }
 
 func (r Ref) MarshalJSONTo(e *jsontext.Encoder) (err error) {
-	return util.WriteMarshalerToArrayOrNull(e, r)
+	return jsonv2.WriteMarshalerToArrayOrNull(e, r)
 }
 
 func (t *TemplateString) MarshalJSONTo(e *jsontext.Encoder) (err error) {
@@ -149,7 +150,7 @@ func (n *Not) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.String("type"))
 	e.WriteToken(jsontext.String("not"))
 
-	if err := util.WriteField(e, "body", n.Body); err != nil {
+	if err := jsonv2.WriteField(e, "body", n.Body); err != nil {
 		return err
 	}
 
@@ -157,7 +158,7 @@ func (n *Not) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.Bool(n.ExplicitBody))
 
 	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Not && n.Location != nil {
-		if err := util.WriteField(e, "location", n.Location); err != nil {
+		if err := jsonv2.WriteField(e, "location", n.Location); err != nil {
 			return err
 		}
 	}
@@ -166,7 +167,7 @@ func (n *Not) MarshalJSONTo(e *jsontext.Encoder) error {
 }
 
 func (n *Not) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(n)
+	return jsonv2.MarshalMarshalerTo(n)
 }
 
 func (n *Not) UnmarshalJSON(bs []byte) error {
@@ -206,25 +207,25 @@ func (l *lazyObj) MarshalJSON() ([]byte, error) {
 
 // MarshalJSON returns JSON encoded bytes representing obj.
 func (obj *object) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(obj)
+	return jsonv2.MarshalMarshalerTo(obj)
 }
 
 func (a *Array) MarshalJSONTo(e *jsontext.Encoder) error {
-	return util.WriteMarshalerToArray(e, a.elems)
+	return jsonv2.WriteMarshalerToArray(e, a.elems)
 }
 
 // MarshalJSON returns JSON encoded bytes representing arr.
 func (arr *Array) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(arr)
+	return jsonv2.MarshalMarshalerTo(arr)
 }
 
 func (s *set) MarshalJSONTo(e *jsontext.Encoder) error {
-	return util.WriteMarshalerToArray(e, s.sortedKeys())
+	return jsonv2.WriteMarshalerToArray(e, s.sortedKeys())
 }
 
 // MarshalJSON returns JSON encoded bytes representing s.
 func (s *set) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(s)
+	return jsonv2.MarshalMarshalerTo(s)
 }
 
 func marshalValueTo(e *jsontext.Encoder, val Value) (err error) {

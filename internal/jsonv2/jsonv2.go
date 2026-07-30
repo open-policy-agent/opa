@@ -4,7 +4,7 @@
 
 //go:build go1.27
 
-package util
+package jsonv2
 
 // This migration must not change OPA's JSON output, but json.Marshal defaults
 // to v2 semantics (no HTML escaping, non-deterministic map key order). So

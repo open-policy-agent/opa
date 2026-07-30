@@ -4,7 +4,7 @@
 
 //go:build go1.27
 
-package util
+package jsonv2
 
 import (
 	"bytes"

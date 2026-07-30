@@ -11,8 +11,8 @@ import (
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 
+	"github.com/open-policy-agent/opa/internal/jsonv2"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
-	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Location is an exported type, so losing MarshalJSON here would be a
@@ -22,7 +22,7 @@ var _ json.Marshaler = &Location{}
 
 // MarshalJSON returns the JSON encoding of loc.
 func (loc *Location) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(loc)
+	return jsonv2.MarshalMarshalerTo(loc)
 }
 
 func (loc *Location) MarshalJSONTo(e *jsontext.Encoder) (err error) {

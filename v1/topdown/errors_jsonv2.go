@@ -6,7 +6,7 @@ import (
 	"encoding/json/jsontext"
 	"errors"
 
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/internal/jsonv2"
 )
 
 func (e *Error) MarshalJSONTo(enc *jsontext.Encoder) (err error) {
@@ -17,7 +17,7 @@ func (e *Error) MarshalJSONTo(enc *jsontext.Encoder) (err error) {
 	enc.WriteToken(jsontext.String(e.Message))
 
 	if e.Location != nil {
-		err = util.WriteField(enc, "location", e.Location)
+		err = jsonv2.WriteField(enc, "location", e.Location)
 	}
 
 	return errors.Join(err, enc.WriteToken(jsontext.EndObject))

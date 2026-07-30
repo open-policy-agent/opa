@@ -7,8 +7,8 @@ import (
 	"encoding/json/v2"
 	"fmt"
 
+	"github.com/open-policy-agent/opa/internal/jsonv2"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
-	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // These are exported types, so losing MarshalJSON here would be a breaking
@@ -41,43 +41,43 @@ func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {
 	}
 
 	if len(a.Organizations) > 0 {
-		if err := util.WriteFieldValue(e, "organizations", a.Organizations); err != nil {
+		if err := jsonv2.WriteFieldValue(e, "organizations", a.Organizations); err != nil {
 			return err
 		}
 	}
 
 	if len(a.RelatedResources) > 0 {
-		if err := util.WriteFieldArray(e, "related_resources", a.RelatedResources); err != nil {
+		if err := jsonv2.WriteFieldArray(e, "related_resources", a.RelatedResources); err != nil {
 			return err
 		}
 	}
 
 	if len(a.Authors) > 0 {
-		if err := util.WriteFieldValue(e, "authors", a.Authors); err != nil {
+		if err := jsonv2.WriteFieldValue(e, "authors", a.Authors); err != nil {
 			return err
 		}
 	}
 
 	if len(a.Schemas) > 0 {
-		if err := util.WriteFieldArray(e, "schemas", a.Schemas); err != nil {
+		if err := jsonv2.WriteFieldArray(e, "schemas", a.Schemas); err != nil {
 			return err
 		}
 	}
 
 	if a.Compile != nil {
-		if err := util.WriteFieldValue(e, "compile", a.Compile); err != nil {
+		if err := jsonv2.WriteFieldValue(e, "compile", a.Compile); err != nil {
 			return err
 		}
 	}
 
 	if len(a.Custom) > 0 {
-		if err := util.WriteFieldValue(e, "custom", a.Custom); err != nil {
+		if err := jsonv2.WriteFieldValue(e, "custom", a.Custom); err != nil {
 			return err
 		}
 	}
 
 	if len(a.Labels) > 0 {
-		if err := util.WriteFieldValue(e, "labels", a.Labels); err != nil {
+		if err := jsonv2.WriteFieldValue(e, "labels", a.Labels); err != nil {
 			return err
 		}
 	}
@@ -91,7 +91,7 @@ func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {
 	}
 
 	if a.Location != nil && astJSON.GetOptions().MarshalOptions.IncludeLocation.Annotations {
-		if err := util.WriteField(e, "location", a.Location); err != nil {
+		if err := jsonv2.WriteField(e, "location", a.Location); err != nil {
 			return err
 		}
 	}
@@ -100,25 +100,25 @@ func (a *Annotations) MarshalJSONTo(e *jsontext.Encoder) error {
 }
 
 func (a *Annotations) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(a)
+	return jsonv2.MarshalMarshalerTo(a)
 }
 
 func (ar *AnnotationsRef) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
 	if ar.Annotations != nil {
-		if err := util.WriteField(e, "annotations", ar.Annotations); err != nil {
+		if err := jsonv2.WriteField(e, "annotations", ar.Annotations); err != nil {
 			return err
 		}
 	}
 
 	if ar.Location != nil && astJSON.GetOptions().MarshalOptions.IncludeLocation.AnnotationsRef {
-		if err := util.WriteField(e, "location", ar.Location); err != nil {
+		if err := jsonv2.WriteField(e, "location", ar.Location); err != nil {
 			return err
 		}
 	}
 
-	if err := util.WriteField(e, "path", ar.Path); err != nil {
+	if err := jsonv2.WriteField(e, "path", ar.Path); err != nil {
 		return err
 	}
 
@@ -126,11 +126,11 @@ func (ar *AnnotationsRef) MarshalJSONTo(e *jsontext.Encoder) error {
 }
 
 func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(ar)
+	return jsonv2.MarshalMarshalerTo(ar)
 }
 
 func (s *SchemaAnnotation) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(s)
+	return jsonv2.MarshalMarshalerTo(s)
 }
 
 func (s *SchemaAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
@@ -162,13 +162,13 @@ func (s *SchemaAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
 	}
 
 	if len(s.Schema) > 0 {
-		if err := util.WriteField(e, "schema", s.Schema); err != nil {
+		if err := jsonv2.WriteField(e, "schema", s.Schema); err != nil {
 			return err
 		}
 	}
 
 	if s.Definition != nil {
-		if err := util.WriteFieldValue(e, "definition", s.Definition); err != nil {
+		if err := jsonv2.WriteFieldValue(e, "definition", s.Definition); err != nil {
 			return err
 		}
 	}
@@ -177,7 +177,7 @@ func (s *SchemaAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
 }
 
 func (rr *RelatedResourceAnnotation) MarshalJSON() ([]byte, error) {
-	return util.MarshalMarshalerTo(rr)
+	return jsonv2.MarshalMarshalerTo(rr)
 }
 
 func (rr *RelatedResourceAnnotation) MarshalJSONTo(e *jsontext.Encoder) error {
