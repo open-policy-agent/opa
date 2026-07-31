@@ -57,3 +57,9 @@ ashumania:
   name: Ash Narkar
   image_url: /img/blog/authors/ashumania.jpeg
   page: true
+
+yilialin:
+  name: Yilia Lin
+  title: Apache APISIX Committer
+  image_url: /img/blog/authors/yilialin.jpeg
+  page: true
