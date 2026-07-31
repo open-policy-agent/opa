@@ -88,8 +88,8 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
    ```
 
    > Amend the CHANGELOG as necessary. Many entries are not user facing (so
-   > remove them), and entries are worth  regrouping into topical sections. 
-   > If there have been any significant API changes, call them out in their own sections. 
+   > remove them), and entries are worth regrouping into topical sections.
+   > If there have been any significant API changes, call them out in their own sections.
    > The tool also prints a review checklist to stderr, which is worth reading before committing.
 
 1. Commit the changes and push to remote repository fork.
