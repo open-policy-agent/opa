@@ -12,7 +12,6 @@ import (
 )
 
 func TestTruncatedString(t *testing.T) {
-	t.Helper()
 	tests := []struct {
 		name     string
 		s        string
@@ -92,7 +91,6 @@ func TestTruncatedString(t *testing.T) {
 }
 
 func TestVariableValueLengthLimit(t *testing.T) {
-	t.Helper()
 	// A string value longer than the default 100-character limit.
 	// ast.String.String() renders strings with surrounding quotes, so the
 	// expected values below include those quote characters.
