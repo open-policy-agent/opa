@@ -41,9 +41,10 @@ type Debugger interface {
 }
 
 type debugger struct {
-	logger       logging.Logger
-	printHook    *printHook
-	eventHandler EventHandler
+	logger            logging.Logger
+	printHook         *printHook
+	eventHandler      EventHandler
+	maxVariableLength int
 }
 
 type Session interface {
@@ -171,8 +172,9 @@ func NewDebugger(options ...DebuggerOption) Debugger {
 
 func newDebugger(options ...DebuggerOption) *debugger {
 	d := &debugger{
-		eventHandler: newNopEventHandler(),
-		logger:       logging.NewNoOpLogger(),
+		eventHandler:      newNopEventHandler(),
+		logger:            logging.NewNoOpLogger(),
+		maxVariableLength: 100,
 	}
 	d.printHook = &printHook{d: d}
 
@@ -192,6 +194,15 @@ func SetLogger(logger logging.Logger) DebuggerOption {
 func SetEventHandler(handler EventHandler) DebuggerOption {
 	return func(d *debugger) {
 		d.eventHandler = handler
+	}
+}
+
+// SetMaxVariableLength sets the maximum length of variable values displayed in the debugger.
+// Values longer than this limit will be truncated. A value of 0 disables truncation.
+// If not set, the default is 100 characters.
+func SetMaxVariableLength(maxVariableLength int) DebuggerOption {
+	return func(d *debugger) {
+		d.maxVariableLength = maxVariableLength
 	}
 }
 
@@ -326,7 +337,7 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, o
 		rego.EvalVirtualCache(vc),
 	}
 
-	varManager := newVariableManager()
+	varManager := newVariableManager(d.maxVariableLength)
 	// Threads are 1-indexed.
 	t := newThread(1, "main", tracer, varManager, vc, store, d.logger)
 	s := newSession(ctx, d, varManager, props.LaunchProperties, []*thread{t})
