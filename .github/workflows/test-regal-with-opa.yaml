@@ -17,19 +17,19 @@ jobs:
       SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }} # zizmor: ignore[secrets-outside-env]
     steps:
       - name: Check out OPA code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           path: opa
 
       - name: Install Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: opa/.go-version
           cache-dependency-path: opa/go.sum
 
       - name: Check out Regal main
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: open-policy-agent/regal
           ref: main
@@ -55,7 +55,7 @@ jobs:
         run: go test -tags e2e ./e2e -count=1
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ env.SLACK_WEBHOOK_URL }} # zizmor: ignore[secrets-outside-env]
