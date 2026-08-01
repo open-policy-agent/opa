@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -568,6 +569,155 @@ func TestMetadataCredentialService(t *testing.T) {
 	})
 }
 
+// clearAWSContainerEnv removes the ECS credential variables for the duration of the test.
+// isECS reads them with os.LookupEnv, so they have to be absent rather than empty. t.Setenv
+// registers the restoration of the original value, including whether the variable was set at
+// all, and unsetting afterwards leaves that restoration intact.
+func clearAWSContainerEnv(t *testing.T) {
+	t.Helper()
+
+	for _, envVar := range []string{
+		ecsRelativePathEnvVar,
+		ecsFullPathEnvVar,
+		ecsAuthorizationTokenEnvVar,
+		ecsAuthorizationTokenFileEnvVar,
+	} {
+		t.Setenv(envVar, "")
+		os.Unsetenv(envVar)
+	}
+}
+
+// TestMetadataCredentialServiceIMDSv2TokenRequest asserts that the IMDSv2 token is requested
+// whenever a role name sends the credential request to the EC2 instance metadata service,
+// including from an ECS task on the EC2 launch type, whose ECS environment variables would
+// otherwise suppress it. Outside the ECS environment a token failure is still fatal; inside
+// it the refresh falls back to the unsigned request that this path used before.
+func TestMetadataCredentialServiceIMDSv2TokenRequest(t *testing.T) {
+	payload := metadataPayload{
+		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+		Code:            "Success",
+		Token:           "MYAWSSECURITYTOKENGOESHERE",
+		Expiration:      time.Now().UTC().Add(time.Minute * 30),
+	}
+
+	tests := []struct {
+		note string
+		// setEnv opts back in to the ECS environment variables the subtest needs
+		setEnv func(t *testing.T, serverURL string)
+		// roleName is the configured iam_role
+		roleName string
+		// ec2Endpoint points the credential and token paths at the EC2 metadata routes
+		ec2Endpoint bool
+		// tokenStatus, when non-zero, makes the token endpoint fail with that status
+		tokenStatus int
+		// imdsV1 lets the metadata endpoint answer without a token
+		imdsV1 bool
+		// expTokenRequests is the number of IMDSv2 token requests expected
+		expTokenRequests int32
+		// expErr is a substring of the expected error, empty when credentials are expected
+		expErr string
+	}{
+		{
+			note: "ecs task on the ec2 launch type with iam_role",
+			setEnv: func(t *testing.T, _ string) {
+				t.Setenv(ecsRelativePathEnvVar, "/v2/credentials/abc")
+			},
+			roleName:         "my_iam_role",
+			ec2Endpoint:      true,
+			expTokenRequests: 1,
+		},
+		{
+			note: "ecs task role without iam_role",
+			setEnv: func(t *testing.T, serverURL string) {
+				t.Setenv(ecsFullPathEnvVar, serverURL+"/fullPath")
+				t.Setenv(ecsAuthorizationTokenEnvVar, "THIS_IS_A_GOOD_TOKEN")
+			},
+			roleName:         "",
+			ec2Endpoint:      false,
+			expTokenRequests: 0,
+		},
+		{
+			note:             "ec2 instance with iam_role",
+			roleName:         "my_iam_role",
+			ec2Endpoint:      true,
+			expTokenRequests: 1,
+		},
+		{
+			// an instance that still allows IMDSv1 but whose token response does not
+			// reach the container, as happens with the default hop limit of 1
+			note: "ecs task on the ec2 launch type falls back when the token fails",
+			setEnv: func(t *testing.T, _ string) {
+				t.Setenv(ecsRelativePathEnvVar, "/v2/credentials/abc")
+			},
+			roleName:         "my_iam_role",
+			ec2Endpoint:      true,
+			tokenStatus:      500,
+			imdsV1:           true,
+			expTokenRequests: 1,
+		},
+		{
+			note:             "ec2 instance still fails when the token fails",
+			roleName:         "my_iam_role",
+			ec2Endpoint:      true,
+			tokenStatus:      500,
+			imdsV1:           true,
+			expTokenRequests: 1,
+			expErr:           "metadata token HTTP request returned unexpected status: 500",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			clearAWSContainerEnv(t)
+
+			ts := ec2CredTestServer{
+				payload:     payload,
+				tokenStatus: tc.tokenStatus,
+				imdsV1:      tc.imdsV1,
+			}
+			ts.start()
+			defer ts.stop()
+
+			if tc.setEnv != nil {
+				tc.setEnv(t, ts.server.URL)
+			}
+
+			cs := awsMetadataCredentialService{
+				RoleName:   tc.roleName,
+				RegionName: "us-east-1",
+				logger:     logging.Get(),
+			}
+			if tc.ec2Endpoint {
+				cs.credServicePath = ts.server.URL + "/latest/meta-data/iam/security-credentials/"
+				cs.tokenPath = ts.server.URL + "/latest/api/token"
+			}
+
+			creds, err := cs.credentials(t.Context())
+
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got credentials", tc.expErr)
+				}
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("expected error containing %q, got %v", tc.expErr, err)
+				}
+			} else {
+				if err != nil {
+					t.Fatal(err)
+				}
+				assertEq(creds.AccessKey, payload.AccessKeyID, t)
+				assertEq(creds.SecretKey, payload.SecretAccessKey, t)
+				assertEq(creds.SessionToken, payload.Token, t)
+			}
+
+			if got := ts.tokenRequests.Load(); got != tc.expTokenRequests {
+				t.Fatalf("expected %d IMDSv2 token request(s), got %d", tc.expTokenRequests, got)
+			}
+		})
+	}
+}
+
 func TestMetadataServiceErrorHandled(t *testing.T) {
 	ts := ec2CredTestServer{}
 	ts.start()
@@ -1030,9 +1180,25 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 type ec2CredTestServer struct {
 	server  *httptest.Server
 	payload metadataPayload // must set before use
+	// tokenRequests counts the IMDSv2 session token requests (PUT) received
+	tokenRequests atomic.Int32
+	// tokenStatus, when non-zero, is returned for a token request instead of a token,
+	// simulating an instance whose token response does not come back
+	tokenStatus int
+	// imdsV1 serves the credentials without requiring a token, simulating an instance
+	// that still allows IMDSv1
+	imdsV1 bool
 }
 
 func (t *ec2CredTestServer) handle(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPut {
+		t.tokenRequests.Add(1)
+		if t.tokenStatus != 0 {
+			w.WriteHeader(t.tokenStatus)
+			return
+		}
+	}
+
 	goodPath := "/latest/meta-data/iam/security-credentials/my_iam_role"
 	badPath := "/latest/meta-data/iam/security-credentials/my_bad_iam_role"
 	goodPathFull := "/fullPath"
@@ -1054,7 +1220,7 @@ func (t *ec2CredTestServer) handle(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("THIS_IS_A_BAD_TOKEN"))
 	case goodPath:
 		// validate token...
-		if r.Header.Get("X-aws-ec2-metadata-token") == tokenValue {
+		if t.imdsV1 || r.Header.Get("X-aws-ec2-metadata-token") == tokenValue {
 			// a metadata response that's well-formed
 			w.WriteHeader(200)
 			_, _ = w.Write(jsonBytes)
