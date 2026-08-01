@@ -5428,6 +5428,13 @@ func outputVarsForExprEq(expr *Expr, safe VarSet, output VarSet) VarSet {
 		return safe
 	}
 
+	// Clear the shared buffer before use. Callers of outputVarsForExpr reuse the
+	// same VarSet across candidate expressions in a single reorderBodyForSafety
+	// pass. Without this, leftover bindings from an earlier (not-yet-schedulable)
+	// call expression can leak into Unify() via the safe basis and incorrectly
+	// mark an equality as grounded. See issue #8302.
+	clear(output)
+
 	output = outputVarsForTerms(expr, safe, output)
 	output.Update(safe)
 	if expr.fromAssignment {
