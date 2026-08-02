@@ -9023,7 +9023,7 @@ func TestCompilerRewriteTemplateStringsErrors(t *testing.T) {
 				p := msg if {
 					msg := $"{x}"
 				}`,
-			exp: "var msg is unsafe",
+			exp: "var x is unsafe",
 		},
 		{
 			note: "undeclared var (wildcard)",
