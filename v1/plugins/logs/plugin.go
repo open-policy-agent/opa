@@ -1276,14 +1276,6 @@ func roundTripAny(x any) (any, error) {
 	return v, nil
 }
 
-func stringsToAny(ss []string) []any {
-	result := make([]any, len(ss))
-	for i, s := range ss {
-		result[i] = s
-	}
-	return result
-}
-
 func stringsMapToAny(m map[string]string) map[string]any {
 	result := make(map[string]any, len(m))
 	for k, v := range m {
@@ -1333,8 +1325,8 @@ func eventToFields(event EventV1) map[string]any {
 			fields["nd_builtin_cache"] = v
 		}
 	}
-	addIfSliceNotEmpty(fields, "erased", stringsToAny(event.Erased))
-	addIfSliceNotEmpty(fields, "masked", stringsToAny(event.Masked))
+	addIfSliceNotEmpty(fields, "erased", util.ToSliceOfAny(event.Erased))
+	addIfSliceNotEmpty(fields, "masked", util.ToSliceOfAny(event.Masked))
 
 	if event.Error != nil {
 		fields["error"] = event.Error.Error()

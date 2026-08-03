@@ -164,7 +164,7 @@ func BenchmarkAtoi64(b *testing.B) {
 		b.Run(test, func(b *testing.B) {
 			for b.Loop() {
 				// replace with strconv.Atoi for comparison
-				_, _ = strconv.Atoi(test)
+				_, _ = Atoi(test)
 			}
 		})
 	}
