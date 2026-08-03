@@ -37,3 +37,5 @@ b if {
 		with input.y3 as 7
 		with input.y4 as 8
 }
+
+c if not { input.x }
