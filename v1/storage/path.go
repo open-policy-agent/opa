@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // RootPath refers to the root document in storage.
@@ -102,11 +102,10 @@ func (p Path) Ref(head *ast.Term) (ref ast.Ref) {
 	ref = make(ast.Ref, len(p)+1)
 	ref[0] = head
 	for i := range p {
-		idx, err := strconv.ParseInt(p[i], 10, 64)
-		if err == nil {
-			ref[i+1] = ast.UIntNumberTerm(uint64(idx))
+		if idx, ok := util.Atoi(p[i]); ok && idx >= 0 {
+			ref[i+1] = ast.InternedTerm(idx)
 		} else {
-			ref[i+1] = ast.StringTerm(p[i])
+			ref[i+1] = ast.InternedTerm(p[i])
 		}
 	}
 	return ref
