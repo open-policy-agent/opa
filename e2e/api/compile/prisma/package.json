@@ -11,8 +11,8 @@
   "description": "",
   "dependencies": {
     "@open-policy-agent/ucast-prisma": "^0.1.6",
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
     "pg": "^8.22.0"
   },
   "devDependencies": {
