@@ -17,15 +17,25 @@
 package decoding
 
 import (
-	"errors"
+	"context"
+	_ "embed"
 
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/internal/configpolicy"
+	"github.com/open-policy-agent/opa/v1/config"
 )
 
-var (
-	defaultMaxRequestLength     = int64(268435456) // 256 MB
-	defaultGzipMaxContentLength = int64(536870912) // 512 MB
+//go:embed validate.rego
+var validationModule string
+
+var validationPolicy = configpolicy.New(
+	"opa/config/server/decoding/validate.rego",
+	validationModule,
+	"data.opa.config.server.decoding = x",
 )
+
+func init() {
+	config.RegisterConfigSpec(config.SpecsFromStruct[Config]("server", "decoding")...)
+}
 
 // Config represents the configuration for the Server.Decoding settings
 type Config struct {
@@ -56,47 +66,15 @@ func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
 
 // Parse returns a valid Config object with defaults injected.
 func (b *ConfigBuilder) Parse() (*Config, error) {
-	if b.raw == nil {
-		defaultConfig := &Config{
-			MaxLength: &defaultMaxRequestLength,
-			Gzip: &Gzip{
-				MaxLength: &defaultGzipMaxContentLength,
-			},
-		}
-		return defaultConfig, nil
-	}
-
-	var result Config
-
-	if err := util.Unmarshal(b.raw, &result); err != nil {
-		return nil, err
-	}
-
-	return &result, result.validateAndInjectDefaults()
+	return b.ParseWithContext(context.Background())
 }
 
-// validateAndInjectDefaults populates defaults if the fields are nil, then
-// validates the config values.
-func (c *Config) validateAndInjectDefaults() error {
-	if c.MaxLength == nil {
-		c.MaxLength = &defaultMaxRequestLength
+// ParseWithContext returns a valid Config object with defaults injected, using
+// ctx to evaluate the validation policy.
+func (b *ConfigBuilder) ParseWithContext(ctx context.Context) (*Config, error) {
+	var result Config
+	if _, err := configpolicy.EvalConfigInto(ctx, validationPolicy, b.raw, &result); err != nil {
+		return nil, err
 	}
-
-	if c.Gzip == nil {
-		c.Gzip = &Gzip{
-			MaxLength: &defaultGzipMaxContentLength,
-		}
-	}
-	if c.Gzip.MaxLength == nil {
-		c.Gzip.MaxLength = &defaultGzipMaxContentLength
-	}
-
-	if *c.MaxLength <= 0 {
-		return errors.New("invalid value for server.decoding.max_length field, should be a positive number")
-	}
-	if *c.Gzip.MaxLength <= 0 {
-		return errors.New("invalid value for server.decoding.gzip.max_length field, should be a positive number")
-	}
-
-	return nil
+	return &result, nil
 }

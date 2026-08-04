@@ -1,14 +1,25 @@
 package encoding
 
 import (
-	"compress/gzip"
-	"errors"
+	"context"
+	_ "embed"
 
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/internal/configpolicy"
+	"github.com/open-policy-agent/opa/v1/config"
 )
 
-var defaultGzipMinLength = 1024
-var defaultGzipCompressionLevel = gzip.BestCompression
+//go:embed validate.rego
+var validationModule string
+
+var validationPolicy = configpolicy.New(
+	"opa/config/server/encoding/validate.rego",
+	validationModule,
+	"data.opa.config.server.encoding = x",
+)
+
+func init() {
+	config.RegisterConfigSpec(config.SpecsFromStruct[Config]("server", "encoding")...)
+}
 
 // Config represents the configuration for the Server.Encoding settings
 type Config struct {
@@ -39,53 +50,15 @@ func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
 
 // Parse returns a valid Config object with defaults injected.
 func (b *ConfigBuilder) Parse() (*Config, error) {
-	if b.raw == nil {
-		defaultConfig := &Config{
-			Gzip: &Gzip{
-				MinLength:        &defaultGzipMinLength,
-				CompressionLevel: &defaultGzipCompressionLevel,
-			},
-		}
-		return defaultConfig, nil
-	}
-
-	var result Config
-
-	if err := util.Unmarshal(b.raw, &result); err != nil {
-		return nil, err
-	}
-
-	return &result, result.validateAndInjectDefaults()
+	return b.ParseWithContext(context.Background())
 }
 
-func (c *Config) validateAndInjectDefaults() error {
-	if c.Gzip == nil {
-		c.Gzip = &Gzip{
-			MinLength:        &defaultGzipMinLength,
-			CompressionLevel: &defaultGzipCompressionLevel,
-		}
+// ParseWithContext returns a valid Config object with defaults injected, using
+// ctx to evaluate the validation policy.
+func (b *ConfigBuilder) ParseWithContext(ctx context.Context) (*Config, error) {
+	var result Config
+	if _, err := configpolicy.EvalConfigInto(ctx, validationPolicy, b.raw, &result); err != nil {
+		return nil, err
 	}
-	if c.Gzip.MinLength == nil {
-		c.Gzip.MinLength = &defaultGzipMinLength
-	}
-
-	if c.Gzip.CompressionLevel == nil {
-		c.Gzip.CompressionLevel = &defaultGzipCompressionLevel
-	}
-
-	if *c.Gzip.MinLength <= 0 {
-		return errors.New("invalid value for server.encoding.gzip.min_length field, should be a positive number")
-	}
-
-	acceptedCompressionLevels := map[int]bool{
-		gzip.NoCompression:   true,
-		gzip.BestSpeed:       true,
-		gzip.BestCompression: true,
-	}
-	_, compressionLevelAccepted := acceptedCompressionLevels[*c.Gzip.CompressionLevel]
-	if !compressionLevelAccepted {
-		return errors.New("invalid value for server.encoding.gzip.compression_level field, accepted values are 0, 1 or 9")
-	}
-
-	return nil
+	return &result, nil
 }

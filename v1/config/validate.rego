@@ -8,35 +8,29 @@
 #   replace each plugin's own config validation.
 #
 #   Input: {"config": <raw config>, "runtime": {"id", "version"}}
-#   Entrypoints: processed (config + defaults), errors (fatal), warnings.
+#   Rules read by the Go layer: processed (config + defaults), errors (fatal), warnings.
 package opa.config
+
+import data.opa.config.util
 
 _default_decision := "/system/main"
 
 _default_authorization_decision := "/system/authz/allow"
 
 # METADATA
-# entrypoint: true
 # description: |
 #   The user config with every _patches fragment merged over it. A fragment
 #   wins where it overlaps, so enforced values (labels id/version) always apply,
 #   while defaults are contributed only when the option is absent.
 processed := object.union_n(array.concat([input.config], [patch | some patch in _patches]))
 
-_patches contains {"default_decision": _default_decision} if _absent_or_null("default_decision")
+_patches contains {"default_decision": _default_decision} if util.absent(["default_decision"])
 
 _patches contains {"default_authorization_decision": _default_authorization_decision} if {
-	_absent_or_null("default_authorization_decision")
+	util.absent(["default_authorization_decision"])
 }
 
 _patches contains {"labels": {"id": input.runtime.id, "version": input.runtime.version}}
-
-# _absent_or_null is true when a config field is missing or explicitly null. In
-# both cases the default is injected, matching the pre-Rego behavior where a nil
-# pointer was treated as unset.
-_absent_or_null(field) if not input.config[field]
-
-_absent_or_null(field) if input.config[field] == null
 
 errors contains msg if {
 	some field in {"default_decision", "default_authorization_decision"}
