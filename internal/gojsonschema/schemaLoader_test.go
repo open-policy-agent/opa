@@ -259,6 +259,38 @@ func TestSchemaLoaderValidatePatterns(t *testing.T) {
 	})
 }
 
+func TestSchemaLoaderEmptyEnumRejectsEveryValue(t *testing.T) {
+	schema, err := NewSchemaLoader().Compile(NewStringLoader(`{"enum": []}`))
+	if err != nil {
+		t.Fatalf("unexpected schema compile error: %v", err)
+	}
+
+	for _, document := range []string{`"allow"`, `null`} {
+		result, err := schema.Validate(NewStringLoader(document))
+		if err != nil {
+			t.Fatalf("unexpected validation error for %s: %v", document, err)
+		}
+		if result.Valid() {
+			t.Errorf("expected %s to be invalid for an empty enum", document)
+		}
+	}
+}
+
+func TestSchemaLoaderWithoutEnumAcceptsValue(t *testing.T) {
+	schema, err := NewSchemaLoader().Compile(NewStringLoader(`{}`))
+	if err != nil {
+		t.Fatalf("unexpected schema compile error: %v", err)
+	}
+
+	result, err := schema.Validate(NewStringLoader(`"allow"`))
+	if err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
+	}
+	if !result.Valid() {
+		t.Fatalf("expected a schema without enum to accept the document, got errors: %v", result.Errors())
+	}
+}
+
 const notMapInterface = "not map interface"
 
 func TestParseSchemaURL_NotMap(t *testing.T) {

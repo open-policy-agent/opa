@@ -79,6 +79,18 @@ cases:
               error: "id: Invalid type. Expected: integer, given: string"
               field: id
               type: invalid_type
+  - note: json_match_schema/empty enum rejects document
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+          result := json.match_schema({"value": "allow"}, {"enum": []})
+          result[0] == false
+        }
+    want_result:
+      - x: true
   - note: json_match_schema/invalid schema
     query: data.test.p = x
     modules:

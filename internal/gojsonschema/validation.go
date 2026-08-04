@@ -420,7 +420,7 @@ func (v *SubSchema) validateCommon(currentSubSchema *SubSchema, value any, resul
 	}
 
 	// enum:
-	if len(currentSubSchema.enum) > 0 {
+	if currentSubSchema.enum != nil {
 		vString, err := marshalWithoutNumber(value)
 		if err != nil {
 			result.addInternalError(new(InternalError), context, value, ErrorDetails{"error": err})

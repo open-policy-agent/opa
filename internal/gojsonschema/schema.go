@@ -676,6 +676,9 @@ func (d *Schema) parseSchema(documentNode any, currentSchema *SubSchema) error {
 	if err != nil {
 		return err
 	}
+	if _, found := m[KeyEnum]; found {
+		currentSchema.enum = make([]string, 0, len(enum))
+	}
 	for _, v := range enum {
 		is, err := marshalWithoutNumber(v)
 		if err != nil {
