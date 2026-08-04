@@ -487,7 +487,22 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 		pq, resultErr = r.PrepareForEval(ctx)
 		if resultErr == nil {
 			parsedModules = pq.Modules()
-			result.Result, resultErr = pq.Eval(ctx, ectx.evalArgs...)
+			if ectx.cover != nil {
+				result.Result, resultErr = pq.Eval(ctx, append(ectx.evalArgs, rego.EvalQueryTracer(ectx.cover))...)
+				if resultErr == nil {
+					// These results are discarded; a failure here shouldn't
+					// fail the whole eval, but the coverage report may be
+					// missing some Kinds, so warn instead of dropping it.
+					if _, err := pq.Eval(ctx, append(ectx.evalArgs, cover.NoIndexingEvalOptions(ectx.coverNoIndex)...)...); err != nil {
+						fmt.Fprintf(os.Stderr, "warning: coverage pass with rule indexing disabled failed: %v\n", err)
+					}
+					if _, err := pq.Eval(ctx, append(ectx.evalArgs, cover.NoEarlyExitEvalOptions(ectx.coverNoEarlyExit)...)...); err != nil {
+						fmt.Fprintf(os.Stderr, "warning: coverage pass with early exit disabled failed: %v\n", err)
+					}
+				}
+			} else {
+				result.Result, resultErr = pq.Eval(ctx, ectx.evalArgs...)
+			}
 		}
 	} else {
 		var pq rego.PreparedPartialQuery
@@ -546,6 +561,8 @@ type evalContext struct {
 	metrics          metrics.Metrics
 	profiler         *resettableProfiler
 	cover            *cover.Cover
+	coverNoIndex     *cover.Cover
+	coverNoEarlyExit *cover.Cover
 	tracer           *topdown.BufferTracer
 	regoArgs         []func(*rego.Rego)
 	evalArgs         []rego.EvalOption
@@ -686,11 +703,14 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	regoArgs = append(regoArgs, rego.DisableInlining(params.disableInlining), rego.ShallowInlining(params.shallowInlining))
 
-	var c *cover.Cover
+	var c, cNoIndex, cNoEarlyExit *cover.Cover
 
 	if params.coverage {
 		c = cover.New()
-		evalArgs = append(evalArgs, rego.EvalQueryTracer(c))
+		cNoIndex = cover.New()
+		cNoEarlyExit = cover.New()
+		c.AddRun(cover.KindIndexExcluded, cNoIndex)
+		c.AddRun(cover.KindEarlyExit, cNoEarlyExit)
 	}
 
 	if params.strictBuiltinErrors {
@@ -720,6 +740,8 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		metrics:          m,
 		profiler:         &rp,
 		cover:            c,
+		coverNoIndex:     cNoIndex,
+		coverNoEarlyExit: cNoEarlyExit,
 		tracer:           tracer,
 		regoArgs:         regoArgs,
 		evalArgs:         evalArgs,

@@ -200,10 +200,10 @@ allow if {
 			query: "data.test.allow",
 			input: map[string]any{"action": "write"},
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kind: KindIndexExcluded},
-				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}, Kind: KindIndexExcluded},
-				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kinds: []Kind{KindIndexExcluded}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kinds: []Kind{KindIndexExcluded}},
 			},
 		},
 		"index exclusions inside a with scope": {
@@ -227,10 +227,10 @@ test_allow_write if {
 				{Start: Position{Row: 12, Col: 2}, End: Position{Row: 12, Col: 41}}, // the with expr
 			},
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kind: KindIndexExcluded},
-				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}, Kind: KindIndexExcluded},
-				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kinds: []Kind{KindIndexExcluded}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kinds: []Kind{KindIndexExcluded}},
 				// both allow bodies were excluded, so the test rule never exits
 				{Start: Position{Row: 11, Col: 1}, End: Position{Row: 11, Col: 17}},
 			},
@@ -252,10 +252,10 @@ allow if {
 			input:     map[string]any{"action": "write"},
 			reportKey: "bundle/test.rego",
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kind: KindIndexExcluded},
-				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}, Kind: KindIndexExcluded},
-				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kind: KindIndexExcluded},
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kinds: []Kind{KindIndexExcluded}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kinds: []Kind{KindIndexExcluded}},
 			},
 		},
 		"index-excluded root rule: else branch also excluded": {
@@ -274,12 +274,12 @@ allow if {
 			query: "data.test.allow",
 			input: map[string]any{"action": "write"},
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},    // allow head (root)
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kind: KindIndexExcluded},   // input.action == "read"
-				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}, Kind: KindIndexExcluded},    // else head
-				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 25}, Kind: KindIndexExcluded},   // input.action == "admin"
-				{Start: Position{Row: 9, Col: 1}, End: Position{Row: 9, Col: 6}, Kind: KindIndexExcluded},    // allow head (second)
-				{Start: Position{Row: 10, Col: 2}, End: Position{Row: 10, Col: 38}, Kind: KindIndexExcluded}, // input.action in ...
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},                                      // allow head (root)
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kinds: []Kind{KindIndexExcluded}},   // input.action == "read"
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},                                      // else head
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 25}, Kinds: []Kind{KindIndexExcluded}},   // input.action == "admin"
+				{Start: Position{Row: 9, Col: 1}, End: Position{Row: 9, Col: 6}},                                      // allow head (second)
+				{Start: Position{Row: 10, Col: 2}, End: Position{Row: 10, Col: 38}, Kinds: []Kind{KindIndexExcluded}}, // input.action in ...
 			},
 		},
 		"else rule promoted to root by indexer: short-circuited else body is not falsely index-excluded": {
@@ -300,10 +300,10 @@ allow if {
 				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 8}}, // 1 == 2
 			},
 			notCovered: []Range{
-				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}, Kind: KindIndexExcluded},  // allow head (primary)
-				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}, Kind: KindIndexExcluded}, // input.undef
-				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},                           // else head: reached, just never exits
-				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}},                          // input.foo: short-circuited, NOT index-excluded
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}, Kinds: []Kind{KindIndexExcluded}}, // input.undef
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},                                    // else head: reached, just never exits
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}},                                   // input.foo: short-circuited, NOT index-excluded
 			},
 		},
 		"else body included in index but short-circuited by earlier branch": {
@@ -328,6 +328,29 @@ allow if {        # covered
 				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},
 				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 11}},
 				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 15}},
+			},
+		},
+		"early-exit skips the second matching rule and its dependency": {
+			// allow's two rules both yield the same (implicit) value, so the
+			// engine can stop after the first match; the second rule and
+			// the helper it alone calls never run under the default config.
+			module: `package test
+
+allow if { true }
+allow if { extra }
+
+extra if { true }
+`,
+			query: "data.test.allow",
+			covered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 3, Col: 12}, End: Position{Row: 3, Col: 16}},
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 4, Col: 1}, End: Position{Row: 4, Col: 6}, Kinds: []Kind{KindEarlyExit}},
+				{Start: Position{Row: 4, Col: 12}, End: Position{Row: 4, Col: 17}, Kinds: []Kind{KindEarlyExit}},
+				{Start: Position{Row: 6, Col: 1}, End: Position{Row: 6, Col: 6}, Kinds: []Kind{KindEarlyExit}},
+				{Start: Position{Row: 6, Col: 12}, End: Position{Row: 6, Col: 16}, Kinds: []Kind{KindEarlyExit}},
 			},
 		},
 		"multi-line expression is one range spanning its rows": {
@@ -402,7 +425,11 @@ test_foo if {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			cover := New()
+			baseline := New()
+			noIndex := New()
+			noEarlyExit := New()
+			baseline.AddRun(KindIndexExcluded, noIndex)
+			baseline.AddRun(KindEarlyExit, noEarlyExit)
 
 			parsedModule, err := ast.ParseModule("test.rego", tc.module)
 			if err != nil {
@@ -412,16 +439,25 @@ test_foo if {
 			args := []func(*rego.Rego){
 				rego.ParsedModule(parsedModule),
 				rego.Query(tc.query),
-				rego.QueryTracer(cover),
 			}
 			if tc.input != nil {
 				args = append(args, rego.Input(tc.input))
 			}
 
-			eval := rego.New(args...)
-			_, err = eval.Eval(t.Context())
+			ctx := t.Context()
+			pq, err := rego.New(args...).PrepareForEval(ctx)
 			if err != nil {
+				t.Fatalf("failed to prepare: %v", err)
+			}
+
+			if _, err := pq.Eval(ctx, rego.EvalQueryTracer(baseline)); err != nil {
 				t.Fatalf("failed to evaluate: %v", err)
+			}
+			if _, err := pq.Eval(ctx, NoIndexingEvalOptions(noIndex)...); err != nil {
+				t.Fatalf("failed to evaluate (no indexing): %v", err)
+			}
+			if _, err := pq.Eval(ctx, NoEarlyExitEvalOptions(noEarlyExit)...); err != nil {
+				t.Fatalf("failed to evaluate (no early exit): %v", err)
 			}
 
 			reportKey := tc.reportKey
@@ -429,7 +465,7 @@ test_foo if {
 				reportKey = "test.rego"
 			}
 
-			report := cover.Report(map[string]*ast.Module{reportKey: parsedModule})
+			report := baseline.Report(map[string]*ast.Module{reportKey: parsedModule})
 			fr, ok := report.Files[reportKey]
 			if !ok {
 				t.Fatalf("expected file report for %q", reportKey)
@@ -459,7 +495,6 @@ func TestCoverQueryTracerInterface(t *testing.T) {
 	conf := ct.Config()
 	expected := topdown.TraceConfig{
 		PlugLocalVars: false,
-		ReportOps:     []topdown.Op{topdown.IndexExcludedOp},
 	}
 
 	if !reflect.DeepEqual(expected, conf) {

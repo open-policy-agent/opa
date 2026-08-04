@@ -24,6 +24,7 @@ import (
 	wasm_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/cover"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/rego"
@@ -321,6 +322,8 @@ type Runner struct {
 	compiler              *ast.Compiler
 	store                 storage.Store
 	cover                 topdown.QueryTracer
+	coverNoIndex          *cover.Cover
+	coverNoEarlyExit      *cover.Cover
 	trace                 bool
 	enablePrintStatements bool
 	raiseBuiltinErrors    bool
@@ -400,19 +403,27 @@ func (r *Runner) SetCoverageTracer(tracer topdown.Tracer) *Runner {
 		return r
 	}
 	if qt, ok := tracer.(topdown.QueryTracer); ok {
-		r.cover = qt
-	} else {
-		r.cover = topdown.WrapLegacyTracer(tracer)
+		return r.SetCoverageQueryTracer(qt)
 	}
-	return r
+	return r.SetCoverageQueryTracer(topdown.WrapLegacyTracer(tracer))
 }
 
-// SetCoverageQueryTracer sets the tracer to use to compute coverage.
+// SetCoverageQueryTracer sets the tracer to use to compute coverage. If
+// tracer is a *cover.Cover, the runner also evaluates each test with rule
+// indexing and early exit disabled, tagging any extra coverage they reveal.
 func (r *Runner) SetCoverageQueryTracer(tracer topdown.QueryTracer) *Runner {
 	if tracer == nil {
 		return r
 	}
 	r.cover = tracer
+	r.coverNoIndex = nil
+	r.coverNoEarlyExit = nil
+	if cc, ok := tracer.(*cover.Cover); ok {
+		r.coverNoIndex = cover.New()
+		r.coverNoEarlyExit = cover.New()
+		cc.AddRun(cover.KindIndexExcluded, r.coverNoIndex)
+		cc.AddRun(cover.KindEarlyExit, r.coverNoEarlyExit)
+	}
 	return r
 }
 
@@ -429,6 +440,8 @@ func (r *Runner) EnableTracing(yes bool) *Runner {
 	r.trace = yes
 	if r.trace {
 		r.cover = nil
+		r.coverNoIndex = nil
+		r.coverNoEarlyExit = nil
 	}
 	return r
 }
@@ -984,10 +997,6 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		bufferTracer = &t.BufferTracer
 	}
 
-	if r.cover != nil {
-		tracers = append(tracers, r.cover)
-	}
-
 	printbuf := bytes.NewBuffer(nil)
 	var builtinErrors []topdown.Error
 	queryPath := rule.Module.Package.Path.Extend(ruleRef)
@@ -1003,10 +1012,6 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.BuiltinErrorList(&builtinErrors),
 	}
 
-	for _, t := range tracers {
-		opts = append(opts, rego.QueryTracer(t))
-	}
-
 	rg := rego.New(opts...)
 
 	// Register custom builtins on rego instance
@@ -1017,7 +1022,34 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	ctx = ast.WithCompiler(ctx, r.compiler)
 
 	t0 := time.Now()
-	rs, err := rg.Eval(ctx)
+
+	// Tracers are passed as EvalOptions below, so only the baseline pass
+	// feeds bufferTracer/TestQueryTracer/r.cover; the supplementary passes
+	// use their own tracer and options.
+	var rs rego.ResultSet
+	pq, err := rg.PrepareForEval(ctx)
+	if err == nil {
+		evalOpts := make([]rego.EvalOption, 0, len(tracers)+2)
+		evalOpts = append(evalOpts, rego.EvalTransaction(txn))
+		for _, t := range tracers {
+			evalOpts = append(evalOpts, rego.EvalQueryTracer(t))
+		}
+		if r.cover != nil {
+			evalOpts = append(evalOpts, rego.EvalQueryTracer(r.cover))
+		}
+		rs, err = pq.Eval(ctx, evalOpts...)
+		if err == nil {
+			// Results and errors here are discarded. A supplementary
+			// run is only used for coverage data. We might consider tracking
+			// errors in future if needed.
+			if r.coverNoIndex != nil {
+				_, _ = pq.Eval(ctx, append([]rego.EvalOption{rego.EvalTransaction(txn)}, cover.NoIndexingEvalOptions(r.coverNoIndex)...)...)
+			}
+			if r.coverNoEarlyExit != nil {
+				_, _ = pq.Eval(ctx, append([]rego.EvalOption{rego.EvalTransaction(txn)}, cover.NoEarlyExitEvalOptions(r.coverNoEarlyExit)...)...)
+			}
+		}
+	}
 	dt := time.Since(t0)
 
 	var trace []*topdown.Event

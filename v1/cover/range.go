@@ -34,23 +34,26 @@ func (sl PositionSlice) Sort() {
 	})
 }
 
-// Range represents a range of positions in a file.
-//
-// Kind categorizes why a range was not covered, e.g. KindIndexExcluded. It is
-// omitted when the range was covered or the reason is not known.
+// Range represents a range of positions in a file. Kinds categorizes why a
+// range was not covered, e.g. KindIndexExcluded; it's empty when covered or
+// the reason is unknown, and can hold more than one Kind.
 type Range struct {
 	Start Position `json:"start"`
 	End   Position `json:"end"`
-	Kind  Kind     `json:"kind,omitempty"`
+	Kinds []Kind   `json:"kinds,omitempty"`
 }
 
 // Kind categorizes why a Range was not covered.
 type Kind string
 
 const (
-	// KindIndexExcluded marks a not-covered range the rule indexer excluded
-	// without attempting it.
+	// KindIndexExcluded marks a not-covered range that the rule indexer
+	// excluded without attempting it.
 	KindIndexExcluded Kind = "index_excluded"
+
+	// KindEarlyExit marks a not-covered range that early-exit optimizations
+	// skipped without attempting it.
+	KindEarlyExit Kind = "early_exit"
 )
 
 // In returns true if the row is inside the range.
@@ -83,25 +86,23 @@ func (r Range) contains(other Range) bool {
 	return otherStartsWithin && otherEndsWithin
 }
 
-// key returns r with Kind cleared, so Kind never participates in a
-// rangeSet's identity — only position does.
-func (r Range) key() Range {
-	r.Kind = ""
-	return r
+// rangeKey identifies a Range by position only, so Kinds never participates
+// in a rangeSet's identity.
+type rangeKey struct {
+	Start Position
+	End   Position
+}
+
+func (r Range) key() rangeKey {
+	return rangeKey{Start: r.Start, End: r.End}
 }
 
 // rangeSet is a set of ranges, keyed by position only (see Range.key).
-type rangeSet map[Range]Range
+type rangeSet map[rangeKey]Range
 
 // Add inserts r into the set.
 func (s rangeSet) Add(r Range) {
 	s[r.key()] = r
-}
-
-// Contains reports whether a range at r's position is in the set.
-func (s rangeSet) Contains(r Range) bool {
-	_, ok := s[r.key()]
-	return ok
 }
 
 // Slice returns the ranges in the set as a slice, sorted by Range.Compare.

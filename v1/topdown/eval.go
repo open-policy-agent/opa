@@ -121,8 +121,6 @@ type eval struct {
 	earlyExit                   bool
 	traceEnabled                bool
 	plugTraceVars               bool
-	reportOps                   opSet
-	indexMatches                map[ast.RuleIndex]map[*ast.Rule]struct{}
 	skipSaveNamespace           bool
 	findOne                     bool
 	strictObjects               bool
@@ -1819,50 +1817,7 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term, index ast.RuleIndex) (*as
 		e.traceIndex(e.query[e.index], msg.String(), &r)
 	}
 
-	if e.indexing && e.reportOps.contains(IndexExcludedOp) {
-		matched, ok := e.indexMatches[index]
-		if !ok {
-			matched = make(map[*ast.Rule]struct{}, len(result.Rules))
-			e.indexMatches[index] = matched
-		}
-		for _, r := range result.Rules {
-			matched[r] = struct{}{}
-			// The index selects a rule's else-chain along with its root, so
-			// those aren't excluded either, even if their bodies never run.
-			for _, elseRule := range result.Else[r] {
-				matched[elseRule] = struct{}{}
-			}
-		}
-	}
-
 	return result, err
-}
-
-// flushIndexExclusions runs once evaluation is done: for every rule an
-// indexer knows about (AllRules) that was never matched during evaluation
-// (e.indexMatches, populated by getRules), it emits an IndexExcludedOp
-// "leftover" event. Events are attributed to e, the top-level eval, since the
-// frame that originally recorded the match may already be pooled/recycled.
-func (e *eval) flushIndexExclusions() {
-	for index, matched := range e.indexMatches {
-		allResult, err := index.AllRules(nil)
-		if err != nil || allResult == nil {
-			continue
-		}
-		for _, rule := range allResult.Rules {
-			// Check each rule in an if/else chain individually: Lookup can
-			// promote an else-rule into the root slot, so siblings don't
-			// necessarily share the same fate.
-			if _, ok := matched[rule]; !ok {
-				e.traceEvent(IndexExcludedOp, rule, "excluded by indexer", nil)
-			}
-			for _, elseRule := range allResult.Else[rule] {
-				if _, ok := matched[elseRule]; !ok {
-					e.traceEvent(IndexExcludedOp, elseRule, "excluded by indexer", nil)
-				}
-			}
-		}
-	}
 }
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {

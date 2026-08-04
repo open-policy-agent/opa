@@ -39,7 +39,6 @@ type Query struct {
 	external                    *resolverTrie
 	tracers                     []QueryTracer
 	plugTraceVars               bool
-	reportOps                   opSet
 	unknowns                    []*ast.Term
 	partialNamespace            string
 	skipSaveNamespace           bool
@@ -150,7 +149,6 @@ func (q *Query) WithQueryTracer(tracer QueryTracer) *Query {
 	if conf.PlugLocalVars {
 		q.plugTraceVars = true
 	}
-	q.reportOps.merge(conf.ReportOps)
 
 	return q
 }
@@ -360,15 +358,6 @@ func (q *Query) WithEvaluatedRuleTracker(t *EvaluatedRuleTracker) *Query {
 	return q
 }
 
-// newIndexMatches allocates the indexMatches map up front, before eval
-// frames are cloned, so all frames share the same underlying map.
-func (q *Query) newIndexMatches() map[ast.RuleIndex]map[*ast.Rule]struct{} {
-	if q.indexing && q.reportOps.contains(IndexExcludedOp) {
-		return map[ast.RuleIndex]map[*ast.Rule]struct{}{}
-	}
-	return nil
-}
-
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -430,8 +419,6 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		tracers:                     q.tracers,
 		traceEnabled:                len(q.tracers) > 0,
 		plugTraceVars:               q.plugTraceVars,
-		reportOps:                   q.reportOps,
-		indexMatches:                q.newIndexMatches(),
 		instr:                       q.instr,
 		builtins:                    q.builtins,
 		builtinCache:                builtins.Cache{},
@@ -524,9 +511,6 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		partials = append(partials, body)
 		return nil
 	})
-
-	// no-op if e.indexMatches is nil (no tracer asked for IndexExcludedOp)
-	e.flushIndexExclusions()
 
 	support = e.saveSupport.List()
 
@@ -632,8 +616,6 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		tracers:                     q.tracers,
 		traceEnabled:                len(q.tracers) > 0,
 		plugTraceVars:               q.plugTraceVars,
-		reportOps:                   q.reportOps,
-		indexMatches:                q.newIndexMatches(),
 		instr:                       q.instr,
 		builtins:                    q.builtins,
 		builtinCache:                builtins.Cache{},
@@ -667,9 +649,6 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		}) // cannot return error
 		return iter(qr)
 	})
-
-	// no-op if e.indexMatches is nil (no tracer asked for IndexExcludedOp)
-	e.flushIndexExclusions()
 
 	if len(e.builtinErrors.errs) > 0 {
 		if q.strictBuiltinErrors {
