@@ -644,8 +644,12 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 			// same line as the end of the head. Comparing against the head's
 			// start row would wrongly expand the condition into a block whenever
 			// the head value spans multiple lines (e.g. a multi-line call).
+			//
+			// Additionally, a single set term must not be stripped of the outer body
+			// braces, as that would semantically change the inner set to a body:
+			// `p if { { x } }` -> p if { x }
 			headEndRow := rule.Head.Location.Row + strings.Count(string(rule.Head.Location.Text), "\n")
-			if rule.Body[0].Location.Row == headEndRow {
+			if rule.Body[0].Location.Row == headEndRow && !isSetTerm(rule.Body[0]) {
 				w.write(" ")
 				var err error
 				comments, err = w.writeExpr(rule.Body[0], comments)
@@ -1027,6 +1031,21 @@ func exprTermsEndRow(expr *ast.Expr) int {
 	}
 	text = bytes.TrimRight(text, " \t\r\n")
 	return loc.Row + bytes.Count(text, []byte{'\n'})
+}
+
+// isSetTerm reports whether expr is a non-negated set term.
+func isSetTerm(expr *ast.Expr) bool {
+	if expr.IsNegated() {
+		return false
+	}
+
+	term, ok := expr.Terms.(*ast.Term)
+	if !ok {
+		return false
+	}
+
+	_, ok = term.Value.(ast.Set)
+	return ok
 }
 
 func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) ([]*ast.Comment, error) {
