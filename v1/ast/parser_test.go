@@ -9611,3 +9611,142 @@ func TestParseNotBody_InnerExprHasLocation(t *testing.T) {
 		t.Errorf("Expected file to be test.rego but got: %v", inner.Location.File)
 	}
 }
+
+func TestOneLineRuleBodyMatchesBracedBody(t *testing.T) {
+	// A one-line rule body must parse to the same body as its braced equivalent.
+	tests := []struct {
+		note    string
+		imports string
+		body    string
+	}{
+		{note: "empty set", body: "set()"},
+		{note: "negated empty set", body: "not set()"},
+		{note: "negated set term", body: "not {1}"},
+		{note: "negated set term, string element", body: `not {"a"}`},
+		{note: "negated set term, var element", body: "not {x}"},
+		{note: "negated set term, ref element", body: "not {input.x}"},
+		{note: "negated set term, multiple elements", body: "not {1, 2}"},
+		{note: "negated set term, set element", body: "not {{1}}"},
+		{note: "negated set term, array element", body: "not {[1]}"},
+		{note: "negated set term, with modifier", body: "not {input} with input as 1"},
+		{note: "negated set term, parenthesized", body: "not ({1, 2})"},
+		{note: "set term, parenthesized", body: "({1, 2})"},
+		{note: "set term, parenthesized, single element", body: "({input.x})"},
+		{note: "negated empty object", body: "not {}"},
+		{note: "empty object", body: "{}"},
+		{note: "object term", body: `{"a": 1}`},
+		{note: "set comprehension", body: "{y | y := input.x}"},
+		{note: "comparison of set terms", body: "{1, 2} == {1, 2}"},
+		{note: "ref", body: "input.x"},
+		{note: "negated ref", body: "not input.x"},
+		{note: "not-body, single expression", imports: "import future.keywords.not", body: "not {input.x}"},
+		{note: "not-body, multiple expressions", imports: "import future.keywords.not", body: "not {x := input.a; x > 1}"},
+		{note: "not-body, nested negation", imports: "import future.keywords.not", body: "not {not input.x}"},
+		{note: "not-body, with modifier", imports: "import future.keywords.not", body: "not {input} with input as false"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			prefix := "package test\n" + tc.imports + "\n"
+
+			oneLine, err := ParseModule("", prefix+"p if "+tc.body)
+			if err != nil {
+				t.Fatalf("Unexpected error parsing one-line rule: %v", err)
+			}
+
+			braced, err := ParseModule("", prefix+"p if { "+tc.body+" }")
+			if err != nil {
+				t.Fatalf("Unexpected error parsing braced rule: %v", err)
+			}
+
+			if oneLine.Rules[0].Body.Compare(braced.Rules[0].Body) != 0 {
+				t.Errorf("Expected body %v but got %v", braced.Rules[0].Body, oneLine.Rules[0].Body)
+			}
+		})
+	}
+}
+
+func TestOneLineRuleBodyLeadingBraceIsBody(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		expBody string
+		expErr  string
+	}{
+		{
+			note: "single expression",
+			module: `package test
+				p if { true }
+			`,
+			expBody: "true",
+		},
+		{
+			note: "single expression, no spaces",
+			module: `package test
+				p if {true}
+			`,
+			expBody: "true",
+		},
+		{
+			note: "var",
+			module: `package test
+				p if {x}
+			`,
+			expBody: "x",
+		},
+		{
+			note: "ref",
+			module: `package test
+				p if {input.x}
+			`,
+			expBody: "input.x",
+		},
+		{
+			note: "multiple set elements can't be a body",
+			module: `package test
+				p if {1, 2}
+			`,
+			expErr: "rego_parse_error: unexpected , token",
+		},
+		{
+			note: "empty not-body, one-line",
+			module: `package test
+				import future.keywords.not
+				p if not {}
+			`,
+			expErr: "rego_parse_error",
+		},
+		{
+			note: "empty not-body, braced",
+			module: `package test
+				import future.keywords.not
+				p if { not {} }
+			`,
+			expErr: "rego_parse_error: found empty body",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mod, err := ParseModule("", tc.module)
+
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("Expected error, got: %v", mod)
+				}
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("Expected error to contain %q, but got: %v", tc.expErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if exp := MustParseBody(tc.expBody); mod.Rules[0].Body.Compare(exp) != 0 {
+				t.Errorf("Expected body %v but got %v", exp, mod.Rules[0].Body)
+			}
+		})
+	}
+}
