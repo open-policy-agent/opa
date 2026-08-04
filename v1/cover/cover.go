@@ -14,23 +14,23 @@ import (
 
 // Cover computes and reports on coverage.
 type Cover struct {
-	mu               sync.Mutex
-	coveredRanges    fileRangeSets
-	notCoveredRanges notCoveredRangesByReason
+	mu                sync.Mutex
+	coveredRanges     fileRangeSets
+	supplementaryRuns []supplementaryRun
 }
 
-// notCoveredRangesByReason groups per-file not-covered range sets by reason.
-type notCoveredRangesByReason struct {
-	indexExcluded fileRangeSets
+// supplementaryRun pairs a supplementary Cover with the Kind that explains
+// why evaluating under that configuration produced coverage the baseline
+// didn't.
+type supplementaryRun struct {
+	kind          Kind
+	supplementary *Cover
 }
 
 // New returns a new Cover object.
 func New() *Cover {
 	return &Cover{
 		coveredRanges: fileRangeSets{},
-		notCoveredRanges: notCoveredRangesByReason{
-			indexExcluded: fileRangeSets{},
-		},
 	}
 }
 
@@ -43,8 +43,19 @@ func (*Cover) Enabled() bool {
 func (*Cover) Config() topdown.TraceConfig {
 	return topdown.TraceConfig{
 		PlugLocalVars: false, // Event variable metadata is not required for the Coverage report
-		ReportOps:     []topdown.Op{topdown.IndexExcludedOp},
 	}
+}
+
+// AddRun registers supplementary as a Cover populated by evaluating the
+// same query with e.g. indexing or early exit disabled. In Report, any
+// range that's NotCovered but Covered in supplementary is tagged with kind.
+func (c *Cover) AddRun(kind Kind, supplementary *Cover) {
+	if supplementary == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.supplementaryRuns = append(c.supplementaryRuns, supplementaryRun{kind: kind, supplementary: supplementary})
 }
 
 // Report returns a coverage Report for the given modules.
@@ -63,6 +74,15 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 		}
 		fr.Covered = coveredRanges.Slice()
 	}
+
+	// Precompute each supplementary run's own Report once, rather than per
+	// file below — Report() re-walks every module, so doing it per file
+	// would be quadratic in the number of files.
+	supplementaryReports := make([]Report, len(c.supplementaryRuns))
+	for i, run := range c.supplementaryRuns {
+		supplementaryReports[i] = run.supplementary.Report(modules)
+	}
+
 	for file, module := range modules {
 		notCoveredRanges := rangeSet{}
 		fr, ok := report.Files[file]
@@ -86,20 +106,13 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 		})
 		fr.NotCovered = notCoveredRanges.Slice()
 
-		// Annotate fr.NotCovered with the reason each range wasn't covered,
-		// using what Cover recorded during evaluation (e.g. indexer exclusion).
-		//
-		// module map key can differ from parse-time Location.File (e.g. bundle
-		// modules), so look up exclusions by the package's actual source file.
+		// Tag ranges that supplementary runs annotated with kind.
 		locFile := module.Package.Location.File
-		// Assumes this Cover is used once.
-		if excl := c.notCoveredRanges.indexExcluded[locFile]; len(excl) > 0 {
-			// Only trust exclusions that are also proven not covered by a real
-			// hit, so a rule reached via another path (e.g. a `with` overlay
-			// using a different index) can never be mislabeled.
-			for i := range fr.NotCovered {
-				if excl.Contains(fr.NotCovered[i]) {
-					fr.NotCovered[i].Kind = KindIndexExcluded
+		for i, run := range c.supplementaryRuns {
+			supplementaryFR := supplementaryReports[i].Files[locFile]
+			for j := range fr.NotCovered {
+				if supplementaryFR.isRangeCovered(fr.NotCovered[j]) {
+					fr.NotCovered[j].Kinds = append(fr.NotCovered[j].Kinds, run.kind)
 				}
 			}
 		}
@@ -145,45 +158,15 @@ func (c *Cover) TraceEvent(event topdown.Event) {
 		if expr := event.Node.(*ast.Expr); expr != nil {
 			c.recordCovered(expr.Location)
 		}
-	case topdown.IndexExcludedOp:
-		if rule, ok := event.Node.(*ast.Rule); ok {
-			// The indexer excludes the rule by its head; since the body
-			// never runs either, mark its expressions index-excluded too.
-			locs := make([]*ast.Location, 0, len(rule.Body)+1)
-			locs = append(locs, rule.Head.Location)
-			for _, expr := range rule.Body {
-				if includeExprInCoverage(expr) {
-					locs = append(locs, expr.Location)
-				}
-			}
-			c.recordNotCovered(KindIndexExcluded, locs...)
-		}
 	}
 }
 
 // recordCovered marks loc as covered, unless loc has no file (e.g. generated code).
 func (c *Cover) recordCovered(loc *ast.Location) {
-	c.record(c.coveredRanges, loc)
-}
-
-// recordNotCovered marks locs as not covered for the given reason, unless a
-// loc has no file (e.g. generated code).
-func (c *Cover) recordNotCovered(kind Kind, locs ...*ast.Location) {
-	switch kind {
-	case KindIndexExcluded:
-		c.record(c.notCoveredRanges.indexExcluded, locs...)
-	}
-}
-
-// record adds each loc's range to m under a single lock, skipping locs with
-// no file (e.g. generated code).
-func (c *Cover) record(m fileRangeSets, locs ...*ast.Location) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for _, loc := range locs {
-		if loc.HasFile() {
-			m.Add(loc.File, rangeOf(loc))
-		}
+	if loc.HasFile() {
+		c.coveredRanges.Add(loc.File, rangeOf(loc))
 	}
 }
 

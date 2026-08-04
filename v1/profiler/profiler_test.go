@@ -7,7 +7,6 @@ package profiler
 
 import (
 	_ "encoding/json"
-	"reflect"
 	"testing"
 	"time"
 
@@ -509,7 +508,7 @@ func TestProfilerTraceConfig(t *testing.T) {
 	conf := ct.Config()
 	expected := topdown.TraceConfig{PlugLocalVars: false}
 
-	if !reflect.DeepEqual(expected, conf) {
+	if expected != conf {
 		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
 	}
 }

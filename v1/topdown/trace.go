@@ -59,10 +59,6 @@ const (
 	// matches.
 	IndexOp Op = "Index"
 
-	// IndexExcludedOp is emitted for each rule whose body the indexer skipped
-	// because the indexed expression did not match the current input.
-	IndexExcludedOp Op = "IndexExcluded"
-
 	// WasmOp is emitted when resolving a ref using an external
 	// Resolver.
 	WasmOp Op = "Wasm"
@@ -190,34 +186,9 @@ type QueryTracer interface {
 	Config() TraceConfig
 }
 
-// opSet is a set of Op values used internally to track which additional event
-// kinds a tracer has opted into (see TraceConfig.ReportOps).
-type opSet map[Op]struct{}
-
-// contains reports whether op is in the set.
-func (s opSet) contains(op Op) bool {
-	_, ok := s[op]
-	return ok
-}
-
-// merge adds all ops from other into s, initialising s if nil.
-func (s *opSet) merge(other []Op) {
-	if *s == nil {
-		*s = opSet{}
-	}
-	for _, op := range other {
-		(*s)[op] = struct{}{}
-	}
-}
-
 // TraceConfig defines some common configuration for Tracer implementations
 type TraceConfig struct {
 	PlugLocalVars bool // Indicate whether to plug local variable bindings before calling into the tracer.
-	// ReportOps lists op kinds that are only emitted when a tracer opts in.
-	// Ops in this category are off by default to avoid overhead for tracers that don't need them.
-	// The coverage tracer uses this to receive IndexExcludedOp events for more detailed reporting.
-	// See https://github.com/open-policy-agent/opa/issues/8813 for the list of candidate ops.
-	ReportOps []Op
 }
 
 // legacyTracer Implements the QueryTracer interface by wrapping an older Tracer instance.
