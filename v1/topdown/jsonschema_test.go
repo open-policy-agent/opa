@@ -403,14 +403,14 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 			err: false,
 		},
 		{
-			note:     "non-empty enum still accepts listed value",
+			note:     "non-empty enum accepts listed value",
 			document: ast.String(`"a"`),
 			schema:   ast.String(`{"enum": ["a", "b", "c"]}`),
 			result:   ast.NewArray(ast.BooleanTerm(true), ast.ArrayTerm()),
 			err:      false,
 		},
 		{
-			note:     "non-empty enum still rejects unlisted value",
+			note:     "non-empty enum rejects unlisted value",
 			document: ast.String(`"z"`),
 			schema:   ast.String(`{"enum": ["a", "b", "c"]}`),
 			result: ast.NewArray(ast.BooleanTerm(false),
@@ -421,6 +421,14 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("(Root) must be one of the following: \"a\", \"b\", \"c\"")},
 				)))),
 			err: false,
+		},
+		// Missing enum keyword is unrestricted (contrast empty enum above).
+		{
+			note:     "missing enum accepts arbitrary value",
+			document: ast.String(`"z"`),
+			schema:   ast.String(`{}`),
+			result:   ast.NewArray(ast.BooleanTerm(true), ast.ArrayTerm()),
+			err:      false,
 		},
 	}
 

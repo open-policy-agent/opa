@@ -415,51 +415,52 @@ func TestIncorrectRef(t *testing.T) {
 // Note: draft meta-schemas require minItems:1 on enum, so this is only
 // exercised when meta-schema validation is off (the default for NewSchema
 // and for OPA's json.match_schema builtin).
+// https://github.com/open-policy-agent/opa/issues/8910
 func TestEmptyEnumUnsatisfiable(t *testing.T) {
-	schema, err := NewSchema(NewStringLoader(`{"enum": []}`))
-	if err != nil {
-		t.Fatalf("unexpected schema compile error: %v", err)
+	type tc struct {
+		name   string
+		schema string
+		data   string
+		valid  bool
+	}
+	cases := []tc{
+		// empty enum rejects every instance type
+		{"empty enum rejects string", `{"enum": []}`, `"a"`, false},
+		{"empty enum rejects number", `{"enum": []}`, `1`, false},
+		{"empty enum rejects null", `{"enum": []}`, `null`, false},
+		{"empty enum rejects bool", `{"enum": []}`, `true`, false},
+		{"empty enum rejects array", `{"enum": []}`, `[]`, false},
+		{"empty enum rejects object", `{"enum": []}`, `{}`, false},
+		// missing enum is unrestricted
+		{"missing enum accepts string", `{}`, `"a"`, true},
+		{"missing enum accepts number", `{}`, `1`, true},
+		{"missing enum accepts null", `{}`, `null`, true},
+		{"missing enum accepts bool", `{}`, `true`, true},
+		{"missing enum accepts array", `{}`, `[]`, true},
+		{"missing enum accepts object", `{}`, `{}`, true},
+		// non-empty enum control cases
+		{"non-empty enum accepts listed value", `{"enum": ["a", "b", "c"]}`, `"a"`, true},
+		{"non-empty enum rejects unlisted value", `{"enum": ["a", "b", "c"]}`, `"z"`, false},
 	}
 
-	// Also ensure a missing enum keyword still accepts any value.
-	noEnum, err := NewSchema(NewStringLoader(`{}`))
-	if err != nil {
-		t.Fatalf("unexpected schema compile error: %v", err)
-	}
-
-	cases := []string{`"a"`, `1`, `null`, `true`, `[]`, `{}`}
-	for _, data := range cases {
-		result, err := schema.Validate(NewStringLoader(data))
-		if err != nil {
-			t.Fatalf("data %s: unexpected error: %v", data, err)
-		}
-		if result.Valid() {
-			t.Errorf("data %s: expected empty enum to fail, got valid", data)
-		}
-		if len(result.Errors()) == 0 || result.Errors()[0].Type() != "enum" {
-			t.Errorf("data %s: expected enum error, got %v", data, result.Errors())
-		}
-
-		ok, err := noEnum.Validate(NewStringLoader(data))
-		if err != nil {
-			t.Fatalf("data %s: unexpected error for missing enum: %v", data, err)
-		}
-		if !ok.Valid() {
-			t.Errorf("data %s: schema without enum should accept instance", data)
-		}
-	}
-
-	// Non-empty enum control cases.
-	normal, err := NewSchema(NewStringLoader(`{"enum": ["a", "b", "c"]}`))
-	if err != nil {
-		t.Fatalf("unexpected schema compile error: %v", err)
-	}
-	pass, err := normal.Validate(NewStringLoader(`"a"`))
-	if err != nil || !pass.Valid() {
-		t.Fatalf("expected listed enum value to pass, err=%v valid=%v", err, pass != nil && pass.Valid())
-	}
-	fail, err := normal.Validate(NewStringLoader(`"z"`))
-	if err != nil || fail.Valid() {
-		t.Fatalf("expected unlisted enum value to fail, err=%v valid=%v", err, fail != nil && fail.Valid())
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			schema, err := NewSchema(NewStringLoader(c.schema))
+			if err != nil {
+				t.Fatalf("unexpected schema compile error: %v", err)
+			}
+			result, err := schema.Validate(NewStringLoader(c.data))
+			if err != nil {
+				t.Fatalf("unexpected validate error: %v", err)
+			}
+			if result.Valid() != c.valid {
+				t.Errorf("valid=%v, want %v (errors=%v)", result.Valid(), c.valid, result.Errors())
+			}
+			if !c.valid {
+				if len(result.Errors()) == 0 || result.Errors()[0].Type() != "enum" {
+					t.Errorf("expected enum error, got %v", result.Errors())
+				}
+			}
+		})
 	}
 }
