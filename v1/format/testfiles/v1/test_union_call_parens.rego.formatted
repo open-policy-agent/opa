@@ -1,0 +1,105 @@
+package test
+
+# The union built-in's infix form (`|`) is comprehension syntax in collection
+# literals and comprehension terms, so it must be parenthesized there.
+
+set_element := {(x | y)}
+
+array_element := [(x | y)]
+
+object_value := {"k": (x | y)}
+
+object_key := {(x | y): "v"}
+
+nested_set_element := {{(x | y)}}
+
+nested_array_element := [[(x | y)]]
+
+array_element_in_object_value := {"k": [(x | y)]}
+
+union_of_unions := {((x | y) | z)}
+
+lone_set_term_body if {
+	{(x | y)}
+}
+
+set_element_in_rule_value contains {(x | y)}
+
+set_element_in_in_operator if x in {(a | b)}
+
+set_element_in_every_domain if every x in {(a | b)} { x }
+
+multiple_set_elements := {(x | y), z}
+
+multiple_array_elements := [(x | y), z]
+
+multiple_object_entries := {"k": (x | y), "j": z}
+
+multiline_set_element := {
+	(x | y),
+}
+
+array_comprehension_term := [(a | b) | c]
+
+set_comprehension_term := {(a | b) | c}
+
+object_comprehension_value := {k: (a | b) | c}
+
+object_comprehension_key := {(a | b): v | c}
+
+object_comprehension_key_and_value := {(a | b): (c | d) | e}
+
+parens_kept := {(x | y)}
+
+redundant_parens := {(x | y)}
+
+# Parens in the source are preserved in every position where they're required.
+
+parens_set_element := {(x | y)}
+
+parens_array_element := [(x | y)]
+
+parens_object_value := {"k": (x | y)}
+
+parens_object_key := {(x | y): "v"}
+
+parens_nested_set_element := {{(x | y)}}
+
+parens_nested_array_element := [[(x | y)]]
+
+parens_union_of_unions := {((x | y) | z)}
+
+parens_lone_set_term_body if {
+	{(x | y)}
+}
+
+parens_set_element_in_rule_value contains {(x | y)}
+
+parens_set_element_in_in_operator if x in {(a | b)}
+
+parens_multiple_set_elements := {(x | y), z}
+
+parens_multiline_set_element := {(x | y)}
+
+parens_array_comprehension_term := [(a | b) | c]
+
+parens_set_comprehension_term := {(a | b) | c}
+
+parens_object_comprehension_value := {k: (a | b) | c}
+
+parens_object_comprehension_key := {(a | b): v | c}
+
+parens_object_comprehension_key_and_value := {(a | b): (c | d) | e}
+
+# Unaffected: `|` is unambiguous outside of collection literals and
+# comprehension terms, and `&` is never comprehension syntax.
+
+union_outside_collection := x | y
+
+intersection_in_set := {x & y}
+
+union_as_call_argument := f(a | b)
+
+union_as_ref_operand := q[a | b]
+
+union_in_comprehension_body := [x | y := a | b]
