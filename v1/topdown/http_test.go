@@ -51,10 +51,7 @@ type Person struct {
 func TestHTTPGetRequest(t *testing.T) {
 	t.Parallel()
 
-	people := make([]Person, 0, 1)
-
-	// test data
-	people = append(people, Person{ID: "1", Firstname: "John"})
+	people := []Person{{ID: "1", Firstname: "John"}}
 
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -817,7 +814,7 @@ func TestHTTPRedirectAllowNet(t *testing.T) {
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
 
-	expectedError := &Error{Code: "eval_builtin_error", Message: "http.send: unallowed host: " + serverHost}
+	expectedError := &Error{Code: "eval_builtin_error", Message: "http.send: disallowed host: " + serverHost}
 
 	rules := []string{fmt.Sprintf(
 		`p = x { http.send({"method": "get", "url": "%s", "enable_redirect": true, "force_json_decode": true}, resp); x := remove_headers(resp) }`, baseURL)}
@@ -2201,7 +2198,7 @@ func TestNewForceCacheParams(t *testing.T) {
 		{
 			note:      "valid input",
 			input:     ast.MustParseTerm(`{"force_cache_duration_seconds": 300}`).Value.(ast.Object),
-			expected:  &forceCacheParams{forceCacheDurationSeconds: int32(300)},
+			expected:  &forceCacheParams{forceDurationSeconds: int32(300)},
 			wantError: false,
 			err:       nil,
 		},
@@ -2225,8 +2222,8 @@ func TestNewForceCacheParams(t *testing.T) {
 					t.Fatalf("Unexpected error %v", err)
 				}
 
-				if actual.forceCacheDurationSeconds != tc.expected.forceCacheDurationSeconds {
-					t.Fatalf("Expected force cache duration %v but got %v", tc.expected.forceCacheDurationSeconds, actual.forceCacheDurationSeconds)
+				if actual.forceDurationSeconds != tc.expected.forceDurationSeconds {
+					t.Fatalf("Expected force cache duration %v but got %v", tc.expected.forceDurationSeconds, actual.forceDurationSeconds)
 				}
 			}
 		})
@@ -2339,7 +2336,9 @@ func TestNewInterQueryCacheValue(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBuffer(b)),
 	}
 
-	result, _, err := newInterQueryCacheValue(BuiltinContext{}, response, b, &forceCacheParams{})
+	bctx := BuiltinContext{}
+
+	result, _, err := newInterQueryCacheValue(bctx.Time, response, b, forceCacheParams{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -2485,7 +2484,16 @@ func TestHTTPSClient(t *testing.T) {
 		data := loadSmallTestData()
 		rules := append(
 			httpSendHelperRules,
-			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, resp); x := clean_headers(resp) }`, s.URL+"/cert", localCaFile, localClientCertFile, localClientKeyFile),
+			fmt.Sprintf(`p := x {
+				resp := http.send({
+					"method": "get",
+					"url": %q,
+					"tls_ca_cert_file": %q,
+					"tls_client_cert_file": %q,
+					"tls_client_key_file": %q
+				})
+				x := clean_headers(resp)
+			}`, s.URL+"/cert", localCaFile, localClientCertFile, localClientKeyFile),
 		)
 		// run the test
 		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
@@ -3724,7 +3732,7 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
 
-	expectedError := &Error{Code: "eval_builtin_error", Message: "http.send: unallowed host: " + serverHost}
+	expectedError := &Error{Code: "eval_builtin_error", Message: "http.send: disallowed host: " + serverHost}
 
 	rules := []string{fmt.Sprintf(
 		`p = x { http.send({"method": "get", "url": %q, "force_json_decode": true}, resp); x := remove_headers(resp) }`, ts.URL)}
@@ -3832,7 +3840,7 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
 
-	hostError := &Error{Code: "eval_builtin_error", Message: "http.send: unallowed host: " + serverHost}
+	hostError := &Error{Code: "eval_builtin_error", Message: "http.send: disallowed host: " + serverHost}
 	expectedError := map[string]any{"body": nil, "raw_body": "", "status": "403 Forbidden", "status_code": 403}
 	errorObj := ast.MustInterfaceToValue(expectedError)
 

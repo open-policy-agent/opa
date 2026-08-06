@@ -1233,10 +1233,7 @@ func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comme
 	w.write("(")
 	defer w.write(")")
 
-	args := make([]any, len(terms)-1)
-	for i, t := range terms[1:] {
-		args[i] = t
-	}
+	args := util.ToSliceOfAny(terms[1:])
 	loc := terms[0].Location
 	var err error
 	comments, err = w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter())
@@ -1810,11 +1807,7 @@ func (w *writer) writeComprehension(openChar, closeChar byte, term *ast.Term, bo
 }
 
 func (w *writer) writeComprehensionBody(openChar, closeChar byte, body ast.Body, term, compr *ast.Location, comments []*ast.Comment) ([]*ast.Comment, error) {
-	exprs := make([]any, 0, len(body))
-	for _, expr := range body {
-		exprs = append(exprs, expr)
-	}
-	lines, err := w.groupIterable(exprs, term)
+	lines, err := w.groupIterable(util.ToSliceOfAny(body), term)
 	if err != nil {
 		return nil, err
 	}

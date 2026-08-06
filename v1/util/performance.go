@@ -13,12 +13,12 @@ import (
 // put into the pool, and [SyncPool.Get] returns a pointer to T without having
 // to do a type assertion at the call site.
 type SyncPool[T any] struct {
-	pool sync.Pool
+	Pool sync.Pool
 }
 
 func NewSyncPool[T any]() *SyncPool[T] {
 	return &SyncPool[T]{
-		pool: sync.Pool{
+		Pool: sync.Pool{
 			New: func() any {
 				return new(T)
 			},
@@ -27,12 +27,12 @@ func NewSyncPool[T any]() *SyncPool[T] {
 }
 
 func (p *SyncPool[T]) Get() *T {
-	return p.pool.Get().(*T)
+	return p.Pool.Get().(*T)
 }
 
 func (p *SyncPool[T]) Put(x *T) {
 	if x != nil {
-		p.pool.Put(x)
+		p.Pool.Put(x)
 	}
 }
 
@@ -205,7 +205,7 @@ func Atoi64(s string) (int64, bool) {
 
 // SplitMap calls fn for each delim-separated part of text and returns a slice of the results.
 // Cheaper than calling fn on strings.Split(text, delim), as it avoids allocating an intermediate slice of strings.
-func SplitMap[T any](text string, delim string, fn func(string) T) []T {
+func SplitMap[T any](text, delim string, fn func(string) T) []T {
 	sl := make([]T, 0, strings.Count(text, delim)+1)
 	for s := range strings.SplitSeq(text, delim) {
 		sl = append(sl, fn(s))

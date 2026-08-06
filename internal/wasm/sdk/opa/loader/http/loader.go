@@ -209,7 +209,7 @@ func (l *Loader) Load(ctx context.Context) error {
 
 // get executes HTTP GET.
 func (l *Loader) get(ctx context.Context, tag string) (*bundle.Bundle, error) {
-	req, err := http.NewRequest(http.MethodGet, l.url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, l.url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +218,6 @@ func (l *Loader) get(ctx context.Context, tag string) (*bundle.Bundle, error) {
 		req.Header.Add("If-None-Match", tag)
 	}
 
-	req = req.WithContext(ctx)
 	if err := l.prepareRequest(req); err != nil {
 		return nil, err
 	}
