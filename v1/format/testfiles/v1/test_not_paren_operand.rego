@@ -1,0 +1,98 @@
+package test
+
+import future.keywords.not
+
+paren_scalar if {
+	not (1)
+	not (1.2)
+	not ("a")
+	not (false)
+}
+
+paren_call if {
+	not (f(1))
+}
+
+# ({x}) should not be formatted to {x}, as the former is a set and the latter is an explicit body containing a var
+paren_set if {
+	not ({x})
+}
+
+paren_object if {
+	not ({"a": 1})
+}
+
+paren_set_multiple_elements if {
+	not ({1, 2})
+}
+
+paren_comprehension if {
+	not ({x | x})
+}
+
+paren_ref_into_object if {
+	not ({"a": 1}.a)
+}
+
+paren_ref_into_set if {
+	not ({x}[0])
+}
+
+paren_comparison_with_set if {
+	not ({x} == y)
+}
+
+paren_empty_set if {
+	not (set())
+}
+
+paren_ref if {
+	not (input.x)
+}
+
+paren_var if {
+	not (x)
+}
+
+paren_comparison if {
+	not (a == b)
+}
+
+explicit_body if {
+	not { x }
+}
+
+set_union if {
+	not or(x, y)
+}
+
+paren_set_union if {
+	not (or(x, y))
+}
+
+# { or(x, y) } must not be formatted into { x | y }, which the parser forbids
+explicit_body_set_union if {
+	not { or(x, y) }
+}
+
+explicit_multi_expr_body_set_union if {
+	not { (x | y); z }
+	not { x; y | z }
+	not { z; (x | y) }
+}
+
+paren_explicit_body_set_union if {
+	not ({ or(x, y) })
+}
+
+explicit_body_paren_set_union if {
+	not { (x | y) }
+	not { (or(x, y)) }
+}
+
+paren_explicit_body_paren_set_union if {
+	not ({(x | y)})
+	not ({(or(x, y))})
+}
+
+one_line if not ({x})

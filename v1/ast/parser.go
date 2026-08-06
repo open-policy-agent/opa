@@ -897,13 +897,18 @@ func (p *Parser) parseRules() []*Rule {
 		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
 		p.scan()
 		s := p.save()
+
+		// Only a set term with a leading '{' is ambiguous with a body;
+		// e.g.: 'not {...}' and 'set()' parses to a set literal, but have no ambiguous leading '{'
+		leadingBrace := p.s.tok == tokens.LBrace
+
 		if expr := p.parseLiteral(); expr != nil {
 			// NOTE(sr): set literals are never false or undefined, so parsing this as
 			//  p if { true }
 			//       ^^^^^^^^ set of one element, `true`
 			// isn't valid.
 			isSetLiteral := false
-			if t, ok := expr.Terms.(*Term); ok {
+			if t, ok := expr.Terms.(*Term); ok && leadingBrace {
 				_, isSetLiteral = t.Value.(Set)
 			}
 			// expr.Term is []*Term or Every
@@ -911,6 +916,12 @@ func (p *Parser) parseRules() []*Rule {
 				rule.Body.Append(expr)
 				break
 			}
+		}
+
+		if !leadingBrace {
+			// Without a leading '{' there is no '{ BODY }' rule body to fall back to,
+			// so the literal's own error is the useful one; restoring would drop it.
+			return nil
 		}
 
 		// parsing as literal didn't work out, expect '{ BODY }'
@@ -1236,12 +1247,19 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	// binary. Otherwise, restore and fall through to regular handling.
 	if p.s.tok == tokens.LBrace && p.logicalKeywordsActive() {
 		s := p.save()
+		braceOffset := p.s.loc.Offset
 		bodyLoc := p.s.Loc()
 		p.scan()
 		body := p.parseBody(tokens.RBrace)
 		if body != nil {
 			p.scan() // consume `}`
 			if p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
+				// Only now are the braces known to be an operand rather than a rule body.
+				if isAmbiguousUnionBody(body) {
+					p.errorAmbiguousUnionBody(bodyLoc, braceOffset, body, "")
+					return nil
+				}
+
 				outer := p.parseLogicalOrChain(body, true, bodyLoc)
 				if outer == nil {
 					return nil
@@ -1257,7 +1275,7 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	// parens hold or precede an and/or; otherwise (`({})`, `({a})`, `(a == b)`) it
 	// restores and we fall through so parseExpr handles the term.
 	if p.s.tok == tokens.LParen && p.logicalKeywordsActive() {
-		if body, explicit, loc, committed := p.parseLogicalGroup(false); committed {
+		if body, explicit, loc, committed := p.parseLogicalGroup(false, ""); committed {
 			if body == nil {
 				return nil
 			}
@@ -1331,8 +1349,8 @@ func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
 
 	// Negated parenthesized group: `not (a or b)`. The parens are an operand of
 	// `not`, so any `{...}` inside is a body.
-	if negated && p.notBodies && p.s.tok == tokens.LParen && p.logicalKeywordsActive() {
-		if body, explicit, _, committed := p.parseLogicalGroup(true); committed {
+	if negated && p.notBodies && p.s.tok == tokens.LParen {
+		if body, explicit, _, committed := p.parseLogicalGroup(true, "not "); committed {
 			if body == nil {
 				return nil
 			}
@@ -1567,13 +1585,41 @@ func (p *Parser) parseSome() *Expr {
 }
 
 func (p *Parser) parseNotBody(notLoc *Location) *Expr {
+	braceOffset := p.s.loc.Offset
+	braceLoc := p.s.Loc()
+	s := p.save()
 	p.scan() // consume `{`
+
+	// `not {}` is an empty body, which parseBody reports precisely; only non-empty
+	// braces are worth re-reading as a value.
+	empty := p.s.tok == tokens.RBrace
 
 	body := p.parseBody(tokens.RBrace)
 	if body == nil {
+		if empty {
+			return nil
+		}
+
+		// The braces may hold a value rather than a body. If so, report the
+		// contract and its escapes; if not, keep the body error.
+		failed := p.save()
+		p.restore(s)
+
+		if term := p.parseTerm(); term != nil {
+			p.errorOperandBraceNeedsBody(braceLoc, p.s.Text(braceOffset, p.s.lastEnd), term, "not ")
+			return nil
+		}
+
+		p.restore(failed)
+
 		return nil
 	}
 	p.scan() // consume `}`
+
+	if isAmbiguousUnionBody(body) {
+		p.errorAmbiguousUnionBody(braceLoc, braceOffset, body, "not ")
+		return nil
+	}
 
 	// Extend the location to also include the 'not ' prefix
 	spanned := p.extendLoc(notLoc)
@@ -1708,6 +1754,7 @@ func isNegated(p *Parser) bool {
 // parseLogicalOperand parses a single operand of an `and`/`or` expression.
 func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 	if p.s.tok == tokens.LBrace {
+		braceOffset := p.s.loc.Offset
 		loc := p.s.Loc()
 		p.scan()
 		body := p.parseBody(tokens.RBrace)
@@ -1715,6 +1762,13 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 			return nil, false, nil
 		}
 		p.scan()
+
+		if isAmbiguousUnionBody(body) {
+			// Report, but hand the body back: if the caller is a paren group that
+			// restores, the error is rolled back with it.
+			p.errorAmbiguousUnionBody(loc, braceOffset, body, "")
+		}
+
 		return body, true, loc
 	}
 
@@ -1738,7 +1792,12 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 	// body. If the parens don't hold a logical group parseLogicalGroup restores
 	// state and we fall through so parseExpr can handle `(a == b)` as a term.
 	if p.s.tok == tokens.LParen && p.logicalKeywordsActive() && (!negated || p.notBodies) {
-		if body, explicit, loc, committed := p.parseLogicalGroup(true); committed {
+		prefix := ""
+		if negated {
+			prefix = "not "
+		}
+
+		if body, explicit, loc, committed := p.parseLogicalGroup(true, prefix); committed {
 			if body == nil {
 				return nil, false, nil
 			}
@@ -1775,6 +1834,59 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 	}
 
 	return NewBody(expr), false, expr.Location
+}
+
+// isAmbiguousUnionBody reports whether b is a single-expression body holding a
+// bare infix `|` set union. Written that way, `{ ... | ... }` cannot be told apart
+// from a set comprehension; the call form (`or(x, y)`) and the parenthesized form
+// (`(x | y)`) can, and are left alone.
+func isAmbiguousUnionBody(b Body) bool {
+	if len(b) == 0 {
+		return false
+	}
+
+	// The first expression decides: `{A | B; C}` also reads as a comprehension with
+	// head A and body `B; C`, so trailing expressions don't disambiguate anything.
+	terms, ok := b[0].Terms.([]*Term)
+	if !ok || !Or.Ref().Equal(b[0].Operator()) {
+		return false
+	}
+
+	// The operator's text is `|` for the infix form and `or` for the call form.
+	if terms[0].Location == nil || string(terms[0].Location.Text) != "|" {
+		return false
+	}
+
+	return b[0].Location == nil || !bytes.HasPrefix(bytes.TrimSpace(b[0].Location.Text), []byte("("))
+}
+
+// errorOperandBraceNeedsBody reports `{...}` in an operand position holding a value instead of expressions.
+func (p *Parser) errorOperandBraceNeedsBody(loc *Location, braces []byte, term *Term, prefix string) {
+	p.hint(fmt.Sprintf("write `%s(%s)` to negate the value, or `%s{%s}` for a body holding it",
+		prefix, braces, prefix, braces))
+	p.errorf(loc, "`{...}` in an operand position must contain expression(s), got: %s", ValueName(term.Value))
+}
+
+// errorParensCannotWrapBody reports `(...)` holding expressions rather than a value.
+func (p *Parser) errorParensCannotWrapBody(loc *Location, braces []byte, prefix string) {
+	p.hint(fmt.Sprintf("drop the parens to keep the body: `%s%s`", prefix, braces))
+	p.error(loc, "`(...)` in an operand position cannot contain a body")
+}
+
+func (p *Parser) errorAmbiguousUnionBody(loc *Location, braceOffset int, body Body, prefix string) {
+	braces := p.s.Text(braceOffset, p.s.lastEnd)
+
+	// Parenthesizing only the union keeps any trailing expressions of the body.
+	union := string(braces)
+	if e := body[0].Location; e != nil {
+		if rel := e.Offset - braceOffset; rel > 0 && rel+len(e.Text) <= len(braces) {
+			union = fmt.Sprintf("%s(%s)%s", braces[:rel], e.Text, braces[rel+len(e.Text):])
+		}
+	}
+
+	p.hint(fmt.Sprintf("write `%s(%s)` for the comprehension, or `%s%s` for the set union",
+		prefix, braces, prefix, union))
+	p.error(loc, "ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension")
 }
 
 // isLogicalBody reports whether b is a single-expression body wrapping a
@@ -1820,7 +1932,7 @@ func (p *Parser) expectRParen() bool {
 // operands starting at the current `(`.
 //
 // operandContext reports whether the `(` is already an operand of `and`/`or`/`not`.
-func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, bool) {
+func (p *Parser) parseLogicalGroup(operandContext bool, prefix string) (Body, bool, *Location, bool) {
 	if !p.enter() {
 		return nil, false, nil, true
 	}
@@ -1839,17 +1951,10 @@ func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, 
 		return nil, false, nil, false
 	}
 
-	// A leading `{` is a body only in an operand context; otherwise it's an
-	// object/set literal and we backtrack to the term parser.
-	braceLead := p.s.tok == tokens.LBrace
-
 	lhsBody, lhsExplicit, lhsLoc := p.parseLogicalOperand()
 	if lhsBody == nil {
-		// An empty `{}` operand (e.g. `not ({})`) is a body error.
-		if operandContext && braceLead {
-			return nil, false, nil, true
-		}
-
+		// Parens are not an operand, so a `{...}` that can't be a body is a value:
+		// restore and let the term parser read it, e.g. `not ({})` is an empty object.
 		p.restore(s)
 
 		return nil, false, nil, false
@@ -1899,16 +2004,22 @@ func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, 
 		return nil, false, nil, false
 
 	case lhsExplicit:
-		// `({ body })`
-		if !p.expectRParen() {
+		// `({ body })`: parens don't wrap a body. Without a top-level `and`/`or`
+		// -- handled above -- the braces are a value, so restore and let the term
+		// parser read them.
+		braces := p.s.Text(lhsLoc.Offset, p.s.lastEnd)
+		p.restore(s)
+
+		probe := p.save()
+		p.scan() // consume `(`
+		term := p.parseTerm()
+		p.restore(probe)
+
+		if term == nil {
+			p.errorParensCannotWrapBody(openLoc, braces, prefix)
 			return nil, false, nil, true
 		}
 
-		if operandContext || p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
-			return lhsBody, true, p.extendLoc(openLoc), true
-		}
-
-		p.restore(s)
 		return nil, false, nil, false
 
 	case isLogicalBody(lhsBody):
