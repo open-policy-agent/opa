@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"regexp"
 	"runtime"
@@ -31,6 +32,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -337,6 +339,9 @@ type Runner struct {
 	customBuiltins        []*Builtin
 	defaultRegoVersion    ast.RegoVersion
 	parallel              int
+	// seed, when set, seeds non-deterministic builtins via rego.EvalSeed
+	// across all coverage passes, making their results reproducible.
+	seed io.Reader
 }
 
 // NewRunner returns a new runner.
@@ -1029,24 +1034,41 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	var rs rego.ResultSet
 	pq, err := rg.PrepareForEval(ctx)
 	if err == nil {
-		evalOpts := make([]rego.EvalOption, 0, len(tracers)+2)
+		evalOpts := make([]rego.EvalOption, 0, len(tracers)+4)
 		evalOpts = append(evalOpts, rego.EvalTransaction(txn))
+		if r.seed != nil {
+			evalOpts = append(evalOpts, rego.EvalSeed(r.seed))
+		}
 		for _, t := range tracers {
 			evalOpts = append(evalOpts, rego.EvalQueryTracer(t))
 		}
+		var ndbc builtins.NDBCache
 		if r.cover != nil {
 			evalOpts = append(evalOpts, rego.EvalQueryTracer(r.cover))
+			// Share one non-deterministic builtin cache across all three passes so they take the same path.
+			ndbc = builtins.NDBCache{}
+			evalOpts = append(evalOpts, rego.EvalNDBuiltinCache(ndbc))
 		}
 		rs, err = pq.Eval(ctx, evalOpts...)
 		if err == nil {
 			// Results and errors here are discarded. A supplementary
 			// run is only used for coverage data. We might consider tracking
 			// errors in future if needed.
+			supplementaryBase := []rego.EvalOption{rego.EvalTransaction(txn)}
+			if r.seed != nil {
+				supplementaryBase = append(supplementaryBase, rego.EvalSeed(r.seed))
+			}
 			if r.coverNoIndex != nil {
-				_, _ = pq.Eval(ctx, append([]rego.EvalOption{rego.EvalTransaction(txn)}, cover.NoIndexingEvalOptions(r.coverNoIndex)...)...)
+				_, _ = pq.Eval(
+					ctx,
+					append(supplementaryBase, cover.NoIndexingEvalOptions(r.coverNoIndex, ndbc)...)...,
+				)
 			}
 			if r.coverNoEarlyExit != nil {
-				_, _ = pq.Eval(ctx, append([]rego.EvalOption{rego.EvalTransaction(txn)}, cover.NoEarlyExitEvalOptions(r.coverNoEarlyExit)...)...)
+				_, _ = pq.Eval(
+					ctx,
+					append(supplementaryBase, cover.NoEarlyExitEvalOptions(r.coverNoEarlyExit, ndbc)...)...,
+				)
 			}
 		}
 	}

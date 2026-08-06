@@ -32,6 +32,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -79,6 +80,9 @@ type evalCommandParams struct {
 	v1Compatible              bool
 	traceVarValues            bool
 	ReadAstValuesFromStore    bool
+	// seed, when set, seeds non-deterministic builtins via rego.EvalSeed,
+	// making their results reproducible across evaluation passes.
+	seed io.Reader
 }
 
 func (p *evalCommandParams) regoVersion() ast.RegoVersion {
@@ -488,15 +492,20 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 		if resultErr == nil {
 			parsedModules = pq.Modules()
 			if ectx.cover != nil {
-				result.Result, resultErr = pq.Eval(ctx, append(ectx.evalArgs, rego.EvalQueryTracer(ectx.cover))...)
+				// Share one non-deterministic builtin cache across all three passes so they take the same path.
+				ndbc := builtins.NDBCache{}
+				result.Result, resultErr = pq.Eval(
+					ctx,
+					append(ectx.evalArgs, rego.EvalQueryTracer(ectx.cover), rego.EvalNDBuiltinCache(ndbc))...,
+				)
 				if resultErr == nil {
 					// These results are discarded; a failure here shouldn't
 					// fail the whole eval, but the coverage report may be
 					// missing some Kinds, so warn instead of dropping it.
-					if _, err := pq.Eval(ctx, append(ectx.evalArgs, cover.NoIndexingEvalOptions(ectx.coverNoIndex)...)...); err != nil {
+					if _, err := pq.Eval(ctx, append(ectx.evalArgs, cover.NoIndexingEvalOptions(ectx.coverNoIndex, ndbc)...)...); err != nil {
 						fmt.Fprintf(os.Stderr, "warning: coverage pass with rule indexing disabled failed: %v\n", err)
 					}
-					if _, err := pq.Eval(ctx, append(ectx.evalArgs, cover.NoEarlyExitEvalOptions(ectx.coverNoEarlyExit)...)...); err != nil {
+					if _, err := pq.Eval(ctx, append(ectx.evalArgs, cover.NoEarlyExitEvalOptions(ectx.coverNoEarlyExit, ndbc)...)...); err != nil {
 						fmt.Fprintf(os.Stderr, "warning: coverage pass with early exit disabled failed: %v\n", err)
 					}
 				}
@@ -599,6 +608,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		rego.EvalRuleIndexing(!params.disableIndexing),
 		rego.EvalEarlyExit(!params.disableEarlyExit),
 		rego.EvalNondeterministicBuiltins(params.nondeterministicBuiltions),
+	}
+
+	if params.seed != nil {
+		evalArgs = append(evalArgs, rego.EvalSeed(params.seed))
 	}
 
 	if len(params.imports.v) > 0 {
