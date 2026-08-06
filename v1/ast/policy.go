@@ -1632,7 +1632,7 @@ func logicalOperandNeedsParens(b Body, parentOp string, rhs bool) bool {
 		return true
 	}
 
-	switch e.Terms.(type) {
+	switch t := e.Terms.(type) {
 	case *LogicalOr:
 		// `or` binds looser than `and`: always parenthesize under `and`; under
 		// `or`, parenthesize only the rhs to preserve right-nesting.
@@ -1641,6 +1641,8 @@ func logicalOperandNeedsParens(b Body, parentOp string, rhs bool) bool {
 		// `and` binds tighter: no parens under `or`; under `and`, parenthesize
 		// only the rhs to preserve right-nesting.
 		return parentOp == "and" && rhs
+	case *Term:
+		return rendersWithLeadingBrace(t.Value)
 	}
 	return false
 }
@@ -1655,10 +1657,29 @@ func notBodyNeedsParens(b Body) bool {
 		return true
 	}
 
-	switch e.Terms.(type) {
+	switch t := e.Terms.(type) {
 	case *LogicalOr, *LogicalAnd:
 		// `not` binds tighter than `and`/`or`
 		return true
+	case *Term:
+		return rendersWithLeadingBrace(t.Value)
+	}
+
+	return false
+}
+
+// rendersWithLeadingBrace reports whether v renders starting with a `{`. Such a
+// value needs parens in an operand position, as bare braces there are read as an
+// explicit body.
+func rendersWithLeadingBrace(v Value) bool {
+	switch t := v.(type) {
+	case Set:
+		// The empty set renders as `set()`.
+		return t.Len() > 0
+	case Object, *SetComprehension, *ObjectComprehension:
+		return true
+	case Ref:
+		return len(t) > 0 && rendersWithLeadingBrace(t[0].Value)
 	}
 
 	return false
