@@ -918,6 +918,12 @@ func (p *Parser) parseRules() []*Rule {
 			}
 		}
 
+		if !leadingBrace {
+			// Without a leading '{' there is no '{ BODY }' rule body to fall back to,
+			// so the literal's own error is the useful one; restoring would drop it.
+			return nil
+		}
+
 		// parsing as literal didn't work out, expect '{ BODY }'
 		p.restore(s)
 		fallthrough
@@ -1241,12 +1247,19 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	// binary. Otherwise, restore and fall through to regular handling.
 	if p.s.tok == tokens.LBrace && p.logicalKeywordsActive() {
 		s := p.save()
+		braceOffset := p.s.loc.Offset
 		bodyLoc := p.s.Loc()
 		p.scan()
 		body := p.parseBody(tokens.RBrace)
 		if body != nil {
 			p.scan() // consume `}`
 			if p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
+				// Only now are the braces known to be an operand rather than a rule body.
+				if isAmbiguousUnionBody(body) {
+					p.errorAmbiguousUnionBody(bodyLoc, braceOffset, body, "")
+					return nil
+				}
+
 				outer := p.parseLogicalOrChain(body, true, bodyLoc)
 				if outer == nil {
 					return nil
@@ -1572,6 +1585,8 @@ func (p *Parser) parseSome() *Expr {
 }
 
 func (p *Parser) parseNotBody(notLoc *Location) *Expr {
+	braceOffset := p.s.loc.Offset
+	braceLoc := p.s.Loc()
 	p.scan() // consume `{`
 
 	body := p.parseBody(tokens.RBrace)
@@ -1579,6 +1594,11 @@ func (p *Parser) parseNotBody(notLoc *Location) *Expr {
 		return nil
 	}
 	p.scan() // consume `}`
+
+	if isAmbiguousUnionBody(body) {
+		p.errorAmbiguousUnionBody(braceLoc, braceOffset, body, "not ")
+		return nil
+	}
 
 	// Extend the location to also include the 'not ' prefix
 	spanned := p.extendLoc(notLoc)
@@ -1713,6 +1733,7 @@ func isNegated(p *Parser) bool {
 // parseLogicalOperand parses a single operand of an `and`/`or` expression.
 func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 	if p.s.tok == tokens.LBrace {
+		braceOffset := p.s.loc.Offset
 		loc := p.s.Loc()
 		p.scan()
 		body := p.parseBody(tokens.RBrace)
@@ -1720,6 +1741,12 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 			return nil, false, nil
 		}
 		p.scan()
+
+		if isAmbiguousUnionBody(body) {
+			p.errorAmbiguousUnionBody(loc, braceOffset, body, "")
+			return nil, false, nil
+		}
+
 		return body, true, loc
 	}
 
@@ -1780,6 +1807,46 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 	}
 
 	return NewBody(expr), false, expr.Location
+}
+
+// isAmbiguousUnionBody reports whether b is a single-expression body holding a
+// bare infix `|` set union. Written that way, `{ ... | ... }` cannot be told apart
+// from a set comprehension; the call form (`or(x, y)`) and the parenthesized form
+// (`(x | y)`) can, and are left alone.
+func isAmbiguousUnionBody(b Body) bool {
+	if len(b) == 0 {
+		return false
+	}
+
+	// The first expression decides: `{A | B; C}` also reads as a comprehension with
+	// head A and body `B; C`, so trailing expressions don't disambiguate anything.
+	terms, ok := b[0].Terms.([]*Term)
+	if !ok || !Or.Ref().Equal(b[0].Operator()) {
+		return false
+	}
+
+	// The operator's text is `|` for the infix form and `or` for the call form.
+	if terms[0].Location == nil || string(terms[0].Location.Text) != "|" {
+		return false
+	}
+
+	return b[0].Location == nil || !bytes.HasPrefix(bytes.TrimSpace(b[0].Location.Text), []byte("("))
+}
+
+func (p *Parser) errorAmbiguousUnionBody(loc *Location, braceOffset int, body Body, prefix string) {
+	braces := p.s.Text(braceOffset, p.s.lastEnd)
+
+	// Parenthesizing only the union keeps any trailing expressions of the body.
+	union := string(braces)
+	if e := body[0].Location; e != nil {
+		if rel := e.Offset - braceOffset; rel > 0 && rel+len(e.Text) <= len(braces) {
+			union = fmt.Sprintf("%s(%s)%s", braces[:rel], e.Text, braces[rel+len(e.Text):])
+		}
+	}
+
+	p.hint(fmt.Sprintf("write `%s(%s)` for the comprehension, or `%s%s` for the set union",
+		prefix, braces, prefix, union))
+	p.error(loc, "ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension")
 }
 
 // isLogicalBody reports whether b is a single-expression body wrapping a

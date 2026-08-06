@@ -9751,10 +9751,12 @@ func TestOneLineRuleBodyLeadingBraceIsBody(t *testing.T) {
 	}
 }
 
-// Issue 1 of the `not` operand brace contract: `{ ... | ... }` in an operand
-// position is silently read as a body holding a set-union call instead of as a
-// comprehension. It must be a parse error naming the escapes.
-func TestNotOperandUnionBodyIsRejected(t *testing.T) {
+// `{ ... | ... }` is ambiguous in operand position of and/or/not.
+// It can be interpreted as either:
+// 1. a set comprehension
+// 2. a body containing the result of a set union using the `|` infix operator
+// and author intent is unknown.
+func TestAmbiguousUnionBodyIsRejected(t *testing.T) {
 	tests := []struct {
 		note    string
 		module  string
@@ -9781,7 +9783,7 @@ func TestNotOperandUnionBodyIsRejected(t *testing.T) {
 				import future.keywords.not
 				p if { not {x | x} }
 			`,
-			expErrs: []string{"comprehension", "not {{x | x}}"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)"},
 		},
 		{
 			note: "no import, comprehension, one-line rule",
@@ -9802,7 +9804,7 @@ func TestNotOperandUnionBodyIsRejected(t *testing.T) {
 				import future.keywords.not
 				p if not {x | x}
 			`,
-			expErrs: []string{"comprehension", "not {{x | x}}"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)"},
 		},
 		{
 			note: "union body, 'and' operand",
@@ -9811,7 +9813,7 @@ func TestNotOperandUnionBodyIsRejected(t *testing.T) {
 				p if { x and {a | b} }
 			`,
 			caps:    []string{"and", "or"},
-			expErrs: []string{"comprehension", "{{a | b}}"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b})` for the comprehension, or `{(a | b)}` for the set union)"},
 		},
 		{
 			note: "union body, 'or' operand",
@@ -9820,7 +9822,7 @@ func TestNotOperandUnionBodyIsRejected(t *testing.T) {
 				p if { {a | b} or x }
 			`,
 			caps:    []string{"and", "or"},
-			expErrs: []string{"comprehension", "{{a | b}}"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b})` for the comprehension, or `{(a | b)}` for the set union)"},
 		},
 		{
 			note: "union body, operand inside a negated group",
@@ -9831,7 +9833,7 @@ func TestNotOperandUnionBodyIsRejected(t *testing.T) {
 				p if { not ({a | b} or y) }
 			`,
 			caps:    []string{"and", "or"},
-			expErrs: []string{"comprehension", "{{a | b}}"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b})` for the comprehension, or `{(a | b)}` for the set union)"},
 		},
 		{
 			note: "explicit union call is not the '|' form",
@@ -9875,6 +9877,144 @@ func TestNotOperandUnionBodyIsRejected(t *testing.T) {
 			expBody: NewBody(NewExpr(&Not{
 				Body:         NewBody(Or.Expr(VarTerm("a"), VarTerm("b"))),
 				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "parenthesized union, 'not' operand body",
+			module: `package test
+				import future.keywords.not
+				p if { not {(x | x)} }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body:         NewBody(Or.Expr(VarTerm("x"), VarTerm("x"))),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "parenthesized union, 'and' operand body",
+			module: `package test
+				import future.keywords.and
+				p if { x and {(a | b)} }
+			`,
+			caps: []string{"and", "or"},
+			expBody: NewBody(NewExpr(&LogicalAnd{
+				Lhs:         NewBody(NewExpr(VarTerm("x"))),
+				Rhs:         NewBody(Or.Expr(VarTerm("a"), VarTerm("b"))),
+				ExplicitRhs: true,
+			})),
+		},
+		{
+			note: "parenthesized union, 'or' operand body, lhs",
+			module: `package test
+				import future.keywords.or
+				p if { {(a | b)} or x }
+			`,
+			caps: []string{"and", "or"},
+			expBody: NewBody(NewExpr(&LogicalOr{
+				Lhs:         NewBody(Or.Expr(VarTerm("a"), VarTerm("b"))),
+				Rhs:         NewBody(NewExpr(VarTerm("x"))),
+				ExplicitLhs: true,
+			})),
+		},
+		{
+			note: "multiple expressions, union last",
+			module: `package test
+				import future.keywords.not
+				p if { not {1 == 1; x | x} }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(
+					Equal.Expr(NumberTerm("1"), NumberTerm("1")),
+					Or.Expr(VarTerm("x"), VarTerm("x")),
+				),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "multiple expressions, union first",
+			module: `package test
+				import future.keywords.not
+				p if { not {x | x; 1 == 1} }
+			`,
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x; 1 == 1})` for the comprehension, or `not {(x | x); 1 == 1}` for the set union)"},
+		},
+		{
+			note: "multiple expressions, union first, parenthesized",
+			module: `package test
+				import future.keywords.not
+				p if { not {(x | x); 1 == 1} }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(
+					Or.Expr(VarTerm("x"), VarTerm("x")),
+					Equal.Expr(NumberTerm("1"), NumberTerm("1")),
+				),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "multiple expressions, 'and' operand body",
+			module: `package test
+				import future.keywords.and
+				p if { x and {1 == 1; a | b} }
+			`,
+			caps: []string{"and", "or"},
+			expBody: NewBody(NewExpr(&LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("x"))),
+				Rhs: NewBody(
+					Equal.Expr(NumberTerm("1"), NumberTerm("1")),
+					Or.Expr(VarTerm("a"), VarTerm("b")),
+				),
+				ExplicitRhs: true,
+			})),
+		},
+		{
+			note: "multiple expressions, union first, 'or' operand body, lhs",
+			module: `package test
+				import future.keywords.or
+				p if { {a | b; 1 == 1} or x }
+			`,
+			caps:    []string{"and", "or"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b; 1 == 1})` for the comprehension, or `{(a | b); 1 == 1}` for the set union)"},
+		},
+		{
+			note: "multiple expressions, union first, operand body inside a negated group",
+			module: `package test
+				import future.keywords.not
+				import future.keywords.and
+				import future.keywords.or
+				p if { not ({a | b; c} or y) }
+			`,
+			caps:    []string{"and", "or"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b; c})` for the comprehension, or `{(a | b); c}` for the set union)"},
+		},
+		{
+			note: "parenthesized comprehension, 'not' operand",
+			module: `package test
+				import future.keywords.not
+				p if { not ({x | x}) }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(NewExpr(SetComprehensionTerm(
+					VarTerm("x"),
+					NewBody(NewExpr(VarTerm("x"))),
+				))),
+			})),
+		},
+		{
+			// Fails until the paren rule lands: `({...})` is read as a group today.
+			note: "parenthesized comprehension, 'and' operand",
+			module: `package test
+				import future.keywords.and
+				p if { x and ({a | b}) }
+			`,
+			caps: []string{"and", "or"},
+			expBody: NewBody(NewExpr(&LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("x"))),
+				Rhs: NewBody(NewExpr(SetComprehensionTerm(
+					VarTerm("a"),
+					NewBody(NewExpr(VarTerm("b"))),
+				))),
 			})),
 		},
 		{
@@ -10316,7 +10456,7 @@ func TestNotOperandRegoV0(t *testing.T) {
 		note    string
 		body    string
 		expBody Body
-		expErr  bool
+		expErr  string
 	}{
 		{
 			note:    "parens hold a value",
@@ -10345,19 +10485,21 @@ func TestNotOperandRegoV0(t *testing.T) {
 			})),
 		},
 		{
-			note:   "parens cannot wrap a body",
-			body:   "not ({x; y})",
-			expErr: true,
+			note: "parens cannot wrap a body",
+			body: "not ({x; y})",
+			// Message pinned in TestNotOperandErrorMessages once §4 lands.
+			expErr: "rego_parse_error",
 		},
 		{
 			note:   "comprehension read as a union is rejected",
 			body:   "not {x | x}",
-			expErr: true,
+			expErr: "rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)",
 		},
 		{
-			note:   "braces cannot hold an object",
-			body:   `not {"a": 1}`,
-			expErr: true,
+			note: "braces cannot hold an object",
+			body: `not {"a": 1}`,
+			// Message pinned in TestNotOperandErrorMessages once §4 lands.
+			expErr: "rego_parse_error",
 		},
 	}
 
@@ -10370,9 +10512,12 @@ func TestNotOperandRegoV0(t *testing.T) {
 
 			mod, err := ParseModuleWithOpts("", module, ParserOptions{RegoVersion: RegoV0})
 
-			if tc.expErr {
+			if tc.expErr != "" {
 				if err == nil {
 					t.Fatalf("Expected error, got: %v", mod)
+				}
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("Expected error to contain %q, but got: %v", tc.expErr, err)
 				}
 				return
 			}
@@ -10557,7 +10702,7 @@ func TestNotOperandErrorMessages(t *testing.T) {
 				import future.keywords.not
 				p if { not {a | b} }
 			`,
-			expErrs: []string{"comprehension", "not ({a | b})", "not {{a | b}}"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({a | b})` for the comprehension, or `not {(a | b)}` for the set union)"},
 		},
 		{
 			note: "comprehension read as a union, one-line rule",
@@ -10565,7 +10710,7 @@ func TestNotOperandErrorMessages(t *testing.T) {
 				import future.keywords.not
 				p if not {a | b}
 			`,
-			expErrs: []string{"comprehension", "not ({a | b})", "not {{a | b}}"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({a | b})` for the comprehension, or `not {(a | b)}` for the set union)"},
 		},
 		{
 			note: "empty body, braced rule",
