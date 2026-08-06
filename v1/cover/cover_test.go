@@ -5,14 +5,18 @@
 package cover
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
 
 func TestCover(t *testing.T) {
@@ -145,7 +149,8 @@ func TestCoverRangeCases(t *testing.T) {
 		module     string
 		query      string
 		input      any
-		reportKey  string // defaults to "test.rego" if empty
+		reportKey  string  // defaults to "test.rego" if empty
+		seeds      []int64 // when set, seeds rand.* via one shared reader (one int64 drawn per rand evaluation)
 		covered    []Range
 		notCovered []Range
 	}{
@@ -419,6 +424,93 @@ test_foo if {
 				{Start: Position{Row: 4, Col: 21}, End: Position{Row: 4, Col: 26}}, // false (never evaluated)
 			},
 		},
+		"nondeterministic value gating an early-exit skip is pinned in supplementary passes": {
+			// A rand.intn value gates whether q is reached. q has two definitions
+			// yielding the same value, so early exit skips the second. The shared
+			// non-deterministic builtin cache pins sel == 0 for every pass, so q
+			// is reached and the early_exit kinds are stable; without it the
+			// no-early-exit pass would draw sel == 1, never reach q, and drop the
+			// kinds.
+			module: `package test
+
+p if {
+	sel == 0
+	q
+}
+
+q if {
+	true
+}
+
+q if {
+	true
+}
+
+sel := rand.intn("k", 2)
+`,
+			query: "data.test.p",
+			input: map[string]any{"x": "a"},
+			// The baseline draws the first seed (0 -> rand.intn(_,2) == 0). The
+			// shared cache makes the other passes replay it, so the later seeds
+			// (-> 1) are only drawn if a pass recomputes rand - the divergence
+			// this guards against.
+			seeds: []int64{0, 1, 1},
+			covered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 2}},    // p head
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 10}},   // sel == 0
+				{Start: Position{Row: 5, Col: 2}, End: Position{Row: 5, Col: 3}},    // q
+				{Start: Position{Row: 8, Col: 1}, End: Position{Row: 8, Col: 2}},    // q (first) head
+				{Start: Position{Row: 9, Col: 2}, End: Position{Row: 9, Col: 6}},    // true
+				{Start: Position{Row: 16, Col: 1}, End: Position{Row: 16, Col: 25}}, // sel := rand.intn("k", 2)
+				{Start: Position{Row: 16, Col: 8}, End: Position{Row: 16, Col: 25}}, // rand.intn("k", 2)
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 12, Col: 1}, End: Position{Row: 12, Col: 2}, Kinds: []Kind{KindEarlyExit}}, // q (second) head
+				{Start: Position{Row: 13, Col: 2}, End: Position{Row: 13, Col: 6}, Kinds: []Kind{KindEarlyExit}}, // true
+			},
+		},
+		"nondeterministic value gating an index-excluded rule is pinned in supplementary passes": {
+			// A rand.intn value gates whether q (whose definitions the index
+			// excludes for this input) is reached. The shared non-deterministic
+			// builtin cache pins sel == 0 for every pass, so q is reached and its
+			// index_excluded kinds are stable; without it the no-index pass would
+			// draw sel == 1, never reach q, and drop the kinds.
+			module: `package test
+
+p if {
+	sel == 0
+	q
+}
+
+q if {
+	input.x == "read"
+}
+
+sel := rand.intn("k", 2)
+`,
+			query: "data.test.p",
+			input: map[string]any{"x": "a"},
+			// The baseline draws the first seed (0 -> rand.intn(_,2) == 0). The
+			// shared cache makes the other passes replay it, so the later seeds
+			// (-> 1) are only drawn if a pass recomputes rand - the divergence
+			// this guards against.
+			seeds: []int64{0, 1, 1},
+			// sel is pinned to 0, so p enters its body and reaches the q
+			// reference on line 5 (covered). q's own body is then index-excluded
+			// (see notCovered) - had sel been 1, p would stop at sel == 0, q
+			// would never be reached, and there would be no exclusion to report.
+			covered: []Range{
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 10}},   // sel == 0
+				{Start: Position{Row: 5, Col: 2}, End: Position{Row: 5, Col: 3}},    // q
+				{Start: Position{Row: 12, Col: 1}, End: Position{Row: 12, Col: 25}}, // sel := rand.intn("k", 2)
+				{Start: Position{Row: 12, Col: 8}, End: Position{Row: 12, Col: 25}}, // rand.intn("k", 2)
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 2}},                                    // p head
+				{Start: Position{Row: 8, Col: 1}, End: Position{Row: 8, Col: 2}},                                    // q head
+				{Start: Position{Row: 9, Col: 2}, End: Position{Row: 9, Col: 19}, Kinds: []Kind{KindIndexExcluded}}, // input.x == "read"
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -450,13 +542,31 @@ test_foo if {
 				t.Fatalf("failed to prepare: %v", err)
 			}
 
-			if _, err := pq.Eval(ctx, rego.EvalQueryTracer(baseline)); err != nil {
+			ndbc := builtins.NDBCache{}
+			baselineOpts := []rego.EvalOption{rego.EvalQueryTracer(baseline), rego.EvalNDBuiltinCache(ndbc)}
+			// One shared seed reader across all passes. The shared ndbc makes
+			// the supplementary passes replay the baseline's cached value, so
+			// they never draw from the reader and every pass takes the same
+			// path. Without the ndbc each pass would spend the reader, draw a
+			// different seed, and diverge.
+			var seedReader io.Reader
+			if tc.seeds != nil {
+				seedReader = bytes.NewReader(seedBytes(tc.seeds...))
+				baselineOpts = append(baselineOpts, rego.EvalSeed(seedReader))
+			}
+			if _, err := pq.Eval(ctx, baselineOpts...); err != nil {
 				t.Fatalf("failed to evaluate: %v", err)
 			}
-			if _, err := pq.Eval(ctx, NoIndexingEvalOptions(noIndex)...); err != nil {
+			noIndexOpts := NoIndexingEvalOptions(noIndex, ndbc)
+			noEarlyExitOpts := NoEarlyExitEvalOptions(noEarlyExit, ndbc)
+			if seedReader != nil {
+				noIndexOpts = append(noIndexOpts, rego.EvalSeed(seedReader))
+				noEarlyExitOpts = append(noEarlyExitOpts, rego.EvalSeed(seedReader))
+			}
+			if _, err := pq.Eval(ctx, noIndexOpts...); err != nil {
 				t.Fatalf("failed to evaluate (no indexing): %v", err)
 			}
-			if _, err := pq.Eval(ctx, NoEarlyExitEvalOptions(noEarlyExit)...); err != nil {
+			if _, err := pq.Eval(ctx, noEarlyExitOpts...); err != nil {
 				t.Fatalf("failed to evaluate (no early exit): %v", err)
 			}
 
@@ -488,6 +598,14 @@ func assertRanges(t *testing.T, label string, expected, actual []Range) {
 		return
 	}
 	t.Errorf("%s ranges mismatch:\nexpected: %+v\nactual:   %+v", label, expected, actual)
+}
+
+func seedBytes(seeds ...int64) []byte {
+	buf := make([]byte, 8*len(seeds))
+	for i, s := range seeds {
+		binary.BigEndian.PutUint64(buf[i*8:], uint64(s))
+	}
+	return buf
 }
 
 func TestCoverQueryTracerInterface(t *testing.T) {
