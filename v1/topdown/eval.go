@@ -2076,6 +2076,19 @@ func (e *evalBuiltin) canUseNDBCache(bi *ast.Builtin) bool {
 	return bi.Nondeterministic && e.bctx != nil && e.bctx.NDBuiltinCache != nil
 }
 
+// operandRequiresEval returns true if a plugged built-in operand still contains
+// terms that must be evaluated. Shallow by design: nested terms that require
+// evaluation but are ground (e.g. [data.foo]) are missed.
+func operandRequiresEval(v ast.Value) bool {
+	switch v.(type) {
+	case ast.Var, ast.Ref, ast.Call,
+		*ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
+		return true
+	}
+
+	return !v.IsGround()
+}
+
 func (e *evalBuiltin) eval(iter unifyIterator) error {
 
 	operands := make([]*ast.Term, len(e.terms))
@@ -2086,8 +2099,6 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 
 	numDeclArgs := e.bi.Decl.Arity()
 
-	e.e.instr.startTimer(evalOpBuiltinCall)
-
 	// NOTE(philipc): We sometimes have to drop the very last term off
 	// the args list for cases where a builtin's result is used/assigned,
 	// because the last term will be a generated term, not an actual
@@ -2096,6 +2107,24 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 	if len(operands) > numDeclArgs {
 		endIndex--
 	}
+
+	// Every operand must be ground, except a captured output -- walk() is called
+	// with a non-ground composite there. Void built-ins have none, and Arity()
+	// undercounts the variadic ones (always void), so endIndex can't be used.
+	checkEnd := endIndex
+	if e.bi.Decl.Result() == nil {
+		checkEnd = len(operands)
+	}
+
+	for i, operand := range operands[:checkEnd] {
+		if operandRequiresEval(operand.Value) {
+			// OPA is buggy: the compiler hoists arguments that require evaluation.
+			// Fail loudly, as the built-in would return undefined instead.
+			return unevaluatedOperandErr(e.e.query[e.e.index].Location, e.bi.Name, i+1, operand)
+		}
+	}
+
+	e.e.instr.startTimer(evalOpBuiltinCall)
 
 	// We skip evaluation of the builtin entirely if the NDBCache is
 	// present, and we have a non-deterministic builtin already cached.

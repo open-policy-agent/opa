@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/storage"
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
+	"github.com/open-policy-agent/opa/v1/types"
 )
 
 func TestQueryIDFactory(t *testing.T) {
@@ -1665,6 +1666,147 @@ func TestContextErrorHandling(t *testing.T) {
 				t.Fatalf("Expected error to be of type %#v, but got %#v", et, err)
 			}
 		})
+	}
+}
+
+func TestEvalBuiltinUnevaluatedOperand(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note   string
+		body   string
+		expErr string
+	}{
+		{
+			note:   "unbound var",
+			body:   "count(x, y)",
+			expErr: "built-in function count called with operand 1 that requires evaluation: x",
+		},
+		{
+			note:   "ref",
+			body:   "count(data.foo, y)",
+			expErr: "built-in function count called with operand 1 that requires evaluation: data.foo",
+		},
+		{
+			note:   "var nested in composite",
+			body:   "count([x], y)",
+			expErr: "built-in function count called with operand 1 that requires evaluation: x",
+		},
+		{
+			note:   "comprehension",
+			body:   "count([i | i = 1], y)",
+			expErr: "built-in function count called with operand 1 that requires evaluation: [i | i = 1]",
+		},
+		{
+			note:   "comprehension nested in composite",
+			body:   "count([[i | i = 1]], y)",
+			expErr: "built-in function count called with operand 1 that requires evaluation: [i | i = 1]",
+		},
+		{
+			note:   "unbound var, no captured output",
+			body:   `startswith("foo", x)`,
+			expErr: "built-in function startswith called with operand 2 that requires evaluation: x",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			qrs, err := NewQuery(ast.MustParseBody(tc.body)).Run(t.Context())
+			if err == nil {
+				t.Fatalf("expected error but got results: %v", qrs)
+			}
+
+			var topdownErr *Error
+			if !errors.As(err, &topdownErr) {
+				t.Fatalf("expected *topdown.Error but got %#v", err)
+			}
+
+			if topdownErr.Code != InternalErr {
+				t.Errorf("expected code %v but got %v", InternalErr, topdownErr.Code)
+			}
+
+			if !strings.Contains(topdownErr.Message, tc.expErr) {
+				t.Errorf("expected message %q but got %q", tc.expErr, topdownErr.Message)
+			}
+		})
+	}
+}
+
+func TestEvalBuiltinNonGroundOutputOperand(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note string
+		body string
+		exp  map[string]string
+	}{
+		{
+			note: "composite output operand",
+			body: `walk({"a": 1}, [["a"], v])`,
+			exp:  map[string]string{"v": "1"},
+		},
+		{
+			note: "wildcard in composite output operand",
+			body: `walk({"a": 1}, [_, v])`,
+			exp:  map[string]string{"v": `{"a": 1}`},
+		},
+		{
+			note: "captured output var",
+			body: "count([1, 2], y)",
+			exp:  map[string]string{"y": "2"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			qrs, err := NewQuery(ast.MustParseBody(tc.body)).Run(t.Context())
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if len(qrs) == 0 {
+				t.Fatal("expected results but got none")
+			}
+
+			for k, v := range tc.exp {
+				if exp, act := ast.MustParseTerm(v), qrs[0][ast.Var(k)]; !exp.Equal(act) {
+					t.Errorf("expected %v to be %v but got %v", k, exp, act)
+				}
+			}
+		})
+	}
+}
+
+func TestEvalBuiltinUnevaluatedVariadicOperand(t *testing.T) {
+	t.Parallel()
+
+	query := NewQuery(ast.MustParseBody(`test("a", x)`)).WithBuiltins(map[string]*Builtin{
+		"test": {
+			Decl: &ast.Builtin{
+				Name: "test",
+				Decl: types.NewVariadicFunction(types.Args(types.S), types.A, nil),
+			},
+			Func: func(_ BuiltinContext, terms []*ast.Term, _ func(*ast.Term) error) error {
+				t.Fatalf("built-in must not be called, got operands %v", terms)
+				return nil
+			},
+		},
+	})
+
+	_, err := query.Run(t.Context())
+
+	var topdownErr *Error
+	if !errors.As(err, &topdownErr) {
+		t.Fatalf("expected *topdown.Error but got %#v", err)
+	}
+
+	exp := "built-in function test called with operand 2 that requires evaluation: x"
+	if topdownErr.Code != InternalErr || !strings.Contains(topdownErr.Message, exp) {
+		t.Errorf("expected %v %q but got %v %q", InternalErr, exp, topdownErr.Code, topdownErr.Message)
 	}
 }
 
