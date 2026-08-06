@@ -13,6 +13,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/topdown"
@@ -591,13 +594,10 @@ sel := rand.intn("k", 2)
 // for a file, so both extents and membership are pinned.
 func assertRanges(t *testing.T, label string, expected, actual []Range) {
 	t.Helper()
-	if len(expected) == 0 && len(actual) == 0 {
-		return
+	less := func(a, b Range) bool { return a.Compare(b) < 0 }
+	if diff := cmp.Diff(expected, actual, cmpopts.SortSlices(less), cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("%s ranges mismatch (-expected +actual):\n%s", label, diff)
 	}
-	if reflect.DeepEqual(expected, actual) {
-		return
-	}
-	t.Errorf("%s ranges mismatch:\nexpected: %+v\nactual:   %+v", label, expected, actual)
 }
 
 func seedBytes(seeds ...int64) []byte {
