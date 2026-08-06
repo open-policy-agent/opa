@@ -1,7 +1,8 @@
 package play
 
-# object.get(object, key, default) — key may also be a path array.
-env_of(workload) := object.get(workload.labels, "env", "dev")
+# object.get(object, key, default) — key may also be a path array, which
+# still returns the default when an intermediate field (like labels) is missing.
+env_of(workload) := object.get(workload, ["labels", "env"], "dev")
 
 # Only production workloads need a team label.
 deny contains msg if {
