@@ -107,7 +107,10 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 		fr.NotCovered = notCoveredRanges.Slice()
 
 		// Tag ranges that supplementary runs annotated with kind.
-		locFile := module.Package.Location.File
+		locFile := file
+		if module.Package != nil && module.Package.Location != nil {
+			locFile = module.Package.Location.File
+		}
 		for i, run := range c.supplementaryRuns {
 			supplementaryFR := supplementaryReports[i].Files[locFile]
 			for j := range fr.NotCovered {
