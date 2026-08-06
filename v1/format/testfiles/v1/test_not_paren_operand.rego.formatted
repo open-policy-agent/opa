@@ -76,8 +76,9 @@ explicit_body_set_union if {
 }
 
 explicit_multi_expr_body_set_union if {
-	not { x | y; z }
+	not { (x | y); z }
 	not { x; y | z }
+	not { z; x | y }
 }
 
 paren_explicit_body_set_union if {
