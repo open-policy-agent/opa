@@ -10582,9 +10582,6 @@ func assertExplicitBodiesEqualInBody(t *testing.T, exp, act Body) {
 	}
 }
 
-// describeExprs renders what String() and Compare gloss over: the explicit-body
-// flags, and the kind of each term. `not ({x})` and `not {x}` both print as
-// `not {x}`, but one negates a set term and the other an expression.
 func describeExprs(b Body) string {
 	parts := make([]string, 0, len(b))
 	for _, e := range b {
@@ -10785,10 +10782,6 @@ func parserOptsWithFutureKeywords(kws ...string) ParserOptions {
 	return opts
 }
 
-// Rendering an operand must round-trip: `String()` is what error messages, `opa
-// parse` and any AST-to-source consumer use, and it is a separate path from the
-// formatter. A value operand renders brace-led -- `not ({x})` as `not {x}` -- which
-// re-reads as a body, so the parens have to be kept.
 func TestOperandRenderRoundTrip(t *testing.T) {
 	tests := []struct {
 		note      string
@@ -10832,6 +10825,19 @@ func TestOperandRenderRoundTrip(t *testing.T) {
 			rendered := body.String()
 			if rendered != tc.expRender {
 				t.Errorf("Expected %q to render as %q but got %q", tc.body, tc.expRender, rendered)
+			}
+
+			buf, err := body.AppendText(nil)
+			if err != nil {
+				t.Fatalf("Unexpected error appending text: %v", err)
+			}
+
+			if string(buf) != rendered {
+				t.Errorf("AppendText rendered %q but String rendered %q", buf, rendered)
+			}
+
+			if n := body.StringLength(); n != len(rendered) {
+				t.Errorf("StringLength is %d but the rendering is %d bytes: %q", n, len(rendered), rendered)
 			}
 
 			reparsed, err := ParseBodyWithOpts(rendered, opts)
