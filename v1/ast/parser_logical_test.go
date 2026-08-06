@@ -1190,10 +1190,9 @@ func TestParseLogical_ParenErrors(t *testing.T) {
 			expected: "empty parenthesized group",
 		},
 		{
-			// Parens hold a value, so a body that can't be a term is a term error.
 			note:     "parens cannot wrap a body with logical content",
 			input:    "a and ({b or c})",
-			expected: "unexpected or keyword: non-terminated set",
+			expected: "`(...)` in an operand position cannot contain a body (hint: drop the parens to keep the body: `{b or c}`)",
 		},
 		{
 			note:     "unterminated group",
