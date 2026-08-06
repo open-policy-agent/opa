@@ -38,39 +38,22 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/xeipuuv/gojsonreference"
 )
 
-// NOTE(sr): We need to control from which hosts remote references are
-// allowed to be resolved via HTTP requests. It's quite cumbersome to
-// add extra parameters to all calls and interfaces involved, so we're
-// using a global variable instead:
-var allowNet map[string]struct{}
-var netMut sync.RWMutex
-
-func SetAllowNet(hosts []string) {
-	netMut.Lock()
-	defer netMut.Unlock()
+// newAllowNetSet turns a list of permitted hosts into a set. A nil list
+// yields a nil set, which permits every host; a non-nil empty list yields
+// an empty set, which permits none.
+func newAllowNetSet(hosts []string) map[string]struct{} {
 	if hosts == nil {
-		allowNet = nil // resetting the global
-		return
+		return nil
 	}
-	allowNet = make(map[string]struct{}, len(hosts))
+	allowNet := make(map[string]struct{}, len(hosts))
 	for _, host := range hosts {
 		allowNet[host] = struct{}{}
 	}
-}
-
-func isAllowed(ref *url.URL) bool {
-	netMut.RLock()
-	defer netMut.RUnlock()
-	if allowNet == nil {
-		return true
-	}
-	_, ok := allowNet[ref.Hostname()]
-	return ok
+	return allowNet
 }
 
 var osFS = osFileSystem(os.Open)
@@ -87,31 +70,49 @@ type JSONLoader interface {
 type JSONLoaderFactory interface {
 	// New creates a new JSON loader for the given source
 	New(source string) JSONLoader
+	// withAllowNet returns a copy of the factory whose loaders may only
+	// fetch remote references from the given set of hosts. A nil set
+	// permits any host; an empty set permits none.
+	withAllowNet(allowNet map[string]struct{}) JSONLoaderFactory
 }
 
 // DefaultJSONLoaderFactory is the default JSON loader factory
 type DefaultJSONLoaderFactory struct {
+	allowNet map[string]struct{}
 }
 
 // FileSystemJSONLoaderFactory is a JSON loader factory that uses http.FileSystem
 type FileSystemJSONLoaderFactory struct {
-	fs http.FileSystem
+	fs       http.FileSystem
+	allowNet map[string]struct{}
 }
 
 // New creates a new JSON loader for the given source
 func (d DefaultJSONLoaderFactory) New(source string) JSONLoader {
 	return &jsonReferenceLoader{
-		fs:     osFS,
-		source: source,
+		fs:       osFS,
+		source:   source,
+		allowNet: d.allowNet,
 	}
 }
 
 // New creates a new JSON loader for the given source
 func (f FileSystemJSONLoaderFactory) New(source string) JSONLoader {
 	return &jsonReferenceLoader{
-		fs:     f.fs,
-		source: source,
+		fs:       f.fs,
+		source:   source,
+		allowNet: f.allowNet,
 	}
+}
+
+func (d DefaultJSONLoaderFactory) withAllowNet(allowNet map[string]struct{}) JSONLoaderFactory {
+	d.allowNet = allowNet
+	return d
+}
+
+func (f FileSystemJSONLoaderFactory) withAllowNet(allowNet map[string]struct{}) JSONLoaderFactory {
+	f.allowNet = allowNet
+	return f
 }
 
 // osFileSystem is a functional wrapper for os.Open that implements http.FileSystem.
@@ -128,6 +129,17 @@ func (o osFileSystem) Open(name string) (http.File, error) {
 type jsonReferenceLoader struct {
 	fs     http.FileSystem
 	source string
+	// allowNet is the set of hosts remote references may be fetched from.
+	// A nil set permits any host; an empty set permits none.
+	allowNet map[string]struct{}
+}
+
+func (l *jsonReferenceLoader) isAllowed(ref *url.URL) bool {
+	if l.allowNet == nil {
+		return true
+	}
+	_, ok := l.allowNet[ref.Hostname()]
+	return ok
 }
 
 func (l *jsonReferenceLoader) JSONSource() any {
@@ -140,7 +152,8 @@ func (l *jsonReferenceLoader) JSONReference() (gojsonreference.JsonReference, er
 
 func (l *jsonReferenceLoader) LoaderFactory() JSONLoaderFactory {
 	return &FileSystemJSONLoaderFactory{
-		fs: l.fs,
+		fs:       l.fs,
+		allowNet: l.allowNet,
 	}
 }
 
@@ -200,7 +213,7 @@ func (l *jsonReferenceLoader) LoadJSON() (any, error) {
 		return decodeJSONUsingNumber(strings.NewReader(metaSchema))
 	}
 
-	if isAllowed(refToURL.GetUrl()) {
+	if l.isAllowed(refToURL.GetUrl()) {
 		return l.loadFromHTTP(refToURL.String())
 	}
 
@@ -209,7 +222,20 @@ func (l *jsonReferenceLoader) LoadJSON() (any, error) {
 
 func (l *jsonReferenceLoader) loadFromHTTP(address string) (any, error) {
 
-	resp, err := http.Get(address)
+	// Redirects are followed, so each hop has to be checked against the
+	// allowlist as well -- otherwise a permitted host could bounce the
+	// request onward to one that isn't. This mirrors what the http.send
+	// built-in does for its own redirect handling.
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			if !l.isAllowed(req.URL) {
+				return fmt.Errorf("remote reference loading disabled: %s", req.URL.String())
+			}
+			return nil
+		},
+	}
+
+	resp, err := client.Get(address)
 	if err != nil {
 		return nil, err
 	}
