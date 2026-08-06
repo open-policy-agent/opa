@@ -1,0 +1,4 @@
+{
+  "granted": ["read:orders", "write:orders", "read:profile"],
+  "required": ["read:orders", "write:payments"]
+}

@@ -15,3 +15,14 @@ sidebar_label: Objects
   in `{ "foo/bar~": "baz" }`.
 - The `json` string `paths` may be an array of string path segments rather than a `/` separated string. For example
   the path `a/b/c` can be passed in as `["a", "b", "c"]`.
+
+## Examples
+
+### `object.get`
+
+`object.get` reads a key from an object and returns a default when the key
+is missing. The second argument can also be a path array to walk nested
+objects. That is useful for optional labels, annotations, or config keys
+that callers are allowed to omit.
+
+<PlaygroundExample dir={require.context('../_examples/object/get/optional-labels')} />

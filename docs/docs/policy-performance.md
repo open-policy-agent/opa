@@ -135,13 +135,16 @@ For simple equality statements (`=` and `==`) to be indexed one side must be a n
 
 #### Glob statements
 
-For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern must be recognized by the indexer and the match be a non-nested reference that does not contain any variables. The indexer recognizes patterns containing the normal glob (`*`) operator but not the super glob (`**`) or character pattern matching operators.
+For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern must be recognized by the indexer and the match be a non-nested reference that does not contain any variables. The indexer recognizes patterns containing the normal glob (`*`) operator but not the super glob (`**`) or character pattern matching operators. The `*` operator is only recognized when it forms a complete delimiter-separated segment of the pattern; for example, `"a*"` with delimiter `[":"]` is not indexed because the `*` is embedded in a larger segment. When several delimiters are given, any of them separates a segment. Statements that pass `null` as the delimiter are never indexed.
 
-| Expression                                   | Indexed | Notes                      |
-| -------------------------------------------- | ------- | -------------------------- |
-| `glob.match("foo:*:bar", [":"], input.x)`    | yes     |                            |
-| `glob.match("foo:**:bar", [":"], input.x)`   | no      | pattern contains `**`      |
-| `glob.match("foo:*:bar", [":"], input.x[i])` | no      | match contains variable(s) |
+| Expression                                     | Indexed | Notes                      |
+| ---------------------------------------------- | ------- | -------------------------- |
+| `glob.match("foo:*:bar", [":"], input.x)`      | yes     |                            |
+| `glob.match("foo:**:bar", [":"], input.x)`     | no      | pattern contains `**`      |
+| `glob.match("foo:*:bar", [":"], input.x[i])`   | no      | match contains variable(s) |
+| `glob.match("a*", [":"], input.x)`             | no      | `*` embedded in a segment  |
+| `glob.match("foo:*/bar", [":", "/"], input.x)` | yes     | any delimiter separates    |
+| `glob.match("foo:*:bar", null, input.x)`       | no      | delimiter is `null`        |
 
 #### Membership (`in`) statements
 

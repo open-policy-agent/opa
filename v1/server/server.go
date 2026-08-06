@@ -232,13 +232,13 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.Handler = s.initHandlerAuthn(s.Handler)
 
 	// compression handler
-	s.Handler, err = s.initHandlerCompression(s.Handler)
+	s.Handler, err = s.initHandlerCompression(ctx, s.Handler)
 	if err != nil {
 		return nil, err
 	}
 	s.DiagnosticHandler = s.initHandlerAuthn(s.DiagnosticHandler)
 
-	s.Handler, err = s.initHandlerDecodingLimits(s.Handler)
+	s.Handler, err = s.initHandlerDecodingLimits(ctx, s.Handler)
 	if err != nil {
 		return nil, err
 	}
@@ -812,13 +812,13 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 // Enforces request body size limits on incoming requests. For gzipped requests,
 // it passes the size limit down the body-reading method via the request
 // context.
-func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, error) {
+func (s *Server) initHandlerDecodingLimits(ctx context.Context, handler http.Handler) (http.Handler, error) {
 	cfg := s.manager.GetConfig()
 	var decodingRawConfig []byte
 	if cfg.Server != nil {
 		decodingRawConfig = []byte(cfg.Server.Decoding)
 	}
-	decodingConfig, err := serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).Parse()
+	decodingConfig, err := serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).ParseWithContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -827,13 +827,13 @@ func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, 
 	return decodingHandler, nil
 }
 
-func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, error) {
+func (s *Server) initHandlerCompression(ctx context.Context, handler http.Handler) (http.Handler, error) {
 	cfg := s.manager.GetConfig()
 	var encodingRawConfig []byte
 	if cfg.Server != nil {
 		encodingRawConfig = []byte(cfg.Server.Encoding)
 	}
-	encodingConfig, err := serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).Parse()
+	encodingConfig, err := serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).ParseWithContext(ctx)
 	if err != nil {
 		return nil, err
 	}
