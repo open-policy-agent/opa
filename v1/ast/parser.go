@@ -1349,7 +1349,7 @@ func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
 
 	// Negated parenthesized group: `not (a or b)`. The parens are an operand of
 	// `not`, so any `{...}` inside is a body.
-	if negated && p.notBodies && p.s.tok == tokens.LParen && p.logicalKeywordsActive() {
+	if negated && p.notBodies && p.s.tok == tokens.LParen {
 		if body, explicit, _, committed := p.parseLogicalGroup(true); committed {
 			if body == nil {
 				return nil
@@ -1743,8 +1743,9 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 		p.scan()
 
 		if isAmbiguousUnionBody(body) {
+			// Report, but hand the body back: if the caller is a paren group that
+			// restores, the error is rolled back with it.
 			p.errorAmbiguousUnionBody(loc, braceOffset, body, "")
-			return nil, false, nil
 		}
 
 		return body, true, loc
@@ -1911,17 +1912,10 @@ func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, 
 		return nil, false, nil, false
 	}
 
-	// A leading `{` is a body only in an operand context; otherwise it's an
-	// object/set literal and we backtrack to the term parser.
-	braceLead := p.s.tok == tokens.LBrace
-
 	lhsBody, lhsExplicit, lhsLoc := p.parseLogicalOperand()
 	if lhsBody == nil {
-		// An empty `{}` operand (e.g. `not ({})`) is a body error.
-		if operandContext && braceLead {
-			return nil, false, nil, true
-		}
-
+		// Parens are not an operand, so a `{...}` that can't be a body is a value:
+		// restore and let the term parser read it, e.g. `not ({})` is an empty object.
 		p.restore(s)
 
 		return nil, false, nil, false
@@ -1971,15 +1965,9 @@ func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, 
 		return nil, false, nil, false
 
 	case lhsExplicit:
-		// `({ body })`
-		if !p.expectRParen() {
-			return nil, false, nil, true
-		}
-
-		if operandContext || p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
-			return lhsBody, true, p.extendLoc(openLoc), true
-		}
-
+		// `({ body })`: parens don't wrap a body. Without a top-level `and`/`or`
+		// -- handled above -- the braces are a value, so restore and let the term
+		// parser read them.
 		p.restore(s)
 		return nil, false, nil, false
 

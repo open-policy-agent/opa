@@ -259,6 +259,22 @@ func TestLogical_String(t *testing.T) {
 			want: "x and (a and b)",
 		},
 		{
+			note: "value operand gets parens",
+			node: &LogicalAnd{
+				Lhs: NewBody(NewExpr(SetTerm(VarTerm("a")))),
+				Rhs: NewBody(NewExpr(VarTerm("b"))),
+			},
+			want: "({a}) and b",
+		},
+		{
+			note: "value operand rhs gets parens",
+			node: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(ObjectTerm())),
+			},
+			want: "a or ({})",
+		},
+		{
 			note: "operand with modifier gets parens",
 			node: &LogicalOr{
 				Lhs: NewBody(&Expr{

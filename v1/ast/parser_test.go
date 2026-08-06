@@ -10098,16 +10098,8 @@ func TestAmbiguousUnionBodyIsRejected(t *testing.T) {
 	}
 }
 
-// Issue 2 of the `not` operand brace contract: `not (...)` must mean the same
-// thing whether or not `and`/`or` are imported. Parens are not an operand -- they
-// re-enter ordinary expression parsing -- so `{...}` that is the whole paren
-// content is a value, and parens cannot wrap a body.
-//
-// The value and body readings render alike (`not ({x})` prints as `not {x}`
-// either way), so expectations are parsed expressions: a value holds the set term
-// `{x}`, a body holds the expression `x`.
 func TestNotParenGroupingIsImportIndependent(t *testing.T) {
-	// Regression test
+	// Regression test: not/and/or future.keyword imports independently apply paren grouping.
 	tests := []struct {
 		note    string
 		body    string
@@ -10293,9 +10285,7 @@ func TestNotParenGroupingIsImportIndependent(t *testing.T) {
 	}
 }
 
-// Issue 2, continued: parens holding a top-level `and`/`or` are a logical group,
-// and `{...}` in the group's operand positions is a body, as the contract says.
-// These forms need `and`/`or` imported to be written at all.
+// Parens holding a top-level `and`/`or` are a logical group
 func TestNotParenLogicalGroup(t *testing.T) {
 	tests := []struct {
 		note    string
@@ -10485,9 +10475,8 @@ func TestNotOperandRegoV0(t *testing.T) {
 			})),
 		},
 		{
-			note: "parens cannot wrap a body",
-			body: "not ({x; y})",
-			// Message pinned in TestNotOperandErrorMessages once §4 lands.
+			note:   "parens cannot wrap a body",
+			body:   "not ({x; y})",
 			expErr: "rego_parse_error",
 		},
 		{
@@ -10496,9 +10485,8 @@ func TestNotOperandRegoV0(t *testing.T) {
 			expErr: "rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)",
 		},
 		{
-			note: "braces cannot hold an object",
-			body: `not {"a": 1}`,
-			// Message pinned in TestNotOperandErrorMessages once §4 lands.
+			note:   "braces cannot hold an object",
+			body:   `not {"a": 1}`,
 			expErr: "rego_parse_error",
 		},
 	}
@@ -10531,15 +10519,10 @@ func TestNotOperandRegoV0(t *testing.T) {
 	}
 }
 
-// notValueExpr is the expected expression for `not (<term>)`: the parens hold a
-// value, so the negation applies to the term and the body is not explicit.
 func notValueExpr(term *Term) *Expr {
 	return NewExpr(&Not{Body: NewBody(NewExpr(term))})
 }
 
-// assertBodyEqual compares bodies structurally, and additionally compares the
-// explicit-body flags of `not`/`and`/`or`, which Compare ignores as they don't
-// affect negation.
 func assertBodyEqual(t *testing.T, exp, act Body) {
 	t.Helper()
 
@@ -10800,4 +10783,65 @@ func parserOptsWithFutureKeywords(kws ...string) ParserOptions {
 		opts.Capabilities = caps
 	}
 	return opts
+}
+
+// Rendering an operand must round-trip: `String()` is what error messages, `opa
+// parse` and any AST-to-source consumer use, and it is a separate path from the
+// formatter. A value operand renders brace-led -- `not ({x})` as `not {x}` -- which
+// re-reads as a body, so the parens have to be kept.
+func TestOperandRenderRoundTrip(t *testing.T) {
+	tests := []struct {
+		note      string
+		body      string
+		expRender string
+		notKw     bool
+	}{
+		{note: "not, set value", body: "not ({x})", expRender: "not ({x})", notKw: true},
+		{note: "not, object value", body: `not ({"a": 1})`, expRender: `not ({"a": 1})`, notKw: true},
+		{note: "not, set value, multiple elements", body: "not ({1, 2})", expRender: "not ({1, 2})", notKw: true},
+		{note: "not, comprehension value", body: "not ({x | x})", expRender: "not ({x | x})", notKw: true},
+		{note: "not, ref into set value", body: "not ({x}[0])", expRender: "not ({x}[0])", notKw: true},
+		{note: "not, comparison with a set operand", body: "not ({x} == y)", expRender: "not equal({x}, y)", notKw: true},
+		{note: "not, var value", body: "not (x)", expRender: "not x", notKw: true},
+		{note: "not, empty set value", body: "not (set())", expRender: "not set()", notKw: true},
+		{note: "not, explicit body", body: "not {x}", expRender: "not {x}", notKw: true},
+		{note: "not, explicit body, multiple expressions", body: "not {x; y}", expRender: "not {x; y}", notKw: true},
+		{note: "not, group", body: "not (a or b)", expRender: "not (a or b)", notKw: true},
+		{note: "and, set values on both sides", body: "({a}) and ({b})", expRender: "({a}) and ({b})"},
+		{note: "and, set value rhs", body: "a and ({b})", expRender: "a and ({b})"},
+		{note: "and, set value lhs", body: "({a}) and c", expRender: "({a}) and c"},
+		{note: "and, set value, multiple elements", body: "a and ({1, 2})", expRender: "a and ({1, 2})"},
+		{note: "or, empty object value", body: "a or ({})", expRender: "a or ({})"},
+		{note: "and, explicit bodies", body: "{a} and {b}", expRender: "{ a } and { b }"},
+		{note: "and, explicit body with logical content", body: "a and {b or c}", expRender: "a and { b or c }"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var extra []string
+			if tc.notKw {
+				extra = append(extra, "not")
+			}
+			opts := logicalParserOpts(extra...)
+
+			body, err := ParseBodyWithOpts(tc.body, opts)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			rendered := body.String()
+			if rendered != tc.expRender {
+				t.Errorf("Expected %q to render as %q but got %q", tc.body, tc.expRender, rendered)
+			}
+
+			reparsed, err := ParseBodyWithOpts(rendered, opts)
+			if err != nil {
+				t.Fatalf("Rendering %q produced %q, which does not parse: %v", tc.body, rendered, err)
+			}
+
+			if body.Compare(reparsed) != 0 {
+				t.Errorf("Rendering %q as %q changed it: %s", tc.body, rendered, describeExprs(reparsed))
+			}
+		})
+	}
 }
