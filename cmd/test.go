@@ -44,6 +44,7 @@ type testCommandParams struct {
 	errLimit     int
 	outputFormat *util.EnumFlag
 	coverage     bool
+	coverageRuns []string
 	threshold    float64
 	timeout      time.Duration
 	ignore       []string
@@ -80,6 +81,7 @@ func newTestCommandParams() testCommandParams {
 		errOutput:    os.Stderr,
 		stopChan:     make(chan os.Signal, 1),
 		parallel:     goRuntime.NumCPU(),
+		coverageRuns: []string{string(cover.KindIndexExcluded), string(cover.KindEarlyExit)},
 	}
 }
 
@@ -410,6 +412,11 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		coverTracer = cov
 	}
 
+	coverageRuns := make([]cover.Kind, 0, len(testParams.coverageRuns))
+	for _, r := range testParams.coverageRuns {
+		coverageRuns = append(coverageRuns, cover.Kind(r))
+	}
+
 	timeout := testParams.timeout
 	if timeout == 0 { // unset
 		timeout = 5 * time.Second
@@ -423,6 +430,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		SetStore(store).
 		CapturePrintOutput(true).
 		EnableTracing(testParams.verbose || testParams.varValues).
+		SetCoverageRuns(coverageRuns).
 		SetCoverageQueryTracer(coverTracer).
 		SetRuntime(runtimeInfo).
 		SetModules(modules).
@@ -564,6 +572,17 @@ recommended as some updates might cause them to be dropped by OPA.
 				testParams.verbose = true
 			}
 
+			if cmd.Flags().Changed("coverage-runs") {
+				testParams.coverage = true
+			}
+			for _, r := range testParams.coverageRuns {
+				switch cover.Kind(r) {
+				case cover.KindIndexExcluded, cover.KindEarlyExit:
+				default:
+					return fmt.Errorf("invalid --coverage-runs value %q (expected %q or %q)", r, cover.KindIndexExcluded, cover.KindEarlyExit)
+				}
+			}
+
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
@@ -584,6 +603,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
 	testCommand.Flags().DurationVar(&testParams.timeout, "timeout", 0, "set test timeout (default 5s, 30s when benchmarking)")
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
+	testCommand.Flags().StringSliceVar(&testParams.coverageRuns, "coverage-runs", []string{string(cover.KindIndexExcluded), string(cover.KindEarlyExit)}, "supplementary coverage passes that annotate not-covered ranges with a kind (requires --coverage); pass an empty list to disable")
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
 	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression")
