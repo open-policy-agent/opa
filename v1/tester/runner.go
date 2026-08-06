@@ -326,6 +326,8 @@ type Runner struct {
 	cover                 topdown.QueryTracer
 	coverNoIndex          *cover.Cover
 	coverNoEarlyExit      *cover.Cover
+	coverageRuns          []cover.Kind
+	coverRunsRegistered   bool
 	trace                 bool
 	enablePrintStatements bool
 	raiseBuiltinErrors    bool
@@ -350,6 +352,7 @@ func NewRunner() *Runner {
 		timeout:            5 * time.Second,
 		defaultRegoVersion: ast.DefaultRegoVersion,
 		parallel:           runtime.NumCPU(),
+		coverageRuns:       []cover.Kind{cover.KindIndexExcluded, cover.KindEarlyExit},
 	}
 }
 
@@ -416,19 +419,23 @@ func (r *Runner) SetCoverageTracer(tracer topdown.Tracer) *Runner {
 // SetCoverageQueryTracer sets the tracer to use to compute coverage. If
 // tracer is a *cover.Cover, the runner also evaluates each test with rule
 // indexing and early exit disabled, tagging any extra coverage they reveal.
+// Which of those supplementary passes run is controlled by SetCoverageRuns.
 func (r *Runner) SetCoverageQueryTracer(tracer topdown.QueryTracer) *Runner {
 	if tracer == nil {
 		return r
 	}
 	r.cover = tracer
-	r.coverNoIndex = nil
-	r.coverNoEarlyExit = nil
-	if cc, ok := tracer.(*cover.Cover); ok {
-		r.coverNoIndex = cover.New()
-		r.coverNoEarlyExit = cover.New()
-		cc.AddRun(cover.KindIndexExcluded, r.coverNoIndex)
-		cc.AddRun(cover.KindEarlyExit, r.coverNoEarlyExit)
-	}
+	r.coverRunsRegistered = false
+	return r
+}
+
+// SetCoverageRuns sets which supplementary coverage passes run when the
+// coverage tracer is a *cover.Cover. Each pass re-evaluates tests with an
+// optimization disabled (rule indexing for KindIndexExcluded, early exit for
+// KindEarlyExit) to tag the extra not-covered ranges it reveals. A subset, or
+// an empty slice, skips the unwanted passes and their cost.
+func (r *Runner) SetCoverageRuns(kinds []cover.Kind) *Runner {
+	r.coverageRuns = kinds
 	return r
 }
 
@@ -447,6 +454,7 @@ func (r *Runner) EnableTracing(yes bool) *Runner {
 		r.cover = nil
 		r.coverNoIndex = nil
 		r.coverNoEarlyExit = nil
+		r.coverRunsRegistered = false
 	}
 	return r
 }
@@ -610,6 +618,23 @@ func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enab
 }
 
 func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, runFunc run, parallel int) (chan *Result, error) {
+	// Register the supplementary coverage passes on the baseline *cover.Cover,
+	// honoring the kinds set by SetCoverageRuns. Doing it here (rather than in
+	// the setters) keeps SetCoverageQueryTracer and SetCoverageRuns
+	// order-independent; the guard stops repeated runs (RunBenchmarks or a
+	// --count loop reusing the runner) from registering the passes twice.
+	if cc, ok := r.cover.(*cover.Cover); ok && !r.coverRunsRegistered {
+		if slices.Contains(r.coverageRuns, cover.KindIndexExcluded) {
+			r.coverNoIndex = cover.New()
+			cc.AddRun(cover.KindIndexExcluded, r.coverNoIndex)
+		}
+		if slices.Contains(r.coverageRuns, cover.KindEarlyExit) {
+			r.coverNoEarlyExit = cover.New()
+			cc.AddRun(cover.KindEarlyExit, r.coverNoEarlyExit)
+		}
+		r.coverRunsRegistered = true
+	}
+
 	testRegex, err := r.setupTestRun(ctx, txn, enablePrintStatements)
 	if err != nil {
 		return nil, err
