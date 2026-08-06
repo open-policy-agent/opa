@@ -10625,10 +10625,6 @@ func describeExpr(e *Expr) string {
 	return s
 }
 
-// Issue 3 of the `not` operand brace contract: a violation must name the contract
-// and the escapes, and the one-line rule form must report what the braced form
-// reports. Assertions are substrings, so the wording can be tuned as long as the
-// contract statement and both escapes are present.
 func TestNotOperandErrorMessages(t *testing.T) {
 	tests := []struct {
 		note    string
@@ -10642,7 +10638,7 @@ func TestNotOperandErrorMessages(t *testing.T) {
 				import future.keywords.not
 				p if { not {"a": 1} }
 			`,
-			expErrs: []string{"must contain expression", `not ({"a": 1})`, `not {{"a": 1}}`},
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: object (hint: write `not ({\"a\": 1})` to negate the value, or `not {{\"a\": 1}}` for a body holding it)"},
 		},
 		{
 			note: "object contents, one-line rule",
@@ -10650,7 +10646,7 @@ func TestNotOperandErrorMessages(t *testing.T) {
 				import future.keywords.not
 				p if not {"a": 1}
 			`,
-			expErrs: []string{"must contain expression", `not ({"a": 1})`, `not {{"a": 1}}`},
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: object (hint: write `not ({\"a\": 1})` to negate the value, or `not {{\"a\": 1}}` for a body holding it)"},
 		},
 		{
 			note: "set contents, braced rule",
@@ -10658,7 +10654,7 @@ func TestNotOperandErrorMessages(t *testing.T) {
 				import future.keywords.not
 				p if { not {1, 2} }
 			`,
-			expErrs: []string{"must contain expression", "not ({1, 2})", "not {{1, 2}}"},
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: set (hint: write `not ({1, 2})` to negate the value, or `not {{1, 2}}` for a body holding it)"},
 		},
 		{
 			note: "set contents, one-line rule",
@@ -10666,7 +10662,7 @@ func TestNotOperandErrorMessages(t *testing.T) {
 				import future.keywords.not
 				p if not {1, 2}
 			`,
-			expErrs: []string{"must contain expression", "not ({1, 2})", "not {{1, 2}}"},
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: set (hint: write `not ({1, 2})` to negate the value, or `not {{1, 2}}` for a body holding it)"},
 		},
 		{
 			note: "ref into a literal, braced rule",
@@ -10674,7 +10670,7 @@ func TestNotOperandErrorMessages(t *testing.T) {
 				import future.keywords.not
 				p if { not {"a": 1}["a"] }
 			`,
-			expErrs: []string{"must contain expression", `not ({"a": 1}["a"])`, `not {{"a": 1}["a"]}`},
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: ref (hint: write `not ({\"a\": 1}[\"a\"])` to negate the value, or `not {{\"a\": 1}[\"a\"]}` for a body holding it)"},
 		},
 		{
 			note: "comprehension read as a union, braced rule",
