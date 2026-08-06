@@ -135,8 +135,16 @@ func TestFormatV0Source(t *testing.T) {
 				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
 			}
 
-			if _, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts); err != nil {
+			formattedModule, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts)
+			if err != nil {
 				t.Fatalf("Failed to parse formatted bytes: %v", err)
+			}
+
+			if expASTPreserved(rego) {
+				module := ast.MustParseModuleWithOpts(string(contents), popts)
+				if !module.Equal(formattedModule) {
+					t.Fatalf("Expected formatting to preserve the AST, but got:\n\n%v\n\nexpected:\n\n%v", formattedModule, module)
+				}
 			}
 
 			formatted, err = SourceWithOpts(rego, formatted, opts)
@@ -187,8 +195,16 @@ func TestFormatV1Source(t *testing.T) {
 				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
 			}
 
-			if _, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts); err != nil {
+			formattedModule, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts)
+			if err != nil {
 				t.Fatalf("Failed to parse formatted bytes: %v", err)
+			}
+
+			if expASTPreserved(rego) {
+				module := ast.MustParseModuleWithOpts(string(contents), popts)
+				if !module.Equal(formattedModule) {
+					t.Fatalf("Expected formatting to preserve the AST, but got:\n\n%v\n\nexpected:\n\n%v", formattedModule, module)
+				}
 			}
 
 			formatted, err = SourceWithOpts(rego, formatted, opts)
@@ -202,6 +218,59 @@ func TestFormatV1Source(t *testing.T) {
 
 		})
 	}
+}
+
+// astAlteringTestFiles are the test files where formatting is expected to
+// change the AST. For all other test files, formatting must preserve it.
+var astAlteringTestFiles = map[string]bool{
+	// Imports are sorted.
+	"testfiles/v0/test.rego": true,
+	"testfiles/v0/test_in_operator_with_all_keywords_import.rego": true,
+	"testfiles/v0/test_keywords_in_refs.rego":                     true,
+	"testfiles/v0/test_keywords_in_refs_keep_brackets.rego":       true,
+
+	// The `future.keywords.in` import is added.
+	"testfiles/v0/test_in_operator_without_import.rego": true,
+
+	// `if` is dropped from the rule head, making `q[1] = y` parse as a partial
+	// object rule rather than a ref head rule.
+	"testfiles/v0/test_ref_heads.rego": true,
+
+	// Rule head `=` is rewritten to `:=`.
+	"testfiles/v1/test_contains.rego":                          true,
+	"testfiles/v1/test_contains_if.rego":                       true,
+	"testfiles/v1/test_every.rego":                             true,
+	"testfiles/v1/test_functions.rego":                         true,
+	"testfiles/v1/test_future_kw_import.rego":                  true,
+	"testfiles/v1/test_if.rego":                                true,
+	"testfiles/v1/test_in_operator_with_parenthesis.rego":      true,
+	"testfiles/v1/test_issue_2299.rego":                        true,
+	"testfiles/v1/test_issue_3836.rego":                        true,
+	"testfiles/v1/test_issue_5449.rego":                        true,
+	"testfiles/v1/test_issue_5449_with_contains_ref_rule.rego": true,
+	"testfiles/v1/test_issue_5449_with_ref_rule.rego":          true,
+	"testfiles/v1/test_issue_5798.rego":                        true,
+	"testfiles/v1/test_ref_heads.rego":                         true,
+	"testfiles/v1/test_unicode.rego":                           true,
+	"testfiles/v1/test_with.rego":                              true,
+
+	// Imports are sorted.
+	"testfiles/v1/test_keywords_in_refs.rego":               true,
+	"testfiles/v1/test_keywords_in_refs_keep_brackets.rego": true,
+
+	// The `rego.v1` import is dropped.
+	"testfiles/v1/test_rego_v1.rego": true,
+
+	// Constant template string expressions are folded into string parts.
+	"testfiles/v1/test_template_strings.rego": true,
+
+	// Rule head `=` is rewritten to `:=`, imports are sorted, and calls in
+	// expression position are rewritten to infix comparisons.
+	"testfiles/v1/test.rego": true,
+}
+
+func expASTPreserved(rego string) bool {
+	return !astAlteringTestFiles[filepath.ToSlash(rego)]
 }
 
 func TestFormatV0SourceToRegoV1(t *testing.T) {

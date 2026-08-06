@@ -820,7 +820,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault bool, isExpandedConst bool,
 			args = append(args, arg)
 		}
 		var err error
-		comments, err = w.writeIterable(args, head.Location, closingLoc(0, 0, '(', ')', head.Location), comments, w.listWriter())
+		comments, err = w.writeIterable(args, head.Location, closingLoc(0, 0, '(', ')', head.Location), comments, w.listWriter(false))
 		w.write(")")
 		if err != nil {
 			return comments, err
@@ -1239,7 +1239,7 @@ func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comme
 	}
 	loc := terms[0].Location
 	var err error
-	comments, err = w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter())
+	comments, err = w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter(false))
 	if err != nil {
 		return nil, err
 	}
@@ -1721,7 +1721,7 @@ func (w *writer) writeArray(arr *ast.Array, loc *ast.Location, comments []*ast.C
 		s = append(s, t)
 	})
 	var err error
-	comments, err = w.writeIterable(s, loc, closingLoc(0, 0, '[', ']', loc), comments, w.listWriter())
+	comments, err = w.writeIterable(s, loc, closingLoc(0, 0, '[', ']', loc), comments, w.listWriter(true))
 	if err != nil {
 		return nil, err
 	}
@@ -1748,7 +1748,7 @@ func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Commen
 		s = append(s, t)
 	})
 	var err error
-	comments, err = w.writeIterable(s, loc, closingLoc(0, 0, '{', '}', loc), comments, w.listWriter())
+	comments, err = w.writeIterable(s, loc, closingLoc(0, 0, '{', '}', loc), comments, w.listWriter(true))
 	if err != nil {
 		return nil, err
 	}
@@ -1779,11 +1779,20 @@ func (w *writer) writeObjectComprehension(object *ast.ObjectComprehension, loc *
 		w.startLine()
 	}
 
+	paren := isUnionCall(object.Key)
+	if paren {
+		w.write("(")
+	}
+
 	var err error
 	comments, err = w.writeTerm(object.Key, comments)
 	if err != nil {
 		return nil, err
 	}
+	if paren {
+		w.write(")")
+	}
+
 	w.write(": ")
 	return w.writeComprehension('{', '}', object.Value, object.Body, loc, comments)
 }
@@ -1795,9 +1804,8 @@ func (w *writer) writeComprehension(openChar, closeChar byte, term *ast.Term, bo
 	}
 
 	parens := false
-	_, ok := term.Value.(ast.Call)
-	if ok {
-		parens = term.Location.Text[0] == 40 // Starts with "("
+	if _, ok := term.Value.(ast.Call); ok {
+		parens = isUnionCall(term) || term.Location.Text[0] == 40 // Starts with "("
 	}
 	var err error
 	comments, err = w.writeTermParens(parens, term, comments)
@@ -2011,15 +2019,20 @@ func (w *writer) writeIterableLine(elements []any, comments []*ast.Comment, fn e
 	return fn(elements[i], comments)
 }
 
+// isUnionCall returns true if the term is a call to the union built-in, whose
+// infix form (`|`) is comprehension syntax when used inside a collection
+// literal or as a comprehension term, and must be parenthesized there.
+func isUnionCall(t *ast.Term) bool {
+	call, ok := t.Value.(ast.Call)
+	return ok && ast.Or.Ref().Equal(call[0].Value)
+}
+
 func (w *writer) objectWriter() entryWriter {
 	return func(x any, comments []*ast.Comment) ([]*ast.Comment, error) {
 		entry := x.([2]*ast.Term)
 
-		call, isCall := entry[0].Value.(ast.Call)
-
-		paren := false
-		if isCall && ast.Or.Ref().Equal(call[0].Value) && entry[0].Location.Text[0] == 40 { // Starts with "("
-			paren = true
+		paren := isUnionCall(entry[0])
+		if paren {
 			w.write("(")
 		}
 
@@ -2034,8 +2047,7 @@ func (w *writer) objectWriter() entryWriter {
 
 		w.write(": ")
 
-		call, isCall = entry[1].Value.(ast.Call)
-		if isCall && ast.Or.Ref().Equal(call[0].Value) && entry[1].Location.Text[0] == 40 { // Starts with "("
+		if isUnionCall(entry[1]) {
 			w.write("(")
 			defer w.write(")")
 		}
@@ -2044,12 +2056,11 @@ func (w *writer) objectWriter() entryWriter {
 	}
 }
 
-func (w *writer) listWriter() entryWriter {
+func (w *writer) listWriter(parenUnionCalls bool) entryWriter {
 	return func(x any, comments []*ast.Comment) ([]*ast.Comment, error) {
 		t, ok := x.(*ast.Term)
-		if ok {
-			call, isCall := t.Value.(ast.Call)
-			if isCall && ast.Or.Ref().Equal(call[0].Value) && t.Location.Text[0] == 40 { // Starts with "("
+		if ok && isUnionCall(t) {
+			if parenUnionCalls || t.Location.Text[0] == 40 { // Starts with "("
 				w.write("(")
 				defer w.write(")")
 			}
