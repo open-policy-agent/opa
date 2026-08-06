@@ -335,6 +335,105 @@ dispatched if true`,
 	})
 }
 
+// TestEvalWithCoverageRuns checks that --coverage-runs selects which
+// supplementary coverage passes run (and therefore which kinds are reported).
+func TestEvalWithCoverageRuns(t *testing.T) {
+	files := map[string]string{
+		// early_exit's second definition is skipped once the first matches;
+		// index_excluded's definitions are both index-excluded for input
+		// {"a": "z"}.
+		"x.rego": `package x
+
+early_exit if { true }
+early_exit if { early_exit_dep }
+
+early_exit_dep if { true }
+
+index_excluded if { input.a == "read" }
+index_excluded if { input.a == "admin" }`,
+		"input.json": `{"a": "z"}`,
+	}
+
+	kindsFor := func(t *testing.T, path string, runs []string) map[string]int {
+		t.Helper()
+		params := newEvalCommandParams()
+		params.coverage = true
+		params.coverageRuns = runs
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.inputPath = filepath.Join(path, "input.json")
+
+		var buf bytes.Buffer
+		if _, err := eval([]string{"data.x"}, params, &buf, nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		var output presentation.Output
+		if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+			t.Fatal(err)
+		}
+		if output.Coverage == nil {
+			t.Fatalf("expected coverage in output but got: %v", buf.String())
+		}
+		counts := map[string]int{}
+		for _, fr := range output.Coverage.Files {
+			for _, rng := range fr.NotCovered {
+				for _, k := range rng.Kinds {
+					counts[string(k)]++
+				}
+			}
+		}
+		return counts
+	}
+
+	cases := map[string]struct {
+		runs      []string
+		wantIndex bool
+		wantEarly bool
+	}{
+		"default runs both": {
+			runs:      []string{"index_excluded", "early_exit"},
+			wantIndex: true,
+			wantEarly: true,
+		},
+		"index only": {
+			runs:      []string{"index_excluded"},
+			wantIndex: true,
+			wantEarly: false,
+		},
+		"early exit only": {
+			runs:      []string{"early_exit"},
+			wantIndex: false,
+			wantEarly: true,
+		},
+		"empty disables": {
+			runs:      []string{},
+			wantIndex: false,
+			wantEarly: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			test.WithTempFS(files, func(path string) {
+				counts := kindsFor(t, path, tc.runs)
+				if got := counts["index_excluded"] > 0; got != tc.wantIndex {
+					t.Errorf("index_excluded present = %v, want %v (counts: %v)", got, tc.wantIndex, counts)
+				}
+				if got := counts["early_exit"] > 0; got != tc.wantEarly {
+					t.Errorf("early_exit present = %v, want %v (counts: %v)", got, tc.wantEarly, counts)
+				}
+			})
+		})
+	}
+}
+
+func TestEvalCoverageRunsValidation(t *testing.T) {
+	params := newEvalCommandParams()
+	params.coverageRuns = []string{"bogus"}
+	if err := validateEvalParams(&params, []string{"data"}); err == nil {
+		t.Fatal("expected error for invalid --coverage-runs value")
+	}
+}
+
 func seedBytes(seeds ...int64) []byte {
 	buf := make([]byte, 8*len(seeds))
 	for i, s := range seeds {
