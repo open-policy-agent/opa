@@ -1,0 +1,15 @@
+Review checklist (please verify before committing):
+
+Local-only commits dropped from the rendered changelog (2) — pass --include-local to include them:
+- 0007000 "cmd: Correct exit code for `opa eval --fail`" — references: #107
+- 0008000 "wip: scratch work" — no references in commit message
+
+Commits with no associated PR (using commit-SHA link):
+- 0006000 "Fix a broken link in the policy guide"
+
+Commits with multiple PRs (first match used):
+- 0005000 "Close the decision log writer on shutdown" — chose #1205, alternatives: #1206
+
+PRs with multiple closing issues (all listed in the bullet — please verify the linkage is correct):
+- 0004000 "Reject duplicate imports" (PR #1204) — issues: #105, #104
+

@@ -178,6 +178,17 @@ else
 	@echo "Docker not installed or running. Skipping golangci run."
 endif
 
+# build/release is a separate module, so the root `test` and `check` targets do
+# not reach it.
+.PHONY: check-release-tool
+check-release-tool:
+	cd build/release && $(GO) vet ./... && $(GO) test ./...
+ifeq ($(DOCKER_RUNNING), 1)
+	$(DOCKER) run --rm -v $(shell pwd):/app:ro,Z -w /app/build/release golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
+else
+	@echo "Docker not installed or running. Skipping golangci run."
+endif
+
 .PHONY: clean
 clean: wasm-lib-clean
 	rm -f opa_*_*
@@ -484,34 +495,48 @@ endif
 #
 ######################################################
 
-PATCH_CONTAINER_LABEL ?= opa-release-patcher
+# Fills in the CHANGELOG section for the release range and updates the version
+# artefacts.
+#
+#   make release-prepare VERSION=1.19.0
+#   make release-prepare VERSION=1.19.0 LAST_VERSION=v1.18.2
+#
+# To update changelog or artefacts in isolation, or with flags this target doesn't expose
+# (--dry-run, --out, --include-local, --record):
+#
+#   cd build/release && go run . changelog --help
+#   cd build/release && go run . artefacts --help
+.PHONY: release-prepare
+release-prepare:
+	@case "$(VERSION)" in \
+		*-dev) \
+			echo "error: VERSION is '$(VERSION)', read from v1/version/version.go."; \
+			echo "       Pass the release version explicitly, e.g. make release-prepare VERSION=1.19.0"; \
+			exit 1;; \
+	esac
+	@cd build/release && $(GO) run . changelog \
+		--version=$(VERSION) \
+		--update=$(CURDIR)/CHANGELOG.md \
+		$(if $(LAST_VERSION),--from=$(LAST_VERSION),) \
+		$(if $(REL_TO),--to=$(REL_TO),) \
+		$(if $(REL_REPO),--repo=$(REL_REPO),)
+	@cd build/release && $(GO) run . artefacts \
+		--version=$(VERSION) \
+		$(if $(REL_SKIP_GENERATE),--skip-generate,)
 
-.PHONY: patch-container
-patch-container:
-ifeq ($(shell docker images -q $(PATCH_CONTAINER_LABEL) 2> /dev/null),)
-	@$(DOCKER) build \
-		-t $(PATCH_CONTAINER_LABEL) \
-		-f build/release-patcher-Dockerfile .
-endif
-
-.PHONY: release-patch
-release-patch: patch-container
-ifeq ($(GITHUB_TOKEN),)
-	@echo "\033[0;31mGITHUB_TOKEN environment variable missing.\033[33m Provide a GitHub Personal Access Token (PAT) with the 'read:org' scope.\033[0m"
-endif
-	@$(DOCKER) run $(DOCKER_FLAGS) \
-		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
-		-e LAST_VERSION=$(LAST_VERSION) \
-		-v $(PWD):/_src:Z \
-		$(PATCH_CONTAINER_LABEL):latest \
-		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
-
-.PHONY: dev-patch
-dev-patch: patch-container
-	@$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD):/_src:Z \
-		$(PATCH_CONTAINER_LABEL):latest \
-		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
+# Reopens development after a release.
+#
+#   make dev-prepare VERSION=1.19.1
+.PHONY: dev-prepare
+dev-prepare:
+	@if [ "$(origin VERSION)" != "command line" ]; then \
+		echo "error: pass the next release version explicitly, e.g. make dev-prepare VERSION=1.19.1"; \
+		exit 1; \
+	fi
+	@cd build/release && $(GO) run . dev \
+		--version=$(VERSION) \
+		$(if $(REL_DRY_RUN),--dry-run,) \
+		$(if $(REL_ALLOW_EXISTING_UNRELEASED),--allow-existing-unreleased,)
 
 # Deprecated targets. To be removed.
 .PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin release release-local
