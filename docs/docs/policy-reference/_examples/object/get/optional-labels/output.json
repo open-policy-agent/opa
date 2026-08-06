@@ -1,0 +1,9 @@
+{
+  "deny": [
+    "production workload \"frontend\" is missing labels.team"
+  ],
+  "envs": {
+    "frontend": "prod",
+    "scratch": "dev"
+  }
+}

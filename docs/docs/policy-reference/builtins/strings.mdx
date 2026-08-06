@@ -46,3 +46,21 @@ about it in the [keywords section](/docs/policy-reference/keywords/contains).
 <PlaygroundExample dir={require.context('../_examples/strings/contains/email-validation')} />
 
 <PlaygroundExample dir={require.context('../_examples/strings/contains/content-moderation')} />
+
+### `startswith`
+
+`startswith` reports whether a string begins with a given prefix. Prefer it
+over `contains` when the match must be at the front of the value (HTTP paths,
+registry prefixes, file paths).
+
+<PlaygroundExample dir={require.context('../_examples/strings/startswith/api-path-prefix')} />
+
+### `sprintf`
+
+`sprintf` builds a string from a format and a list of values. Deny rules use
+it to put the failing field and value into the message returned to the caller.
+
+See also the note at the top of this page about how `sprintf` pre-processes
+values (for example with `%T`).
+
+<PlaygroundExample dir={require.context('../_examples/strings/sprintf/deny-message')} />
