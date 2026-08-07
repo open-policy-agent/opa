@@ -54,15 +54,23 @@ func newResultTerm(valid bool, data *ast.Term) *ast.Term {
 // type-checking path, where pattern validation is disabled to tolerate
 // schemas containing ECMA-262 regex features that Go's RE2 dialect can't
 // compile.
-func newPatternValidatingSchemaLoader() *gojsonschema.SchemaLoader {
+//
+// Remote reference fetching is restricted to the hosts in the caller's
+// allow_net capability. Schemas reaching these built-ins come from the policy
+// or, worse, from input, so an unrestricted loader would let a `$ref` drive
+// outbound requests from wherever OPA happens to be deployed.
+func newPatternValidatingSchemaLoader(bctx BuiltinContext) *gojsonschema.SchemaLoader {
 	sl := gojsonschema.NewSchemaLoader()
 	sl.ValidatePatterns = true
+	if bctx.Capabilities != nil {
+		sl.AllowNet = bctx.Capabilities.AllowNet
+	}
 	return sl
 }
 
 // builtinJSONSchemaVerify accepts 1 argument which can be string or object and checks if it is valid JSON schema.
 // Returns array [false, <string>] with error string at index 1, or [true, ""] with empty string at index 1 otherwise.
-func builtinJSONSchemaVerify(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinJSONSchemaVerify(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Take first argument and make JSON Loader from it.
 	loader, err := astValueToJSONSchemaLoader(operands[0].Value)
 	if err != nil {
@@ -70,11 +78,30 @@ func builtinJSONSchemaVerify(_ BuiltinContext, operands []*ast.Term, iter func(*
 	}
 
 	// Check that schema is correct and parses without errors.
-	if _, err = newPatternValidatingSchemaLoader().Compile(loader); err != nil {
+	if _, err = newPatternValidatingSchemaLoader(bctx).Compile(loader); err != nil {
 		return iter(newResultTerm(false, ast.StringTerm("jsonschema: "+err.Error())))
 	}
 
 	return iter(newResultTerm(true, ast.InternedNullTerm))
+}
+
+// schemaCacheKey returns the inter-query value cache key for a compiled
+// schema. A compiled schema has already resolved its remote references, so it
+// must not be shared between callers with different allow_net capabilities --
+// otherwise a permissive caller could populate the cache for a restrictive
+// one. When allow_net is unset the schema value is used as-is, keeping the
+// common case allocation-free.
+func schemaCacheKey(bctx BuiltinContext, schema ast.Value) ast.Value {
+	if bctx.Capabilities == nil || bctx.Capabilities.AllowNet == nil {
+		return schema
+	}
+
+	hosts := make([]*ast.Term, len(bctx.Capabilities.AllowNet))
+	for i, host := range bctx.Capabilities.AllowNet {
+		hosts[i] = ast.StringTerm(host)
+	}
+
+	return ast.NewArray(ast.NewTerm(schema), ast.ArrayTerm(hosts...))
 }
 
 // builtinJSONMatchSchema accepts 2 arguments both can be string or object and verifies if the document matches the JSON schema.
@@ -83,8 +110,10 @@ func builtinJSONSchemaVerify(_ BuiltinContext, operands []*ast.Term, iter func(*
 func builtinJSONMatchSchema(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	var schema *gojsonschema.Schema
 
+	cacheKey := schemaCacheKey(bctx, operands[1].Value)
+
 	if bctx.InterQueryBuiltinValueCache != nil {
-		if val, ok := bctx.InterQueryBuiltinValueCache.Get(operands[1].Value); ok {
+		if val, ok := bctx.InterQueryBuiltinValueCache.Get(cacheKey); ok {
 			if s, isSchema := val.(*gojsonschema.Schema); isSchema {
 				schema = s
 			}
@@ -106,13 +135,13 @@ func builtinJSONMatchSchema(bctx BuiltinContext, operands []*ast.Term, iter func
 			return err
 		}
 
-		schema, err = newPatternValidatingSchemaLoader().Compile(schemaLoader)
+		schema, err = newPatternValidatingSchemaLoader(bctx).Compile(schemaLoader)
 		if err != nil {
 			return err
 		}
 
 		if bctx.InterQueryBuiltinValueCache != nil {
-			bctx.InterQueryBuiltinValueCache.Insert(operands[1].Value, schema)
+			bctx.InterQueryBuiltinValueCache.Insert(cacheKey, schema)
 		}
 	}
 

@@ -28,6 +28,9 @@ type SchemaLoader struct {
 	Validate         bool
 	Draft            Draft
 	ValidatePatterns bool
+	// AllowNet is the list of hosts that remote references may be fetched
+	// from. A nil list permits any host; a non-nil empty list permits none.
+	AllowNet []string
 }
 
 // NewSchemaLoader creates a new NewSchemaLoader
@@ -155,7 +158,11 @@ func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
 
 	d := Schema{}
 	d.Pool = sl.pool
-	d.Pool.jsonLoaderFactory = rootSchema.LoaderFactory()
+	// The allowlist is applied to the factory rather than taken from the root
+	// loader, so that every remote reference resolved while compiling this
+	// schema -- however deeply nested -- is checked against the capabilities
+	// of the caller that asked for the compilation.
+	d.Pool.jsonLoaderFactory = rootSchema.LoaderFactory().withAllowNet(newAllowNetSet(sl.AllowNet))
 	d.DocumentReference = ref
 	d.ReferencePool = newSchemaReferencePool()
 	d.validatePatterns = sl.ValidatePatterns

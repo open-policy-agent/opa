@@ -1631,10 +1631,9 @@ func (c *Compiler) checkSafetyRuleHeads() {
 }
 
 func compileSchema(goSchema any, allowNet []string) (*gojsonschema.Schema, error) {
-	gojsonschema.SetAllowNet(allowNet)
-
 	var refLoader gojsonschema.JSONLoader
 	sl := gojsonschema.NewSchemaLoader()
+	sl.AllowNet = allowNet
 
 	if goSchema != nil {
 		refLoader = gojsonschema.NewGoLoader(goSchema)

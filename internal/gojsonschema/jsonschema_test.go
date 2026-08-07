@@ -18,10 +18,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -133,8 +136,6 @@ func TestSuite(t *testing.T) {
 		}
 	}()
 
-	SetAllowNet(nil)
-
 	err = filepath.Walk(wd, func(path string, fileInfo os.FileInfo, _ error) error {
 		if fileInfo.IsDir() && path != wd && !testDirectories.MatchString(fileInfo.Name()) {
 			return filepath.SkipDir
@@ -190,9 +191,132 @@ func TestFormats(t *testing.T) {
 	}
 }
 
-func Test_ConcurrentNetAccessModification(_ *testing.T) {
-	go func() {
-		SetAllowNet([]string{"something"})
-	}()
-	SetAllowNet(nil)
+func TestAllowNetIsPerSchemaLoader(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `{"type": "string"}`)
+	}))
+	defer srv.Close()
+
+	srvURL, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := fmt.Sprintf(`{"$ref": %q}`, srv.URL+"/schema.json")
+
+	compile := func(allowNet []string) error {
+		sl := NewSchemaLoader()
+		sl.AllowNet = allowNet
+		_, err := sl.Compile(NewStringLoader(schema))
+		return err
+	}
+
+	tests := []struct {
+		note       string
+		allowNet   []string
+		wantDenied bool
+	}{
+		{note: "nil list permits any host", allowNet: nil},
+		{note: "empty list permits no host", allowNet: []string{}, wantDenied: true},
+		{note: "listed host is permitted", allowNet: []string{srvURL.Hostname()}},
+		{note: "unlisted host is denied", allowNet: []string{"example.com"}, wantDenied: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			err := compile(tc.allowNet)
+			if tc.wantDenied {
+				if err == nil {
+					t.Fatal("expected remote reference to be denied, but compilation succeeded")
+				}
+				if !strings.Contains(err.Error(), "remote reference loading disabled") {
+					t.Fatalf("expected remote reference loading to be disabled, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected remote reference to be permitted, got %v", err)
+			}
+		})
+	}
+
+	// Loaders with conflicting allowlists, used concurrently, must each honour
+	// their own -- the permissive one must not open up the restrictive one.
+	t.Run("conflicting allowlists used concurrently", func(t *testing.T) {
+		var wg sync.WaitGroup
+		for range 20 {
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				if err := compile(nil); err != nil {
+					t.Errorf("permissive loader: expected success, got %v", err)
+				}
+			}()
+			go func() {
+				defer wg.Done()
+				if err := compile([]string{}); err == nil {
+					t.Error("restrictive loader: expected remote reference to be denied")
+				}
+			}()
+		}
+		wg.Wait()
+	})
+}
+
+func TestAllowNetIsCheckedOnRedirects(t *testing.T) {
+	var srv *httptest.Server
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/schema.json", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `{"type": "string"}`)
+	})
+	mux.HandleFunc("/leave", func(w http.ResponseWriter, r *http.Request) {
+		// The same address under a different host name, which is what the
+		// allowlist matches on.
+		viaLocalhost := strings.Replace(srv.URL, "127.0.0.1", "localhost", 1)
+		http.Redirect(w, r, viaLocalhost+"/schema.json", http.StatusFound)
+	})
+	mux.HandleFunc("/hop-then-leave", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, srv.URL+"/leave", http.StatusFound)
+	})
+	mux.HandleFunc("/hop-then-stay", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, srv.URL+"/schema.json", http.StatusFound)
+	})
+	srv = httptest.NewServer(mux)
+	defer srv.Close()
+
+	srvURL, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		note       string
+		entry      string
+		wantDenied bool
+	}{
+		{note: "first hop leaves the allowlist", entry: "/leave", wantDenied: true},
+		{note: "later hop leaves the allowlist", entry: "/hop-then-leave", wantDenied: true},
+		{note: "chain stays within the allowlist", entry: "/hop-then-stay"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			sl := NewSchemaLoader()
+			sl.AllowNet = []string{srvURL.Hostname()} // permits 127.0.0.1, not localhost
+			_, err := sl.Compile(NewStringLoader(fmt.Sprintf(`{"$ref": %q}`, srv.URL+tc.entry)))
+
+			if tc.wantDenied {
+				if err == nil {
+					t.Fatal("expected the redirect to a non-allowlisted host to be denied")
+				}
+				if !strings.Contains(err.Error(), "remote reference loading disabled") {
+					t.Fatalf("expected remote reference loading to be disabled, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected the redirect chain to be permitted, got %v", err)
+			}
+		})
+	}
 }
