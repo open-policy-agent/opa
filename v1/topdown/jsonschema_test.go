@@ -348,6 +348,88 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 			result: ast.NullTerm().Value,
 			err:    true,
 		},
+		// Empty enum is unsatisfiable per JSON Schema: every instance must fail.
+		// See https://github.com/open-policy-agent/opa/issues/8910
+		{
+			note:     "empty enum rejects string",
+			document: ast.String(`"a"`),
+			schema:   ast.String(`{"enum": []}`),
+			result: ast.NewArray(ast.BooleanTerm(false),
+				ast.ArrayTerm(ast.NewTerm(ast.NewObject(
+					[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm("(Root): (Root) must be one of the following: ")},
+					[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("enum")},
+					[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("(Root)")},
+					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("(Root) must be one of the following: ")},
+				)))),
+			err: false,
+		},
+		{
+			note:     "empty enum rejects number",
+			document: ast.String(`1`),
+			schema:   ast.String(`{"enum": []}`),
+			result: ast.NewArray(ast.BooleanTerm(false),
+				ast.ArrayTerm(ast.NewTerm(ast.NewObject(
+					[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm("(Root): (Root) must be one of the following: ")},
+					[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("enum")},
+					[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("(Root)")},
+					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("(Root) must be one of the following: ")},
+				)))),
+			err: false,
+		},
+		{
+			note:     "empty enum rejects null",
+			document: ast.String(`null`),
+			schema:   ast.String(`{"enum": []}`),
+			result: ast.NewArray(ast.BooleanTerm(false),
+				ast.ArrayTerm(ast.NewTerm(ast.NewObject(
+					[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm("(Root): (Root) must be one of the following: ")},
+					[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("enum")},
+					[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("(Root)")},
+					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("(Root) must be one of the following: ")},
+				)))),
+			err: false,
+		},
+		{
+			note:     "empty enum rejects object",
+			document: ast.String(`{}`),
+			schema:   ast.String(`{"enum": []}`),
+			result: ast.NewArray(ast.BooleanTerm(false),
+				ast.ArrayTerm(ast.NewTerm(ast.NewObject(
+					[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm("(Root): (Root) must be one of the following: ")},
+					[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("enum")},
+					[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("(Root)")},
+					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("(Root) must be one of the following: ")},
+				)))),
+			err: false,
+		},
+		{
+			note:     "non-empty enum accepts listed value",
+			document: ast.String(`"a"`),
+			schema:   ast.String(`{"enum": ["a", "b", "c"]}`),
+			result:   ast.NewArray(ast.BooleanTerm(true), ast.ArrayTerm()),
+			err:      false,
+		},
+		{
+			note:     "non-empty enum rejects unlisted value",
+			document: ast.String(`"z"`),
+			schema:   ast.String(`{"enum": ["a", "b", "c"]}`),
+			result: ast.NewArray(ast.BooleanTerm(false),
+				ast.ArrayTerm(ast.NewTerm(ast.NewObject(
+					[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm("(Root): (Root) must be one of the following: \"a\", \"b\", \"c\"")},
+					[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("enum")},
+					[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("(Root)")},
+					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("(Root) must be one of the following: \"a\", \"b\", \"c\"")},
+				)))),
+			err: false,
+		},
+		// Missing enum keyword is unrestricted (contrast empty enum above).
+		{
+			note:     "missing enum accepts arbitrary value",
+			document: ast.String(`"z"`),
+			schema:   ast.String(`{}`),
+			result:   ast.NewArray(ast.BooleanTerm(true), ast.ArrayTerm()),
+			err:      false,
+		},
 	}
 
 	for _, tc := range cases {
