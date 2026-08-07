@@ -584,10 +584,26 @@ func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) ([]*ast.
 	return comments, nil
 }
 
+// groupableOneLiner reports whether rule is written on a single line, and so may
+// be grouped with an adjacent rule instead of being followed by a blank line.
+// These conditions must agree with the inline body branch of writeRule, which
+// doesn't end the line after the closing brace of a multi-line body.
 func (w *writer) groupableOneLiner(rule *ast.Rule) bool {
 	// Location required to determine if two rules are adjacent in the policy.
 	// If not, we respect line breaks between rules.
 	if len(rule.Body) > 1 || rule.Default || rule.Location == nil {
+		return false
+	}
+
+	// An else block is always written on a line of its own, so the rule spans
+	// multiple lines even when its own body is written inline.
+	if rule.Else != nil {
+		return false
+	}
+
+	// A lone set term body keeps its enclosing braces, and so is written as a
+	// multi-line block.
+	if len(rule.Body) == 1 && isSetTerm(rule.Body[0]) {
 		return false
 	}
 
