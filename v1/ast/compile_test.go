@@ -11523,6 +11523,19 @@ func TestQueryCompiler(t *testing.T) {
 			expected: errors.New("rego_type_error: undefined function data.deadbeef"),
 		},
 		{
+			// Regression test for https://github.com/open-policy-agent/opa/issues/8897:
+			// the generated local for a composite ref subject must not leak.
+			note:     "composite ref subject not leaked in type error",
+			q:        `[1, 2][i][j]`,
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: [1, 2][i][j]"),
+		},
+		{
+			// A dynamic index term hoisted into its own local must not leak either.
+			note:     "dynamic index local not leaked in type error",
+			q:        `[1, 2][input.x][j]`,
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: [1, 2][input.x][j]"),
+		},
+		{
 			note:     "imports resolved without package",
 			q:        "abc",
 			pkg:      "",
