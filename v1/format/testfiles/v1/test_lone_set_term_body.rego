@@ -33,3 +33,9 @@ object_term if { {"a": 1} }
 set_comprehension if { {y | y := input.x} }
 
 set_comparison if { {1, 2} == {1, 2} }
+
+negated_multiple_elements if { not {1, 2} }
+
+negated_ref_element if { not {input.x} }
+
+negated_with_modifier if { not {1} with input as 1 }

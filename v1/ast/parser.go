@@ -897,13 +897,18 @@ func (p *Parser) parseRules() []*Rule {
 		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
 		p.scan()
 		s := p.save()
+
+		// Only a set term with a leading '{' is ambiguous with a body;
+		// e.g.: 'not {...}' and 'set()' parses to a set literal, but have no ambiguous leading '{'
+		leadingBrace := p.s.tok == tokens.LBrace
+
 		if expr := p.parseLiteral(); expr != nil {
 			// NOTE(sr): set literals are never false or undefined, so parsing this as
 			//  p if { true }
 			//       ^^^^^^^^ set of one element, `true`
 			// isn't valid.
 			isSetLiteral := false
-			if t, ok := expr.Terms.(*Term); ok {
+			if t, ok := expr.Terms.(*Term); ok && leadingBrace {
 				_, isSetLiteral = t.Value.(Set)
 			}
 			// expr.Term is []*Term or Every
