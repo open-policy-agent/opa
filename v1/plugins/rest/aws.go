@@ -574,6 +574,18 @@ func (cs *awsMetadataCredentialService) tokenRequest(ctx context.Context) (*http
 	return req, nil
 }
 
+func (cs *awsMetadataCredentialService) metadataToken(ctx context.Context, client *http.Client) (string, error) {
+	tokenReq, err := cs.tokenRequest(ctx)
+	if err != nil {
+		return "", errors.New("unable to construct metadata token HTTP request: " + err.Error())
+	}
+	body, err := aws.DoRequestWithClient(tokenReq, client, "metadata token", cs.logger)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
 func (cs *awsMetadataCredentialService) refreshFromService(ctx context.Context) error {
 	// define the expected JSON payload from the EC2 credential service
 	// ref. https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
@@ -630,20 +642,31 @@ func (cs *awsMetadataCredentialService) refreshFromService(ctx context.Context) 
 		req.Header.Set("Authorization", token)
 	}
 
-	// if in the EC2 environment, we will use IMDSv2, which requires a session cookie from a
-	// PUT request on the token endpoint before it will give the credentials, this provides
-	// protection from SSRF attacks
-	if !isECS() {
-		tokenReq, err := cs.tokenRequest(ctx)
-		if err != nil {
-			return errors.New("unable to construct metadata token HTTP request: " + err.Error())
-		}
-		body, err := aws.DoRequestWithClient(tokenReq, client, "metadata token", cs.logger)
-		if err != nil {
+	// the EC2 instance metadata service uses IMDSv2, which requires a token from a PUT request
+	// on the token endpoint before it will give the credentials, this provides protection from
+	// SSRF attacks. urlForMetadataService selects that endpoint whenever a role name is
+	// configured, including for an ECS task on the EC2 launch type, which sets the ECS
+	// environment variables while still serving the configured role from instance metadata.
+	//
+	// Outside the ECS environment the token stays mandatory. Inside it, the request only
+	// reaches instance metadata because iam_role is set, and that path sent no token at all
+	// before, so a token failure falls back to the unsigned request instead of failing the
+	// refresh. That keeps working an instance which still allows IMDSv1 but whose token
+	// response cannot reach the container, as happens with the default hop limit of 1.
+	tokenRequired := !isECS()
+	if tokenRequired || cs.RoleName != "" {
+		token, err := cs.metadataToken(ctx, client)
+		switch {
+		case err == nil:
+			// token is the body of response; add to header of metadata request
+			req.Header.Set("X-aws-ec2-metadata-token", token)
+		case tokenRequired:
 			return err
+		default:
+			cs.logger.WithFields(map[string]any{
+				"err": err.Error(),
+			}).Debug("Continuing without an IMDSv2 token.")
 		}
-		// token is the body of response; add to header of metadata request
-		req.Header.Set("X-aws-ec2-metadata-token", string(body))
 	}
 
 	body, err := aws.DoRequestWithClient(req, client, "metadata", cs.logger)
