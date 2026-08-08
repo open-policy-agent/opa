@@ -139,6 +139,11 @@ type SubSchema struct {
 	// validation : all
 	_const *string //const is a golang keyword
 	enum   []string
+	// enumPresent records that the schema carried an "enum" keyword, which `enum` alone
+	// cannot express: an absent keyword and `"enum": []` both leave the slice empty. Per
+	// the spec an empty enum has no value to deep-equal, so it must reject everything,
+	// while an absent enum must constrain nothing.
+	enumPresent bool
 
 	// validation : SubSchema
 	oneOf []*SubSchema
