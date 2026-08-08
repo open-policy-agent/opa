@@ -22140,7 +22140,7 @@
       "v1.19.0",
       "edge"
     ],
-    "description": "Matches a string against a pattern, where there pattern may be glob-like",
+    "description": "Matches a string against a pattern, where the pattern may be glob-like",
     "introduced": "v0.17.0",
     "result": {
       "description": "true if `value` matches the `template`",
@@ -26739,7 +26739,7 @@
     "args": [
       {
         "description": "value to convert",
-        "name": "x",
+        "name": "value",
         "type": "any\u003cnull, boolean, number, string\u003e"
       }
     ],
@@ -26891,10 +26891,10 @@
       "v1.19.0",
       "edge"
     ],
-    "description": "Converts a string, bool, or number value to a number: Strings are converted to numbers using `strconv.Atoi`, Boolean `false` is converted to 0 and `true` is converted to 1.",
+    "description": "Converts value of type string, null or boolean to number. Numeric strings converts to the corresponding number when possible. Null and boolean `false` converts to 0 and boolean `true` to 1. Numbers are returned without conversion.",
     "introduced": "v0.17.0",
     "result": {
-      "description": "the numeric representation of `x`",
+      "description": "the numeric representation of `value`",
       "name": "num",
       "type": "number"
     },
