@@ -676,6 +676,9 @@ func (d *Schema) parseSchema(documentNode any, currentSchema *SubSchema) error {
 	if err != nil {
 		return err
 	}
+	// Record presence separately: getSlice returns an empty slice both for an absent
+	// keyword and for `"enum": []`, and those mean opposite things at validation time.
+	_, currentSchema.enumPresent = m[KeyEnum]
 	for _, v := range enum {
 		is, err := marshalWithoutNumber(v)
 		if err != nil {

@@ -13,6 +13,8 @@ The modifications done are as below:
 
 3. Modernize usage of Go in `gojsonschema`, using conventions like type switching and language-built-in map accessing rather than helper methods. 
 
+4. A spec-conformance fix to `enum`. Upstream gates enum validation on `len(subSchema.enum) > 0`, which cannot tell an absent `enum` keyword from `"enum": []` — both leave the slice empty. Per the [validation spec](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1.2) an instance must deep-equal one of the listed values, so an empty list rejects everything, while an absent keyword constrains nothing. `subSchema` now carries an `enumPresent` flag and validation gates on it. The same defect is present in upstream `xeipuuv/gojsonschema`, which has had no commits since 2024-06-28; it is worth offering there too, but this fork is where OPA's `json.match_schema` reads from.
+
 [![GoDoc](https://godoc.org/github.com/xeipuuv/gojsonschema?status.svg)](https://godoc.org/github.com/xeipuuv/gojsonschema)
 [![Build Status](https://travis-ci.org/xeipuuv/gojsonschema.svg)](https://travis-ci.org/xeipuuv/gojsonschema)
 [![Go Report Card](https://goreportcard.com/badge/github.com/xeipuuv/gojsonschema)](https://goreportcard.com/report/github.com/xeipuuv/gojsonschema)

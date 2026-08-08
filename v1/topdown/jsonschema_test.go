@@ -295,6 +295,63 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 			err: false,
 		},
 		{
+			// https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1.2:
+			// enum passes only if the instance deep-equals one of the listed values. An
+			// empty list has nothing to deep-equal, so it rejects every instance. Treating
+			// it as an absent keyword makes a schema meant to allow nothing allow
+			// everything, which fails open for any schema generator whose allow-list
+			// resolved to zero entries.
+			note:     "empty enum rejects a string",
+			document: ast.String(`{ "id": "anything" }`),
+			schema:   ast.String(`{ "properties": { "id": { "enum": [] } } }`),
+			result: ast.NewArray(ast.BooleanTerm(false),
+				ast.ArrayTerm(ast.NewTerm(ast.NewObject(
+					[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm("id: id must be one of the following: (none)")},
+					[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("enum")},
+					[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("id")},
+					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("id must be one of the following: (none)")},
+				)))),
+			err: false,
+		},
+		{
+			// null is the case most likely to slip through a length-based guard, since a
+			// missing value and a null value look alike in a lot of validators.
+			note:     "empty enum rejects null",
+			document: ast.String(`{ "id": null }`),
+			schema:   ast.String(`{ "properties": { "id": { "enum": [] } } }`),
+			result: ast.NewArray(ast.BooleanTerm(false),
+				ast.ArrayTerm(ast.NewTerm(ast.NewObject(
+					[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm("id: id must be one of the following: (none)")},
+					[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("enum")},
+					[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("id")},
+					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("id must be one of the following: (none)")},
+				)))),
+			err: false,
+		},
+		{
+			// The other half of the contract, and the one a presence flag could break: an
+			// absent enum must still constrain nothing.
+			note:     "absent enum constrains nothing",
+			document: ast.String(`{ "id": "anything" }`),
+			schema:   ast.String(`{ "properties": { "id": { "type": "string" } } }`),
+			result:   ast.NewArray(ast.BooleanTerm(true), ast.ArrayTerm()),
+			err:      false,
+		},
+		{
+			// A non-empty enum keeps working, so the presence gate did not widen it.
+			note:     "non-empty enum still rejects a value outside it",
+			document: ast.String(`{ "id": "z" }`),
+			schema:   ast.String(`{ "properties": { "id": { "enum": ["a", "b"] } } }`),
+			result: ast.NewArray(ast.BooleanTerm(false),
+				ast.ArrayTerm(ast.NewTerm(ast.NewObject(
+					[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm(`id: id must be one of the following: "a", "b"`)},
+					[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("enum")},
+					[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("id")},
+					[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm(`id must be one of the following: "a", "b"`)},
+				)))),
+			err: false,
+		},
+		{
 			note:     "string document with matching pattern",
 			document: ast.String(`{ "name": "alice" }`),
 			schema: ast.String(`

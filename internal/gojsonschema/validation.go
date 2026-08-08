@@ -420,18 +420,28 @@ func (v *SubSchema) validateCommon(currentSubSchema *SubSchema, value any, resul
 	}
 
 	// enum:
-	if len(currentSubSchema.enum) > 0 {
+	// Gate on presence, not length. An absent "enum" constrains nothing; `"enum": []` has
+	// no value for the instance to deep-equal, so it rejects every instance. Both leave the
+	// slice empty, so a length check silently turns the second one into the first — which
+	// makes a schema meant to allow nothing allow everything.
+	if currentSubSchema.enumPresent {
 		vString, err := marshalWithoutNumber(value)
 		if err != nil {
 			result.addInternalError(new(InternalError), context, value, ErrorDetails{"error": err})
 		}
 		if !isStringInSlice(currentSubSchema.enum, *vString) {
+			allowed := strings.Join(currentSubSchema.enum, ", ")
+			if len(currentSubSchema.enum) == 0 {
+				// "must be one of the following: " with nothing after it reads as a bug in
+				// the message rather than a property of the schema.
+				allowed = "(none)"
+			}
 			result.addInternalError(
 				new(EnumError),
 				context,
 				value,
 				ErrorDetails{
-					"allowed": strings.Join(currentSubSchema.enum, ", "),
+					"allowed": allowed,
 				},
 			)
 		}
