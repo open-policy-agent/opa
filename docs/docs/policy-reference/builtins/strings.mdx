@@ -64,3 +64,17 @@ See also the note at the top of this page about how `sprintf` pre-processes
 values (for example with `%T`).
 
 <PlaygroundExample dir={require.context('../_examples/strings/sprintf/deny-message')} />
+
+### `split`
+
+`split` returns a list of substrings separated by a delimiter. Path and name
+parsing commonly use the second or third segment after a fixed prefix.
+
+<PlaygroundExample dir={require.context('../_examples/strings/split/team-from-path')} />
+
+### `lower`
+
+`lower` converts a string to lowercase. Pair it with an allowlist when callers
+send mixed-case roles, tenants, or usernames.
+
+<PlaygroundExample dir={require.context('../_examples/strings/lower/normalize-role')} />
