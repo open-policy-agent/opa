@@ -4,3 +4,4 @@
 "strings/format_int: bignum exact (>64-bit integer, all bases + negative)": "WASM cannot represent integers larger than 64 bits (see https://github.com/open-policy-agent/opa/issues/3711); this change fixes the Go topdown builtin."
 "arithmetic/bignum exact (>64-bit integers through plus, minus, multiply)": "WASM cannot represent integers larger than 64 bits (see https://github.com/open-policy-agent/opa/issues/3711); this change fixes the Go topdown builtins."
 "aggregates/bignum exact (>64-bit integers through sum and product)": "WASM cannot represent integers larger than 64 bits (see https://github.com/open-policy-agent/opa/issues/3711); this change fixes the Go topdown builtins."
+"arithmetic/bignum modulo (divisor a nonzero multiple of 2^64)": "WASM cannot represent integers larger than 64 bits (see https://github.com/open-policy-agent/opa/issues/3711); this change fixes the Go topdown builtin."

@@ -130,7 +130,10 @@ func arithDivide(a, b *big.Float) (*big.Float, error) {
 }
 
 func arithRem(a, b *big.Int) (*big.Int, error) {
-	if b.Int64() == 0 {
+	// Sign, not Int64: Int64 returns the low 64 bits when b does not fit in an
+	// int64, so any nonzero multiple of 2^64 (e.g. 10 % 18446744073709551616)
+	// would be misreported as modulo by zero.
+	if b.Sign() == 0 {
 		return nil, errors.New("modulo by zero")
 	}
 	return new(big.Int).Rem(a, b), nil
