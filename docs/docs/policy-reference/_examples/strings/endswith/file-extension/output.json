@@ -1,0 +1,6 @@
+{
+  "allow": false,
+  "deny": [
+    "filename \"report.exe\" must end with .json or .yaml"
+  ]
+}
