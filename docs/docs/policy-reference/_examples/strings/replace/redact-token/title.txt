@@ -1,1 +1,1 @@
-Redact a token from a user-facing error
+Redact a confidential header from a user-facing message

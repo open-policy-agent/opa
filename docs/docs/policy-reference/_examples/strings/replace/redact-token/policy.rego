@@ -1,4 +1,7 @@
 package play
 
-# Hide the token if this message is shown to the user.
-safe_message := replace(input.message, input.token, "[REDACTED]")
+# Example of a message that would leak the Authorization header.
+raw_message := sprintf("upstream rejected request with %s", [input.headers.authorization])
+
+# Same text after redacting the secret for the caller.
+safe_message := replace(raw_message, input.headers.authorization, "[REDACTED]")

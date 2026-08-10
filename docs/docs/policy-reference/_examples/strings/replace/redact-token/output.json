@@ -1,3 +1,4 @@
 {
-  "safe_message": "failed to authenticate with token [REDACTED]"
+  "raw_message": "upstream rejected request with Bearer abc123xyz",
+  "safe_message": "upstream rejected request with [REDACTED]"
 }

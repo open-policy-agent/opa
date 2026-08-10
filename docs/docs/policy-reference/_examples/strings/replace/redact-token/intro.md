@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD041 -->
 
-`replace` substitutes every occurrence of a substring. Policies use it to
-redact tokens or other secrets from messages before they go back to a caller.
+When a policy builds a user-facing error, it can accidentally include a
+sensitive header value. `replace` redacts that substring before the message
+goes back to the caller.
