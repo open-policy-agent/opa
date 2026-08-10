@@ -34,19 +34,33 @@ import (
 
 // NewOCI returns a new Downloader that can be started.
 func NewOCI(config Config, client rest.Client, path, storePath string) *OCIDownloader {
+	localStoreIsTemp := false
+	if storePath == "" {
+		var err error
+		storePath, err = os.MkdirTemp("", "opa-oci-*")
+		if err != nil {
+			panic(err)
+		}
+		localStoreIsTemp = true
+	}
+
 	localstore, err := oci.New(storePath)
 	if err != nil {
+		if localStoreIsTemp {
+			_ = os.RemoveAll(storePath)
+		}
 		panic(err)
 	}
 	return &OCIDownloader{
-		config:         config,
-		path:           path,
-		localStorePath: storePath,
-		client:         client,
-		trigger:        make(chan chan struct{}),
-		stop:           make(chan chan struct{}),
-		logger:         client.Logger(),
-		store:          localstore,
+		config:           config,
+		path:             path,
+		localStorePath:   storePath,
+		localStoreIsTemp: localStoreIsTemp,
+		client:           client,
+		trigger:          make(chan chan struct{}),
+		stop:             make(chan chan struct{}),
+		logger:           client.Logger(),
+		store:            localstore,
 	}
 }
 
@@ -99,9 +113,19 @@ func (d *OCIDownloader) SetCache(etag string) {
 // Trigger can be used to control when the downloader attempts to download
 // a new bundle in manual triggering mode.
 func (d *OCIDownloader) Trigger(ctx context.Context) error {
+	d.stateMtx.Lock()
+	if d.stopped {
+		d.stateMtx.Unlock()
+		return errors.New("downloader stopped")
+	}
+	d.triggerWG.Add(1)
+	d.stateMtx.Unlock()
+
 	done := make(chan error)
 
 	go func() {
+		defer d.triggerWG.Done()
+
 		err := d.oneShot(ctx)
 		if err != nil {
 			d.logger.Error("OCI - Bundle download failed: %v.", err)
@@ -129,20 +153,29 @@ func (d *OCIDownloader) Start(ctx context.Context) {
 
 // Stop tells the Downloader to stop downloading bundles.
 func (d *OCIDownloader) Stop(context.Context) {
-	if *d.config.Trigger == plugins.TriggerManual {
+	d.stopOnce.Do(func() {
+		d.stateMtx.Lock()
+		d.stopped = true
+		d.stateMtx.Unlock()
+
+		if *d.config.Trigger == plugins.TriggerPeriodic {
+			done := make(chan struct{})
+			d.stop <- done
+			<-done
+		}
+
+		d.triggerWG.Wait()
+		d.cleanupLocalStore()
+	})
+}
+
+func (d *OCIDownloader) cleanupLocalStore() {
+	if !d.localStoreIsTemp {
 		return
 	}
-
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	if d.stopped {
-		return
+	if err := os.RemoveAll(d.localStorePath); err != nil {
+		d.logger.Error("OCI - Failed to remove temporary store %q: %v.", d.localStorePath, err)
 	}
-
-	done := make(chan struct{})
-	d.stop <- done
-	<-done
 }
 
 func (d *OCIDownloader) doStart(context.Context) {
@@ -155,7 +188,6 @@ func (d *OCIDownloader) doStart(context.Context) {
 	done := <-d.stop // blocks until there's something to read
 	cancel()
 	d.wg.Wait()
-	d.stopped = true
 	close(done)
 }
 
@@ -261,14 +293,15 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		}, nil
 	}
 	fileReader, err := os.Open(bundleFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer fileReader.Close()
 
 	cnt := &count{}
 	r := io.TeeReader(fileReader, cnt)
 	tee := io.TeeReader(r, &buf)
 
-	if err != nil {
-		return nil, err
-	}
 	loader := bundle.NewTarballLoaderWithBaseURL(tee, d.localStorePath)
 	reader := bundle.NewCustomReader(loader).
 		WithMetrics(m).

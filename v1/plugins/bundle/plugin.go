@@ -454,7 +454,7 @@ func (p *Plugin) newDownloader(name string, source *Source, bundles map[string]*
 		return p.oneShot(ctx, name, u)
 	}
 	if strings.ToLower(client.Config().Type) == "oci" {
-		ociStorePath := filepath.Join(os.TempDir(), "opa", "oci") // use temporary folder /tmp/opa/oci
+		ociStorePath := ""
 		if cfg := p.manager.GetConfig(); cfg.PersistenceDirectory != nil {
 			ociStorePath = filepath.Join(*cfg.PersistenceDirectory, "oci")
 		}

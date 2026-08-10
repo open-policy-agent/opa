@@ -129,7 +129,7 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	result.config = config
 	restClient := manager.Client(config.service)
 	if strings.ToLower(restClient.Config().Type) == "oci" {
-		ociStorePath := filepath.Join(os.TempDir(), "opa", "oci") // use temporary folder /tmp/opa/oci
+		ociStorePath := ""
 		if managerConfig.PersistenceDirectory != nil {
 			ociStorePath = filepath.Join(*managerConfig.PersistenceDirectory, "oci")
 		}
