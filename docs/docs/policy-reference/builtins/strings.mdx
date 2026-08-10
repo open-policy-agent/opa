@@ -67,14 +67,14 @@ values (for example with `%T`).
 
 ### `split`
 
-`split` returns a list of substrings separated by a delimiter. Path and name
-parsing commonly use the second or third segment after a fixed prefix.
+`split` returns a list of substrings separated by a delimiter. Use it when a
+path, hostname, or other structured string needs to be broken into parts.
 
 <PlaygroundExample dir={require.context('../_examples/strings/split/team-from-path')} />
 
 ### `lower`
 
-`lower` converts a string to lowercase. Pair it with a list of allowed values when callers
-send mixed-case roles, tenants, or usernames.
+`lower` converts a string to lowercase. It is useful for normalisation and
+formatting when values may arrive in mixed case.
 
 <PlaygroundExample dir={require.context('../_examples/strings/lower/normalize-role')} />
