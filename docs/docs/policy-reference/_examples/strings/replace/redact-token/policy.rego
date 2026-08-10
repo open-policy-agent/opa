@@ -1,7 +1,8 @@
 package play
 
-# Example of a message that would leak the Authorization header.
-raw_message := sprintf("upstream rejected request with %s", [input.headers.authorization])
-
-# Same text after redacting the secret for the caller.
-safe_message := replace(raw_message, input.headers.authorization, "[REDACTED]")
+# Message that would leak a confidential header, then redacted for the caller.
+safe_message := replace(
+	sprintf("upstream rejected request with %s", [input.headers.authorization]),
+	input.headers.authorization,
+	"[REDACTED]",
+)
