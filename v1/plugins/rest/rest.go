@@ -385,7 +385,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 			if len(dump) < defaultResponseSizeLimitBytes {
 				c.loggerFields["response"] = string(dump)
 			} else {
-				c.loggerFields["response"] = fmt.Sprintf("%v...", string(dump[:defaultResponseSizeLimitBytes]))
+				c.loggerFields["response"] = string(dump[:defaultResponseSizeLimitBytes]) + "..."
 			}
 		}
 		c.logger.WithFields(c.loggerFields).Debug("Received response.")

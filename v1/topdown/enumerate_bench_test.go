@@ -120,7 +120,7 @@ func generateNestedDataset(size int) map[string]any {
 	for i := range size {
 		// Random nested object with 3-5 levels of nesting
 		permissions := make([]any, rng.Intn(10)+1)
-		for j := 0; j < len(permissions); j++ {
+		for j := range permissions {
 			permissions[j] = map[string]any{
 				"name":  fmt.Sprintf("perm_%d", j),
 				"level": rng.Intn(10),

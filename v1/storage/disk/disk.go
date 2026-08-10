@@ -97,7 +97,7 @@ type Options struct {
 // Store provides a disk-based implementation of the storage.Store interface.
 type Store struct {
 	db         *badger.DB           // underlying key-value store
-	xid        uint64               // next transaction id
+	xid        atomic.Uint64        // next transaction id
 	rmu        sync.RWMutex         // reader-writer lock
 	wmu        sync.Mutex           // writer lock
 	pm         *pathMapper          // maps logical storage paths to underlying store keys
@@ -239,7 +239,7 @@ func (db *Store) NewTransaction(_ context.Context, params ...storage.Transaction
 		context = params[0].Context
 	}
 
-	xid := atomic.AddUint64(&db.xid, uint64(1))
+	xid := db.xid.Add(1)
 	if write {
 		db.wmu.Lock() // only one concurrent write txn
 	} else {
@@ -274,7 +274,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 
 	// write new bundle policy and data into the existing DB
 	underlying := db.db.NewTransaction(true)
-	xid := atomic.AddUint64(&db.xid, uint64(1))
+	xid := db.xid.Add(uint64(1))
 	underlyingTxn := newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, db)
 
 	// For backwards compatibility, check if `RootOverwrite` was configured.
@@ -314,7 +314,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 				}
 
 				underlying = db.db.NewTransaction(true)
-				xid = atomic.AddUint64(&db.xid, uint64(1))
+				xid = db.xid.Add(uint64(1))
 				underlyingTxn = newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, db)
 
 				if err = underlyingTxn.UpsertPolicy(ctx, strings.TrimLeft(update.Path.String(), "/"), update.Value); err != nil {
@@ -397,7 +397,7 @@ func (db *Store) doTruncateData(ctx context.Context, underlying *transaction, ba
 		}
 
 		txn := badgerdb.NewTransaction(true)
-		xid := atomic.AddUint64(&db.xid, uint64(1))
+		xid := db.xid.Add(1)
 		sTxn := newTransaction(xid, true, txn, params.Context, db.pm, db.partitions, db)
 
 		if err = sTxn.Write(ctx, storage.AddOp, path, value); err != nil {
@@ -480,8 +480,7 @@ func (db *Store) Commit(ctx context.Context, txn storage.Transaction) error {
 		}
 		write := false // read only txn
 		readOnly := db.db.NewTransaction(write)
-		xid := atomic.AddUint64(&db.xid, uint64(1))
-		readTxn := newTransaction(xid, write, readOnly, nil, db.pm, db.partitions, db)
+		readTxn := newTransaction(db.xid.Add(1), write, readOnly, nil, db.pm, db.partitions, db)
 		for h := range db.triggers {
 			h.cb(ctx, readTxn, event)
 		}

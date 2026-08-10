@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func (node *trieNode) mermaid() string {
@@ -159,18 +161,23 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 	}
 
 	if len(node.rules) > 0 {
-		fmt.Fprintf(sb, " [%d rule(s)]", len(node.rules))
+		sb.WriteString(" [")
+		util.WriteInt(sb, len(node.rules))
+		sb.WriteString(" rule(s)]")
 	}
 	if len(node.mappers) > 0 {
-		fmt.Fprintf(sb, " [%d mapper(s)]", len(node.mappers))
+		sb.WriteString(" [")
+		util.WriteInt(sb, len(node.mappers))
+		sb.WriteString(" mapper(s)]")
 	}
 	if node.value != nil {
-		fmt.Fprintf(sb, " value=%v", node.value)
+		sb.WriteString(" value=")
+		sb.WriteString(node.value.String())
 	}
 	if node.multiple {
 		sb.WriteString(" [multiple]")
 	}
-	sb.WriteString("\n")
+	sb.WriteByte('\n')
 
 	if node.undefined != nil {
 		sb.WriteString(indent)
@@ -197,7 +204,9 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		})
 		for i := range scalars {
 			sb.WriteString(indent)
-			fmt.Fprintf(sb, "  %v:\n", scalars[i])
+			sb.WriteString("  ")
+			sb.WriteString(scalars[i].String())
+			sb.WriteString(":\n")
 			for j := range nodes {
 				if ValueEqual(scalars[i], scalars[j]) {
 					nodes[j].format(sb, depth+2)

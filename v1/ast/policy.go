@@ -1485,17 +1485,19 @@ func (d *SomeDecl) Hash() int {
 }
 
 func (q *Every) String() string {
+	b := bytes.NewBufferString("every ")
 	if q.Key != nil {
-		return fmt.Sprintf("every %s, %s in %s { %s }",
-			q.Key,
-			q.Value,
-			q.Domain,
-			q.Body)
+		util.WriteAppender(b, q.Key)
+		b.WriteString(", ")
 	}
-	return fmt.Sprintf("every %s in %s { %s }",
-		q.Value,
-		q.Domain,
-		q.Body)
+	util.WriteAppender(b, q.Value)
+	b.WriteString(" in ")
+	util.WriteAppender(b, q.Domain)
+	b.WriteString(" { ")
+	util.WriteAppender(b, q.Body)
+	b.WriteString(" }")
+
+	return b.String()
 }
 
 func (q *Every) Loc() *Location {

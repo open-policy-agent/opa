@@ -32,11 +32,8 @@ type SchemaLoader struct {
 
 // NewSchemaLoader creates a new NewSchemaLoader
 func NewSchemaLoader() *SchemaLoader {
-
 	ps := &SchemaLoader{
-		pool: &schemaPool{
-			schemaPoolDocuments: make(map[string]*schemaPoolDocument),
-		},
+		pool:       &schemaPool{schemaPoolDocuments: make(map[string]*schemaPoolDocument)},
 		AutoDetect: true,
 		Validate:   false,
 		Draft:      Hybrid,
@@ -46,15 +43,10 @@ func NewSchemaLoader() *SchemaLoader {
 	return ps
 }
 
-func (sl *SchemaLoader) validateMetaschema(documentNode any) error {
-
-	var (
-		schema string
-		err    error
-	)
+func (sl *SchemaLoader) validateMetaschema(documentNode any) (err error) {
+	var schema string
 	if sl.AutoDetect {
-		schema, _, err = parseSchemaURL(documentNode)
-		if err != nil {
+		if schema, _, err = parseSchemaURL(documentNode); err != nil {
 			return err
 		}
 	}
@@ -71,7 +63,6 @@ func (sl *SchemaLoader) validateMetaschema(documentNode any) error {
 	sl.Validate = false
 
 	metaSchema, err := sl.Compile(NewReferenceLoader(schema))
-
 	if err != nil {
 		return err
 	}
@@ -84,7 +75,7 @@ func (sl *SchemaLoader) validateMetaschema(documentNode any) error {
 		var res bytes.Buffer
 		for _, err := range result.Errors() {
 			res.WriteString(err.String())
-			res.WriteString("\n")
+			res.WriteByte('\n')
 		}
 		return errors.New(res.String())
 	}
@@ -99,7 +90,6 @@ func (sl *SchemaLoader) AddSchemas(loaders ...JSONLoader) error {
 
 	for _, loader := range loaders {
 		doc, err := loader.LoadJSON()
-
 		if err != nil {
 			return err
 		}
@@ -122,15 +112,12 @@ func (sl *SchemaLoader) AddSchemas(loaders ...JSONLoader) error {
 
 // AddSchema adds a schema under the provided URL to the schema cache
 func (sl *SchemaLoader) AddSchema(url string, loader JSONLoader) error {
-
 	ref, err := gojsonreference.NewJsonReference(url)
-
 	if err != nil {
 		return err
 	}
 
 	doc, err := loader.LoadJSON()
-
 	if err != nil {
 		return err
 	}
@@ -146,9 +133,7 @@ func (sl *SchemaLoader) AddSchema(url string, loader JSONLoader) error {
 
 // Compile loads and compiles a schema
 func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
-
 	ref, err := rootSchema.JSONReference()
-
 	if err != nil {
 		return nil, err
 	}
@@ -170,14 +155,12 @@ func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
 		doc = spd.Document
 	} else {
 		// Load JSON directly
-		doc, err = rootSchema.LoadJSON()
-		if err != nil {
+		if doc, err = rootSchema.LoadJSON(); err != nil {
 			return nil, err
 		}
 		// References need only be parsed if loading JSON directly
-		//  as pool.GetDocument already does this for us if loading by reference
-		err = sl.pool.parseReferences(doc, ref, true)
-		if err != nil {
+		// as pool.GetDocument already does this for us if loading by reference
+		if err = sl.pool.parseReferences(doc, ref, true); err != nil {
 			return nil, err
 		}
 	}
@@ -199,8 +182,7 @@ func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
 		}
 	}
 
-	err = d.parse(doc, draft)
-	if err != nil {
+	if err = d.parse(doc, draft); err != nil {
 		return nil, err
 	}
 

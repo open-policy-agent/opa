@@ -175,9 +175,9 @@ func (t *Template) Delims(left, right string) *Template {
 func (t *Template) Funcs(funcMap FuncMap) *Template {
 	t.init()
 	t.muFuncs.Lock()
-	defer t.muFuncs.Unlock()
 	addValueFuncs(t.execFuncs, funcMap)
-	addFuncs(t.parseFuncs, funcMap)
+	maps.Copy(t.parseFuncs, funcMap)
+	t.muFuncs.Unlock()
 	return t
 }
 

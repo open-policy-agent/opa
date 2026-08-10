@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !opa_wasm && !generate
-// +build !opa_wasm,!generate
 
 package capabilities
 

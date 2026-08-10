@@ -394,7 +394,7 @@ func verifyURLHost(bctx BuiltinContext, unverifiedURL string) error {
 		return err
 	}
 
-	host := strings.Split(parsedURL.Host, ":")[0]
+	host, _, _ := strings.Cut(parsedURL.Host, ":")
 
 	return verifyHost(bctx, host)
 }

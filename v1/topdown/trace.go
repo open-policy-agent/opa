@@ -845,7 +845,7 @@ func PrettyEvent(w io.Writer, e *Event, opts PrettyEventOpts) error {
 
 func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 	containsTabs := false
-	varRows := make(map[int]any)
+	varRows := make(map[int]any, len(exprVars))
 	for _, info := range exprVars {
 		if len(info.exprLoc.Tabs) > 0 {
 			containsTabs = true
@@ -891,10 +891,10 @@ func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 		return
 	}
 
-	w.WriteString("\n")
+	w.WriteByte('\n')
 	printArrows(w, byCol, -1)
 	for i := len(byCol) - 1; i >= 0; i-- {
-		w.WriteString("\n")
+		w.WriteByte('\n')
 		printArrows(w, byCol, i)
 	}
 }
@@ -909,7 +909,6 @@ func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
 	}
 	isFirst := true
 	for i, info := range slice {
-
 		isLast := i >= len(slice)-1
 		col := info.col
 
@@ -926,11 +925,11 @@ func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
 		for j := range spaces {
 			tab := false
 			if slices.Contains(info.exprLoc.Tabs, j+prevCol+1) {
-				w.WriteString("\t")
+				w.WriteByte('\t')
 				tab = true
 			}
 			if !tab {
-				w.WriteString(" ")
+				w.WriteByte(' ')
 			}
 		}
 
@@ -943,7 +942,7 @@ func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
 				w.WriteString(valueStr)
 			}
 		} else {
-			w.WriteString("|")
+			w.WriteByte('|')
 		}
 		prevCol = col
 		isFirst = false

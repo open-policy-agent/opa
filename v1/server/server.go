@@ -266,12 +266,16 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 
 	if len(errorList) > 0 {
-		errMsg := "error while shutting down: "
+		errMsg := new(strings.Builder)
+		errMsg.WriteString("error while shutting down: ")
 		for i, err := range errorList {
-			//nolint:perfsprint
-			errMsg += fmt.Sprintf("(%d) %s. ", i, err.Error())
+			errMsg.WriteByte('(')
+			util.WriteInt(errMsg, i)
+			errMsg.WriteString(") ")
+			errMsg.WriteString(err.Error())
+			errMsg.WriteString(". ")
 		}
-		return errors.New(errMsg)
+		return errors.New(errMsg.String())
 	}
 	return nil
 }
@@ -869,7 +873,7 @@ func (s *Server) initRouters(ctx context.Context) {
 	for _, router := range []*http.ServeMux{mainRouter, diagRouter} {
 		if s.metrics != nil {
 			s.metrics.RegisterEndpoints(func(path, method string, handler http.Handler) {
-				router.Handle(fmt.Sprintf("%s %s", method, path), handler)
+				router.Handle(method+" "+path, handler)
 			})
 		}
 

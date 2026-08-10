@@ -59,7 +59,7 @@ func structKeys(specs *[]ConfigSpec, pattern []string, t reflect.Type) []string 
 	for i := range t.NumField() {
 		field := t.Field(i)
 
-		name := strings.Split(field.Tag.Get("json"), ",")[0]
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name == "-" {
 			continue
 		}
