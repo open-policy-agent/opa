@@ -4,4 +4,4 @@
 extensions, email domains, or other trailing markers where `contains` would
 match in the wrong place.
 
-This example only allows uploads whose names end with `.json` or `.yaml`.
+This example denies filenames that do not end with `.json` or `.yaml`.
