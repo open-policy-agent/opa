@@ -349,31 +349,40 @@ func (term *Term) Copy() *Term {
 	}
 
 	cpy := *term
-
-	switch v := term.Value.(type) {
-	case Null, Boolean, Number, String, Var:
-		cpy.Value = v
-	case Ref:
-		cpy.Value = v.Copy()
-	case *Array:
-		cpy.Value = v.Copy()
-	case Set:
-		cpy.Value = v.Copy()
-	case *object:
-		cpy.Value = v.Copy()
-	case *ArrayComprehension:
-		cpy.Value = v.Copy()
-	case *ObjectComprehension:
-		cpy.Value = v.Copy()
-	case *SetComprehension:
-		cpy.Value = v.Copy()
-	case *TemplateString:
-		cpy.Value = v.Copy()
-	case Call:
-		cpy.Value = v.Copy()
-	}
+	cpy.Value = CopyValue(term.Value)
 
 	return &cpy
+}
+
+// CopyValue returns a deep copy of v. The Value interface doesn't require a
+// Copy method, so this dispatches on the known value types. Values of any other
+// type are returned as-is.
+func CopyValue(v Value) Value {
+	switch v := v.(type) {
+	case Null, Boolean, Number, String, Var:
+		// Scalars are immutable, no copy needed.
+		return v
+	case Ref:
+		return v.Copy()
+	case *Array:
+		return v.Copy()
+	case Set:
+		return v.Copy()
+	case *object:
+		return v.Copy()
+	case *ArrayComprehension:
+		return v.Copy()
+	case *ObjectComprehension:
+		return v.Copy()
+	case *SetComprehension:
+		return v.Copy()
+	case *TemplateString:
+		return v.Copy()
+	case Call:
+		return v.Copy()
+	}
+
+	return v
 }
 
 // Equal returns true if this term equals the other term. Equality is
