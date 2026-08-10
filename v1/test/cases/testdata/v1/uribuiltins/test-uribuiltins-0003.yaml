@@ -1,0 +1,100 @@
+---
+cases:
+  # --- host component: percent-escapes may only encode non-ASCII bytes -------
+  # RFC 3986 §3.2.2 / RFC 6874 §2: in the host, %-encoding is reserved for
+  # non-ASCII bytes, with %25 permitted for IPv6 zone identifiers. Decoding an
+  # ASCII escape here would silently normalise the host (exa%6dple.com ->
+  # example.com), so it must be rejected rather than decoded.
+  - note: uribuiltins/is_valid percent-encoded ascii in host
+    query: uri.is_valid("http://exa%6dple.com/", x)
+    want_result:
+      - x: false
+  - note: uribuiltins/parse percent-encoded ascii in host
+    query: uri.parse("http://exa%6dple.com/", x)
+    want_error_code: eval_builtin_error
+    want_error: 'uri.parse: parse "http://exa%6dple.com/": invalid URL escape "%6d"'
+    strict_error: true
+
+  # --- userinfo must be validated, not just discarded -----------------------
+  - note: uribuiltins/is_valid invalid userinfo
+    query: uri.is_valid("http://a<b@example.com/", x)
+    want_result:
+      - x: false
+  - note: uribuiltins/is_valid space in userinfo
+    query: uri.is_valid("http://user name@example.com/", x)
+    want_result:
+      - x: false
+  - note: uribuiltins/parse invalid userinfo
+    query: uri.parse("http://a<b@example.com/", x)
+    want_error_code: eval_builtin_error
+    want_error: 'uri.parse: parse "http://a<b@example.com/": net/url: invalid userinfo'
+    strict_error: true
+
+  # --- port must be ASCII digits only --------------------------------------
+  # Guards against implementations using a Unicode-aware digit predicate
+  # (e.g. Java's Character.isDigit, Python's str.isdigit), which accept
+  # non-ASCII decimal digits such as U+0663 ARABIC-INDIC DIGIT THREE.
+  - note: uribuiltins/is_valid non-ascii digits in port
+    query: uri.is_valid("http://example.com:٣٤/", x)
+    want_result:
+      - x: false
+  - note: uribuiltins/parse non-ascii digits in port
+    query: uri.parse("http://example.com:٣٤/", x)
+    want_error_code: eval_builtin_error
+    want_error: 'uri.parse: parse "http://example.com:٣٤/": invalid port ":٣٤" after host'
+    strict_error: true
+
+  # --- a bare "]" is legal in a reg-name host ------------------------------
+  # Only a leading "[" introduces an IP-literal; an unmatched closing bracket
+  # elsewhere in the host is not an error. Guards against over-rejection.
+  - note: uribuiltins/is_valid unmatched bracket in reg-name host
+    query: uri.is_valid("http://foo]bar/", x)
+    want_result:
+      - x: true
+  - note: uribuiltins/parse unmatched bracket in reg-name host
+    query: uri.parse("http://foo]bar/", x)
+    want_result:
+      - x:
+          scheme: http
+          hostname: "foo]bar"
+          path: "/"
+          raw_path: "/"
+
+  # --- raw_path reflects the default path encoding --------------------------
+  # raw_path is only the original input when the decoded path does not
+  # round-trip under the default path escaping. "!", "'", "(", ")" and "*" are
+  # escaped by that encoding, so %21/%27/%28/%29/%2A round-trip and raw_path
+  # collapses to the decoded path. Guards against implementations that assume
+  # "input contained a percent-escape" implies "raw_path == input".
+  - note: uribuiltins/parse escaped exclamation in path
+    query: uri.parse("https://example.com/a%21b", x)
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          path: "/a!b"
+          raw_path: "/a!b"
+  - note: uribuiltins/parse escaped apostrophe in path
+    query: uri.parse("https://example.com/a%27b", x)
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          path: "/a'b"
+          raw_path: "/a'b"
+  - note: uribuiltins/parse escaped asterisk in path
+    query: uri.parse("https://example.com/a%2Ab", x)
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          path: "/a*b"
+          raw_path: "/a*b"
+  - note: uribuiltins/parse escaped parentheses in path
+    query: uri.parse("https://example.com/a%28b%29", x)
+    want_result:
+      - x:
+          scheme: https
+          hostname: example.com
+          path: "/a(b)"
+          raw_path: "/a(b)"
