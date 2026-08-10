@@ -468,7 +468,7 @@ func NewCompiler() *Compiler {
 		{StageCheckSafetyRuleHeads, "compile_stage_check_safety_rule_heads", c.checkSafetyRuleHeads},
 		{StageCheckSafetyRuleBodies, "compile_stage_check_safety_rule_bodies", c.checkSafetyRuleBodies},
 		{StageRewriteEquals, "compile_stage_rewrite_equals", c.rewriteEquals},
-		{StageRewriteDynamicTerms, "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
+		{StageRewriteDynamicTerms, "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},                       // stages before CheckTypes must not rewrite hoisted terms, see recordSubjectNoCopy
 		{StageRewriteTestRulesForTracing, "compile_stage_rewrite_test_rules_for_tracing", c.rewriteTestRuleEqualities}, // must run after RewriteDynamicTerms
 		{StageCheckRecursion, "compile_stage_check_recursion", c.checkRecursion},
 		{StageCheckTypes, "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
@@ -3725,7 +3725,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{StageRewriteWithValues, "query_compile_stage_rewrite_with_values", qc.rewriteWithModifiers},
 		{StageCheckUndefinedFuncs, "query_compile_stage_check_undefined_funcs", qc.checkUndefinedFuncs},
 		{StageCheckSafety, "query_compile_stage_check_safety", qc.checkSafety},
-		{StageRewriteDynamicTerms, "query_compile_stage_rewrite_dynamic_terms", qc.rewriteDynamicTerms},
+		{StageRewriteDynamicTerms, "query_compile_stage_rewrite_dynamic_terms", qc.rewriteDynamicTerms}, // see recordSubjectNoCopy
 		{StageCheckTypes, "query_compile_stage_check_types", qc.checkTypes},
 		{StageCheckUnsafeBuiltins, "query_compile_stage_check_unsafe_builtins", qc.checkUnsafeBuiltins},
 		{StageCheckDeprecatedBuiltins, "query_compile_stage_check_deprecated_builtins", qc.checkDeprecatedBuiltins},
@@ -5516,13 +5516,31 @@ type localVarGenerator struct {
 	subjects map[Var]Value
 }
 
-// recordSubject records that local stands in for value. The value is copied so
-// later rewrites can't mutate the compiled AST.
+// recordSubject records that local stands in for value. The value is copied, as
+// stages running between the caller and CheckTypes may rewrite it in place: a
+// composite subject recorded in RewriteExprTerms, say [x, input.y][i], has its
+// dynamic elements hoisted by the later RewriteDynamicTerms stage, which would
+// otherwise turn the recorded value into [__local5__, __local6__].
 func (l *localVarGenerator) recordSubject(local Var, value *Term) {
+	l.putSubject(local, CopyValue(value.Value))
+}
+
+// recordSubjectNoCopy records that local stands in for value, aliasing value
+// rather than copying it. Only callers in the RewriteDynamicTerms stage may use
+// this: only RewriteTestRulesForTracing and CheckRecursion run between that
+// stage and CheckTypes, and neither rewrites hoisted terms, so nothing can
+// mutate value before the mapping is read. Copying here instead would allocate
+// on every hoisted ref of every compile, for a map only read when a type error
+// is rendered.
+func (l *localVarGenerator) recordSubjectNoCopy(local Var, value *Term) {
+	l.putSubject(local, value.Value)
+}
+
+func (l *localVarGenerator) putSubject(local Var, value Value) {
 	if l.subjects == nil {
 		l.subjects = map[Var]Value{}
 	}
-	l.subjects[local] = CopyValue(value.Value)
+	l.subjects[local] = value
 }
 
 func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Module) *localVarGenerator {
@@ -6146,7 +6164,7 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		generated.With = original.With
 		result.Append(generated)
 		connectGeneratedExprs(original, generated)
-		f.gen.recordSubject(generated.Operand(0).Value.(Var), term)
+		f.gen.recordSubjectNoCopy(generated.Operand(0).Value.(Var), term)
 		return result, result[len(result)-1].Operand(0)
 	case *Array:
 		for i := range v.Len() {
@@ -6176,21 +6194,21 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
 		result.Append(extra)
 		connectGeneratedExprs(original, extra)
-		f.gen.recordSubject(extra.Operand(0).Value.(Var), term)
+		f.gen.recordSubjectNoCopy(extra.Operand(0).Value.(Var), term)
 		return result, result[len(result)-1].Operand(0)
 	case *SetComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
 		result.Append(extra)
 		connectGeneratedExprs(original, extra)
-		f.gen.recordSubject(extra.Operand(0).Value.(Var), term)
+		f.gen.recordSubjectNoCopy(extra.Operand(0).Value.(Var), term)
 		return result, result[len(result)-1].Operand(0)
 	case *ObjectComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
 		result.Append(extra)
 		connectGeneratedExprs(original, extra)
-		f.gen.recordSubject(extra.Operand(0).Value.(Var), term)
+		f.gen.recordSubjectNoCopy(extra.Operand(0).Value.(Var), term)
 		return result, result[len(result)-1].Operand(0)
 	}
 	return result, term

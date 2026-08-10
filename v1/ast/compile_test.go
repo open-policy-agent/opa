@@ -11538,6 +11538,14 @@ func TestQueryCompiler(t *testing.T) {
 			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: [1, 2][input.x][j]"),
 		},
 		{
+			// A dynamic index term is rewritten before the local standing in for
+			// it is recorded, so a nested one must be rendered through both
+			// mappings rather than leaking the inner local.
+			note:     "nested dynamic index locals not leaked in type error",
+			q:        `[1, 2][input.a[input.b]][j]`,
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: [1, 2][input.a[input.b]][j]"),
+		},
+		{
 			note:     "imports resolved without package",
 			q:        "abc",
 			pkg:      "",

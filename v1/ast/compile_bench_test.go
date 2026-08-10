@@ -6,6 +6,10 @@ import (
 	"testing"
 )
 
+// Cost of recording generated locals for ref type errors, at 100 modules:
+// 9452905 ns/op   6487160 B/op   162824 allocs/op // not recorded
+// 9944902 ns/op   6751259 B/op   168040 allocs/op // every subject copied
+// 9578020 ns/op   6580108 B/op   163241 allocs/op // copied only where a later stage can rewrite it
 func BenchmarkCompileModules(b *testing.B) {
 	// The choice of module set is somewhat arbitrary. These rules are
 	// representative of the ones that exercise the term-rewriting stages:
