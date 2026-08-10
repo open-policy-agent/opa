@@ -941,18 +941,20 @@ var ArrayReverse = &Builtin{
 var conversions = category("conversions")
 
 var ToNumber = &Builtin{
-	Name:        "to_number",
-	Description: "Converts a string, bool, or number value to a number: Strings are converted to numbers using `strconv.Atoi`, Boolean `false` is converted to 0 and `true` is converted to 1.",
+	Name: "to_number",
+	Description: "Converts value of type string, null or boolean to number. Numeric strings converts to the " +
+		"corresponding number when possible. Null and boolean `false` converts to 0 and boolean `true` to 1. " +
+		"Numbers are returned without conversion.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.NewAny(
+			types.Named("value", types.NewAny(
 				types.N,
 				types.S,
 				types.B,
 				types.Nl,
 			)).Description("value to convert"),
 		),
-		types.Named("num", types.N).Description("the numeric representation of `x`"),
+		types.Named("num", types.N).Description("the numeric representation of `value`"),
 	),
 	Categories:  conversions,
 	CanSkipBctx: true,
@@ -1002,7 +1004,7 @@ var RegexFindAllStringSubmatch = &Builtin{
 
 var RegexTemplateMatch = &Builtin{
 	Name:        "regex.template_match",
-	Description: "Matches a string against a pattern, where there pattern may be glob-like",
+	Description: "Matches a string against a pattern, where the pattern may be glob-like",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("template", types.S).Description("template expression containing `0..n` regular expressions"),

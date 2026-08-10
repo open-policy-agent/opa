@@ -5,5 +5,5 @@
 // Package v1 implements the v1 API for the Open Policy Agent (OPA).
 // The v1 API defaults to enforcing the v1 Rego syntax ([github.com/open-policy-agent/opa/v1/ast.RegoV1]).
 // Most packages outside the v1 API are deprecated. These constitute the older v0 API, which defaults to the v0 Rego syntax ([github.com/open-policy-agent/opa/v1/ast.RegoV0]).
-// The v0 API is provided as a means to ease transition to OPA 1.0 for 3rd party integrations, see [TODO: LINK TO V0 MIGRATION GUIDE].
+// The v0 API is provided as a means to ease transition to OPA 1.0 for 3rd party integrations. For more information, see https://www.openpolicyagent.org/docs/v0-upgrade.
 package v1

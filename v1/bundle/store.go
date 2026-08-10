@@ -528,7 +528,7 @@ func activateBundles(opts *ActivateOpts) error {
 	}
 
 	// Compile the modules all at once to avoid having to re-do work.
-	remainingAndExtra := make(map[string]*ast.Module)
+	remainingAndExtra := make(map[string]*ast.Module, len(remaining)+len(opts.ExtraModules))
 	maps.Copy(remainingAndExtra, remaining)
 	maps.Copy(remainingAndExtra, opts.ExtraModules)
 
@@ -994,7 +994,7 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 		return compiler.Errors
 	}
 
-	if authorizationDecisionRef.Equal(ast.EmptyRef()) {
+	if authorizationDecisionRef.Equal(ast.InternedEmptyRefValue) {
 		return nil
 	}
 
