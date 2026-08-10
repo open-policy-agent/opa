@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/signal"
 	goRuntime "runtime"
@@ -125,9 +126,7 @@ func opaTest(args []string, testParams testCommandParams) int {
 		if err == nil && testParams.coverage {
 			modules = make(map[string]*ast.Module)
 			for name, b := range bundles {
-				for k, v := range b.ParsedModules(name) {
-					modules[k] = v
-				}
+				maps.Copy(modules, b.ParsedModules(name))
 			}
 		}
 	} else {

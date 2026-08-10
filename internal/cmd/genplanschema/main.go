@@ -42,7 +42,7 @@ func reflectSchema() ([]byte, error) {
 		return nil, err
 	}
 
-	rootRef, err := b.AddStruct(reflect.TypeOf(ir.Policy{}))
+	rootRef, err := b.AddStruct(reflect.TypeFor[ir.Policy]())
 	if err != nil {
 		return nil, err
 	}
@@ -74,13 +74,13 @@ func planResolver(b *genjsonschema.Builder, t reflect.Type) (any, bool, error) {
 	switch t.Kind() {
 	case reflect.Struct:
 		switch {
-		case t == reflect.TypeOf(ir.Operand{}):
+		case t == reflect.TypeFor[ir.Operand]():
 			ref, err := addOperand(b)
 			if err != nil {
 				return nil, false, err
 			}
 			return genjsonschema.Map("$ref", ref), true, nil
-		case t == reflect.TypeOf(ir.Block{}):
+		case t == reflect.TypeFor[ir.Block]():
 			ref, err := addBlock(b)
 			if err != nil {
 				return nil, false, err
@@ -96,13 +96,13 @@ func planResolver(b *genjsonschema.Builder, t reflect.Type) (any, bool, error) {
 		}
 	case reflect.Interface:
 		switch {
-		case t == reflect.TypeOf((*ir.Stmt)(nil)).Elem():
+		case t == reflect.TypeFor[ir.Stmt]():
 			ref, err := addStmtUnion(b)
 			if err != nil {
 				return nil, false, err
 			}
 			return genjsonschema.Map("$ref", ref), true, nil
-		case t == reflect.TypeOf((*ir.Val)(nil)).Elem():
+		case t == reflect.TypeFor[ir.Val]():
 			ref, err := addValUnion(b)
 			if err != nil {
 				return nil, false, err

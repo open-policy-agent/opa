@@ -135,20 +135,14 @@ func (d *builtinDispatcher) opaAbort(_ context.Context, addr int32) {
 }
 
 func (d *builtinDispatcher) opaPrintln(_ context.Context, addr int32) {
-	uaddr := uint32(addr)
-	size := d.mem.Size()
-	if uaddr >= size {
-		return
+	uaddr, size := uint32(addr), d.mem.Size()
+	if uaddr < size {
+		if data, ok := d.mem.Read(uaddr, size-uaddr); ok {
+			if before, _, ok := bytes.Cut(data, []byte{0}); ok {
+				os.Stderr.Write(append(before, '\n'))
+			}
+		}
 	}
-	data, ok := d.mem.Read(uaddr, size-uaddr)
-	if !ok {
-		return
-	}
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		return
-	}
-	fmt.Fprintln(os.Stderr, string(data[:n]))
 }
 
 func (d *builtinDispatcher) opaBuiltin0(ctx context.Context, id, _ int32) int32 {
@@ -229,11 +223,11 @@ func (d *builtinDispatcher) fromWasmValue(ctx context.Context, addr int32) (*ast
 	if !ok {
 		return nil, errors.New("invalid serialized value address")
 	}
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
+	before, _, ok := bytes.Cut(data, []byte{0})
+	if !ok {
 		return nil, errors.New("unterminated serialized value")
 	}
-	return ast.ParseTerm(string(data[:n]))
+	return ast.ParseTerm(string(before))
 }
 
 // toWasmValue serialises term, writes the bytes into Wasm memory via

@@ -2,6 +2,7 @@ package ast
 
 import (
 	"context"
+	"slices"
 	"sync/atomic"
 	"testing"
 )
@@ -81,10 +82,8 @@ type fakeEvalResolver struct {
 }
 
 func (r fakeEvalResolver) Resolve(ref Ref) (Value, error) {
-	for _, u := range r.unknowns {
-		if ref.HasPrefix(u) {
-			return nil, UnknownValueErr{}
-		}
+	if slices.ContainsFunc(r.unknowns, ref.HasPrefix) {
+		return nil, UnknownValueErr{}
 	}
 	if ref.HasPrefix(InputRootRef) {
 		if r.input == nil {

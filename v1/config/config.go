@@ -230,7 +230,7 @@ func unmarshalConfig(raw []byte) (*Config, error) {
 func knownConfigFields(objValue reflect.Value) map[string]reflect.Value {
 	knownFields := map[string]reflect.Value{}
 	for i := 0; i != objValue.NumField(); i++ {
-		jsonName := strings.Split(objValue.Type().Field(i).Tag.Get("json"), ",")[0]
+		jsonName, _, _ := strings.Cut(objValue.Type().Field(i).Tag.Get("json"), ",")
 		if jsonName == "" || jsonName == "-" {
 			continue
 		}

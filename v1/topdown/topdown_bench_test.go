@@ -175,43 +175,39 @@ func BenchmarkConcurrency8Writers(b *testing.B) {
 }
 
 func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
-
 	mod, data := test.GenerateConcurrencyBenchmarkData()
 	ctx := b.Context()
 	store := inmem.NewFromObject(data)
-	mods := map[string]*ast.Module{"module": ast.MustParseModule(mod)}
-	compiler := ast.NewCompiler()
+	body := ast.MustParseBody("data.test.p = x")
+	wg := &sync.WaitGroup{}
 
-	if compiler.Compile(mods); compiler.Failed() {
-		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
+	compiler, err := ast.CompileModules(map[string]string{"module": mod})
+	if err != nil {
+		b.Fatalf("Unexpected compiler error: %v", err)
 	}
 
 	for b.Loop() {
-		wg := new(sync.WaitGroup)
-		queriesPerCore := 1000 / len(params)
-		for j := range params {
-			param := params[j] // capture j'th params before goroutine
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for range queriesPerCore {
-					txn := storage.NewTransactionOrDie(ctx, store, param)
-					query := NewQuery(ast.MustParseBody("data.test.p = x")).
+		for _, param := range params {
+			wg.Go(func() {
+				for range 1000 / len(params) {
+					txn, err := store.NewTransaction(ctx, param)
+					if err != nil {
+						b.Fatalf("Unexpected transaction error: %v", err)
+					}
+					rs, err := NewQuery(body).
 						WithCompiler(compiler).
 						WithStore(store).
-						WithTransaction(txn)
-					rs, err := query.Run(ctx)
+						WithTransaction(txn).
+						Run(ctx)
 					if err != nil {
-						b.Errorf("Unexpected topdown query error: %v", err)
-						return
+						b.Fatalf("Unexpected topdown query error: %v", err)
 					}
 					if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
-						b.Errorf("Unexpected undefined/extra/bad result: %v", rs)
-						return
+						b.Fatalf("Unexpected undefined/extra/bad result: %v", rs)
 					}
 					store.Abort(ctx, txn)
 				}
-			}()
+			})
 		}
 
 		wg.Wait()
@@ -548,14 +544,16 @@ func BenchmarkWalk(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			err = storage.Txn(b.Context(), store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+			ctx := b.Context()
+
+			err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 				q := NewQuery(compiledQuery).
 					WithStore(store).
 					WithCompiler(compiler).
 					WithTransaction(txn)
 
 				for b.Loop() {
-					rs, err := q.Run(b.Context())
+					rs, err := q.Run(ctx)
 					if err != nil || len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.IntNumberTerm(n-1)) {
 						b.Fatal("Unexpected result:", rs, "err:", err)
 					}

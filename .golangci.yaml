@@ -21,6 +21,10 @@ linters:
     - usetesting
     # - gosec # too many false positives
   settings:
+    errcheck:
+      exclude-functions:
+        - github.com/open-policy-agent/opa/v1/util.WriteAppender
+        - github.com/open-policy-agent/opa/v1/util.WriteInt
     gocritic:
       enabled-checks:
         # NOTE that these are rules enabled in addition to the default set

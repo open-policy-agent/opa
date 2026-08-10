@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Dump returns a string representation of the tree structure rooted at this node.
@@ -24,9 +26,10 @@ func (n *TreeNode) dumpRecursive(sb *strings.Builder, prefix, childPrefix string
 		fmt.Fprintf(sb, " ext:%v", n.External.Ref)
 	}
 	if len(n.Values) > 0 {
-		fmt.Fprintf(sb, " rules:%d", len(n.Values))
+		sb.WriteString(" rules:")
+		util.WriteInt(sb, len(n.Values))
 	}
-	sb.WriteString("\n")
+	sb.WriteByte('\n')
 
 	if len(n.Children) == 0 {
 		return

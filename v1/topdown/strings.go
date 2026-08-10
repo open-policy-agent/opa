@@ -583,20 +583,13 @@ func builtinSplitN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 			limit = -1
 		}
 		parts := strings.SplitN(text, delim, limit)
-		end := n
-		if end > len(parts) {
-			end = len(parts)
-		}
-		result = make([]*ast.Term, end)
+		result = make([]*ast.Term, min(n, len(parts)))
 		for i := range result {
 			result[i] = ast.InternedTerm(parts[i])
 		}
 	} else {
 		parts := strings.Split(text, delim)
-		start := len(parts) + n
-		if start < 0 {
-			start = 0
-		}
+		start := max(len(parts)+n, 0)
 		result = make([]*ast.Term, len(parts)-start)
 		for i, p := range parts[start:] {
 			result[i] = ast.InternedTerm(p)

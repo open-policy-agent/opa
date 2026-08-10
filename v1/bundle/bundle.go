@@ -1815,10 +1815,8 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 			base := filepath.Base(f.Path())
 
 			if base == patchFile {
-
-				var b bytes.Buffer
-				tee := io.TeeReader(f.reader, &b)
-				f.reader = tee
+				b := new(bytes.Buffer)
+				f.reader = io.TeeReader(f.reader, b)
 
 				buf, err := readFile(f, sizeLimitBytes)
 				if err != nil {
@@ -1829,7 +1827,7 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 					return bundle, nil, fmt.Errorf("bundle load failed on patch decode: %w", err)
 				}
 
-				f.reader = &b
+				f.reader = b
 			}
 		}
 	}

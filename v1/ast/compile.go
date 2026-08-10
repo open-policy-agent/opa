@@ -4278,13 +4278,13 @@ func (n *ModuleTreeNode) DepthFirst(f func(*ModuleTreeNode) bool) {
 // TreeNode represents a node in the rule tree. The rule tree is keyed by
 // rule path.
 type TreeNode struct {
+	Values   []*Rule
+	Sorted   []Value
 	Key      Value
 	External *ExternalIndex
-	Values   []*Rule
-	Children map[Value]*TreeNode
-	Sorted   []Value
-	Hide     bool
 	Index    RuleIndex
+	Children map[Value]*TreeNode
+	Hide     bool
 }
 
 func (n *TreeNode) String() string {

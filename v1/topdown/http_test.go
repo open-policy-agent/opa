@@ -806,7 +806,7 @@ func TestHTTPRedirectAllowNet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	serverHost := strings.Split(serverURL.Host, ":")[0]
+	serverHost, _, _ := strings.Cut(serverURL.Host, ":")
 
 	// expected result
 	expectedResult := make(map[string]any)
@@ -3712,7 +3712,7 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	serverHost := strings.Split(serverURL.Host, ":")[0]
+	serverHost, _, _ := strings.Cut(serverURL.Host, ":")
 
 	// expected result
 	expectedResult := make(map[string]any)
@@ -3820,7 +3820,7 @@ func TestHTTPWithCustomTransport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	serverHost := strings.Split(serverURL.Host, ":")[0]
+	serverHost, _, _ := strings.Cut(serverURL.Host, ":")
 
 	// expected result
 	expectedResult := make(map[string]any)

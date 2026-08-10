@@ -28,48 +28,37 @@ func getHost(r *http.Request) string {
 // If Host is an IPv6 literal with a port number, Hostname returns the
 // IPv6 literal without the square brackets. IPv6 literals may include
 // a zone identifier.
-//
-// Copied from the Go 1.8 standard library (net/url)
 func stripPort(hostport string) string {
-	colon := strings.IndexByte(hostport, ':')
-	if colon == -1 {
+	before, _, ok := strings.Cut(hostport, ":")
+	if !ok {
 		return hostport
 	}
-	if i := strings.IndexByte(hostport, ']'); i != -1 {
-		return strings.TrimPrefix(hostport[:i], "[")
+	if before, _, ok := strings.Cut(hostport, "]"); ok {
+		return strings.TrimPrefix(before, "[")
 	}
-	return hostport[:colon]
+	return before
 }
 
 // Port returns the port part of u.Host, without the leading colon.
 // If u.Host doesn't contain a port, Port returns an empty string.
-//
-// Copied from the Go 1.8 standard library (net/url)
 func portOnly(hostport string) string {
-	colon := strings.IndexByte(hostport, ':')
-	if colon == -1 {
+	_, after, ok := strings.Cut(hostport, ":")
+	if !ok {
 		return ""
 	}
-	if i := strings.Index(hostport, "]:"); i != -1 {
-		return hostport[i+len("]:"):]
+	if _, after, ok := strings.Cut(hostport, "]:"); ok {
+		return after
 	}
 	if strings.Contains(hostport, "]") {
 		return ""
 	}
-	return hostport[colon+len(":"):]
+	return after
 }
 
 // Returns true if the specified URI is using the standard port
 // (i.e. port 80 for HTTP URIs or 443 for HTTPS URIs)
 func isDefaultPort(scheme, port string) bool {
-	if port == "" {
-		return true
-	}
-
-	lowerCaseScheme := strings.ToLower(scheme)
-	if (lowerCaseScheme == "http" && port == "80") || (lowerCaseScheme == "https" && port == "443") {
-		return true
-	}
-
-	return false
+	return port == "" ||
+		(strings.EqualFold(scheme, "http") && port == "80") ||
+		(strings.EqualFold(scheme, "https") && port == "443")
 }

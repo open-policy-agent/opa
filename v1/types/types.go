@@ -345,7 +345,7 @@ func (p *DynamicProperty) MarshalJSON() ([]byte, error) {
 }
 
 func (p *DynamicProperty) String() string {
-	return fmt.Sprintf("%s: %s", Sprint(p.Key), Sprint(p.Value))
+	return Sprint(p.Key) + ": " + Sprint(p.Value)
 }
 
 // Object represents the object type.

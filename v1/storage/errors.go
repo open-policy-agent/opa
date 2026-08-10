@@ -4,10 +4,6 @@
 
 package storage
 
-import (
-	"fmt"
-)
-
 const (
 	// InternalErr indicates an unknown, internal error has occurred.
 	InternalErr = "storage_internal_error"
@@ -49,7 +45,7 @@ type Error struct {
 
 func (err *Error) Error() string {
 	if err.Message != "" {
-		return fmt.Sprintf("%v: %v", err.Code, err.Message)
+		return err.Code + ": " + err.Message
 	}
 	return err.Code
 }

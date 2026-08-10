@@ -89,9 +89,9 @@ func TestParseConfigNonStringDecisionErrors(t *testing.T) {
 // updating validate.rego (or vice versa), this test fails.
 func TestCoreValidationRootSpecMatchesConfigStruct(t *testing.T) {
 	structKeys := map[string]struct{}{}
-	objType := reflect.TypeOf(Config{})
+	objType := reflect.TypeFor[Config]()
 	for i := range objType.NumField() {
-		name := strings.Split(objType.Field(i).Tag.Get("json"), ",")[0]
+		name, _, _ := strings.Cut(objType.Field(i).Tag.Get("json"), ",")
 		if name == "" || name == "-" {
 			continue
 		}

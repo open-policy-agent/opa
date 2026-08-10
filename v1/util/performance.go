@@ -1,11 +1,26 @@
 package util
 
 import (
+	"bytes"
+	"encoding"
+	"io"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"unsafe"
+)
+
+type (
+	Signed interface {
+		~int | ~int8 | ~int16 | ~int32 | ~int64
+	}
+	Unsigned interface {
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+	}
+	Integer interface {
+		Signed | Unsigned
+	}
 )
 
 // SyncPool is a generic sync.Pool for type T, providing some convenience
@@ -147,8 +162,30 @@ func NumDigitsUint(n uint64) int {
 }
 
 // AppendInt is a less messy version of strconv.AppendInt for base 10 ints.
-func AppendInt(buf []byte, n int) []byte {
+func AppendInt[T Integer](buf []byte, n T) []byte {
 	return strconv.AppendInt(buf, int64(n), 10)
+}
+
+// WriteInt writes the string form of n to out.
+func WriteInt[T Integer](out io.Writer, n T) (int, error) {
+	var buf []byte
+	if b, ok := out.(*bytes.Buffer); ok {
+		buf = b.AvailableBuffer()
+	}
+	return out.Write(AppendInt(buf, n))
+}
+
+// WriteAppender writes the appended text of appender to out.
+func WriteAppender[T encoding.TextAppender](out io.Writer, appender T) (int, error) {
+	var buf []byte
+	if b, ok := out.(*bytes.Buffer); ok {
+		buf = b.AvailableBuffer()
+	}
+	b, err := appender.AppendText(buf)
+	if err != nil {
+		return 0, err
+	}
+	return out.Write(b)
 }
 
 // Atoi is a convenience function for [Atoi64] where an int is preferable to an int64.

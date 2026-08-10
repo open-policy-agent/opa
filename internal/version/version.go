@@ -7,7 +7,6 @@ package version
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 
 	"github.com/open-policy-agent/opa/v1/storage"
@@ -19,7 +18,6 @@ var versionPath = storage.MustParsePath("/system/version")
 // Write the build version information into storage. This makes the
 // version information available to the REPL and the HTTP server.
 func Write(ctx context.Context, store storage.Store, txn storage.Transaction) error {
-
 	if err := storage.MakeDir(ctx, store, txn, versionPath); err != nil {
 		return err
 	}
@@ -33,4 +31,4 @@ func Write(ctx context.Context, store storage.Store, txn storage.Transaction) er
 }
 
 // UserAgent defines the current OPA instances User-Agent default header value.
-var UserAgent = fmt.Sprintf("Open-Policy-Agent/%s (%s, %s)", version.Version, runtime.GOOS, runtime.GOARCH)
+var UserAgent = "Open-Policy-Agent/" + version.Version + " (" + runtime.GOOS + ", " + runtime.GOARCH + ")"

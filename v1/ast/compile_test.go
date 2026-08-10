@@ -9145,8 +9145,8 @@ p := $"{walk(["a", "b"])}"`,
 				t.Fatal("expected error, got none")
 			}
 			if c.Errors[0].Message != tc.exp {
-				if strings.HasPrefix(tc.exp, "contains:") {
-					if exp := strings.TrimPrefix(tc.exp, "contains:"); !strings.Contains(c.Errors[0].Message, exp) {
+				if after, ok := strings.CutPrefix(tc.exp, "contains:"); ok {
+					if exp := after; !strings.Contains(c.Errors[0].Message, exp) {
 						t.Fatalf("expected error containing:\n\n%s\n\ngot:\n\n%s", tc.exp, c.Errors[0].Message)
 					}
 				} else {

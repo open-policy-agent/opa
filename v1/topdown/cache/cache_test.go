@@ -626,14 +626,12 @@ func TestConcurrentInsert(t *testing.T) {
 	wg := sync.WaitGroup{}
 
 	for range 5 {
-		wg.Add(1)
 
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			cacheValue2 := newInterQueryCacheValue(ast.String("bar2"), 5)
 			cache.Insert(ast.String("foo2"), cacheValue2)
-		}()
+		})
 	}
 	wg.Wait()
 

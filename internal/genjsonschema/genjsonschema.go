@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -327,10 +328,8 @@ func MakeNullable(schema any) any {
 				out[i] = Entry{"type", []string{v, "null"}}
 				return out
 			case []string:
-				for _, s := range v {
-					if s == "null" {
-						return m
-					}
+				if slices.Contains(v, "null") {
+					return m
 				}
 				out := cloneOrderedMap(m)
 				widened := make([]string, len(v)+1)
