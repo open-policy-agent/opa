@@ -5522,7 +5522,7 @@ func (l *localVarGenerator) recordSubject(local Var, value *Term) {
 	if l.subjects == nil {
 		l.subjects = map[Var]Value{}
 	}
-	l.subjects[local] = value.Copy().Value
+	l.subjects[local] = CopyValue(value.Value)
 }
 
 func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Module) *localVarGenerator {
@@ -7445,7 +7445,7 @@ func rewriteRefErrVars(subjects map[Var]Value, vars ...map[Var]Var) varRewriter 
 	return func(node Ref) Ref {
 		i, _ := TransformVars(node.Copy(), func(v Var) (Value, error) {
 			if val, ok := subjects[v]; ok {
-				return NewTerm(val).Copy().Value, nil
+				return CopyValue(val), nil
 			}
 			for _, m := range vars {
 				if u, ok := m[v]; ok {
