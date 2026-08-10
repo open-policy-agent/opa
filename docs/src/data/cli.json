@@ -1547,6 +1547,13 @@
         "type": "{none,duration}"
       },
       {
+        "default": "false",
+        "description": "treat the first built-in function error encountered in a test as fatal, reporting it as ERROR instead of FAIL",
+        "name": "--strict-builtin-errors",
+        "shorthand": "",
+        "type": "bool"
+      },
+      {
         "default": "rego",
         "description": "set the runtime to exercise",
         "name": "--target",
