@@ -34,3 +34,28 @@ cases:
           float_add: "4"
           mixed_add: "3.5"
           float_mul: "5"
+  - note: "arithmetic/bignum modulo (divisor a nonzero multiple of 2^64)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := result if {
+        	result := {
+        		"pow64": sprintf("%v", [10 % 18446744073709551616]),
+        		"pow64_multiple": sprintf("%v", [5 % 55340232221128654848]),
+        		"pow128": sprintf("%v", [7 % 340282366920938463463374607431768211456]),
+        		"neg_pow64": sprintf("%v", [100 % -18446744073709551616]),
+        		"big_dividend": sprintf("%v", [18446744073709551617 % 18446744073709551616]),
+        		"nonzero_control": sprintf("%v", [10 % 18446744073709551617]),
+        	}
+        }
+    data: {}
+    want_result:
+      - x:
+          pow64: "10"
+          pow64_multiple: "5"
+          pow128: "7"
+          neg_pow64: "100"
+          big_dividend: "1"
+          nonzero_control: "10"
