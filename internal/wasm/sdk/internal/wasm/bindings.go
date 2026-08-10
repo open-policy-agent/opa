@@ -139,7 +139,13 @@ func (d *builtinDispatcher) opaPrintln(_ context.Context, addr int32) {
 	if uaddr < size {
 		if data, ok := d.mem.Read(uaddr, size-uaddr); ok {
 			if before, _, ok := bytes.Cut(data, []byte{0}); ok {
-				os.Stderr.Write(append(before, '\n'))
+				// before is a sub-slice of data, whose capacity extends past
+				// the NUL byte to the end of the region mem.Read returned,
+				// not just to len(before). append(before, '\n') would write
+				// in place into that capacity, i.e. into the wasm module's
+				// own linear memory, so write the newline separately instead.
+				os.Stderr.Write(before)
+				os.Stderr.WriteString("\n")
 			}
 		}
 	}
