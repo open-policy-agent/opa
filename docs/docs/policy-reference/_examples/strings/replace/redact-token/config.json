@@ -1,6 +1,6 @@
 {
   "showInput": true,
-  "showData": true,
+  "showData": false,
   "showTitles": false,
   "titleSize": 4
 }

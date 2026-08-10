@@ -1,0 +1,4 @@
+{
+  "message": "failed to authenticate with token abc123xyz",
+  "token": "abc123xyz"
+}

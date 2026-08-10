@@ -78,6 +78,7 @@ path, hostname, or other structured string needs to be broken into parts.
 formatting when values may arrive in mixed case.
 
 <PlaygroundExample dir={require.context('../_examples/strings/lower/normalize-role')} />
+
 ### `endswith`
 
 `endswith` reports whether a string ends with a given suffix. Use this function when the match must be at the end of the value (file extensions, email domains, path suffixes etc.).
@@ -87,7 +88,8 @@ formatting when values may arrive in mixed case.
 ### `replace`
 
 `replace` returns a string with every occurrence of a substring swapped for
-another. Policies often use it to redact secrets from user-facing messages.
+another. A common policy use is redacting secrets or other sensitive values
+before a message is returned to a caller.
 
 <PlaygroundExample dir={require.context('../_examples/strings/replace/redact-token')} />
 
