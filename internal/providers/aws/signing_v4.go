@@ -151,23 +151,31 @@ func SignV4(headers map[string][]string, method string, theURL *url.URL, body []
 
 	// the "canonical request" is the normalized version of the AWS service access
 	// that we're attempting to perform
-	canonicalReq := method + "\n"               // HTTP method
-	canonicalReq += theURL.EscapedPath() + "\n" // URI-escaped path
-	canonicalReq += theURL.RawQuery + "\n"      // RAW Query String
+	buf := bytes.NewBufferString(method)
+	buf.WriteByte('\n')
+	buf.WriteString(theURL.EscapedPath())
+	buf.WriteByte('\n')
+	buf.WriteString(theURL.RawQuery)
+	buf.WriteByte('\n')
 
 	// include the values for the signed headers
 	orderedKeys := util.KeysSorted(headersToSign)
 	for _, k := range orderedKeys {
-		// TODO: fix later
-		//nolint:perfsprint
-		canonicalReq += k + ":" + strings.Join(headersToSign[k], ",") + "\n"
+		buf.WriteString(k)
+		buf.WriteByte(':')
+		buf.WriteString(strings.Join(headersToSign[k], ","))
+		buf.WriteByte('\n')
 	}
-	canonicalReq += "\n" // linefeed to terminate headers
+
+	buf.WriteByte('\n') // linefeed to terminate headers
 
 	// include the list of the signed headers
 	headerList := strings.Join(orderedKeys, ";")
-	canonicalReq += headerList + "\n"
-	canonicalReq += contentSha256
+	buf.WriteString(headerList)
+	buf.WriteByte('\n')
+	buf.WriteString(contentSha256)
+
+	canonicalReq := buf.String()
 
 	// the "string to sign" is a time-bounded, scoped request token which
 	// is linked to the "canonical request" by inclusion of its SHA-256 hash

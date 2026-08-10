@@ -67,6 +67,7 @@ func PartialObjectBenchmarkCrossModule(n int) []string {
 			bazMod += fmt.Sprintf(`rule_%d if {
 				%s
 			}`, idx, ruleBuilder)
+			//nolint:modernize
 			fooMod += fmt.Sprintf(`
 			final_decision = "allow" if {
 				baz.rule_%d

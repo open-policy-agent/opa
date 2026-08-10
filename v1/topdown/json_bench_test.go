@@ -339,13 +339,11 @@ func BenchmarkJSONPatchPathologicalNestedAddChainObject(b *testing.B) {
 	for _, n := range []int{10, 100, 500, 1000, 5000, 10000} {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			patchList := make([]*ast.Term, n)
-			path := ""
 			for i := range n {
-				path += "/a"
 				patchList[i] = ast.NewTerm(ast.NewObject(
 					[2]*ast.Term{ast.InternedTerm("op"), ast.InternedTerm("add")},
 					[2]*ast.Term{ast.InternedTerm("value"), ast.ObjectTerm()},
-					[2]*ast.Term{ast.InternedTerm("path"), ast.InternedTerm(path)},
+					[2]*ast.Term{ast.InternedTerm("path"), ast.InternedTerm(strings.Repeat("/a", i+1))},
 				))
 			}
 			runJSONPatchBenchmarkTest(b, ast.NewObject(), ast.NewArray(patchList...))
@@ -357,13 +355,11 @@ func BenchmarkJSONPatchPathologicalNestedAddChainArray(b *testing.B) {
 	for _, n := range []int{10, 100, 500, 1000, 5000, 10000} {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			patchList := make([]*ast.Term, n)
-			path := ""
 			for i := range n {
-				path += "/0"
 				patchList[i] = ast.NewTerm(ast.NewObject(
 					[2]*ast.Term{ast.InternedTerm("op"), ast.InternedTerm("add")},
 					[2]*ast.Term{ast.InternedTerm("value"), ast.ArrayTerm()},
-					[2]*ast.Term{ast.InternedTerm("path"), ast.StringTerm(path)},
+					[2]*ast.Term{ast.InternedTerm("path"), ast.StringTerm(strings.Repeat("/0", i+1))},
 				))
 			}
 			runJSONPatchBenchmarkTest(b, ast.NewArray(), ast.NewArray(patchList...))

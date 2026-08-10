@@ -7371,7 +7371,7 @@ func TestPluginManualTriggerWithServerError(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("expected type of error to be %s but got %s", reflect.TypeOf(bundleErrors), reflect.TypeOf(err))
+		t.Fatalf("expected type of error to be %s but got %s", reflect.TypeFor[Errors](), reflect.TypeOf(err))
 	}
 }
 

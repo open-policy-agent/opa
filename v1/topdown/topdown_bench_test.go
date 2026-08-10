@@ -192,7 +192,8 @@ func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 				for range 1000 / len(params) {
 					txn, err := store.NewTransaction(ctx, param)
 					if err != nil {
-						b.Fatalf("Unexpected transaction error: %v", err)
+						b.Errorf("Unexpected transaction error: %v", err)
+						return
 					}
 					rs, err := NewQuery(body).
 						WithCompiler(compiler).
@@ -200,10 +201,9 @@ func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 						WithTransaction(txn).
 						Run(ctx)
 					if err != nil {
-						b.Fatalf("Unexpected topdown query error: %v", err)
-					}
-					if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
-						b.Fatalf("Unexpected undefined/extra/bad result: %v", rs)
+						b.Errorf("Unexpected topdown query error: %v", err)
+					} else if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
+						b.Errorf("Unexpected undefined/extra/bad result: %v", rs)
 					}
 					store.Abort(ctx, txn)
 				}
