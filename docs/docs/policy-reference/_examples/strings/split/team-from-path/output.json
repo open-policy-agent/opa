@@ -1,0 +1,10 @@
+{
+  "allow": true,
+  "parts": [
+    "",
+    "teams",
+    "payments",
+    "deploy"
+  ],
+  "team": "payments"
+}

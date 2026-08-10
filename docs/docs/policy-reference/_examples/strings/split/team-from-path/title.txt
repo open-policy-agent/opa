@@ -1,0 +1,1 @@
+Pull a path segment with split
