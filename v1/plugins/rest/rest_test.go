@@ -1849,15 +1849,14 @@ func TestS3SigningMultiCredentialProvider(t *testing.T) {
 		t.Fatalf("Client config S3 signing credentials setup unexpected")
 	}
 
-	awsCredentialServiceChain, ok := awsPlugin.awsCredentialService().(*awsCredentialServiceChain)
+	chain, ok := awsPlugin.awsCredentialService().(*awsCredentialServiceChain)
 	if !ok {
-		t.Fatalf("Unexpected AWS credential service:%v is not a chain",
-			reflect.TypeOf(awsCredentialServiceChain))
+		t.Fatalf("Unexpected AWS credential service: %T is not a chain", chain)
 	}
 
-	if len(awsCredentialServiceChain.awsCredentialServices) != credentialProviderCount {
+	if len(chain.awsCredentialServices) != credentialProviderCount {
 		t.Fatalf("Credential provider count mismatch %d != %d", credentialProviderCount,
-			len(awsCredentialServiceChain.awsCredentialServices))
+			len(chain.awsCredentialServices))
 	}
 
 	expectedOrder := []awsCredentialService{
@@ -1867,8 +1866,7 @@ func TestS3SigningMultiCredentialProvider(t *testing.T) {
 		&awsMetadataCredentialService{},
 	}
 
-	if !reflect.DeepEqual(awsCredentialServiceChain.awsCredentialServices,
-		expectedOrder) {
+	if !reflect.DeepEqual(chain.awsCredentialServices, expectedOrder) {
 		t.Fatalf("Ordering is unexpected")
 	}
 }

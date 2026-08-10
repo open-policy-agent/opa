@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -218,12 +219,18 @@ func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
 }
 
 func generateModule(numRules int) string {
-	mod := "package bench\n"
+	mod := bytes.NewBufferString("package bench\n")
 	for i := range numRules {
-		//nolint:perfsprint
-		mod += fmt.Sprintf("p%d if { input.x%d = %d }\n", i, i, i)
+		is := strconv.Itoa(i)
+		mod.WriteByte('p')
+		mod.WriteString(is)
+		mod.WriteString(" if { input.x")
+		mod.WriteString(is)
+		mod.WriteString(" = ")
+		mod.WriteString(is)
+		mod.WriteString(" }\n")
 	}
-	return mod
+	return mod.String()
 }
 
 func generateArrayStatement(size int) string {

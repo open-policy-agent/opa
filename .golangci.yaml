@@ -12,6 +12,7 @@ linters:
     - intrange
     - mirror
     - misspell
+    - modernize
     - perfsprint
     - prealloc
     - revive # replacement for golint
@@ -60,6 +61,11 @@ linters:
         - nilness
     lll:
       line-length: 200
+    modernize:
+      disable:
+        # this should be enabled only outside of hot paths, as it's likely
+        # less performant (and there have been reports of that)
+        - slicesbackward
     perfsprint:
       # only rule disabled by default, but it's a good one
       err-error: true
