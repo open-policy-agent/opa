@@ -346,10 +346,11 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
 
 	rule := &Rule{
-		Location: rhs.Location,
-		Head:     head,
-		Body:     body,
-		Module:   module,
+		Location:      rhs.Location,
+		Head:          head,
+		Body:          body,
+		Module:        module,
+		generatedBody: true,
 	}
 
 	return rule, nil

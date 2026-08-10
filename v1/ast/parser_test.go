@@ -5773,6 +5773,36 @@ data = {"bar": 2}`
 	}
 }
 
+func TestRuleFromExprGeneratedBody(t *testing.T) {
+	// Rules parsed from a single expression have a generated body, so no `if`
+	// keyword is required of them under rego-v1. This is what allows rules to
+	// be defined interactively in the REPL.
+	tests := []string{
+		`x := 1`,
+		`x = 1`,
+		`a[0] := 1`,
+		`a["foo"] = "bar"`,
+		`p.q.r := 1`,
+	}
+
+	mod := MustParseModule("package test")
+
+	for _, tc := range tests {
+		t.Run(tc, func(t *testing.T) {
+			rule, err := ParseRuleFromExpr(mod, MustParseBody(tc)[0])
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if !rule.generatedBody {
+				t.Fatal("Expected rule to have generated body")
+			}
+			if errs := CheckRegoV1(rule); len(errs) > 0 {
+				t.Fatalf("Unexpected errors: %v", errs)
+			}
+		})
+	}
+}
+
 func TestWildcards(t *testing.T) {
 
 	assertParseOneTerm(t, "ref", "a.b[_].c[_]", RefTerm(
