@@ -78,3 +78,17 @@ path, hostname, or other structured string needs to be broken into parts.
 formatting when values may arrive in mixed case.
 
 <PlaygroundExample dir={require.context('../_examples/strings/lower/normalize-role')} />
+
+### `endswith`
+
+`endswith` reports whether a string ends with a given suffix. Use this function to valid matches at the ends of string values (file extensions, email domains, path suffixes etc.).
+
+<PlaygroundExample dir={require.context('../_examples/strings/endswith/file-extension')} />
+
+### `replace`
+
+`replace` returns a string with every occurrence of a substring swapped for
+another. A common policy use is redacting sensitive values.
+
+<PlaygroundExample dir={require.context('../_examples/strings/replace/redact-token')} />
+
