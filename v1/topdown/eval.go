@@ -2077,8 +2077,10 @@ func (e *evalBuiltin) canUseNDBCache(bi *ast.Builtin) bool {
 }
 
 // operandRequiresEval returns true if a plugged built-in operand still contains
-// terms that must be evaluated. Shallow by design: nested terms that require
-// evaluation but are ground (e.g. [data.foo]) are missed.
+// terms that must be evaluated. ast.IsConstant answers this exactly, but walks
+// composites, making the check linear in operand size on every built-in call.
+// This stays O(1) -- IsGround is a cached field on composites -- at the cost of
+// missing nested terms that require evaluation but are ground (e.g. [data.foo]).
 func operandRequiresEval(v ast.Value) bool {
 	switch v.(type) {
 	case ast.Var, ast.Ref, ast.Call,
@@ -2118,8 +2120,8 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 
 	for i, operand := range operands[:checkEnd] {
 		if operandRequiresEval(operand.Value) {
-			// OPA is buggy: the compiler hoists arguments that require evaluation.
-			// Fail loudly, as the built-in would return undefined instead.
+			// If hit, this is a bug: the compiler hoists arguments that require evaluation.
+			// Fail loudly, as the built-in would return undefined instead leading to unexpected results.
 			return unevaluatedOperandErr(e.e.query[e.e.index].Location, e.bi.Name, i+1, operand)
 		}
 	}

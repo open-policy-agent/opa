@@ -1690,7 +1690,7 @@ func TestEvalBuiltinUnevaluatedOperand(t *testing.T) {
 		{
 			note:   "var nested in composite",
 			body:   "count([x], y)",
-			expErr: "built-in function count called with operand 1 that requires evaluation: x",
+			expErr: "built-in function count called with operand 1 that requires evaluation: [x]",
 		},
 		{
 			note:   "comprehension",
@@ -1700,7 +1700,7 @@ func TestEvalBuiltinUnevaluatedOperand(t *testing.T) {
 		{
 			note:   "comprehension nested in composite",
 			body:   "count([[i | i = 1]], y)",
-			expErr: "built-in function count called with operand 1 that requires evaluation: [i | i = 1]",
+			expErr: "built-in function count called with operand 1 that requires evaluation: [[i | i = 1]]",
 		},
 		{
 			note:   "unbound var, no captured output",

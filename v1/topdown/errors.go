@@ -163,34 +163,8 @@ func unevaluatedOperandErr(loc *ast.Location, name string, pos int, operand *ast
 		Code:     InternalErr,
 		Location: loc,
 		Message: "built-in function " + name + " called with operand " + strconv.Itoa(pos) +
-			" that requires evaluation: " + unevaluatedTerm(operand).String(),
+			" that requires evaluation: " + operand.String(),
 	}
-}
-
-// unevaluatedTerm returns the first sub-term of operand that requires
-// evaluation, or operand itself if none is found, so that a non-ground
-// collection is reported as the term it contains. Only called on the error path.
-func unevaluatedTerm(operand *ast.Term) *ast.Term {
-	var found *ast.Term
-
-	ast.WalkTerms(operand, func(x *ast.Term) bool {
-		if found != nil {
-			return true
-		}
-		switch x.Value.(type) {
-		case ast.Var, ast.Ref, ast.Call,
-			*ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
-			found = x
-			return true
-		}
-		return false
-	})
-
-	if found == nil {
-		return operand
-	}
-
-	return found
 }
 
 func internalErr(loc *ast.Location, msg string) error {
