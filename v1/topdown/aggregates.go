@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"math"
 	"math/big"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -63,25 +64,38 @@ func exactIntAccumulate(a termIterable, init int64, op func(z, x, y *big.Int) *b
 	return builtins.IntToNumber(acc), true
 }
 
+// addInt returns x+y, reporting false if the sum overflows an int so the caller
+// can fall back to exact big.Int accumulation instead of wrapping silently.
+func addInt(x, y int) (int, bool) {
+	if (y > 0 && x > math.MaxInt-y) || (y < 0 && x < math.MinInt-y) {
+		return 0, false
+	}
+	return x + y, true
+}
+
 func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
 	case *ast.Array:
 		// Fast path for arrays of integers
 		is := 0
-		nonInts := a.Until(func(x *ast.Term) bool {
+		bail := a.Until(func(x *ast.Term) bool {
 			if n, ok := x.Value.(ast.Number); ok {
 				if i, ok := n.Int(); ok {
-					is += i
-					return false
+					if s, ok := addInt(is, i); ok {
+						is = s
+						return false
+					}
 				}
 			}
 			return true
 		})
-		if !nonInts {
+		if !bail {
 			return iter(ast.InternedTerm(is))
 		}
 
-		// Non-integer values found, so we need to sum as floats.
+		// A non-integer element, or an integer sum that would overflow the
+		// machine int: accumulate on exact big.Ints, falling back to floats for
+		// genuinely non-integer input.
 		if n, ok := exactIntAccumulate(a, 0, (*big.Int).Add); ok {
 			return iter(ast.NewTerm(n))
 		}
@@ -103,16 +117,18 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 	case ast.Set:
 		// Fast path for sets of integers
 		is := 0
-		nonInts := a.Until(func(x *ast.Term) bool {
+		bail := a.Until(func(x *ast.Term) bool {
 			if n, ok := x.Value.(ast.Number); ok {
 				if i, ok := n.Int(); ok {
-					is += i
-					return false
+					if s, ok := addInt(is, i); ok {
+						is = s
+						return false
+					}
 				}
 			}
 			return true
 		})
-		if !nonInts {
+		if !bail {
 			return iter(ast.InternedTerm(is))
 		}
 
