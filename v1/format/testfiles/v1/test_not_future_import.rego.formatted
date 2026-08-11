@@ -10,7 +10,7 @@ a if {
 		input.x + input.y == 4
 	}
 
-	not { input.a == 1; input.b == 2}
+	not { input.a == 1; input.b == 2 }
 	not {
 		input.a == 1
 		input.b == 2

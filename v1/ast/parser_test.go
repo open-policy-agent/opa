@@ -9750,3 +9750,1100 @@ func TestOneLineRuleBodyLeadingBraceIsBody(t *testing.T) {
 		})
 	}
 }
+
+// `{ ... | ... }` is ambiguous in operand position of and/or/not.
+// It can be interpreted as either:
+// 1. a set comprehension
+// 2. a body containing the result of a set union using the `|` infix operator
+// and author intent is unknown.
+func TestAmbiguousUnionBodyIsRejected(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		caps    []string
+		expBody Body
+		expErrs []string
+	}{
+		{
+			note: "no import, comprehension, braced rule",
+			module: `package test
+				p if { not {x | x} }
+			`,
+			expBody: NewBody(&Expr{
+				Negated: true,
+				Terms: SetComprehensionTerm(
+					VarTerm("x"),
+					NewBody(NewExpr(VarTerm("x"))),
+				),
+			}),
+		},
+		{
+			note: "union body, braced rule",
+			module: `package test
+				import future.keywords.not
+				p if { not {x | x} }
+			`,
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)"},
+		},
+		{
+			note: "no import, comprehension, one-line rule",
+			module: `package test
+				p if not {x | x}
+			`,
+			expBody: NewBody(&Expr{
+				Negated: true,
+				Terms: SetComprehensionTerm(
+					VarTerm("x"),
+					NewBody(NewExpr(VarTerm("x"))),
+				),
+			}),
+		},
+		{
+			note: "union body, one-line rule",
+			module: `package test
+				import future.keywords.not
+				p if not {x | x}
+			`,
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)"},
+		},
+		{
+			note: "union body, 'and' operand",
+			module: `package test
+				import future.keywords.and
+				p if { x and {a | b} }
+			`,
+			caps:    []string{"and", "or"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b})` for the comprehension, or `{(a | b)}` for the set union)"},
+		},
+		{
+			note: "union body, 'or' operand",
+			module: `package test
+				import future.keywords.or
+				p if { {a | b} or x }
+			`,
+			caps:    []string{"and", "or"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b})` for the comprehension, or `{(a | b)}` for the set union)"},
+		},
+		{
+			note: "union body, operand inside a negated group",
+			module: `package test
+				import future.keywords.not
+				import future.keywords.and
+				import future.keywords.or
+				p if { not ({a | b} or y) }
+			`,
+			caps:    []string{"and", "or"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b})` for the comprehension, or `{(a | b)}` for the set union)"},
+		},
+		{
+			note: "explicit union call is not the '|' form",
+			module: `package test
+				import future.keywords.not
+				p if { not or(a, b) }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(Or.Expr(VarTerm("a"), VarTerm("b"))),
+			})),
+		},
+		{
+			note: "explicit union call is not the '|' form, inside parens",
+			module: `package test
+				import future.keywords.not
+				p if { not (or(a, b)) }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(Or.Expr(VarTerm("a"), VarTerm("b"))),
+			})),
+		},
+		{
+			note: "explicit union call is not the '|' form, inside parenthesized braces",
+			module: `package test
+				import future.keywords.not
+				p if { not ({ or(a, b) }) }
+			`,
+			// The parens make the braces a set literal, holding the call.
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(NewExpr(SetTerm(
+					CallTerm(NewTerm(Or.Ref()), VarTerm("a"), VarTerm("b")),
+				))),
+			})),
+		},
+		{
+			note: "explicit union call is not the '|' form, inside explicit body",
+			module: `package test
+				import future.keywords.not
+				p if { not { or(a, b) } }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body:         NewBody(Or.Expr(VarTerm("a"), VarTerm("b"))),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "parenthesized union, 'not' operand body",
+			module: `package test
+				import future.keywords.not
+				p if { not {(x | x)} }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body:         NewBody(Or.Expr(VarTerm("x"), VarTerm("x"))),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "parenthesized union, 'and' operand body",
+			module: `package test
+				import future.keywords.and
+				p if { x and {(a | b)} }
+			`,
+			caps: []string{"and", "or"},
+			expBody: NewBody(NewExpr(&LogicalAnd{
+				Lhs:         NewBody(NewExpr(VarTerm("x"))),
+				Rhs:         NewBody(Or.Expr(VarTerm("a"), VarTerm("b"))),
+				ExplicitRhs: true,
+			})),
+		},
+		{
+			note: "parenthesized union, 'or' operand body, lhs",
+			module: `package test
+				import future.keywords.or
+				p if { {(a | b)} or x }
+			`,
+			caps: []string{"and", "or"},
+			expBody: NewBody(NewExpr(&LogicalOr{
+				Lhs:         NewBody(Or.Expr(VarTerm("a"), VarTerm("b"))),
+				Rhs:         NewBody(NewExpr(VarTerm("x"))),
+				ExplicitLhs: true,
+			})),
+		},
+		{
+			note: "multiple expressions, union last",
+			module: `package test
+				import future.keywords.not
+				p if { not {1 == 1; x | x} }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(
+					Equal.Expr(NumberTerm("1"), NumberTerm("1")),
+					Or.Expr(VarTerm("x"), VarTerm("x")),
+				),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "multiple expressions, union first",
+			module: `package test
+				import future.keywords.not
+				p if { not {x | x; 1 == 1} }
+			`,
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x; 1 == 1})` for the comprehension, or `not {(x | x); 1 == 1}` for the set union)"},
+		},
+		{
+			note: "multiple expressions, union first, parenthesized",
+			module: `package test
+				import future.keywords.not
+				p if { not {(x | x); 1 == 1} }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(
+					Or.Expr(VarTerm("x"), VarTerm("x")),
+					Equal.Expr(NumberTerm("1"), NumberTerm("1")),
+				),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "multiple expressions, 'and' operand body",
+			module: `package test
+				import future.keywords.and
+				p if { x and {1 == 1; a | b} }
+			`,
+			caps: []string{"and", "or"},
+			expBody: NewBody(NewExpr(&LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("x"))),
+				Rhs: NewBody(
+					Equal.Expr(NumberTerm("1"), NumberTerm("1")),
+					Or.Expr(VarTerm("a"), VarTerm("b")),
+				),
+				ExplicitRhs: true,
+			})),
+		},
+		{
+			note: "multiple expressions, union first, 'or' operand body, lhs",
+			module: `package test
+				import future.keywords.or
+				p if { {a | b; 1 == 1} or x }
+			`,
+			caps:    []string{"and", "or"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b; 1 == 1})` for the comprehension, or `{(a | b); 1 == 1}` for the set union)"},
+		},
+		{
+			note: "multiple expressions, union first, operand body inside a negated group",
+			module: `package test
+				import future.keywords.not
+				import future.keywords.and
+				import future.keywords.or
+				p if { not ({a | b; c} or y) }
+			`,
+			caps:    []string{"and", "or"},
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `({a | b; c})` for the comprehension, or `{(a | b); c}` for the set union)"},
+		},
+		{
+			note: "parenthesized comprehension, 'not' operand",
+			module: `package test
+				import future.keywords.not
+				p if { not ({x | x}) }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(NewExpr(SetComprehensionTerm(
+					VarTerm("x"),
+					NewBody(NewExpr(VarTerm("x"))),
+				))),
+			})),
+		},
+		{
+			// Fails until the paren rule lands: `({...})` is read as a group today.
+			note: "parenthesized comprehension, 'and' operand",
+			module: `package test
+				import future.keywords.and
+				p if { x and ({a | b}) }
+			`,
+			caps: []string{"and", "or"},
+			expBody: NewBody(NewExpr(&LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("x"))),
+				Rhs: NewBody(NewExpr(SetComprehensionTerm(
+					VarTerm("a"),
+					NewBody(NewExpr(VarTerm("b"))),
+				))),
+			})),
+		},
+		{
+			note: "union in a plain rule body",
+			module: `package test
+				p if { a := {1}; b := {2}; a | b }
+			`,
+			expBody: NewBody(
+				Assign.Expr(VarTerm("a"), SetTerm(NumberTerm("1"))),
+				Assign.Expr(VarTerm("b"), SetTerm(NumberTerm("2"))),
+				Or.Expr(VarTerm("a"), VarTerm("b")),
+			),
+		},
+		{
+			note: "comprehension at body start",
+			module: `package test
+				p if { {1} | {2} }
+			`,
+			expBody: NewBody(NewExpr(SetComprehensionTerm(
+				SetTerm(NumberTerm("1")),
+				NewBody(NewExpr(SetTerm(NumberTerm("2")))),
+			))),
+		},
+		{
+			note: "double-braced comprehension",
+			module: `package test
+				import future.keywords.not
+				p if { not {{x | x}} }
+			`,
+			// With the import the outer braces are the body, so the inner braces
+			// are the comprehension itself - not a set holding one.
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(NewExpr(SetComprehensionTerm(
+					VarTerm("x"),
+					NewBody(NewExpr(VarTerm("x"))),
+				))),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "comprehension bound inside the body",
+			module: `package test
+				import future.keywords.not
+				p if { not {y := {x | x}; y == {1}} }
+			`,
+			expBody: NewBody(NewExpr(&Not{
+				Body: NewBody(
+					Assign.Expr(VarTerm("y"), SetComprehensionTerm(
+						VarTerm("x"),
+						NewBody(NewExpr(VarTerm("x"))),
+					)),
+					Equal.Expr(VarTerm("y"), SetTerm(NumberTerm("1"))),
+				),
+				ExplicitBody: true,
+			})),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mod, err := ParseModuleWithOpts("", tc.module, parserOptsWithFutureKeywords(tc.caps...))
+
+			if len(tc.expErrs) > 0 {
+				if err == nil {
+					t.Fatalf("Expected error, got: %v", mod)
+				}
+				for _, exp := range tc.expErrs {
+					if !strings.Contains(err.Error(), exp) {
+						t.Errorf("Expected error to contain %q, but got: %v", exp, err)
+					}
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			assertBodyEqual(t, tc.expBody, mod.Rules[0].Body)
+		})
+	}
+}
+
+func TestNotParenGroupingIsImportIndependent(t *testing.T) {
+	// Regression test: not/and/or future.keyword imports independently apply paren grouping.
+	tests := []struct {
+		note    string
+		body    string
+		expExpr *Expr
+		expErr  bool
+	}{
+		{
+			note:    "set",
+			body:    "not ({x})",
+			expExpr: notValueExpr(SetTerm(VarTerm("x"))),
+		},
+		{
+			note:    "set, multiple elements",
+			body:    "not ({1, 2})",
+			expExpr: notValueExpr(SetTerm(NumberTerm("1"), NumberTerm("2"))),
+		},
+		{
+			note:    "set, nested",
+			body:    "not ({{1}})",
+			expExpr: notValueExpr(SetTerm(SetTerm(NumberTerm("1")))),
+		},
+		{
+			note:    "empty set",
+			body:    "not (set())",
+			expExpr: notValueExpr(SetTerm()),
+		},
+		{
+			note:    "object",
+			body:    `not ({"a": 1})`,
+			expExpr: notValueExpr(ObjectTerm([2]*Term{StringTerm("a"), NumberTerm("1")})),
+		},
+		{
+			note:    "empty object",
+			body:    "not ({})",
+			expExpr: notValueExpr(ObjectTerm()),
+		},
+		{
+			note: "comprehension",
+			body: "not ({x | x})",
+			expExpr: notValueExpr(SetComprehensionTerm(
+				VarTerm("x"),
+				NewBody(NewExpr(VarTerm("x"))),
+			)),
+		},
+		{
+			note: "ref into object",
+			body: `not ({"a": 1}["a"])`,
+			expExpr: notValueExpr(RefTerm(
+				ObjectTerm([2]*Term{StringTerm("a"), NumberTerm("1")}),
+				StringTerm("a"),
+			)),
+		},
+		{
+			note:    "ref into set",
+			body:    "not ({x}[0])",
+			expExpr: notValueExpr(RefTerm(SetTerm(VarTerm("x")), NumberTerm("0"))),
+		},
+		{
+			note:    "var",
+			body:    "not (x)",
+			expExpr: notValueExpr(VarTerm("x")),
+		},
+		{
+			note:    "ref",
+			body:    "not (input.x)",
+			expExpr: notValueExpr(RefTerm(VarTerm("input"), StringTerm("x"))),
+		},
+		{
+			note: "comparison",
+			body: "not (a == b)",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(Equal.Expr(VarTerm("a"), VarTerm("b"))),
+			}),
+		},
+		{
+			note: "comparison with a set operand, LHS",
+			body: "not ({x} == y)",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(Equal.Expr(SetTerm(VarTerm("x")), VarTerm("y"))),
+			}),
+		},
+		{
+			note: "comparison with a set operand, RHS",
+			body: "not (x == {y})",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(Equal.Expr(VarTerm("x"), SetTerm(VarTerm("y")))),
+			}),
+		},
+		{
+			note: "negation",
+			body: "not (not x)",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&Not{
+					Body: NewBody(NewExpr(VarTerm("x"))),
+				})),
+			}),
+		},
+		{
+			note:    "nested parens",
+			body:    "not (({x}))",
+			expExpr: notValueExpr(SetTerm(VarTerm("x"))),
+		},
+		{
+			note:    "surrounding whitespace",
+			body:    "not ( {x} )",
+			expExpr: notValueExpr(SetTerm(VarTerm("x"))),
+		},
+		{
+			note:    "no space after 'not'",
+			body:    "not( {x} )",
+			expExpr: notValueExpr(SetTerm(VarTerm("x"))),
+		},
+		{
+			note: "'with' modifier",
+			body: "not ({x}) with input as 1",
+			expExpr: func() *Expr {
+				e := notValueExpr(SetTerm(VarTerm("x")))
+				e.With = []*With{{Target: NewTerm(InputRootRef), Value: NumberTerm("1")}}
+				return e
+			}(),
+		},
+		{
+			note:   "parens cannot wrap a body",
+			body:   "not ({x; y})",
+			expErr: true,
+		},
+		{
+			note:   "parens cannot wrap a body holding a disjunction",
+			body:   "not ({ x or y })",
+			expErr: true,
+		},
+		{
+			note:   "parens cannot wrap a body holding a conjunction",
+			body:   "not ({ x and y })",
+			expErr: true,
+		},
+		{
+			note:   "empty parens",
+			body:   "not ()",
+			expErr: true,
+		},
+	}
+
+	configs := []struct {
+		note    string
+		imports string
+		caps    []string
+	}{
+		{
+			note:    "'not' only",
+			imports: "import future.keywords.not",
+		},
+		{
+			note:    "'not' with 'and'/'or'",
+			imports: "import future.keywords.not\nimport future.keywords.and\nimport future.keywords.or",
+			caps:    []string{"and", "or"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			for _, cfg := range configs {
+				t.Run(cfg.note, func(t *testing.T) {
+					module := "package test\n" + cfg.imports + "\np if { " + tc.body + " }\n"
+
+					mod, err := ParseModuleWithOpts("", module, parserOptsWithFutureKeywords(cfg.caps...))
+
+					if tc.expErr {
+						if err == nil {
+							t.Fatalf("Expected error, got: %v", mod)
+						}
+						return
+					}
+
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+
+					assertBodyEqual(t, NewBody(tc.expExpr), mod.Rules[0].Body)
+				})
+			}
+		})
+	}
+}
+
+// Parens holding a top-level `and`/`or` are a logical group
+func TestNotParenLogicalGroup(t *testing.T) {
+	tests := []struct {
+		note    string
+		body    string
+		expExpr *Expr
+	}{
+		{
+			note: "disjunction",
+			body: "not (x or y)",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(VarTerm("x"))),
+					Rhs: NewBody(NewExpr(VarTerm("y"))),
+				})),
+			}),
+		},
+		{
+			note: "conjunction",
+			body: "not (x and y)",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalAnd{
+					Lhs: NewBody(NewExpr(VarTerm("x"))),
+					Rhs: NewBody(NewExpr(VarTerm("y"))),
+				})),
+			}),
+		},
+		{
+			note: "explicit bodies on both sides",
+			body: "not ({x} or {y})",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalOr{
+					Lhs:         NewBody(NewExpr(VarTerm("x"))),
+					Rhs:         NewBody(NewExpr(VarTerm("y"))),
+					ExplicitLhs: true,
+					ExplicitRhs: true,
+				})),
+			}),
+		},
+		{
+			note: "explicit body, disjunction lhs",
+			body: "not ({x} or y)",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalOr{
+					Lhs:         NewBody(NewExpr(VarTerm("x"))),
+					Rhs:         NewBody(NewExpr(VarTerm("y"))),
+					ExplicitLhs: true,
+				})),
+			}),
+		},
+		{
+			note: "explicit body, disjunction rhs",
+			body: "not (x or {y})",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalOr{
+					Lhs:         NewBody(NewExpr(VarTerm("x"))),
+					Rhs:         NewBody(NewExpr(VarTerm("y"))),
+					ExplicitRhs: true,
+				})),
+			}),
+		},
+		{
+			note: "explicit body, conjunction lhs",
+			body: "not ({x} and y)",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalAnd{
+					Lhs:         NewBody(NewExpr(VarTerm("x"))),
+					Rhs:         NewBody(NewExpr(VarTerm("y"))),
+					ExplicitLhs: true,
+				})),
+			}),
+		},
+		{
+			note: "explicit body, conjunction rhs",
+			body: "not (x and {y})",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalAnd{
+					Lhs:         NewBody(NewExpr(VarTerm("x"))),
+					Rhs:         NewBody(NewExpr(VarTerm("y"))),
+					ExplicitRhs: true,
+				})),
+			}),
+		},
+		{
+			note: "explicit body with multiple expressions, lhs",
+			body: "not ({x; y} or z)",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalOr{
+					Lhs:         NewBody(NewExpr(VarTerm("x")), NewExpr(VarTerm("y"))),
+					Rhs:         NewBody(NewExpr(VarTerm("z"))),
+					ExplicitLhs: true,
+				})),
+			}),
+		},
+		{
+			note: "explicit body with multiple expressions, rhs",
+			body: "not (x or {y; z})",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalOr{
+					Lhs:         NewBody(NewExpr(VarTerm("x"))),
+					Rhs:         NewBody(NewExpr(VarTerm("y")), NewExpr(VarTerm("z"))),
+					ExplicitRhs: true,
+				})),
+			}),
+		},
+		{
+			note: "'with' modifier on the group",
+			body: "not ({x} or y) with input as 1",
+			expExpr: func() *Expr {
+				e := NewExpr(&Not{
+					Body: NewBody(NewExpr(&LogicalOr{
+						Lhs:         NewBody(NewExpr(VarTerm("x"))),
+						Rhs:         NewBody(NewExpr(VarTerm("y"))),
+						ExplicitLhs: true,
+					})),
+				})
+				e.With = []*With{{Target: NewTerm(InputRootRef), Value: NumberTerm("1")}}
+				return e
+			}(),
+		},
+		{
+			note: "nested group",
+			body: "not ((x or y) and z)",
+			expExpr: NewExpr(&Not{
+				Body: NewBody(NewExpr(&LogicalAnd{
+					Lhs: NewBody(NewExpr(&LogicalOr{
+						Lhs: NewBody(NewExpr(VarTerm("x"))),
+						Rhs: NewBody(NewExpr(VarTerm("y"))),
+					})),
+					Rhs: NewBody(NewExpr(VarTerm("z"))),
+				})),
+			}),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module := `package test
+				import future.keywords.not
+				import future.keywords.and
+				import future.keywords.or
+				p if { ` + tc.body + ` }
+			`
+
+			mod, err := ParseModuleWithOpts("", module, parserOptsWithFutureKeywords("and", "or"))
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			assertBodyEqual(t, NewBody(tc.expExpr), mod.Rules[0].Body)
+		})
+	}
+}
+
+// The operand brace contract is not Rego-version specific: `future.keywords.not`
+// works in v0 too, so v0 must draw the same value/body distinction.
+func TestNotOperandRegoV0(t *testing.T) {
+	tests := []struct {
+		note    string
+		body    string
+		expBody Body
+		expErr  string
+	}{
+		{
+			note:    "parens hold a value",
+			body:    "not ({x})",
+			expBody: NewBody(notValueExpr(SetTerm(VarTerm("x")))),
+		},
+		{
+			note:    "parens hold an object value",
+			body:    `not ({"a": 1})`,
+			expBody: NewBody(notValueExpr(ObjectTerm([2]*Term{StringTerm("a"), NumberTerm("1")}))),
+		},
+		{
+			note: "braces are a body",
+			body: "not {x}",
+			expBody: NewBody(NewExpr(&Not{
+				Body:         NewBody(NewExpr(VarTerm("x"))),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note: "braces are a body, multiple expressions",
+			body: "not {x; y}",
+			expBody: NewBody(NewExpr(&Not{
+				Body:         NewBody(NewExpr(VarTerm("x")), NewExpr(VarTerm("y"))),
+				ExplicitBody: true,
+			})),
+		},
+		{
+			note:   "parens cannot wrap a body",
+			body:   "not ({x; y})",
+			expErr: "rego_parse_error",
+		},
+		{
+			note:   "comprehension read as a union is rejected",
+			body:   "not {x | x}",
+			expErr: "rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({x | x})` for the comprehension, or `not {(x | x)}` for the set union)",
+		},
+		{
+			note:   "braces cannot hold an object",
+			body:   `not {"a": 1}`,
+			expErr: "rego_parse_error",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module := `package test
+				import future.keywords.not
+				p { ` + tc.body + ` }
+			`
+
+			mod, err := ParseModuleWithOpts("", module, ParserOptions{RegoVersion: RegoV0})
+
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("Expected error, got: %v", mod)
+				}
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("Expected error to contain %q, but got: %v", tc.expErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			assertBodyEqual(t, tc.expBody, mod.Rules[0].Body)
+		})
+	}
+}
+
+func notValueExpr(term *Term) *Expr {
+	return NewExpr(&Not{Body: NewBody(NewExpr(term))})
+}
+
+func assertBodyEqual(t *testing.T, exp, act Body) {
+	t.Helper()
+
+	if exp.Compare(act) != 0 {
+		t.Fatalf("Expected body:\n  %s\ngot:\n  %s", describeExprs(exp), describeExprs(act))
+	}
+
+	for i := range exp {
+		assertExplicitBodiesEqual(t, exp[i], act[i])
+	}
+}
+
+func assertExplicitBodiesEqual(t *testing.T, exp, act *Expr) {
+	t.Helper()
+
+	switch e := exp.Terms.(type) {
+	case *Not:
+		a, ok := act.Terms.(*Not)
+		if !ok {
+			t.Fatalf("Expected *ast.Not but got %T", act.Terms)
+		}
+		if e.ExplicitBody != a.ExplicitBody {
+			t.Errorf("Expected %s but got %s", describeExpr(exp), describeExpr(act))
+			return
+		}
+		assertExplicitBodiesEqualInBody(t, e.Body, a.Body)
+	case *LogicalAnd:
+		a, ok := act.Terms.(*LogicalAnd)
+		if !ok {
+			t.Fatalf("Expected *ast.LogicalAnd but got %T", act.Terms)
+		}
+		if e.ExplicitLhs != a.ExplicitLhs || e.ExplicitRhs != a.ExplicitRhs {
+			t.Errorf("Expected %s but got %s", describeExpr(exp), describeExpr(act))
+			return
+		}
+		assertExplicitBodiesEqualInBody(t, e.Lhs, a.Lhs)
+		assertExplicitBodiesEqualInBody(t, e.Rhs, a.Rhs)
+	case *LogicalOr:
+		a, ok := act.Terms.(*LogicalOr)
+		if !ok {
+			t.Fatalf("Expected *ast.LogicalOr but got %T", act.Terms)
+		}
+		if e.ExplicitLhs != a.ExplicitLhs || e.ExplicitRhs != a.ExplicitRhs {
+			t.Errorf("Expected %s but got %s", describeExpr(exp), describeExpr(act))
+			return
+		}
+		assertExplicitBodiesEqualInBody(t, e.Lhs, a.Lhs)
+		assertExplicitBodiesEqualInBody(t, e.Rhs, a.Rhs)
+	}
+}
+
+func assertExplicitBodiesEqualInBody(t *testing.T, exp, act Body) {
+	t.Helper()
+
+	for i := range exp {
+		assertExplicitBodiesEqual(t, exp[i], act[i])
+	}
+}
+
+func describeExprs(b Body) string {
+	parts := make([]string, 0, len(b))
+	for _, e := range b {
+		parts = append(parts, describeExpr(e))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func describeExpr(e *Expr) string {
+	var s string
+
+	switch t := e.Terms.(type) {
+	case *Not:
+		s = fmt.Sprintf("not(explicit=%v){%s}", t.ExplicitBody, describeExprs(t.Body))
+	case *LogicalAnd:
+		s = fmt.Sprintf("and{lhs(explicit=%v){%s} rhs(explicit=%v){%s}}",
+			t.ExplicitLhs, describeExprs(t.Lhs), t.ExplicitRhs, describeExprs(t.Rhs))
+	case *LogicalOr:
+		s = fmt.Sprintf("or{lhs(explicit=%v){%s} rhs(explicit=%v){%s}}",
+			t.ExplicitLhs, describeExprs(t.Lhs), t.ExplicitRhs, describeExprs(t.Rhs))
+	case *Term:
+		s = fmt.Sprintf("%T(%v)", t.Value, t)
+	default:
+		s = fmt.Sprintf("%T(%v)", e.Terms, e)
+	}
+
+	if e.Negated {
+		s = "negated " + s
+	}
+
+	if len(e.With) > 0 {
+		var sb strings.Builder
+		sb.WriteString(s)
+		for _, w := range e.With {
+			sb.WriteString(" ")
+			sb.WriteString(w.String())
+		}
+		s = sb.String()
+	}
+
+	return s
+}
+
+func TestNotOperandErrorMessages(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		caps    []string
+		expErrs []string
+	}{
+		{
+			note: "object contents, braced rule",
+			module: `package test
+				import future.keywords.not
+				p if { not {"a": 1} }
+			`,
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: object (hint: write `not ({\"a\": 1})` to negate the value, or `not {{\"a\": 1}}` for a body holding it)"},
+		},
+		{
+			note: "object contents, one-line rule",
+			module: `package test
+				import future.keywords.not
+				p if not {"a": 1}
+			`,
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: object (hint: write `not ({\"a\": 1})` to negate the value, or `not {{\"a\": 1}}` for a body holding it)"},
+		},
+		{
+			note: "set contents, braced rule",
+			module: `package test
+				import future.keywords.not
+				p if { not {1, 2} }
+			`,
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: set (hint: write `not ({1, 2})` to negate the value, or `not {{1, 2}}` for a body holding it)"},
+		},
+		{
+			note: "set contents, one-line rule",
+			module: `package test
+				import future.keywords.not
+				p if not {1, 2}
+			`,
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: set (hint: write `not ({1, 2})` to negate the value, or `not {{1, 2}}` for a body holding it)"},
+		},
+		{
+			note: "ref into a literal, braced rule",
+			module: `package test
+				import future.keywords.not
+				p if { not {"a": 1}["a"] }
+			`,
+			expErrs: []string{"rego_parse_error: `{...}` in an operand position must contain expression(s), got: ref (hint: write `not ({\"a\": 1}[\"a\"])` to negate the value, or `not {{\"a\": 1}[\"a\"]}` for a body holding it)"},
+		},
+		{
+			note: "comprehension read as a union, braced rule",
+			module: `package test
+				import future.keywords.not
+				p if { not {a | b} }
+			`,
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({a | b})` for the comprehension, or `not {(a | b)}` for the set union)"},
+		},
+		{
+			note: "comprehension read as a union, one-line rule",
+			module: `package test
+				import future.keywords.not
+				p if not {a | b}
+			`,
+			expErrs: []string{"rego_parse_error: ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension (hint: write `not ({a | b})` for the comprehension, or `not {(a | b)}` for the set union)"},
+		},
+		{
+			note: "empty body, braced rule",
+			module: `package test
+				import future.keywords.not
+				p if { not {} }
+			`,
+			expErrs: []string{"found empty body"},
+		},
+		{
+			note: "empty body, one-line rule",
+			module: `package test
+				import future.keywords.not
+				p if not {}
+			`,
+			expErrs: []string{"found empty body"},
+		},
+		{
+			note: "parens wrapping a body, braced rule",
+			module: `package test
+				import future.keywords.not
+				p if { not ({x; y}) }
+			`,
+			expErrs: []string{"cannot contain a body", "not {x; y}"},
+		},
+		{
+			note: "parens wrapping a body, one-line rule",
+			module: `package test
+				import future.keywords.not
+				p if not ({x; y})
+			`,
+			expErrs: []string{"cannot contain a body", "not {x; y}"},
+		},
+		{
+			note: "parens wrapping a body holding a disjunction",
+			module: `package test
+				import future.keywords.not
+				import future.keywords.and
+				import future.keywords.or
+				p if { not ({ x or y }) }
+			`,
+			caps:    []string{"and", "or"},
+			expErrs: []string{"cannot contain a body"},
+		},
+		{
+			note: "empty parens",
+			module: `package test
+				import future.keywords.not
+				p if { not () }
+			`,
+			expErrs: []string{"empty parenthesized group"},
+		},
+		{
+			note: "empty parens, 'and'/'or' imported",
+			module: `package test
+				import future.keywords.not
+				import future.keywords.and
+				import future.keywords.or
+				p if { not () }
+			`,
+			caps:    []string{"and", "or"},
+			expErrs: []string{"empty parenthesized group"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mod, err := ParseModuleWithOpts("", tc.module, parserOptsWithFutureKeywords(tc.caps...))
+			if err == nil {
+				t.Fatalf("Expected error, got: %v", mod)
+			}
+
+			for _, exp := range tc.expErrs {
+				if !strings.Contains(err.Error(), exp) {
+					t.Errorf("Expected error to contain %q, but got: %v", exp, err)
+				}
+			}
+		})
+	}
+}
+
+func parserOptsWithFutureKeywords(kws ...string) ParserOptions {
+	opts := ParserOptions{RegoVersion: RegoV1}
+	if len(kws) > 0 {
+		caps := CapabilitiesForThisVersion()
+		caps.FutureKeywords = append(caps.FutureKeywords, kws...)
+		opts.Capabilities = caps
+	}
+	return opts
+}
+
+func TestOperandRenderRoundTrip(t *testing.T) {
+	tests := []struct {
+		note      string
+		body      string
+		expRender string
+		notKw     bool
+	}{
+		{note: "not, set value", body: "not ({x})", expRender: "not ({x})", notKw: true},
+		{note: "not, object value", body: `not ({"a": 1})`, expRender: `not ({"a": 1})`, notKw: true},
+		{note: "not, set value, multiple elements", body: "not ({1, 2})", expRender: "not ({1, 2})", notKw: true},
+		{note: "not, comprehension value", body: "not ({x | x})", expRender: "not ({x | x})", notKw: true},
+		{note: "not, ref into set value", body: "not ({x}[0])", expRender: "not ({x}[0])", notKw: true},
+		{note: "not, comparison with a set operand", body: "not ({x} == y)", expRender: "not equal({x}, y)", notKw: true},
+		{note: "not, var value", body: "not (x)", expRender: "not x", notKw: true},
+		{note: "not, empty set value", body: "not (set())", expRender: "not set()", notKw: true},
+		{note: "not, explicit body", body: "not {x}", expRender: "not {x}", notKw: true},
+		{note: "not, explicit body, multiple expressions", body: "not {x; y}", expRender: "not {x; y}", notKw: true},
+		{note: "not, group", body: "not (a or b)", expRender: "not (a or b)", notKw: true},
+		{note: "and, set values on both sides", body: "({a}) and ({b})", expRender: "({a}) and ({b})"},
+		{note: "and, set value rhs", body: "a and ({b})", expRender: "a and ({b})"},
+		{note: "and, set value lhs", body: "({a}) and c", expRender: "({a}) and c"},
+		{note: "and, set value, multiple elements", body: "a and ({1, 2})", expRender: "a and ({1, 2})"},
+		{note: "or, empty object value", body: "a or ({})", expRender: "a or ({})"},
+		{note: "and, explicit bodies", body: "{a} and {b}", expRender: "{ a } and { b }"},
+		{note: "and, explicit body with logical content", body: "a and {b or c}", expRender: "a and { b or c }"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var extra []string
+			if tc.notKw {
+				extra = append(extra, "not")
+			}
+			opts := logicalParserOpts(extra...)
+
+			body, err := ParseBodyWithOpts(tc.body, opts)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			rendered := body.String()
+			if rendered != tc.expRender {
+				t.Errorf("Expected %q to render as %q but got %q", tc.body, tc.expRender, rendered)
+			}
+
+			buf, err := body.AppendText(nil)
+			if err != nil {
+				t.Fatalf("Unexpected error appending text: %v", err)
+			}
+
+			if string(buf) != rendered {
+				t.Errorf("AppendText rendered %q but String rendered %q", buf, rendered)
+			}
+
+			if n := body.StringLength(); n != len(rendered) {
+				t.Errorf("StringLength is %d but the rendering is %d bytes: %q", n, len(rendered), rendered)
+			}
+
+			reparsed, err := ParseBodyWithOpts(rendered, opts)
+			if err != nil {
+				t.Fatalf("Rendering %q produced %q, which does not parse: %v", tc.body, rendered, err)
+			}
+
+			if body.Compare(reparsed) != 0 {
+				t.Errorf("Rendering %q as %q changed it: %s", tc.body, rendered, describeExprs(reparsed))
+			}
+		})
+	}
+}

@@ -1190,9 +1190,9 @@ func TestParseLogical_ParenErrors(t *testing.T) {
 			expected: "empty parenthesized group",
 		},
 		{
-			note:     "empty explicit body in group",
-			input:    "a or ({})",
-			expected: "found empty body",
+			note:     "parens cannot wrap a body with logical content",
+			input:    "a and ({b or c})",
+			expected: "`(...)` in an operand position cannot contain a body (hint: drop the parens to keep the body: `{b or c}`)",
 		},
 		{
 			note:     "unterminated group",
@@ -1256,12 +1256,18 @@ func TestParseLogical_ParenBraceContext(t *testing.T) {
 		exp   *Expr
 		opts  *ParserOptions
 	}{
-		// Operand context: `{...}` is a body.
+		// Operand context: bare `{...}` is a body; but parens hold a value, not a body
 		{
-			note:  "not operand brace is a body if future not kw imported",
+			note:  "operand brace is a body if future not kw imported",
+			opts:  &notOpts,
+			input: "not {true}",
+			exp:   &Expr{Terms: &Not{Body: NewBody(NewExpr(BooleanTerm(true))), ExplicitBody: true}},
+		},
+		{
+			note:  "not operand parens hold a value if future not kw imported",
 			opts:  &notOpts,
 			input: "not ({true})",
-			exp:   &Expr{Terms: &Not{Body: NewBody(NewExpr(BooleanTerm(true)))}},
+			exp:   &Expr{Terms: &Not{Body: NewBody(NewExpr(SetTerm(BooleanTerm(true))))}},
 		},
 		{
 			note:  "not operand brace is not a body if future not kw unimported",
@@ -1273,18 +1279,36 @@ func TestParseLogical_ParenBraceContext(t *testing.T) {
 		},
 		{
 			note:  "and operand braces are bodies",
-			input: "({a}) and ({b})",
+			input: "{a} and {b}",
 			exp: &Expr{Terms: &LogicalAnd{
-				Lhs: NewBody(NewExpr(VarTerm("a"))),
-				Rhs: NewBody(NewExpr(VarTerm("b"))),
+				Lhs:         NewBody(NewExpr(VarTerm("a"))),
+				Rhs:         NewBody(NewExpr(VarTerm("b"))),
+				ExplicitLhs: true,
+				ExplicitRhs: true,
 			}},
 		},
 		{
-			note:  "rhs operand brace is a body",
+			note:  "and operand parens hold values",
+			input: "({a}) and ({b})",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(SetTerm(VarTerm("a")))),
+				Rhs: NewBody(NewExpr(SetTerm(VarTerm("b")))),
+			}},
+		},
+		{
+			note:  "rhs operand parens hold a value",
 			input: "a and ({b})",
 			exp: &Expr{Terms: &LogicalAnd{
 				Lhs: NewBody(NewExpr(VarTerm("a"))),
-				Rhs: NewBody(NewExpr(VarTerm("b"))),
+				Rhs: NewBody(NewExpr(SetTerm(VarTerm("b")))),
+			}},
+		},
+		{
+			note:  "empty parens hold an empty object",
+			input: "a or ({})",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(VarTerm("a"))),
+				Rhs: NewBody(NewExpr(ObjectTerm())),
 			}},
 		},
 
@@ -1340,21 +1364,33 @@ func TestParseLogical_ParenExplicit(t *testing.T) {
 			explicitRhs: false,
 		},
 		{
-			note:        "wrapped explicit body rhs is explicit",
+			note:        "explicit body rhs is explicit",
+			input:       "a and {b}",
+			explicitLhs: false,
+			explicitRhs: true,
+		},
+		{
+			note:        "explicit body with logical content is explicit",
+			input:       "a and {b or c}",
+			explicitLhs: false,
+			explicitRhs: true,
+		},
+		{
+			note:        "explicit body lhs before and is explicit",
+			input:       "{a} and c",
+			explicitLhs: true,
+			explicitRhs: false,
+		},
+		{
+			note:        "wrapped braces are a value, not an explicit body",
 			input:       "a and ({b})",
 			explicitLhs: false,
-			explicitRhs: true,
+			explicitRhs: false,
 		},
 		{
-			note:        "wrapped explicit body with logical content is explicit",
-			input:       "a and ({b or c})",
-			explicitLhs: false,
-			explicitRhs: true,
-		},
-		{
-			note:        "wrapped explicit body lhs before and is explicit",
+			note:        "wrapped braces lhs are a value, not an explicit body",
 			input:       "({a}) and c",
-			explicitLhs: true,
+			explicitLhs: false,
 			explicitRhs: false,
 		},
 	}
@@ -1761,7 +1797,7 @@ func TestParseLogical_ParenSerialization(t *testing.T) {
 		{"not group, drops redundant outer group", "(not a)", "not a"},
 		{"not group, drops redundant operand group", "not (a)", "not a"},
 		{"not group as operand", "x and not (a or b)", "x and not (a or b)"},
-		{"explicit body stays braces", "a and ({b or c})", "a and { b or c }"},
+		{"explicit body stays braced", "a and {b or c}", "a and { b or c }"},
 		{"with operand group, lhs", "(a with input as x) or b", "(a with input as x) or b"},
 		{"with operand group, rhs", "a or (b with input as x)", "a or (b with input as x)"},
 		{"with binds to whole group, outer", "(a and b with input as x)", "a and b with input as x"},

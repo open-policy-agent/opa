@@ -409,6 +409,10 @@ func defaultLocation(x ast.Node) *ast.Location {
 }
 
 type writer struct {
+	// parenExpr, when set, is an expression that must be wrapped in parens when
+	// written; consumed by the first writeExpr that sees it.
+	parenExpr *ast.Expr
+
 	buf bytes.Buffer
 
 	indent                  string
@@ -942,6 +946,12 @@ func (w *writer) writeBody(body ast.Body, comments []*ast.Comment) ([]*ast.Comme
 }
 
 func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comment, error) {
+	if w.parenExpr == expr {
+		w.parenExpr = nil
+		w.write("(")
+		defer w.write(")")
+	}
+
 	var err error
 	comments, err = w.insertComments(comments, expr.Location)
 	if err != nil {
@@ -1163,6 +1173,12 @@ func (w *writer) writeNot(not *ast.Not, loc *ast.Location, comments []*ast.Comme
 	w.write("not ")
 
 	if not.ExplicitBody || len(not.Body) > 1 {
+		// A leading set union renders as `x | y`, which the parser reads as a
+		// comprehension at the brace, so it is parenthesized.
+		if isUnionExpr(not.Body[0]) {
+			w.parenExpr = not.Body[0]
+		}
+
 		w.write("{")
 		comments, err = w.writeComprehensionBody('{', '}', not.Body, loc, loc, comments)
 		if err != nil {
@@ -1171,17 +1187,26 @@ func (w *writer) writeNot(not *ast.Not, loc *ast.Location, comments []*ast.Comme
 			}
 		}
 
-		if len(not.Body) == 1 &&
-			not.Body[0].Location.Row == loc.Row {
+		if last := not.Body[len(not.Body)-1]; last.Location != nil && last.Location.Row == loc.Row {
 			w.write(" ")
 		}
 		w.write("}")
 	} else {
+		// A value that renders brace-led would be re-read as an explicit body.
+		parens := exprRendersBraceLead(not.Body[0])
+		if parens {
+			w.write("(")
+		}
+
 		comments, err = w.writeExpr(not.Body[0], comments)
 		if err != nil {
 			if !errors.As(err, &unexpectedCommentError{}) {
 				return nil, err
 			}
+		}
+
+		if parens {
+			w.write(")")
 		}
 	}
 
@@ -2033,6 +2058,50 @@ func (w *writer) writeIterableLine(elements []any, comments []*ast.Comment, fn e
 	}
 
 	return fn(elements[i], comments)
+}
+
+// isUnionExpr reports whether expr is a set-union call that renders as a bare
+// `x | y`, which is comprehension syntax at an operand brace.
+func isUnionExpr(expr *ast.Expr) bool {
+	terms, ok := expr.Terms.([]*ast.Term)
+	return ok && len(terms) == 3 && ast.Or.Ref().Equal(terms[0].Value)
+}
+
+// exprRendersBraceLead reports whether expr renders starting with a `{`. Such an
+// expression needs parens in an operand position, as bare braces there are read as
+// an explicit body. Mirrors rendersWithLeadingBrace in the ast package.
+func exprRendersBraceLead(expr *ast.Expr) bool {
+	switch t := expr.Terms.(type) {
+	case *ast.Term:
+		return termRendersBraceLead(t)
+	case []*ast.Term:
+		// Infix calls render an operand first: the result for the assigned form
+		// (`z = x | y`), otherwise the lhs (`{x} == y`).
+		if bi, ok := ast.BuiltinMap[t[0].Value.String()]; ok && bi.Infix != "" {
+			switch len(t) {
+			case bi.Decl.Arity() + 1:
+				return termRendersBraceLead(t[1])
+			case bi.Decl.Arity() + 2:
+				return termRendersBraceLead(t[len(t)-1])
+			}
+		}
+	}
+
+	return false
+}
+
+func termRendersBraceLead(t *ast.Term) bool {
+	switch v := t.Value.(type) {
+	case ast.Set:
+		// The empty set renders as `set()`.
+		return v.Len() > 0
+	case ast.Object, *ast.SetComprehension, *ast.ObjectComprehension:
+		return true
+	case ast.Ref:
+		return len(v) > 0 && termRendersBraceLead(v[0])
+	}
+
+	return false
 }
 
 // isUnionCall returns true if the term is a call to the union built-in, whose
