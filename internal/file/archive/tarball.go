@@ -7,7 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"strings"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 type TarGzWriter struct {
@@ -62,11 +63,7 @@ func MustWriteTarGz(files [][2]string) *bytes.Buffer {
 	defer tgw.Close()
 
 	for _, file := range files {
-		if !strings.HasPrefix(file[0], "/") {
-			file[0] = "/" + file[0]
-		}
-
-		if err := tgw.WriteFile(file[0], []byte(file[1])); err != nil {
+		if err := tgw.WriteFile(util.WithPrefix(file[0], "/"), []byte(file[1])); err != nil {
 			panic(err)
 		}
 	}
