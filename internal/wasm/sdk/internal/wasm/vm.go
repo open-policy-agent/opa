@@ -221,9 +221,9 @@ func getABIVersion(mod api.Module) (int32, int32, error) {
 }
 
 // close releases the wazero Runtime and all resources associated with this VM.
-func (v *VM) close() {
-	if v.runtime != nil {
-		v.runtime.Close(context.Background())
+func (i *VM) close() {
+	if i.runtime != nil {
+		i.runtime.Close(context.Background())
 	}
 }
 

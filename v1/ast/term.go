@@ -2042,72 +2042,72 @@ type lazyObj struct {
 	native map[string]any
 }
 
-func (l *lazyObj) force() Object {
-	if l.strict == nil {
-		l.strict = MustInterfaceToValue(l.native).(Object)
+func (lob *lazyObj) force() Object {
+	if lob.strict == nil {
+		lob.strict = MustInterfaceToValue(lob.native).(Object)
 		// NOTE(jf): a possible performance improvement here would be to check how many
 		// entries have been realized to AST in the cache, and if some threshold compared to the
 		// total number of keys is exceeded, realize the remaining entries and set l.strict to l.cache.
-		l.cache = map[string]Value{} // We don't need the cache anymore; drop it to free up memory.
+		lob.cache = map[string]Value{} // We don't need the cache anymore; drop it to free up memory.
 	}
-	return l.strict
+	return lob.strict
 }
 
-func (l *lazyObj) Compare(other Value) int {
-	if c := valueTypeCompare(l, other); c != 0 {
+func (lob *lazyObj) Compare(other Value) int {
+	if c := valueTypeCompare(lob, other); c != 0 {
 		return c
 	}
-	return l.force().Compare(other)
+	return lob.force().Compare(other)
 }
 
-func (l *lazyObj) Copy() Object {
-	return l
+func (lob *lazyObj) Copy() Object {
+	return lob
 }
 
-func (l *lazyObj) Diff(other Object) Object {
-	return l.force().Diff(other)
+func (lob *lazyObj) Diff(other Object) Object {
+	return lob.force().Diff(other)
 }
 
-func (l *lazyObj) Intersect(other Object) [][3]*Term {
-	return l.force().Intersect(other)
+func (lob *lazyObj) Intersect(other Object) [][3]*Term {
+	return lob.force().Intersect(other)
 }
 
-func (l *lazyObj) Iter(f func(*Term, *Term) error) error {
-	return l.force().Iter(f)
+func (lob *lazyObj) Iter(f func(*Term, *Term) error) error {
+	return lob.force().Iter(f)
 }
 
-func (l *lazyObj) Until(f func(*Term, *Term) bool) bool {
+func (lob *lazyObj) Until(f func(*Term, *Term) bool) bool {
 	// NOTE(sr): there could be benefits in not forcing here -- if we abort because
 	// `f` returns true, we could save us from converting the rest of the object.
-	return l.force().Until(f)
+	return lob.force().Until(f)
 }
 
-func (l *lazyObj) Foreach(f func(*Term, *Term)) {
-	l.force().Foreach(f)
+func (lob *lazyObj) Foreach(f func(*Term, *Term)) {
+	lob.force().Foreach(f)
 }
 
-func (l *lazyObj) Filter(filter Object) (Object, error) {
-	return l.force().Filter(filter)
+func (lob *lazyObj) Filter(filter Object) (Object, error) {
+	return lob.force().Filter(filter)
 }
 
-func (l *lazyObj) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error) {
-	return l.force().Map(f)
+func (lob *lazyObj) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error) {
+	return lob.force().Map(f)
 }
 
-func (l *lazyObj) Merge(other Object) (Object, bool) {
-	return l.force().Merge(other)
+func (lob *lazyObj) Merge(other Object) (Object, bool) {
+	return lob.force().Merge(other)
 }
 
-func (l *lazyObj) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
-	return l.force().MergeWith(other, conflictResolver)
+func (lob *lazyObj) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
+	return lob.force().MergeWith(other, conflictResolver)
 }
 
-func (l *lazyObj) Len() int {
-	return len(l.native)
+func (lob *lazyObj) Len() int {
+	return len(lob.native)
 }
 
-func (l *lazyObj) String() string {
-	return l.force().String()
+func (lob *lazyObj) String() string {
+	return lob.force().String()
 }
 
 // get is merely there to implement the Object interface -- `get` there serves the
@@ -2116,16 +2116,16 @@ func (*lazyObj) get(*Term) *objectElem {
 	return nil
 }
 
-func (l *lazyObj) Get(k *Term) *Term {
-	if l.strict != nil {
-		return l.strict.Get(k)
+func (lob *lazyObj) Get(k *Term) *Term {
+	if lob.strict != nil {
+		return lob.strict.Get(k)
 	}
 	if s, ok := k.Value.(String); ok {
-		if v, ok := l.cache[string(s)]; ok {
+		if v, ok := lob.cache[string(s)]; ok {
 			return NewTerm(v)
 		}
 
-		if val, ok := l.native[string(s)]; ok {
+		if val, ok := lob.native[string(s)]; ok {
 			var converted Value
 			switch val := val.(type) {
 			case map[string]any:
@@ -2133,31 +2133,31 @@ func (l *lazyObj) Get(k *Term) *Term {
 			default:
 				converted = MustInterfaceToValue(val)
 			}
-			l.cache[string(s)] = converted
+			lob.cache[string(s)] = converted
 			return NewTerm(converted)
 		}
 	}
 	return nil
 }
 
-func (l *lazyObj) Insert(k, v *Term) {
-	l.force().Insert(k, v)
+func (lob *lazyObj) Insert(k, v *Term) {
+	lob.force().Insert(k, v)
 }
 
 func (*lazyObj) IsGround() bool {
 	return true
 }
 
-func (l *lazyObj) Hash() int {
-	return l.force().Hash()
+func (lob *lazyObj) Hash() int {
+	return lob.force().Hash()
 }
 
-func (l *lazyObj) Keys() []*Term {
-	if l.strict != nil {
-		return l.strict.Keys()
+func (lob *lazyObj) Keys() []*Term {
+	if lob.strict != nil {
+		return lob.strict.Keys()
 	}
-	ret := make([]*Term, 0, len(l.native))
-	for k := range l.native {
+	ret := make([]*Term, 0, len(lob.native))
+	for k := range lob.native {
 		ret = append(ret, StringTerm(k))
 	}
 	slices.SortFunc(ret, TermValueCompare)
@@ -2165,8 +2165,8 @@ func (l *lazyObj) Keys() []*Term {
 	return ret
 }
 
-func (l *lazyObj) KeysIterator() ObjectKeysIterator {
-	return &lazyObjKeysIterator{keys: l.Keys()}
+func (lob *lazyObj) KeysIterator() ObjectKeysIterator {
+	return &lazyObjKeysIterator{keys: lob.Keys()}
 }
 
 type lazyObjKeysIterator struct {
@@ -2182,19 +2182,19 @@ func (ki *lazyObjKeysIterator) Next() (*Term, bool) {
 	return ki.keys[ki.current-1], true
 }
 
-func (l *lazyObj) Find(path Ref) (Value, error) {
-	if l.strict != nil {
-		return l.strict.Find(path)
+func (lob *lazyObj) Find(path Ref) (Value, error) {
+	if lob.strict != nil {
+		return lob.strict.Find(path)
 	}
 	if len(path) == 0 {
-		return l, nil
+		return lob, nil
 	}
 	if p0, ok := path[0].Value.(String); ok {
-		if v, ok := l.cache[string(p0)]; ok {
+		if v, ok := lob.cache[string(p0)]; ok {
 			return v.Find(path[1:])
 		}
 
-		if v, ok := l.native[string(p0)]; ok {
+		if v, ok := lob.native[string(p0)]; ok {
 			var converted Value
 			switch v := v.(type) {
 			case map[string]any:
@@ -2202,7 +2202,7 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 			default:
 				converted = MustInterfaceToValue(v)
 			}
-			l.cache[string(p0)] = converted
+			lob.cache[string(p0)] = converted
 			return converted.Find(path[1:])
 		}
 	}
