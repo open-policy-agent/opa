@@ -27,17 +27,16 @@ func TermSliceStringLength(terms []*Term, delimLen int) (n int) {
 	return max(n-delimLen, 0)
 }
 
-func (t *Term) StringLength() int {
-	if sl, ok := t.Value.(StringLengther); ok {
+func (term *Term) StringLength() int {
+	if sl, ok := term.Value.(StringLengther); ok {
 		return sl.StringLength()
 	}
-
-	panic("expected all ast.Value types to implement StringLenghter interface, got: " + ValueName(t.Value))
+	panic("expected all ast.Value types to implement StringLenghter interface, got: " + ValueName(term.Value))
 }
 
-func (s String) StringLength() int {
+func (str String) StringLength() int {
 	n := 2 // surrounding quotes
-	bs := util.StringToByteSlice(s)
+	bs := util.StringToByteSlice(str)
 	for i := 0; i < len(bs); {
 		r, size := utf8.DecodeRune(bs[i:])
 		switch r {
@@ -57,12 +56,12 @@ func (s String) StringLength() int {
 	return n
 }
 
-func (n Number) StringLength() int {
-	return len(n)
+func (num Number) StringLength() int {
+	return len(num)
 }
 
-func (b Boolean) StringLength() int {
-	if b {
+func (bol Boolean) StringLength() int {
+	if bol {
 		return 4
 	}
 	return 5
@@ -80,27 +79,27 @@ func (s *set) StringLength() int {
 	return TermSliceStringLength(s.Slice(), 2) + 2
 }
 
-func (a *Array) StringLength() int {
-	if a.Len() == 0 {
+func (arr *Array) StringLength() int {
+	if arr.Len() == 0 {
 		return 2 // []
 	}
 	// surrounding brackets + ", " for every element - 1
-	return TermSliceStringLength(a.elems, 2) + 2
+	return TermSliceStringLength(arr.elems, 2) + 2
 }
 
-func (o *object) StringLength() (n int) {
-	if o.Len() == 0 {
+func (obj *object) StringLength() (n int) {
+	if obj.Len() == 0 {
 		return 2 // {}
 	}
 	// ": " for every item + ", " for every item - 1
-	o.Foreach(func(key, value *Term) {
+	obj.Foreach(func(key, value *Term) {
 		n += key.StringLength() + 4 + value.StringLength() // ": " and ", "
 	})
 	return n // surrounding {} but also minus last ", "
 }
 
-func (l *lazyObj) StringLength() int {
-	return l.force().(*object).StringLength()
+func (lob *lazyObj) StringLength() int {
+	return lob.force().(*object).StringLength()
 }
 
 func (ts *TemplateString) StringLength() (n int) {
@@ -138,23 +137,23 @@ func comprehensionTermStringLength(t *Term) int {
 	return t.StringLength()
 }
 
-func (r Ref) StringLength() (n int) {
-	rlen := len(r)
+func (ref Ref) StringLength() (n int) {
+	rlen := len(ref)
 	if rlen == 0 {
 		return 0
 	}
 
-	if s, ok := r[0].Value.(String); ok {
+	if s, ok := ref[0].Value.(String); ok {
 		n = len(s) // first term should never be quoted
 	} else {
-		n = r[0].StringLength()
+		n = ref[0].StringLength()
 	}
 
 	if rlen == 1 {
 		return n
 	}
 
-	for _, p := range r[1:] {
+	for _, p := range ref[1:] {
 		switch v := p.Value.(type) {
 		case String:
 			str := string(v)
@@ -177,113 +176,113 @@ func (v Var) StringLength() int {
 	return len(v)
 }
 
-func (s *SetComprehension) StringLength() int {
-	return comprehensionTermStringLength(s.Term) + s.Body.StringLength() + 5 // {} and " | "
+func (sc *SetComprehension) StringLength() int {
+	return comprehensionTermStringLength(sc.Term) + sc.Body.StringLength() + 5 // {} and " | "
 }
 
-func (a *ArrayComprehension) StringLength() int {
-	return comprehensionTermStringLength(a.Term) + a.Body.StringLength() + 5 // [] and " | "
+func (ac *ArrayComprehension) StringLength() int {
+	return comprehensionTermStringLength(ac.Term) + ac.Body.StringLength() + 5 // [] and " | "
 }
 
-func (o *ObjectComprehension) StringLength() (n int) {
-	n += comprehensionTermStringLength(o.Key)
-	n += comprehensionTermStringLength(o.Value)
-	n += o.Body.StringLength()
+func (oc *ObjectComprehension) StringLength() (n int) {
+	n += comprehensionTermStringLength(oc.Key)
+	n += comprehensionTermStringLength(oc.Value)
+	n += oc.Body.StringLength()
 	return n + 7 // "{}"", " | ", and ": "
 }
 
-func (m *Module) StringLength() (n int) {
-	if m.Package != nil {
-		n += m.Package.StringLength() + 2 // newlines
+func (mod *Module) StringLength() (n int) {
+	if mod.Package != nil {
+		n += mod.Package.StringLength() + 2 // newlines
 	}
 
-	if len(m.Imports) > 0 {
-		for _, imp := range m.Imports {
+	if len(mod.Imports) > 0 {
+		for _, imp := range mod.Imports {
 			n += imp.StringLength() + 1 // newline
 		}
 	}
 
-	if len(m.Rules) > 0 {
-		for _, rule := range m.Rules {
-			n += rule.stringLengthWithOpts(toStringOpts{regoVersion: m.regoVersion}) + 1 // newline
+	if len(mod.Rules) > 0 {
+		for _, rule := range mod.Rules {
+			n += rule.stringLengthWithOpts(toStringOpts{regoVersion: mod.regoVersion}) + 1 // newline
 		}
 	}
 
 	return n
 }
 
-func (p *Package) StringLength() int {
-	if p == nil {
+func (pkg *Package) StringLength() int {
+	if pkg == nil {
 		return 21 // <illegal nil package>
 	}
-	if len(p.Path) <= 1 {
-		return 25 + p.Path.StringLength() // // package <illegal path " ... ">
+	if len(pkg.Path) <= 1 {
+		return 25 + pkg.Path.StringLength() // // package <illegal path " ... ">
 	}
 
-	return 8 + p.Path[1:].StringLength() // "package ..."
+	return 8 + pkg.Path[1:].StringLength() // "package ..."
 }
 
-func (i *Import) StringLength() (n int) {
-	n = 7 + i.Path.StringLength() // "import " and path
-	if i.Alias != "" {
-		n += 4 + i.Alias.StringLength() // " as " and alias
+func (imp *Import) StringLength() (n int) {
+	n = 7 + imp.Path.StringLength() // "import " and path
+	if imp.Alias != "" {
+		n += 4 + imp.Alias.StringLength() // " as " and alias
 	}
 	return n
 }
 
-func (r *Rule) StringLength() int {
-	return r.stringLengthWithOpts(toStringOpts{})
+func (rule *Rule) StringLength() int {
+	return rule.stringLengthWithOpts(toStringOpts{})
 }
 
-func (r *Rule) stringLengthWithOpts(opts toStringOpts) int {
+func (rule *Rule) stringLengthWithOpts(opts toStringOpts) int {
 	n := 0
-	if r.Default {
+	if rule.Default {
 		n += 8 // "default "
 	}
-	n += r.Head.stringLengthWithOpts(opts)
-	if !r.Default {
+	n += rule.Head.stringLengthWithOpts(opts)
+	if !rule.Default {
 		switch opts.RegoVersion() {
 		case RegoV1, RegoV0CompatV1:
 			n += 6 // " if { "
 		default:
 			n += 3 // " { "
 		}
-		n += r.Body.StringLength() + 2 // body and closing " }"
+		n += rule.Body.StringLength() + 2 // body and closing " }"
 	}
-	if r.Else != nil {
-		n += r.Else.stringLengthWithOpts(opts)
+	if rule.Else != nil {
+		n += rule.Else.stringLengthWithOpts(opts)
 	}
 	return n
 }
 
-func (h *Head) StringLength() int {
-	return h.stringLengthWithOpts(toStringOpts{})
+func (head *Head) StringLength() int {
+	return head.stringLengthWithOpts(toStringOpts{})
 }
 
-func (h *Head) stringLengthWithOpts(opts toStringOpts) int {
-	n := h.Reference.StringLength()
+func (head *Head) stringLengthWithOpts(opts toStringOpts) int {
+	n := head.Reference.StringLength()
 	containsAdded := false
 	switch {
-	case len(h.Args) != 0:
-		n += h.Args.StringLength()
-	case len(h.Reference) == 1 && h.Key != nil:
+	case len(head.Args) != 0:
+		n += head.Args.StringLength()
+	case len(head.Reference) == 1 && head.Key != nil:
 		switch opts.RegoVersion() {
 		case RegoV0:
-			n += 2 + h.Key.StringLength() // for []
+			n += 2 + head.Key.StringLength() // for []
 		default:
-			n += 10 + h.Key.StringLength() // " contains "
+			n += 10 + head.Key.StringLength() // " contains "
 			containsAdded = true
 		}
 	}
-	if h.Value != nil {
-		if h.Assign {
+	if head.Value != nil {
+		if head.Assign {
 			n += 4 // " := "
 		} else {
 			n += 3 // " = "
 		}
-		n += h.Value.StringLength()
-	} else if !containsAdded && h.Name == "" && h.Key != nil {
-		n += 10 + h.Key.StringLength() // " contains "
+		n += head.Value.StringLength()
+	} else if !containsAdded && head.Name == "" && head.Key != nil {
+		n += 10 + head.Key.StringLength() // " contains "
 	}
 	return n
 }
@@ -296,20 +295,20 @@ func (a Args) StringLength() (n int) {
 	return n - 2 // minus last ", "
 }
 
-func (b Body) StringLength() (n int) {
-	for _, expr := range b {
+func (body Body) StringLength() (n int) {
+	for _, expr := range body {
 		n += expr.StringLength() + 2 // "; "
 	}
 	return max(n-2, 0) // minus last "; " (if `n` isn't 0)
 }
 
-func (e *Expr) StringLength() (n int) {
-	if e.Negated {
+func (expr *Expr) StringLength() (n int) {
+	if expr.Negated {
 		n += 4 // "not "
 	}
-	switch terms := e.Terms.(type) {
+	switch terms := expr.Terms.(type) {
 	case []*Term:
-		if e.IsEquality() && validEqAssignArgCount(e) {
+		if expr.IsEquality() && validEqAssignArgCount(expr) {
 			n += terms[1].StringLength() + len(Equality.Infix) + terms[2].StringLength() + 2 // spaces around =
 		} else {
 			n += Call(terms).StringLength()
@@ -317,10 +316,10 @@ func (e *Expr) StringLength() (n int) {
 	case StringLengther:
 		n += terms.StringLength()
 	default:
-		panic(fmt.Sprintf("string length estimation not implemented for type: %T", e.Terms))
+		panic(fmt.Sprintf("string length estimation not implemented for type: %T", expr.Terms))
 	}
 
-	for _, w := range e.With {
+	for _, w := range expr.With {
 		n += w.StringLength() + 1 // space before with
 	}
 
@@ -331,20 +330,20 @@ func (w *With) StringLength() int {
 	return w.Target.StringLength() + w.Value.StringLength() + 9 // "with " and " as "
 }
 
-func (e *Every) StringLength() int {
+func (q *Every) StringLength() int {
 	n := 6 // "every "
-	if e.Key != nil {
-		n += e.Key.StringLength() + 2 // ", "
+	if q.Key != nil {
+		n += q.Key.StringLength() + 2 // ", "
 	}
-	n += e.Value.StringLength() + 4  // " in "
-	n += e.Domain.StringLength() + 3 // " { "
-	n += e.Body.StringLength() + 2   // " }"
+	n += q.Value.StringLength() + 4  // " in "
+	n += q.Domain.StringLength() + 3 // " { "
+	n += q.Body.StringLength() + 2   // " }"
 	return n
 }
 
-func (s *SomeDecl) StringLength() int {
+func (d *SomeDecl) StringLength() int {
 	n := 5 // "some "
-	if call, ok := s.Symbols[0].Value.(Call); ok {
+	if call, ok := d.Symbols[0].Value.(Call); ok {
 		n += 4 // " in "
 		n += call[1].StringLength()
 		if len(call) == 4 {
@@ -356,24 +355,24 @@ func (s *SomeDecl) StringLength() int {
 		}
 		return n
 	}
-	return n + TermSliceStringLength(s.Symbols, 2)
+	return n + TermSliceStringLength(d.Symbols, 2)
 }
 
 func (c *Comment) StringLength() int {
 	return 1 + len(c.Text) // '#' + text
 }
 
-func (not *Not) StringLength() int {
-	if !not.ExplicitBody && len(not.Body) == 1 {
-		if notBodyNeedsParens(not.Body) {
+func (n *Not) StringLength() int {
+	if !n.ExplicitBody && len(n.Body) == 1 {
+		if notBodyNeedsParens(n.Body) {
 			// "not (...)"
-			return 6 + not.Body.StringLength()
+			return 6 + n.Body.StringLength()
 		}
 		// "not ..."
-		return 4 + not.Body.StringLength()
+		return 4 + n.Body.StringLength()
 	}
 	// "not {...}"
-	return 6 + not.Body.StringLength()
+	return 6 + n.Body.StringLength()
 }
 
 func (a *LogicalAnd) StringLength() int {

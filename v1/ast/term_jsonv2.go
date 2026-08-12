@@ -80,24 +80,24 @@ func (str String) MarshalJSONTo(e *jsontext.Encoder) error {
 	return e.WriteToken(jsontext.String(string(str)))
 }
 
-func (t *Term) MarshalJSONTo(e *jsontext.Encoder) (err error) {
+func (term *Term) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 	// Token write errors are unchecked: an unbalanced value fails at the closing
 	// token. A marshaller can fail having written a balanced value, so is checked.
 	e.WriteToken(jsontext.BeginObject)
 
 	includeLocation := astJSON.GetOptions().MarshalOptions.IncludeLocation
-	if t.Location != nil && includeLocation.Term {
-		if err := jsonv2.WriteField(e, "location", t.Location); err != nil {
+	if term.Location != nil && includeLocation.Term {
+		if err := jsonv2.WriteField(e, "location", term.Location); err != nil {
 			return err
 		}
 	}
 
 	e.WriteToken(jsontext.String("type"))
-	e.WriteToken(jsontext.String(ValueName(t.Value)))
+	e.WriteToken(jsontext.String(ValueName(term.Value)))
 
 	e.WriteToken(jsontext.String("value"))
-	if err = marshalValueTo(e, t.Value); err != nil {
-		return fmt.Errorf("failed to marshal term of %s: %w", ValueName(t.Value), err)
+	if err = marshalValueTo(e, term.Value); err != nil {
+		return fmt.Errorf("failed to marshal term of %s: %w", ValueName(term.Value), err)
 	}
 
 	return e.WriteToken(jsontext.EndObject)
@@ -108,8 +108,8 @@ func (term *Term) MarshalJSON() ([]byte, error) {
 	return jsonv2.MarshalMarshalerTo(term)
 }
 
-func (r Ref) MarshalJSONTo(e *jsontext.Encoder) (err error) {
-	return jsonv2.WriteMarshalerToArrayOrNull(e, r)
+func (ref Ref) MarshalJSONTo(e *jsontext.Encoder) (err error) {
+	return jsonv2.WriteMarshalerToArrayOrNull(e, ref)
 }
 
 func (t *TemplateString) MarshalJSONTo(e *jsontext.Encoder) (err error) {
@@ -210,8 +210,8 @@ func (obj *object) MarshalJSON() ([]byte, error) {
 	return jsonv2.MarshalMarshalerTo(obj)
 }
 
-func (a *Array) MarshalJSONTo(e *jsontext.Encoder) error {
-	return jsonv2.WriteMarshalerToArray(e, a.elems)
+func (arr *Array) MarshalJSONTo(e *jsontext.Encoder) error {
+	return jsonv2.WriteMarshalerToArray(e, arr.elems)
 }
 
 // MarshalJSON returns JSON encoded bytes representing arr.
