@@ -964,9 +964,7 @@ func Compare(a, b Type) int {
 		}
 		return Compare(setA.of, setB.of)
 	case Any:
-		sl1 := typeSlice(a.(Any))
-		sl2 := typeSlice(b.(Any))
-		return typeSliceCompare(sl1, sl2)
+		return typeSliceCompare(typeSlice(a.(Any)), typeSlice(b.(Any)))
 	case *Function:
 		fA := a.(*Function)
 		fB := b.(*Function)
