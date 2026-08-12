@@ -18,7 +18,7 @@ import (
 func TestPolicyToProtoRoundTrip(t *testing.T) {
 	loc := ir.Location{File: 1, Row: 2, Col: 3}
 	withLoc := func(s ir.Stmt) ir.Stmt {
-		s.SetLocation(loc.File, loc.Row, loc.Col, "", "")
+		s.SetLocation(loc.File, loc.Row, loc.Col, "", nil)
 		return s
 	}
 

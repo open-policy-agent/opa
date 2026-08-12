@@ -215,6 +215,8 @@ func makeNumberRefStmtSchema() genjsonschema.OrderedMap {
 			"col", genjsonschema.Map("type", "integer"),
 			"file", genjsonschema.Map("type", "integer"),
 			"row", genjsonschema.Map("type", "integer"),
+			"end_col", genjsonschema.Map("type", "integer"),
+			"end_row", genjsonschema.Map("type", "integer"),
 			"index", genjsonschema.Map("type", "integer"),
 			"Index", genjsonschema.Map(
 				"type", "integer",
@@ -223,7 +225,7 @@ func makeNumberRefStmtSchema() genjsonschema.OrderedMap {
 			),
 			"target", genjsonschema.Map("type", "integer"),
 		),
-		"required", []string{"col", "file", "index", "row", "target"},
+		"required", []string{"col", "end_col", "end_row", "file", "index", "row", "target"},
 		"additionalProperties", false,
 	)
 }

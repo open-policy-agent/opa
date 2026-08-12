@@ -15,6 +15,7 @@ package ir
 import (
 	"fmt"
 
+	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/types"
 )
 
@@ -84,7 +85,7 @@ type (
 	}
 
 	locationStmt interface {
-		SetLocation(index, row, col int, file, text string)
+		SetLocation(index, row, col int, file string, text []byte)
 		GetLocation() *Location
 	}
 
@@ -467,14 +468,18 @@ type ResultSetAddStmt struct {
 // Location records the filen index, and the row and column inside that file
 // that a statement can be connected to.
 type Location struct {
-	File       int    `json:"file"` // filename string constant index
-	Col        int    `json:"col"`
-	Row        int    `json:"row"`
-	file, text string // only used for debugging
+	File   int `json:"file"` // filename string constant index
+	Col    int `json:"col"`
+	Row    int `json:"row"`
+	EndCol int `json:"end_col"`
+	EndRow int `json:"end_row"`
+
+	file string // only used for debugging
+	text []byte // only used for debugging
 }
 
 // SetLocation sets the Location for a given Stmt.
-func (l *Location) SetLocation(index, row, col int, file, text string) {
+func (l *Location) SetLocation(index, row, col int, file string, text []byte) {
 	*l = Location{
 		File: index,
 		Row:  row,
@@ -482,6 +487,12 @@ func (l *Location) SetLocation(index, row, col int, file, text string) {
 		file: file,
 		text: text,
 	}
+	l.EndRow, l.EndCol = l.End()
+}
+
+// End determines the end position of l.
+func (l *Location) End() (row, col int) {
+	return location.EndOf(l.Row, l.Col, l.text)
 }
 
 // GetLocation returns a Stmt's Location.
