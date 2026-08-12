@@ -90,46 +90,16 @@ func InterfaceToValue(x any) (Value, error) {
 	case float64:
 		return floatNumber(x), nil
 	case string:
-		return String(x), nil
+		return InternedValue(x), nil
 	case []any:
-		r := util.NewPtrSlice[Term](len(x))
-		for i, e := range x {
-			e, err := InterfaceToValue(e)
-			if err != nil {
-				return nil, err
-			}
-			r[i].Value = e
-		}
-		return NewArray(r...), nil
+		r, err := util.TryMap(x, InterfaceToTermMapper)
+		return NewArray(r...), err
 	case []string:
-		r := util.NewPtrSlice[Term](len(x))
-		for i, e := range x {
-			r[i].Value = String(e)
-		}
-		return NewArray(r...), nil
+		return NewArray(util.Map(x, InternedTerm)...), nil
 	case map[string]any:
-		kvs := util.NewPtrSlice[Term](len(x) * 2)
-		idx := 0
-		for k, v := range x {
-			kvs[idx].Value = String(k)
-			v, err := InterfaceToValue(v)
-			if err != nil {
-				return nil, err
-			}
-			kvs[idx+1].Value = v
-			idx += 2
-		}
-		tuples := make([][2]*Term, len(kvs)/2)
-		for i := 0; i < len(kvs); i += 2 {
-			tuples[i/2] = *(*[2]*Term)(kvs[i : i+2])
-		}
-		return NewObject(tuples...), nil
+		return TryMapToObject(x, nil, InterfaceToTermMapper)
 	case map[string]string:
-		r := newobject(len(x))
-		for k, v := range x {
-			r.Insert(StringTerm(k), StringTerm(v))
-		}
-		return r, nil
+		return MapToObject(x, nil, InternedTerm), nil
 	default:
 		ptr := util.Reference(x)
 		if err := util.RoundTrip(ptr); err != nil {
@@ -201,7 +171,7 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (any, error) {
 	case String:
 		return string(v), nil
 	case *Array:
-		buf := []any{}
+		buf := make([]any, 0, v.Len())
 		for i := range v.Len() {
 			x1, err := valueToInterface(v.Elem(i).Value, resolver, opt)
 			if err != nil {
@@ -437,6 +407,14 @@ func (term *Term) Vars() VarSet {
 	vis := NewVarVisitor()
 	vis.Walk(term)
 	return vis.vars
+}
+
+// TermValueIs is a functional predicate to check if the term's Value is of type T.
+func TermValueIs[T Value](term *Term) (ok bool) {
+	if ok = term != nil; ok {
+		_, ok = term.Value.(T)
+	}
+	return ok
 }
 
 // IsConstant returns true if the AST value is constant.
