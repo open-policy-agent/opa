@@ -2,6 +2,7 @@ package ast
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -337,6 +338,14 @@ func TestParseLogical_ParseErrors(t *testing.T) {
 		{"or, inside every value", "every x or y in z {x}", "unexpected or keyword"},
 		{"and, inside every domain", "every x in y and z {x}", "unexpected and keyword"},
 		{"or, inside every domain", "every x in y or z {x}", "unexpected or keyword"},
+
+		// `some` and `every` are declarations, not truth-valued operands, so they
+		// cannot lead a chain. Nothing formats to these shapes: a *SomeDecl or *Every
+		// operand is only constructible programmatically.
+		{"some-in as an operand", "some x in xs and y", "unexpected and keyword"},
+		{"some decl as an operand", "some x and y", "unexpected and keyword"},
+		{"every as an operand", "every x in xs { x } and y", "unexpected and keyword"},
+		{"every as an operand, or", "every x in xs { x } or y", "unexpected or keyword"},
 	}
 	for _, tc := range exprTests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -979,6 +988,16 @@ func TestParseLogical_InnerExprHasLocation(t *testing.T) {
 func TestParseLogical_ParenGrouping(t *testing.T) {
 	opts := logicalParserOpts("not")
 
+	// Parens group rather than delimit, so an operand that begins with `(` extends
+	// past the matching `)`: every spelling below parses to this same operand.
+	setIntersectionEmpty := Equal.Expr(
+		And.Call(
+			SetTerm(NumberTerm("1"), NumberTerm("2")),
+			RefTerm(VarTerm("input"), StringTerm("s")),
+		),
+		SetTerm(),
+	)
+
 	tests := []struct {
 		note  string
 		input string
@@ -1165,6 +1184,62 @@ func TestParseLogical_ParenGrouping(t *testing.T) {
 					Rhs: NewBody(NewExpr(VarTerm("b"))),
 				})),
 				ExplicitLhs: true,
+			}},
+		},
+
+		// Parens group rather than delimit: wrapping only the leading part of an
+		// operand yields the same AST as wrapping all of it. This is why
+		// `z and (1 + 2) > 3` is accepted -- the same shape is plain v1 syntax after
+		// `not`, see TestParseLogical_ParenNot.
+		{
+			note:  "rhs operand, leading part wrapped",
+			input: `z and ({1, 2}) & input.s == set()`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(setIntersectionEmpty),
+			}},
+		},
+		{
+			note:  "rhs operand, whole operand wrapped",
+			input: `z and ({1, 2} & input.s == set())`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(setIntersectionEmpty),
+			}},
+		},
+		{
+			note:  "lhs operand, leading part wrapped",
+			input: `({1, 2}) & input.s == set() and z`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(setIntersectionEmpty),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			}},
+		},
+		{
+			note:  "lhs operand, whole operand wrapped",
+			input: `({1, 2} & input.s == set()) and z`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(setIntersectionEmpty),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			}},
+		},
+		{
+			note:  "rhs operand, parenthesized arithmetic",
+			input: `z and (1 + 2) > 3`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(GreaterThan.Expr(
+					Plus.Call(NumberTerm("1"), NumberTerm("2")),
+					NumberTerm("3"),
+				)),
+			}},
+		},
+		{
+			note:  "rhs operand, parenthesized comparison",
+			input: `z and (a) == b`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(Equal.Expr(VarTerm("a"), VarTerm("b"))),
 			}},
 		},
 	}
@@ -1505,11 +1580,73 @@ func TestParseLogical_ParenNot(t *testing.T) {
 				},
 			},
 		},
+
+		// Parens after `not` group rather than delimit too: where they hold no
+		// logical group, the operand continues past the matching `)`. These shapes
+		// also parse in plain v1 with no imports at all -- as `Expr.Negated` rather
+		// than a not-body -- which is why the and/or equivalents are accepted rather
+		// than narrowed (see TestParseLogical_ParenGrouping).
+		{
+			note:  "not, parenthesized arithmetic",
+			input: "not (1 + 2) > 3",
+			exp: &Expr{
+				Terms: &Not{
+					Body: NewBody(GreaterThan.Expr(
+						Plus.Call(NumberTerm("1"), NumberTerm("2")),
+						NumberTerm("3"),
+					)),
+				},
+			},
+		},
+		{
+			note:  "not, parenthesized comparison",
+			input: "not (a) == b",
+			exp: &Expr{
+				Terms: &Not{
+					Body: NewBody(Equal.Expr(VarTerm("a"), VarTerm("b"))),
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+		})
+	}
+
+	// The same shapes with no imports at all: `not` negates the expression in place
+	// rather than opening a body, and the operand still runs past the `)`. Plain v1
+	// syntax, so not narrowable.
+	noImportTests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "no imports, parenthesized arithmetic",
+			input: "not (1 + 2) > 3",
+			exp: &Expr{
+				Terms: GreaterThan.Expr(
+					Plus.Call(NumberTerm("1"), NumberTerm("2")),
+					NumberTerm("3"),
+				).Terms,
+				Negated: true,
+			},
+		},
+		{
+			note:  "no imports, parenthesized comparison",
+			input: "not (a) == b",
+			exp: &Expr{
+				Terms:   Equal.Expr(VarTerm("a"), VarTerm("b")).Terms,
+				Negated: true,
+			},
+		},
+	}
+
+	for _, tc := range noImportTests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, ParserOptions{RegoVersion: RegoV1})
 		})
 	}
 }
@@ -1843,4 +1980,473 @@ func TestParseLogical_ParenSerialization(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestParseLogical_BraceLedOperand pins the operand-brace contract for the value
+// forms of `{...}`: in an operand position the braces open a body, so an operand
+// holding a value must be parenthesized.
+func TestParseLogical_BraceLedOperand(t *testing.T) {
+	opts := logicalParserOpts()
+
+	// Brace forms that hold a value rather than a body.
+	// `{}` is an empty body and has a different error message.
+	operands := []struct {
+		note    string
+		operand string
+	}{
+		{"object", `{"a": 1}`},
+		{"set", `{1, 2}`},
+		{"object comprehension", `{k: v | v := input[k]}`},
+		{"ref into object", `{"a": 1}[_]`},
+		{"ref into object, dot", `{"a": 1}.a`},
+		{"comparison with set intersection", `{1, 2} & input.s == set()`},
+	}
+
+	// Each position the operand can appear in.
+	positions := []struct {
+		note     string
+		expr     string
+		expErr   string
+		expParse bool
+	}{
+		{
+			note: "lhs of and",
+			expr: "%s and z",
+			expErr: "operand of `and` cannot begin with `{` unless the braces hold a body " +
+				"(hint: wrap the operand to keep the value: `(%s) and ...`)",
+		},
+		{
+			note: "lhs of or",
+			expr: "%s or z",
+			expErr: "operand of `or` cannot begin with `{` unless the braces hold a body " +
+				"(hint: wrap the operand to keep the value: `(%s) or ...`)",
+		},
+		{
+			note: "rhs of and",
+			expr: "z and %s",
+			expErr: "operand of `and` cannot begin with `{` unless the braces hold a body " +
+				"(hint: wrap the operand to keep the value: `(%s) and ...`)",
+		},
+		{
+			note: "rhs of or",
+			expr: "z or %s",
+			expErr: "operand of `or` cannot begin with `{` unless the braces hold a body " +
+				"(hint: wrap the operand to keep the value: `(%s) or ...`)",
+		},
+		{note: "parenthesized lhs of and", expr: "(%s) and z", expParse: true},
+		{note: "parenthesized lhs of or", expr: "(%s) or z", expParse: true},
+		{note: "parenthesized rhs of and", expr: "z and (%s)", expParse: true},
+		{note: "parenthesized rhs of or", expr: "z or (%s)", expParse: true},
+	}
+
+	for _, tc := range operands {
+		t.Run(tc.note, func(t *testing.T) {
+			for _, ptc := range positions {
+				t.Run(ptc.note, func(t *testing.T) {
+					input := fmt.Sprintf(ptc.expr, tc.operand)
+
+					if ptc.expParse {
+						if _, err := ParseBodyWithOpts(input, opts); err != nil {
+							t.Fatalf("unexpected error for %q: %v", input, err)
+						}
+						return
+					}
+
+					assertParseErrorContains(t, ptc.note, input, fmt.Sprintf(ptc.expErr, tc.operand), opts)
+				})
+			}
+		})
+	}
+}
+
+func TestParseLogical_BraceLedOperandScope(t *testing.T) {
+	opts := logicalParserOpts()
+	notOpts := logicalParserOpts("not")
+
+	tests := []struct {
+		note   string
+		input  string
+		opts   *ParserOptions
+		exp    *Expr
+		expErr string
+	}{
+		{
+			note:  "body operand, lhs",
+			input: "{x} and z",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs:         NewBody(NewExpr(VarTerm("x"))),
+				Rhs:         NewBody(NewExpr(VarTerm("z"))),
+				ExplicitLhs: true,
+			}},
+		},
+		{
+			note:  "body operand, rhs",
+			input: "z and {x}",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs:         NewBody(NewExpr(VarTerm("z"))),
+				Rhs:         NewBody(NewExpr(VarTerm("x"))),
+				ExplicitRhs: true,
+			}},
+		},
+		{
+			note:  "multi-expression body operand, lhs",
+			input: "{x; y} or z",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs:         NewBody(NewExpr(VarTerm("x")), NewExpr(VarTerm("y"))),
+				Rhs:         NewBody(NewExpr(VarTerm("z"))),
+				ExplicitLhs: true,
+			}},
+		},
+		{
+			note:  "multi-expression body operand, rhs",
+			input: "z or {x; y}",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs:         NewBody(NewExpr(VarTerm("z"))),
+				Rhs:         NewBody(NewExpr(VarTerm("x")), NewExpr(VarTerm("y"))),
+				ExplicitRhs: true,
+			}},
+		},
+
+		{
+			note:  "object body statement",
+			input: `{"a": 1}`,
+			exp:   NewExpr(ObjectTerm([2]*Term{StringTerm("a"), NumberTerm("1")})),
+		},
+		{
+			note:  "ref into object body statement",
+			input: `{"a": 1}[_]`,
+			exp: NewExpr(RefTerm(
+				ObjectTerm([2]*Term{StringTerm("a"), NumberTerm("1")}),
+				VarTerm("$0"))),
+		},
+		{
+			note:  "comparison with set body statement",
+			input: "{x} == input.y",
+			exp:   Equal.Expr(SetTerm(VarTerm("x")), RefTerm(VarTerm("input"), StringTerm("y"))),
+		},
+		{
+			note:  "object as call argument",
+			input: `f({"a": 1})`,
+			exp: NewExpr([]*Term{
+				RefTerm(VarTerm("f")),
+				ObjectTerm([2]*Term{StringTerm("a"), NumberTerm("1")}),
+			}),
+		},
+
+		{
+			note:  "chain",
+			input: `{"a": 1} and z or w`,
+			expErr: "operand of `and` cannot begin with `{` unless the braces hold a body " +
+				"(hint: wrap the operand to keep the value: `({\"a\": 1}) and ...`)",
+		},
+		{
+			note:  "operand continues past a body-shaped brace, lhs",
+			input: `{x} == input.y and z`,
+			expErr: "operand of `and` cannot begin with `{` unless the braces hold a body " +
+				"(hint: wrap the operand to keep the value: `({x} == input.y) and ...`)",
+		},
+		{
+			note:   "operand continues past a body-shaped brace, rhs",
+			input:  `z and {x} == input.y`,
+			expErr: "unexpected equal token",
+		},
+
+		{
+			note:  "negated set term, lhs, not unimported",
+			input: "not {1} and z",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(&Expr{Terms: SetTerm(NumberTerm("1")), Negated: true}),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			}},
+		},
+		{
+			note:  "negated set term, rhs, not unimported",
+			input: "z and not {1}",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(&Expr{Terms: SetTerm(NumberTerm("1")), Negated: true}),
+			}},
+		},
+		{
+			note:  "not-body, lhs, not imported",
+			input: "not {1} and z",
+			opts:  &notOpts,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&Not{
+					Body:         NewBody(NewExpr(NumberTerm("1"))),
+					ExplicitBody: true,
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			}},
+		},
+		{
+			note:  "not-body, rhs, not imported",
+			input: "z and not {1}",
+			opts:  &notOpts,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(NewExpr(&Not{
+					Body:         NewBody(NewExpr(NumberTerm("1"))),
+					ExplicitBody: true,
+				})),
+			}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			popts := opts
+			if tc.opts != nil {
+				popts = *tc.opts
+			}
+
+			if tc.expErr != "" {
+				assertParseErrorContains(t, tc.note, tc.input, tc.expErr, popts)
+				return
+			}
+
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, popts)
+		})
+	}
+}
+
+func TestParseLogical_EmptyBraceOperand(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	errorTests := []struct {
+		note   string
+		input  string
+		expErr string
+	}{
+		{note: "lhs of and", input: "{} and z", expErr: "found empty body"},
+		{note: "rhs of and", input: "z and {}", expErr: "found empty body"},
+		{note: "lhs of or", input: "{} or z", expErr: "found empty body"},
+		{note: "rhs of or", input: "z or {}", expErr: "found empty body"},
+		{note: "both operands", input: "{} and {}", expErr: "found empty body"},
+		{note: "whitespace only", input: "{ } and z", expErr: "found empty body"},
+		{note: "after not", input: "not {}", expErr: "found empty body"},
+		{note: "after not, as an operand", input: "z and not {}", expErr: "found empty body"},
+
+		// Braces leading a larger operand hold a value
+		{
+			note:  "leading a comparison",
+			input: "{} == x and z",
+			expErr: "operand of `and` cannot begin with `{` unless the braces hold a body " +
+				"(hint: wrap the operand to keep the value: `({} == x) and ...`)",
+		},
+		{
+			note:  "leading a ref",
+			input: "{}[_] and z",
+			expErr: "operand of `and` cannot begin with `{` unless the braces hold a body " +
+				"(hint: wrap the operand to keep the value: `({}[_]) and ...`)",
+		},
+	}
+
+	for _, tc := range errorTests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseErrorContains(t, tc.note, tc.input, tc.expErr, opts)
+		})
+	}
+
+	parseTests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "parenthesized lhs is the empty object",
+			input: "({}) and z",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(ObjectTerm())),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			}},
+		},
+		{
+			note:  "parenthesized rhs is the empty object",
+			input: "z and ({})",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(NewExpr(ObjectTerm())),
+			}},
+		},
+	}
+
+	for _, tc := range parseTests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+		})
+	}
+}
+
+func TestParseLogical_BraceLedOperandHintExtent(t *testing.T) {
+	// The hints name the whole operand, not just its leading braces.
+	// Parens group rather than delimit -- as they do for `not (1 + 2) > 3` --
+	// so the minimal wrap parses too.
+
+	opts := logicalParserOpts("not")
+
+	tests := []struct {
+		note   string
+		input  string
+		expErr string
+	}{
+		{
+			note:  "and, lhs",
+			input: `{1, 2} & input.s == set() and z`,
+			expErr: "wrap the operand to keep the value: " +
+				"`({1, 2} & input.s == set()) and ...`",
+		},
+		{
+			note:  "and, rhs",
+			input: `z and {1, 2} & input.s == set()`,
+			expErr: "wrap the operand to keep the value: " +
+				"`({1, 2} & input.s == set()) and ...`",
+		},
+		{
+			note:  "or, lhs",
+			input: `{1, 2} & input.s == set() or z`,
+			expErr: "wrap the operand to keep the value: " +
+				"`({1, 2} & input.s == set()) or ...`",
+		},
+		{
+			note:  "or, rhs",
+			input: `z or {1, 2} + 1 == 2`,
+			expErr: "wrap the operand to keep the value: " +
+				"`({1, 2} + 1 == 2) or ...`",
+		},
+		{
+			note:  "not",
+			input: `not {1, 2} & input.s == set()`,
+			expErr: "must contain expression(s), got: set " +
+				"(hint: write `not ({1, 2} & input.s == set())` to negate the value, " +
+				"or `not {{1, 2} & input.s == set()}` for a body holding it)",
+		},
+		{
+			note:  "not, ref into object",
+			input: `not {"a": 1}["a"]`,
+			expErr: "must contain expression(s), got: ref " +
+				"(hint: write `not ({\"a\": 1}[\"a\"])` to negate the value, " +
+				"or `not {{\"a\": 1}[\"a\"]}` for a body holding it)",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseErrorContains(t, tc.note, tc.input, tc.expErr, opts)
+		})
+	}
+}
+
+// TestParseLogical_NotBodyLeadingOperand covers a not-body leading an and/or chain.
+func TestParseLogical_NotBodyLeadingOperand(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	tests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "single expression body, and",
+			input: "not {x} and y",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&Not{
+					Body:         NewBody(NewExpr(VarTerm("x"))),
+					ExplicitBody: true,
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("y"))),
+			}},
+		},
+		{
+			note:  "single expression body, or",
+			input: "not {x} or y",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(&Not{
+					Body:         NewBody(NewExpr(VarTerm("x"))),
+					ExplicitBody: true,
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("y"))),
+			}},
+		},
+		{
+			note:  "multi expression body",
+			input: "not {x; y} and z",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&Not{
+					Body:         NewBody(NewExpr(VarTerm("x")), NewExpr(VarTerm("y"))),
+					ExplicitBody: true,
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			}},
+		},
+		{
+			note:  "chain",
+			input: "not {x} and y or z",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(&LogicalAnd{
+					Lhs: NewBody(NewExpr(&Not{
+						Body:         NewBody(NewExpr(VarTerm("x"))),
+						ExplicitBody: true,
+					})),
+					Rhs: NewBody(NewExpr(VarTerm("y"))),
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			}},
+		},
+		{
+			note:  "both operands are not-bodies",
+			input: "not {x} and not {y}",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&Not{
+					Body:         NewBody(NewExpr(VarTerm("x"))),
+					ExplicitBody: true,
+				})),
+				Rhs: NewBody(NewExpr(&Not{
+					Body:         NewBody(NewExpr(VarTerm("y"))),
+					ExplicitBody: true,
+				})),
+			}},
+		},
+		{
+			note:  "parenthesized, unchanged",
+			input: "(not {x}) and y",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(&Not{
+					Body:         NewBody(NewExpr(VarTerm("x"))),
+					ExplicitBody: true,
+				})),
+				Rhs: NewBody(NewExpr(VarTerm("y"))),
+			}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+		})
+	}
+
+	t.Run("with modifier binds to the whole expression", func(t *testing.T) {
+		body, err := ParseBodyWithOpts("not {x} and y with input as 1", opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(body) != 1 {
+			t.Fatalf("expected 1 expression, got %d: %v", len(body), body)
+		}
+		if _, ok := body[0].Terms.(*LogicalAnd); !ok {
+			t.Fatalf("expected *LogicalAnd, got %T", body[0].Terms)
+		}
+		if len(body[0].With) != 1 {
+			t.Fatalf("expected the `with` on the and expression, got %v", body[0])
+		}
+	})
+
+	t.Run("no operator", func(t *testing.T) {
+		assertParseOneExpr(t, "no operator", "not {x}",
+			&Expr{Terms: &Not{
+				Body:         NewBody(NewExpr(VarTerm("x"))),
+				ExplicitBody: true,
+			}}, opts)
+	})
 }
