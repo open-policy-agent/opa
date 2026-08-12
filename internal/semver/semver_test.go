@@ -106,10 +106,39 @@ func TestBadInput(t *testing.T) {
 		"1.2.3.4",
 		"0.88.0-11_e4e5dcabb",
 		"0.88.0+11_e4e5dcabb",
+		// leading zeroes in the major, minor or patch version are not allowed
+		"01.2.3",
+		"1.02.3",
+		"1.2.03",
+		// a leading zero in a numeric pre-release identifier is not allowed
+		"1.2.3-01",
+		"1.2.3-alpha.01",
+		// an empty pre-release or build-metadata section is not allowed
+		"1.2.3-",
+		"1.2.3+",
+		"1.2.3-+build",
 	}
 	for _, b := range bad {
 		if _, err := Parse(b); err == nil {
 			t.Error("Improperly accepted value: ", b)
+		}
+	}
+}
+
+func TestGoodInput(t *testing.T) {
+	// spec-valid versions that must keep parsing after the stricter checks
+	good := []string{
+		"0.0.0",
+		"1.2.3",
+		"1.2.3-0",             // a single zero is a valid numeric pre-release identifier
+		"1.2.3-0a",            // an alphanumeric identifier may start with a zero
+		"1.2.3-alpha.0",       // trailing zero identifier is fine
+		"1.2.3+01",            // build metadata may have leading zeroes
+		"1.2.3-rc.1+build.01", // metadata leading zero permitted alongside a pre-release
+	}
+	for _, g := range good {
+		if _, err := Parse(g); err != nil {
+			t.Errorf("Improperly rejected value %q: %v", g, err)
 		}
 	}
 }
