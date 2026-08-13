@@ -55,7 +55,6 @@ func (o DepAnalysisOutput) JSON(w io.Writer) error {
 
 // Pretty outputs o to w in a human-readable format.
 func (o DepAnalysisOutput) Pretty(w io.Writer) error {
-
 	var headers []string
 	var rows [][]string
 
@@ -374,7 +373,7 @@ func Source(w io.Writer, errW io.Writer, r Output) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(w, string(bs))
+		w.Write(append(bs, '\n'))
 	}
 
 	for i := range r.Partial.Support {
@@ -383,7 +382,7 @@ func Source(w io.Writer, errW io.Writer, r Output) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprint(w, string(bs))
+		w.Write(bs)
 	}
 
 	return nil
@@ -407,14 +406,13 @@ func Raw(w io.Writer, errW io.Writer, r Output) error {
 				if err != nil {
 					return err
 				}
-
-				fmt.Fprint(w, string(bytes))
+				w.Write(bytes)
 			}
 
 			if i+1 >= len(rs.Expressions) {
-				fmt.Fprintln(w, "")
+				w.Write([]byte{'\n'})
 			} else {
-				fmt.Fprint(w, " ")
+				w.Write([]byte{' '})
 			}
 		}
 	}

@@ -612,7 +612,7 @@ func (r *REPL) cmdShow(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprint(r.output, string(bs))
+		r.output.Write(bs)
 		return nil
 	} else if args[0] == "debug" {
 		debug := replDebugState{

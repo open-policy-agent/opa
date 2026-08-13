@@ -68,7 +68,7 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 )
 
-func init() {
+func TestMain(m *testing.M) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.set_outgoing",
 		Decl: astTypes.NewFunction(nil, astTypes.B),
@@ -83,6 +83,8 @@ func init() {
 			return iter(ast.BooleanTerm(true))
 		},
 	)
+
+	os.Exit(m.Run())
 }
 
 type tr struct {

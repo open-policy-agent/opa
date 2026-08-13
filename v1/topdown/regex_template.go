@@ -82,10 +82,7 @@ func compileRegexTemplate(tpl string, delimiterStart, delimiterEnd byte) (*regex
 		return nil, errBraces
 	}
 	varsR := make([]*regexp.Regexp, len(idxs)/2)
-	pattern := bytes.NewBufferString("")
-
-	// WriteByte's error value is always nil for bytes.Buffer, no need to check it.
-	pattern.WriteByte('^')
+	pattern := bytes.NewBufferString("^")
 
 	var end int
 	var err error
@@ -113,10 +110,5 @@ func compileRegexTemplate(tpl string, delimiterStart, delimiterEnd byte) (*regex
 	pattern.WriteByte('$')
 
 	// Compile full regexp.
-	reg, errCompile := regexp.Compile(pattern.String())
-	if errCompile != nil {
-		return nil, errCompile
-	}
-
-	return reg, nil
+	return regexp.Compile(pattern.String())
 }
