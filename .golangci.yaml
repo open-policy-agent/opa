@@ -6,6 +6,7 @@ linters:
   enable:
     - copyloopvar
     - errcheck
+    - forbidigo
     - gocritic
     - govet
     - ineffassign
@@ -25,6 +26,10 @@ linters:
       exclude-functions:
         - github.com/open-policy-agent/opa/v1/util.WriteAppender
         - github.com/open-policy-agent/opa/v1/util.WriteInt
+    forbidigo:
+      forbid:
+        - pattern: '^sort\.[A-Z][a-zA-Z]+$'
+          message: "Prefer the more performant sort/search functions in the slices package"
     gocritic:
       enabled-checks:
         # NOTE that these are rules enabled in addition to the default set

@@ -12,7 +12,6 @@ import (
 	"io"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 
@@ -188,8 +187,8 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 		copy(f.Features, Features)
 	}
 
-	sort.Strings(f.FutureKeywords)
-	sort.Strings(f.Features)
+	slices.Sort(f.FutureKeywords)
+	slices.Sort(f.Features)
 
 	return f
 }
@@ -306,14 +305,14 @@ func (c *Capabilities) ContainsFutureKeyword(kw string) bool {
 // addBuiltinSorted inserts a built-in into c in sorted order. An existing built-in with the same name
 // will be overwritten.
 func (c *Capabilities) addBuiltinSorted(bi *Builtin) {
-	i := sort.Search(len(c.Builtins), func(x int) bool {
-		return c.Builtins[x].Name >= bi.Name
-	})
-	if i < len(c.Builtins) && bi.Name == c.Builtins[i].Name {
-		c.Builtins[i] = bi
-		return
+	i, found := slices.BinarySearchFunc(c.Builtins, bi, cmpBuiltinName)
+	if !found {
+		c.Builtins = append(c.Builtins, nil)
+		copy(c.Builtins[i+1:], c.Builtins[i:])
 	}
-	c.Builtins = append(c.Builtins, nil)
-	copy(c.Builtins[i+1:], c.Builtins[i:])
 	c.Builtins[i] = bi
+}
+
+func cmpBuiltinName(a, b *Builtin) int {
+	return strings.Compare(a.Name, b.Name)
 }

@@ -7,7 +7,7 @@ package topdown
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -16,6 +16,7 @@ import (
 	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
 	"github.com/open-policy-agent/opa/v1/test/cases"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func TestRego(t *testing.T) {
@@ -236,7 +237,7 @@ func testAssertResultSet(t *testing.T, wantResult []map[string]any, rs QueryResu
 				t.Fatal(err)
 			}
 			if sortBindings {
-				sort.Sort(resultSet(v.([]any)))
+				slices.SortFunc(v.([]any), util.Compare)
 			}
 			name := string(k)
 			if !ignoreGeneratedVars || !strings.HasPrefix(name, "__localq") {

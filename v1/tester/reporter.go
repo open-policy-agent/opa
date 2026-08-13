@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/cmd/formats"
@@ -276,11 +275,7 @@ func (r JSONReporter) Report(ch chan *Result) error {
 	switch r.Sort {
 	case formats.SortDuration:
 		slices.SortFunc(report, func(i, j *Result) int {
-			return cmp.Compare(i.Duration, j.Duration)
-		})
-
-		sort.Slice(report, func(i, j int) bool {
-			return report[i].Duration > report[j].Duration
+			return cmp.Compare(j.Duration, i.Duration)
 		})
 	}
 

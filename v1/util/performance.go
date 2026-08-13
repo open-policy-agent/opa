@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"cmp"
 	"encoding"
 	"io"
 	"slices"
@@ -300,5 +301,11 @@ func (sp *SlicePool[T]) Put(s *[]T) {
 // SortedFunc is simply a shorthand for [slices.SortFunc] which also returns the sorted slice.
 func SortedFunc[T any, S ~[]T](s S, cmp func(a, b T) int) S {
 	slices.SortFunc(s, cmp)
+	return s
+}
+
+// Sorted is simply a shorthand for [slices.Sort] which also returns the sorted slice.
+func Sorted[T cmp.Ordered, S ~[]T](s S) S {
+	slices.Sort(s)
 	return s
 }

@@ -2,7 +2,6 @@ package planner
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -242,10 +241,7 @@ func (t *ruletrie) Children() []ast.Value {
 			sorted = append(sorted, key)
 		}
 	}
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Compare(sorted[j]) < 0
-	})
-	return sorted
+	return util.SortedFunc(sorted, ast.Value.Compare)
 }
 
 func (t *ruletrie) Get(k ast.Value) *ruletrie {

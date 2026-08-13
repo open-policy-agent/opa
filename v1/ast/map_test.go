@@ -5,9 +5,10 @@
 package ast
 
 import (
-	"reflect"
-	"sort"
+	"slices"
 	"testing"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func TestValueMapOverwrite(t *testing.T) {
@@ -31,9 +32,7 @@ func TestValueMapIter(t *testing.T) {
 		values = append(values, string(v.(String)))
 		return false
 	})
-	sort.Strings(values)
-	expected := []string{"bar", "baz", "foo"}
-	if !reflect.DeepEqual(values, expected) {
+	if values = util.Sorted(values); !slices.Equal(values, []string{"bar", "baz", "foo"}) {
 		t.Fatalf("Unexpected value from iteration: %v", values)
 	}
 }

@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"unicode"
 
@@ -462,20 +461,20 @@ func (w *writer) writeModule(module *ast.Module) error {
 	})
 	visitor.Walk(module)
 
-	sort.Slice(comments, func(i, j int) bool {
-		l, err := locLess(comments[i], comments[j])
+	slices.SortFunc(comments, func(a, b *ast.Comment) int {
+		al, bl, err := getLocs(a, b)
 		if err != nil {
 			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
 		}
-		return l
+		return locCmp(al, bl)
 	})
 
-	sort.Slice(others, func(i, j int) bool {
-		l, err := locLess(others[i], others[j])
+	slices.SortFunc(others, func(a, b any) int {
+		al, bl, err := getLocs(a, b)
 		if err != nil {
 			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
 		}
-		return l
+		return locCmp(al, bl)
 	})
 
 	comments = trimTrailingWhitespaceInComments(comments)
@@ -552,7 +551,7 @@ func (w *writer) writeComments(comments []*ast.Comment) error {
 	var inMetadataBlock bool
 	for i := range comments {
 		if i > 0 {
-			l, err := locCmp(comments[i], comments[i-1])
+			l, err := locCmpOrError(comments[i], comments[i-1])
 			if err != nil {
 				return err
 			}
@@ -2534,7 +2533,7 @@ func (w *writer) groupIterable(elements []any, last *ast.Location) ([][]any, err
 	}
 
 	slices.SortFunc(elements, func(i, j any) int {
-		l, err := locCmp(i, j)
+		l, err := locCmpOrError(i, j)
 		if err != nil {
 			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
 		}
@@ -2680,34 +2679,27 @@ loop:
 	return rules, others[i:]
 }
 
-func locLess(a, b any) (bool, error) {
-	c, err := locCmp(a, b)
-	return c < 0, err
+func locCmpOrError(a, b any) (int, error) {
+	al, bl, err := getLocs(a, b)
+	if err != nil {
+		return 0, err
+	}
+	return locCmp(al, bl), nil
 }
 
-func locCmp(a, b any) (int, error) {
-	al, err := getLoc(a)
-	if err != nil {
-		return 0, err
-	}
-	bl, err := getLoc(b)
-	if err != nil {
-		return 0, err
-	}
+func locCmp(a, b *ast.Location) int {
 	switch {
-	case al == nil && bl == nil:
-		return 0, nil
-	case al == nil:
-		return -1, nil
-	case bl == nil:
-		return 1, nil
+	case a == b:
+		return 0
+	case a == nil:
+		return -1
+	case b == nil:
+		return 1
 	}
-
-	if cmp := al.Row - bl.Row; cmp != 0 {
-		return cmp, nil
-
+	if cmp := a.Row - b.Row; cmp != 0 {
+		return cmp
 	}
-	return al.Col - bl.Col, nil
+	return a.Col - b.Col
 }
 
 func getLoc(x any) (*ast.Location, error) {
@@ -2721,6 +2713,12 @@ func getLoc(x any) (*ast.Location, error) {
 	default:
 		return nil, fmt.Errorf("unable to get location for type %v", x)
 	}
+}
+
+func getLocs(a, b any) (*ast.Location, *ast.Location, error) {
+	al, err1 := getLoc(a)
+	bl, err2 := getLoc(b)
+	return al, bl, errors.Join(err1, err2)
 }
 
 var negativeRow = &ast.Location{Row: -1}

@@ -11,7 +11,6 @@ import (
 	"io"
 	"maps"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 
@@ -672,7 +671,7 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 	c.init()
 
 	c.Modules = make(map[string]*Module, len(modules))
-	c.sorted = make([]string, 0, len(modules))
+	c.sorted = util.KeysSorted(modules)
 
 	if c.keepModules {
 		c.parsedModules = make(map[string]*Module, len(modules))
@@ -682,13 +681,10 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 
 	for k, v := range modules {
 		c.Modules[k] = v.Copy()
-		c.sorted = append(c.sorted, k)
 		if c.parsedModules != nil {
 			c.parsedModules[k] = v
 		}
 	}
-
-	sort.Strings(c.sorted)
 
 	c.compile()
 }
@@ -2253,7 +2249,6 @@ func (c *Compiler) resolveAllRefs() {
 	}
 
 	if c.moduleLoader != nil {
-
 		parsed, err := c.moduleLoader(c.Modules)
 		if err != nil {
 			c.err(newErrorString(CompileErr, nil, err.Error()))
@@ -2272,7 +2267,7 @@ func (c *Compiler) resolveAllRefs() {
 			}
 		}
 
-		sort.Strings(c.sorted)
+		slices.Sort(c.sorted)
 		c.resolveAllRefs()
 	}
 }
@@ -4851,33 +4846,33 @@ func sortGraphNodes(nodes []util.T) {
 	})
 }
 
-func (sort *graphSort) Marked(node util.T) bool {
-	_, marked := sort.marked[node]
+func (gs *graphSort) Marked(node util.T) bool {
+	_, marked := gs.marked[node]
 	return marked
 }
 
-func (sort *graphSort) Visit(node util.T) (ok bool) {
-	if _, ok := sort.temp[node]; ok {
+func (gs *graphSort) Visit(node util.T) (ok bool) {
+	if _, ok := gs.temp[node]; ok {
 		return false
 	}
-	if sort.Marked(node) {
+	if gs.Marked(node) {
 		return true
 	}
-	sort.temp[node] = struct{}{}
-	deps := sort.deps(node)
+	gs.temp[node] = struct{}{}
+	deps := gs.deps(node)
 	depList := make([]util.T, 0, len(deps))
 	for other := range deps {
 		depList = append(depList, other)
 	}
 	sortGraphNodes(depList)
 	for _, other := range depList {
-		if !sort.Visit(other) {
+		if !gs.Visit(other) {
 			return false
 		}
 	}
-	sort.marked[node] = struct{}{}
-	delete(sort.temp, node)
-	sort.sorted = append(sort.sorted, node)
+	gs.marked[node] = struct{}{}
+	delete(gs.temp, node)
+	gs.sorted = append(gs.sorted, node)
 	return true
 }
 

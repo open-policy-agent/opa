@@ -55,7 +55,7 @@ func qsufsort(data []byte) []int {
 				}
 				pk := inv[s] + 1 // pk-1 is last position of unsorted group
 				sufSortable.sa = sa[pi:pk]
-				sort.Sort(sufSortable)
+				sort.Sort(sufSortable) //nolint:forbidigo
 				sufSortable.updateGroups(pi)
 				pi = pk // next group
 			}
