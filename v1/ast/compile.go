@@ -29,7 +29,8 @@ const CompileErrorLimitDefault = 10
 var (
 	errLimitReached = newErrorString(CompileErr, nil, "error limit reached")
 
-	doubleEq = Equal.Ref()
+	doubleEq     = Equal.Ref()
+	emptyPackage = &Package{Path: Ref{VarTerm("")}}
 )
 
 // Compiler contains the state of a compilation process.
@@ -3795,7 +3796,6 @@ func (qc *queryCompiler) checkKeywordOverrides(_ *QueryContext, body Body) (Body
 }
 
 func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error) {
-
 	var globals map[Var]*usedRef
 
 	if qctx != nil {
@@ -3803,7 +3803,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 		// Query compiler ought to generate a package if one was not provided and one or more imports were provided.
 		// The generated package name could even be an empty string to avoid conflicts (it doesn't have to be valid syntactically)
 		if pkg == nil && len(qctx.Imports) > 0 {
-			pkg = &Package{Path: RefTerm(VarTerm("")).Value.(Ref)}
+			pkg = emptyPackage
 		}
 		if pkg != nil {
 			var ruleExports []Ref
