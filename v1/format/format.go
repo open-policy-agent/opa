@@ -419,9 +419,14 @@ func defaultLocation(x ast.Node) *ast.Location {
 }
 
 type writer struct {
-	// parenExpr, when set, is an expression that must be wrapped in parens when
-	// written; consumed by the first writeExpr that sees it.
+	// parenExpr, when set, is an expression whose terms must be wrapped in parens
+	// when written; consumed by the first writeExpr that sees it. Any `with`
+	// clauses stay outside the parens, as `(x | y with p as 1)` doesn't parse.
 	parenExpr *ast.Expr
+
+	// parenTerm, when set, is a term that must be wrapped in parens when written;
+	// consumed by the first writeTermParens that sees it.
+	parenTerm *ast.Term
 
 	buf bytes.Buffer
 
@@ -667,7 +672,9 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	// this excludes partial sets UNLESS `contains` is used
 	partialSetException := w.fmtOpts.contains || rule.Head.Value != nil
 
-	if (w.fmtOpts.regoV1 || w.fmtOpts.ifs) && partialSetException {
+	usesIf := (w.fmtOpts.regoV1 || w.fmtOpts.ifs) && partialSetException
+
+	if usesIf {
 		w.write(" if")
 		if len(rule.Body) == 1 {
 			// Keep `if <term>` on one line when the single body term sits on the
@@ -702,6 +709,13 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	} else {
 		w.write(" {")
 		w.endLine()
+	}
+
+	// A leading set union renders as `x | y`, which the parser reads as a
+	// comprehension at the brace of a `p if { ... }` body, so it is parenthesized.
+	// An `else` body has no such ambiguity: its braces always open a body.
+	if usesIf && !isElse {
+		w.markUnionLead(rule.Body[0])
 	}
 
 	w.up()
@@ -956,10 +970,9 @@ func (w *writer) writeBody(body ast.Body, comments []*ast.Comment) ([]*ast.Comme
 }
 
 func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comment, error) {
-	if w.parenExpr == expr {
+	parenTerms := w.parenExpr == expr
+	if parenTerms {
 		w.parenExpr = nil
-		w.write("(")
-		defer w.write(")")
 	}
 
 	var err error
@@ -981,6 +994,10 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 		if negatedLogical {
 			w.write("(")
 		}
+	}
+
+	if parenTerms {
+		w.write("(")
 	}
 
 	switch t := expr.Terms.(type) {
@@ -1014,6 +1031,10 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 		if err != nil {
 			return comments, err
 		}
+	}
+
+	if parenTerms {
+		w.write(")")
 	}
 
 	if negatedLogical {
@@ -1664,6 +1685,11 @@ func (w *writer) writeUnformatted(location *ast.Location, currentComments []*ast
 }
 
 func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
+	if w.parenTerm == term {
+		w.parenTerm = nil
+		parens = true
+	}
+
 	var err error
 	comments, err = w.insertComments(comments, term.Location)
 	if err != nil {
@@ -2336,6 +2362,52 @@ func (w *writer) writeIterableLine(elements []any, comments []*ast.Comment, fn e
 func isUnionExpr(expr *ast.Expr) bool {
 	terms, ok := expr.Terms.([]*ast.Term)
 	return ok && len(terms) == 3 && ast.Or.Ref().Equal(terms[0].Value)
+}
+
+// markUnionLead parenthesizes the set union leading the rendering of expr, if
+// there is one: a leading `x | y` reads as comprehension syntax at the brace of
+// the body holding expr. The union is either the expression itself, or the
+// leading operand of an infix call — one nested deeper is already parenthesized
+// by writeCall.
+func (w *writer) markUnionLead(expr *ast.Expr) {
+	if expr.Negated {
+		return
+	}
+
+	if isLogicalExpr(expr) {
+		if lhs, _ := flattenLogical(expr); !lhs.explicit && !lhs.parens {
+			w.markUnionLead(lhs.body[0])
+		}
+
+		return
+	}
+
+	if isUnionExpr(expr) {
+		w.parenExpr = expr
+		return
+	}
+
+	terms, ok := expr.Terms.([]*ast.Term)
+	if !ok {
+		return
+	}
+
+	// Infix calls render an operand first: the result for the assigned form
+	// (`z = x | y`), otherwise the lhs (`x | y == z`).
+	if bi, ok := ast.BuiltinMap[terms[0].Value.String()]; ok && bi.Infix != "" {
+		var lead *ast.Term
+
+		switch len(terms) {
+		case bi.Decl.Arity() + 1:
+			lead = terms[1]
+		case bi.Decl.Arity() + 2:
+			lead = terms[len(terms)-1]
+		}
+
+		if lead != nil && isUnionCall(lead) {
+			w.parenTerm = lead
+		}
+	}
 }
 
 // exprRendersBraceLead reports whether expr renders starting with a `{`. Such an

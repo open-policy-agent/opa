@@ -62,3 +62,20 @@ set_union_rhs if input.c or (input.a | input.b)
 set_union_in_body_lhs if {(input.a | input.b)} or input.c
 
 set_union_in_body_rhs if input.c or {(input.a | input.b)}
+
+# in a rule body the leading `|` would make the braces read as a comprehension
+set_union_in_rule_body if {
+	(input.a | input.b) or input.c
+}
+
+set_union_in_rule_body_nested if {
+	((input.a | input.b) == input.c) or input.d
+}
+
+set_union_in_rule_body_with if {
+	(input.a | input.b) or input.c with input.x as 1
+}
+
+set_union_operand_with_body if input.c or {(input.a | input.b) with input.x as 1}
+
+set_union_operand_with_parens if input.c or ((input.a | input.b) with input.x as 1)
