@@ -7821,6 +7821,7 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 		note    string
 		module  string
 		exp     error
+		exps    []string // when set, asserts the full set of error messages
 		errCode string
 	}{
 		{
@@ -7845,6 +7846,7 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 			p if { {1 | print(x)} = {1 | print(7)} }
 			`,
 			exp:     errors.New("var x is undeclared"),
+			exps:    []string{"var x is undeclared"},
 			errCode: CompileErr,
 		},
 		{
@@ -7854,6 +7856,40 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 			`,
 			exp:     errors.New("print(42) used as value"),
 			errCode: TypeErr,
+		},
+		{
+			note: "some declaration inside comprehension body",
+			module: `package test
+
+			p if {
+				xs := [1 | some x; print(x)]
+				xs == xs
+			}`,
+			exp:     errors.New("var x is undeclared"),
+			exps:    []string{"var x is undeclared"},
+			errCode: CompileErr,
+		},
+		{
+			note: "declared var shadowed inside comprehension",
+			module: `package test
+
+			p if {
+				x := 1
+				ys := [x | some x; print(x)]
+				ys == ys
+			}`,
+			exp:     errors.New("var x is undeclared"),
+			exps:    []string{"var x is undeclared"},
+			errCode: CompileErr,
+		},
+		{
+			note: "unsafe var alongside function argument",
+			module: `package test
+
+			f(x) if { print(x, y) }`,
+			exp:     errors.New("var y is undeclared"),
+			exps:    []string{"var y is undeclared"},
+			errCode: CompileErr,
 		},
 	}
 
@@ -7869,6 +7905,15 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 			if c.Errors[0].Code != tc.errCode || c.Errors[0].Message != tc.exp.Error() {
 				t.Fatal("unexpected error:", c.Errors)
 			}
+			if tc.exps != nil {
+				got := make([]string, len(c.Errors))
+				for i, err := range c.Errors {
+					got[i] = err.Message
+				}
+				if !slices.Equal(got, tc.exps) {
+					t.Fatalf("expected errors %v but got %v", tc.exps, got)
+				}
+			}
 		})
 	}
 }
@@ -7880,6 +7925,38 @@ func TestCompilterRewritePrintCallsNestedComprehensionLocalsSafe(t *testing.T) {
 		note   string
 		module string
 	}{
+		{
+			note: "comprehension in every domain",
+			module: `package test
+			p if { every z in [c | c := 1; print(c)] { z == z } }`,
+		},
+		{
+			note: "comprehension in every body",
+			module: `package test
+			p if { every z in [1] { y := [1 | print(z)]; y == y } }`,
+		},
+		{
+			note: "comprehension in rule head",
+			module: `package test
+			p := {1 | print("h")}`,
+		},
+		{
+			note: "comprehension in with value",
+			module: `package test
+			q := 1
+			p if { q with input as [1 | print(input)] }`,
+		},
+		{
+			note: "print after not expression",
+			module: `package test
+			q := 1
+			r if { not q; print(q) }`,
+		},
+		{
+			note: "outer and every-key vars visible in nested comprehension",
+			module: `package test
+			p if { a := 1; every z in [1] { b := [1 | print(a, z)]; b == b } }`,
+		},
 		{
 			note: "print variable from nested comprehension without error",
 			module: `package test
@@ -7898,6 +7975,12 @@ func TestCompilterRewritePrintCallsNestedComprehensionLocalsSafe(t *testing.T) {
 			c := NewCompiler().WithEnablePrintStatements(true)
 			c.Compile(map[string]*Module{"test.rego": module(tc.module)})
 			assertNotFailed(t, c)
+
+			// Every print call must have been rewritten into internal.print,
+			// including those in nested bodies.
+			if str := c.Modules["test.rego"].String(); strings.Contains(str, " print(") {
+				t.Fatalf("expected all print calls to be rewritten, got:\n\n%v", str)
+			}
 		})
 	}
 }

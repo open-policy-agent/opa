@@ -2682,11 +2682,12 @@ func (c *Compiler) rewritePrintCalls() {
 				}
 
 				bodyVis := func(b Body) bool {
-					modrec, errs := rewritePrintCalls(c.localvargen, c.GetArity, vis.vars, b)
+					modrec, errs := rewritePrintCalls(c.localvargen, c.GetArity, vis.vars, c.RewrittenVars, b)
 					if modrec {
 						modified = true
 					}
-					if !c.err(errs...) {
+					if len(errs) > 0 {
+						c.err(errs...)
 						return true
 					}
 					return false
@@ -2732,15 +2733,15 @@ func checkVoidCalls(env *TypeEnv, x any) Errors {
 // The expression would be rewritten to:
 //
 //	print({__local0__ | __local0__ = "the value of x is:"}, {__local1__ | __local1__ = input.x})
-func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, body Body) (bool, Errors) {
+func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, rewritten map[Var]Var, body Body) (bool, Errors) {
 
 	var errs Errors
 	var modified bool
 
-	// Visit comprehension bodies recursively to ensure print statements inside
-	// those bodies only close over variables that are safe.
+	// Visit nested bodies recursively to ensure print statements inside those
+	// bodies only close over variables that are safe.
 	for i := range body {
-		if ContainsClosures(body[i]) {
+		if containsNestedBody(body[i]) {
 			safe := outputVarsForBody(body[:i], getArity, globals, nil)
 			safe.Update(globals)
 			WalkClosures(body[i], func(x any) bool {
@@ -2748,28 +2749,28 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 				var errsrec Errors
 				switch x := x.(type) {
 				case *SetComprehension:
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *ArrayComprehension:
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *ObjectComprehension:
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *Every:
 					safe.Update(x.KeyValueVars())
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *Not:
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *LogicalAnd:
 					var modR bool
 					var errsR Errors
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Lhs)
-					modR, errsR = rewritePrintCalls(gen, getArity, safe, x.Rhs)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Lhs)
+					modR, errsR = rewritePrintCalls(gen, getArity, safe, rewritten, x.Rhs)
 					modrec = modrec || modR
 					errsrec = append(errsrec, errsR...)
 				case *LogicalOr:
 					var modR bool
 					var errsR Errors
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Lhs)
-					modR, errsR = rewritePrintCalls(gen, getArity, safe, x.Rhs)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Lhs)
+					modR, errsR = rewritePrintCalls(gen, getArity, safe, rewritten, x.Rhs)
 					modrec = modrec || modR
 					errsrec = append(errsrec, errsR...)
 				}
@@ -2821,6 +2822,9 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 			if vars.DiffCount(safe) > 0 {
 				unsafe := vars.Diff(safe)
 				for _, v := range unsafe.Sorted() {
+					if w, ok := rewritten[v]; ok {
+						v = w
+					}
 					errs = append(errs, NewError(CompileErr, args[j].Loc(), "var %v is undeclared", v))
 				}
 			}
@@ -2845,6 +2849,18 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 	}
 
 	return modified, nil
+}
+
+// containsNestedBody returns true if x contains any node that carries a nested
+// body which rewritePrintCalls needs to descend into. This is a superset of
+// ContainsClosures, which ignores not/and/or expressions.
+func containsNestedBody(x any) bool {
+	found := false
+	WalkClosures(x, func(any) bool {
+		found = true
+		return found
+	})
+	return found
 }
 
 func erasePrintCalls(node any) bool {
@@ -3867,7 +3883,7 @@ func (qc *queryCompiler) rewritePrintCalls(_ *QueryContext, body Body) (Body, er
 		return cpy, nil
 	}
 	gen := newLocalVarGenerator("q", body)
-	if _, errs := rewritePrintCalls(gen, qc.compiler.GetArity, ReservedVars, body); len(errs) > 0 {
+	if _, errs := rewritePrintCalls(gen, qc.compiler.GetArity, ReservedVars, qc.RewrittenVars(), body); len(errs) > 0 {
 		return nil, errs
 	}
 	return body, nil
