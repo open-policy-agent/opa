@@ -1309,7 +1309,9 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		if nb == nil {
 			return nil
 		}
-		return p.attachWith(nb)
+		// A not-body is a complete operand, so it may lead an and/or chain:
+		// `not { x } and y`.
+		return p.foldLogicalTail(NewBody(nb), false, nb.Location)
 	}
 
 	switch p.s.tok {
@@ -1415,6 +1417,17 @@ func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
 			if expr.Location == nil {
 				startLoc.Text = p.s.Text(startOffset, p.s.lastEnd)
 				expr.SetLoc(startLoc)
+			}
+
+			if notLoc == nil && bytes.HasPrefix(expr.Location.Text, []byte("{")) {
+				// `{}` on its own is an empty body
+				if isEmptyObjectTerm(expr) {
+					p.error(expr.Location, "found empty body")
+					return nil
+				}
+
+				p.errorBraceLedOperand(expr.Location, expr.Location.Text, p.s.tok.String())
+				return nil
 			}
 
 			outer := p.parseLogicalOrChain(NewBody(expr), false, expr.Location)
@@ -1605,7 +1618,9 @@ func (p *Parser) parseNotBody(notLoc *Location) *Expr {
 		failed := p.save()
 		p.restore(s)
 
-		if term := p.parseTerm(); term != nil {
+		// The operand can extend past the braces (`{1, 2} & input.s == set()`),
+		// and parens group rather than delimit, so it is the whole operand that has to be wrapped.
+		if term := p.parseTermInfixCall(); term != nil {
 			p.errorOperandBraceNeedsBody(braceLoc, p.s.Text(braceOffset, p.s.lastEnd), term, "not ")
 			return nil
 		}
@@ -1662,7 +1677,7 @@ func (p *Parser) parseLogicalOrChain(lhsBody Body, lhsExplicit bool, lhsLoc *Loc
 	for p.s.tok == tokens.LogicalOr {
 		p.scan()
 
-		rhsBody, rhsExplicit, rhsLoc := p.parseLogicalOperand()
+		rhsBody, rhsExplicit, rhsLoc := p.parseLogicalOperand("or")
 		if rhsBody == nil {
 			return nil
 		}
@@ -1709,7 +1724,7 @@ func (p *Parser) parseLogicalAndChain(lhsBody Body, lhsExplicit bool, lhsLoc *Lo
 	for p.s.tok == tokens.LogicalAnd {
 		p.scan()
 
-		rhsBody, rhsExplicit, _ := p.parseLogicalOperand()
+		rhsBody, rhsExplicit, _ := p.parseLogicalOperand("and")
 		if rhsBody == nil {
 			return nil
 		}
@@ -1751,14 +1766,39 @@ func isNegated(p *Parser) bool {
 	return tok != tokens.Dot && tok != tokens.LBrack
 }
 
-// parseLogicalOperand parses a single operand of an `and`/`or` expression.
-func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
+// parseLogicalOperand parses a single operand of an `and`/`or` expression. op is
+// the operator the operand belongs to, or "" when the caller is speculating and
+// will restore on failure.
+func (p *Parser) parseLogicalOperand(op string) (Body, bool, *Location) {
 	if p.s.tok == tokens.LBrace {
 		braceOffset := p.s.loc.Offset
 		loc := p.s.Loc()
+		s := p.save()
 		p.scan()
+
+		// `{}` is an empty body, which parseBody reports precisely; only non-empty
+		// braces are worth re-reading as a value.
+		empty := p.s.tok == tokens.RBrace
+
 		body := p.parseBody(tokens.RBrace)
 		if body == nil {
+			if empty || op == "" {
+				return nil, false, nil
+			}
+
+			// The braces may hold a value rather than a body.
+			failed := p.save()
+			p.restore(s)
+
+			// The operand can extend past the braces (`{1, 2} & input.s == set()`),
+			// and parens group rather than delimit, so it is the whole operand that has to be wrapped.
+			if term := p.parseTermInfixCall(); term != nil {
+				p.errorBraceLedOperand(loc, p.s.Text(braceOffset, p.s.lastEnd), op)
+				return nil, false, nil
+			}
+
+			p.restore(failed)
+
 			return nil, false, nil
 		}
 		p.scan()
@@ -1861,10 +1901,50 @@ func isAmbiguousUnionBody(b Body) bool {
 }
 
 // errorOperandBraceNeedsBody reports `{...}` in an operand position holding a value instead of expressions.
-func (p *Parser) errorOperandBraceNeedsBody(loc *Location, braces []byte, term *Term, prefix string) {
+func (p *Parser) errorOperandBraceNeedsBody(loc *Location, operand []byte, term *Term, prefix string) {
 	p.hint(fmt.Sprintf("write `%s(%s)` to negate the value, or `%s{%s}` for a body holding it",
-		prefix, braces, prefix, braces))
-	p.errorf(loc, "`{...}` in an operand position must contain expression(s), got: %s", ValueName(term.Value))
+		prefix, operand, prefix, operand))
+	p.errorf(loc, "`{...}` in an operand position must contain expression(s), got: %s", ValueName(braceLedValue(term)))
+}
+
+// braceLedValue returns the value opened by the leading `{` of t. An infix call
+// renders its lhs operand first, so `{1, 2} & s` is brace-led by the set; refs are
+// left alone, as `{"a": 1}["a"]` is reported as the ref it is.
+func braceLedValue(t *Term) Value {
+	if call, ok := t.Value.(Call); ok && len(call) > 0 {
+		if bi, ok := BuiltinMap[call[0].String()]; ok && bi.Infix != "" && len(call) == bi.Decl.Arity()+1 {
+			return braceLedValue(call[1])
+		}
+	}
+
+	return t.Value
+}
+
+// isEmptyObjectTerm reports whether expr is exactly `{}`. In an operand position
+// those braces open a body, so an empty one is an empty body - not the empty
+// object the term parser read.
+func isEmptyObjectTerm(expr *Expr) bool {
+	if len(expr.With) > 0 {
+		return false
+	}
+
+	t, ok := expr.Terms.(*Term)
+	if !ok {
+		return false
+	}
+
+	obj, ok := t.Value.(Object)
+
+	return ok && obj.Len() == 0
+}
+
+// errorBraceLedOperand reports an `and`/`or` operand whose leading `{` opens a
+// value rather than a body. In an operand position the braces are read as an
+// explicit body, so the value form has to be parenthesized, on both sides of the
+// operator.
+func (p *Parser) errorBraceLedOperand(loc *Location, operand []byte, op string) {
+	p.hint(fmt.Sprintf("wrap the operand to keep the value: `(%s) %s ...`", operand, op))
+	p.errorf(loc, "operand of `%s` cannot begin with `{` unless the braces hold a body", op)
 }
 
 // errorParensCannotWrapBody reports `(...)` holding expressions rather than a value.
@@ -1951,7 +2031,7 @@ func (p *Parser) parseLogicalGroup(operandContext bool, prefix string) (Body, bo
 		return nil, false, nil, false
 	}
 
-	lhsBody, lhsExplicit, lhsLoc := p.parseLogicalOperand()
+	lhsBody, lhsExplicit, lhsLoc := p.parseLogicalOperand("")
 	if lhsBody == nil {
 		// Parens are not an operand, so a `{...}` that can't be a body is a value:
 		// restore and let the term parser read it, e.g. `not ({})` is an empty object.
