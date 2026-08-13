@@ -8890,9 +8890,9 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 			}`,
 		exp: `package test
 			p := __local0__ if { 
-				__local0__ = __local1__
-				x = 42; 
+				x = 42
 				internal.template_string([{x}], __local1__)
+				__local0__ = __local1__
 			}`,
 	}, {
 		note: "refs to known defined rules are not wrapped in comprehensions",
