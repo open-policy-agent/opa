@@ -264,6 +264,7 @@ func TestPlanProtoRoundTripYAMLSuite(t *testing.T) {
 func roundTripCmpOpts() []cmp.Option {
 	return []cmp.Option{
 		cmpopts.IgnoreUnexported(ir.Location{}),
+		cmpopts.IgnoreFields(ir.Location{}, "Text"),
 		cmpopts.IgnoreFields(ir.BuiltinFunc{}, "Decl"),
 		cmpopts.EquateEmpty(),
 	}

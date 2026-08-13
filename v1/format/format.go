@@ -16,6 +16,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/future"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/types"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -668,7 +669,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 			// Additionally, a single set term must not be stripped of the outer body
 			// braces, as that would semantically change the inner set to a body:
 			// `p if { { x } }` -> p if { x }
-			headEndRow := rule.Head.Location.Row + strings.Count(string(rule.Head.Location.Text), "\n")
+			headEndRow, _ := location.EndOf(rule.Head.Location.Row, rule.Head.Location.Col, rule.Head.Location.Text)
 			if rule.Body[0].Location.Row == headEndRow && !isSetTerm(rule.Body[0]) {
 				w.write(" ")
 				var err error
@@ -1056,7 +1057,8 @@ func exprTermsEndRow(expr *ast.Expr) int {
 		}
 	}
 	text = bytes.TrimRight(text, " \t\r\n")
-	return loc.Row + bytes.Count(text, []byte{'\n'})
+	endRow, _ := location.EndOf(loc.Row, loc.Col, text)
+	return endRow
 }
 
 // isSetTerm reports whether expr is a non-negated set term.
@@ -1343,7 +1345,7 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 			// If beforeEnd refers to a comment within the source text range, clear it
 			// This prevents the comment from being written twice
 			if w.beforeEnd != nil && len(term.Location.Text) > 0 {
-				endRow := term.Location.Row + bytes.Count(term.Location.Text, []byte{'\n'})
+				endRow, _ := location.EndOf(term.Location.Row, term.Location.Col, term.Location.Text)
 				if w.beforeEnd.Location.Row >= term.Location.Row && w.beforeEnd.Location.Row <= endRow {
 					w.beforeEnd = nil
 				}

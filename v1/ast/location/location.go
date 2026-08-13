@@ -97,29 +97,31 @@ func (loc *Location) HasFile() bool {
 	return loc != nil && loc.File != ""
 }
 
-// End returns the (row, col) one past the last rune of loc.Text — an
-// exclusive end matching the scanner's offset calculation, so [Start, End)
-// covers the text. Columns are counted per rune. Returns (Row, Col) for
-// empty text and (0, 0) for a nil receiver.
+// End determines the end position of loc.
 func (loc *Location) End() (row, col int) {
 	if loc == nil {
 		return 0, 0
 	}
+	return EndOf(loc.Row, loc.Col, loc.Text)
+}
 
-	if len(loc.Text) == 0 {
-		return loc.Row, loc.Col
+// EndOf returns the end (row, col) position reached by starting at (row, col)
+// and advancing through text.
+func EndOf(row, col int, text []byte) (endRow, endCol int) {
+	if len(text) == 0 {
+		return row, col
 	}
 
-	row = loc.Row + bytes.Count(loc.Text, []byte{'\n'})
-	col = loc.Col
+	endRow = row + bytes.Count(text, []byte{'\n'})
+	endCol = col
 
-	lastLine := loc.Text
-	if row != loc.Row {
-		col = 1
-		lastLine = loc.Text[bytes.LastIndex(loc.Text, []byte{'\n'})+1:]
+	lastLine := text
+	if endRow != row {
+		endCol = 1
+		lastLine = text[bytes.LastIndex(text, []byte{'\n'})+1:]
 	}
 
-	return row, col + utf8.RuneCount(lastLine)
+	return endRow, endCol + utf8.RuneCount(lastLine)
 }
 
 // Compare returns -1, 0, or 1 to indicate if this loc is less than, equal to,

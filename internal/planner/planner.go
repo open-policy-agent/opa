@@ -2489,7 +2489,7 @@ func (p *Planner) appendStmtToBlock(s ir.Stmt, b *ir.Block) {
 		if str == "" {
 			str = `<query>`
 		}
-		s.SetLocation(p.getFileConst(str), p.loc.Row, p.loc.Col, str, string(p.loc.Text))
+		s.SetLocation(p.getFileConst(str), p.loc.Row, p.loc.Col, str, p.loc.Text)
 	}
 	b.Stmts = append(b.Stmts, s)
 }
