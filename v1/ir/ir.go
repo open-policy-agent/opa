@@ -474,8 +474,19 @@ type Location struct {
 	EndCol int `json:"end_col"`
 	EndRow int `json:"end_row"`
 
+	// Text is only used for location ranges and debug prints.
+	// A named type is used so that its String method is called during printing.
+	// String cannot be set on Location since it is embedded and impacts parent
+	// structs if registered here.
+	Text locationText `json:"-"`
+
 	file string // only used for debugging
-	text []byte // only used for debugging
+}
+
+type locationText []byte
+
+func (d locationText) String() string {
+	return string(d)
 }
 
 // SetLocation sets the Location for a given Stmt.
@@ -484,8 +495,9 @@ func (l *Location) SetLocation(index, row, col int, file string, text []byte) {
 		File: index,
 		Row:  row,
 		Col:  col,
+		Text: text,
+
 		file: file,
-		text: text,
 	}
 
 	l.EndRow, l.EndCol = location.EndOf(row, col, l.Text)
