@@ -811,6 +811,26 @@ func scanAheadRef(p *Parser) bool {
 	return false
 }
 
+// scanAheadLogicalCall rewrites an `and`/`or` keyword token to tokens.Ident when
+// it's immediately followed by `(`. Only valid where a term is expected: there,
+// the operator reading is impossible, so it must be a function (`&`/`|` set built-ins).
+// Operator position is decided before any term is parsed, which is what keeps `x and (b)` a keyword.
+func scanAheadLogicalCall(p *Parser) {
+	if p.s.tok != tokens.LogicalAnd && p.s.tok != tokens.LogicalOr {
+		return
+	}
+
+	s := p.save()
+	p.scanWS()
+	tok := p.s.tok
+	p.restore(s)
+
+	if tok == tokens.LParen {
+		// This is a call to a function named `and`/`or`
+		p.s.tok = tokens.Ident
+	}
+}
+
 func (p *Parser) parseRules() []*Rule {
 
 	var rule Rule
@@ -2348,6 +2368,10 @@ func (p *Parser) parseTerm() *Term {
 
 	var term *Term
 	var unaryMinusLoc *Location
+
+	// Check if an `and`/`or` token is actually a function call (`&`/`|` set built-ins).
+	scanAheadLogicalCall(p)
+
 	switch p.s.tok {
 	case tokens.Null:
 		term = NullTerm().SetLocation(p.s.Loc())

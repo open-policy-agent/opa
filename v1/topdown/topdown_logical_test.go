@@ -421,3 +421,85 @@ func runTouchCase(t *testing.T, label, module string, wantTouch int) {
 		PrettyTrace(os.Stderr, *tr)
 	}
 }
+
+// TestTopDownLogicalBuiltinCallForm covers evaluation of calls to the `and`/`or`
+// set builtins in modules where the keywords of those names are active.
+func TestTopDownLogicalBuiltinCallForm(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "or call, rule value",
+			module: `package test
+				import future.keywords.or
+				p := or({1}, {2})`,
+			exp: `{1, 2}`,
+		},
+		{
+			note: "and call, rule value",
+			module: `package test
+				import future.keywords.and
+				p := and({1, 2}, {2, 3})`,
+			exp: `{2}`,
+		},
+		{
+			note: "or call equals infix form",
+			module: `package test
+				import future.keywords.or
+				p if or({1}, {2}) == {1} | {2}`,
+			exp: `true`,
+		},
+		{
+			note: "or call as operand of or keyword",
+			module: `package test
+				import future.keywords.or
+				p if {
+					false or or({1}, {2}) == {1, 2}
+				}`,
+			exp: `true`,
+		},
+		{
+			note: "and call as operand of and keyword",
+			module: `package test
+				import future.keywords.and
+				p if {
+					and({1, 2}, {2}) == {2} and true
+				}`,
+			exp: `true`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			mod, err := ast.ParseModuleWithOpts("test.rego", tc.module, logicalParserOptions())
+			if err != nil {
+				t.Fatalf("unexpected parse error: %v", err)
+			}
+
+			c := ast.NewCompiler()
+			c.Compile(map[string]*ast.Module{"test": mod})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+
+			res, err := NewQuery(ast.MustParseBody("data.test.p = x")).WithCompiler(c).Run(t.Context())
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(res) != 1 {
+				t.Fatalf("expected 1 result, got %d: %v", len(res), res)
+			}
+
+			exp := ast.MustParseTerm(tc.exp)
+			if exp.Value.Compare(res[0]["x"].Value) != 0 {
+				t.Errorf("expected %v, got %v", exp, res[0]["x"])
+			}
+		})
+	}
+}

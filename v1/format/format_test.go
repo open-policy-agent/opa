@@ -100,6 +100,13 @@ func TestFormatSourceError(t *testing.T) {
 	}
 }
 
+// TODO: Remove once `and`/`or` are no longer experimental keywords.
+func experimentalKeywordCapabilities(v ast.RegoVersion) *ast.Capabilities {
+	return ast.CapabilitiesForThisVersion(
+		ast.CapabilitiesRegoVersion(v),
+		ast.CapabilitiesExperimentalKeywords(true))
+}
+
 func TestFormatV0Source(t *testing.T) {
 	regoFiles, err := filepath.Glob("testfiles/v0/*.rego")
 	if err != nil {
@@ -119,7 +126,8 @@ func TestFormatV0Source(t *testing.T) {
 			}
 
 			popts := ast.ParserOptions{
-				RegoVersion: ast.RegoV0,
+				RegoVersion:  ast.RegoV0,
+				Capabilities: experimentalKeywordCapabilities(ast.RegoV0),
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV0,
@@ -179,7 +187,8 @@ func TestFormatV1Source(t *testing.T) {
 			}
 
 			popts := ast.ParserOptions{
-				RegoVersion: ast.RegoV1,
+				RegoVersion:  ast.RegoV1,
+				Capabilities: experimentalKeywordCapabilities(ast.RegoV1),
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV1,
