@@ -270,10 +270,8 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 		for _, arg := range rule.Head.Args {
 			// If args are not referred to in body, infer as any.
 			WalkTerms(arg, func(t *Term) bool {
-				if _, ok := t.Value.(Var); ok {
-					if cpy.GetByValue(t.Value) == nil {
-						cpy.tree.PutOne(t.Value, types.A)
-					}
+				if _, ok := t.Value.(Var); ok && cpy.GetByValue(t.Value) == nil {
+					cpy.tree.PutOne(t.Value, types.A)
 				}
 				return false
 			})

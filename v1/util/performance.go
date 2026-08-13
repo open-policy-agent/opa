@@ -12,18 +12,6 @@ import (
 	"unsafe"
 )
 
-type (
-	Signed interface {
-		~int | ~int8 | ~int16 | ~int32 | ~int64
-	}
-	Unsigned interface {
-		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
-	}
-	Integer interface {
-		Signed | Unsigned
-	}
-)
-
 // SyncPool is a generic sync.Pool for type T, providing some convenience
 // over sync.Pool directly: [SyncPool.Put] ensures that nil values are not
 // put into the pool, and [SyncPool.Get] returns a pointer to T without having
