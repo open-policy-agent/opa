@@ -1555,6 +1555,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 
 	for _, name := range c.sorted {
 		m := c.Modules[name]
+		scopes := ruleScopes{module: m}
 		WalkRules(m, func(r *Rule) bool {
 			vis = vis.Clear()
 			// vis.vars == safe
@@ -1562,7 +1563,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 			if len(r.Head.Args) > 0 {
 				vis.WalkArgs(r.Head.Args)
 			}
-			r.Body = c.checkBodySafety(vis.vars, r.Body)
+			r.Body = c.checkBodySafety(vis.vars, r.Body, r, &scopes)
 			return false
 		})
 	}
@@ -1570,9 +1571,12 @@ func (c *Compiler) checkSafetyRuleBodies() {
 	varVisitorPool.Put(vis)
 }
 
-func (c *Compiler) checkBodySafety(safe VarSet, b Body) Body {
+func (c *Compiler) checkBodySafety(safe VarSet, b Body, r *Rule, scopes *ruleScopes) Body {
 	reordered, unsafe := reorderBodyForSafety(c.builtins, c.GetArity, safe, b)
-	if errs := safetyErrorSlice(unsafe, c.RewrittenVars); len(errs) > 0 {
+	if len(unsafe) == 0 {
+		return reordered
+	}
+	if errs := safetyErrorSlice(unsafe, c.RewrittenVars, scopes.scope(r)); len(errs) > 0 {
 		c.err(errs...)
 		return b
 	}
@@ -1594,7 +1598,9 @@ func (c *Compiler) checkSafetyRuleHeads() {
 	vis := varVisitorPool.Get()
 
 	for _, name := range c.sorted {
-		WalkRules(c.Modules[name], func(r *Rule) bool {
+		m := c.Modules[name]
+		scopes := ruleScopes{module: m}
+		WalkRules(m, func(r *Rule) bool {
 			if headMayHaveVars(r.Head) {
 				vis = vis.Clear().WithParams(SafetyCheckVisitorParams)
 				vis.WalkBody(r.Body)
@@ -1607,6 +1613,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 				vars := r.Head.Vars()
 				if vars.DiffCount(vis.vars) > 0 {
 					unsafe := vars.Diff(vis.vars)
+					scope := scopes.scope(r)
 					for v := range unsafe {
 						// vars is keyed by the original name, so the location must be
 						// read before v is replaced with the rewritten one -- otherwise
@@ -1616,7 +1623,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 							v = w
 						}
 						if !v.IsGenerated() {
-							if !c.err(NewError(UnsafeVarErr, loc, "var %v is unsafe", v)) {
+							if !c.err(NewError(UnsafeVarErr, loc, "var %v is unsafe%v", v, scope)) {
 								return true
 							}
 						}
@@ -3883,7 +3890,7 @@ func (qc *queryCompiler) checkUndefinedFuncs(_ *QueryContext, body Body) (Body, 
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	safe := ReservedVars.Copy()
 	reordered, unsafe := reorderBodyForSafety(qc.compiler.builtins, qc.compiler.GetArity, safe, body)
-	if errs := safetyErrorSlice(unsafe, qc.RewrittenVars()); len(errs) > 0 {
+	if errs := safetyErrorSlice(unsafe, qc.RewrittenVars(), ""); len(errs) > 0 {
 		return nil, errs
 	}
 	return reordered, nil
@@ -7366,7 +7373,7 @@ func isBuiltinRefOrVar(bs map[string]*Builtin, unsafeBuiltinsMap map[string]stru
 	return false, nil
 }
 
-func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) {
+func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var, scope string) (result Errors) {
 	if len(unsafe) == 0 {
 		return
 	}
@@ -7379,10 +7386,10 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 		if !v.IsGenerated() {
 			if _, ok := allFutureKeywords[string(v)]; ok {
 				result = append(result, NewError(UnsafeVarErr, pair.Loc,
-					"var %[1]v is unsafe (hint: `import future.keywords.%[1]v` to import a future keyword)", v))
+					"var %[1]v is unsafe%[2]v (hint: `import future.keywords.%[1]v` to import a future keyword)", v, scope))
 				continue
 			}
-			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe", v))
+			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe%v", v, scope))
 		}
 	}
 
@@ -7408,11 +7415,71 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 			}
 		}
 		if len(seen) > before {
-			result = append(result, NewError(UnsafeVarErr, expr.Expr.Location, "expression is unsafe"))
+			result = append(result, NewError(UnsafeVarErr, expr.Expr.Location, "expression is unsafe%v", scope))
 		}
 	}
 
 	return
+}
+
+// ruleScopes resolves the "in rule ..." label appended to safety errors for the
+// rules of one module, which is only added where a line holds rules of more than
+// one name and the location alone is ambiguous. Its index of those lines is built
+// on first use, once per module rather than once per error, as the safety stages
+// keep reporting errors after the error limit is reached.
+type ruleScopes struct {
+	module *Module
+	rows   map[int]struct{}
+	built  bool
+}
+
+func (s *ruleScopes) scope(rule *Rule) string {
+	if s == nil || s.module == nil || rule.Location == nil {
+		return ""
+	}
+
+	if !s.built {
+		s.rows = sharedRuleRows(s.module)
+		s.built = true
+	}
+
+	if _, ok := s.rows[rule.Location.Row]; !ok {
+		return ""
+	}
+
+	// The ground prefix of the head ref is the rule's name: any dynamic part
+	// (e.g. the key in p[k]) may have been rewritten to a generated local by an
+	// earlier compiler stage, and isn't needed to identify the rule.
+	return " in rule " + rule.Head.Ref().GroundPrefix().String()
+}
+
+// sharedRuleRows returns the source rows of module that hold rules of more than
+// one name.
+func sharedRuleRows(module *Module) map[int]struct{} {
+	var shared map[int]struct{}
+	first := map[int]Ref{}
+
+	WalkRules(module, func(rule *Rule) bool {
+		if rule.Location == nil {
+			return false
+		}
+
+		row := rule.Location.Row
+		name := rule.Head.Ref().GroundPrefix()
+
+		if prev, ok := first[row]; !ok {
+			first[row] = name
+		} else if !prev.Equal(name) {
+			if shared == nil {
+				shared = map[int]struct{}{}
+			}
+			shared[row] = struct{}{}
+		}
+
+		return false
+	})
+
+	return shared
 }
 
 func checkUnsafeBuiltins(unsafeBuiltinsMap map[string]struct{}, node any) Errors {

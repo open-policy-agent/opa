@@ -1797,7 +1797,18 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"assignment RHS not made safe via LHS (issue 3546)", `p if { x := y; x = 7 }`, `{y,}`},
 	}
 
-	makeErrMsg := func(varName string) string {
+	// These test modules declare rule "p" on the same line as a function, so the
+	// errors name the rule they were found in. See issue #4967.
+	sameLine := map[string]bool{
+		"call-vars-input": true,
+		"call-no-output":  true,
+		"call-too-few":    true,
+	}
+
+	makeErrMsg := func(varName string, sameLine bool) string {
+		if sameLine {
+			return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe in rule p", varName)
+		}
 		return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe", varName)
 	}
 
@@ -1808,7 +1819,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			expected := []string{}
 
 			_ = MustParseTerm(tc.expected).Value.(Set).Iter(func(x *Term) error {
-				expected = append(expected, makeErrMsg(string(x.Value.(Var))))
+				expected = append(expected, makeErrMsg(string(x.Value.(Var)), sameLine[tc.note]))
 				return nil
 			}) // cannot return error
 
@@ -1848,6 +1859,71 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+// TestSafetyErrorSliceGeneratedVars verifies that the fallback error reported for
+// unsafe generated vars carries the enclosing rule too. Generated vars only end
+// up unsafe in edge cases that other compiler stages tend to reject first, so the
+// error is built directly here.
+func TestSafetyErrorSliceGeneratedVars(t *testing.T) {
+	expr := MustParseExpr("__local0__ > 1")
+	unsafe := unsafeVars{}
+	unsafe.Add(expr, Var("__local0__"))
+
+	mod := MustParseModule(`package test
+
+p if { true } q if { true }`)
+	scopes := ruleScopes{module: mod}
+
+	tests := []struct {
+		note  string
+		scope string
+		exp   string
+	}{
+		// Both rules share a line, so either is ambiguous by location alone.
+		{note: "rule on a shared line", scope: scopes.scope(mod.Rules[1]), exp: "expression is unsafe in rule q"},
+		{note: "query", scope: "", exp: "expression is unsafe"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			errs := safetyErrorSlice(unsafe, nil, tc.scope)
+			if len(errs) != 1 {
+				t.Fatalf("expected exactly one error, got: %v", errs)
+			}
+			if errs[0].Message != tc.exp {
+				t.Fatalf("expected message %q, got %q", tc.exp, errs[0].Message)
+			}
+		})
+	}
+}
+
+// TestSharedRuleRows verifies which source lines the enclosing rule is reported
+// for: those holding rules of more than one name.
+func TestSharedRuleRows(t *testing.T) {
+	mod := MustParseModule(`package test
+
+p if { true }
+q if { true } r if { true }
+s if { false } else if { true }
+t.u if { true } t.v if { true }
+w if { true } w if { true }`)
+
+	rows := sharedRuleRows(mod)
+
+	exp := map[int]bool{
+		3: false, // one rule on the line
+		4: true,  // q and r
+		5: false, // one rule and its else
+		6: true,  // t.u and t.v
+		7: false, // two rules of the same name
+	}
+
+	for row, want := range exp {
+		if _, got := rows[row]; got != want {
+			t.Errorf("row %d: expected shared=%v, got %v", row, want, got)
+		}
 	}
 }
 

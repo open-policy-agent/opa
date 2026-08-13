@@ -1,0 +1,83 @@
+---
+# Rego allows several rules to be declared on one line, so a position alone does
+# not always say which rule an unsafe var was found in. Where a line holds rules
+# of more than one name, the diagnostic names the rule. See issue #4967.
+cases:
+  - note: safety/unsafe-var-names-rule-declared-after-another-on-line
+    # `foobar` is not a keyword, so this is rule `p` followed by rule `foobar`,
+    # and the error is reported against a line the author reads as p's.
+    modules:
+      - |
+        package test
+
+        p(x) foobar if {
+        	x == 2
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var x is unsafe in rule foobar
+    exhaustive: true
+  - note: safety/unsafe-var-names-first-rule-on-shared-line
+    modules:
+      - |
+        package test
+
+        p if { x == 2 } q if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var x is unsafe in rule p
+    exhaustive: true
+  - note: safety/unsafe-var-names-ref-head-rule-on-shared-line
+    modules:
+      - |
+        package test
+
+        a.b.c if { x == 2 } d if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 12
+        message: var x is unsafe in rule a.b.c
+    exhaustive: true
+  - note: safety/unsafe-var-in-head-names-rule-on-shared-line
+    modules:
+      - |
+        package test
+
+        p := x if { true } q if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 6
+        message: var x is unsafe in rule p
+    exhaustive: true
+  - note: safety/unsafe-var-unnamed-for-single-line-else-chain
+    # The else clause is a rule of its own, but it shares the name of the rule it
+    # belongs to, so naming it would tell the reader nothing.
+    modules:
+      - |
+        package test
+
+        p if { false } else if { x == 2 }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 26
+        message: var x is unsafe
+    exhaustive: true
+  - note: safety/unsafe-var-unnamed-for-same-name-rules-on-shared-line
+    modules:
+      - |
+        package test
+
+        p if { x == 2 } p if { true }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 8
+        message: var x is unsafe
+    exhaustive: true

@@ -1,0 +1,21 @@
+---
+cases:
+  - note: safety/unsafe-var-names-rule-created-by-unimported-keyword
+    # `if` is not a keyword in v0 unless imported, so this is rule `p` followed by
+    # rule `if`, and `x` is out of scope in the latter. Under v1 the same source
+    # compiles, which is why these cases are written per Rego version rather than
+    # translated between them.
+    rego_version: v0
+    modules:
+      - |
+        package test
+
+        p(x) if {
+        	x == 2
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var x is unsafe in rule if
+    exhaustive: true
