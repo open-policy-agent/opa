@@ -487,12 +487,14 @@ func (l *Location) SetLocation(index, row, col int, file string, text []byte) {
 		file: file,
 		text: text,
 	}
-	l.EndRow, l.EndCol = l.End()
+
+	l.EndRow, l.EndCol = location.EndOf(row, col, l.Text)
 }
 
-// End determines the end position of l.
+// End returns the end row and col of the location range, expected to be called
+// after SetLocation or unmarshalling.
 func (l *Location) End() (row, col int) {
-	return location.EndOf(l.Row, l.Col, l.text)
+	return l.EndRow, l.EndCol
 }
 
 // GetLocation returns a Stmt's Location.
