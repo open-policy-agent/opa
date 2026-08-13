@@ -16,6 +16,7 @@ package gojsonschema
 
 import (
 	"bytes"
+	"context"
 	"errors"
 
 	"github.com/xeipuuv/gojsonreference"
@@ -28,6 +29,14 @@ type SchemaLoader struct {
 	Validate         bool
 	Draft            Draft
 	ValidatePatterns bool
+	// AllowNet is the list of hosts that remote references may be fetched
+	// from. A nil list permits any host; a non-nil empty list permits none.
+	AllowNet []string
+	// Context, when set, aborts in-flight remote reference fetches. Callers
+	// that have one -- evaluation, which holds the query's context -- should
+	// pass it so a cancelled or timed-out query doesn't leave requests
+	// running behind it.
+	Context context.Context
 }
 
 // NewSchemaLoader creates a new NewSchemaLoader
@@ -140,7 +149,13 @@ func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
 
 	d := Schema{}
 	d.Pool = sl.pool
-	d.Pool.jsonLoaderFactory = rootSchema.LoaderFactory()
+	// NewStringLoader and NewGoLoader hand back unrestricted factories, so the
+	// limits come from the compilation, not the root loader. The pool resolves
+	// every $ref through this factory, however deeply nested.
+	d.Pool.jsonLoaderFactory = rootSchema.LoaderFactory().withRemoteRefLimits(remoteRefLimits{
+		allowNet: newAllowNetSet(sl.AllowNet),
+		ctx:      sl.Context,
+	})
 	d.DocumentReference = ref
 	d.ReferencePool = newSchemaReferencePool()
 	d.validatePatterns = sl.ValidatePatterns

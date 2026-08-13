@@ -3125,8 +3125,10 @@ var JSONSchemaVerify = &Builtin{
 		}, nil)).
 			Description("`output` is of the form `[valid, error]`. If the schema is valid, then `valid` is `true`, and `error` is `null`. Otherwise, `valid` is `false` and `error` is a string describing the error."),
 	),
-	Categories:  objectCat,
-	CanSkipBctx: true,
+	Categories: objectCat,
+	// Needs the BuiltinContext to read the allow_net capability, which
+	// restricts the hosts that remote `$ref`s may be fetched from.
+	CanSkipBctx: false,
 }
 
 // JSONMatchSchema returns empty array if the document matches the JSON schema,
