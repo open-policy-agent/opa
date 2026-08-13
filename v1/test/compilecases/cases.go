@@ -39,6 +39,7 @@ type TestCase struct {
 	RegoVersion          string   `json:"rego_version,omitempty"           yaml:"rego_version,omitempty"`          // rego version to parse the modules as: v0, v1 (default), or v0-compat-v1
 	Strict               bool     `json:"strict,omitempty"                 yaml:"strict,omitempty"`                // enable the compiler's strict mode
 	ExperimentalKeywords bool     `json:"experimental_keywords,omitempty"  yaml:"experimental_keywords,omitempty"` // opt-in to experimental future keywords
+	PrintStatements      bool     `json:"print_statements,omitempty"       yaml:"print_statements,omitempty"`      // keep print() calls instead of erasing them, as required to reach diagnostics about their operands
 	WantErrors           []Error  `json:"want_errors"                      yaml:"want_errors"`                     // diagnostics the compilation must produce
 	Exhaustive           bool     `json:"exhaustive,omitempty"             yaml:"exhaustive,omitempty"`            // require want_errors to be the complete set, not a subset
 }

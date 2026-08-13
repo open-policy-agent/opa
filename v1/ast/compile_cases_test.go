@@ -52,7 +52,7 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 		modules[name] = parsed
 	}
 
-	c := NewCompiler().WithStrict(tc.Strict)
+	c := NewCompiler().WithStrict(tc.Strict).WithEnablePrintStatements(tc.PrintStatements)
 	c.Compile(modules)
 
 	if !c.Failed() {
