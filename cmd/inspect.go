@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -198,8 +197,7 @@ func populateManifest(out io.Writer, m *bundle.Manifest) error {
 				lines = append(lines, []string{"Roots", truncateFileName(roots[0])})
 			}
 		} else {
-			sort.Strings(roots)
-			for _, root := range roots {
+			for _, root := range util.Sorted(roots) {
 				lines = append(lines, []string{"Roots", truncateFileName(root)})
 			}
 		}

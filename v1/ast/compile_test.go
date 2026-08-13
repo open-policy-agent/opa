@@ -12,7 +12,6 @@ import (
 	"maps"
 	"reflect"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -746,9 +745,7 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 			tree := c.RuleTree
 			tree.DepthFirst(func(n *TreeNode) bool {
 				t.Log(n)
-				if !sort.SliceIsSorted(n.Sorted, func(i, j int) bool {
-					return n.Sorted[i].Compare(n.Sorted[j]) < 0
-				}) {
+				if !slices.IsSortedFunc(n.Sorted, Value.Compare) {
 					t.Errorf("expected sorted to be sorted: %v", n.Sorted)
 				}
 				return false
@@ -1510,19 +1507,13 @@ func TestCompilerErrorLimit(t *testing.T) {
 	c.Compile(modules)
 
 	errs := c.Errors
-	exp := []string{
+	exp := util.Sorted([]string{
 		"4:23: rego_unsafe_var_error: var x is unsafe",
 		"4:23: rego_unsafe_var_error: var z is unsafe",
 		"rego_compile_error: error limit reached",
-	}
+	})
+	result := util.Sorted(util.Map(errs, (*Error).Error))
 
-	result := make([]string, 0, len(errs))
-	for _, err := range errs {
-		result = append(result, err.Error())
-	}
-
-	sort.Strings(exp)
-	sort.Strings(result)
 	if !slices.Equal(exp, result) {
 		t.Errorf("Expected errors %v, got %v", exp, result)
 	}
@@ -1550,7 +1541,7 @@ i.j.k contains x7 if true
 		return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe", v)
 	}
 
-	expected := []string{
+	expected := util.Sorted([]string{
 		makeErrMsg("x1"),
 		makeErrMsg("x2"),
 		makeErrMsg("x3"),
@@ -1560,11 +1551,9 @@ i.j.k contains x7 if true
 		makeErrMsg("x7"),
 		makeErrMsg("eq"),
 		makeErrMsg("else_var"),
-	}
+	})
 
 	result := compilerErrsToStringSlice(c.Errors)
-	sort.Strings(expected)
-
 	if len(result) != len(expected) {
 		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
 	}
@@ -1803,7 +1792,6 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			// Build slice of expected error messages.
 			expected := []string{}
 
@@ -1812,7 +1800,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 				return nil
 			}) // cannot return error
 
-			sort.Strings(expected)
+			slices.Sort(expected)
 
 			// Compile test module.
 			opts := ParserOptions{
@@ -3155,8 +3143,8 @@ p := [data() | data := 1]`,
 				result = append(result, compiler.Errors[i].Message)
 			}
 
-			sort.Strings(tc.expectedErrors)
-			sort.Strings(result)
+			slices.Sort(tc.expectedErrors)
+			slices.Sort(result)
 
 			if len(tc.expectedErrors) != len(result) {
 				t.Fatalf("Expected %d errors but got %d:\n\n%v\n\nGot:\n\n%v",
@@ -5884,7 +5872,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 
 	compileStages(c, StageRewriteLocalVars)
 
-	expectedErrors := []string{
+	expectedErrors := util.Sorted([]string{
 		"var r1 referenced above",
 		"var r2 assigned above",
 		"var foo referenced above",
@@ -5902,18 +5890,14 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 		"cannot assign to boolean",
 		"cannot assign to string",
 		"cannot assign to null",
-	}
-
-	sort.Strings(expectedErrors)
+	})
 
 	result := make([]string, 0, len(c.Errors))
-
 	for i := range c.Errors {
 		result = append(result, c.Errors[i].Message)
 	}
 
-	sort.Strings(result)
-
+	slices.Sort(result)
 	if len(expectedErrors) != len(result) {
 		t.Fatalf("Expected %d errors but got %d:\n\n%v\n\nGot:\n\n%v", len(expectedErrors), len(result), strings.Join(expectedErrors, "\n"), strings.Join(result, "\n"))
 	}
@@ -10183,7 +10167,7 @@ dataref = true if { data }`,
 		return fmt.Sprintf("rego_recursion_error: rule data.%s.%s is recursive: %v", pkg, rule, strings.Join(l, " -> "))
 	}
 
-	expected := []string{
+	expected := util.Sorted([]string{
 		makeRuleErrMsg("rec", "s", "s", "t", "s"),
 		makeRuleErrMsg("rec", "t", "t", "s", "t"),
 		makeRuleErrMsg("rec", "a", "a", "b", "c", "e", "a"),
@@ -10210,11 +10194,9 @@ dataref = true if { data }`,
 		makeRuleErrMsg("f2", "p[x]", "p[x]", "foo", "bar", "p[x]"),
 		makeRuleErrMsg("everymod", "everyp", "everyp", "everyp"),
 		makeRuleErrMsg("everymod", "everyq", "everyq", "everyq"),
-	}
+	})
 
 	result := compilerErrsToStringSlice(c.Errors)
-	sort.Strings(expected)
-
 	if len(result) != len(expected) {
 		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
 	}
@@ -11993,12 +11975,7 @@ func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 func compileStages(c *Compiler, stageID StageID) {
 	c.init()
 
-	c.sorted = make([]string, 0, len(c.Modules))
-	for name := range c.Modules {
-		c.sorted = append(c.sorted, name)
-	}
-	sort.Strings(c.sorted)
-
+	c.sorted = util.KeysSorted(c.Modules)
 	c = c.SetErrorLimit(0) // Tests need to see all errors, not just the first few
 
 	if stageID != "" {
@@ -12096,8 +12073,7 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 		msg := strings.SplitN(e.Error(), ":", 3)[2]
 		result = append(result, strings.TrimSpace(msg))
 	}
-	sort.Strings(result)
-	return result
+	return util.Sorted(result)
 }
 
 func runQueryCompilerTest(q string, popts ParserOptions, pkg string, imports []string, expected any) func(*testing.T) {

@@ -12,7 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -145,8 +145,8 @@ func (s *Server) buildBundles(ref string, policies map[string]string) error {
 			Parsed: module,
 		})
 	}
-	sort.Slice(modules, func(i, j int) bool {
-		return modules[i].URL < modules[j].URL
+	slices.SortFunc(modules, func(a, b bundle.ModuleFile) int {
+		return strings.Compare(a.URL, b.URL)
 	})
 
 	// Compile the bundle out into a buffer
@@ -450,8 +450,8 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	sort.Slice(modules, func(i, j int) bool {
-		return modules[i].URL < modules[j].URL
+	slices.SortFunc(modules, func(a, b bundle.ModuleFile) int {
+		return strings.Compare(a.URL, b.URL)
 	})
 
 	// Compile the bundle out into a buffer

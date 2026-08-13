@@ -6,7 +6,6 @@ package dependencies
 
 import (
 	"slices"
-	"sort"
 	"strconv"
 	"testing"
 
@@ -349,14 +348,11 @@ func TestDependencies(t *testing.T) {
 				t.Fatalf("Failed to compile policy: %v", compiler.Errors)
 			}
 
-			var exp []ast.Ref
+			exp := make([]ast.Ref, 0, len(test.min))
 			for _, e := range test.min {
-				r := ast.MustParseRef("data." + e)
-				exp = append(exp, r)
+				exp = append(exp, ast.MustParseRef("data."+e))
 			}
-			sort.Slice(exp, func(i, j int) bool {
-				return exp[i].Compare(exp[j]) < 0
-			})
+			slices.SortFunc(exp, ast.RefCompare)
 
 			mod := compiler.Modules["test"]
 			minOfAll, full := runDeps(t, mod)
@@ -378,9 +374,7 @@ func TestDependencies(t *testing.T) {
 				r := ast.MustParseRef("data." + full)
 				exp = append(exp, r)
 			}
-			sort.Slice(exp, func(i, j int) bool {
-				return exp[i].Compare(exp[j]) < 0
-			})
+			slices.SortFunc(exp, ast.RefCompare)
 
 			assertRefSliceEq(t, exp, full)
 			assertRefSliceEq(t, exp, fullRules)

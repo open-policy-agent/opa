@@ -3,13 +3,14 @@ package bundle
 import (
 	"archive/tar"
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -439,13 +440,13 @@ func (it *iterator) Next() (*storage.Update, error) {
 			}
 
 			f.path = p
-
 			f.raw = item.Value
-
 			it.files = append(it.files, f)
 		}
 
-		sortFilePathAscend(it.files)
+		slices.SortFunc(it.files, func(a, b file) int {
+			return cmp.Compare(len(a.path), len(b.path))
+		})
 	}
 
 	// If done reading files then just return io.EOF
@@ -480,12 +481,6 @@ func NewIterator(raw []Raw) storage.Iterator {
 		raw: raw,
 	}
 	return &it
-}
-
-func sortFilePathAscend(files []file) {
-	sort.Slice(files, func(i, j int) bool {
-		return len(files[i].path) < len(files[j].path)
-	})
 }
 
 func getdepth(path string, isDir bool) int {

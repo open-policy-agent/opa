@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -3842,10 +3841,8 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 			return
 		}
 		keyword := string(kw)
-		_, ok = allowedFutureKeywords[keyword]
-		if !ok {
-			sort.Strings(kwds) // so the error message is stable
-			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", kwds)
+		if _, ok = allowedFutureKeywords[keyword]; !ok {
+			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", util.Sorted(kwds))
 			return
 		}
 

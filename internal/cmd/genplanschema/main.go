@@ -11,10 +11,10 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"sort"
 
 	"github.com/open-policy-agent/opa/internal/genjsonschema"
 	"github.com/open-policy-agent/opa/v1/ir"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func main() {
@@ -132,7 +132,7 @@ func addValUnion(b *genjsonschema.Builder) (string, error) {
 		return b.DefRef(name), nil
 	}
 	vals := ir.ValKinds()
-	kinds := sortedKeys(vals)
+	kinds := util.KeysSorted(vals)
 	branches := make([]any, 0, len(kinds))
 	for _, kind := range kinds {
 		valueSchema, err := b.ReflectType(reflect.TypeOf(vals[kind]))
@@ -183,7 +183,7 @@ func addStmtUnion(b *genjsonschema.Builder) (string, error) {
 	}
 
 	stmts := ir.StmtKinds()
-	kinds := sortedKeys(stmts)
+	kinds := util.KeysSorted(stmts)
 	branches := make([]any, 0, len(kinds))
 	for _, kind := range kinds {
 		bodyRef, err := b.AddStruct(reflect.TypeOf(stmts[kind]))
@@ -226,15 +226,4 @@ func makeNumberRefStmtSchema() genjsonschema.OrderedMap {
 		"required", []string{"col", "file", "index", "row", "target"},
 		"additionalProperties", false,
 	)
-}
-
-// sortedKeys returns the keys of m in lexicographic order so the polymorphic
-// Stmt/Val unions render their branches in a byte-stable order.
-func sortedKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }

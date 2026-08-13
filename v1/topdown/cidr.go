@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"net"
 	"slices"
-	"sort"
 
 	cidrMerge "github.com/open-policy-agent/opa/internal/cidr/merge"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -235,37 +234,14 @@ type cidrBlockRange struct {
 	Network *net.IPNet
 }
 
+func (c *cidrBlockRange) Compare(other *cidrBlockRange) int {
+	if cmp := bytes.Compare(*c.Last, *other.Last); cmp != 0 { // Compare last IP.
+		return cmp
+	}
+	return bytes.Compare(*c.First, *other.First) // Then compare first IP.
+}
+
 type cidrBlockRanges []*cidrBlockRange
-
-// Implement Sort interface
-func (c cidrBlockRanges) Len() int {
-	return len(c)
-}
-
-func (c cidrBlockRanges) Swap(i, j int) {
-	c[i], c[j] = c[j], c[i]
-}
-
-func (c cidrBlockRanges) Less(i, j int) bool {
-	// Compare last IP.
-	cmp := bytes.Compare(*c[i].Last, *c[j].Last)
-	if cmp < 0 {
-		return true
-	} else if cmp > 0 {
-		return false
-	}
-
-	// Then compare first IP.
-	cmp = bytes.Compare(*c[i].First, *c[j].First)
-	if cmp < 0 {
-		return true
-	} else if cmp > 0 {
-		return false
-	}
-
-	// Ranges are Equal.
-	return false
-}
 
 // builtinNetCIDRMerge merges the provided list of IP addresses and subnets into the smallest possible list of CIDRs.
 // It merges adjacent subnets where possible, those contained within others and also removes any duplicates.
@@ -283,16 +259,12 @@ func builtinNetCIDRMerge(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 			networks = append(networks, network)
 		}
 	case ast.Set:
-		err := v.Iter(func(x *ast.Term) error {
-			network, err := generateIPNet(x)
+		for _, term := range v.Slice() {
+			network, err := generateIPNet(term)
 			if err != nil {
 				return err
 			}
 			networks = append(networks, network)
-			return nil
-		})
-		if err != nil {
-			return err
 		}
 	default:
 		return errors.New("operand must be an array")
@@ -367,7 +339,7 @@ func generateIPNet(term *ast.Term) (*net.IPNet, error) {
 }
 
 func mergeCIDRs(ranges cidrBlockRanges) cidrBlockRanges {
-	sort.Sort(ranges)
+	slices.SortFunc(ranges, (*cidrBlockRange).Compare)
 
 	// Merge adjacent CIDRs if possible.
 	for i := len(ranges) - 1; i > 0; i-- {

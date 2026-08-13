@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"io"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -492,9 +492,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		}) // cannot return error
 
 		// Sort binding expressions so that results are deterministic.
-		sort.Slice(bindingExprs, func(i, j int) bool {
-			return bindingExprs[i].Compare(bindingExprs[j]) < 0
-		})
+		slices.SortFunc(bindingExprs, (*ast.Expr).Compare)
 
 		for i := range bindingExprs {
 			body.Append(bindingExprs[i])
@@ -541,10 +539,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		if regoVersion := q.compiler.DefaultRegoVersion(); regoVersion != ast.RegoUndefined {
 			ast.SetModuleRegoVersion(m, q.compiler.DefaultRegoVersion())
 		}
-
-		sort.Slice(support[i].Rules, func(j, k int) bool {
-			return support[i].Rules[j].Compare(support[i].Rules[k]) < 0
-		})
+		slices.SortFunc(support[i].Rules, (*ast.Rule).Compare)
 	}
 
 	return partials, support, err
