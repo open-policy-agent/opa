@@ -1,29 +1,29 @@
 ---
 cases:
+  # --- the 38-byte "Microsoft style" form -----------------------------------
+  # google/uuid strips the leading byte and then examines only the middle 36,
+  # never looking at index 0 or 37 ("Only the middle 36 bytes are examined in
+  # the latter case"), so requiring literal braces would leave the second case
+  # undefined.
   - note: uuid-parse/positive-v4-braces
-    query: data.test.p = x
-    modules:
-      - |
-        package test
-
-        p := uuid.parse(input.userid)
-    data: {}
-    input:
-      userid: "{00000000-0000-4000-8000-000000000000}"
+    query: uuid.parse("{00000000-0000-4000-8000-000000000000}", x)
     want_result:
       - x:
           variant: RFC4122
           version: 4
-  - note: uuid-parse/positive-v2-urn
-    query: data.test.p = x
-    modules:
-      - |
-        package test
+  - note: uuid-parse/positive-v4-38-bytes-without-braces
+    query: uuid.parse("(00000000-0000-4000-8000-000000000000)", x)
+    want_result:
+      - x:
+          variant: RFC4122
+          version: 4
 
-        p := uuid.parse(input.userid)
-    data: {}
-    input:
-      userid: urn:uuid:000003e8-48b9-21ee-b200-325096b39f47
+  # --- the urn form, whose prefix is case-insensitive -----------------------
+  # RFC 8141 §2 makes the "urn" scheme and the namespace identifier
+  # case-insensitive, so URN:UUID: names the same URN as urn:uuid:.
+  # google/uuid compares the prefix with strings.EqualFold.
+  - note: uuid-parse/positive-v2-urn
+    query: uuid.parse("urn:uuid:000003e8-48b9-21ee-b200-325096b39f47", x)
     want_result:
       - x:
           clocksequence: 12800
@@ -34,16 +34,22 @@ cases:
           time: 1693566990121469600
           variant: RFC4122
           version: 2
-  - note: uuid-parse/positive-v3-no-dashes
-    query: data.test.p = x
-    modules:
-      - |
-        package test
+  - note: uuid-parse/positive-v2-urn-uppercase
+    query: uuid.parse("URN:UUID:000003e8-48b9-21ee-b200-325096b39f47", x)
+    want_result:
+      - x:
+          clocksequence: 12800
+          domain: Person
+          id: 1000
+          macvariables: local:unicast
+          nodeid: 32-50-96-b3-9f-47
+          time: 1693566990121469600
+          variant: RFC4122
+          version: 2
 
-        p := uuid.parse(input.userid)
-    data: {}
-    input:
-      userid: 6bea8ef2d3d33cd184e09bab06a52ece
+  # --- the raw hex form, without dashes ------------------------------------
+  - note: uuid-parse/positive-v3-no-dashes
+    query: uuid.parse("6bea8ef2d3d33cd184e09bab06a52ece", x)
     want_result:
       - x:
           variant: RFC4122
