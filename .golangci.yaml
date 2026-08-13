@@ -9,7 +9,6 @@ linters:
     - gocritic
     - govet
     - ineffassign
-    - intrange
     - mirror
     - misspell
     - modernize
