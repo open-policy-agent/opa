@@ -11,7 +11,6 @@ import (
 	"io"
 	"maps"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 
@@ -672,7 +671,7 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 	c.init()
 
 	c.Modules = make(map[string]*Module, len(modules))
-	c.sorted = make([]string, 0, len(modules))
+	c.sorted = util.KeysSorted(modules)
 
 	if c.keepModules {
 		c.parsedModules = make(map[string]*Module, len(modules))
@@ -682,13 +681,10 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 
 	for k, v := range modules {
 		c.Modules[k] = v.Copy()
-		c.sorted = append(c.sorted, k)
 		if c.parsedModules != nil {
 			c.parsedModules[k] = v
 		}
 	}
-
-	sort.Strings(c.sorted)
 
 	c.compile()
 }
@@ -1555,6 +1551,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 
 	for _, name := range c.sorted {
 		m := c.Modules[name]
+		scopes := ruleScopes{module: m}
 		WalkRules(m, func(r *Rule) bool {
 			vis = vis.Clear()
 			// vis.vars == safe
@@ -1562,7 +1559,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 			if len(r.Head.Args) > 0 {
 				vis.WalkArgs(r.Head.Args)
 			}
-			r.Body = c.checkBodySafety(vis.vars, r.Body)
+			r.Body = c.checkBodySafety(vis.vars, r.Body, r, &scopes)
 			return false
 		})
 	}
@@ -1570,9 +1567,12 @@ func (c *Compiler) checkSafetyRuleBodies() {
 	varVisitorPool.Put(vis)
 }
 
-func (c *Compiler) checkBodySafety(safe VarSet, b Body) Body {
+func (c *Compiler) checkBodySafety(safe VarSet, b Body, r *Rule, scopes *ruleScopes) Body {
 	reordered, unsafe := reorderBodyForSafety(c.builtins, c.GetArity, safe, b)
-	if errs := safetyErrorSlice(unsafe, c.RewrittenVars); len(errs) > 0 {
+	if len(unsafe) == 0 {
+		return reordered
+	}
+	if errs := safetyErrorSlice(unsafe, c.RewrittenVars, scopes.scope(r)); len(errs) > 0 {
 		c.err(errs...)
 		return b
 	}
@@ -1594,7 +1594,9 @@ func (c *Compiler) checkSafetyRuleHeads() {
 	vis := varVisitorPool.Get()
 
 	for _, name := range c.sorted {
-		WalkRules(c.Modules[name], func(r *Rule) bool {
+		m := c.Modules[name]
+		scopes := ruleScopes{module: m}
+		WalkRules(m, func(r *Rule) bool {
 			if headMayHaveVars(r.Head) {
 				vis = vis.Clear().WithParams(SafetyCheckVisitorParams)
 				vis.WalkBody(r.Body)
@@ -1607,6 +1609,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 				vars := r.Head.Vars()
 				if vars.DiffCount(vis.vars) > 0 {
 					unsafe := vars.Diff(vis.vars)
+					scope := scopes.scope(r)
 					for v := range unsafe {
 						// vars is keyed by the original name, so the location must be
 						// read before v is replaced with the rewritten one -- otherwise
@@ -1616,7 +1619,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 							v = w
 						}
 						if !v.IsGenerated() {
-							if !c.err(NewError(UnsafeVarErr, loc, "var %v is unsafe", v)) {
+							if !c.err(NewError(UnsafeVarErr, loc, "var %v is unsafe%v", v, scope)) {
 								return true
 							}
 						}
@@ -2246,7 +2249,6 @@ func (c *Compiler) resolveAllRefs() {
 	}
 
 	if c.moduleLoader != nil {
-
 		parsed, err := c.moduleLoader(c.Modules)
 		if err != nil {
 			c.err(newErrorString(CompileErr, nil, err.Error()))
@@ -2265,7 +2267,7 @@ func (c *Compiler) resolveAllRefs() {
 			}
 		}
 
-		sort.Strings(c.sorted)
+		slices.Sort(c.sorted)
 		c.resolveAllRefs()
 	}
 }
@@ -2675,11 +2677,12 @@ func (c *Compiler) rewritePrintCalls() {
 				}
 
 				bodyVis := func(b Body) bool {
-					modrec, errs := rewritePrintCalls(c.localvargen, c.GetArity, vis.vars, b)
+					modrec, errs := rewritePrintCalls(c.localvargen, c.GetArity, vis.vars, c.RewrittenVars, b)
 					if modrec {
 						modified = true
 					}
-					if !c.err(errs...) {
+					if len(errs) > 0 {
+						c.err(errs...)
 						return true
 					}
 					return false
@@ -2725,15 +2728,15 @@ func checkVoidCalls(env *TypeEnv, x any) Errors {
 // The expression would be rewritten to:
 //
 //	print({__local0__ | __local0__ = "the value of x is:"}, {__local1__ | __local1__ = input.x})
-func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, body Body) (bool, Errors) {
+func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, rewritten map[Var]Var, body Body) (bool, Errors) {
 
 	var errs Errors
 	var modified bool
 
-	// Visit comprehension bodies recursively to ensure print statements inside
-	// those bodies only close over variables that are safe.
+	// Visit nested bodies recursively to ensure print statements inside those
+	// bodies only close over variables that are safe.
 	for i := range body {
-		if ContainsClosures(body[i]) {
+		if containsNestedBody(body[i]) {
 			safe := outputVarsForBody(body[:i], getArity, globals, nil)
 			safe.Update(globals)
 			WalkClosures(body[i], func(x any) bool {
@@ -2741,28 +2744,28 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 				var errsrec Errors
 				switch x := x.(type) {
 				case *SetComprehension:
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *ArrayComprehension:
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *ObjectComprehension:
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *Every:
 					safe.Update(x.KeyValueVars())
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *Not:
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Body)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Body)
 				case *LogicalAnd:
 					var modR bool
 					var errsR Errors
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Lhs)
-					modR, errsR = rewritePrintCalls(gen, getArity, safe, x.Rhs)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Lhs)
+					modR, errsR = rewritePrintCalls(gen, getArity, safe, rewritten, x.Rhs)
 					modrec = modrec || modR
 					errsrec = append(errsrec, errsR...)
 				case *LogicalOr:
 					var modR bool
 					var errsR Errors
-					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, x.Lhs)
-					modR, errsR = rewritePrintCalls(gen, getArity, safe, x.Rhs)
+					modrec, errsrec = rewritePrintCalls(gen, getArity, safe, rewritten, x.Lhs)
+					modR, errsR = rewritePrintCalls(gen, getArity, safe, rewritten, x.Rhs)
 					modrec = modrec || modR
 					errsrec = append(errsrec, errsR...)
 				}
@@ -2814,6 +2817,9 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 			if vars.DiffCount(safe) > 0 {
 				unsafe := vars.Diff(safe)
 				for _, v := range unsafe.Sorted() {
+					if w, ok := rewritten[v]; ok {
+						v = w
+					}
 					errs = append(errs, NewError(CompileErr, args[j].Loc(), "var %v is undeclared", v))
 				}
 			}
@@ -2838,6 +2844,18 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 	}
 
 	return modified, nil
+}
+
+// containsNestedBody returns true if x contains any node that carries a nested
+// body which rewritePrintCalls needs to descend into. This is a superset of
+// ContainsClosures, which ignores not/and/or expressions.
+func containsNestedBody(x any) bool {
+	found := false
+	WalkClosures(x, func(any) bool {
+		found = true
+		return found
+	})
+	return found
 }
 
 func erasePrintCalls(node any) bool {
@@ -3860,7 +3878,7 @@ func (qc *queryCompiler) rewritePrintCalls(_ *QueryContext, body Body) (Body, er
 		return cpy, nil
 	}
 	gen := newLocalVarGenerator("q", body)
-	if _, errs := rewritePrintCalls(gen, qc.compiler.GetArity, ReservedVars, body); len(errs) > 0 {
+	if _, errs := rewritePrintCalls(gen, qc.compiler.GetArity, ReservedVars, qc.RewrittenVars(), body); len(errs) > 0 {
 		return nil, errs
 	}
 	return body, nil
@@ -3883,7 +3901,7 @@ func (qc *queryCompiler) checkUndefinedFuncs(_ *QueryContext, body Body) (Body, 
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	safe := ReservedVars.Copy()
 	reordered, unsafe := reorderBodyForSafety(qc.compiler.builtins, qc.compiler.GetArity, safe, body)
-	if errs := safetyErrorSlice(unsafe, qc.RewrittenVars()); len(errs) > 0 {
+	if errs := safetyErrorSlice(unsafe, qc.RewrittenVars(), ""); len(errs) > 0 {
 		return nil, errs
 	}
 	return reordered, nil
@@ -4844,33 +4862,33 @@ func sortGraphNodes(nodes []util.T) {
 	})
 }
 
-func (sort *graphSort) Marked(node util.T) bool {
-	_, marked := sort.marked[node]
+func (gs *graphSort) Marked(node util.T) bool {
+	_, marked := gs.marked[node]
 	return marked
 }
 
-func (sort *graphSort) Visit(node util.T) (ok bool) {
-	if _, ok := sort.temp[node]; ok {
+func (gs *graphSort) Visit(node util.T) (ok bool) {
+	if _, ok := gs.temp[node]; ok {
 		return false
 	}
-	if sort.Marked(node) {
+	if gs.Marked(node) {
 		return true
 	}
-	sort.temp[node] = struct{}{}
-	deps := sort.deps(node)
+	gs.temp[node] = struct{}{}
+	deps := gs.deps(node)
 	depList := make([]util.T, 0, len(deps))
 	for other := range deps {
 		depList = append(depList, other)
 	}
 	sortGraphNodes(depList)
 	for _, other := range depList {
-		if !sort.Visit(other) {
+		if !gs.Visit(other) {
 			return false
 		}
 	}
-	sort.marked[node] = struct{}{}
-	delete(sort.temp, node)
-	sort.sorted = append(sort.sorted, node)
+	gs.marked[node] = struct{}{}
+	delete(gs.temp, node)
+	gs.sorted = append(gs.sorted, node)
 	return true
 }
 
@@ -7366,7 +7384,7 @@ func isBuiltinRefOrVar(bs map[string]*Builtin, unsafeBuiltinsMap map[string]stru
 	return false, nil
 }
 
-func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) {
+func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var, scope string) (result Errors) {
 	if len(unsafe) == 0 {
 		return
 	}
@@ -7379,10 +7397,10 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 		if !v.IsGenerated() {
 			if _, ok := allFutureKeywords[string(v)]; ok {
 				result = append(result, NewError(UnsafeVarErr, pair.Loc,
-					"var %[1]v is unsafe (hint: `import future.keywords.%[1]v` to import a future keyword)", v))
+					"var %[1]v is unsafe%[2]v (hint: `import future.keywords.%[1]v` to import a future keyword)", v, scope))
 				continue
 			}
-			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe", v))
+			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe%v", v, scope))
 		}
 	}
 
@@ -7408,11 +7426,71 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 			}
 		}
 		if len(seen) > before {
-			result = append(result, NewError(UnsafeVarErr, expr.Expr.Location, "expression is unsafe"))
+			result = append(result, NewError(UnsafeVarErr, expr.Expr.Location, "expression is unsafe%v", scope))
 		}
 	}
 
 	return
+}
+
+// ruleScopes resolves the "in rule ..." label appended to safety errors for the
+// rules of one module, which is only added where a line holds rules of more than
+// one name and the location alone is ambiguous. Its index of those lines is built
+// on first use, once per module rather than once per error, as the safety stages
+// keep reporting errors after the error limit is reached.
+type ruleScopes struct {
+	module *Module
+	rows   map[int]struct{}
+	built  bool
+}
+
+func (s *ruleScopes) scope(rule *Rule) string {
+	if s == nil || s.module == nil || rule.Location == nil {
+		return ""
+	}
+
+	if !s.built {
+		s.rows = sharedRuleRows(s.module)
+		s.built = true
+	}
+
+	if _, ok := s.rows[rule.Location.Row]; !ok {
+		return ""
+	}
+
+	// The ground prefix of the head ref is the rule's name: any dynamic part
+	// (e.g. the key in p[k]) may have been rewritten to a generated local by an
+	// earlier compiler stage, and isn't needed to identify the rule.
+	return " in rule " + rule.Head.Ref().GroundPrefix().String()
+}
+
+// sharedRuleRows returns the source rows of module that hold rules of more than
+// one name.
+func sharedRuleRows(module *Module) map[int]struct{} {
+	var shared map[int]struct{}
+	first := map[int]Ref{}
+
+	WalkRules(module, func(rule *Rule) bool {
+		if rule.Location == nil {
+			return false
+		}
+
+		row := rule.Location.Row
+		name := rule.Head.Ref().GroundPrefix()
+
+		if prev, ok := first[row]; !ok {
+			first[row] = name
+		} else if !prev.Equal(name) {
+			if shared == nil {
+				shared = map[int]struct{}{}
+			}
+			shared[row] = struct{}{}
+		}
+
+		return false
+	})
+
+	return shared
 }
 
 func checkUnsafeBuiltins(unsafeBuiltinsMap map[string]struct{}, node any) Errors {

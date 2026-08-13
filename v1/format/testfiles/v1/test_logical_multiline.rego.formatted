@@ -1,0 +1,43 @@
+package test
+
+import future.keywords.and
+import future.keywords.or
+
+# Line breaks are preserved; continuation lines get one extra indent level
+broken_chain if {
+	input.a and
+		input.b and
+		input.c
+}
+
+over_indented if {
+	input.a and
+		input.b and
+		input.c
+}
+
+mixed_operators if {
+	input.a and input.b or
+		input.c and input.d
+}
+
+partly_broken if {
+	input.a and input.b and
+		input.c
+}
+
+nested_group_breaks if {
+	input.a and (input.b or
+		input.c)
+}
+
+broken_group_lhs if {
+	(input.a or
+		input.b) and input.c
+}
+
+already_formatted if {
+	input.a and
+		input.b or
+		input.c
+}

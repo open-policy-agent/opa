@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 
@@ -1072,8 +1071,7 @@ func TestLoadRooted(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		paths := mustListPaths(rootDir, false)[1:]
-		sort.Strings(paths)
+		paths := util.Sorted(mustListPaths(rootDir, false)[1:])
 		paths[0] = "one.two:" + paths[0]
 		paths[1] = "three:" + paths[1]
 		paths[2] = "four:" + paths[2]
@@ -1190,8 +1188,7 @@ func TestGlobExcludeName(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		paths := mustListPaths(rootDir, false)[1:]
-		sort.Strings(paths)
+		paths := util.Sorted(mustListPaths(rootDir, false)[1:])
 		result, err := NewFileLoader().Filtered(paths, GlobExcludeName(".*", 1))
 		if err != nil {
 			t.Fatal(err)
@@ -1220,9 +1217,7 @@ func TestLoadErrors(t *testing.T) {
 		"/bad_doc.json": "[1,2,3]",
 	}
 	test.WithTempFS(files, func(rootDir string) {
-		paths := mustListPaths(rootDir, false)[1:]
-		sort.Strings(paths)
-		_, err := NewFileLoader().All(paths)
+		_, err := NewFileLoader().All(util.Sorted(mustListPaths(rootDir, false)[1:]))
 		if err == nil {
 			t.Fatalf("Expected failure")
 		}
@@ -1251,10 +1246,7 @@ func TestLoadFileURL(t *testing.T) {
 		"c.json":      `3`,        // this will loas as rooted file
 	}
 	test.WithTempFS(files, func(rootDir string) {
-
-		paths := mustListPaths(rootDir, false)[1:]
-		sort.Strings(paths)
-
+		paths := util.Sorted(mustListPaths(rootDir, false)[1:])
 		for i := range paths {
 			paths[i] = "file://" + paths[i]
 		}
@@ -1351,9 +1343,7 @@ func TestLoadRegos(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		paths := mustListPaths(rootDir, false)[1:]
-		sort.Strings(paths)
-		result, err := AllRegos(paths)
+		result, err := AllRegos(util.Sorted(mustListPaths(rootDir, false)[1:]))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -922,6 +922,123 @@ p if {
 	not input.x == 1
 }`,
 		},
+		{
+			note:        "v0, and adds import if missing",
+			regoVersion: ast.RegoV0,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					input.a and input.b
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"and"},
+					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
+				}),
+			expected: `package test
+
+import future.keywords.and
+
+p {
+	input.a and input.b
+}`,
+		},
+		{
+			note:        "v1, and adds import if missing",
+			regoVersion: ast.RegoV1,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					input.a and input.b
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"and"},
+					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
+				}),
+			expected: `package test
+
+import future.keywords.and
+
+p if {
+	input.a and input.b
+}`,
+		},
+		{
+			note:        "v0, or adds import if missing",
+			regoVersion: ast.RegoV0,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					input.a or input.b
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"or"},
+					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
+				}),
+			expected: `package test
+
+import future.keywords.or
+
+p {
+	input.a or input.b
+}`,
+		},
+		{
+			note:        "v1, or adds import if missing",
+			regoVersion: ast.RegoV1,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					input.a or input.b
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"or"},
+					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
+				}),
+			expected: `package test
+
+import future.keywords.or
+
+p if {
+	input.a or input.b
+}`,
+		},
+		{
+			note: "logical chain, no locations",
+			toFmt: ast.NewExpr(&ast.LogicalAnd{
+				Lhs: ast.NewBody(ast.NewExpr(&ast.LogicalOr{
+					Lhs: ast.NewBody(ast.MustParseExpr("input.a")),
+					Rhs: ast.NewBody(ast.MustParseExpr("input.b")),
+				})),
+				Rhs: ast.NewBody(ast.MustParseExpr("input.c")),
+			}),
+			expected: `(input.a or input.b) and input.c`,
+		},
+		{
+			note: "logical chain, explicit operand bodies, no locations",
+			toFmt: ast.NewExpr(&ast.LogicalOr{
+				Lhs: ast.Body{
+					ast.MustParseExpr("input.a"),
+					ast.MustParseExpr("input.b"),
+				},
+				ExplicitLhs: true,
+				Rhs:         ast.NewBody(ast.MustParseExpr("input.c")),
+				ExplicitRhs: true,
+			}),
+			expected: `{ input.a; input.b } or { input.c }`,
+		},
+		{
+			note: "logical chain, brace-led implicit operands, no locations",
+			toFmt: ast.NewExpr(&ast.LogicalAnd{
+				Lhs: ast.NewBody(ast.NewExpr(ast.ObjectTerm(
+					[2]*ast.Term{ast.StringTerm("a"), ast.NumberTerm("1")}))),
+				Rhs: ast.NewBody(ast.NewExpr(ast.SetTerm(ast.VarTerm("x")))),
+			}),
+			expected: `({"a": 1}) and ({x})`,
+		},
+		{
+			note: "negated logical expression, no locations",
+			toFmt: ast.NewExpr(&ast.LogicalOr{
+				Lhs: ast.NewBody(ast.MustParseExpr("input.a")),
+				Rhs: ast.NewBody(ast.MustParseExpr("input.b")),
+			}).Complement(),
+			expected: `not (input.a or input.b)`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -1238,8 +1355,8 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 						t.Fatalf("Failed to read rego source: %v", err)
 					}
 
-					caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(regoVersion))
-					feats := []string{}
+					caps := experimentalKeywordCapabilities(regoVersion)
+					feats := make([]string, 0, len(caps.Features))
 					for _, f := range caps.Features {
 						if f != ast.FeatureKeywordsInRefs {
 							feats = append(feats, f)
@@ -1249,6 +1366,9 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 
 					popts := ast.ParserOptions{
 						RegoVersion: regoVersion,
+						// The source is parsed with keywords in refs allowed; it is
+						// only the formatting of refs that drops the feature.
+						Capabilities: experimentalKeywordCapabilities(regoVersion),
 					}
 					opts := Opts{
 						RegoVersion:   regoVersion,

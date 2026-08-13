@@ -26,8 +26,8 @@ func (v Var) AppendText(buf []byte) ([]byte, error) {
 	return append(buf, v...), nil
 }
 
-func (b Boolean) AppendText(buf []byte) ([]byte, error) {
-	if b {
+func (bol Boolean) AppendText(buf []byte) ([]byte, error) {
+	if bol {
 		return append(buf, "true"...), nil
 	}
 	return append(buf, "false"...), nil
@@ -92,8 +92,8 @@ func (obj *object) AppendText(buf []byte) ([]byte, error) {
 	return append(buf, '}'), nil
 }
 
-func (obj *lazyObj) AppendText(buf []byte) ([]byte, error) {
-	return append(buf, obj.force().String()...), nil
+func (lob *lazyObj) AppendText(buf []byte) ([]byte, error) {
+	return append(buf, lob.force().String()...), nil
 }
 
 func (s *set) AppendText(buf []byte) ([]byte, error) {
@@ -173,30 +173,30 @@ func (ts *TemplateString) AppendText(buf []byte) ([]byte, error) {
 	return append(buf, '"'), nil
 }
 
-func (r Ref) AppendText(buf []byte) ([]byte, error) {
-	reflen := len(r)
+func (ref Ref) AppendText(buf []byte) ([]byte, error) {
+	reflen := len(ref)
 	if reflen == 0 {
 		return buf, nil
 	}
 	if reflen == 1 {
-		if s, ok := r[0].Value.(String); ok {
+		if s, ok := ref[0].Value.(String); ok {
 			// While a ref head is typically a Var, a lone String term should not be quoted
 			return append(buf, s...), nil
 		}
-		return r[0].AppendText(buf)
+		return ref[0].AppendText(buf)
 	}
-	if name, ok := BuiltinNameFromRef(r); ok {
+	if name, ok := BuiltinNameFromRef(ref); ok {
 		return append(buf, name...), nil
 	}
 
 	var err error
-	if s, ok := r[0].Value.(String); ok {
+	if s, ok := ref[0].Value.(String); ok {
 		buf = append(buf, s...)
-	} else if buf, err = r[0].AppendText(buf); err != nil {
+	} else if buf, err = ref[0].AppendText(buf); err != nil {
 		return nil, err
 	}
 
-	for _, p := range r[1:] {
+	for _, p := range ref[1:] {
 		switch v := p.Value.(type) {
 		case String:
 			str := string(v)
@@ -287,23 +287,23 @@ func appendComprehensionTerm(buf []byte, term *Term) ([]byte, error) {
 	return term.AppendText(buf)
 }
 
-func (not *Not) AppendText(buf []byte) ([]byte, error) {
-	if !not.ExplicitBody && len(not.Body) == 1 {
-		if notBodyNeedsParens(not.Body) {
+func (n *Not) AppendText(buf []byte) ([]byte, error) {
+	if !n.ExplicitBody && len(n.Body) == 1 {
+		if notBodyNeedsParens(n.Body) {
 			buf = append(buf, "not ("...)
 			var err error
-			if buf, err = not.Body.AppendText(buf); err != nil {
+			if buf, err = n.Body.AppendText(buf); err != nil {
 				return nil, err
 			}
 			return append(buf, ')'), nil
 		}
 		buf = append(buf, "not "...)
-		return not.Body.AppendText(buf)
+		return n.Body.AppendText(buf)
 	}
 
 	buf = append(buf, "not {"...)
 	var err error
-	if buf, err = not.Body.AppendText(buf); err != nil {
+	if buf, err = n.Body.AppendText(buf); err != nil {
 		return nil, err
 	}
 	return append(buf, '}'), nil

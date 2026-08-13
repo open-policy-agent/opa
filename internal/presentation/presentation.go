@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -35,8 +34,12 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown"
 )
 
-// DefaultProfileSortOrder is the default ordering unless something is specified in the CLI
-var DefaultProfileSortOrder = []string{"total_time_ns", "num_eval", "num_redo", "file", "line"}
+var (
+	// DefaultProfileSortOrder is the default ordering unless something is specified in the CLI
+	DefaultProfileSortOrder = []string{"total_time_ns", "num_eval", "num_redo", "file", "line"}
+
+	statKeys = []string{"min", "max", "mean", "90%", "99%"}
+)
 
 // DepAnalysisOutput contains the result of dependency analysis to be presented.
 type DepAnalysisOutput struct {
@@ -106,13 +109,8 @@ func (o DepAnalysisOutput) Pretty(w io.Writer) error {
 }
 
 func (o DepAnalysisOutput) sort() {
-	sort.Slice(o.Base, func(i, j int) bool {
-		return o.Base[i].Compare(o.Base[j]) < 0
-	})
-
-	sort.Slice(o.Virtual, func(i, j int) bool {
-		return o.Virtual[i].Compare(o.Virtual[j]) < 0
-	})
+	slices.SortFunc(o.Base, ast.RefCompare)
+	slices.SortFunc(o.Virtual, ast.RefCompare)
 }
 
 // Output contains the result of evaluation to be presented.
@@ -535,8 +533,6 @@ func prettyMetrics(w io.Writer, m metrics.Metrics, limit int) error {
 	return nil
 }
 
-var statKeys = []string{"min", "max", "mean", "90%", "99%"}
-
 func prettyAggregatedMetrics(w io.Writer, ms map[string]any, limit int) error {
 	keys := make([]string, 1, 1+len(statKeys))
 	keys[0] = "metric"
@@ -750,8 +746,8 @@ func populateTableAggregatedMetrics(ms map[string]any, table *tablewriter.Table,
 }
 
 func sortMetricRows(data [][]string) {
-	sort.Slice(data, func(i, j int) bool {
-		return data[i][0] < data[j][0]
+	slices.SortFunc(data, func(a, b []string) int {
+		return strings.Compare(a[0], b[0])
 	})
 }
 
@@ -759,16 +755,6 @@ type resultKey struct {
 	varName   string
 	exprIndex int
 	exprText  string
-}
-
-func resultKeyLess(a, b resultKey) bool {
-	if a.varName != "" {
-		if b.varName == "" {
-			return true
-		}
-		return a.varName < b.varName
-	}
-	return a.exprIndex < b.exprIndex
 }
 
 func (rk resultKey) string() string {
@@ -789,9 +775,7 @@ func generateResultKeys(rs rego.ResultSet) []resultKey {
 	keys := []resultKey{}
 	if len(rs) != 0 {
 		for k := range rs[0].Bindings {
-			keys = append(keys, resultKey{
-				varName: k,
-			})
+			keys = append(keys, resultKey{varName: k})
 		}
 
 		for i, expr := range rs[0].Expressions {
@@ -803,8 +787,11 @@ func generateResultKeys(rs rego.ResultSet) []resultKey {
 			}
 		}
 
-		sort.Slice(keys, func(i, j int) bool {
-			return resultKeyLess(keys[i], keys[j])
+		slices.SortFunc(keys, func(a, b resultKey) int {
+			if c := strings.Compare(a.varName, b.varName); c != 0 {
+				return c
+			}
+			return a.exprIndex - b.exprIndex
 		})
 	}
 	return keys

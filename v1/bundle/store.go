@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -1163,11 +1163,11 @@ func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Trans
 	}
 
 	// Sort the bundle roots list.
-	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].canonical != entries[j].canonical {
-			return entries[i].canonical < entries[j].canonical
+	slices.SortFunc(entries, func(a, b rootEntry) int {
+		if c := strings.Compare(a.canonical, b.canonical); c != 0 {
+			return c
 		}
-		return entries[i].bundle < entries[j].bundle
+		return strings.Compare(a.bundle, b.bundle)
 	})
 
 	collidingBundles := map[string]bool{}
@@ -1226,8 +1226,7 @@ func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Trans
 			// is allowed to declare overlapping roots in its own manifest.
 			if sawCrossBundleConflict {
 				collidingBundles[entries[d].bundle] = true
-				paths := []string{groupDisplay, entries[d].displayRoot()}
-				sort.Strings(paths)
+				paths := util.Sorted([]string{groupDisplay, entries[d].displayRoot()})
 				conflictSet[fmt.Sprintf("%s overlaps %s", paths[0], paths[1])] = true
 			}
 		}

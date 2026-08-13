@@ -1,0 +1,44 @@
+---
+cases:
+  - note: safety/unsafe-var-in-rule-on-own-line
+    modules:
+      - |
+        package test
+
+        p if {
+        	x == 2
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var x is unsafe
+    exhaustive: true
+  - note: safety/unsafe-var-in-rule-head-on-own-line
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	true
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 6
+        message: var x is unsafe
+    exhaustive: true
+  - note: safety/unsafe-var-in-function-on-own-line
+    modules:
+      - |
+        package test
+
+        f(x) if {
+        	x == y
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var y is unsafe
+    exhaustive: true

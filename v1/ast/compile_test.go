@@ -12,7 +12,6 @@ import (
 	"maps"
 	"reflect"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -746,9 +745,7 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 			tree := c.RuleTree
 			tree.DepthFirst(func(n *TreeNode) bool {
 				t.Log(n)
-				if !sort.SliceIsSorted(n.Sorted, func(i, j int) bool {
-					return n.Sorted[i].Compare(n.Sorted[j]) < 0
-				}) {
+				if !slices.IsSortedFunc(n.Sorted, Value.Compare) {
 					t.Errorf("expected sorted to be sorted: %v", n.Sorted)
 				}
 				return false
@@ -1510,19 +1507,13 @@ func TestCompilerErrorLimit(t *testing.T) {
 	c.Compile(modules)
 
 	errs := c.Errors
-	exp := []string{
+	exp := util.Sorted([]string{
 		"4:23: rego_unsafe_var_error: var x is unsafe",
 		"4:23: rego_unsafe_var_error: var z is unsafe",
 		"rego_compile_error: error limit reached",
-	}
+	})
+	result := util.Sorted(util.Map(errs, (*Error).Error))
 
-	result := make([]string, 0, len(errs))
-	for _, err := range errs {
-		result = append(result, err.Error())
-	}
-
-	sort.Strings(exp)
-	sort.Strings(result)
 	if !slices.Equal(exp, result) {
 		t.Errorf("Expected errors %v, got %v", exp, result)
 	}
@@ -1550,7 +1541,7 @@ i.j.k contains x7 if true
 		return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe", v)
 	}
 
-	expected := []string{
+	expected := util.Sorted([]string{
 		makeErrMsg("x1"),
 		makeErrMsg("x2"),
 		makeErrMsg("x3"),
@@ -1560,11 +1551,9 @@ i.j.k contains x7 if true
 		makeErrMsg("x7"),
 		makeErrMsg("eq"),
 		makeErrMsg("else_var"),
-	}
+	})
 
 	result := compilerErrsToStringSlice(c.Errors)
-	sort.Strings(expected)
-
 	if len(result) != len(expected) {
 		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
 	}
@@ -1797,22 +1786,32 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"assignment RHS not made safe via LHS (issue 3546)", `p if { x := y; x = 7 }`, `{y,}`},
 	}
 
-	makeErrMsg := func(varName string) string {
+	// These test modules declare rule "p" on the same line as a function, so the
+	// errors name the rule they were found in. See issue #4967.
+	sameLine := map[string]bool{
+		"call-vars-input": true,
+		"call-no-output":  true,
+		"call-too-few":    true,
+	}
+
+	makeErrMsg := func(varName string, sameLine bool) string {
+		if sameLine {
+			return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe in rule p", varName)
+		}
 		return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe", varName)
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			// Build slice of expected error messages.
 			expected := []string{}
 
 			_ = MustParseTerm(tc.expected).Value.(Set).Iter(func(x *Term) error {
-				expected = append(expected, makeErrMsg(string(x.Value.(Var))))
+				expected = append(expected, makeErrMsg(string(x.Value.(Var)), sameLine[tc.note]))
 				return nil
 			}) // cannot return error
 
-			sort.Strings(expected)
+			slices.Sort(expected)
 
 			// Compile test module.
 			opts := ParserOptions{
@@ -1848,6 +1847,71 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+// TestSafetyErrorSliceGeneratedVars verifies that the fallback error reported for
+// unsafe generated vars carries the enclosing rule too. Generated vars only end
+// up unsafe in edge cases that other compiler stages tend to reject first, so the
+// error is built directly here.
+func TestSafetyErrorSliceGeneratedVars(t *testing.T) {
+	expr := MustParseExpr("__local0__ > 1")
+	unsafe := unsafeVars{}
+	unsafe.Add(expr, Var("__local0__"))
+
+	mod := MustParseModule(`package test
+
+p if { true } q if { true }`)
+	scopes := ruleScopes{module: mod}
+
+	tests := []struct {
+		note  string
+		scope string
+		exp   string
+	}{
+		// Both rules share a line, so either is ambiguous by location alone.
+		{note: "rule on a shared line", scope: scopes.scope(mod.Rules[1]), exp: "expression is unsafe in rule q"},
+		{note: "query", scope: "", exp: "expression is unsafe"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			errs := safetyErrorSlice(unsafe, nil, tc.scope)
+			if len(errs) != 1 {
+				t.Fatalf("expected exactly one error, got: %v", errs)
+			}
+			if errs[0].Message != tc.exp {
+				t.Fatalf("expected message %q, got %q", tc.exp, errs[0].Message)
+			}
+		})
+	}
+}
+
+// TestSharedRuleRows verifies which source lines the enclosing rule is reported
+// for: those holding rules of more than one name.
+func TestSharedRuleRows(t *testing.T) {
+	mod := MustParseModule(`package test
+
+p if { true }
+q if { true } r if { true }
+s if { false } else if { true }
+t.u if { true } t.v if { true }
+w if { true } w if { true }`)
+
+	rows := sharedRuleRows(mod)
+
+	exp := map[int]bool{
+		3: false, // one rule on the line
+		4: true,  // q and r
+		5: false, // one rule and its else
+		6: true,  // t.u and t.v
+		7: false, // two rules of the same name
+	}
+
+	for row, want := range exp {
+		if _, got := rows[row]; got != want {
+			t.Errorf("row %d: expected shared=%v, got %v", row, want, got)
+		}
 	}
 }
 
@@ -3155,8 +3219,8 @@ p := [data() | data := 1]`,
 				result = append(result, compiler.Errors[i].Message)
 			}
 
-			sort.Strings(tc.expectedErrors)
-			sort.Strings(result)
+			slices.Sort(tc.expectedErrors)
+			slices.Sort(result)
 
 			if len(tc.expectedErrors) != len(result) {
 				t.Fatalf("Expected %d errors but got %d:\n\n%v\n\nGot:\n\n%v",
@@ -5884,7 +5948,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 
 	compileStages(c, StageRewriteLocalVars)
 
-	expectedErrors := []string{
+	expectedErrors := util.Sorted([]string{
 		"var r1 referenced above",
 		"var r2 assigned above",
 		"var foo referenced above",
@@ -5902,18 +5966,14 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 		"cannot assign to boolean",
 		"cannot assign to string",
 		"cannot assign to null",
-	}
-
-	sort.Strings(expectedErrors)
+	})
 
 	result := make([]string, 0, len(c.Errors))
-
 	for i := range c.Errors {
 		result = append(result, c.Errors[i].Message)
 	}
 
-	sort.Strings(result)
-
+	slices.Sort(result)
 	if len(expectedErrors) != len(result) {
 		t.Fatalf("Expected %d errors but got %d:\n\n%v\n\nGot:\n\n%v", len(expectedErrors), len(result), strings.Join(expectedErrors, "\n"), strings.Join(result, "\n"))
 	}
@@ -7745,6 +7805,7 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 		note    string
 		module  string
 		exp     error
+		exps    []string // when set, asserts the full set of error messages
 		errCode string
 	}{
 		{
@@ -7769,6 +7830,7 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 			p if { {1 | print(x)} = {1 | print(7)} }
 			`,
 			exp:     errors.New("var x is undeclared"),
+			exps:    []string{"var x is undeclared"},
 			errCode: CompileErr,
 		},
 		{
@@ -7778,6 +7840,40 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 			`,
 			exp:     errors.New("print(42) used as value"),
 			errCode: TypeErr,
+		},
+		{
+			note: "some declaration inside comprehension body",
+			module: `package test
+
+			p if {
+				xs := [1 | some x; print(x)]
+				xs == xs
+			}`,
+			exp:     errors.New("var x is undeclared"),
+			exps:    []string{"var x is undeclared"},
+			errCode: CompileErr,
+		},
+		{
+			note: "declared var shadowed inside comprehension",
+			module: `package test
+
+			p if {
+				x := 1
+				ys := [x | some x; print(x)]
+				ys == ys
+			}`,
+			exp:     errors.New("var x is undeclared"),
+			exps:    []string{"var x is undeclared"},
+			errCode: CompileErr,
+		},
+		{
+			note: "unsafe var alongside function argument",
+			module: `package test
+
+			f(x) if { print(x, y) }`,
+			exp:     errors.New("var y is undeclared"),
+			exps:    []string{"var y is undeclared"},
+			errCode: CompileErr,
 		},
 	}
 
@@ -7793,6 +7889,15 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 			if c.Errors[0].Code != tc.errCode || c.Errors[0].Message != tc.exp.Error() {
 				t.Fatal("unexpected error:", c.Errors)
 			}
+			if tc.exps != nil {
+				got := make([]string, len(c.Errors))
+				for i, err := range c.Errors {
+					got[i] = err.Message
+				}
+				if !slices.Equal(got, tc.exps) {
+					t.Fatalf("expected errors %v but got %v", tc.exps, got)
+				}
+			}
 		})
 	}
 }
@@ -7804,6 +7909,38 @@ func TestCompilterRewritePrintCallsNestedComprehensionLocalsSafe(t *testing.T) {
 		note   string
 		module string
 	}{
+		{
+			note: "comprehension in every domain",
+			module: `package test
+			p if { every z in [c | c := 1; print(c)] { z == z } }`,
+		},
+		{
+			note: "comprehension in every body",
+			module: `package test
+			p if { every z in [1] { y := [1 | print(z)]; y == y } }`,
+		},
+		{
+			note: "comprehension in rule head",
+			module: `package test
+			p := {1 | print("h")}`,
+		},
+		{
+			note: "comprehension in with value",
+			module: `package test
+			q := 1
+			p if { q with input as [1 | print(input)] }`,
+		},
+		{
+			note: "print after not expression",
+			module: `package test
+			q := 1
+			r if { not q; print(q) }`,
+		},
+		{
+			note: "outer and every-key vars visible in nested comprehension",
+			module: `package test
+			p if { a := 1; every z in [1] { b := [1 | print(a, z)]; b == b } }`,
+		},
 		{
 			note: "print variable from nested comprehension without error",
 			module: `package test
@@ -7822,6 +7959,12 @@ func TestCompilterRewritePrintCallsNestedComprehensionLocalsSafe(t *testing.T) {
 			c := NewCompiler().WithEnablePrintStatements(true)
 			c.Compile(map[string]*Module{"test.rego": module(tc.module)})
 			assertNotFailed(t, c)
+
+			// Every print call must have been rewritten into internal.print,
+			// including those in nested bodies.
+			if str := c.Modules["test.rego"].String(); strings.Contains(str, " print(") {
+				t.Fatalf("expected all print calls to be rewritten, got:\n\n%v", str)
+			}
 		})
 	}
 }
@@ -10183,7 +10326,7 @@ dataref = true if { data }`,
 		return fmt.Sprintf("rego_recursion_error: rule data.%s.%s is recursive: %v", pkg, rule, strings.Join(l, " -> "))
 	}
 
-	expected := []string{
+	expected := util.Sorted([]string{
 		makeRuleErrMsg("rec", "s", "s", "t", "s"),
 		makeRuleErrMsg("rec", "t", "t", "s", "t"),
 		makeRuleErrMsg("rec", "a", "a", "b", "c", "e", "a"),
@@ -10210,11 +10353,9 @@ dataref = true if { data }`,
 		makeRuleErrMsg("f2", "p[x]", "p[x]", "foo", "bar", "p[x]"),
 		makeRuleErrMsg("everymod", "everyp", "everyp", "everyp"),
 		makeRuleErrMsg("everymod", "everyq", "everyq", "everyq"),
-	}
+	})
 
 	result := compilerErrsToStringSlice(c.Errors)
-	sort.Strings(expected)
-
 	if len(result) != len(expected) {
 		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
 	}
@@ -11993,12 +12134,7 @@ func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 func compileStages(c *Compiler, stageID StageID) {
 	c.init()
 
-	c.sorted = make([]string, 0, len(c.Modules))
-	for name := range c.Modules {
-		c.sorted = append(c.sorted, name)
-	}
-	sort.Strings(c.sorted)
-
+	c.sorted = util.KeysSorted(c.Modules)
 	c = c.SetErrorLimit(0) // Tests need to see all errors, not just the first few
 
 	if stageID != "" {
@@ -12096,8 +12232,7 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 		msg := strings.SplitN(e.Error(), ":", 3)[2]
 		result = append(result, strings.TrimSpace(msg))
 	}
-	sort.Strings(result)
-	return result
+	return util.Sorted(result)
 }
 
 func runQueryCompilerTest(q string, popts ParserOptions, pkg string, imports []string, expected any) func(*testing.T) {

@@ -10,12 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"unicode"
 
 	"github.com/open-policy-agent/opa/internal/future"
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/types"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -169,7 +169,7 @@ type fmtOpts struct {
 
 func (o fmtOpts) keywords() []string {
 	if o.regoV1 {
-		return ast.KeywordsV1[:]
+		return append(ast.KeywordsV1[:], o.futureKeywords...)
 	}
 	kws := ast.KeywordsV0[:]
 	return append(kws, o.futureKeywords...)
@@ -227,6 +227,16 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 			case n.IsEvery():
 				extraFutureKeywordImports["every"] = struct{}{}
 			case n.IsNot():
+				extraFutureKeywordImports["not"] = struct{}{}
+			case n.IsAnd():
+				extraFutureKeywordImports["and"] = struct{}{}
+			case n.IsOr():
+				extraFutureKeywordImports["or"] = struct{}{}
+			}
+
+			if n.Negated && isLogicalExpr(n) {
+				// A negated logical expression is written parenthesized
+				// (`not (a or b)`), which requires the `not` keyword.
 				extraFutureKeywordImports["not"] = struct{}{}
 			}
 
@@ -409,9 +419,14 @@ func defaultLocation(x ast.Node) *ast.Location {
 }
 
 type writer struct {
-	// parenExpr, when set, is an expression that must be wrapped in parens when
-	// written; consumed by the first writeExpr that sees it.
+	// parenExpr, when set, is an expression whose terms must be wrapped in parens
+	// when written; consumed by the first writeExpr that sees it. Any `with`
+	// clauses stay outside the parens, as `(x | y with p as 1)` doesn't parse.
 	parenExpr *ast.Expr
+
+	// parenTerm, when set, is a term that must be wrapped in parens when written;
+	// consumed by the first writeTermParens that sees it.
+	parenTerm *ast.Term
 
 	buf bytes.Buffer
 
@@ -446,20 +461,20 @@ func (w *writer) writeModule(module *ast.Module) error {
 	})
 	visitor.Walk(module)
 
-	sort.Slice(comments, func(i, j int) bool {
-		l, err := locLess(comments[i], comments[j])
+	slices.SortFunc(comments, func(a, b *ast.Comment) int {
+		al, bl, err := getLocs(a, b)
 		if err != nil {
 			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
 		}
-		return l
+		return locCmp(al, bl)
 	})
 
-	sort.Slice(others, func(i, j int) bool {
-		l, err := locLess(others[i], others[j])
+	slices.SortFunc(others, func(a, b any) int {
+		al, bl, err := getLocs(a, b)
 		if err != nil {
 			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
 		}
-		return l
+		return locCmp(al, bl)
 	})
 
 	comments = trimTrailingWhitespaceInComments(comments)
@@ -536,7 +551,7 @@ func (w *writer) writeComments(comments []*ast.Comment) error {
 	var inMetadataBlock bool
 	for i := range comments {
 		if i > 0 {
-			l, err := locCmp(comments[i], comments[i-1])
+			l, err := locCmpOrError(comments[i], comments[i-1])
 			if err != nil {
 				return err
 			}
@@ -657,7 +672,9 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	// this excludes partial sets UNLESS `contains` is used
 	partialSetException := w.fmtOpts.contains || rule.Head.Value != nil
 
-	if (w.fmtOpts.regoV1 || w.fmtOpts.ifs) && partialSetException {
+	usesIf := (w.fmtOpts.regoV1 || w.fmtOpts.ifs) && partialSetException
+
+	if usesIf {
 		w.write(" if")
 		if len(rule.Body) == 1 {
 			// Keep `if <term>` on one line when the single body term sits on the
@@ -668,7 +685,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 			// Additionally, a single set term must not be stripped of the outer body
 			// braces, as that would semantically change the inner set to a body:
 			// `p if { { x } }` -> p if { x }
-			headEndRow := rule.Head.Location.Row + strings.Count(string(rule.Head.Location.Text), "\n")
+			headEndRow, _ := location.EndOf(rule.Head.Location.Row, rule.Head.Location.Col, rule.Head.Location.Text)
 			if rule.Body[0].Location.Row == headEndRow && !isSetTerm(rule.Body[0]) {
 				w.write(" ")
 				var err error
@@ -692,6 +709,13 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	} else {
 		w.write(" {")
 		w.endLine()
+	}
+
+	// A leading set union renders as `x | y`, which the parser reads as a
+	// comprehension at the brace of a `p if { ... }` body, so it is parenthesized.
+	// An `else` body has no such ambiguity: its braces always open a body.
+	if usesIf && !isElse {
+		w.markUnionLead(rule.Body[0])
 	}
 
 	w.up()
@@ -946,10 +970,9 @@ func (w *writer) writeBody(body ast.Body, comments []*ast.Comment) ([]*ast.Comme
 }
 
 func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comment, error) {
-	if w.parenExpr == expr {
+	parenTerms := w.parenExpr == expr
+	if parenTerms {
 		w.parenExpr = nil
-		w.write("(")
-		defer w.write(")")
 	}
 
 	var err error
@@ -961,8 +984,20 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 		w.startLine()
 	}
 
+	// `not` binds tighter than `and`/`or`, so a negated logical expression is
+	// parenthesized. Only reachable through programmatically built ASTs; the
+	// parser represents `not (a or b)` as an *ast.Not.
+	negatedLogical := expr.Negated && isLogicalExpr(expr)
+
 	if expr.Negated {
 		w.write("not ")
+		if negatedLogical {
+			w.write("(")
+		}
+	}
+
+	if parenTerms {
+		w.write("(")
 	}
 
 	switch t := expr.Terms.(type) {
@@ -981,6 +1016,11 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 		if err != nil {
 			return nil, err
 		}
+	case *ast.LogicalAnd, *ast.LogicalOr:
+		comments, err = w.writeLogical(expr, comments)
+		if err != nil {
+			return nil, err
+		}
 	case []*ast.Term:
 		comments, err = w.writeFunctionCall(expr, comments)
 		if err != nil {
@@ -991,6 +1031,14 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comm
 		if err != nil {
 			return comments, err
 		}
+	}
+
+	if parenTerms {
+		w.write(")")
+	}
+
+	if negatedLogical {
+		w.write(")")
 	}
 
 	if len(expr.With) == 0 {
@@ -1056,7 +1104,8 @@ func exprTermsEndRow(expr *ast.Expr) int {
 		}
 	}
 	text = bytes.TrimRight(text, " \t\r\n")
-	return loc.Row + bytes.Count(text, []byte{'\n'})
+	endRow, _ := location.EndOf(loc.Row, loc.Col, text)
+	return endRow
 }
 
 // isSetTerm reports whether expr is a non-negated set term.
@@ -1192,8 +1241,7 @@ func (w *writer) writeNot(not *ast.Not, loc *ast.Location, comments []*ast.Comme
 		}
 		w.write("}")
 	} else {
-		// A value that renders brace-led would be re-read as an explicit body.
-		parens := exprRendersBraceLead(not.Body[0])
+		parens := notBodyNeedsParens(not.Body[0])
 		if parens {
 			w.write("(")
 		}
@@ -1211,6 +1259,251 @@ func (w *writer) writeNot(not *ast.Not, loc *ast.Location, comments []*ast.Comme
 	}
 
 	return comments, nil
+}
+
+// notBodyNeedsParens reports whether the sole expression of an implicit `not`
+// body must be parenthesized to be read back as that same expression. Mirrors
+// notBodyNeedsParens in the ast package.
+func notBodyNeedsParens(expr *ast.Expr) bool {
+	// A `with` on a bare operand of `not` binds to the whole `not` expression.
+	if len(expr.With) > 0 {
+		return true
+	}
+
+	// `not` binds tighter than `and`/`or`.
+	if isLogicalExpr(expr) {
+		return true
+	}
+
+	// A value that renders brace-led would be re-read as an explicit body.
+	return exprRendersBraceLead(expr)
+}
+
+// logicalOperand is one operand of an `and`/`or` chain.
+type logicalOperand struct {
+	body ast.Body
+
+	// explicit is set for `{...}` operands, which scope their contents and are
+	// always written braced.
+	explicit bool
+
+	// parens is set for implicit operands that must be parenthesized to be read
+	// back as the same expression.
+	parens bool
+
+	// brace is the location of the operand's opening `{`, for explicit operands.
+	brace *ast.Location
+}
+
+// logicalStep is one operator application of an `and`/`or` chain.
+type logicalStep struct {
+	op  string
+	rhs logicalOperand
+
+	// lhsEndRow is the row on which everything to the left of the operator ends.
+	lhsEndRow int
+}
+
+// breaksLine reports whether the rhs operand is written on a line of its own.
+// Explicit operands always open their brace on the operator's line, so only an
+// implicit operand starting on a later row than the operator breaks.
+func (s logicalStep) breaksLine() bool {
+	return !s.rhs.explicit && s.rhs.body[0].Location.Row > s.lhsEndRow
+}
+
+func (w *writer) writeLogical(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comment, error) {
+	lhs, steps := flattenLogical(expr)
+
+	comments, err := w.writeLogicalOperand(lhs, comments)
+	if err != nil && !errors.As(err, &unexpectedCommentError{}) {
+		return comments, err
+	}
+
+	var indented bool
+
+	for _, s := range steps {
+		w.write(" " + s.op)
+
+		if s.breaksLine() {
+			if !indented {
+				w.up()
+				defer w.down() //nolint:errcheck
+				indented = true
+			}
+			w.endLine()
+			w.startLine()
+		} else {
+			w.write(" ")
+		}
+
+		comments, err = w.writeLogicalOperand(s.rhs, comments)
+		if err != nil && !errors.As(err, &unexpectedCommentError{}) {
+			return comments, err
+		}
+	}
+
+	return comments, nil
+}
+
+func (w *writer) writeLogicalOperand(o logicalOperand, comments []*ast.Comment) ([]*ast.Comment, error) {
+	if !o.explicit {
+		if o.parens {
+			w.write("(")
+			defer w.write(")")
+		}
+
+		return w.writeExpr(o.body[0], comments)
+	}
+
+	if len(o.body) == 0 {
+		w.write("{}")
+		return comments, nil
+	}
+
+	// A leading set union renders as `x | y`, which the parser reads as a
+	// comprehension at the brace, so it is parenthesized.
+	if isUnionExpr(o.body[0]) {
+		w.parenExpr = o.body[0]
+	}
+
+	w.write("{")
+	comments, err := w.writeComprehensionBody('{', '}', o.body, o.brace, o.brace, comments)
+	if err != nil {
+		if !errors.As(err, &unexpectedCommentError{}) {
+			return comments, err
+		}
+	}
+
+	if last := o.body[len(o.body)-1]; last.Location != nil && last.Location.Row == o.brace.Row {
+		w.write(" ")
+	}
+	w.write("}")
+
+	return comments, nil
+}
+
+// flattenLogical returns the leading operand and the operator applications of an
+// `and`/`or` chain. Chains are left-associative, so the operands of
+// `a and b and c` -- And{And{a, b}, c} -- are collected into a single chain,
+// written with one level of continuation indent. A nested node that requires
+// parens stays an operand of its own.
+func flattenLogical(expr *ast.Expr) (logicalOperand, []logicalStep) {
+	op, lhs, rhs, explicitLhs, explicitRhs := logicalParts(expr)
+
+	step := logicalStep{
+		op:  op,
+		rhs: newLogicalOperand(rhs, explicitRhs, op, true, expr.Location),
+	}
+
+	if !explicitLhs && len(lhs) == 1 && isLogicalExpr(lhs[0]) && !logicalOperandNeedsParens(lhs[0], op, false) {
+		step.lhsEndRow = bodyEndRow(lhs)
+		first, steps := flattenLogical(lhs[0])
+
+		return first, append(steps, step)
+	}
+
+	first := newLogicalOperand(lhs, explicitLhs, op, false, expr.Location)
+	step.lhsEndRow = logicalOperandEndRow(first)
+
+	return first, []logicalStep{step}
+}
+
+func logicalParts(expr *ast.Expr) (op string, lhs, rhs ast.Body, explicitLhs, explicitRhs bool) {
+	switch t := expr.Terms.(type) {
+	case *ast.LogicalAnd:
+		return "and", t.Lhs, t.Rhs, t.ExplicitLhs, t.ExplicitRhs
+	case *ast.LogicalOr:
+		return "or", t.Lhs, t.Rhs, t.ExplicitLhs, t.ExplicitRhs
+	}
+
+	return "", nil, nil, false, false
+}
+
+func newLogicalOperand(b ast.Body, explicit bool, parentOp string, rhs bool, node *ast.Location) logicalOperand {
+	if explicit || len(b) != 1 {
+		return logicalOperand{body: b, explicit: true, brace: operandBraceLoc(node, b)}
+	}
+
+	return logicalOperand{body: b, parens: logicalOperandNeedsParens(b[0], parentOp, rhs)}
+}
+
+// logicalOperandNeedsParens reports whether an implicit operand of parentOp must
+// be parenthesized to be read back as that same expression. Mirrors
+// logicalOperandNeedsParens in the ast package.
+func logicalOperandNeedsParens(expr *ast.Expr, parentOp string, rhs bool) bool {
+	// A `with` on a bare operand binds to the whole and/or expression.
+	if len(expr.With) > 0 {
+		return true
+	}
+
+	switch expr.Terms.(type) {
+	case *ast.LogicalOr:
+		// `or` binds looser than `and`: always parenthesize under `and`; under
+		// `or`, parenthesize only the rhs to preserve right-nesting.
+		return parentOp == "and" || rhs
+	case *ast.LogicalAnd:
+		// `and` binds tighter: no parens under `or`; under `and`, parenthesize
+		// only the rhs to preserve right-nesting.
+		return parentOp == "and" && rhs
+	}
+
+	// A value that renders brace-led would be re-read as an explicit body.
+	return exprRendersBraceLead(expr)
+}
+
+func logicalOperandEndRow(o logicalOperand) int {
+	if o.explicit {
+		if row := closingLoc(0, 0, '{', '}', o.brace).Row; row > 0 {
+			return row
+		}
+	}
+
+	return bodyEndRow(o.body)
+}
+
+// bodyEndRow returns the row of the last source line occupied by b.
+func bodyEndRow(b ast.Body) int {
+	if len(b) == 0 {
+		return 0
+	}
+
+	loc := b[len(b)-1].Location
+	if loc == nil {
+		return 0
+	}
+
+	return loc.Row + bytes.Count(bytes.TrimRight(loc.Text, " \t\r\n"), []byte{'\n'})
+}
+
+// operandBraceLoc returns the location of the `{` opening an explicit operand
+// body, derived from the location of the enclosing and/or node. The node
+// location is returned as-is if the brace can't be located, e.g. for default
+// locations.
+func operandBraceLoc(node *ast.Location, b ast.Body) *ast.Location {
+	if node == nil || len(b) == 0 || b[0].Location == nil {
+		return node
+	}
+
+	i := min(b[0].Location.Offset-node.Offset, len(node.Text))
+
+	for i--; i >= 0; i-- {
+		if node.Text[i] != '{' {
+			continue
+		}
+
+		cpy := *node
+		cpy.Row = node.Row + bytes.Count(node.Text[:i], []byte{'\n'})
+		cpy.Offset = node.Offset + i
+		cpy.Text = node.Text[i:]
+
+		return &cpy
+	}
+
+	return node
+}
+
+func isLogicalExpr(expr *ast.Expr) bool {
+	return expr.IsAnd() || expr.IsOr()
 }
 
 func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comment, error) {
@@ -1343,7 +1636,7 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 			// If beforeEnd refers to a comment within the source text range, clear it
 			// This prevents the comment from being written twice
 			if w.beforeEnd != nil && len(term.Location.Text) > 0 {
-				endRow := term.Location.Row + bytes.Count(term.Location.Text, []byte{'\n'})
+				endRow, _ := location.EndOf(term.Location.Row, term.Location.Col, term.Location.Text)
 				if w.beforeEnd.Location.Row >= term.Location.Row && w.beforeEnd.Location.Row <= endRow {
 					w.beforeEnd = nil
 				}
@@ -1390,6 +1683,11 @@ func (w *writer) writeUnformatted(location *ast.Location, currentComments []*ast
 }
 
 func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Comment) ([]*ast.Comment, error) {
+	if w.parenTerm == term {
+		w.parenTerm = nil
+		parens = true
+	}
+
 	var err error
 	comments, err = w.insertComments(comments, term.Location)
 	if err != nil {
@@ -2060,6 +2358,52 @@ func isUnionExpr(expr *ast.Expr) bool {
 	return ok && len(terms) == 3 && ast.Or.Ref().Equal(terms[0].Value)
 }
 
+// markUnionLead parenthesizes the set union leading the rendering of expr, if
+// there is one: a leading `x | y` reads as comprehension syntax at the brace of
+// the body holding expr. The union is either the expression itself, or the
+// leading operand of an infix call — one nested deeper is already parenthesized
+// by writeCall.
+func (w *writer) markUnionLead(expr *ast.Expr) {
+	if expr.Negated {
+		return
+	}
+
+	if isLogicalExpr(expr) {
+		if lhs, _ := flattenLogical(expr); !lhs.explicit && !lhs.parens {
+			w.markUnionLead(lhs.body[0])
+		}
+
+		return
+	}
+
+	if isUnionExpr(expr) {
+		w.parenExpr = expr
+		return
+	}
+
+	terms, ok := expr.Terms.([]*ast.Term)
+	if !ok {
+		return
+	}
+
+	// Infix calls render an operand first: the result for the assigned form
+	// (`z = x | y`), otherwise the lhs (`x | y == z`).
+	if bi, ok := ast.BuiltinMap[terms[0].Value.String()]; ok && bi.Infix != "" {
+		var lead *ast.Term
+
+		switch len(terms) {
+		case bi.Decl.Arity() + 1:
+			lead = terms[1]
+		case bi.Decl.Arity() + 2:
+			lead = terms[len(terms)-1]
+		}
+
+		if lead != nil && isUnionCall(lead) {
+			w.parenTerm = lead
+		}
+	}
+}
+
 // exprRendersBraceLead reports whether expr renders starting with a `{`. Such an
 // expression needs parens in an operand position, as bare braces there are read as
 // an explicit body. Mirrors rendersWithLeadingBrace in the ast package.
@@ -2092,6 +2436,13 @@ func termRendersBraceLead(t *ast.Term) bool {
 		return true
 	case ast.Ref:
 		return len(v) > 0 && termRendersBraceLead(v[0])
+	case ast.Call:
+		// An infix call renders an operand first, so a brace-led operand of a
+		// nested call leads the whole rendering: `{1, 2} & s == set()`.
+		if bi, ok := ast.BuiltinMap[v[0].Value.String()]; ok && bi.Infix != "" &&
+			len(v) == bi.Decl.Arity()+1 {
+			return termRendersBraceLead(v[1])
+		}
 	}
 
 	return false
@@ -2182,7 +2533,7 @@ func (w *writer) groupIterable(elements []any, last *ast.Location) ([][]any, err
 	}
 
 	slices.SortFunc(elements, func(i, j any) int {
-		l, err := locCmp(i, j)
+		l, err := locCmpOrError(i, j)
 		if err != nil {
 			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
 		}
@@ -2328,34 +2679,27 @@ loop:
 	return rules, others[i:]
 }
 
-func locLess(a, b any) (bool, error) {
-	c, err := locCmp(a, b)
-	return c < 0, err
+func locCmpOrError(a, b any) (int, error) {
+	al, bl, err := getLocs(a, b)
+	if err != nil {
+		return 0, err
+	}
+	return locCmp(al, bl), nil
 }
 
-func locCmp(a, b any) (int, error) {
-	al, err := getLoc(a)
-	if err != nil {
-		return 0, err
-	}
-	bl, err := getLoc(b)
-	if err != nil {
-		return 0, err
-	}
+func locCmp(a, b *ast.Location) int {
 	switch {
-	case al == nil && bl == nil:
-		return 0, nil
-	case al == nil:
-		return -1, nil
-	case bl == nil:
-		return 1, nil
+	case a == b:
+		return 0
+	case a == nil:
+		return -1
+	case b == nil:
+		return 1
 	}
-
-	if cmp := al.Row - bl.Row; cmp != 0 {
-		return cmp, nil
-
+	if cmp := a.Row - b.Row; cmp != 0 {
+		return cmp
 	}
-	return al.Col - bl.Col, nil
+	return a.Col - b.Col
 }
 
 func getLoc(x any) (*ast.Location, error) {
@@ -2369,6 +2713,12 @@ func getLoc(x any) (*ast.Location, error) {
 	default:
 		return nil, fmt.Errorf("unable to get location for type %v", x)
 	}
+}
+
+func getLocs(a, b any) (*ast.Location, *ast.Location, error) {
+	al, err1 := getLoc(a)
+	bl, err2 := getLoc(b)
+	return al, bl, errors.Join(err1, err2)
 }
 
 var negativeRow = &ast.Location{Row: -1}

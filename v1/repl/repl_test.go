@@ -1222,6 +1222,183 @@ func TestOneShotRefHeadRulePrinted(t *testing.T) {
 	expectOutput(t, buffer.String(), "Rule 'foo.bar.baz' defined in package repl. Type 'show' to see rules.\n")
 }
 
+// Ref head rules can be defined interactively, i.e. without the `if` keyword
+// and a rule body, see https://github.com/open-policy-agent/opa/issues/5498
+func TestOneShotRefHeadRuleDefinition(t *testing.T) {
+	tests := []struct {
+		note  string
+		stmts []string
+		exp   []string
+	}{
+		{
+			note:  "number key",
+			stmts: []string{`a[0] := 1`, `a`},
+			exp: []string{
+				"Rule 'a[0]' defined in package repl. Type 'show' to see rules.\n",
+				"{\n  \"0\": 1\n}\n",
+			},
+		},
+		{
+			note:  "string key",
+			stmts: []string{`a["foo"] := "bar"`, `a`},
+			exp: []string{
+				"Rule 'a.foo' defined in package repl. Type 'show' to see rules.\n",
+				"{\n  \"foo\": \"bar\"\n}\n",
+			},
+		},
+		{
+			note:  "distinct keys are kept",
+			stmts: []string{`a[0] := 1`, `a[1] := 2`, `a`},
+			exp: []string{
+				"Rule 'a[0]' defined in package repl. Type 'show' to see rules.\n",
+				"Rule 'a[1]' defined in package repl. Type 'show' to see rules.\n",
+				"{\n  \"0\": 1,\n  \"1\": 2\n}\n",
+			},
+		},
+		{
+			note:  "same key is re-defined",
+			stmts: []string{`a[0] := 1`, `a[1] := 2`, `a[0] := 3`, `a`},
+			exp: []string{
+				"Rule 'a[0]' defined in package repl. Type 'show' to see rules.\n",
+				"Rule 'a[1]' defined in package repl. Type 'show' to see rules.\n",
+				"Rule 'a[0]' re-defined in package repl. Type 'show' to see rules.\n",
+				"{\n  \"0\": 3,\n  \"1\": 2\n}\n",
+			},
+		},
+		{
+			note:  "complete rule replaces keys",
+			stmts: []string{`a[0] := 1`, `a := 2`, `a`},
+			exp: []string{
+				"Rule 'a[0]' defined in package repl. Type 'show' to see rules.\n",
+				"Rule 'a' re-defined in package repl. Type 'show' to see rules.\n",
+				"2\n",
+			},
+		},
+		{
+			note:  "dotted ref",
+			stmts: []string{`p.q.r := 1`, `p.q.s := 2`, `p`},
+			exp: []string{
+				"Rule 'p.q.r' defined in package repl. Type 'show' to see rules.\n",
+				"Rule 'p.q.s' defined in package repl. Type 'show' to see rules.\n",
+				"{\n  \"q\": {\n    \"r\": 1,\n    \"s\": 2\n  }\n}\n",
+			},
+		},
+		{
+			note:  "assignment to var key is unsafe",
+			stmts: []string{`a[i] := 1`},
+			exp:   []string{""},
+		},
+		{
+			note:  "eq statement defines rule",
+			stmts: []string{`p.q.r = 1`, `p.q.r`},
+			exp: []string{
+				"Rule 'p.q.r' defined in package repl. Type 'show' to see rules.\n",
+				"1\n",
+			},
+		},
+		{
+			// The rule isn't re-defined, the statement is a query about the
+			// existing document.
+			note:  "eq statement about defined rule is a query",
+			stmts: []string{`p.q.r := 1`, `p.q.r = 1`, `p.q.r = 2`, `p.q[i] = 1`},
+			exp: []string{
+				"Rule 'p.q.r' defined in package repl. Type 'show' to see rules.\n",
+				"true\n",
+				"undefined\n",
+				"┌─────┐\n│  i  │\n├─────┤\n│ \"r\" │\n└─────┘\n",
+			},
+		},
+		{
+			note:  "data ref is a query",
+			stmts: []string{`data.foo.bar = 1`, `show`},
+			exp: []string{
+				"undefined\n",
+				"no rules defined\n",
+			},
+		},
+		{
+			note:  "input ref is a query",
+			stmts: []string{`input.foo.bar = 1`, `show`},
+			exp: []string{
+				"undefined\n",
+				"no rules defined\n",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := t.Context()
+			var buffer bytes.Buffer
+			repl := newRepl(inmem.New(), &buffer)
+
+			for i, stmt := range tc.stmts {
+				buffer.Reset()
+				err := repl.OneShot(ctx, stmt)
+				if tc.exp[i] == "" {
+					if err == nil {
+						t.Fatalf("%q: expected error but got output: %q", stmt, buffer.String())
+					}
+					continue
+				}
+				if err != nil {
+					t.Fatalf("%q: unexpected error: %v", stmt, err)
+				}
+				if act := buffer.String(); act != tc.exp[i] {
+					t.Fatalf("%q: expected output %q but got %q", stmt, tc.exp[i], act)
+				}
+			}
+		})
+	}
+}
+
+// Ref head rules are identified by their ref, e.g. "unset a[0]" and
+// "unset foo.bar.baz".
+func TestUnsetRefHeadRule(t *testing.T) {
+	ctx := t.Context()
+	var buffer bytes.Buffer
+	repl := newRepl(inmem.New(), &buffer)
+
+	for _, stmt := range []string{`a[0] := 1`, `a[1] := 2`, `foo.bar.baz if true`} {
+		if err := repl.OneShot(ctx, stmt); err != nil {
+			t.Fatalf("%q: unexpected error: %v", stmt, err)
+		}
+	}
+
+	// Unsetting a key leaves the other keys of the document in place.
+	buffer.Reset()
+	if err := repl.OneShot(ctx, `unset a[0]`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `a`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "{\n  \"1\": 2\n}\n")
+
+	// Unsetting a prefix of the ref removes all rules under it.
+	buffer.Reset()
+	if err := repl.OneShot(ctx, `unset a`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `unset foo.bar.baz`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `show`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "package repl\n")
+
+	buffer.Reset()
+	if err := repl.OneShot(ctx, `unset foo.bar.baz`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectOutput(t, buffer.String(), "warning: no matching rules in current module\n")
+
+	if err := repl.OneShot(ctx, `unset a[x]`); err == nil {
+		t.Fatal("Expected error for non-ground ref")
+	}
+}
+
 func TestOneShotBufferedExpr(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore()

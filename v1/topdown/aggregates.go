@@ -7,6 +7,7 @@ package topdown
 import (
 	"math"
 	"math/big"
+	"slices"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
@@ -206,7 +207,7 @@ func builtinMax(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		}
 		max := ast.InternedNullTerm.Value
 		a.Foreach(func(x *ast.Term) {
-			if ast.Compare(max, x.Value) <= 0 {
+			if max.Compare(x.Value) <= 0 {
 				max = x.Value
 			}
 		})
@@ -215,16 +216,7 @@ func builtinMax(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		if a.Len() == 0 {
 			return nil
 		}
-		max, err := a.Reduce(ast.InternedNullTerm, func(max *ast.Term, elem *ast.Term) (*ast.Term, error) {
-			if ast.Compare(max, elem) <= 0 {
-				return elem, nil
-			}
-			return max, nil
-		})
-		if err != nil {
-			return err
-		}
-		return iter(max)
+		return iter(slices.MaxFunc(a.Slice(), ast.TermValueCompare))
 	}
 
 	return builtins.NewOperandTypeErr(1, operands[0].Value, "set", "array")
@@ -238,7 +230,7 @@ func builtinMin(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		}
 		min := a.Elem(0).Value
 		a.Foreach(func(x *ast.Term) {
-			if ast.Compare(min, x.Value) >= 0 {
+			if min.Compare(x.Value) >= 0 {
 				min = x.Value
 			}
 		})
@@ -247,23 +239,7 @@ func builtinMin(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		if a.Len() == 0 {
 			return nil
 		}
-		min, err := a.Reduce(ast.InternedNullTerm, func(min *ast.Term, elem *ast.Term) (*ast.Term, error) {
-			// The null term is considered to be less than any other term,
-			// so in order for min of a set to make sense, we need to check
-			// for it.
-			if min.Value.Compare(ast.InternedNullValue) == 0 {
-				return elem, nil
-			}
-
-			if ast.Compare(min, elem) >= 0 {
-				return elem, nil
-			}
-			return min, nil
-		})
-		if err != nil {
-			return err
-		}
-		return iter(min)
+		return iter(slices.MinFunc(a.Slice(), ast.TermValueCompare))
 	}
 
 	return builtins.NewOperandTypeErr(1, operands[0].Value, "set", "array")

@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -814,7 +814,7 @@ func makeStable(bodies []ast.Body) {
 			return false // go on
 		})
 	}
-	sort.Slice(bodies, func(i, j int) bool { return bodies[i].Compare(bodies[j]) < 0 })
+	slices.SortFunc(bodies, ast.Body.Compare)
 }
 
 func ExampleRego_PrepareForPartial() {

@@ -1346,6 +1346,119 @@ foo["if"]["else"] := true
 	}
 }
 
+// Experimental future keywords are hidden from the default capabilities, so
+// formatting a module that imports one requires --capabilities to list it.
+func TestFmtFormatExperimentalKeywords(t *testing.T) {
+	unformatted := `package test
+
+import future.keywords.and
+import future.keywords.or
+
+p if { input.a   and   input.b or input.c }
+`
+
+	formatted := `package test
+
+import future.keywords.and
+import future.keywords.or
+
+p if input.a and input.b or input.c
+`
+
+	experimental := func() fmtCommandParams {
+		params := newFmtCommandParams()
+		params.capabilitiesFlag.C = ast.CapabilitiesForThisVersion(
+			ast.CapabilitiesRegoVersion(ast.RegoV1),
+			ast.CapabilitiesExperimentalKeywords(true))
+		return *params
+	}
+
+	cases := []struct {
+		note        string
+		params      fmtCommandParams
+		expected    string
+		expectedErr string
+	}{
+		{
+			note:        "default capabilities",
+			params:      *newFmtCommandParams(),
+			expectedErr: "rego_parse_error: unexpected keyword, must be one of [contains every if in not]",
+		},
+		{
+			note:     "capabilities listing the keywords",
+			params:   experimental(),
+			expected: formatted,
+		},
+		{
+			note: "capabilities listing the keywords, --check-result",
+			params: func() fmtCommandParams {
+				params := experimental()
+				params.checkResult = true
+				return params
+			}(),
+			expected: formatted,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run("file, "+tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{"policy.rego": unformatted}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				err = formatFile(&tc.params, &stdout, policyFile, info, err)
+
+				if tc.expectedErr != "" {
+					if err == nil {
+						t.Fatalf("Expected error but got: %s", stdout.String())
+					}
+					if !strings.Contains(err.Error(), tc.expectedErr) {
+						t.Fatalf("Expected error to contain:\n\n%s\n\nGot:\n\n%s", tc.expectedErr, err.Error())
+					}
+					return
+				}
+
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if actual := stdout.String(); actual != tc.expected {
+					t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.expected, actual)
+				}
+			})
+		})
+
+		t.Run("stdin, "+tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			err := formatStdin(&tc.params, bytes.NewReader([]byte(unformatted)), &stdout)
+
+			if tc.expectedErr != "" {
+				if err == nil {
+					t.Fatalf("Expected error but got: %s", stdout.String())
+				}
+				if !strings.Contains(err.Error(), tc.expectedErr) {
+					t.Fatalf("Expected error to contain:\n\n%s\n\nGot:\n\n%s", tc.expectedErr, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			if actual := stdout.String(); actual != tc.expected {
+				t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.expected, actual)
+			}
+		})
+	}
+}
+
 func TestFmtFormatFile_KeywordsInRefs(t *testing.T) {
 	cases := []struct {
 		note        string

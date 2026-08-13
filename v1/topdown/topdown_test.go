@@ -14,7 +14,6 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1559,8 +1558,8 @@ arr := [1, 2, 3, 4, 5]
 					exits[ev.Message]++
 				}
 			}
-			sort.Strings(notes)
-			sort.Strings(tc.notes)
+			slices.Sort(notes)
+			slices.Sort(tc.notes)
 			if !slices.Equal(notes, tc.notes) {
 				t.Errorf("unexpected note traces, expected %v, got %v", tc.notes, notes)
 			}
@@ -2223,9 +2222,9 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 			expected := util.MustUnmarshalJSON([]byte(e))
 
 			if requiresSort {
-				sort.Sort(resultSet(result.([]any)))
+				slices.SortFunc(result.([]any), util.Compare)
 				if sl, ok := expected.([]any); ok {
-					sort.Sort(resultSet(sl))
+					slices.SortFunc(sl, util.Compare)
 				}
 			}
 
@@ -2317,9 +2316,9 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 	}
 
 	if requiresSort {
-		sort.Sort(resultSet(result.([]any)))
+		slices.SortFunc(result.([]any), util.Compare)
 		if sl, ok := expected.([]any); ok {
-			sort.Sort(resultSet(sl))
+			slices.SortFunc(sl, util.Compare)
 		}
 	}
 
@@ -2328,22 +2327,7 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 	}
 }
 
-type resultSet []any
-
-func (rs resultSet) Less(i, j int) bool {
-	return util.Compare(rs[i], rs[j]) < 0
-}
-
-func (rs resultSet) Swap(i, j int) {
-	rs[i], rs[j] = rs[j], rs[i]
-}
-
-func (rs resultSet) Len() int {
-	return len(rs)
-}
-
 func init() {
-
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.sleep",
 		Decl: types.NewFunction(
@@ -2405,8 +2389,7 @@ func dump(note string, modules map[string]*ast.Module, data any, docpath []strin
 		if len(e) > 0 {
 			exp := util.MustUnmarshalJSON([]byte(e))
 			if requiresSort {
-				sl := exp.([]any)
-				sort.Sort(resultSet(sl))
+				slices.SortFunc(exp.([]any), util.Compare)
 			}
 			rs = append(rs, map[string]any{"x": exp})
 		}

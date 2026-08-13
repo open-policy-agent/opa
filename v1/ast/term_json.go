@@ -65,8 +65,8 @@ func (s *set) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.sortedKeys())
 }
 
-func (l *lazyObj) MarshalJSON() ([]byte, error) {
-	return l.force().(*object).MarshalJSON()
+func (lob *lazyObj) MarshalJSON() ([]byte, error) {
+	return lob.force().(*object).MarshalJSON()
 }
 
 func (n *Not) MarshalJSON() ([]byte, error) {

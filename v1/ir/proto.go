@@ -189,9 +189,11 @@ func stmtToProto(s Stmt) *pb.Stmt {
 	}
 	loc := s.GetLocation()
 	out := &pb.Stmt{
-		File: proto.Int32(toInt32(loc.File)),
-		Col:  proto.Int32(toInt32(loc.Col)),
-		Row:  proto.Int32(toInt32(loc.Row)),
+		File:   proto.Int32(toInt32(loc.File)),
+		Col:    proto.Int32(toInt32(loc.Col)),
+		Row:    proto.Int32(toInt32(loc.Row)),
+		EndCol: proto.Int32(toInt32(loc.EndCol)),
+		EndRow: proto.Int32(toInt32(loc.EndRow)),
 	}
 	switch x := s.(type) {
 	case *ArrayAppendStmt:
