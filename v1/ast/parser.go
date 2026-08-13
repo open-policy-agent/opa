@@ -28,36 +28,42 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// DefaultMaxParsingRecursionDepth is the default maximum recursion
-// depth for the parser
-const DefaultMaxParsingRecursionDepth = 100000
-
-// ErrMaxParsingRecursionDepthExceeded is returned when the parser
-// recursion exceeds the maximum allowed depth
-var ErrMaxParsingRecursionDepthExceeded = errors.New("max parsing recursion depth exceeded")
-
-var RegoV1CompatibleRef = Ref{VarTerm("rego"), InternedTerm("v1")}
-
 // RegoVersion defines the Rego syntax requirements for a module.
-type RegoVersion int
-
-const DefaultRegoVersion = RegoV1
+type RegoVersion uint8
 
 const (
+	// DefaultRegoVersion is the default Rego version for this OPA version.
+	DefaultRegoVersion = RegoV1
+
+	// DefaultMaxParsingRecursionDepth is the default maximum recursion depth for the parser
+	DefaultMaxParsingRecursionDepth = 100000
+)
+
+const (
+	// RegoUndefined represents a Rego version unknown to OPA, like for a policy that has
+	// yet to be parsed and a no version information has been provided by other means.
 	RegoUndefined RegoVersion = iota
-	// RegoV0 is the default, original Rego syntax.
+	// RegoV0 is the original Rego syntax, which was used by default in OPA < 1.0.
 	RegoV0
-	// RegoV0CompatV1 requires modules to comply with both the RegoV0 and RegoV1 syntax (as when 'rego.v1' is imported in a module).
-	// Shortly, RegoV1 compatibility is required, but 'rego.v1' or 'future.keywords' must also be imported.
+	// RegoV0CompatV1 requires modules to comply with both the RegoV0 and RegoV1
+	// syntax (requiring Rego v1 imports in a module to use v1 keywords).
+	// For more information, see https://www.openpolicyagent.org/docs/v0-compatibility
 	RegoV0CompatV1
-	// RegoV1 is the Rego syntax enforced by OPA 1.0; e.g.:
-	// future.keywords part of default keyword set, and don't require imports;
-	// 'if' and 'contains' required in rule heads;
-	// (some) strict checks on by default.
+	// RegoV1 is the Rego syntax enforced by OPA 1.0 and later versions, including the following changes:
+	// - Keywords `in`, `every`, `ìf` and `contains` now part of the default set, and don't require explicit import
+	// - Using 'if' and 'contains' now required in rule heads
+	// - Most compiler checks previously enabled in "strict mode" now enabled by default
+	// For more information, see https://www.openpolicyagent.org/docs/v0-upgrade
 	RegoV1
 )
 
 var (
+	// ErrMaxParsingRecursionDepthExceeded is returned when the parser
+	// recursion exceeds the maximum allowed depth
+	ErrMaxParsingRecursionDepthExceeded = errors.New("max parsing recursion depth exceeded")
+
+	RegoV1CompatibleRef = Ref{VarTerm("rego"), InternedTerm("v1")}
+
 	// this is the name to use for instantiating an empty set, e.g., `set()`.
 	setConstructor = RefTerm(VarTerm("set"))
 
@@ -71,7 +77,6 @@ var (
 	memberWithKeyRef = MemberWithKey.Ref()
 	memberRef        = Member.Ref()
 
-	newlineBytes       = []byte{'\n'}
 	metadataBytes      = []byte("METADATA")
 	metadataParserPool = util.NewSyncPool[metadataParser]()
 )
@@ -341,7 +346,6 @@ func (p *Parser) presentParser() (*Parser, map[string]tokens.Token) {
 // comments as they are found. Any errors encountered while
 // parsing will be accumulated and returned as a list of Errors.
 func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
-
 	if p.po.Capabilities == nil {
 		p.po.Capabilities = CapabilitiesForThisVersion(CapabilitiesRegoVersion(p.po.RegoVersion))
 	}
@@ -351,11 +355,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	if p.po.EffectiveRegoVersion() == RegoV1 {
 		if !p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
 			return nil, nil, Errors{
-				&Error{
-					Code:     ParseErr,
-					Message:  "illegal capabilities: rego_v1 feature required for parsing v1 Rego",
-					Location: nil,
-				},
+				&Error{Code: ParseErr, Message: "illegal capabilities: rego_v1 feature required for parsing v1 Rego"},
 			}
 		}
 
@@ -369,11 +369,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 				// For sake of error reporting, we still need to check that keywords in capabilities are known in v0
 				if _, ok := futureKeywordsV0[kw]; !ok {
 					return nil, nil, Errors{
-						&Error{
-							Code:     ParseErr,
-							Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
-							Location: nil,
-						},
+						&Error{Code: ParseErr, Message: "illegal capabilities: unknown keyword: " + kw},
 					}
 				}
 			}
@@ -382,13 +378,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		// Check that explicitly requested future keywords are known.
 		for _, kw := range p.po.FutureKeywords {
 			if _, ok := allowedFutureKeywords[kw]; !ok {
-				return nil, nil, Errors{
-					&Error{
-						Code:     ParseErr,
-						Message:  fmt.Sprintf("unknown future keyword: %v", kw),
-						Location: nil,
-					},
-				}
+				return nil, nil, Errors{&Error{Code: ParseErr, Message: "unknown future keyword: " + kw}}
 			}
 		}
 	} else {
@@ -396,13 +386,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			var ok bool
 			allowedFutureKeywords[kw], ok = allFutureKeywords[kw]
 			if !ok {
-				return nil, nil, Errors{
-					&Error{
-						Code:     ParseErr,
-						Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
-						Location: nil,
-					},
-				}
+				return nil, nil, Errors{&Error{Code: ParseErr, Message: "illegal capabilities: unknown keyword: " + kw}}
 			}
 		}
 
@@ -412,48 +396,28 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 	}
 
-	var err error
-	p.s.s, err = scanner.New(p.r)
-	if err != nil {
-		return nil, nil, Errors{
-			&Error{
-				Code:     ParseErr,
-				Message:  err.Error(),
-				Location: nil,
-			},
-		}
-	}
-
-	selected := map[string]tokens.Token{}
+	var selected map[string]tokens.Token
 	if p.po.AllFutureKeywords {
+		selected = make(map[string]tokens.Token, len(allowedFutureKeywords))
 		maps.Copy(selected, allowedFutureKeywords)
 	} else {
 		if p.po.EffectiveRegoVersion() == RegoV1 {
+			selected = make(map[string]tokens.Token, len(futureKeywordsV0)+len(p.po.FutureKeywords))
 			for kw := range futureKeywordsV0 {
 				tok, ok := allowedFutureKeywords[kw]
 				if !ok {
-					return nil, nil, Errors{
-						&Error{
-							Code:     ParseErr,
-							Message:  fmt.Sprintf("unknown future keyword: %v", kw),
-							Location: nil,
-						},
-					}
+					return nil, nil, Errors{&Error{Code: ParseErr, Message: "unknown future keyword: " + kw}}
 				}
 				selected[kw] = tok
 			}
+		} else {
+			selected = make(map[string]tokens.Token, len(p.po.FutureKeywords))
 		}
 
 		for _, kw := range p.po.FutureKeywords {
 			tok, ok := allowedFutureKeywords[kw]
 			if !ok {
-				return nil, nil, Errors{
-					&Error{
-						Code:     ParseErr,
-						Message:  fmt.Sprintf("unknown future keyword: %v", kw),
-						Location: nil,
-					},
-				}
+				return nil, nil, Errors{&Error{Code: ParseErr, Message: "unknown future keyword: " + kw}}
 			}
 			selected[kw] = tok
 		}
@@ -463,12 +427,13 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		p.notBodies = true
 	}
 
-	p.s.s = p.s.s.WithKeywords(selected)
+	var err error
+	if p.s.s, err = scanner.New(p.r); err != nil {
+		return nil, nil, Errors{&Error{Code: ParseErr, Message: err.Error()}}
+	}
 
-	if p.po.EffectiveRegoVersion() == RegoV1 {
-		for kw, tok := range futureKeywordsV0 {
-			p.s.s.AddKeyword(kw, tok)
-		}
+	for name, token := range selected {
+		p.s.s.AddKeyword(name, token)
 	}
 
 	// read the first token to initialize the parser
@@ -483,38 +448,36 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	// next type of statement. If a statement can be parsed, continue from that
 	// point trying to parse packages, imports, etc. in the same order.
 	for p.s.tok != tokens.EOF {
-		s := p.save()
-
-		if pkg := p.parsePackage(); pkg != nil {
-			stmts = append(stmts, pkg)
-			continue
-		} else if len(p.s.errors) > 0 {
-			break
+		var s *state
+		if p.s.tok == tokens.Package {
+			s = p.save()
+			if pkg := p.parsePackage(); pkg != nil {
+				stmts = append(stmts, pkg)
+				continue
+			} else if len(p.s.errors) > 0 {
+				break
+			}
+			p.restore(s)
 		}
 
-		p.restore(s)
-		s = p.save()
-
-		if imp := p.parseImport(); imp != nil {
-			if RegoRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
-				p.regoV1Import(imp)
+		if p.s.tok == tokens.Import {
+			s = p.save()
+			if imp := p.parseImport(); imp != nil {
+				if RegoRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
+					p.regoV1Import(imp)
+				} else if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
+					p.futureImport(imp, allowedFutureKeywords)
+				}
+				stmts = append(stmts, imp)
+				continue
+			} else if len(p.s.errors) > 0 {
+				break
 			}
-
-			if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
-				p.futureImport(imp, allowedFutureKeywords)
-			}
-
-			stmts = append(stmts, imp)
-			continue
-		} else if len(p.s.errors) > 0 {
-			break
+			p.restore(s)
 		}
-
-		p.restore(s)
 
 		if !p.po.SkipRules {
 			s = p.save()
-
 			if rules := p.parseRules(); rules != nil {
 				for i := range rules {
 					stmts = append(stmts, rules[i])
@@ -523,7 +486,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			} else if len(p.s.errors) > 0 {
 				break
 			}
-
 			p.restore(s)
 		}
 
@@ -1188,12 +1150,12 @@ func (p *Parser) parseBody(end tokens.Token) Body {
 }
 
 func (p *Parser) parseQuery(requireSemi bool, end tokens.Token) Body {
-	body := Body{}
-
 	if p.s.tok == end {
 		p.error(p.s.Loc(), "found empty body")
 		return nil
 	}
+
+	body := Body{}
 
 	for {
 		expr := p.parseLiteral()
@@ -1344,8 +1306,6 @@ func (p *Parser) isAllowedRefKeywordStr(s string) bool {
 }
 
 func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
-	startOffset := p.s.loc.Offset
-	startLoc := p.s.Loc()
 	s := p.save()
 
 	// Negated parenthesized group: `not (a or b)`. The parens are an operand of
@@ -1414,7 +1374,8 @@ func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
 			}
 
 			if expr.Location == nil {
-				startLoc.Text = p.s.Text(startOffset, p.s.lastEnd)
+				startLoc := s.Loc()
+				startLoc.Text = p.s.Text(startLoc.Offset, p.s.lastEnd)
 				expr.SetLoc(startLoc)
 			}
 
@@ -3204,7 +3165,7 @@ func (p *Parser) parseVar() *Term {
 		return NewTerm(p.genwildcard()).SetLocation(p.s.Loc())
 	}
 
-	return VarTerm(p.s.lit).SetLocation(p.s.Loc())
+	return NewTerm(InternedVarValue(p.s.lit)).SetLocation(p.s.Loc())
 }
 
 func (p *Parser) genwildcard() Value {
@@ -3239,17 +3200,16 @@ func writeHints(msg *strings.Builder, hints []string) {
 }
 
 func (p *Parser) error(loc *location.Location, reason string) {
-	msg := reason
 	if len(p.s.hints) > 0 {
 		sb := &strings.Builder{}
 		sb.WriteString(reason)
 		writeHints(sb, p.s.hints)
-		msg = sb.String()
+		reason = sb.String()
 	}
 
 	p.s.errors = append(p.s.errors, &Error{
 		Code:     ParseErr,
-		Message:  msg,
+		Message:  reason,
 		Location: loc,
 		Details:  newParserErrorDetail(p.s.s.Bytes(), loc.Offset),
 	})
@@ -3333,11 +3293,10 @@ func (p *Parser) doScan(skipws bool, scanOpts ...scanner.ScanOption) {
 		p.s.loc.Text = p.s.Text(pos.Offset, pos.End)
 		p.s.loc.Tabs = pos.Tabs
 
-		for _, err := range errs {
-			p.error(p.s.Loc(), err.Message)
-		}
-
 		if len(errs) > 0 {
+			for _, err := range errs {
+				p.error(p.s.Loc(), err.Message)
+			}
 			p.s.tok = tokens.Illegal
 		}
 
@@ -3354,17 +3313,28 @@ func (p *Parser) doScan(skipws bool, scanOpts ...scanner.ScanOption) {
 			break
 		}
 
-		// For backwards compatibility leave a nil
-		// Text value if there is no text rather than
-		// an empty string.
-		var commentText []byte
-		if len(p.s.lit) > 1 {
-			commentText = []byte(p.s.lit[1:])
+		var comment *Comment
+		if len(p.s.loc.Text) != 0 {
+			// if location has text, use that to avoid allocating for string->[]byte
+			comment = NewComment(commentFromLocText(p.s.loc.Text[1:]))
+		} else {
+			comment = NewComment([]byte(p.s.lit[1:]))
 		}
-		comment := NewComment(commentText)
 		comment.SetLoc(p.s.Loc())
 		p.s.comments = append(p.s.comments, comment)
 	}
+}
+
+func commentFromLocText(commentText []byte) []byte {
+	l := len(commentText)
+	if l == 1 && commentText[0] == '\r' {
+		commentText, l = nil, 0 // special case - remove lone '\r'
+	}
+	for l > 1 && commentText[l-1] == '\r' { // trim trailing '\r' until the last char
+		commentText = commentText[:l-1]
+		l--
+	}
+	return commentText
 }
 
 func (p *Parser) save() *state {
@@ -3638,13 +3608,13 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 	result.Location = b.loc
 
 	// recreate original text of entire metadata block for location text attribute
-	original := bytes.TrimSuffix(b.buf.Bytes(), newlineBytes)
-	numLines := bytes.Count(original, newlineBytes) + 1
+	original := bytes.TrimSuffix(b.buf.Bytes(), []byte("\n"))
+	numLines := bytes.Count(original, []byte("\n")) + 1
 	preAlloc := len("# METADATA\n") + len(original) + numLines*2 // '# ' prefix added per line
 
 	result.Location.Text = append(make([]byte, 0, preAlloc), "# METADATA\n"...)
 
-	for line := range bytes.SplitAfterSeq(original, newlineBytes) {
+	for line := range bytes.SplitAfterSeq(original, []byte("\n")) {
 		result.Location.Text = append(result.Location.Text, "# "...)
 		result.Location.Text = append(result.Location.Text, line...)
 	}
