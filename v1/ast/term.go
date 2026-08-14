@@ -389,14 +389,7 @@ func CopyValue(v Value) Value {
 // Equal returns true if this term equals the other term. Equality is
 // defined for each kind of term, and does not compare the Location.
 func (term *Term) Equal(other *Term) bool {
-	if term == other {
-		return true
-	}
-	if term == nil || other == nil {
-		return false
-	}
-
-	return ValueEqual(term.Value, other.Value)
+	return term == other || (term != nil && other != nil && ValueEqual(term.Value, other.Value))
 }
 
 // Get returns a value referred to by name from the term.
@@ -2294,6 +2287,38 @@ func (obj *object) Compare(other Value) int {
 	return len(akeys) - len(bkeys)
 }
 
+func (obj *object) Equal(other Value) bool {
+	var ob2 *object
+	switch v := other.(type) {
+	case *object:
+		ob2 = v
+	case *lazyObj:
+		return obj.Equal(v.force())
+	}
+
+	if obj == ob2 {
+		return true
+	}
+	if obj == nil || ob2 == nil || len(obj.keys) != len(ob2.keys) {
+		return false
+	}
+	elems1, elems2 := obj.sortedKeys(), ob2.sortedKeys()
+	// Note(anderseknert):
+	// Go can't (easily) know that the above calls don't modify the length
+	// checked before. Doing it once more here is cheap and ensures that the
+	// loop is evaluated without additional nil and bounds checks
+	if len(elems1) != len(elems2) {
+		return false
+	}
+
+	for i, elem := range elems1 {
+		if !elem.key.Equal(elems2[i].key) || !elem.value.Equal(elems2[i].value) {
+			return false
+		}
+	}
+	return true
+}
+
 // Find returns the value at the key or undefined.
 func (obj *object) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
@@ -2373,11 +2398,13 @@ func (obj *object) Copy() Object {
 		return cpy
 	}
 
-	// Batch-allocate all objectElems, keys, and values in contiguous blocks
-	// (3 allocations instead of 3N).
+	// Batch-allocate all objectElems and keys/value pairs in contiguous blocks
+	// (2 allocations instead of 3N).
 	elems := make([]objectElem, n)
-	keys := make([]Term, n)
-	vals := make([]Term, n)
+	pairs := make([]Term, n*2)
+	keys := pairs[:n]
+	vals := pairs[n:]
+
 	cpy.keys = make([]*objectElem, n)
 
 	for i, srcElem := range obj.keys {

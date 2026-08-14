@@ -28,9 +28,7 @@ const CompileErrorLimitDefault = 10
 
 var (
 	errLimitReached = newErrorString(CompileErr, nil, "error limit reached")
-
-	doubleEq     = Equal.Ref()
-	emptyPackage = &Package{Path: Ref{VarTerm("")}}
+	emptyPackage    = &Package{Path: Ref{VarTerm("")}}
 )
 
 // Compiler contains the state of a compilation process.
@@ -6018,7 +6016,7 @@ func rewriteEquals(x any) (modified bool) {
 	t := NewGenericTransformer(func(x any) (any, error) {
 		if x, ok := x.(*Expr); ok && x.IsCall() {
 			operator := x.Operator()
-			if operator.Equal(doubleEq) && len(x.Operands()) == 2 {
+			if operator.Equal(equalRef) && len(x.Operands()) == 2 {
 				modified = true
 				x.SetOperator(NewTerm(unifyOp))
 			}
