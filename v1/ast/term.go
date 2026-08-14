@@ -75,7 +75,7 @@ func InterfaceToValue(x any) (Value, error) {
 	case nil:
 		return NullValue, nil
 	case bool:
-		return InternedValue(x), nil
+		return internedBooleanValue(x), nil
 	case json.Number:
 		if interned := InternedIntNumberTermFromString(string(x)); interned != nil {
 			return interned.Value, nil
@@ -90,14 +90,40 @@ func InterfaceToValue(x any) (Value, error) {
 	case float64:
 		return floatNumber(x), nil
 	case string:
-		return InternedValue(x), nil
+		return internedStringValue(x), nil
 	case []any:
-		r, err := util.TryMap(x, InterfaceToTermMapper)
-		return NewArray(r...), err
+		r := util.NewPtrSlice[Term](len(x))
+		for i, e := range x {
+			e, err := InterfaceToValue(e)
+			if err != nil {
+				return nil, err
+			}
+			r[i].Value = e
+		}
+		return NewArray(r...), nil
 	case []string:
-		return NewArray(util.Map(x, InternedTerm)...), nil
+		r := util.NewPtrSlice[Term](len(x))
+		for i, e := range x {
+			r[i].Value = internedStringValue(e)
+		}
+		return NewArray(r...), nil
 	case map[string]any:
-		return TryMapToObject(x, nil, InterfaceToTermMapper)
+		kvs := util.NewPtrSlice[Term](len(x) * 2)
+		idx := 0
+		for k, v := range x {
+			kvs[idx].Value = internedStringValue(k)
+			v, err := InterfaceToValue(v)
+			if err != nil {
+				return nil, err
+			}
+			kvs[idx+1].Value = v
+			idx += 2
+		}
+		tuples := make([][2]*Term, len(kvs)/2)
+		for i := 0; i < len(kvs); i += 2 {
+			tuples[i/2] = *(*[2]*Term)(kvs[i : i+2])
+		}
+		return NewObject(tuples...), nil
 	case map[string]string:
 		return MapToObject(x, nil, InternedTerm), nil
 	default:
