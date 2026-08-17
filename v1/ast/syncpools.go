@@ -2,15 +2,17 @@ package ast
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
 var (
-	TermPtrPool     = util.NewSyncPool[Term]()
-	BytesReaderPool = util.NewSyncPool[bytes.Reader]()
-	IndexResultPool = util.NewSyncPool[IndexResult]()
+	TermPtrPool      = util.NewSyncPool[Term]()
+	BytesReaderPool  = util.NewSyncPool[bytes.Reader]()
+	StringReaderPool = util.NewSyncPool[strings.Reader]()
+	IndexResultPool  = util.NewSyncPool[IndexResult]()
 
 	// Needs custom pool because of custom Put logic.
 	varVisitorPool = &vvPool{

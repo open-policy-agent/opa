@@ -146,7 +146,12 @@ func ValueFromReader(r io.Reader) (Value, error) {
 
 // As converts v into a Go native type referred to by x.
 func As(v Value, x any) error {
-	return util.NewJSONDecoder(strings.NewReader(v.String())).Decode(x)
+	sr := StringReaderPool.Get()
+	defer StringReaderPool.Put(sr)
+
+	sr.Reset(v.String())
+
+	return util.NewJSONDecoder(sr).Decode(x)
 }
 
 // Resolver defines the interface for resolving references to native Go values.

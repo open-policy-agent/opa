@@ -57,7 +57,12 @@ var (
 		"internal": Var("internal"),
 		"else":     Var("else"),
 
-		"i": Var("i"), "j": Var("j"), "k": Var("k"), "v": Var("v"), "x": Var("x"), "y": Var("y"), "z": Var("z"),
+		"a": Var("a"), "b": Var("b"), "c": Var("c"),
+		"i": Var("i"), "j": Var("j"),
+		"k": Var("k"), "v": Var("v"),
+		"x": Var("x"), "y": Var("y"), "z": Var("z"),
+
+		"allow": Var("allow"), "deny": Var("deny"),
 	}
 )
 
