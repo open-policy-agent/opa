@@ -4400,9 +4400,13 @@ func TestDecisionLoggingWithCancelledRequestContext(t *testing.T) {
 	cancel() // simulate a client disconnect / request timeout before the decision is logged
 	req = req.WithContext(ctx)
 
-	if err := f.executeRequest(req, 200, `{}`); err != nil {
-		t.Fatal(err)
-	}
+	// The request context is already cancelled before the handler even runs, so the
+	// eval itself may race the cancellation and return either a successful result or
+	// an eval_cancel_error; that outcome isn't what's under test here. What matters is
+	// that the decision logger still runs exactly once, with a context that isn't
+	// cancelled.
+	f.recorder = httptest.NewRecorder()
+	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	if loggedCalls != 1 {
 		t.Fatalf("Expected exactly 1 decision log call but got: %d", loggedCalls)
