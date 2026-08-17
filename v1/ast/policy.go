@@ -1802,10 +1802,11 @@ func NewRuleSet(rules ...*Rule) RuleSet {
 // Add inserts the rule into rs.
 func (rs *RuleSet) Add(rule *Rule) {
 	for _, exist := range *rs {
-		if !exist.Equal(rule) {
-			*rs = append(*rs, rule)
+		if exist.Equal(rule) {
+			return
 		}
 	}
+	*rs = append(*rs, rule)
 }
 
 // Contains returns true if rs contains rule.
