@@ -1487,6 +1487,28 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note: "save: enumerate unknown base doc via dynamic ref operand (#5471)",
+			// The ref operand plugs to an unknown base document, so the save set
+			// cannot match it as written. Enumeration must still save the ref
+			// instead of failing with "unknown value".
+			query: "data.test.p",
+			input: `{"type": "project", "name": "jared"}`,
+			modules: []string{
+				`package test
+				p if {
+					some i
+					role := data[input.type].user_roles[i]
+					role.user_name == input.name
+				}`,
+			},
+			wantQueries: []string{
+				`"jared" = data.project.user_roles[__local0__1].user_name`,
+			},
+			unknowns: []string{
+				"data.project.user_roles",
+			},
+		},
+		{
 			note:  "automatic shallow inlining: full extent: partial set",
 			query: "data.test.p = x",
 			modules: []string{

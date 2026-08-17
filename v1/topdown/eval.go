@@ -2781,6 +2781,13 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 
 	doc, err := e.e.Resolve(e.plugged[:e.pos])
 	if err != nil {
+		// The save set check in biunifyValues compares refs as written, so a ref
+		// that only becomes unknown once bindings are plugged (e.g.
+		// data[input.type].x with data.project.x unknown) reaches here, where the
+		// document can't be enumerated and must be saved as evalTree.finish does.
+		if ast.IsUnknownValueErr(err) {
+			return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
+		}
 		return err
 	}
 
