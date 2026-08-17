@@ -104,7 +104,6 @@ var (
 		http.StatusRequestURITooLong,
 		http.StatusNotImplemented,
 	}
-	httpSendNetworkErrTerm, httpSendInternalErrTerm *ast.Term
 
 	allowedKeys    = ast.NewSet()
 	cacheableCodes = ast.NewSet()
@@ -204,12 +203,12 @@ func generateRaiseErrorResult(err error) *ast.Term {
 	switch err.(type) {
 	case *url.Error:
 		errObj = ast.NewObject(
-			ast.Item(ast.InternedTerm("code"), httpSendNetworkErrTerm),
+			ast.Item(ast.InternedTerm("code"), ast.InternedTerm(HTTPSendNetworkErr)),
 			ast.Item(ast.InternedTerm("message"), ast.StringTerm(err.Error())),
 		)
 	default:
 		errObj = ast.NewObject(
-			ast.Item(ast.InternedTerm("code"), httpSendInternalErrTerm),
+			ast.Item(ast.InternedTerm("code"), ast.InternedTerm(HTTPSendInternalErr)),
 			ast.Item(ast.InternedTerm("message"), ast.StringTerm(err.Error())),
 		)
 	}
@@ -292,14 +291,11 @@ func getKeyFromRequest(req ast.Object) (ast.Object, error) {
 }
 
 func init() {
+	ast.InternStringTerm(HTTPSendNetworkErr, HTTPSendInternalErr)
+	ast.InternStringTerm(allowedKeyNames[:]...)
 	for _, element := range allowedKeyNames {
-		ast.InternStringTerm(element)
 		allowedKeys.Add(ast.InternedTerm(element))
 	}
-
-	ast.InternStringTerm(HTTPSendNetworkErr, HTTPSendInternalErr)
-	httpSendNetworkErrTerm = ast.InternedTerm(HTTPSendNetworkErr)
-	httpSendInternalErrTerm = ast.InternedTerm(HTTPSendInternalErr)
 
 	createCacheableHTTPStatusCodes()
 	initDefaults()

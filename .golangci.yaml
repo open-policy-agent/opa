@@ -26,6 +26,7 @@ linters:
       exclude-functions:
         - github.com/open-policy-agent/opa/v1/util.WriteAppender
         - github.com/open-policy-agent/opa/v1/util.WriteInt
+        - (io.Writer).Write
     forbidigo:
       forbid:
         - pattern: '^sort\.[A-Z][a-zA-Z]+$'

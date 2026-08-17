@@ -203,11 +203,7 @@ func builtinAWSSigV4SignReq(_ BuiltinContext, operands []*ast.Term, iter func(*a
 }
 
 func init() {
-	for _, key := range []string{
-		"aws_service", "aws_access_key", "aws_secret_access_key", "aws_region", "disable_payload_signing",
-	} {
-		ast.InternStringTerm(key)
-	}
+	ast.InternStringTerm("aws_service", "aws_access_key", "aws_secret_access_key", "aws_region", "disable_payload_signing")
 
 	awsRequiredConfigKeyNames = ast.NewSet(
 		ast.InternedTerm("aws_service"),

@@ -32,6 +32,24 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+func TestMain(m *testing.M) {
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: "test.sleep",
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.Nl,
+		),
+	})
+
+	RegisterBuiltinFunc("test.sleep", func(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+		d, _ := time.ParseDuration(string(operands[0].Value.(ast.String)))
+		time.Sleep(d)
+		return iter(ast.NullTerm())
+	})
+
+	os.Exit(m.Run())
+}
+
 func TestTopDownQueryIDsUnique(t *testing.T) {
 	t.Parallel()
 

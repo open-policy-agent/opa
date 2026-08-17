@@ -107,7 +107,8 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 			_ = pr.JSON(stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
 			return 1
 		}
-		_, _ = stdout.Write(append(bs, '\n'))
+
+		stdout.Write(append(bs, '\n'))
 	default:
 		ast.Pretty(stdout, result.Parsed)
 	}

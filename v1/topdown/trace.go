@@ -840,7 +840,7 @@ func PrettyEvent(w io.Writer, e *Event, opts PrettyEventOpts) error {
 	}
 
 	printPrettyVars(buf, exprVars)
-	_, _ = fmt.Fprint(w, buf.String())
+	w.Write(buf.Bytes())
 	return nil
 }
 
@@ -924,21 +924,20 @@ func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
 		}
 
 		for j := range spaces {
-			tab := false
+			var space byte = ' '
 			if slices.Contains(info.exprLoc.Tabs, j+prevCol+1) {
-				w.WriteByte('\t')
-				tab = true
+				space = '\t'
 			}
-			if !tab {
-				w.WriteByte(' ')
-			}
+			w.WriteByte(space)
 		}
 
 		if isLast && printValueAt >= 0 {
 			valueStr := iStrs.Truncate(info.Value(), maxPrettyExprVarWidth)
 			if (i > 0 && col == l[i-1].col) || (i < len(l)-1 && col == l[i+1].col) {
 				// There is another var on this column, so we need to include the name to differentiate them.
-				fmt.Fprintf(w, "%s: %s", info.Title(), valueStr)
+				w.WriteString(info.Title())
+				w.WriteString(": ")
+				w.WriteString(valueStr)
 			} else {
 				w.WriteString(valueStr)
 			}
