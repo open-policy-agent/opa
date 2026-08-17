@@ -345,6 +345,10 @@ func TestParseLogical_ParseErrors(t *testing.T) {
 		{"or, inside every value", "every x or y in z {x}", "unexpected or keyword"},
 		{"and, inside every domain", "every x in y and z {x}", "unexpected and keyword"},
 		{"or, inside every domain", "every x in y or z {x}", "unexpected or keyword"},
+		{"some-in as an operand", "some x in xs and y", "unexpected and keyword"},
+		{"some decl as an operand", "some x and y", "unexpected and keyword"},
+		{"every as an operand", "every x in xs { x } and y", "unexpected and keyword"},
+		{"every as an operand, or", "every x in xs { x } or y", "unexpected or keyword"},
 	}
 	for _, tc := range exprTests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -1175,6 +1179,85 @@ func TestParseLogical_ParenGrouping(t *testing.T) {
 				ExplicitLhs: true,
 			}},
 		},
+
+		// Parens group rather than delimit: wrapping only the leading part of an
+		// operand yields the same AST as wrapping all of it. This is why
+		// `z and (1 + 2) > 3` is accepted; as it's equivalent to `z and ((1 + 2) > 3)`
+		{
+			note:  "rhs operand, leading part wrapped",
+			input: `z and ({1, 2}) & input.s == set()`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(Equal.Expr(
+					And.Call(
+						SetTerm(NumberTerm("1"), NumberTerm("2")),
+						RefTerm(VarTerm("input"), StringTerm("s")),
+					),
+					SetTerm(),
+				)),
+			}},
+		},
+		{
+			note:  "rhs operand, whole operand wrapped",
+			input: `z and ({1, 2} & input.s == set())`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(Equal.Expr(
+					And.Call(
+						SetTerm(NumberTerm("1"), NumberTerm("2")),
+						RefTerm(VarTerm("input"), StringTerm("s")),
+					),
+					SetTerm(),
+				)),
+			}},
+		},
+		{
+			note:  "lhs operand, leading part wrapped",
+			input: `({1, 2}) & input.s == set() and z`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(Equal.Expr(
+					And.Call(
+						SetTerm(NumberTerm("1"), NumberTerm("2")),
+						RefTerm(VarTerm("input"), StringTerm("s")),
+					),
+					SetTerm(),
+				)),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			}},
+		},
+		{
+			note:  "lhs operand, whole operand wrapped",
+			input: `({1, 2} & input.s == set()) and z`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(Equal.Expr(
+					And.Call(
+						SetTerm(NumberTerm("1"), NumberTerm("2")),
+						RefTerm(VarTerm("input"), StringTerm("s")),
+					),
+					SetTerm(),
+				)),
+				Rhs: NewBody(NewExpr(VarTerm("z"))),
+			}},
+		},
+		{
+			note:  "rhs operand, parenthesized arithmetic",
+			input: `z and (1 + 2) > 3`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(GreaterThan.Expr(
+					Plus.Call(NumberTerm("1"), NumberTerm("2")),
+					NumberTerm("3"),
+				)),
+			}},
+		},
+		{
+			note:  "rhs operand, parenthesized comparison",
+			input: `z and (a) == b`,
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(VarTerm("z"))),
+				Rhs: NewBody(Equal.Expr(VarTerm("a"), VarTerm("b"))),
+			}},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1510,6 +1593,27 @@ func TestParseLogical_ParenNot(t *testing.T) {
 						})),
 					})),
 					Rhs: NewBody(NewExpr(VarTerm("c"))),
+				},
+			},
+		},
+		{
+			note:  "not, parenthesized arithmetic",
+			input: "not (1 + 2) > 3",
+			exp: &Expr{
+				Terms: &Not{
+					Body: NewBody(GreaterThan.Expr(
+						Plus.Call(NumberTerm("1"), NumberTerm("2")),
+						NumberTerm("3"),
+					)),
+				},
+			},
+		},
+		{
+			note:  "not, parenthesized comparison",
+			input: "not (a) == b",
+			exp: &Expr{
+				Terms: &Not{
+					Body: NewBody(Equal.Expr(VarTerm("a"), VarTerm("b"))),
 				},
 			},
 		},
