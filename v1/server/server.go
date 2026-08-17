@@ -3191,7 +3191,9 @@ func (l decisionLogger) Log(
 	}
 
 	if l.logger != nil {
-		if err := l.logger(ctx, info); err != nil {
+		// Decouple from request cancellation/deadline so a client disconnect can't
+		// race a mask/drop policy eval in the logger and drop the decision event.
+		if err := l.logger(context.WithoutCancel(ctx), info); err != nil {
 			return fmt.Errorf("decision_logs: %w", err)
 		}
 	}
