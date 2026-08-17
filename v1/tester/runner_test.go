@@ -869,7 +869,9 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 		desc          string
 		json          string
 		builtinErrors bool
+		strict        bool
 		wantErr       bool
+		wantFail      bool
 	}{
 		{
 			desc:          "Valid JSON with flag enabled does not raise an error",
@@ -881,10 +883,23 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 			json:          `test: 123`,
 			builtinErrors: true,
 			wantErr:       true,
+			wantFail:      true,
 		},
 		{
-			desc: "Invalid JSON with flag disabled does not raise an error",
-			json: `test: 123`,
+			desc:     "Invalid JSON with flag disabled does not raise an error",
+			json:     `test: 123`,
+			wantFail: true,
+		},
+		{
+			desc:   "Valid JSON with strict flag enabled does not raise an error",
+			json:   `{\"test\": 123}`,
+			strict: true,
+		},
+		{
+			desc:    "Invalid JSON with strict flag enabled raises an error",
+			json:    `test: 123`,
+			strict:  true,
+			wantErr: true,
 		},
 	}
 
@@ -907,7 +922,8 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 					NewRunner().
 					SetStore(store).
 					SetModules(modules).
-					RaiseBuiltinErrors(tc.builtinErrors)
+					RaiseBuiltinErrors(tc.builtinErrors).
+					StrictBuiltinErrors(tc.strict)
 
 				ch, err := runner.RunTests(ctx, txn)
 				if err != nil {
@@ -916,6 +932,9 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 				for result := range ch {
 					if gotErr := result.Error != nil; gotErr != tc.wantErr {
 						t.Errorf("wantErr = %v, gotErr = %v", tc.wantErr, gotErr)
+					}
+					if result.Fail != tc.wantFail {
+						t.Errorf("wantFail = %v, gotFail = %v", tc.wantFail, result.Fail)
 					}
 				}
 			})

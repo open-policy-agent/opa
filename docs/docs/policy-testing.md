@@ -197,10 +197,14 @@ This is also useful in CI/CD pipelines to ensure that tests are actually being e
 ## Test Results
 
 If the test rule is undefined or generates a non-`true` value the test result
-is reported as `FAIL`. If the test encounters a runtime error (e.g., a divide
-by zero condition) the test result is marked as an `ERROR`. Tests prefixed with
-`todo_` will be reported as `SKIPPED`. Otherwise, the test result is marked as
-`PASS`.
+is reported as `FAIL`. Tests prefixed with `todo_` will be reported as
+`SKIPPED`. Otherwise, the test result is marked as `PASS`.
+
+Errors raised by built-in functions (e.g., a divide by zero condition) make the
+expression undefined rather than aborting evaluation, so by default such a test
+is also reported as `FAIL`. Run `opa test` with `--strict-builtin-errors` to
+treat the first built-in function error in a test as fatal and report it as an
+`ERROR` instead, along with the location and message of the error.
 
 ```rego title="pass_fail_error_test.rego"
 package example_test
@@ -223,17 +227,30 @@ todo_test_missing_implementation if {
 ```
 
 By default, `opa test` reports the number of tests executed and displays all
-of the tests that failed or errored.
+of the tests that failed, errored or were skipped.
 
 ```console
 $ opa test pass_fail_error_test.rego
-data.example_test.test_failure: FAIL (253ns)
-data.example_test.test_error: ERROR (289ns)
-  pass_fail_error_test.rego:15: eval_builtin_error: div: divide by zero
+data.example_test.todo_test_missing_implementation: SKIPPED
+data.example_test.test_failure: FAIL (588.413µs)
+data.example_test.test_error: FAIL (732.268µs)
 --------------------------------------------------------------------------------
-PASS: 1/3
-FAIL: 1/3
-ERROR: 1/3
+PASS: 1/4
+FAIL: 2/4
+SKIPPED: 1/4
+```
+
+With `--strict-builtin-errors`, the divide by zero is reported as an `ERROR`
+instead:
+
+```console
+data.example_test.test_error: ERROR (550.67µs)
+  pass_fail_error_test.rego:12: eval_builtin_error: div: divide by zero
+--------------------------------------------------------------------------------
+PASS: 1/4
+FAIL: 1/4
+SKIPPED: 1/4
+ERROR: 1/4
 ```
 
 By default, OPA prints the test results in a human-readable format. If you

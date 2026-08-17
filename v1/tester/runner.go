@@ -324,6 +324,7 @@ type Runner struct {
 	trace                 bool
 	enablePrintStatements bool
 	raiseBuiltinErrors    bool
+	strictBuiltinErrors   bool
 	runtime               *ast.Term
 	timeout               time.Duration
 	modules               map[string]*ast.Module
@@ -370,9 +371,16 @@ func (r *Runner) SetCompiler(compiler *ast.Compiler) *Runner {
 }
 
 // RaiseBuiltinErrors sets the runner to raise errors encountered by builtins
-// such as parsing input.
+// such as parsing input. [StrictBuiltinErrors] takes precedence over this.
 func (r *Runner) RaiseBuiltinErrors(enabled bool) *Runner {
 	r.raiseBuiltinErrors = enabled
+	return r
+}
+
+// StrictBuiltinErrors reports the first builtin error in a test as ERROR
+// instead of FAIL. Takes precedence over [RaiseBuiltinErrors].
+func (r *Runner) StrictBuiltinErrors(enabled bool) *Runner {
+	r.strictBuiltinErrors = enabled
 	return r
 }
 
@@ -1001,6 +1009,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.Target(r.target),
 		rego.PrintHook(topdown.NewPrintHook(printbuf)),
 		rego.BuiltinErrorList(&builtinErrors),
+		rego.StrictBuiltinErrors(r.strictBuiltinErrors),
 	}
 
 	for _, t := range tracers {
