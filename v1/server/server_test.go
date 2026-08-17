@@ -4375,6 +4375,42 @@ func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
 	}
 }
 
+// TestDecisionLoggingWithCancelledRequestContext ensures a cancelled/expired request
+// context doesn't reach the decision logger, since that can race a mask/drop policy
+// eval inside the logger and cause the decision event to be dropped.
+func TestDecisionLoggingWithCancelledRequestContext(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+
+	var loggedCtxErr error
+	var loggedCalls int
+
+	f.server = f.server.WithDecisionLoggerWithErr(func(ctx context.Context, _ *Info) error {
+		loggedCalls++
+		loggedCtxErr = ctx.Err()
+		return nil
+	})
+
+	req := newReqV1("GET", "/data/undefined", "")
+
+	ctx, cancel := context.WithCancel(req.Context())
+	cancel() // simulate a client disconnect / request timeout before the decision is logged
+	req = req.WithContext(ctx)
+
+	if err := f.executeRequest(req, 200, `{}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if loggedCalls != 1 {
+		t.Fatalf("Expected exactly 1 decision log call but got: %d", loggedCalls)
+	}
+
+	if loggedCtxErr != nil {
+		t.Fatalf("Expected the decision logger's context to not be cancelled, got: %v", loggedCtxErr)
+	}
+}
+
 func TestDecisionLogging(t *testing.T) {
 	t.Parallel()
 
