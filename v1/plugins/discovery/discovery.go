@@ -786,7 +786,7 @@ func mergeValuesAndListOverrides(dest map[string]any, src map[string]any, prefix
 
 		fullKey := k
 		if prefix != "" {
-			fullKey = fmt.Sprintf("%v.%v", prefix, k)
+			fullKey = prefix + "." + k
 		}
 
 		nextMap, ok := v.(map[string]any)

@@ -431,7 +431,7 @@ func truncateStr(s string, maxLen int) string {
 	if len(s) < maxLen {
 		return s
 	}
-	return fmt.Sprintf("%v...", s[:maxLen-3])
+	return s[:maxLen-3] + "..."
 }
 
 func removeNewLines(s string) string {

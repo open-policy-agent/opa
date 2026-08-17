@@ -245,38 +245,6 @@ func sortOrder(x any) int {
 	panic(fmt.Sprintf("illegal value: %T", x))
 }
 
-func importsCompare(a, b []*Import) int {
-	minLen := min(len(b), len(a))
-	for i := range minLen {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-	if len(a) < len(b) {
-		return -1
-	}
-	if len(b) < len(a) {
-		return 1
-	}
-	return 0
-}
-
-func annotationsCompare(a, b []*Annotations) int {
-	minLen := min(len(b), len(a))
-	for i := range minLen {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-	if len(a) < len(b) {
-		return -1
-	}
-	if len(b) < len(a) {
-		return 1
-	}
-	return 0
-}
-
 func rulesCompare(a, b []*Rule) int {
 	minLen := min(len(b), len(a))
 	for i := range minLen {

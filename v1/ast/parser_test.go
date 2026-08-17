@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -7319,7 +7320,7 @@ include if input.fruits.name == "banana"
 				t.Fatalf("Expected %v comments but got %v", tc.expNumComments, len(mod.Comments))
 			}
 
-			if annotationsCompare(tc.expAnnotations, mod.Annotations) != 0 {
+			if slices.CompareFunc(tc.expAnnotations, mod.Annotations, (*Annotations).Compare) != 0 {
 				t.Fatalf("expected %v but got %v", tc.expAnnotations, mod.Annotations)
 			}
 		})
@@ -7647,7 +7648,7 @@ rule[x] := true if x := 1
 					t.Fatalf("No annotations for rule on row %v", rule.Location.Row)
 				}
 
-				if annotationsCompare(annotations, rule.Annotations) != 0 {
+				if slices.CompareFunc(annotations, rule.Annotations, (*Annotations).Compare) != 0 {
 					t.Fatalf("expected rule on row %d to have annotations:\n\n%v\n\nbut got:\n\n%v",
 						rule.Location.Row, annotations, rule.Annotations)
 				}
@@ -7733,7 +7734,7 @@ q := 1`
 	expAnnotations := [][]*Annotations{a1, a2, a3}
 
 	for i, rule := range pm.Rules {
-		if annotationsCompare(expAnnotations[i], rule.Annotations) != 0 {
+		if slices.CompareFunc(expAnnotations[i], rule.Annotations, (*Annotations).Compare) != 0 {
 			t.Fatalf("expected %v but got %v", expAnnotations[i], rule.Annotations)
 		}
 	}
@@ -7817,7 +7818,7 @@ q := 1`
 	expAnnotations := [][]*Annotations{a1, a2, a3}
 
 	for i, rule := range pm.Rules {
-		if annotationsCompare(expAnnotations[i], rule.Annotations) != 0 {
+		if slices.CompareFunc(expAnnotations[i], rule.Annotations, (*Annotations).Compare) != 0 {
 			t.Fatalf("expected %v but got %v", expAnnotations[i], rule.Annotations)
 		}
 	}

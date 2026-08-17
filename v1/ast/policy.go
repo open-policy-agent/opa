@@ -338,10 +338,10 @@ func (mod *Module) Compare(other *Module) int {
 	if cmp := mod.Package.Compare(other.Package); cmp != 0 {
 		return cmp
 	}
-	if cmp := importsCompare(mod.Imports, other.Imports); cmp != 0 {
+	if cmp := slices.CompareFunc(mod.Imports, other.Imports, (*Import).Compare); cmp != 0 {
 		return cmp
 	}
-	if cmp := annotationsCompare(mod.Annotations, other.Annotations); cmp != 0 {
+	if cmp := slices.CompareFunc(mod.Annotations, other.Annotations, (*Annotations).Compare); cmp != 0 {
 		return cmp
 	}
 	return rulesCompare(mod.Rules, other.Rules)
@@ -612,7 +612,7 @@ func (rule *Rule) Compare(other *Rule) int {
 		return cmp
 	}
 
-	if cmp := annotationsCompare(rule.Annotations, other.Annotations); cmp != 0 {
+	if cmp := slices.CompareFunc(rule.Annotations, other.Annotations, (*Annotations).Compare); cmp != 0 {
 		return cmp
 	}
 
@@ -1698,10 +1698,10 @@ func (w *With) Compare(other *With) int {
 	} else if other == nil {
 		return 1
 	}
-	if cmp := Compare(w.Target, other.Target); cmp != 0 {
+	if cmp := w.Target.Value.Compare(other.Target.Value); cmp != 0 {
 		return cmp
 	}
-	return Compare(w.Value, other.Value)
+	return w.Value.Value.Compare(other.Value.Value)
 }
 
 // Copy returns a deep copy of w.

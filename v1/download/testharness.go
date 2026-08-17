@@ -438,7 +438,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(404)
 				return
 			}
-			buf.WriteString(string(bs))
+			buf.Write(bs)
 			w.Write(buf.Bytes())
 			return
 		}
