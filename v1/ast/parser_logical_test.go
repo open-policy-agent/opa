@@ -16,6 +16,13 @@ func logicalParserOpts(extraFuture ...string) ParserOptions {
 	}
 }
 
+func logicalParserOptsForVersion(v RegoVersion, extraFuture ...string) ParserOptions {
+	opts := logicalParserOpts(extraFuture...)
+	opts.RegoVersion = v
+	opts.Capabilities = CapabilitiesForThisVersion(CapabilitiesRegoVersion(v), CapabilitiesExperimentalKeywords(true))
+	return opts
+}
+
 func TestParseLogical_Parsing(t *testing.T) {
 	// `not` enabled so `not {x or y}` (the explicit-body form) works.
 	opts := logicalParserOpts("not")
@@ -338,10 +345,6 @@ func TestParseLogical_ParseErrors(t *testing.T) {
 		{"or, inside every value", "every x or y in z {x}", "unexpected or keyword"},
 		{"and, inside every domain", "every x in y and z {x}", "unexpected and keyword"},
 		{"or, inside every domain", "every x in y or z {x}", "unexpected or keyword"},
-
-		// `some` and `every` are declarations, not truth-valued operands, so they
-		// cannot lead a chain. Nothing formats to these shapes: a *SomeDecl or *Every
-		// operand is only constructible programmatically.
 		{"some-in as an operand", "some x in xs and y", "unexpected and keyword"},
 		{"some decl as an operand", "some x and y", "unexpected and keyword"},
 		{"every as an operand", "every x in xs { x } and y", "unexpected and keyword"},
@@ -988,16 +991,6 @@ func TestParseLogical_InnerExprHasLocation(t *testing.T) {
 func TestParseLogical_ParenGrouping(t *testing.T) {
 	opts := logicalParserOpts("not")
 
-	// Parens group rather than delimit, so an operand that begins with `(` extends
-	// past the matching `)`: every spelling below parses to this same operand.
-	setIntersectionEmpty := Equal.Expr(
-		And.Call(
-			SetTerm(NumberTerm("1"), NumberTerm("2")),
-			RefTerm(VarTerm("input"), StringTerm("s")),
-		),
-		SetTerm(),
-	)
-
 	tests := []struct {
 		note  string
 		input string
@@ -1189,14 +1182,19 @@ func TestParseLogical_ParenGrouping(t *testing.T) {
 
 		// Parens group rather than delimit: wrapping only the leading part of an
 		// operand yields the same AST as wrapping all of it. This is why
-		// `z and (1 + 2) > 3` is accepted -- the same shape is plain v1 syntax after
-		// `not`, see TestParseLogical_ParenNot.
+		// `z and (1 + 2) > 3` is accepted; as it's equivalent to `z and ((1 + 2) > 3)`
 		{
 			note:  "rhs operand, leading part wrapped",
 			input: `z and ({1, 2}) & input.s == set()`,
 			exp: &Expr{Terms: &LogicalAnd{
 				Lhs: NewBody(NewExpr(VarTerm("z"))),
-				Rhs: NewBody(setIntersectionEmpty),
+				Rhs: NewBody(Equal.Expr(
+					And.Call(
+						SetTerm(NumberTerm("1"), NumberTerm("2")),
+						RefTerm(VarTerm("input"), StringTerm("s")),
+					),
+					SetTerm(),
+				)),
 			}},
 		},
 		{
@@ -1204,14 +1202,26 @@ func TestParseLogical_ParenGrouping(t *testing.T) {
 			input: `z and ({1, 2} & input.s == set())`,
 			exp: &Expr{Terms: &LogicalAnd{
 				Lhs: NewBody(NewExpr(VarTerm("z"))),
-				Rhs: NewBody(setIntersectionEmpty),
+				Rhs: NewBody(Equal.Expr(
+					And.Call(
+						SetTerm(NumberTerm("1"), NumberTerm("2")),
+						RefTerm(VarTerm("input"), StringTerm("s")),
+					),
+					SetTerm(),
+				)),
 			}},
 		},
 		{
 			note:  "lhs operand, leading part wrapped",
 			input: `({1, 2}) & input.s == set() and z`,
 			exp: &Expr{Terms: &LogicalAnd{
-				Lhs: NewBody(setIntersectionEmpty),
+				Lhs: NewBody(Equal.Expr(
+					And.Call(
+						SetTerm(NumberTerm("1"), NumberTerm("2")),
+						RefTerm(VarTerm("input"), StringTerm("s")),
+					),
+					SetTerm(),
+				)),
 				Rhs: NewBody(NewExpr(VarTerm("z"))),
 			}},
 		},
@@ -1219,7 +1229,13 @@ func TestParseLogical_ParenGrouping(t *testing.T) {
 			note:  "lhs operand, whole operand wrapped",
 			input: `({1, 2} & input.s == set()) and z`,
 			exp: &Expr{Terms: &LogicalAnd{
-				Lhs: NewBody(setIntersectionEmpty),
+				Lhs: NewBody(Equal.Expr(
+					And.Call(
+						SetTerm(NumberTerm("1"), NumberTerm("2")),
+						RefTerm(VarTerm("input"), StringTerm("s")),
+					),
+					SetTerm(),
+				)),
 				Rhs: NewBody(NewExpr(VarTerm("z"))),
 			}},
 		},
@@ -1580,12 +1596,6 @@ func TestParseLogical_ParenNot(t *testing.T) {
 				},
 			},
 		},
-
-		// Parens after `not` group rather than delimit too: where they hold no
-		// logical group, the operand continues past the matching `)`. These shapes
-		// also parse in plain v1 with no imports at all -- as `Expr.Negated` rather
-		// than a not-body -- which is why the and/or equivalents are accepted rather
-		// than narrowed (see TestParseLogical_ParenGrouping).
 		{
 			note:  "not, parenthesized arithmetic",
 			input: "not (1 + 2) > 3",
@@ -1612,41 +1622,6 @@ func TestParseLogical_ParenNot(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
-		})
-	}
-
-	// The same shapes with no imports at all: `not` negates the expression in place
-	// rather than opening a body, and the operand still runs past the `)`. Plain v1
-	// syntax, so not narrowable.
-	noImportTests := []struct {
-		note  string
-		input string
-		exp   *Expr
-	}{
-		{
-			note:  "no imports, parenthesized arithmetic",
-			input: "not (1 + 2) > 3",
-			exp: &Expr{
-				Terms: GreaterThan.Expr(
-					Plus.Call(NumberTerm("1"), NumberTerm("2")),
-					NumberTerm("3"),
-				).Terms,
-				Negated: true,
-			},
-		},
-		{
-			note:  "no imports, parenthesized comparison",
-			input: "not (a) == b",
-			exp: &Expr{
-				Terms:   Equal.Expr(VarTerm("a"), VarTerm("b")).Terms,
-				Negated: true,
-			},
-		},
-	}
-
-	for _, tc := range noImportTests {
-		t.Run(tc.note, func(t *testing.T) {
-			assertParseOneExpr(t, tc.note, tc.input, tc.exp, ParserOptions{RegoVersion: RegoV1})
 		})
 	}
 }
@@ -2449,4 +2424,377 @@ func TestParseLogical_NotBodyLeadingOperand(t *testing.T) {
 				ExplicitBody: true,
 			}}, opts)
 	})
+}
+
+// TestParseLogical_BuiltinCallForm covers the term-position disambiguation of
+// `and`/`or` keywords and built-in calls (`&`/`|` infixes).
+func TestParseLogical_BuiltinCallForm(t *testing.T) {
+	s1, s2 := SetTerm(IntNumberTerm(1)), SetTerm(IntNumberTerm(2))
+	a, b, x := VarTerm("a"), VarTerm("b"), VarTerm("x")
+
+	negated := func(e *Expr) *Expr {
+		e.Negated = true
+		return e
+	}
+
+	exprTests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "or call, statement start",
+			input: "or({1}, {2})",
+			exp:   Or.Expr(s1, s2),
+		},
+		{
+			note:  "and call, statement start",
+			input: "and({1}, {2})",
+			exp:   And.Expr(s1, s2),
+		},
+		{
+			note:  "or call, assigned",
+			input: "x := or({1}, {2})",
+			exp:   Assign.Expr(x, Or.Call(s1, s2)),
+		},
+		{
+			note:  "and call, assigned",
+			input: "x := and({1}, {2})",
+			exp:   Assign.Expr(x, And.Call(s1, s2)),
+		},
+		{
+			note:  "or call, unified",
+			input: "x = or({1}, {2})",
+			exp:   Equality.Expr(x, Or.Call(s1, s2)),
+		},
+		{
+			note:  "or call, comparison lhs",
+			input: "or(a, b) == x",
+			exp:   Equal.Expr(Or.Call(a, b), x),
+		},
+		{
+			note:  "and call, comparison rhs",
+			input: "x == and(a, b)",
+			exp:   Equal.Expr(x, And.Call(a, b)),
+		},
+		{
+			// Position, not arity, is what disambiguates
+			note:  "or call, non-builtin arity",
+			input: "or(a)",
+			exp:   NewExpr([]*Term{RefTerm(VarTerm("or")), a}),
+		},
+		{
+			note:  "or call, no arguments",
+			input: "or()",
+			exp:   NewExpr([]*Term{RefTerm(VarTerm("or"))}),
+		},
+		{
+			note:  "and call, nested in call arguments",
+			input: "f(and(a, b))",
+			exp:   NewExpr([]*Term{RefTerm(VarTerm("f")), And.Call(a, b)}),
+		},
+		{
+			note:  "or call, nested in or call",
+			input: "or(or(a, b), {1})",
+			exp:   Or.Expr(Or.Call(a, b), s1),
+		},
+		{
+			note:  "or call, ref operand",
+			input: "x[or(a, b)]",
+			exp:   NewExpr(RefTerm(x, Or.Call(a, b))),
+		},
+		{
+			note:  "or call, arithmetic operand",
+			input: "x := count(or(a, b)) + 1",
+			exp:   Assign.Expr(x, Plus.Call(Count.Call(Or.Call(a, b)), IntNumberTerm(1))),
+		},
+		{
+			note:  "or call, set comprehension head",
+			input: "{or(a, b) | true}",
+			exp:   NewExpr(SetComprehensionTerm(Or.Call(a, b), NewBody(NewExpr(BooleanTerm(true))))),
+		},
+		{
+			note:  "and call, negated",
+			input: "not and(a, b)",
+			exp:   negated(And.Expr(a, b)),
+		},
+		{
+			note:  "or call, rhs operand of and keyword",
+			input: "x and or(a, b)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(x)),
+				Rhs: NewBody(Or.Expr(a, b)),
+			}},
+		},
+		{
+			note:  "and call, lhs operand of or keyword",
+			input: "and(a, b) or x",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(And.Expr(a, b)),
+				Rhs: NewBody(NewExpr(x)),
+			}},
+		},
+		{
+			note:  "or call, both operands of or keyword",
+			input: "or(a, b) or or(b, a)",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(Or.Expr(a, b)),
+				Rhs: NewBody(Or.Expr(b, a)),
+			}},
+		},
+		{
+			note:  "and call, operand of parenthesized group",
+			input: "x and (and(a, b) or b)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(x)),
+				Rhs: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(And.Expr(a, b)),
+					Rhs: NewBody(NewExpr(b)),
+				})),
+			}},
+		},
+		{
+			note:  "or call, operand of explicit body",
+			input: "x and {or(a, b)}",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs:         NewBody(NewExpr(x)),
+				Rhs:         NewBody(Or.Expr(a, b)),
+				ExplicitRhs: true,
+			}},
+		},
+		{
+			note:  "or call, every domain",
+			input: "every y in or(a, b) { y }",
+			exp: NewExpr(&Every{
+				Value:  VarTerm("y"),
+				Domain: Or.Call(a, b),
+				Body:   NewBody(NewExpr(VarTerm("y"))),
+			}),
+		},
+		{
+			note:  "or call, with modifier target value",
+			input: "x with data.y as or(a, b)",
+			exp: &Expr{
+				Terms: x,
+				With:  []*With{{Target: MustParseTerm("data.y"), Value: Or.Call(a, b)}},
+			},
+		},
+	}
+
+	modTests := []struct {
+		note string
+		v0   string
+		v1   string
+	}{
+		{
+			note: "or call, rule value",
+			v0: `package test
+				p = or({1}, {2})
+			`,
+			v1: `package test
+				p := or({1}, {2})
+			`,
+		},
+		{
+			note: "and call, rule value",
+			v0: `package test
+				p = and({1}, {2})
+			`,
+			v1: `package test
+				p := and({1}, {2})
+			`,
+		},
+		{
+			note: "or call, rule body",
+			v0: `package test
+				p {
+					or({1}, {2}) == {1, 2}
+				}
+			`,
+			v1: `package test
+				p if or({1}, {2}) == {1, 2}
+			`,
+		},
+		{
+			note: "or call, function call site",
+			v0: `package test
+				p {
+					or(1) == 1
+				}
+			`,
+			v1: `package test
+				p if or(1) == 1
+			`,
+		},
+		{
+			note: "or call, mixed with or keyword",
+			v0: `package test
+				p {
+					or({1}, {2}) == {1, 2} or false
+				}
+			`,
+			v1: `package test
+				p if or({1}, {2}) == {1, 2} or false
+			`,
+		},
+	}
+
+	for _, v := range []RegoVersion{RegoV0, RegoV1} {
+		t.Run(v.String(), func(t *testing.T) {
+			// `every` is a future keyword in v0 (and implies `in`); a no-op in v1.
+			exprOpts := logicalParserOptsForVersion(v, "every")
+			for _, tc := range exprTests {
+				t.Run(tc.note, func(t *testing.T) {
+					assertParseOneExpr(t, tc.note, tc.input, tc.exp, exprOpts)
+				})
+			}
+
+			modOpts := logicalParserOptsForVersion(v)
+			for _, tc := range modTests {
+				t.Run(tc.note, func(t *testing.T) {
+					input := tc.v1
+					if v == RegoV0 {
+						input = tc.v0
+					}
+					if _, err := ParseModuleWithOpts("test.rego", input, modOpts); err != nil {
+						t.Errorf("unexpected error: %v", err)
+					}
+				})
+			}
+		})
+	}
+
+	t.Run("or call, negated with implicit not body", func(t *testing.T) {
+		opts := logicalParserOpts("not")
+		exp := NewExpr(&Not{Body: NewBody(Or.Expr(a, b))})
+		assertParseOneExpr(t, "not or call", "not or(a, b)", exp, opts)
+	})
+}
+
+// TestParseLogical_BuiltinCallFormBoundaries pins the cases the term-position
+// lookahead deliberately leaves alone: in operator position `(` starts a grouped
+// operand of the keyword, and bare names in term position keep failing.
+func TestParseLogical_BuiltinCallFormBoundaries(t *testing.T) {
+	a, b, x := VarTerm("a"), VarTerm("b"), VarTerm("x")
+
+	keywordTests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "and, group operand, no space",
+			input: "x and(b)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(x)),
+				Rhs: NewBody(NewExpr(b)),
+			}},
+		},
+		{
+			note:  "or, group operand, no space",
+			input: "x or(b)",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(x)),
+				Rhs: NewBody(NewExpr(b)),
+			}},
+		},
+		{
+			note:  "and, group operand, with space",
+			input: "x and (b)",
+			exp: &Expr{Terms: &LogicalAnd{
+				Lhs: NewBody(NewExpr(x)),
+				Rhs: NewBody(NewExpr(b)),
+			}},
+		},
+		{
+			note:  "or, group operand after explicit body lhs",
+			input: "{a} or(b)",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs:         NewBody(NewExpr(a)),
+				Rhs:         NewBody(NewExpr(b)),
+				ExplicitLhs: true,
+			}},
+		},
+		{
+			note:  "or, multi-expression group operand",
+			input: "x or(a or b)",
+			exp: &Expr{Terms: &LogicalOr{
+				Lhs: NewBody(NewExpr(x)),
+				Rhs: NewBody(NewExpr(&LogicalOr{
+					Lhs: NewBody(NewExpr(a)),
+					Rhs: NewBody(NewExpr(b)),
+				})),
+			}},
+		},
+	}
+
+	errTests := []struct {
+		note     string
+		input    string
+		expected string
+	}{
+		{"bare or, assigned", "x := or", "unexpected or keyword"},
+		{"bare and, assigned", "x := and", "unexpected and keyword"},
+		{"bare or, call argument", "f(or)", "unexpected or keyword"},
+		{"bare and, comparison lhs", "and == x", "unexpected and keyword"},
+		{"or call, space before paren", "or (a, b)", "unexpected or keyword"},
+		{"and call, space before paren", "and (a, b)", "unexpected and keyword"},
+		{"or call, operator position", "x or or y", "unexpected or keyword"},
+	}
+
+	for _, v := range []RegoVersion{RegoV0, RegoV1} {
+		t.Run(v.String(), func(t *testing.T) {
+			opts := logicalParserOptsForVersion(v)
+			for _, tc := range keywordTests {
+				t.Run(tc.note, func(t *testing.T) {
+					assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+				})
+			}
+			for _, tc := range errTests {
+				t.Run(tc.note, func(t *testing.T) {
+					assertParseErrorContains(t, tc.note, tc.input, tc.expected, opts)
+				})
+			}
+		})
+	}
+}
+
+// TestParseLogical_BuiltinCallFormInactive asserts the call form is unaffected
+// when the keywords aren't active: `or(x, y)` parses as a call either way.
+func TestParseLogical_BuiltinCallFormInactive(t *testing.T) {
+	for _, v := range []RegoVersion{RegoV0, RegoV1} {
+		t.Run(v.String(), func(t *testing.T) {
+			opts := ParserOptions{RegoVersion: v}
+			for _, tc := range []struct {
+				note  string
+				input string
+				exp   *Expr
+			}{
+				{
+					note:  "or call",
+					input: "x := or({1}, {2})",
+					exp:   Assign.Expr(VarTerm("x"), Or.Call(SetTerm(IntNumberTerm(1)), SetTerm(IntNumberTerm(2)))),
+				},
+				{
+					note:  "and call",
+					input: "x := and({1}, {2})",
+					exp:   Assign.Expr(VarTerm("x"), And.Call(SetTerm(IntNumberTerm(1)), SetTerm(IntNumberTerm(2)))),
+				},
+				{
+					note:  "bare or",
+					input: "x := or",
+					exp:   Assign.Expr(VarTerm("x"), VarTerm("or")),
+				},
+			} {
+				t.Run(tc.note, func(t *testing.T) {
+					assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+				})
+			}
+
+			// A space before `(` never forms a call, keywords active or not.
+			t.Run("or call, space before paren", func(t *testing.T) {
+				assertParseErrorContains(t, "or call, space before paren", "or (a, b)", "non-terminated expression", opts)
+			})
+		})
+	}
 }
