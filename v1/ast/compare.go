@@ -8,6 +8,7 @@ import (
 	"cmp"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 )
 
@@ -360,7 +361,7 @@ func RefCompare(a, b Ref) int {
 }
 
 func RefEqual(a, b Ref) bool {
-	return termSliceEqual(a, b)
+	return slices.EqualFunc(a, b, (*Term).Equal)
 }
 
 func NumberCompare(x, y Number) int {

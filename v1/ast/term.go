@@ -637,12 +637,8 @@ func NullTerm() *Term {
 
 // Equal returns true if the other term Value is also Null.
 func (Null) Equal(other Value) bool {
-	switch other.(type) {
-	case Null:
-		return true
-	default:
-		return false
-	}
+	_, ok := other.(Null)
+	return ok
 }
 
 // Compare compares null to other, return <0, 0, or >0 if it is less than, equal to,
@@ -686,12 +682,8 @@ func BooleanTerm(b bool) *Term {
 
 // Equal returns true if the other Value is a Boolean and is equal.
 func (bol Boolean) Equal(other Value) bool {
-	switch other := other.(type) {
-	case Boolean:
-		return bol == other
-	default:
-		return false
-	}
+	_, ok := other.(Boolean)
+	return ok && bol == other
 }
 
 // Compare compares bol to other, return <0, 0, or >0 if it is less than, equal to,
@@ -1345,20 +1337,12 @@ func (ref Ref) DynamicSuffix() Ref {
 
 // IsGround returns true if all of the parts of the Ref are ground.
 func (ref Ref) IsGround() bool {
-	if len(ref) < 2 {
-		return true
-	}
-	return termSliceIsGround(ref[1:])
+	return len(ref) < 2 || util.Every(ref[1:], (*Term).IsGround)
 }
 
 // IsNested returns true if this ref contains other Refs.
 func (ref Ref) IsNested() bool {
-	for _, x := range ref {
-		if _, ok := x.Value.(Ref); ok {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(ref, TermValueIs[Ref])
 }
 
 // Ptr returns a slash-separated path string for this ref. If the ref
@@ -1480,7 +1464,7 @@ func NewArray(a ...*Term) *Array {
 	for i, e := range a {
 		hs[i] = e.Value.Hash()
 	}
-	arr := &Array{elems: a, hashs: hs, ground: termSliceIsGround(a)}
+	arr := &Array{elems: a, hashs: hs, ground: util.Every(a, (*Term).IsGround)}
 	arr.rehash()
 	return arr
 }
@@ -1656,7 +1640,7 @@ func (arr *Array) Slice(i, j int) *Array {
 	}
 	// If arr is ground, the slice is, too.
 	// If it's not, the slice could still be.
-	gr := arr.ground || termSliceIsGround(elems)
+	gr := arr.ground || util.Every(elems, (*Term).IsGround)
 
 	s := &Array{elems: elems, hashs: hashs, ground: gr}
 	s.rehash()
@@ -2955,7 +2939,7 @@ func (c Call) Hash() int {
 
 // IsGround returns true if the Value is ground.
 func (c Call) IsGround() bool {
-	return termSliceIsGround(c)
+	return util.Every(c, (*Term).IsGround)
 }
 
 // MakeExpr returns a new Expr from this call.
@@ -3046,15 +3030,6 @@ func termSliceHash(a []*Term) int {
 		hash += v.Value.Hash()
 	}
 	return hash
-}
-
-func termSliceIsGround(a []*Term) bool {
-	for _, v := range a {
-		if !v.IsGround() {
-			return false
-		}
-	}
-	return true
 }
 
 // Detect when String() need to use expensive JSON‐escaped form
