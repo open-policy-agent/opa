@@ -5,6 +5,28 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.19.1
+
+This release uses the latest version of Go (1.26.6) to build OPA, fixing stdlib vulnerabilities in
+code that OPA's HTTP handler and crypto builtins use:
+
+- https://pkg.go.dev/vuln/GO-2026-6218
+- https://pkg.go.dev/vuln/GO-2026-6091
+- https://pkg.go.dev/vuln/GO-2026-6090
+- https://pkg.go.dev/vuln/GO-2026-6089
+- https://pkg.go.dev/vuln/GO-2026-6088
+- https://pkg.go.dev/vuln/GO-2026-5972
+- https://pkg.go.dev/vuln/GO-2026-5026
+
+It is otherwise the same code as v1.19.0.
+
+Note that users building their own OPA binaries and images already control the Golang
+version, so this is not relevant for them.
+
+### Miscellaneous
+
+- build(go): bump to 1.26.6 (authored by @srenatus)
+
 ## 1.19.0
 
 This release contains a mix of new features and bug fixes. Notably:
