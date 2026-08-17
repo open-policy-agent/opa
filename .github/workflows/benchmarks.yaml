@@ -108,7 +108,7 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.event.after }}
           BENCH_PKGS: ${{ needs.check-changes.outputs.bench }}
-        run: bash build/bench-comment.sh
+        run: go run ./build/bench-comment
 
   notebook:
     permissions:
