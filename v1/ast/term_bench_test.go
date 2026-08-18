@@ -479,6 +479,27 @@ func BenchmarkSetMembership(b *testing.B) {
 	}
 }
 
+// 418.1 ns/op	     760 B/op	      16 allocs/op // was
+// 337.4 ns/op	     760 B/op	       7 allocs/op // now
+func BenchmarkNewObject(b *testing.B) {
+	kvs := [][2]*Term{
+		{InternedTerm(1), InternedTerm(1)},
+		{InternedTerm(2), InternedTerm(2)},
+		{InternedTerm(3), InternedTerm(3)},
+		{InternedTerm(4), InternedTerm(4)},
+		{InternedTerm(5), InternedTerm(5)},
+		{InternedTerm(6), InternedTerm(6)},
+		{InternedTerm(7), InternedTerm(7)},
+		{InternedTerm(8), InternedTerm(8)},
+		{InternedTerm(9), InternedTerm(9)},
+		{InternedTerm(10), InternedTerm(10)},
+	}
+
+	for b.Loop() {
+		_ = NewObject(kvs...)
+	}
+}
+
 // 241.9 ns/op	     472 B/op	      10 allocs/op
 // 207.7 ns/op	     424 B/op	       9 allocs/op
 func BenchmarkSetCopy(b *testing.B) {
