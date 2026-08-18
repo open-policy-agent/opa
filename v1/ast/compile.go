@@ -1908,6 +1908,7 @@ func (c *Compiler) checkTypes() {
 		WithBuiltins(c.builtins).
 		WithRequiredCapabilities(c.Required).
 		WithVarRewriter(rewriteRefErrVars(c.localvargen.subjects, c.RewrittenVars)).
+		WithDependentsResolver(c.dependentRuleRefs).
 		WithAllowUndefinedFunctionCalls(c.allowUndefinedFuncCalls)
 	var as *AnnotationSet
 	if c.useTypeCheckAnnotations {
@@ -1918,6 +1919,40 @@ func (c *Compiler) checkTypes() {
 		c.err(err)
 	}
 	c.TypeEnv = env
+}
+
+// dependentRuleRefs returns the refs of the rules that ref could refer to,
+// together with the refs of the rules that transitively depend on them.
+func (c *Compiler) dependentRuleRefs(ref Ref) []Ref {
+	if c.Graph == nil {
+		return nil
+	}
+
+	rules := c.GetRulesDynamicWithOpts(ref, RulesOptions{IncludeHiddenModules: true})
+	if len(rules) == 0 {
+		return nil
+	}
+
+	refs := make([]Ref, 0, len(rules))
+	visited := make(map[*Rule]struct{}, len(rules))
+
+	var visit func(*Rule)
+	visit = func(rule *Rule) {
+		if _, ok := visited[rule]; ok {
+			return
+		}
+		visited[rule] = struct{}{}
+		refs = append(refs, rule.Ref().GroundPrefix())
+		for dependent := range c.Graph.Dependents(rule) {
+			visit(dependent.(*Rule))
+		}
+	}
+
+	for _, rule := range rules {
+		visit(rule)
+	}
+
+	return refs
 }
 
 func (c *Compiler) checkUnsafeBuiltins() {
@@ -3909,6 +3944,7 @@ func (qc *queryCompiler) checkTypes(_ *QueryContext, body Body) (Body, error) {
 	checker := newTypeChecker().
 		WithSchemaSet(qc.compiler.schemaSet).
 		WithInputType(qc.compiler.inputType).
+		WithDependentsResolver(qc.compiler.dependentRuleRefs).
 		WithVarRewriter(rewriteRefErrVars(qc.refSubjects, qc.rewritten, qc.compiler.RewrittenVars))
 	qc.typeEnv, errs = checker.CheckBody(qc.compiler.TypeEnv, body)
 	if len(errs) > 0 {
