@@ -1,3 +1,5 @@
+//go:build noisy
+
 package ast_test
 
 import (
@@ -32,6 +34,10 @@ func getNewValue() ast.Value {
 }
 
 // Benchmark experiment to compare the performance of accessing values in different ways.
+// Behind the `noisy` build tag, and so excluded from the tracked benchmark suite: these
+// are single-digit-nanosecond loops whose numbers move with the layout of whatever
+// binary they happen to be compiled into, and are only meaningful when the four are
+// compared against each other within one run. Use `make perf-noisy` to run them.
 //
 // BenchmarkInterningAccessValue/package_var_value-12         100000000      10.95 ns/op     16 B/op    1 allocs/op
 // BenchmarkInterningAccessValue/interned_value-12            175498335       6.81 ns/op      0 B/op    0 allocs/op
