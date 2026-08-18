@@ -78,6 +78,17 @@ func generateInlineFullScanBenchmarkData(n int) map[string]any {
 	}
 }
 
+// Was
+// BenchmarkPartialEvalDynamicComposition/10-16           	   40417	     28230 ns/op	   19373 B/op	     439 allocs/op
+// BenchmarkPartialEvalDynamicComposition/100-16          	    9672	    126033 ns/op	   60020 B/op	     481 allocs/op
+// BenchmarkPartialEvalDynamicComposition/1000-16         	     898	   1297354 ns/op	  651551 B/op	     560 allocs/op
+// BenchmarkPartialEvalDynamicComposition/5000-16         	     180	   6603512 ns/op	 2661954 B/op	     742 allocs/op
+//
+// Now
+// BenchmarkPartialEvalDynamicComposition/10-16           	   63439	     18205 ns/op	   15795 B/op	     386 allocs/op
+// BenchmarkPartialEvalDynamicComposition/100-16          	   58730	     21472 ns/op	   15851 B/op	     386 allocs/op
+// BenchmarkPartialEvalDynamicComposition/1000-16         	   41414	     24438 ns/op	   15743 B/op	     386 allocs/op
+// BenchmarkPartialEvalDynamicComposition/5000-16         	   44376	     24398 ns/op	   15713 B/op	     386 allocs/op
 // BenchmarkPartialEvalDynamicComposition partially evaluates an entrypoint that
 // composes policies dynamically, i.e. the packages to evaluate are selected by
 // (known) input values. Only a single policy applies to any given input, so the
