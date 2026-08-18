@@ -1306,12 +1306,8 @@ func newArgError(loc *Location, builtinName Ref, msg string, have []types.Type, 
 	return err
 }
 
-func getOneOfForNode(node *typeTreeNode) (result []Value) {
-	node.Children().Iter(func(k Value, _ *typeTreeNode) bool {
-		result = append(result, k)
-		return false
-	})
-	return util.SortedFunc(result, Value.Compare)
+func getOneOfForNode(node *typeTreeNode) []Value {
+	return util.SortedFunc(node.Children().Keys(), Value.Compare)
 }
 
 func getOneOfForType(tpe types.Type) (result []Value) {

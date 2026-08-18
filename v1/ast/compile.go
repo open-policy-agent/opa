@@ -1104,9 +1104,7 @@ func (c *Compiler) buildExecutionPlan() *executionPlan {
 
 // getOrBuildPlan ensures we have a valid execution plan.
 func (c *Compiler) getOrBuildPlan() *executionPlan {
-	if c.plan == nil {
-		c.plan = c.buildExecutionPlan()
-	}
+	c.plan = util.Or(c.plan, c.buildExecutionPlan)
 	return c.plan
 }
 
@@ -1489,8 +1487,7 @@ func (c *Compiler) checkRuleConflicts() {
 
 func (c *Compiler) checkUndefinedFuncs() {
 	for _, name := range c.sorted {
-		m := c.Modules[name]
-		c.err(checkUndefinedFuncs(c.TypeEnv, m, c.GetArity, c.RewrittenVars)...)
+		c.err(checkUndefinedFuncs(c.TypeEnv, c.Modules[name], c.GetArity, c.RewrittenVars)...)
 	}
 }
 
@@ -1982,10 +1979,7 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 
 	for _, name := range c.sorted {
 		if c.strict || c.Modules[name].regoV1Compatible() {
-			errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name])
-			for _, err := range errs {
-				c.err(err)
-			}
+			c.err(checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name])...)
 		}
 	}
 }
@@ -3142,16 +3136,15 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 				var metadataRuleVar Var
 				if ruleCalled {
 					// Create and inject metadata for rule
-
 					var metadataRuleTerm *Term
 
 					a := getPrimaryRuleAnnotations(c.annotationSet, rule)
 					if a != nil {
-						annotObj, err := a.toObject()
+						annotObj, err := a.toTerm()
 						if err != nil {
 							return !c.err(err)
 						}
-						metadataRuleTerm = NewTerm(*annotObj)
+						metadataRuleTerm = annotObj
 					} else {
 						// If rule has no annotations, assign an empty object
 						metadataRuleTerm = ObjectTerm()
@@ -3180,17 +3173,14 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 
 func getPrimaryRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
 	annots := as.GetRuleScope(rule)
-
 	if len(annots) == 0 {
 		return nil
 	}
 
-	// Sort by annotation location; chain must start with annotations declared closest to rule, then going outward
-	slices.SortStableFunc(annots, func(a, b *Annotations) int {
-		return -a.Location.Compare(b.Location)
+	// chain must start with annotations declared closest to rule, then going outward
+	return slices.MinFunc(annots, func(a, b *Annotations) int {
+		return a.Location.Compare(b.Location)
 	})
-
-	return annots[0]
 }
 
 func rewriteRegoMetadataCalls(metadataChainVar *Var, metadataRuleVar *Var, body Body, rewrittenVars *map[Var]Var) Errors {
@@ -3264,11 +3254,11 @@ func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
 		p := link.Path[1:].toArray()
 		obj := NewObject(Item(InternedTerm("path"), NewTerm(p)))
 		if link.Annotations != nil {
-			annotObj, err := link.Annotations.toObject()
+			annotObj, err := link.Annotations.toTerm()
 			if err != nil {
 				return nil, err
 			}
-			obj.Insert(InternedTerm("annotations"), NewTerm(*annotObj))
+			obj.Insert(InternedTerm("annotations"), annotObj)
 		}
 		metaArray = metaArray.Append(NewTerm(obj))
 	}
@@ -6584,9 +6574,7 @@ func (s *localDeclaredVars) Clear() {
 	if vs != nil {
 		s.vars = append(s.vars, vs.clear())
 	}
-	if s.vars[0] == nil {
-		s.vars[0] = newDeclaredVarSet()
-	}
+	s.vars[0] = util.Or(s.vars[0], newDeclaredVarSet)
 	s.assignment = false
 }
 

@@ -35,6 +35,17 @@ func Or[T comparable](val T, suppliers ...func() T) T {
 	return val
 }
 
+// NilOr returns the first non-nil value from the provided list of pointers, or nil if all are nil.
+func NilOr[T any](vals ...*T) *T {
+	for _, val := range vals {
+		if val != nil {
+			return val
+		}
+	}
+
+	return nil
+}
+
 // SliceLenCompare is a convenience function for comparing / sorting
 // slices by their length using the various slices.SortX functions.
 func SliceLenCompare[T any, S ~[]T](a, b S) int {

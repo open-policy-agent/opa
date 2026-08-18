@@ -16,6 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/copypropagation"
 	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/open-policy-agent/opa/v1/tracing"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // QueryResultSet represents a collection of results returned by a query.
@@ -281,9 +282,7 @@ func (q *Query) WithBuiltinErrorList(list *[]Error) *Query {
 
 // WithResolver configures an external resolver to use for the given ref.
 func (q *Query) WithResolver(ref ast.Ref, r resolver.Resolver) *Query {
-	if q.external == nil {
-		q.external = newResolverTrie()
-	}
+	q.external = util.Or(q.external, newResolverTrie)
 	q.external.Put(ref, r)
 	return q
 }
@@ -378,9 +377,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	if q.time.IsZero() {
 		q.time = time.Now()
 	}
-	if q.metrics == nil {
-		q.metrics = metrics.New()
-	}
+	q.metrics = util.Or(q.metrics, metrics.New)
 
 	f := &queryIDFactory{}
 	b := newBindings(0, q.instr)
@@ -576,9 +573,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 	if q.time.IsZero() {
 		q.time = time.Now()
 	}
-	if q.metrics == nil {
-		q.metrics = metrics.New()
-	}
+	q.metrics = util.Or(q.metrics, metrics.New)
 
 	f := &queryIDFactory{}
 

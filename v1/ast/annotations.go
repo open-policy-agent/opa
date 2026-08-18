@@ -107,24 +107,18 @@ func (a *Annotations) SetLoc(l *Location) {
 
 // EndLoc returns the location of this annotation's last comment line.
 func (a *Annotations) EndLoc() *Location {
-	if a.endLoc == nil {
-		return a.Location
-	}
-	return a.endLoc
+	return util.NilOr(a.endLoc, a.Location)
 }
 
 // Compare returns an integer indicating if a is less than, equal to, or greater
 // than other.
 func (a *Annotations) Compare(other *Annotations) int {
-
-	if a == nil && other == nil {
+	if a == other {
 		return 0
 	}
-
 	if a == nil {
 		return -1
 	}
-
 	if other == nil {
 		return 1
 	}
@@ -141,19 +135,19 @@ func (a *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
-	if cmp := compareStringLists(a.Organizations, other.Organizations); cmp != 0 {
+	if cmp := slices.Compare(a.Organizations, other.Organizations); cmp != 0 {
 		return cmp
 	}
 
-	if cmp := compareRelatedResources(a.RelatedResources, other.RelatedResources); cmp != 0 {
+	if cmp := slices.CompareFunc(a.RelatedResources, other.RelatedResources, (*RelatedResourceAnnotation).Compare); cmp != 0 {
 		return cmp
 	}
 
-	if cmp := compareAuthors(a.Authors, other.Authors); cmp != 0 {
+	if cmp := slices.CompareFunc(a.Authors, other.Authors, (*AuthorAnnotation).Compare); cmp != 0 {
 		return cmp
 	}
 
-	if cmp := compareSchemas(a.Schemas, other.Schemas); cmp != 0 {
+	if cmp := slices.CompareFunc(a.Schemas, other.Schemas, (*SchemaAnnotation).Compare); cmp != 0 {
 		return cmp
 	}
 
@@ -172,11 +166,7 @@ func (a *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
-	if cmp := util.Compare(a.Labels, other.Labels); cmp != 0 {
-		return cmp
-	}
-
-	return 0
+	return util.Compare(a.Labels, other.Labels)
 }
 
 // GetTargetPath returns the path of the node these Annotations are applied to (the target)
@@ -217,12 +207,10 @@ func (ar *AnnotationsRef) GetPackage() *Package {
 }
 
 func (ar *AnnotationsRef) GetRule() *Rule {
-	switch n := ar.node.(type) {
-	case *Rule:
-		return n
-	default:
-		return nil
+	if r, ok := ar.node.(*Rule); ok {
+		return r
 	}
+	return nil
 }
 
 func scopeCompare(s1, s2 string) int {
@@ -251,184 +239,81 @@ func scopeOrder(s string) int {
 	return 0
 }
 
-func compareAuthors(a, b []*AuthorAnnotation) int {
-	if len(a) > len(b) {
-		return 1
-	} else if len(a) < len(b) {
-		return -1
-	}
-
-	for i := range a {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-
-	return 0
-}
-
-func compareRelatedResources(a, b []*RelatedResourceAnnotation) int {
-	if len(a) > len(b) {
-		return 1
-	} else if len(a) < len(b) {
-		return -1
-	}
-
-	for i := range a {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-
-	return 0
-}
-
-func compareSchemas(a, b []*SchemaAnnotation) int {
-	maxLen := min(len(b), len(a))
-
-	for i := range maxLen {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-
-	if len(a) > len(b) {
-		return 1
-	} else if len(a) < len(b) {
-		return -1
-	}
-
-	return 0
-}
-
-func compareStringLists(a, b []string) int {
-	if len(a) > len(b) {
-		return 1
-	} else if len(a) < len(b) {
-		return -1
-	}
-
-	for i := range a {
-		if cmp := strings.Compare(a[i], b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-
-	return 0
-}
-
 // Copy returns a deep copy of s.
 func (a *Annotations) Copy(node Node) *Annotations {
 	cpy := *a
-
-	cpy.Organizations = make([]string, len(a.Organizations))
-	copy(cpy.Organizations, a.Organizations)
-
-	cpy.RelatedResources = make([]*RelatedResourceAnnotation, len(a.RelatedResources))
-	for i := range a.RelatedResources {
-		cpy.RelatedResources[i] = a.RelatedResources[i].Copy()
-	}
-
-	cpy.Authors = make([]*AuthorAnnotation, len(a.Authors))
-	for i := range a.Authors {
-		cpy.Authors[i] = a.Authors[i].Copy()
-	}
-
-	cpy.Schemas = make([]*SchemaAnnotation, len(a.Schemas))
-	for i := range a.Schemas {
-		cpy.Schemas[i] = a.Schemas[i].Copy()
-	}
-
+	cpy.Organizations = slices.Clone(a.Organizations)
+	cpy.RelatedResources = util.Map(a.RelatedResources, (*RelatedResourceAnnotation).Copy)
+	cpy.Authors = util.Map(a.Authors, (*AuthorAnnotation).Copy)
+	cpy.Schemas = util.Map(a.Schemas, (*SchemaAnnotation).Copy)
 	cpy.Compile = a.Compile.Copy()
 
 	if a.Custom != nil {
 		cpy.Custom = deepcopy.Map(a.Custom)
 	}
-
 	if a.Labels != nil {
 		cpy.Labels = deepcopy.Map(a.Labels)
 	}
-
 	cpy.node = node
 
 	return &cpy
 }
 
-// toObject constructs an AST Object from the annotation.
-func (a *Annotations) toObject() (*Object, *Error) {
-	obj := NewObject()
-
+// toTerm constructs an AST Object from the annotation, and wraps it in a *Term.
+func (a *Annotations) toTerm() (*Term, *Error) {
 	if a == nil {
-		return &obj, nil
+		return ObjectTerm(), nil
 	}
 
+	items := make([][2]*Term, 0, util.Count(util.Identity,
+		a.Entrypoint,
+		len(a.Scope) > 0,
+		len(a.Title) > 0,
+		len(a.Description) > 0,
+		len(a.Organizations) > 0,
+		len(a.RelatedResources) > 0,
+		len(a.Authors) > 0,
+		len(a.Schemas) > 0,
+		len(a.Custom) > 0,
+		len(a.Labels) > 0,
+	))
+
 	if len(a.Scope) > 0 {
-		obj.Insert(InternedTerm("scope"), InternedTerm(a.Scope))
+		items = append(items, [2]*Term{InternedTerm("scope"), InternedTerm(a.Scope)})
 	}
 
 	if len(a.Title) > 0 {
-		obj.Insert(InternedTerm("title"), StringTerm(a.Title))
+		items = append(items, [2]*Term{InternedTerm("title"), StringTerm(a.Title)})
 	}
 
 	if a.Entrypoint {
-		obj.Insert(InternedTerm("entrypoint"), InternedTerm(true))
+		items = append(items, [2]*Term{InternedTerm("entrypoint"), InternedTerm(true)})
 	}
 
 	if len(a.Description) > 0 {
-		obj.Insert(InternedTerm("description"), StringTerm(a.Description))
+		items = append(items, [2]*Term{InternedTerm("description"), StringTerm(a.Description)})
 	}
 
 	if len(a.Organizations) > 0 {
-		obj.Insert(InternedTerm("organizations"), ArrayTerm(util.Map(a.Organizations, StringTerm)...))
+		items = append(items, [2]*Term{InternedTerm("organizations"), ArrayTerm(util.Map(a.Organizations, StringTerm)...)})
 	}
 
 	if len(a.RelatedResources) > 0 {
-		rrs := make([]*Term, 0, len(a.RelatedResources))
-		for _, rr := range a.RelatedResources {
-			rrObj := NewObject(Item(InternedTerm("ref"), StringTerm(rr.Ref.String())))
-			if len(rr.Description) > 0 {
-				rrObj.Insert(InternedTerm("description"), StringTerm(rr.Description))
-			}
-			rrs = append(rrs, NewTerm(rrObj))
-		}
-		obj.Insert(InternedTerm("related_resources"), ArrayTerm(rrs...))
+		rrs := util.Map(a.RelatedResources, (*RelatedResourceAnnotation).toTerm)
+		items = append(items, [2]*Term{InternedTerm("related_resources"), ArrayTerm(rrs...)})
 	}
 
 	if len(a.Authors) > 0 {
-		as := make([]*Term, 0, len(a.Authors))
-		for _, author := range a.Authors {
-			aObj := NewObject()
-			if len(author.Name) > 0 {
-				aObj.Insert(InternedTerm("name"), StringTerm(author.Name))
-			}
-			if len(author.Email) > 0 {
-				aObj.Insert(InternedTerm("email"), StringTerm(author.Email))
-			}
-			as = append(as, NewTerm(aObj))
-		}
-		obj.Insert(InternedTerm("authors"), ArrayTerm(as...))
+		as := util.Map(a.Authors, (*AuthorAnnotation).toTerm)
+		items = append(items, [2]*Term{InternedTerm("authors"), ArrayTerm(as...)})
 	}
 
 	if len(a.Schemas) > 0 {
-		ss := make([]*Term, 0, len(a.Schemas))
-		for _, s := range a.Schemas {
-			sObj := NewObject()
-			if len(s.Path) > 0 {
-				sObj.Insert(InternedTerm("path"), NewTerm(s.Path.toArray()))
-			}
-			if len(s.Schema) > 0 {
-				sObj.Insert(InternedTerm("schema"), NewTerm(s.Schema.toArray()))
-			}
-			if s.Definition != nil {
-				def, err := InterfaceToValue(s.Definition)
-				if err != nil {
-					return nil, NewError(CompileErr, a.Location, "invalid definition in schema annotation: %s", err.Error())
-				}
-				sObj.Insert(InternedTerm("definition"), NewTerm(def))
-			}
-			ss = append(ss, NewTerm(sObj))
+		ss, err := util.TryMap(a.Schemas, (*SchemaAnnotation).toTerm)
+		if err != nil {
+			return nil, NewError(CompileErr, a.Location, "invalid schema annotation %s", err.Error())
 		}
-		obj.Insert(InternedTerm("schemas"), ArrayTerm(ss...))
+		items = append(items, [2]*Term{InternedTerm("schemas"), ArrayTerm(ss...)})
 	}
 
 	if len(a.Custom) > 0 {
@@ -436,7 +321,7 @@ func (a *Annotations) toObject() (*Object, *Error) {
 		if err != nil {
 			return nil, NewError(CompileErr, a.Location, "invalid custom annotation %s", err.Error())
 		}
-		obj.Insert(InternedTerm("custom"), NewTerm(c))
+		items = append(items, [2]*Term{InternedTerm("custom"), NewTerm(c)})
 	}
 
 	if len(a.Labels) > 0 {
@@ -444,10 +329,10 @@ func (a *Annotations) toObject() (*Object, *Error) {
 		if err != nil {
 			return nil, NewError(CompileErr, a.Location, "invalid labels annotation %s", err.Error())
 		}
-		obj.Insert(InternedTerm("labels"), NewTerm(l))
+		items = append(items, [2]*Term{InternedTerm("labels"), NewTerm(l)})
 	}
 
-	return &obj, nil
+	return ObjectTerm(items...), nil
 }
 
 func attachRuleAnnotations(mod *Module) {
@@ -480,13 +365,11 @@ func attachRuleAnnotations(mod *Module) {
 
 func attachAnnotationsNodes(mod *Module) Errors {
 	var errs Errors
-
 	// Find first non-annotation statement following each annotation and attach
 	// the annotation to that statement.
 	for _, a := range mod.Annotations {
 		for _, stmt := range mod.stmts {
-			_, ok := stmt.(*Annotations)
-			if !ok {
+			if _, ok := stmt.(*Annotations); !ok {
 				if stmt.Loc().Row > a.Location.Row {
 					a.node = stmt
 					break
@@ -497,10 +380,9 @@ func attachAnnotationsNodes(mod *Module) Errors {
 		if a.Scope == "" {
 			switch a.node.(type) {
 			case *Rule:
+				a.Scope = annotationScopeRule
 				if a.Entrypoint {
 					a.Scope = annotationScopeDocument
-				} else {
-					a.Scope = annotationScopeRule
 				}
 			case *Package:
 				a.Scope = annotationScopePackage
@@ -526,7 +408,6 @@ func attachAnnotationsNodes(mod *Module) Errors {
 }
 
 func validateAnnotationScopeAttachment(a *Annotations) *Error {
-
 	switch a.Scope {
 	case annotationScopeRule, annotationScopeDocument:
 		if _, ok := a.node.(*Rule); ok {
@@ -564,12 +445,7 @@ func (a *AuthorAnnotation) Compare(other *AuthorAnnotation) int {
 	if cmp := strings.Compare(a.Name, other.Name); cmp != 0 {
 		return cmp
 	}
-
-	if cmp := strings.Compare(a.Email, other.Email); cmp != 0 {
-		return cmp
-	}
-
-	return 0
+	return strings.Compare(a.Email, other.Email)
 }
 
 func (a *AuthorAnnotation) String() string {
@@ -579,6 +455,17 @@ func (a *AuthorAnnotation) String() string {
 		return fmt.Sprintf("<%s>", a.Email)
 	}
 	return fmt.Sprintf("%s <%s>", a.Name, a.Email)
+}
+
+func (a *AuthorAnnotation) toTerm() *Term {
+	items := make([][2]*Term, 0, 2)
+	if len(a.Name) > 0 {
+		items = append(items, [2]*Term{InternedTerm("name"), StringTerm(a.Name)})
+	}
+	if len(a.Email) > 0 {
+		items = append(items, [2]*Term{InternedTerm("email"), StringTerm(a.Email)})
+	}
+	return ObjectTerm(items...)
 }
 
 // Copy returns a deep copy of rr.
@@ -593,17 +480,23 @@ func (rr *RelatedResourceAnnotation) Compare(other *RelatedResourceAnnotation) i
 	if cmp := strings.Compare(rr.Description, other.Description); cmp != 0 {
 		return cmp
 	}
-
-	if cmp := strings.Compare(rr.Ref.String(), other.Ref.String()); cmp != 0 {
-		return cmp
-	}
-
-	return 0
+	return strings.Compare(rr.Ref.String(), other.Ref.String())
 }
 
 func (rr *RelatedResourceAnnotation) String() string {
 	bs, _ := json.Marshal(rr)
 	return string(bs)
+}
+
+func (rr *RelatedResourceAnnotation) toTerm() *Term {
+	items := make([][2]*Term, 0, 2)
+	if len(rr.Ref.String()) > 0 {
+		items = append(items, [2]*Term{InternedTerm("ref"), StringTerm(rr.Ref.String())})
+	}
+	if len(rr.Description) > 0 {
+		items = append(items, [2]*Term{InternedTerm("description"), StringTerm(rr.Description)})
+	}
+	return ObjectTerm(items...)
 }
 
 // Copy returns a deep copy of s.
@@ -618,25 +511,43 @@ func (s *SchemaAnnotation) Compare(other *SchemaAnnotation) int {
 	if cmp := s.Path.Compare(other.Path); cmp != 0 {
 		return cmp
 	}
-
 	if cmp := s.Schema.Compare(other.Schema); cmp != 0 {
 		return cmp
 	}
 
-	if s.Definition != nil && other.Definition == nil {
+	switch {
+	case s.Definition == other.Definition:
+		return 0
+	case s.Definition == nil:
 		return -1
-	} else if s.Definition == nil && other.Definition != nil {
+	case other.Definition == nil:
 		return 1
-	} else if s.Definition != nil && other.Definition != nil {
-		return util.Compare(*s.Definition, *other.Definition)
 	}
 
-	return 0
+	return util.Compare(*s.Definition, *other.Definition)
 }
 
 func (s *SchemaAnnotation) String() string {
 	bs, _ := json.Marshal(s)
 	return string(bs)
+}
+
+func (s *SchemaAnnotation) toTerm() (*Term, error) {
+	items := make([][2]*Term, 0, 3)
+	if len(s.Path.String()) > 0 {
+		items = append(items, [2]*Term{InternedTerm("path"), NewTerm(s.Path.toArray())})
+	}
+	if len(s.Schema.String()) > 0 {
+		items = append(items, [2]*Term{InternedTerm("schema"), NewTerm(s.Schema.toArray())})
+	}
+	if s.Definition != nil {
+		def, err := InterfaceToValue(s.Definition)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, [2]*Term{InternedTerm("definition"), NewTerm(def)})
+	}
+	return ObjectTerm(items...), nil
 }
 
 // Copy returns a deep copy of s.
@@ -645,9 +556,7 @@ func (c *CompileAnnotation) Copy() *CompileAnnotation {
 		return nil
 	}
 	cpy := *c
-	for i := range c.Unknowns {
-		cpy.Unknowns[i] = c.Unknowns[i].Copy()
-	}
+	cpy.Unknowns = util.Map(c.Unknowns, Ref.Copy)
 	return &cpy
 }
 
@@ -655,12 +564,12 @@ func (c *CompileAnnotation) Copy() *CompileAnnotation {
 // than other.
 func (c *CompileAnnotation) Compare(other *CompileAnnotation) int {
 	switch {
-	case c == nil && other == nil:
+	case c == other:
 		return 0
-	case c != nil && other == nil:
-		return 1
-	case c == nil && other != nil:
+	case c == nil:
 		return -1
+	case other == nil:
+		return 1
 	}
 
 	if cmp := slices.CompareFunc(c.Unknowns, other.Unknowns, RefCompare); cmp != 0 {
@@ -772,24 +681,18 @@ func (as *AnnotationSet) GetPackageScope(pkg *Package) *Annotations {
 // The returned slice is sorted, first by the annotations' target path, then by their target location
 func (as *AnnotationSet) Flatten() FlatAnnotationsRefSet {
 	// This preallocation often won't be optimal, but it's superior to starting with a nil slice.
-	refs := make([]*AnnotationsRef, 0, len(as.byPath.Children)+len(as.byRule)+len(as.byPackage))
-
-	refs = as.byPath.flatten(refs)
-
+	size := len(as.byPath.Children) + len(as.byRule) + len(as.byPackage)
+	refs := as.byPath.flatten(make([]*AnnotationsRef, 0, size))
 	for _, a := range as.byPackage {
 		refs = append(refs, NewAnnotationsRef(a))
 	}
 
 	for _, as := range as.byRule {
-		for _, a := range as {
-			refs = append(refs, NewAnnotationsRef(a))
-		}
+		refs = util.MapAppend(refs, as, NewAnnotationsRef)
 	}
 
 	// Sort by path, then annotation location, for stable output
-	slices.SortStableFunc(refs, (*AnnotationsRef).Compare)
-
-	return refs
+	return util.SortedStableFunc(refs, (*AnnotationsRef).Compare)
 }
 
 // Chain returns the chain of annotations leading up to the given rule.
@@ -800,10 +703,7 @@ func (as *AnnotationSet) Flatten() FlatAnnotationsRefSet {
 // 3. Entries for the 'subpackages' scope, if any; ordered from the closest package path to the fartest. E.g.: 'do.re.mi', 'do.re', 'do'
 // The returned slice is guaranteed to always contain at least one entry, corresponding to the given rule.
 func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
-	var refs []*AnnotationsRef
-
 	ruleAnnots := as.GetRuleScope(rule)
-
 	// Fall back to the rule's own attached annotations when the rule's source
 	// module isn't tracked by this AnnotationSet. This happens for rules
 	// supplied by an ExternalRuleSource that returns []*Rule directly: their
@@ -815,10 +715,12 @@ func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
 		ruleAnnots = rule.Annotations
 	}
 
+	var refs []*AnnotationsRef
 	if len(ruleAnnots) >= 1 {
-		for _, a := range ruleAnnots {
-			refs = append(refs, NewAnnotationsRef(a))
-		}
+		// Sort by annotation location; chain must start with annotations declared closest to rule, then going outward
+		refs = util.SortedStableFunc(util.Map(ruleAnnots, NewAnnotationsRef), func(a, b *AnnotationsRef) int {
+			return -a.Annotations.Location.Compare(b.Annotations.Location)
+		})
 	} else {
 		// Make sure there is always a leading entry representing the passed rule, even if it has no annotations
 		refs = append(refs, &AnnotationsRef{
@@ -828,25 +730,15 @@ func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
 		})
 	}
 
-	if len(refs) > 1 {
-		// Sort by annotation location; chain must start with annotations declared closest to rule, then going outward
-		slices.SortStableFunc(refs, func(a, b *AnnotationsRef) int {
-			return -a.Annotations.Location.Compare(b.Annotations.Location)
-		})
+	if da := as.GetDocumentScope(rule.Ref().GroundPrefix()); da != nil {
+		refs = append(refs, NewAnnotationsRef(da))
 	}
 
-	docAnnots := as.GetDocumentScope(rule.Ref().GroundPrefix())
-	if docAnnots != nil {
-		refs = append(refs, NewAnnotationsRef(docAnnots))
+	if pa := as.GetPackageScope(rule.Module.Package); pa != nil {
+		refs = append(refs, NewAnnotationsRef(pa))
 	}
 
-	pkg := rule.Module.Package
-	pkgAnnots := as.GetPackageScope(pkg)
-	if pkgAnnots != nil {
-		refs = append(refs, NewAnnotationsRef(pkgAnnots))
-	}
-
-	subPkgAnnots := as.GetSubpackagesScope(pkg.Path)
+	subPkgAnnots := as.GetSubpackagesScope(rule.Module.Package.Path)
 	// We need to reverse the order, as subPkgAnnots ordering will start at the root,
 	// whereas we want to end at the root.
 	for i := len(subPkgAnnots) - 1; i >= 0; i-- {
@@ -895,8 +787,7 @@ func (ars FlatAnnotationsRefSet) Insert(ar *AnnotationsRef) FlatAnnotationsRefSe
 	// insertion sort, first by path, then location
 	for i, current := range ars {
 		if ar.Compare(current) < 0 {
-			result = append(result, ar)
-			result = append(result, ars[i:]...)
+			result = append(append(result, ar), ars[i:]...)
 			break
 		}
 		result = append(result, current)
@@ -977,10 +868,8 @@ func (ar *AnnotationsRef) Compare(other *AnnotationsRef) int {
 	if c := ar.Path.Compare(other.Path); c != 0 {
 		return c
 	}
-
 	if c := ar.Annotations.Location.Compare(other.Annotations.Location); c != 0 {
 		return c
 	}
-
 	return ar.Annotations.Compare(other.Annotations)
 }

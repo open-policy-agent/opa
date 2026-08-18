@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"slices"
 	"strings"
@@ -238,14 +239,7 @@ func LoadCapabilitiesVersions() ([]string, error) {
 		return nil, err
 	}
 
-	capabilitiesVersions := make([]string, 0, len(ents))
-	for _, ent := range ents {
-		capabilitiesVersions = append(capabilitiesVersions, strings.Replace(ent.Name(), ".json", "", 1))
-	}
-
-	slices.SortStableFunc(capabilitiesVersions, semver.Compare)
-
-	return capabilitiesVersions, nil
+	return util.SortedStableFunc(util.Map(ents, removeJsonSuffix), semver.Compare), nil
 }
 
 // MinimumCompatibleVersion returns the minimum compatible OPA version based on
@@ -315,4 +309,8 @@ func (c *Capabilities) addBuiltinSorted(bi *Builtin) {
 
 func cmpBuiltinName(a, b *Builtin) int {
 	return strings.Compare(a.Name, b.Name)
+}
+
+func removeJsonSuffix(ent fs.DirEntry) string {
+	return strings.Replace(ent.Name(), ".json", "", 1)
 }

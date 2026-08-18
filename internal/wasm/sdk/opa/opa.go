@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
 	"github.com/open-policy-agent/opa/v1/topdown/print"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 var errNotReady = sdk_errors.New(sdk_errors.NotReadyErr, "")
@@ -179,10 +180,7 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 		return nil, errNotReady
 	}
 
-	m := opts.Metrics
-	if m == nil {
-		m = metrics.New()
-	}
+	m := util.Or(opts.Metrics, metrics.New)
 
 	instance, err := o.pool.Acquire(ctx, m)
 	if err != nil {

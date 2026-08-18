@@ -134,9 +134,7 @@ func (o *Oracle) compileUpto(stage ast.StageID, q DefinitionQuery) (*ast.Compile
 }
 
 func parserOptions(popts ast.ParserOptions, compiler *ast.Compiler, shadowed *ast.Module) ast.ParserOptions {
-	if popts.Capabilities == nil {
-		popts.Capabilities = compiler.Capabilities()
-	}
+	popts.Capabilities = util.Or(popts.Capabilities, compiler.Capabilities)
 
 	if popts.RegoVersion == ast.RegoUndefined && shadowed != nil {
 		popts.RegoVersion = shadowed.RegoVersion()

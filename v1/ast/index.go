@@ -198,8 +198,8 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 		if len(tr.unordered[pos]) == 0 {
 			continue
 		}
-		slices.SortFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
-		nodes := tr.unordered[pos]
+
+		nodes := util.SortedFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
 		root := nodes[0].rule
 
 		result.Rules = append(result.Rules, root)

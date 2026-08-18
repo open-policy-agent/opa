@@ -788,24 +788,15 @@ func (e *eval) evalWithPush(input, data *ast.Term, functionMocks [][2]*ast.Term,
 		e.data = data
 	}
 
-	if e.comprehensionCache == nil {
-		e.comprehensionCache = newComprehensionCache()
-	}
-
+	e.comprehensionCache = util.Or(e.comprehensionCache, newComprehensionCache)
 	e.comprehensionCache.Push()
 	e.virtualCache.Push()
 
-	if e.targetStack == nil {
-		e.targetStack = newRefStack()
-	}
-
+	e.targetStack = util.Or(e.targetStack, newRefStack)
 	e.targetStack.Push(targets)
 	e.inliningControl.PushDisable(disable, true)
 
-	if e.functionMocks == nil {
-		e.functionMocks = newFunctionMocksStack()
-	}
-
+	e.functionMocks = util.Or(e.functionMocks, newFunctionMocksStack)
 	e.functionMocks.PutPairs(functionMocks)
 
 	return oldInput, oldData, pushedFrame
@@ -1405,16 +1396,13 @@ func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool,
 }
 
 func (e *eval) buildComprehensionCache(a *ast.Term) (*ast.Term, error) {
-
 	index := e.comprehensionIndex(a)
 	if index == nil {
 		e.instr.counterIncr(evalOpComprehensionCacheSkip)
 		return nil, nil
 	}
 
-	if e.comprehensionCache == nil {
-		e.comprehensionCache = newComprehensionCache()
-	}
+	e.comprehensionCache = util.Or(e.comprehensionCache, newComprehensionCache)
 
 	cache, ok := e.comprehensionCache.Elem(a)
 	if !ok {

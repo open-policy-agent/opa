@@ -11,7 +11,8 @@ package fmtsort
 import (
 	"cmp"
 	"reflect"
-	"slices"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Note: Throughout this package we avoid calling reflect.Value.Interface as
@@ -59,10 +60,9 @@ func Sort(mapValue reflect.Value) SortedMap {
 	for iter.Next() {
 		sorted = append(sorted, KeyValue{iter.Key(), iter.Value()})
 	}
-	slices.SortStableFunc(sorted, func(a, b KeyValue) int {
+	return util.SortedStableFunc(sorted, func(a, b KeyValue) int {
 		return compare(a.Key, b.Key)
 	})
-	return sorted
 }
 
 // compare compares two values of the same type. It returns -1, 0, 1
