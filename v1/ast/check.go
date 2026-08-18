@@ -270,10 +270,8 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 		for _, arg := range rule.Head.Args {
 			// If args are not referred to in body, infer as any.
 			WalkTerms(arg, func(t *Term) bool {
-				if _, ok := t.Value.(Var); ok {
-					if cpy.GetByValue(t.Value) == nil {
-						cpy.tree.PutOne(t.Value, types.A)
-					}
+				if _, ok := t.Value.(Var); ok && cpy.GetByValue(t.Value) == nil {
+					cpy.tree.PutOne(t.Value, types.A)
 				}
 				return false
 			})
@@ -655,12 +653,12 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 		return unifies(env.GetByValue(v), tpe)
 	case Var:
 		if !union {
-			if exist := env.GetByValue(v); exist != nil {
+			if exist := env.GetByValue(term.Value); exist != nil {
 				return unifies(exist, tpe)
 			}
 			env.tree.PutOne(term.Value, tpe)
 		} else {
-			env.tree.PutOne(term.Value, types.Or(env.GetByValue(v), tpe))
+			env.tree.PutOne(term.Value, types.Or(env.GetByValue(term.Value), tpe))
 		}
 		return true
 	default:
@@ -955,9 +953,10 @@ func unifies(a, b types.Type) bool {
 		// NOTE(sr): variadic functions can only be internal ones, and we've forbidden
 		// their replacement via `with`; so we disregard variadic here
 		if types.Arity(a) == types.Arity(b) {
-			b := b.(*types.Function)
-			for i := range a.FuncArgs().Args {
-				if !unifies(a.FuncArgs().Arg(i), b.FuncArgs().Arg(i)) {
+			aArgs := a.FuncArgs()
+			bArgs := b.(*types.Function).FuncArgs()
+			for i := range aArgs.Args {
+				if !unifies(aArgs.Arg(i), bArgs.Arg(i)) {
 					return false
 				}
 			}
@@ -1195,9 +1194,7 @@ func getOneOfForNode(node *typeTreeNode) (result []Value) {
 		result = append(result, k)
 		return false
 	})
-
-	slices.SortFunc(result, Value.Compare)
-	return result
+	return util.SortedFunc(result, Value.Compare)
 }
 
 func getOneOfForType(tpe types.Type) (result []Value) {
@@ -1221,9 +1218,7 @@ func getOneOfForType(tpe types.Type) (result []Value) {
 		}
 	}
 
-	result = removeDuplicate(result)
-	slices.SortFunc(result, Value.Compare)
-	return result
+	return util.SortedFunc(removeDuplicate(result), Value.Compare)
 }
 
 func removeDuplicate(list []Value) []Value {
@@ -1273,16 +1268,11 @@ func override(ref Ref, t types.Type, o types.Type, rule *Rule) (types.Type, *Err
 	}
 	obj, ok := t.(*types.Object)
 	if !ok {
-		newType, err := getObjectType(ref, o, rule, dynamicAnyAny)
-		if err != nil {
-			return nil, err
-		}
-		return newType, nil
+		return getObjectType(ref, o, rule, dynamicAnyAny)
 	}
 	found := false
 	if ok {
-		staticProps := obj.StaticProperties()
-		for _, prop := range staticProps {
+		for _, prop := range obj.StaticProperties() {
 			valueCopy := prop.Value
 			key, err := InterfaceToValue(prop.Key)
 			if err != nil {
@@ -1329,8 +1319,7 @@ func getKeys(ref Ref, rule *Rule) ([]any, *Error) {
 
 func getObjectTypeRec(keys []any, o types.Type, d *types.DynamicProperty) *types.Object {
 	if len(keys) == 1 {
-		staticProps := []*types.StaticProperty{types.NewStaticProperty(keys[0], o)}
-		return types.NewObject(staticProps, d)
+		return types.NewObject([]*types.StaticProperty{types.NewStaticProperty(keys[0], o)}, d)
 	}
 
 	staticProps := []*types.StaticProperty{types.NewStaticProperty(keys[0], getObjectTypeRec(keys[1:], o, d))}

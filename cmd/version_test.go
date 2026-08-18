@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -102,16 +102,16 @@ func expectOutputKeys(t *testing.T, stdout string, expectedKeys []string) {
 	gotKeys := make([]string, 0, len(lines))
 
 	for _, line := range lines {
-		gotKeys = append(gotKeys, strings.Split(line, ":")[0])
+		key, _, _ := strings.Cut(line, ":")
+		gotKeys = append(gotKeys, key)
 	}
 
-	sort.Strings(expectedKeys)
-	sort.Strings(gotKeys)
-
+	slices.Sort(expectedKeys)
 	if len(expectedKeys) != len(gotKeys) {
 		t.Fatalf("expected %v but got %v", expectedKeys, gotKeys)
 	}
 
+	slices.Sort(gotKeys)
 	for i, got := range gotKeys {
 		if expectedKeys[i] != got {
 			t.Fatalf("expected %v but got %v", expectedKeys, gotKeys)

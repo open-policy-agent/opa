@@ -13,10 +13,11 @@ func findContainingNodeStack(module *ast.Module, pos int) []ast.Node {
 	ast.WalkNodes(module, func(x ast.Node) bool {
 		minLoc, maxLoc := getLocMinMax(x)
 
-		// ast.Every nodes have no location but should still be traversed
-		// to reach children
+		// Nodes carrying bodies may have no location but should still be
+		// traversed to reach children
 		if minLoc == -1 && maxLoc == -1 {
-			if _, ok := x.(*ast.Every); ok {
+			switch x.(type) {
+			case *ast.Every, *ast.Not, *ast.LogicalAnd, *ast.LogicalOr:
 				return false
 			}
 

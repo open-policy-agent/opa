@@ -116,7 +116,7 @@ func NewFromASTObject(data ast.Object) storage.Store {
 type store struct {
 	rmu      sync.RWMutex                      // reader-writer lock
 	wmu      sync.Mutex                        // writer lock
-	xid      uint64                            // last generated transaction id
+	xid      atomic.Uint64                     // last generated transaction id
 	data     any                               // raw or AST data
 	policies map[string][]byte                 // raw policies
 	triggers map[*handle]storage.TriggerConfig // registered triggers
@@ -137,7 +137,7 @@ type handle struct {
 
 func (db *store) NewTransaction(_ context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
 	txn := &transaction{
-		xid: atomic.AddUint64(&db.xid, uint64(1)),
+		xid: db.xid.Add(1),
 		db:  db,
 	}
 

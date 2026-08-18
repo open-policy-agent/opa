@@ -221,9 +221,9 @@ func getABIVersion(mod api.Module) (int32, int32, error) {
 }
 
 // close releases the wazero Runtime and all resources associated with this VM.
-func (v *VM) close() {
-	if v.runtime != nil {
-		v.runtime.Close(context.Background())
+func (i *VM) close() {
+	if i.runtime != nil {
+		i.runtime.Close(context.Background())
 	}
 }
 
@@ -305,10 +305,7 @@ func (i *VM) Eval(ctx context.Context,
 	if !ok {
 		return nil, fmt.Errorf("read result from memory at %d", resultAddr)
 	}
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		n = 0
-	}
+	n := max(bytes.IndexByte(data, 0), 0)
 
 	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
 	return data[:n], nil
@@ -386,10 +383,7 @@ func (i *VM) evalCompat(ctx context.Context,
 	if !ok {
 		return nil, fmt.Errorf("read result from memory at %d", serialized)
 	}
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		n = 0
-	}
+	n := max(bytes.IndexByte(data, 0), 0)
 
 	metrics.Timer("wasm_vm_eval_prepare_result").Stop()
 	return data[:n], nil
@@ -593,10 +587,7 @@ func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (any, erro
 	if !ok {
 		return nil, fmt.Errorf("read memory at %d", serialized)
 	}
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		n = 0
-	}
+	n := max(bytes.IndexByte(data, 0), 0)
 
 	// Parse the result into go types.
 	decoder := json.NewDecoder(bytes.NewReader(data[:n]))

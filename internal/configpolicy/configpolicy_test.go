@@ -5,6 +5,7 @@
 package configpolicy
 
 import (
+	"encoding/json"
 	"reflect"
 	"slices"
 	"testing"
@@ -92,6 +93,36 @@ func TestPolicyCompilerCompilesOnce(t *testing.T) {
 	}
 	if c1 != c2 {
 		t.Fatal("expected Compiler to return the same compiled result on repeated calls")
+	}
+}
+
+const helpersModule = `package test.helpers
+
+import data.opa.config.util
+
+processed := object.union_n(array.concat([input.config], [patch | some patch in _patches]))
+
+_patches contains {"size": 10} if util.absent(["size"])
+
+errors contains "size must be a positive number" if util.not_positive_number(["size"])
+`
+
+// The shared helpers are compiled into every policy, so a policy can use them
+// without embedding its own copy.
+func TestPolicySharedHelpers(t *testing.T) {
+	p := New("test/helpers.rego", helpersModule, "data.test.helpers = x")
+
+	processed, _, err := p.Eval(t.Context(), map[string]any{"config": map[string]any{}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(processed, map[string]any{"size": json.Number("10")}) {
+		t.Fatalf("expected the helper-guarded default to be injected, got %v", processed)
+	}
+
+	_, _, err = p.Eval(t.Context(), map[string]any{"config": map[string]any{"size": -1}})
+	if err == nil || err.Error() != "size must be a positive number" {
+		t.Fatalf("expected the helper to reject a non-positive value, got %v", err)
 	}
 }
 

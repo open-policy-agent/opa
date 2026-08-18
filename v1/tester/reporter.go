@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/cmd/formats"
@@ -245,11 +244,11 @@ func (r PrettyReporter) fmtBenchmark(tr *Result) string {
 		//
 		// This converts the test case name like data.foo.bar.test_auth to be more
 		// like BenchmarkDataFooBarTestAuth.
-		camelCaseName := ""
+		var camelCaseName strings.Builder
 		for part := range strings.SplitSeq(strings.ReplaceAll(name, "_", "."), ".") {
-			camelCaseName += strings.Title(part) //nolint:perfsprint,staticcheck
+			camelCaseName.WriteString(strings.Title(part)) //nolint:staticcheck
 		}
-		name = "Benchmark" + camelCaseName
+		name = "Benchmark" + camelCaseName.String()
 	}
 
 	result := fmt.Sprintf("%s\t%s", name, tr.BenchmarkResult.String())
@@ -276,11 +275,7 @@ func (r JSONReporter) Report(ch chan *Result) error {
 	switch r.Sort {
 	case formats.SortDuration:
 		slices.SortFunc(report, func(i, j *Result) int {
-			return cmp.Compare(i.Duration, j.Duration)
-		})
-
-		sort.Slice(report, func(i, j int) bool {
-			return report[i].Duration > report[j].Duration
+			return cmp.Compare(j.Duration, i.Duration)
 		})
 	}
 

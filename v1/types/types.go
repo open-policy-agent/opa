@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -144,11 +143,8 @@ func NewBoolean() Boolean {
 }
 
 // MarshalJSON returns the JSON encoding of t.
-func (t Boolean) MarshalJSON() ([]byte, error) {
-	repr := map[string]any{
-		"type": t.typeMarker(),
-	}
-	return json.Marshal(repr)
+func (Boolean) MarshalJSON() ([]byte, error) {
+	return util.StringToByteSlice(`{"type":"boolean"}`), nil
 }
 
 func (t Boolean) String() string {
@@ -164,10 +160,8 @@ func NewString() String {
 }
 
 // MarshalJSON returns the JSON encoding of t.
-func (t String) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
-		"type": t.typeMarker(),
-	})
+func (String) MarshalJSON() ([]byte, error) {
+	return util.StringToByteSlice(`{"type":"string"}`), nil
 }
 
 func (String) String() string {
@@ -183,10 +177,8 @@ func NewNumber() Number {
 }
 
 // MarshalJSON returns the JSON encoding of t.
-func (t Number) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
-		"type": t.typeMarker(),
-	})
+func (Number) MarshalJSON() ([]byte, error) {
+	return util.StringToByteSlice(`{"type":"number"}`), nil
 }
 
 func (Number) String() string {
@@ -296,8 +288,7 @@ func (t *Set) toMap() map[string]any {
 }
 
 func (t *Set) String() string {
-	prefix := typeSet
-	return prefix + "[" + Sprint(t.of) + "]"
+	return typeSet + "[" + Sprint(t.of) + "]"
 }
 
 // StaticProperty represents a static object property.
@@ -345,7 +336,7 @@ func (p *DynamicProperty) MarshalJSON() ([]byte, error) {
 }
 
 func (p *DynamicProperty) String() string {
-	return fmt.Sprintf("%s: %s", Sprint(p.Key), Sprint(p.Value))
+	return Sprint(p.Key) + ": " + Sprint(p.Value)
 }
 
 // Object represents the object type.
@@ -356,11 +347,8 @@ type Object struct {
 
 // NewObject returns a new Object type.
 func NewObject(static []*StaticProperty, dynamic *DynamicProperty) *Object {
-	slices.SortFunc(static, func(a, b *StaticProperty) int {
-		return util.Compare(a.Key, b.Key)
-	})
 	return &Object{
-		static:  static,
+		static:  util.SortedFunc(static, cmpSpKey),
 		dynamic: dynamic,
 	}
 }
@@ -428,18 +416,12 @@ func (t *Object) toMap() map[string]any {
 
 // Select returns the type of the named property.
 func (t *Object) Select(name any) Type {
-	pos := sort.Search(len(t.static), func(x int) bool {
-		return util.Compare(t.static[x].Key, name) >= 0
-	})
-
-	if pos < len(t.static) && util.Compare(t.static[pos].Key, name) == 0 {
+	if pos, found := slices.BinarySearchFunc(t.static, name, cmpSpKeyName); found {
 		return t.static[pos].Value
 	}
 
-	if t.dynamic != nil {
-		if Contains(t.dynamic.Key, TypeOf(name)) {
-			return t.dynamic.Value
-		}
+	if t.dynamic != nil && Contains(t.dynamic.Key, TypeOf(name)) {
+		return t.dynamic.Value
 	}
 
 	return nil
@@ -553,8 +535,7 @@ type Any []Type
 func NewAny(of ...Type) Any {
 	sl := make(Any, len(of))
 	copy(sl, of)
-	sort.Sort(typeSlice(sl))
-	return sl
+	return util.SortedFunc(sl, Compare)
 }
 
 // Contains returns true if t is a superset of other.
@@ -562,16 +543,8 @@ func (t Any) Contains(other Type) bool {
 	if _, ok := other.(*Function); ok {
 		return false
 	}
-	// Note(philipc): We used to do this as a linear search.
-	// Since this is always sorted, we can use a binary search instead.
-	i := sort.Search(len(t), func(i int) bool {
-		return Compare(t[i], other) >= 0
-	})
-	if i < len(t) && Compare(t[i], other) == 0 {
-		// x is present at t[i]
-		return true
-	}
-	return len(t) == 0
+	_, found := slices.BinarySearchFunc(t, other, Compare)
+	return found || len(t) == 0
 }
 
 // MarshalJSON returns the JSON encoding of t.
@@ -598,9 +571,8 @@ func (t Any) Merge(other Type) Any {
 		return t
 	}
 	cpy := make(Any, len(t)+1)
-	idx := sort.Search(len(t), func(i int) bool {
-		return Compare(t[i], other) >= 0
-	})
+	idx, _ := slices.BinarySearchFunc(t, other, Compare)
+
 	copy(cpy, t[:idx])
 	cpy[idx] = other
 	copy(cpy[idx+1:], t[idx:])
@@ -910,7 +882,7 @@ func Compare(a, b Type) int {
 				return cmp
 			}
 		}
-		return typeSliceCompare(arrA.static, arrB.static)
+		return slices.CompareFunc(arrA.static, arrB.static, Compare)
 	case *Object:
 		objA := a.(*Object)
 		objB := b.(*Object)
@@ -964,9 +936,7 @@ func Compare(a, b Type) int {
 		}
 		return Compare(setA.of, setB.of)
 	case Any:
-		sl1 := typeSlice(a.(Any))
-		sl2 := typeSlice(b.(Any))
-		return typeSliceCompare(sl1, sl2)
+		return slices.CompareFunc([]Type(a.(Any)), []Type(b.(Any)), Compare)
 	case *Function:
 		fA := a.(*Function)
 		fB := b.(*Function)
@@ -1212,34 +1182,9 @@ func TypeOf(x any) Type {
 		}
 		return NewObject(static, nil)
 	case []any:
-		static := make([]Type, len(x))
-		for i := range x {
-			static[i] = TypeOf(x[i])
-		}
-		return NewArray(static, nil)
+		return NewArray(util.Map(x, TypeOf), nil)
 	}
 	panic("unreachable")
-}
-
-type typeSlice []Type
-
-func (s typeSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }
-func (s typeSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s typeSlice) Len() int           { return len(s) }
-
-func typeSliceCompare(a, b []Type) int {
-	minLen := min(len(b), len(a))
-	for i := range minLen {
-		if cmp := Compare(a[i], b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-	if len(a) < len(b) {
-		return -1
-	} else if len(b) < len(a) {
-		return 1
-	}
-	return 0
 }
 
 func typeOrder(x Type) int {
@@ -1266,4 +1211,12 @@ func typeOrder(x Type) int {
 		return -1
 	}
 	panic("unreachable")
+}
+
+func cmpSpKeyName(p *StaticProperty, name any) int {
+	return util.Compare(p.Key, name)
+}
+
+func cmpSpKey(a, b *StaticProperty) int {
+	return util.Compare(a.Key, b.Key)
 }

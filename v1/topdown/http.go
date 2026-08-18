@@ -33,80 +33,14 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-type cachingMode string
-
 const (
 	defaultHTTPRequestTimeoutEnv             = "HTTP_SEND_TIMEOUT"
 	defaultCachingMode           cachingMode = "serialized"
 	cachingModeDeserialized      cachingMode = "deserialized"
-)
+	httpSendLatencyMetricKey                 = "rego_builtin_http_send"
+	httpSendInterQueryCacheHits              = httpSendLatencyMetricKey + "_interquery_cache_hits"
+	httpSendNetworkRequests                  = httpSendLatencyMetricKey + "_network_requests"
 
-var defaultHTTPRequestTimeout = time.Second * 5
-
-var allowedKeyNames = [...]string{
-	"method",
-	"url",
-	"body",
-	"enable_redirect",
-	"force_json_decode",
-	"force_yaml_decode",
-	"headers",
-	"raw_body",
-	"tls_use_system_certs",
-	"tls_ca_cert",
-	"tls_ca_cert_file",
-	"tls_ca_cert_env_variable",
-	"tls_client_cert",
-	"tls_client_cert_file",
-	"tls_client_cert_env_variable",
-	"tls_client_key",
-	"tls_client_key_file",
-	"tls_client_key_env_variable",
-	"tls_insecure_skip_verify",
-	"tls_server_name",
-	"timeout",
-	"cache",
-	"force_cache",
-	"force_cache_duration_seconds",
-	"raise_error",
-	"caching_mode",
-	"max_retry_attempts",
-	"cache_ignored_headers",
-}
-
-// ref: https://www.rfc-editor.org/rfc/rfc7231#section-6.1
-var cacheableHTTPStatusCodes = [...]int{
-	http.StatusOK,
-	http.StatusNonAuthoritativeInfo,
-	http.StatusNoContent,
-	http.StatusPartialContent,
-	http.StatusMultipleChoices,
-	http.StatusMovedPermanently,
-	http.StatusNotFound,
-	http.StatusMethodNotAllowed,
-	http.StatusGone,
-	http.StatusRequestURITooLong,
-	http.StatusNotImplemented,
-}
-
-var (
-	httpSendNetworkErrTerm, httpSendInternalErrTerm *ast.Term
-
-	allowedKeys                 = ast.NewSet()
-	cacheableCodes              = ast.NewSet()
-	requiredKeys                = ast.NewSet(ast.InternedTerm("method"), ast.InternedTerm("url"))
-	httpSendLatencyMetricKey    = "rego_builtin_http_send"
-	httpSendInterQueryCacheHits = httpSendLatencyMetricKey + "_interquery_cache_hits"
-	httpSendNetworkRequests     = httpSendLatencyMetricKey + "_network_requests"
-)
-
-type httpSendKey string
-
-// CustomizeRoundTripper allows customizing an existing http.Transport,
-// to the returned value, which could be the same Transport or a new one.
-type CustomizeRoundTripper func(*http.Transport) http.RoundTripper
-
-const (
 	// httpSendBuiltinCacheKey is the key in the builtin context cache that
 	// points to the http.send() specific cache resides at.
 	httpSendBuiltinCacheKey httpSendKey = "HTTP_SEND_CACHE_KEY"
@@ -124,8 +58,117 @@ const (
 	maxRetryDelay = time.Second * 60
 )
 
-func builtinHTTPSend(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+var (
+	defaultHTTPRequestTimeout = time.Second * 5
+	allowedKeyNames           = [...]string{
+		"method",
+		"url",
+		"body",
+		"enable_redirect",
+		"force_json_decode",
+		"force_yaml_decode",
+		"headers",
+		"raw_body",
+		"tls_use_system_certs",
+		"tls_ca_cert",
+		"tls_ca_cert_file",
+		"tls_ca_cert_env_variable",
+		"tls_client_cert",
+		"tls_client_cert_file",
+		"tls_client_cert_env_variable",
+		"tls_client_key",
+		"tls_client_key_file",
+		"tls_client_key_env_variable",
+		"tls_insecure_skip_verify",
+		"tls_server_name",
+		"timeout",
+		"cache",
+		"force_cache",
+		"force_cache_duration_seconds",
+		"raise_error",
+		"caching_mode",
+		"max_retry_attempts",
+		"cache_ignored_headers",
+	}
+	// ref: https://www.rfc-editor.org/rfc/rfc7231#section-6.1
+	cacheableHTTPStatusCodes = [...]int{
+		http.StatusOK,
+		http.StatusNonAuthoritativeInfo,
+		http.StatusNoContent,
+		http.StatusPartialContent,
+		http.StatusMultipleChoices,
+		http.StatusMovedPermanently,
+		http.StatusNotFound,
+		http.StatusMethodNotAllowed,
+		http.StatusGone,
+		http.StatusRequestURITooLong,
+		http.StatusNotImplemented,
+	}
 
+	allowedKeys    = ast.NewSet()
+	cacheableCodes = ast.NewSet()
+	requiredKeys   = ast.NewSet(ast.InternedTerm("method"), ast.InternedTerm("url"))
+)
+
+type (
+	// CustomizeRoundTripper allows customizing an existing http.Transport,
+	// to the returned value, which could be the same Transport or a new one.
+	CustomizeRoundTripper func(*http.Transport) http.RoundTripper
+	cachingMode           string
+	httpSendKey           string
+	interQueryCacheValue  struct {
+		Data []byte
+	}
+	// httpRequestExecutor defines an interface for the http send cache
+	httpRequestExecutor interface {
+		CheckCache() (ast.Value, error)
+		InsertIntoCache(value *http.Response) (ast.Value, error)
+		InsertErrorIntoCache(err error)
+		ExecuteHTTPRequest() (*http.Response, error)
+	}
+	// The httpSendCache is used for intra-query caching of http.send results.
+	httpSendCache struct {
+		entries *util.HasherMap[ast.Value, httpSendCacheEntry]
+	}
+	httpSendCacheEntry struct {
+		response *ast.Value
+		error    error
+	}
+	interQueryCache struct {
+		bctx             BuiltinContext
+		req              ast.Object
+		key              ast.Object
+		httpReq          *http.Request
+		httpClient       *http.Client
+		forceJSONDecode  bool
+		forceYAMLDecode  bool
+		forceCacheParams forceCacheParams
+	}
+	interQueryCacheData struct {
+		RespBody   []byte
+		Status     string
+		StatusCode int
+		Headers    http.Header
+		ExpiresAt  time.Time
+	}
+	intraQueryCache struct {
+		bctx BuiltinContext
+		req  ast.Object
+		key  ast.Object
+	}
+	forceCacheParams struct {
+		forceDurationSeconds int32
+	}
+	responseHeaders struct {
+		etag         string // identifier for a specific version of the response
+		lastModified string // date and time response was last modified as per origin server
+	}
+	// deltaSeconds specifies a non-negative integer, representing
+	// time in seconds: http://tools.ietf.org/html/rfc7234#section-1.2.1
+	deltaSeconds int32
+)
+
+func builtinHTTPSend(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	obj, err := builtins.ObjectOperand(operands[0].Value, 1)
 	if err != nil {
 		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
@@ -139,7 +182,7 @@ func builtinHTTPSend(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	req, err := validateHTTPRequestOperand(operands[0], 1)
 	if err != nil {
 		if raiseError {
-			return handleHTTPSendErr(bctx, err)
+			return handleHTTPSendErr(bctx.Context, bctx.Location, err)
 		}
 
 		return iter(generateRaiseErrorResult(handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)))
@@ -148,9 +191,8 @@ func builtinHTTPSend(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	result, err := getHTTPResponse(bctx, req)
 	if err != nil {
 		if raiseError {
-			return handleHTTPSendErr(bctx, err)
+			return handleHTTPSendErr(bctx.Context, bctx.Location, err)
 		}
-
 		result = generateRaiseErrorResult(err)
 	}
 	return iter(result)
@@ -161,12 +203,12 @@ func generateRaiseErrorResult(err error) *ast.Term {
 	switch err.(type) {
 	case *url.Error:
 		errObj = ast.NewObject(
-			ast.Item(ast.InternedTerm("code"), httpSendNetworkErrTerm),
+			ast.Item(ast.InternedTerm("code"), ast.InternedTerm(HTTPSendNetworkErr)),
 			ast.Item(ast.InternedTerm("message"), ast.StringTerm(err.Error())),
 		)
 	default:
 		errObj = ast.NewObject(
-			ast.Item(ast.InternedTerm("code"), httpSendInternalErrTerm),
+			ast.Item(ast.InternedTerm("code"), ast.InternedTerm(HTTPSendInternalErr)),
 			ast.Item(ast.InternedTerm("message"), ast.StringTerm(err.Error())),
 		)
 	}
@@ -178,7 +220,6 @@ func generateRaiseErrorResult(err error) *ast.Term {
 }
 
 func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
-
 	bctx.Metrics.Timer(httpSendLatencyMetricKey).Start()
 	defer bctx.Metrics.Timer(httpSendLatencyMetricKey).Stop()
 
@@ -200,11 +241,12 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 
 	if resp == nil {
 		httpResp, err := reqExecutor.ExecuteHTTPRequest()
+		defer util.Close(httpResp)
+
 		if err != nil {
 			reqExecutor.InsertErrorIntoCache(err)
 			return nil, err
 		}
-		defer util.Close(httpResp)
 		// Add result to intra/inter-query cache.
 		resp, err = reqExecutor.InsertIntoCache(httpResp)
 		if err != nil {
@@ -229,59 +271,47 @@ func getKeyFromRequest(req ast.Object) (ast.Object, error) {
 		key.Insert(ast.InternedTerm("cache_ignored_headers"), ast.InternedNullTerm)
 		return key, nil
 	}
-	var cacheIgnoredHeaders []string
-	err := ast.As(cacheIgnoredHeadersTerm.Value, &cacheIgnoredHeaders)
-	if err != nil {
-		return nil, err
+	cacheIgnoredHeaders, ok := cacheIgnoredHeadersTerm.Value.(*ast.Array)
+	if !ok || cacheIgnoredHeaders.Until(util.Not(ast.TermValueIs[ast.String])) {
+		return nil, errors.New("cache_ignored_headers must be an array of strings")
 	}
-	var allHeaders map[string]any
-	err = ast.As(allHeadersTerm.Value, &allHeaders)
-	if err != nil {
-		return nil, err
-	}
-	for _, header := range cacheIgnoredHeaders {
-		delete(allHeaders, header)
-	}
-	val, err := ast.InterfaceToValue(allHeaders)
-	if err != nil {
-		return nil, err
-	}
-	key.Insert(ast.InternedTerm("headers"), ast.NewTerm(val))
+	allHeaders := allHeadersTerm.Value.(ast.Object)
+	filteredHeaders := ast.NewObjectWithCapacity(allHeaders.Len())
+
+	allHeaders.Foreach(func(key, val *ast.Term) {
+		if !cacheIgnoredHeaders.Until(key.Equal) {
+			filteredHeaders.Insert(key, val)
+		}
+	})
+
+	key.Insert(ast.InternedTerm("headers"), ast.NewTerm(filteredHeaders))
 	// remove cache_ignored_headers key
 	key.Insert(ast.InternedTerm("cache_ignored_headers"), ast.InternedNullTerm)
 	return key, nil
 }
 
 func init() {
+	ast.InternStringTerm(HTTPSendNetworkErr, HTTPSendInternalErr)
+	ast.InternStringTerm(allowedKeyNames[:]...)
 	for _, element := range allowedKeyNames {
-		ast.InternStringTerm(element)
 		allowedKeys.Add(ast.InternedTerm(element))
 	}
-
-	ast.InternStringTerm(HTTPSendNetworkErr, HTTPSendInternalErr)
-	httpSendNetworkErrTerm = ast.InternedTerm(HTTPSendNetworkErr)
-	httpSendInternalErrTerm = ast.InternedTerm(HTTPSendInternalErr)
 
 	createCacheableHTTPStatusCodes()
 	initDefaults()
 	RegisterBuiltinFunc(ast.HTTPSend.Name, builtinHTTPSend)
 }
 
-func handleHTTPSendErr(bctx BuiltinContext, err error) error {
+func handleHTTPSendErr(ctx context.Context, loc *ast.Location, err error) error {
 	// Return HTTP client timeout errors in a generic error message to avoid confusion about what happened.
 	// Do not do this if the builtin context was cancelled and is what caused the request to stop.
-	if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() && bctx.Context.Err() == nil {
+	if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() && ctx.Err() == nil {
 		err = fmt.Errorf("%s %s: request timed out", urlErr.Op, urlErr.URL)
 	}
-	if err := bctx.Context.Err(); err != nil {
-		return Halt{
-			Err: &Error{
-				Code:    CancelErr,
-				Message: fmt.Sprintf("http.send: timed out (%s)", err.Error()),
-			},
-		}
+	if err := ctx.Err(); err != nil {
+		return Halt{Err: &Error{Code: CancelErr, Message: fmt.Sprintf("http.send: timed out (%s)", err.Error())}}
 	}
-	return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
+	return handleBuiltinErr(ast.HTTPSend.Name, loc, err)
 }
 
 func initDefaults() {
@@ -300,7 +330,6 @@ func initDefaults() {
 }
 
 func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
-
 	obj, err := builtins.ObjectOperand(term.Value, pos)
 	if err != nil {
 		return nil, err
@@ -324,8 +353,7 @@ func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
 // canonicalizeHeaders returns a copy of the headers where the keys are in
 // canonical HTTP form.
 func canonicalizeHeaders(headers map[string]any) map[string]any {
-	canonicalized := map[string]any{}
-
+	canonicalized := make(map[string]any, len(headers))
 	for k, v := range headers {
 		canonicalized[http.CanonicalHeaderKey(k)] = v
 	}
@@ -371,21 +399,16 @@ func useSocket(rawURL string) (bool, string, *http.Transport) {
 	return true, u.String(), tr
 }
 
-func verifyHost(bctx BuiltinContext, host string) error {
-	if bctx.Capabilities == nil || bctx.Capabilities.AllowNet == nil {
+func verifyHost(caps *ast.Capabilities, host string) error {
+	if caps == nil || caps.AllowNet == nil || slices.Contains(caps.AllowNet, host) {
 		return nil
 	}
-
-	if slices.Contains(bctx.Capabilities.AllowNet, host) {
-		return nil
-	}
-
-	return fmt.Errorf("unallowed host: %s", host)
+	return fmt.Errorf("disallowed host: %s", host)
 }
 
-func verifyURLHost(bctx BuiltinContext, unverifiedURL string) error {
+func verifyURLHost(caps *ast.Capabilities, unverifiedURL string) error {
 	// Eager return to avoid unnecessary URL parsing
-	if bctx.Capabilities == nil || bctx.Capabilities.AllowNet == nil {
+	if caps == nil || caps.AllowNet == nil {
 		return nil
 	}
 
@@ -394,47 +417,40 @@ func verifyURLHost(bctx BuiltinContext, unverifiedURL string) error {
 		return err
 	}
 
-	host := strings.Split(parsedURL.Host, ":")[0]
+	host, _, _ := strings.Cut(parsedURL.Host, ":")
 
-	return verifyHost(bctx, host)
+	return verifyHost(caps, host)
 }
 
 func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *http.Client, error) {
 	var (
 		url, method string
-		// Additional CA certificates loading options.
-		tlsCaCert                      []byte
-		tlsCaCertEnvVar, tlsCaCertFile string
-		// Client TLS certificate and key options. Each input source
-		// comes in a matched pair.
-		tlsClientCert, tlsClientKey                        []byte
-		tlsClientCertEnvVar, tlsClientKeyEnvVar            string
-		tlsClientCertFile, tlsClientKeyFile, tlsServerName string
+		// CA and client certificates loading options. Each input source comes in a matched pair.
+		tlsCaCertEnvVar, tlsCaCertFile                                               string
+		tlsCaCert, tlsClientCert, tlsClientKey                                       []byte
+		tlsClientCertEnvVar, tlsClientKeyEnvVar, tlsClientCertFile, tlsClientKeyFile string
 
-		body, rawBody                         *bytes.Buffer
-		enableRedirect, tlsInsecureSkipVerify bool
-		tlsUseSystemCerts                     *bool
-		tlsConfig                             tls.Config
+		body                                  *bytes.Buffer
+		enableRedirect, tlsUseSystemCerts, ok bool
 		customHeaders                         map[string]any
 	)
 
+	tlsConfig := &tls.Config{}
 	timeout := defaultHTTPRequestTimeout
 
-	for _, val := range obj.Keys() {
-		key, err := ast.JSON(val.Value)
+	for _, key := range obj.Keys() {
+		keyAny, err := ast.JSON(key.Value)
 		if err != nil {
 			return nil, nil, err
 		}
-
-		key = key.(string)
+		val := obj.Get(key)
 
 		var strVal string
-
-		if s, ok := obj.Get(val).Value.(ast.String); ok {
+		if s, ok := val.Value.(ast.String); ok {
 			strVal = strings.Trim(string(s), "\"")
 		} else {
 			// Most parameters are strings, so consolidate the type checking.
-			switch key {
+			switch keyAny {
 			case "method",
 				"url",
 				"raw_body",
@@ -448,83 +464,78 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 				"tls_client_key_file",
 				"tls_client_key_env_variable",
 				"tls_server_name":
-				return nil, nil, fmt.Errorf("%q must be a string", key)
+				return nil, nil, fmt.Errorf("%q must be a string", keyAny)
 			}
 		}
 
-		switch key {
+		switch keyAny {
 		case "method":
 			method = strings.ToUpper(strVal)
 		case "url":
-			err := verifyURLHost(bctx, strVal)
-			if err != nil {
+			if err := verifyURLHost(bctx.Capabilities, strVal); err != nil {
 				return nil, nil, err
 			}
 			url = strVal
 		case "enable_redirect":
-			enableRedirect, err = strconv.ParseBool(obj.Get(val).String())
-			if err != nil {
+			if enableRedirect, err = strconv.ParseBool(val.String()); err != nil {
 				return nil, nil, err
 			}
 		case "body":
-			bodyVal := obj.Get(val).Value
-			bodyValInterface, err := ast.JSON(bodyVal)
+			if body != nil {
+				break // raw_body takes precedence
+			}
+			bodyVal, err := ast.JSON(val.Value)
 			if err != nil {
 				return nil, nil, err
 			}
-
-			bodyValBytes, err := json.Marshal(bodyValInterface)
+			bodyValBytes, err := json.Marshal(bodyVal)
 			if err != nil {
 				return nil, nil, err
 			}
 			body = bytes.NewBuffer(bodyValBytes)
 		case "raw_body":
-			rawBody = bytes.NewBufferString(strVal)
+			body = bytes.NewBufferString(strVal)
 		case "tls_use_system_certs":
-			tempTLSUseSystemCerts, err := strconv.ParseBool(obj.Get(val).String())
+			tlsUseSystemCerts, err = strconv.ParseBool(val.String())
 			if err != nil {
 				return nil, nil, err
 			}
-			tlsUseSystemCerts = &tempTLSUseSystemCerts
 		case "tls_ca_cert":
-			tlsCaCert = []byte(strVal)
+			tlsCaCert = util.StringToByteSlice(strVal)
 		case "tls_ca_cert_file":
 			tlsCaCertFile = strVal
 		case "tls_ca_cert_env_variable":
 			tlsCaCertEnvVar = strVal
 		case "tls_client_cert":
-			tlsClientCert = []byte(strVal)
+			tlsClientCert = util.StringToByteSlice(strVal)
 		case "tls_client_cert_file":
 			tlsClientCertFile = strVal
 		case "tls_client_cert_env_variable":
 			tlsClientCertEnvVar = strVal
 		case "tls_client_key":
-			tlsClientKey = []byte(strVal)
+			tlsClientKey = util.StringToByteSlice(strVal)
 		case "tls_client_key_file":
 			tlsClientKeyFile = strVal
 		case "tls_client_key_env_variable":
 			tlsClientKeyEnvVar = strVal
 		case "tls_server_name":
-			tlsServerName = strVal
+			tlsConfig.ServerName = strVal
 		case "headers":
-			headersVal := obj.Get(val).Value
-			headersValInterface, err := ast.JSON(headersVal)
+			headersValInterface, err := ast.JSON(val.Value)
 			if err != nil {
 				return nil, nil, err
 			}
-			var ok bool
 			customHeaders, ok = headersValInterface.(map[string]any)
 			if !ok {
 				return nil, nil, errors.New("invalid type for headers key")
 			}
 		case "tls_insecure_skip_verify":
-			tlsInsecureSkipVerify, err = strconv.ParseBool(obj.Get(val).String())
+			tlsConfig.InsecureSkipVerify, err = strconv.ParseBool(val.String())
 			if err != nil {
 				return nil, nil, err
 			}
 		case "timeout":
-			timeout, err = parseTimeout(obj.Get(val).Value)
-			if err != nil {
+			if timeout, err = parseTimeout(val.Value); err != nil {
 				return nil, nil, err
 			}
 		case "cache", "caching_mode",
@@ -532,7 +543,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			"force_json_decode", "force_yaml_decode",
 			"raise_error", "max_retry_attempts", "cache_ignored_headers": // no-op
 		default:
-			return nil, nil, fmt.Errorf("invalid parameter %q", key)
+			return nil, nil, fmt.Errorf("invalid parameter %q", keyAny)
 		}
 	}
 
@@ -540,26 +551,13 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		customHeaders = canonicalizeHeaders(customHeaders)
 	}
 
-	isTLS := false
-	client := &http.Client{
-		Timeout: timeout,
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-
-	if tlsInsecureSkipVerify {
-		isTLS = true
-		tlsConfig.InsecureSkipVerify = tlsInsecureSkipVerify
-	}
+	client := &http.Client{Timeout: timeout, CheckRedirect: useLastResponseRedirect}
 
 	if len(tlsClientCert) > 0 && len(tlsClientKey) > 0 {
 		cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
 		if err != nil {
 			return nil, nil, err
 		}
-
-		isTLS = true
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
 
@@ -568,8 +566,6 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		if err != nil {
 			return nil, nil, err
 		}
-
-		isTLS = true
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
 
@@ -581,20 +577,16 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			return nil, nil, fmt.Errorf("cannot extract public/private key pair from envvars %q, %q: %w",
 				tlsClientCertEnvVar, tlsClientKeyEnvVar, err)
 		}
-
-		isTLS = true
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
 
 	// Check the system certificates config first so that we
 	// load additional certificated into the correct pool.
-	if tlsUseSystemCerts != nil && *tlsUseSystemCerts && runtime.GOOS != "windows" {
+	if tlsUseSystemCerts && runtime.GOOS != "windows" {
 		pool, err := x509.SystemCertPool()
 		if err != nil {
 			return nil, nil, err
 		}
-
-		isTLS = true
 		tlsConfig.RootCAs = pool
 	}
 
@@ -604,8 +596,6 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		if err != nil {
 			return nil, nil, err
 		}
-
-		isTLS = true
 		tlsConfig.RootCAs = pool
 	}
 
@@ -614,8 +604,6 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		if err != nil {
 			return nil, nil, err
 		}
-
-		isTLS = true
 		tlsConfig.RootCAs = pool
 	}
 
@@ -624,35 +612,27 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		if err != nil {
 			return nil, nil, err
 		}
-
-		isTLS = true
 		tlsConfig.RootCAs = pool
 	}
 
-	// If Host header is set, use it for TLS server name.
-	if host, hasHost := customHeaders["Host"]; hasHost {
+	// If Host header is set, use it for TLS server name, unless set with tls_server_name.
+	if host, hasHost := customHeaders["Host"]; tlsConfig.ServerName == "" && hasHost {
 		// Only default the ServerName if the caller has
 		// specified the host. If we don't specify anything,
 		// Go will default to the target hostname. This name
 		// is not the same as the default that Go populates
 		// `req.Host` with, which is why we don't just set
 		// this unconditionally.
-		isTLS = true
 		tlsConfig.ServerName, _ = host.(string)
-	}
-
-	if tlsServerName != "" {
-		isTLS = true
-		tlsConfig.ServerName = tlsServerName
 	}
 
 	var transport *http.Transport
 	if ok, parsedURL, tr := useSocket(url); ok {
 		transport = tr
 		url = parsedURL
-	} else if isTLS {
+	} else if hasTLSConfig(tlsConfig) {
 		transport = http.DefaultTransport.(*http.Transport).Clone()
-		transport.TLSClientConfig = &tlsConfig
+		transport.TLSClientConfig = tlsConfig
 		transport.DisableKeepAlives = true
 	}
 
@@ -665,24 +645,16 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	// check if redirects are enabled
 	if enableRedirect {
 		client.CheckRedirect = func(req *http.Request, _ []*http.Request) error {
-			return verifyURLHost(bctx, req.URL.String())
+			return verifyURLHost(bctx.Capabilities, req.URL.String())
 		}
-	}
-
-	if rawBody != nil {
-		body = rawBody
-	} else if body == nil {
-		body = bytes.NewBufferString("")
 	}
 
 	// create the http request, use the builtin context's context to ensure
 	// the request is cancelled if evaluation is cancelled.
-	req, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequestWithContext(bctx.Context, method, url, util.Or(body, emptyBytesBuffer))
 	if err != nil {
 		return nil, nil, err
 	}
-
-	req = req.WithContext(bctx.Context)
 
 	// Add custom headers
 	if len(customHeaders) != 0 {
@@ -691,7 +663,6 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			if !ok {
 				return nil, nil, fmt.Errorf("invalid type for headers value %q", v)
 			}
-
 			req.Header.Add(k, header)
 		}
 
@@ -703,8 +674,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		// If the caller specifies the Host header, use it for the HTTP
 		// request host and the TLS server name.
 		if host, hasHost := customHeaders["Host"]; hasHost {
-			host := host.(string) // We already checked that it's a string.
-			req.Host = host
+			req.Host = host.(string) // We already checked that it's a string.
 		}
 	}
 
@@ -713,6 +683,17 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	}
 
 	return req, client, nil
+}
+
+func hasTLSConfig(tlsConfig *tls.Config) bool {
+	return tlsConfig.InsecureSkipVerify ||
+		tlsConfig.ServerName != "" ||
+		tlsConfig.RootCAs != nil ||
+		len(tlsConfig.Certificates) > 0
+}
+
+func useLastResponseRedirect(*http.Request, []*http.Request) error {
+	return http.ErrUseLastResponse
 }
 
 func executeHTTPRequest(req *http.Request, client *http.Client, inputReqObj ast.Object) (*http.Response, error) {
@@ -753,6 +734,10 @@ func executeHTTPRequest(req *http.Request, client *http.Client, inputReqObj ast.
 	return nil, err
 }
 
+func emptyBytesBuffer() *bytes.Buffer {
+	return bytes.NewBuffer([]byte{})
+}
+
 func isJSONType(header http.Header) bool {
 	t, _, err := mime.ParseMediaType(header.Get("Content-Type"))
 	if err != nil {
@@ -780,16 +765,6 @@ func isContentType(header http.Header, typ ...string) bool {
 		}
 	}
 	return false
-}
-
-type httpSendCacheEntry struct {
-	response *ast.Value
-	error    error
-}
-
-// The httpSendCache is used for intra-query caching of http.send results.
-type httpSendCache struct {
-	entries *util.HasherMap[ast.Value, httpSendCacheEntry]
 }
 
 func newHTTPSendCache() *httpSendCache {
@@ -883,7 +858,7 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 
 	value, cerr := requestCache.Clone(cachedValue)
 	if cerr != nil {
-		return nil, handleHTTPSendErr(c.bctx, cerr)
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, cerr)
 	}
 
 	c.bctx.Metrics.Counter(httpSendInterQueryCacheHits).Incr()
@@ -902,17 +877,20 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 		return nil, nil
 	}
 
-	if getCurrentTime(c.bctx).Before(cachedRespData.ExpiresAt) {
+	if getCurrentTime(c.bctx.Time).Before(cachedRespData.ExpiresAt) {
 		return cachedRespData.formatToAST(c.forceJSONDecode, c.forceYAMLDecode)
 	}
 
 	var err error
 	c.httpReq, c.httpClient, err = createHTTPRequest(c.bctx, c.key)
 	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, err)
 	}
 
-	headers := parseResponseHeaders(cachedRespData.Headers)
+	headers := &responseHeaders{
+		etag:         cachedRespData.Headers.Get("etag"),
+		lastModified: cachedRespData.Headers.Get("last-modified"),
+	}
 
 	// check with the server if the stale response is still up-to-date.
 	// If server returns a new response (ie. status_code=200), update the cache with the new response
@@ -935,8 +913,8 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 		}
 
 		if forceCaching(c.forceCacheParams) {
-			createdAt := getCurrentTime(c.bctx)
-			cachedRespData.ExpiresAt = createdAt.Add(time.Second * time.Duration(c.forceCacheParams.forceCacheDurationSeconds))
+			createdAt := getCurrentTime(c.bctx.Time)
+			cachedRespData.ExpiresAt = createdAt.Add(time.Second * time.Duration(c.forceCacheParams.forceDurationSeconds))
 		} else {
 			expiresAt, err := expiryFromHeaders(result.Header)
 			if err != nil {
@@ -979,12 +957,16 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 }
 
 // insertIntoHTTPSendInterQueryCache inserts given key and value in the inter-query cache
-func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) error {
+func insertIntoHTTPSendInterQueryCache(
+	bctx BuiltinContext,
+	key ast.Value,
+	resp *http.Response,
+	respBody []byte,
+	cacheParams forceCacheParams,
+) error {
 	if resp == nil || (!forceCaching(cacheParams) && !canStore(resp.Header)) || !cacheableCodes.Contains(ast.InternedTerm(resp.StatusCode)) {
 		return nil
 	}
-
-	requestCache := bctx.InterQueryBuiltinCache
 
 	obj, ok := key.(ast.Object)
 	if !ok {
@@ -999,9 +981,9 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 	var pcv cache.InterQueryCacheValue
 	var pcvData *interQueryCacheData
 	if cachingMode == defaultCachingMode {
-		pcv, pcvData, err = newInterQueryCacheValue(bctx, resp, respBody, cacheParams)
+		pcv, pcvData, err = newInterQueryCacheValue(bctx.Time, resp, respBody, cacheParams)
 	} else {
-		pcvData, err = newInterQueryCacheData(bctx, resp, respBody, cacheParams)
+		pcvData, err = newInterQueryCacheData(bctx.Time, resp, respBody, cacheParams)
 		pcv = pcvData
 	}
 
@@ -1009,7 +991,7 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 		return err
 	}
 
-	requestCache.InsertWithExpiry(key, pcv, pcvData.ExpiresAt)
+	bctx.InterQueryBuiltinCache.InsertWithExpiry(key, pcv, pcvData.ExpiresAt)
 	return nil
 }
 
@@ -1019,32 +1001,26 @@ func createCacheableHTTPStatusCodes() {
 	}
 }
 
-func parseTimeout(timeoutVal ast.Value) (time.Duration, error) {
-	var timeout time.Duration
+func parseTimeout(timeoutVal ast.Value) (timeout time.Duration, err error) {
 	switch t := timeoutVal.(type) {
 	case ast.Number:
-		timeoutInt, ok := t.Int64()
-		if !ok {
-			return timeout, fmt.Errorf("invalid timeout number value %v, must be int64", timeoutVal)
-		}
-		return time.Duration(timeoutInt), nil
-	case ast.String:
-		// Support strings without a unit, treat them the same as just a number value (ns)
-		var err error
-		timeoutInt, err := strconv.ParseInt(string(t), 10, 64)
-		if err == nil {
+		if timeoutInt, ok := t.Int64(); ok {
 			return time.Duration(timeoutInt), nil
 		}
-
-		// Try parsing it as a duration (requires a supported units suffix)
-		timeout, err = time.ParseDuration(string(t))
-		if err != nil {
-			return timeout, fmt.Errorf("invalid timeout value %v: %s", timeoutVal, err)
+		err = fmt.Errorf("invalid timeout number value %v, must be int64", timeoutVal)
+	case ast.String:
+		// Support strings without a unit, treat them the same as just a number value (ns)
+		if timeoutInt, ok := util.Atoi64(string(t)); ok {
+			return time.Duration(timeoutInt), nil
 		}
-		return timeout, nil
+		// Try parsing it as a duration (requires a supported units suffix)
+		if timeout, err = time.ParseDuration(string(t)); err != nil {
+			err = fmt.Errorf("invalid timeout value %v: %s", timeoutVal, err)
+		}
 	default:
-		return timeout, builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got %s", ast.ValueName(t))
+		err = builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got %s", ast.ValueName(t))
 	}
+	return timeout, err
 }
 
 func getBoolValFromReqObj(req ast.Object, key *ast.Term) (bool, error) {
@@ -1094,12 +1070,13 @@ func getCachingMode(req ast.Object) (cachingMode, error) {
 	return defaultCachingMode, nil
 }
 
-type interQueryCacheValue struct {
-	Data []byte
-}
-
-func newInterQueryCacheValue(bctx BuiltinContext, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) (*interQueryCacheValue, *interQueryCacheData, error) {
-	data, err := newInterQueryCacheData(bctx, resp, respBody, cacheParams)
+func newInterQueryCacheValue(
+	now *ast.Term,
+	resp *http.Response,
+	respBody []byte,
+	cacheParams forceCacheParams,
+) (*interQueryCacheValue, *interQueryCacheData, error) {
+	data, err := newInterQueryCacheData(now, resp, respBody, cacheParams)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1112,34 +1089,20 @@ func newInterQueryCacheValue(bctx BuiltinContext, resp *http.Response, respBody 
 }
 
 func (cb interQueryCacheValue) Clone() (cache.InterQueryCacheValue, error) {
-	dup := make([]byte, len(cb.Data))
-	copy(dup, cb.Data)
-	return &interQueryCacheValue{Data: dup}, nil
+	return &interQueryCacheValue{Data: slices.Clone(cb.Data)}, nil
 }
 
 func (cb interQueryCacheValue) SizeInBytes() int64 {
 	return int64(len(cb.Data))
 }
 
-func (cb *interQueryCacheValue) copyCacheData() (*interQueryCacheData, error) {
-	var res interQueryCacheData
-	err := util.UnmarshalJSON(cb.Data, &res)
-	if err != nil {
-		return nil, err
-	}
-	return &res, nil
+func (cb *interQueryCacheValue) copyCacheData() (res *interQueryCacheData, err error) {
+	err = util.UnmarshalJSON(cb.Data, &res)
+	return res, err
 }
 
-type interQueryCacheData struct {
-	RespBody   []byte
-	Status     string
-	StatusCode int
-	Headers    http.Header
-	ExpiresAt  time.Time
-}
-
-func forceCaching(cacheParams *forceCacheParams) bool {
-	return cacheParams != nil && cacheParams.forceCacheDurationSeconds > 0
+func forceCaching(cacheParams forceCacheParams) bool {
+	return cacheParams.forceDurationSeconds > 0
 }
 
 func expiryFromHeaders(headers http.Header) (time.Time, error) {
@@ -1160,29 +1123,25 @@ func expiryFromHeaders(headers http.Header) (time.Time, error) {
 	return expiresAt, nil
 }
 
-func newInterQueryCacheData(bctx BuiltinContext, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) (*interQueryCacheData, error) {
-	var expiresAt time.Time
-
-	if forceCaching(cacheParams) {
-		createdAt := getCurrentTime(bctx)
-		expiresAt = createdAt.Add(time.Second * time.Duration(cacheParams.forceCacheDurationSeconds))
-	} else {
-		var err error
-		expiresAt, err = expiryFromHeaders(resp.Header)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	cv := interQueryCacheData{
-		ExpiresAt:  expiresAt,
+func newInterQueryCacheData(
+	now *ast.Term,
+	resp *http.Response,
+	respBody []byte,
+	cacheParams forceCacheParams,
+) (data *interQueryCacheData, err error) {
+	data = &interQueryCacheData{
 		RespBody:   respBody,
 		Status:     resp.Status,
 		StatusCode: resp.StatusCode,
 		Headers:    resp.Header,
 	}
+	if forceCaching(cacheParams) {
+		data.ExpiresAt = getCurrentTime(now).Add(time.Second * time.Duration(cacheParams.forceDurationSeconds))
+	} else {
+		data.ExpiresAt, err = expiryFromHeaders(resp.Header)
+	}
 
-	return &cv, nil
+	return data, err
 }
 
 func (c *interQueryCacheData) formatToAST(forceJSONDecode, forceYAMLDecode bool) (ast.Value, error) {
@@ -1202,53 +1161,31 @@ func (*interQueryCacheData) SizeInBytes() int64 {
 }
 
 func (c *interQueryCacheData) Clone() (cache.InterQueryCacheValue, error) {
-	dup := make([]byte, len(c.RespBody))
-	copy(dup, c.RespBody)
-
 	return &interQueryCacheData{
 		ExpiresAt:  c.ExpiresAt,
-		RespBody:   dup,
+		RespBody:   slices.Clone(c.RespBody),
 		Status:     c.Status,
 		StatusCode: c.StatusCode,
 		Headers:    c.Headers.Clone(),
 	}, nil
 }
 
-type responseHeaders struct {
-	etag         string // identifier for a specific version of the response
-	lastModified string // date and time response was last modified as per origin server
-}
-
-// deltaSeconds specifies a non-negative integer, representing
-// time in seconds: http://tools.ietf.org/html/rfc7234#section-1.2.1
-type deltaSeconds int32
-
-func parseResponseHeaders(headers http.Header) *responseHeaders {
-	result := responseHeaders{}
-
-	result.etag = headers.Get("etag")
-
-	result.lastModified = headers.Get("last-modified")
-
-	return &result
-}
-
-func revalidateCachedResponse(req *http.Request, client *http.Client, inputReqObj ast.Object, headers *responseHeaders) (*http.Response, bool, error) {
-	etag := headers.etag
-	lastModified := headers.lastModified
-
-	if etag == "" && lastModified == "" {
+func revalidateCachedResponse(
+	req *http.Request,
+	client *http.Client,
+	inputReqObj ast.Object,
+	headers *responseHeaders,
+) (*http.Response, bool, error) {
+	if headers.etag == "" && headers.lastModified == "" {
 		return nil, false, nil
 	}
 
 	cloneReq := req.Clone(req.Context())
-
-	if etag != "" {
-		cloneReq.Header.Set("if-none-match", etag)
+	if headers.etag != "" {
+		cloneReq.Header.Set("if-none-match", headers.etag)
 	}
-
-	if lastModified != "" {
-		cloneReq.Header.Set("if-modified-since", lastModified)
+	if headers.lastModified != "" {
+		cloneReq.Header.Set("if-modified-since", headers.lastModified)
 	}
 
 	response, err := executeHTTPRequest(cloneReq, client, inputReqObj)
@@ -1256,49 +1193,29 @@ func revalidateCachedResponse(req *http.Request, client *http.Client, inputReqOb
 		return nil, false, err
 	}
 
-	switch response.StatusCode {
-	case http.StatusOK:
-		return response, true, nil
-
-	case http.StatusNotModified:
-		return response, false, nil
+	if isOK := response.StatusCode == http.StatusOK; isOK || response.StatusCode == http.StatusNotModified {
+		return response, isOK, nil
 	}
+
 	util.Close(response)
 	return nil, false, nil
 }
 
 func canStore(headers http.Header) bool {
-	ccHeaders := parseCacheControlHeader(headers)
-
 	// Check "no-store" cache directive
 	// The "no-store" response directive indicates that a cache MUST NOT
 	// store any part of either the immediate request or response.
-	if _, ok := ccHeaders["no-store"]; ok {
-		return false
-	}
-	return true
+	_, ok := parseCacheControlHeader(headers)["no-store"]
+	return !ok
 }
 
-func getCurrentTime(bctx BuiltinContext) time.Time {
-	var current time.Time
-
-	value, err := ast.JSON(bctx.Time.Value)
-	if err != nil {
-		return current
+func getCurrentTime(now *ast.Term) time.Time {
+	if valueNum, ok := now.Value.(ast.Number); ok {
+		if valueNumInt, ok := valueNum.Int64(); ok {
+			return time.Unix(0, valueNumInt).UTC()
+		}
 	}
-
-	valueNum, ok := value.(json.Number)
-	if !ok {
-		return current
-	}
-
-	valueNumInt, err := valueNum.Int64()
-	if err != nil {
-		return current
-	}
-
-	current = time.Unix(0, valueNumInt).UTC()
-	return current
+	return time.Now().UTC()
 }
 
 func parseCacheControlHeader(headers http.Header) map[string]string {
@@ -1311,11 +1228,10 @@ func parseCacheControlHeader(headers http.Header) map[string]string {
 			continue
 		}
 		if strings.ContainsRune(part, '=') {
-			items := strings.Split(part, "=")
-			if len(items) != 2 {
-				continue
+			if strings.Count(part, "=") == 1 {
+				left, right, _ := strings.Cut(part, "=")
+				ccDirectives[strings.Trim(left, " ")] = strings.Trim(right, ",")
 			}
-			ccDirectives[strings.Trim(items[0], " ")] = strings.Trim(items[1], ",")
 		} else {
 			ccDirectives[part] = ""
 		}
@@ -1325,27 +1241,17 @@ func parseCacheControlHeader(headers http.Header) map[string]string {
 }
 
 func getResponseHeaderDate(headers http.Header) (date time.Time, err error) {
-	dateHeader := headers.Get("date")
-	if dateHeader == "" {
-		err = errors.New("no date header")
-		return
+	if dateHeader := headers.Get("date"); dateHeader != "" {
+		return http.ParseTime(dateHeader)
 	}
-	return http.ParseTime(dateHeader)
+	return date, errors.New("no date header")
 }
 
-func getResponseHeaderExpires(headers http.Header) time.Time {
-	expiresHeader := headers.Get("expires")
-	if expiresHeader == "" {
-		return time.Time{}
+func getResponseHeaderExpires(headers http.Header) (exp time.Time) {
+	if expiresHeader := headers.Get("expires"); expiresHeader != "" {
+		exp, _ = http.ParseTime(expiresHeader)
 	}
-
-	date, err := http.ParseTime(expiresHeader)
-	if err != nil {
-		// servers can set `Expires: 0` which is an invalid date to indicate expired content
-		return time.Time{}
-	}
-
-	return date
+	return exp
 }
 
 // parseMaxAgeCacheDirective parses the max-age directive expressed in delta-seconds as per
@@ -1358,35 +1264,33 @@ func parseMaxAgeCacheDirective(cc map[string]string) (deltaSeconds, error) {
 
 	val, err := strconv.ParseUint(maxAge, 10, 32)
 	if err != nil {
-		if numError, ok := err.(*strconv.NumError); ok {
-			if numError.Err == strconv.ErrRange {
-				return deltaSeconds(math.MaxInt32), nil
-			}
+		if numError, ok := err.(*strconv.NumError); ok && numError.Err == strconv.ErrRange {
+			return deltaSeconds(math.MaxInt32), nil
 		}
 		return deltaSeconds(-1), err
 	}
 
-	if val > math.MaxInt32 {
-		return deltaSeconds(math.MaxInt32), nil
-	}
-	return deltaSeconds(val), nil
+	return deltaSeconds(min(val, math.MaxInt32)), nil
 }
 
 func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDecode bool) (ast.Value, []byte, error) {
-	resultRawBody, err := io.ReadAll(resp.Body)
+	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	resultObj, err := prepareASTResult(resp.Header, forceJSONDecode, forceYAMLDecode, resultRawBody, resp.Status, resp.StatusCode)
-	if err != nil {
-		return nil, nil, err
-	}
+	resultObj, err := prepareASTResult(resp.Header, forceJSONDecode, forceYAMLDecode, raw, resp.Status, resp.StatusCode)
 
-	return resultObj, resultRawBody, nil
+	return resultObj, raw, err
 }
 
-func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool, body []byte, status string, statusCode int) (ast.Value, error) {
+func prepareASTResult(
+	headers http.Header,
+	forceJSONDecode, forceYAMLDecode bool,
+	body []byte,
+	status string,
+	statusCode int,
+) (ast.Value, error) {
 	var resultBody any
 
 	// If the response body cannot be JSON/YAML decoded,
@@ -1399,39 +1303,25 @@ func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool
 		_ = util.Unmarshal(body, &resultBody)
 	}
 
-	result := make(map[string]any)
-	result["status"] = status
-	result["status_code"] = statusCode
-	result["body"] = resultBody
-	result["raw_body"] = string(body)
-	result["headers"] = getResponseHeaders(headers)
-
-	resultObj, err := ast.InterfaceToValue(result)
+	bodyValue, err := ast.InterfaceToValue(resultBody)
 	if err != nil {
 		return nil, err
 	}
 
-	return resultObj, nil
+	return ast.NewObject(
+		ast.Item(ast.InternedTerm("status"), ast.InternedTerm(status)),
+		ast.Item(ast.InternedTerm("status_code"), ast.InternedTerm(statusCode)),
+		ast.Item(ast.InternedTerm("body"), ast.NewTerm(bodyValue)),
+		ast.Item(ast.InternedTerm("raw_body"), ast.InternedTerm(util.ByteSliceToString(body))),
+		ast.Item(ast.InternedTerm("headers"), getResponseHeaders(headers)),
+	), nil
 }
 
-func getResponseHeaders(headers http.Header) map[string]any {
-	respHeaders := map[string]any{}
-	for headerName, values := range headers {
-		var respValues []any
-		for _, v := range values {
-			respValues = append(respValues, v)
-		}
-		respHeaders[strings.ToLower(headerName)] = respValues
+func getResponseHeaders(headers http.Header) *ast.Term {
+	if len(headers) == 0 {
+		return ast.InternedEmptyObject
 	}
-	return respHeaders
-}
-
-// httpRequestExecutor defines an interface for the http send cache
-type httpRequestExecutor interface {
-	CheckCache() (ast.Value, error)
-	InsertIntoCache(value *http.Response) (ast.Value, error)
-	InsertErrorIntoCache(err error)
-	ExecuteHTTPRequest() (*http.Response, error)
+	return ast.NewTerm(ast.MapToObject(headers, strings.ToLower, arrayFromStringSlice))
 }
 
 // newHTTPRequestExecutor returns a new HTTP request executor that wraps either an inter-query or
@@ -1439,7 +1329,7 @@ type httpRequestExecutor interface {
 func newHTTPRequestExecutor(bctx BuiltinContext, req ast.Object, key ast.Object) (httpRequestExecutor, error) {
 	useInterQueryCache, forceCacheParams, err := useInterQueryCache(req)
 	if err != nil {
-		return nil, handleHTTPSendErr(bctx, err)
+		return nil, handleHTTPSendErr(bctx.Context, bctx.Location, err)
 	}
 
 	if useInterQueryCache && bctx.InterQueryBuiltinCache != nil {
@@ -1448,41 +1338,22 @@ func newHTTPRequestExecutor(bctx BuiltinContext, req ast.Object, key ast.Object)
 	return newIntraQueryCache(bctx, req, key)
 }
 
-type interQueryCache struct {
-	bctx             BuiltinContext
-	req              ast.Object
-	key              ast.Object
-	httpReq          *http.Request
-	httpClient       *http.Client
-	forceJSONDecode  bool
-	forceYAMLDecode  bool
-	forceCacheParams *forceCacheParams
-}
-
-func newInterQueryCache(bctx BuiltinContext, req ast.Object, key ast.Object, forceCacheParams *forceCacheParams) (*interQueryCache, error) {
+func newInterQueryCache(bctx BuiltinContext, req ast.Object, key ast.Object, forceCacheParams forceCacheParams) (*interQueryCache, error) {
 	return &interQueryCache{bctx: bctx, req: req, key: key, forceCacheParams: forceCacheParams}, nil
 }
 
 // CheckCache checks the cache for the value of the key set on this object
-func (c *interQueryCache) CheckCache() (ast.Value, error) {
-	var err error
-
+func (c *interQueryCache) CheckCache() (resp ast.Value, err error) {
 	// Checking the intra-query cache first ensures consistency of errors and HTTP responses within a query.
-	resp, err := checkHTTPSendCache(c.bctx, c.key)
-	if err != nil {
-		return nil, err
-	}
-	if resp != nil {
-		return resp, nil
+	if resp, err = checkHTTPSendCache(c.bctx, c.key); err != nil || resp != nil {
+		return resp, err
 	}
 
-	c.forceJSONDecode, err = getBoolValFromReqObj(c.key, ast.InternedTerm("force_json_decode"))
-	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
+	if c.forceJSONDecode, err = getBoolValFromReqObj(c.key, ast.InternedTerm("force_json_decode")); err != nil {
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, err)
 	}
-	c.forceYAMLDecode, err = getBoolValFromReqObj(c.key, ast.InternedTerm("force_yaml_decode"))
-	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
+	if c.forceYAMLDecode, err = getBoolValFromReqObj(c.key, ast.InternedTerm("force_yaml_decode")); err != nil {
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, err)
 	}
 
 	resp, err = c.checkHTTPSendInterQueryCache()
@@ -1500,7 +1371,7 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 func (c *interQueryCache) InsertIntoCache(value *http.Response) (ast.Value, error) {
 	result, respBody, err := formatHTTPResponseToAST(value, c.forceJSONDecode, c.forceYAMLDecode)
 	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, err)
 	}
 
 	// Always insert into the intra-query cache, to maintain consistency within the same query.
@@ -1521,19 +1392,13 @@ func (c *interQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 	var err error
 	c.httpReq, c.httpClient, err = createHTTPRequest(c.bctx, c.req)
 	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, err)
 	}
 
 	// Increment counter for actual network requests
 	c.bctx.Metrics.Counter(httpSendNetworkRequests).Incr()
 
 	return executeHTTPRequest(c.httpReq, c.httpClient, c.req)
-}
-
-type intraQueryCache struct {
-	bctx BuiltinContext
-	req  ast.Object
-	key  ast.Object
 }
 
 func newIntraQueryCache(bctx BuiltinContext, req ast.Object, key ast.Object) (*intraQueryCache, error) {
@@ -1549,16 +1414,16 @@ func (c *intraQueryCache) CheckCache() (ast.Value, error) {
 func (c *intraQueryCache) InsertIntoCache(value *http.Response) (ast.Value, error) {
 	forceJSONDecode, err := getBoolValFromReqObj(c.key, ast.InternedTerm("force_json_decode"))
 	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, err)
 	}
 	forceYAMLDecode, err := getBoolValFromReqObj(c.key, ast.InternedTerm("force_yaml_decode"))
 	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, err)
 	}
 
 	result, _, err := formatHTTPResponseToAST(value, forceJSONDecode, forceYAMLDecode)
 	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, err)
 	}
 
 	if cacheableCodes.Contains(ast.InternedTerm(value.StatusCode)) {
@@ -1576,7 +1441,7 @@ func (c *intraQueryCache) InsertErrorIntoCache(err error) {
 func (c *intraQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 	httpReq, httpClient, err := createHTTPRequest(c.bctx, c.req)
 	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
+		return nil, handleHTTPSendErr(c.bctx.Context, c.bctx.Location, err)
 	}
 
 	// Increment counter for actual network requests
@@ -1585,15 +1450,15 @@ func (c *intraQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 	return executeHTTPRequest(httpReq, httpClient, c.req)
 }
 
-func useInterQueryCache(req ast.Object) (bool, *forceCacheParams, error) {
+func useInterQueryCache(req ast.Object) (bool, forceCacheParams, error) {
 	value, err := getBoolValFromReqObj(req, ast.InternedTerm("cache"))
 	if err != nil {
-		return false, nil, err
+		return false, forceCacheParams{}, err
 	}
 
 	valueForceCache, err := getBoolValFromReqObj(req, ast.InternedTerm("force_cache"))
 	if err != nil {
-		return false, nil, err
+		return false, forceCacheParams{}, err
 	}
 
 	if valueForceCache {
@@ -1601,27 +1466,23 @@ func useInterQueryCache(req ast.Object) (bool, *forceCacheParams, error) {
 		return true, forceCacheParams, err
 	}
 
-	return value, nil, nil
+	return value, forceCacheParams{}, nil
 }
 
-type forceCacheParams struct {
-	forceCacheDurationSeconds int32
-}
-
-func newForceCacheParams(req ast.Object) (*forceCacheParams, error) {
+func newForceCacheParams(req ast.Object) (p forceCacheParams, err error) {
 	term := req.Get(ast.InternedTerm("force_cache_duration_seconds"))
 	if term == nil {
-		return nil, errors.New("'force_cache' set but 'force_cache_duration_seconds' parameter is missing")
+		return p, errors.New("'force_cache' set but 'force_cache_duration_seconds' parameter is missing")
 	}
 
 	forceCacheDurationSeconds := term.String()
 
 	value, err := strconv.ParseInt(forceCacheDurationSeconds, 10, 32)
 	if err != nil {
-		return nil, err
+		return p, err
 	}
 
-	return &forceCacheParams{forceCacheDurationSeconds: int32(value)}, nil
+	return forceCacheParams{forceDurationSeconds: int32(value)}, nil
 }
 
 func getRaiseErrorValue(req ast.Object) (bool, error) {
@@ -1633,4 +1494,8 @@ func getRaiseErrorValue(req ast.Object) (bool, error) {
 		}
 	}
 	return bool(result), nil
+}
+
+func arrayFromStringSlice(slice []string) *ast.Term {
+	return ast.ArrayTerm(util.Map(slice, ast.InternedTerm)...)
 }

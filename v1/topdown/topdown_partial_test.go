@@ -7012,7 +7012,9 @@ func residualModuleFor(t *testing.T, ctx context.Context, module string, popts a
 	for _, body := range partials {
 		sb.WriteString("p if {\n")
 		for _, expr := range body {
-			sb.WriteString("\t" + expr.String() + "\n")
+			sb.WriteByte('\t')
+			sb.WriteString(expr.String())
+			sb.WriteByte('\n')
 		}
 		sb.WriteString("}\n")
 	}

@@ -10,7 +10,7 @@ a if {
 		input.x + input.y == 4
 	}
 
-	not { input.a == 1; input.b == 2}
+	not { input.a == 1; input.b == 2 }
 	not {
 		input.a == 1
 		input.b == 2
@@ -37,3 +37,5 @@ b if {
 		with input.y3 as 7
 		with input.y4 as 8
 }
+
+c if not { input.x }

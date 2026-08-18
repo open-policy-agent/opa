@@ -211,9 +211,9 @@ func newKeyVaultSignPlugin(ap *azureManagedIdentitiesAuthPlugin, cfg *azureKeyVa
 	return resp
 }
 
-func (akv *azureKeyVaultSignPlugin) setDefaults() {
-	if akv.config.APIVersion == "" {
-		akv.config.APIVersion = defaultKeyVaultAPIVersion
+func (ap *azureKeyVaultSignPlugin) setDefaults() {
+	if ap.config.APIVersion == "" {
+		ap.config.APIVersion = defaultKeyVaultAPIVersion
 	}
 }
 

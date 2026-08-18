@@ -6,7 +6,6 @@ package copypropagation
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -475,10 +474,9 @@ func sortbindings(bindings *ast.ValueMap) []*binding {
 		sorted = append(sorted, &binding{k, v})
 		return false
 	})
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].k.Compare(sorted[j].k) > 0
+	return util.SortedFunc(sorted, func(a, b *binding) int {
+		return b.k.Compare(a.k)
 	})
-	return sorted
 }
 
 // makeDisjointSets builds the union-find structure for the query. The structure

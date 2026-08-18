@@ -100,6 +100,13 @@ func TestFormatSourceError(t *testing.T) {
 	}
 }
 
+// TODO: Remove once `and`/`or` are no longer experimental keywords.
+func experimentalKeywordCapabilities(v ast.RegoVersion) *ast.Capabilities {
+	return ast.CapabilitiesForThisVersion(
+		ast.CapabilitiesRegoVersion(v),
+		ast.CapabilitiesExperimentalKeywords(true))
+}
+
 func TestFormatV0Source(t *testing.T) {
 	regoFiles, err := filepath.Glob("testfiles/v0/*.rego")
 	if err != nil {
@@ -119,7 +126,8 @@ func TestFormatV0Source(t *testing.T) {
 			}
 
 			popts := ast.ParserOptions{
-				RegoVersion: ast.RegoV0,
+				RegoVersion:  ast.RegoV0,
+				Capabilities: experimentalKeywordCapabilities(ast.RegoV0),
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV0,
@@ -135,8 +143,16 @@ func TestFormatV0Source(t *testing.T) {
 				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
 			}
 
-			if _, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts); err != nil {
+			formattedModule, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts)
+			if err != nil {
 				t.Fatalf("Failed to parse formatted bytes: %v", err)
+			}
+
+			if expASTPreserved(rego) {
+				module := ast.MustParseModuleWithOpts(string(contents), popts)
+				if !module.Equal(formattedModule) {
+					t.Fatalf("Expected formatting to preserve the AST, but got:\n\n%v\n\nexpected:\n\n%v", formattedModule, module)
+				}
 			}
 
 			formatted, err = SourceWithOpts(rego, formatted, opts)
@@ -171,7 +187,8 @@ func TestFormatV1Source(t *testing.T) {
 			}
 
 			popts := ast.ParserOptions{
-				RegoVersion: ast.RegoV1,
+				RegoVersion:  ast.RegoV1,
+				Capabilities: experimentalKeywordCapabilities(ast.RegoV1),
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV1,
@@ -187,8 +204,16 @@ func TestFormatV1Source(t *testing.T) {
 				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
 			}
 
-			if _, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts); err != nil {
+			formattedModule, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts)
+			if err != nil {
 				t.Fatalf("Failed to parse formatted bytes: %v", err)
+			}
+
+			if expASTPreserved(rego) {
+				module := ast.MustParseModuleWithOpts(string(contents), popts)
+				if !module.Equal(formattedModule) {
+					t.Fatalf("Expected formatting to preserve the AST, but got:\n\n%v\n\nexpected:\n\n%v", formattedModule, module)
+				}
 			}
 
 			formatted, err = SourceWithOpts(rego, formatted, opts)
@@ -202,6 +227,59 @@ func TestFormatV1Source(t *testing.T) {
 
 		})
 	}
+}
+
+// astAlteringTestFiles are the test files where formatting is expected to
+// change the AST. For all other test files, formatting must preserve it.
+var astAlteringTestFiles = map[string]bool{
+	// Imports are sorted.
+	"testfiles/v0/test.rego": true,
+	"testfiles/v0/test_in_operator_with_all_keywords_import.rego": true,
+	"testfiles/v0/test_keywords_in_refs.rego":                     true,
+	"testfiles/v0/test_keywords_in_refs_keep_brackets.rego":       true,
+
+	// The `future.keywords.in` import is added.
+	"testfiles/v0/test_in_operator_without_import.rego": true,
+
+	// `if` is dropped from the rule head, making `q[1] = y` parse as a partial
+	// object rule rather than a ref head rule.
+	"testfiles/v0/test_ref_heads.rego": true,
+
+	// Rule head `=` is rewritten to `:=`.
+	"testfiles/v1/test_contains.rego":                          true,
+	"testfiles/v1/test_contains_if.rego":                       true,
+	"testfiles/v1/test_every.rego":                             true,
+	"testfiles/v1/test_functions.rego":                         true,
+	"testfiles/v1/test_future_kw_import.rego":                  true,
+	"testfiles/v1/test_if.rego":                                true,
+	"testfiles/v1/test_in_operator_with_parenthesis.rego":      true,
+	"testfiles/v1/test_issue_2299.rego":                        true,
+	"testfiles/v1/test_issue_3836.rego":                        true,
+	"testfiles/v1/test_issue_5449.rego":                        true,
+	"testfiles/v1/test_issue_5449_with_contains_ref_rule.rego": true,
+	"testfiles/v1/test_issue_5449_with_ref_rule.rego":          true,
+	"testfiles/v1/test_issue_5798.rego":                        true,
+	"testfiles/v1/test_ref_heads.rego":                         true,
+	"testfiles/v1/test_unicode.rego":                           true,
+	"testfiles/v1/test_with.rego":                              true,
+
+	// Imports are sorted.
+	"testfiles/v1/test_keywords_in_refs.rego":               true,
+	"testfiles/v1/test_keywords_in_refs_keep_brackets.rego": true,
+
+	// The `rego.v1` import is dropped.
+	"testfiles/v1/test_rego_v1.rego": true,
+
+	// Constant template string expressions are folded into string parts.
+	"testfiles/v1/test_template_strings.rego": true,
+
+	// Rule head `=` is rewritten to `:=`, imports are sorted, and calls in
+	// expression position are rewritten to infix comparisons.
+	"testfiles/v1/test.rego": true,
+}
+
+func expASTPreserved(rego string) bool {
+	return !astAlteringTestFiles[filepath.ToSlash(rego)]
 }
 
 func TestFormatV0SourceToRegoV1(t *testing.T) {
@@ -844,6 +922,123 @@ p if {
 	not input.x == 1
 }`,
 		},
+		{
+			note:        "v0, and adds import if missing",
+			regoVersion: ast.RegoV0,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					input.a and input.b
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"and"},
+					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
+				}),
+			expected: `package test
+
+import future.keywords.and
+
+p {
+	input.a and input.b
+}`,
+		},
+		{
+			note:        "v1, and adds import if missing",
+			regoVersion: ast.RegoV1,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					input.a and input.b
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"and"},
+					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
+				}),
+			expected: `package test
+
+import future.keywords.and
+
+p if {
+	input.a and input.b
+}`,
+		},
+		{
+			note:        "v0, or adds import if missing",
+			regoVersion: ast.RegoV0,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					input.a or input.b
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"or"},
+					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
+				}),
+			expected: `package test
+
+import future.keywords.or
+
+p {
+	input.a or input.b
+}`,
+		},
+		{
+			note:        "v1, or adds import if missing",
+			regoVersion: ast.RegoV1,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+				p if {
+					input.a or input.b
+				}`,
+				ast.ParserOptions{
+					FutureKeywords: []string{"or"},
+					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
+				}),
+			expected: `package test
+
+import future.keywords.or
+
+p if {
+	input.a or input.b
+}`,
+		},
+		{
+			note: "logical chain, no locations",
+			toFmt: ast.NewExpr(&ast.LogicalAnd{
+				Lhs: ast.NewBody(ast.NewExpr(&ast.LogicalOr{
+					Lhs: ast.NewBody(ast.MustParseExpr("input.a")),
+					Rhs: ast.NewBody(ast.MustParseExpr("input.b")),
+				})),
+				Rhs: ast.NewBody(ast.MustParseExpr("input.c")),
+			}),
+			expected: `(input.a or input.b) and input.c`,
+		},
+		{
+			note: "logical chain, explicit operand bodies, no locations",
+			toFmt: ast.NewExpr(&ast.LogicalOr{
+				Lhs: ast.Body{
+					ast.MustParseExpr("input.a"),
+					ast.MustParseExpr("input.b"),
+				},
+				ExplicitLhs: true,
+				Rhs:         ast.NewBody(ast.MustParseExpr("input.c")),
+				ExplicitRhs: true,
+			}),
+			expected: `{ input.a; input.b } or { input.c }`,
+		},
+		{
+			note: "logical chain, brace-led implicit operands, no locations",
+			toFmt: ast.NewExpr(&ast.LogicalAnd{
+				Lhs: ast.NewBody(ast.NewExpr(ast.ObjectTerm(
+					[2]*ast.Term{ast.StringTerm("a"), ast.NumberTerm("1")}))),
+				Rhs: ast.NewBody(ast.NewExpr(ast.SetTerm(ast.VarTerm("x")))),
+			}),
+			expected: `({"a": 1}) and ({x})`,
+		},
+		{
+			note: "negated logical expression, no locations",
+			toFmt: ast.NewExpr(&ast.LogicalOr{
+				Lhs: ast.NewBody(ast.MustParseExpr("input.a")),
+				Rhs: ast.NewBody(ast.MustParseExpr("input.b")),
+			}).Complement(),
+			expected: `not (input.a or input.b)`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -1160,8 +1355,8 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 						t.Fatalf("Failed to read rego source: %v", err)
 					}
 
-					caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(regoVersion))
-					feats := []string{}
+					caps := experimentalKeywordCapabilities(regoVersion)
+					feats := make([]string, 0, len(caps.Features))
 					for _, f := range caps.Features {
 						if f != ast.FeatureKeywordsInRefs {
 							feats = append(feats, f)
@@ -1171,6 +1366,9 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 
 					popts := ast.ParserOptions{
 						RegoVersion: regoVersion,
+						// The source is parsed with keywords in refs allowed; it is
+						// only the formatting of refs that drops the feature.
+						Capabilities: experimentalKeywordCapabilities(regoVersion),
 					}
 					opts := Opts{
 						RegoVersion:   regoVersion,

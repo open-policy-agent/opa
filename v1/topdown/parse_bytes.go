@@ -37,7 +37,7 @@ func parseNumBytesError(msg string) error {
 }
 
 func errBytesUnitNotRecognized(unit string) error {
-	return parseNumBytesError(fmt.Sprintf("byte unit %s not recognized", unit))
+	return parseNumBytesError("byte unit " + unit + " not recognized")
 }
 
 var (
@@ -116,9 +116,7 @@ func builtinNumBytes(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 
 // Makes the string lower case and removes quotation marks
 func formatString(s ast.String) string {
-	str := string(s)
-	lower := strings.ToLower(str)
-	return strings.ReplaceAll(lower, "\"", "")
+	return strings.ReplaceAll(strings.ToLower(string(s)), "\"", "")
 }
 
 // Splits the string into a number string à la "10" or "10.2" and a unit

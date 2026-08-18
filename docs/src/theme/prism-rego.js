@@ -12,8 +12,9 @@ export default function(Prism) {
     },
 
     // Keywords from tmLanguage: default, not, package, import, as, with, else, some, in, every, if, contains
+    // plus the logical operator keywords: and, or
     "keyword": {
-      pattern: /\b(?:default|not|package|import|as|with|else|some|in|every|if|contains)\b/,
+      pattern: /\b(?:default|not|package|import|as|with|else|some|in|every|if|contains|and|or)\b/,
       greedy: true,
     },
 

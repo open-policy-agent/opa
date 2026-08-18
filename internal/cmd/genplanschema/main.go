@@ -11,10 +11,10 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"sort"
 
 	"github.com/open-policy-agent/opa/internal/genjsonschema"
 	"github.com/open-policy-agent/opa/v1/ir"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func reflectSchema() ([]byte, error) {
 		return nil, err
 	}
 
-	rootRef, err := b.AddStruct(reflect.TypeOf(ir.Policy{}))
+	rootRef, err := b.AddStruct(reflect.TypeFor[ir.Policy]())
 	if err != nil {
 		return nil, err
 	}
@@ -74,13 +74,13 @@ func planResolver(b *genjsonschema.Builder, t reflect.Type) (any, bool, error) {
 	switch t.Kind() {
 	case reflect.Struct:
 		switch {
-		case t == reflect.TypeOf(ir.Operand{}):
+		case t == reflect.TypeFor[ir.Operand]():
 			ref, err := addOperand(b)
 			if err != nil {
 				return nil, false, err
 			}
 			return genjsonschema.Map("$ref", ref), true, nil
-		case t == reflect.TypeOf(ir.Block{}):
+		case t == reflect.TypeFor[ir.Block]():
 			ref, err := addBlock(b)
 			if err != nil {
 				return nil, false, err
@@ -96,13 +96,13 @@ func planResolver(b *genjsonschema.Builder, t reflect.Type) (any, bool, error) {
 		}
 	case reflect.Interface:
 		switch {
-		case t == reflect.TypeOf((*ir.Stmt)(nil)).Elem():
+		case t == reflect.TypeFor[ir.Stmt]():
 			ref, err := addStmtUnion(b)
 			if err != nil {
 				return nil, false, err
 			}
 			return genjsonschema.Map("$ref", ref), true, nil
-		case t == reflect.TypeOf((*ir.Val)(nil)).Elem():
+		case t == reflect.TypeFor[ir.Val]():
 			ref, err := addValUnion(b)
 			if err != nil {
 				return nil, false, err
@@ -132,7 +132,7 @@ func addValUnion(b *genjsonschema.Builder) (string, error) {
 		return b.DefRef(name), nil
 	}
 	vals := ir.ValKinds()
-	kinds := sortedKeys(vals)
+	kinds := util.KeysSorted(vals)
 	branches := make([]any, 0, len(kinds))
 	for _, kind := range kinds {
 		valueSchema, err := b.ReflectType(reflect.TypeOf(vals[kind]))
@@ -183,7 +183,7 @@ func addStmtUnion(b *genjsonschema.Builder) (string, error) {
 	}
 
 	stmts := ir.StmtKinds()
-	kinds := sortedKeys(stmts)
+	kinds := util.KeysSorted(stmts)
 	branches := make([]any, 0, len(kinds))
 	for _, kind := range kinds {
 		bodyRef, err := b.AddStruct(reflect.TypeOf(stmts[kind]))
@@ -215,6 +215,8 @@ func makeNumberRefStmtSchema() genjsonschema.OrderedMap {
 			"col", genjsonschema.Map("type", "integer"),
 			"file", genjsonschema.Map("type", "integer"),
 			"row", genjsonschema.Map("type", "integer"),
+			"end_col", genjsonschema.Map("type", "integer"),
+			"end_row", genjsonschema.Map("type", "integer"),
 			"index", genjsonschema.Map("type", "integer"),
 			"Index", genjsonschema.Map(
 				"type", "integer",
@@ -223,18 +225,7 @@ func makeNumberRefStmtSchema() genjsonschema.OrderedMap {
 			),
 			"target", genjsonschema.Map("type", "integer"),
 		),
-		"required", []string{"col", "file", "index", "row", "target"},
+		"required", []string{"col", "end_col", "end_row", "file", "index", "row", "target"},
 		"additionalProperties", false,
 	)
-}
-
-// sortedKeys returns the keys of m in lexicographic order so the polymorphic
-// Stmt/Val unions render their branches in a byte-stable order.
-func sortedKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }

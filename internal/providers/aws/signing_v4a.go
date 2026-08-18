@@ -16,7 +16,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -211,7 +211,7 @@ func (s *httpSigner) Build() (signedRequest, error) {
 
 	// Sort Each Query Key's Values
 	for key := range query {
-		sort.Strings(query[key])
+		slices.Sort(query[key])
 	}
 
 	v4Internal.SanitizeHostForHeader(req)
@@ -319,7 +319,7 @@ func (*httpSigner) buildCanonicalHeaders(host string, rule v4Internal.Rule, head
 		headers = append(headers, lowerCaseKey)
 		signed[lowerCaseKey] = v
 	}
-	sort.Strings(headers)
+	slices.Sort(headers)
 
 	signedHeaders = strings.Join(headers, ";")
 

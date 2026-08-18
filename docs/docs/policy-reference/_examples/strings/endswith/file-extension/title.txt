@@ -1,0 +1,1 @@
+Allow only approved file extensions

@@ -447,8 +447,12 @@ func EvalEvaluatedRuleTracker(t *topdown.EvaluatedRuleTracker) EvalOption {
 }
 
 func (pq preparedQuery) Modules() map[string]*ast.Module {
-	mods := make(map[string]*ast.Module)
+	size := len(pq.r.parsedModules)
+	for _, b := range pq.r.bundles {
+		size += len(b.Modules)
+	}
 
+	mods := make(map[string]*ast.Module, size)
 	maps.Copy(mods, pq.r.parsedModules)
 
 	for _, b := range pq.r.bundles {
@@ -597,13 +601,16 @@ func (errs Errors) Error() string {
 		return "no error"
 	}
 	if len(errs) == 1 {
-		return fmt.Sprintf("1 error occurred: %v", errs[0].Error())
+		return "1 error occurred: " + errs[0].Error()
 	}
-	buf := []string{fmt.Sprintf("%v errors occurred", len(errs))}
+	bb := new(bytes.Buffer)
+	util.WriteInt(bb, len(errs))
+	bb.WriteString(" errors occurred")
 	for _, err := range errs {
-		buf = append(buf, err.Error())
+		bb.WriteByte('\n')
+		bb.WriteString(err.Error())
 	}
-	return strings.Join(buf, "\n")
+	return bb.String()
 }
 
 var errPartialEvaluationNotEffective = errors.New("partial evaluation not effective")
@@ -1639,7 +1646,6 @@ func CompilePartial(yes bool) CompileOption {
 // Compile returns a compiled policy query.
 func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResult, error) {
 	var cfg CompileContext
-
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -1648,7 +1654,6 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 	modules := make([]*ast.Module, 0, len(r.compiler.Modules))
 
 	if cfg.partial {
-
 		pq, err := r.Partial(ctx)
 		if err != nil {
 			return nil, err

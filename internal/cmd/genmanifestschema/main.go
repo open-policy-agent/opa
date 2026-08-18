@@ -37,8 +37,8 @@ func reflectSchema() ([]byte, error) {
 	// DisallowUnknownFields), and embedders rely on this to attach custom
 	// configuration alongside the documented fields. Keep the schema in
 	// step with that contract; sub-records like WasmResolver stay strict.
-	b.AllowAdditionalProperties(reflect.TypeOf(bundle.Manifest{}))
-	rootRef, err := b.AddStruct(reflect.TypeOf(bundle.Manifest{}))
+	b.AllowAdditionalProperties(reflect.TypeFor[bundle.Manifest]())
+	rootRef, err := b.AddStruct(reflect.TypeFor[bundle.Manifest]())
 	if err != nil {
 		return nil, err
 	}

@@ -7,8 +7,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-func (m *Module) AppendText(buf []byte) ([]byte, error) {
-	if m == nil {
+func (mod *Module) AppendText(buf []byte) ([]byte, error) {
+	if mod == nil {
 		return append(buf, "<nil module>"...), nil
 	}
 
@@ -17,7 +17,7 @@ func (m *Module) AppendText(buf []byte) ([]byte, error) {
 	// NOTE(anderseknert): this DOES allocate still, and while that's unfortunate,
 	// we'll be better off dealing with that when we have v2 JSON in the stdlib than
 	// doing manual JSON marshalling (and string length calculations) here.
-	for _, annotations := range m.Annotations {
+	for _, annotations := range mod.Annotations {
 		// rule annotations are attached to rules, so only check for package scoped ones here
 		if annotations.Scope == "package" || annotations.Scope == "subpackages" {
 			buf = append(buf, "# METADATA\n# "...)
@@ -26,13 +26,13 @@ func (m *Module) AppendText(buf []byte) ([]byte, error) {
 		}
 	}
 
-	if buf, err = m.Package.AppendText(buf); err != nil {
+	if buf, err = mod.Package.AppendText(buf); err != nil {
 		return nil, err
 	}
 	buf = append(buf, '\n')
 
-	if len(m.Imports) > 0 {
-		for _, imp := range m.Imports {
+	if len(mod.Imports) > 0 {
+		for _, imp := range mod.Imports {
 			buf = append(buf, '\n')
 			if buf, err = imp.AppendText(buf); err != nil {
 				return nil, err
@@ -41,10 +41,10 @@ func (m *Module) AppendText(buf []byte) ([]byte, error) {
 		buf = append(buf, '\n')
 	}
 
-	if len(m.Rules) > 0 {
-		for _, rule := range m.Rules {
+	if len(mod.Rules) > 0 {
+		for _, rule := range mod.Rules {
 			buf = append(buf, '\n')
-			if buf, err = rule.appendWithOpts(toStringOpts{regoVersion: m.regoVersion}, buf); err != nil {
+			if buf, err = rule.appendWithOpts(toStringOpts{regoVersion: mod.regoVersion}, buf); err != nil {
 				return nil, err
 			}
 		}
@@ -86,45 +86,45 @@ func (imp *Import) AppendText(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (r *Rule) AppendText(buf []byte) ([]byte, error) {
+func (rule *Rule) AppendText(buf []byte) ([]byte, error) {
 	regoVersion := DefaultRegoVersion
-	if r.Module != nil {
-		regoVersion = r.Module.RegoVersion()
+	if rule.Module != nil {
+		regoVersion = rule.Module.RegoVersion()
 	}
-	return r.appendWithOpts(toStringOpts{regoVersion: regoVersion}, buf)
+	return rule.appendWithOpts(toStringOpts{regoVersion: regoVersion}, buf)
 }
 
-func (r *Rule) appendWithOpts(opts toStringOpts, buf []byte) ([]byte, error) {
+func (rule *Rule) appendWithOpts(opts toStringOpts, buf []byte) ([]byte, error) {
 	// See note in [Module.AppendText] regarding annotations.
-	for _, annotations := range r.Annotations {
+	for _, annotations := range rule.Annotations {
 		buf = append(buf, "# METADATA\n# "...)
 		buf = append(buf, annotations.String()...)
 		buf = append(buf, '\n')
 	}
 
-	if r.Default {
+	if rule.Default {
 		buf = append(buf, "default "...)
 	}
 
 	var err error
-	if buf, err = r.Head.appendWithOpts(opts, buf); err != nil {
+	if buf, err = rule.Head.appendWithOpts(opts, buf); err != nil {
 		return nil, err
 	}
 
-	if !r.Default {
+	if !rule.Default {
 		switch opts.RegoVersion() {
 		case RegoV1, RegoV0CompatV1:
 			buf = append(buf, " if { "...)
 		default:
 			buf = append(buf, " { "...)
 		}
-		if buf, err = r.Body.AppendText(buf); err != nil {
+		if buf, err = rule.Body.AppendText(buf); err != nil {
 			return nil, err
 		}
 		buf = append(buf, " }"...)
 	}
-	if r.Else != nil {
-		if buf, err = r.Else.appendElse(opts, buf); err != nil {
+	if rule.Else != nil {
+		if buf, err = rule.Else.appendElse(opts, buf); err != nil {
 			return nil, err
 		}
 	}
@@ -132,13 +132,13 @@ func (r *Rule) appendWithOpts(opts toStringOpts, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (r *Rule) appendElse(opts toStringOpts, buf []byte) ([]byte, error) {
+func (rule *Rule) appendElse(opts toStringOpts, buf []byte) ([]byte, error) {
 	buf = append(buf, " else "...)
 
 	var err error
-	if r.Head.Value != nil {
+	if rule.Head.Value != nil {
 		buf = append(buf, "= "...)
-		if buf, err = r.Head.Value.AppendText(buf); err != nil {
+		if buf, err = rule.Head.Value.AppendText(buf); err != nil {
 			return nil, err
 		}
 	}
@@ -148,13 +148,13 @@ func (r *Rule) appendElse(opts toStringOpts, buf []byte) ([]byte, error) {
 	} else {
 		buf = append(buf, " { "...)
 	}
-	if buf, err = r.Body.AppendText(buf); err != nil {
+	if buf, err = rule.Body.AppendText(buf); err != nil {
 		return nil, err
 	}
 	buf = append(buf, " }"...)
 
-	if r.Else != nil {
-		if buf, err = r.Else.appendElse(opts, buf); err != nil {
+	if rule.Else != nil {
+		if buf, err = rule.Else.appendElse(opts, buf); err != nil {
 			return nil, err
 		}
 	}
@@ -162,52 +162,52 @@ func (r *Rule) appendElse(opts toStringOpts, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (h *Head) AppendText(buf []byte) ([]byte, error) {
-	return h.appendWithOpts(toStringOpts{}, buf)
+func (head *Head) AppendText(buf []byte) ([]byte, error) {
+	return head.appendWithOpts(toStringOpts{}, buf)
 }
 
-func (h *Head) appendWithOpts(opts toStringOpts, buf []byte) ([]byte, error) {
+func (head *Head) appendWithOpts(opts toStringOpts, buf []byte) ([]byte, error) {
 	var err error
-	if h.Reference == nil {
-		buf = append(buf, h.Name...)
+	if head.Reference == nil {
+		buf = append(buf, head.Name...)
 	} else {
-		if buf, err = h.Reference.AppendText(buf); err != nil {
+		if buf, err = head.Reference.AppendText(buf); err != nil {
 			return nil, err
 		}
 	}
 
 	containsAdded := false
 	switch {
-	case len(h.Args) != 0:
-		if buf, err = h.Args.AppendText(buf); err != nil {
+	case len(head.Args) != 0:
+		if buf, err = head.Args.AppendText(buf); err != nil {
 			return nil, err
 		}
-	case len(h.Reference) == 1 && h.Key != nil:
+	case len(head.Reference) == 1 && head.Key != nil:
 		switch opts.RegoVersion() {
 		case RegoV0:
 			buf = append(buf, '[')
-			if buf, err = h.Key.AppendText(buf); err != nil {
+			if buf, err = head.Key.AppendText(buf); err != nil {
 				return nil, err
 			}
 			buf = append(buf, ']')
 		default:
-			if buf, err = h.Key.AppendText(append(buf, " contains "...)); err != nil {
+			if buf, err = head.Key.AppendText(append(buf, " contains "...)); err != nil {
 				return nil, err
 			}
 			containsAdded = true
 		}
 	}
-	if h.Value != nil {
-		if h.Assign {
+	if head.Value != nil {
+		if head.Assign {
 			buf = append(buf, " := "...)
 		} else {
 			buf = append(buf, " = "...)
 		}
-		if buf, err = h.Value.AppendText(buf); err != nil {
+		if buf, err = head.Value.AppendText(buf); err != nil {
 			return nil, err
 		}
-	} else if !containsAdded && h.Name == "" && h.Key != nil {
-		if buf, err = h.Key.AppendText(append(buf, " contains "...)); err != nil {
+	} else if !containsAdded && head.Name == "" && head.Key != nil {
+		if buf, err = head.Key.AppendText(append(buf, " contains "...)); err != nil {
 			return nil, err
 		}
 	}
@@ -275,20 +275,20 @@ func (w *With) AppendText(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (w *Every) AppendText(buf []byte) ([]byte, error) {
+func (q *Every) AppendText(buf []byte) ([]byte, error) {
 	buf = append(buf, "every "...)
 	var err error
-	if w.Key != nil {
-		if buf, err = w.Key.AppendText(buf); err != nil {
+	if q.Key != nil {
+		if buf, err = q.Key.AppendText(buf); err != nil {
 			return nil, err
 		}
 		buf = append(buf, ", "...)
 	}
-	if buf, err = w.Value.AppendText(buf); err == nil {
+	if buf, err = q.Value.AppendText(buf); err == nil {
 		buf = append(buf, " in "...)
-		if buf, err = w.Domain.AppendText(buf); err == nil {
+		if buf, err = q.Domain.AppendText(buf); err == nil {
 			buf = append(buf, " { "...)
-			if buf, err = w.Body.AppendText(buf); err == nil {
+			if buf, err = q.Body.AppendText(buf); err == nil {
 				buf = append(buf, " }"...)
 			}
 		}

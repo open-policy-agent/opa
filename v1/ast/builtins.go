@@ -941,18 +941,20 @@ var ArrayReverse = &Builtin{
 var conversions = category("conversions")
 
 var ToNumber = &Builtin{
-	Name:        "to_number",
-	Description: "Converts a string, bool, or number value to a number: Strings are converted to numbers using `strconv.Atoi`, Boolean `false` is converted to 0 and `true` is converted to 1.",
+	Name: "to_number",
+	Description: "Converts value of type string, null or boolean to number. Numeric strings converts to the " +
+		"corresponding number when possible. Null and boolean `false` converts to 0 and boolean `true` to 1. " +
+		"Numbers are returned without conversion.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.NewAny(
+			types.Named("value", types.NewAny(
 				types.N,
 				types.S,
 				types.B,
 				types.Nl,
 			)).Description("value to convert"),
 		),
-		types.Named("num", types.N).Description("the numeric representation of `x`"),
+		types.Named("num", types.N).Description("the numeric representation of `value`"),
 	),
 	Categories:  conversions,
 	CanSkipBctx: true,
@@ -1002,7 +1004,7 @@ var RegexFindAllStringSubmatch = &Builtin{
 
 var RegexTemplateMatch = &Builtin{
 	Name:        "regex.template_match",
-	Description: "Matches a string against a pattern, where there pattern may be glob-like",
+	Description: "Matches a string against a pattern, where the pattern may be glob-like",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("template", types.S).Description("template expression containing `0..n` regular expressions"),
@@ -3123,8 +3125,10 @@ var JSONSchemaVerify = &Builtin{
 		}, nil)).
 			Description("`output` is of the form `[valid, error]`. If the schema is valid, then `valid` is `true`, and `error` is `null`. Otherwise, `valid` is `false` and `error` is a string describing the error."),
 	),
-	Categories:  objectCat,
-	CanSkipBctx: true,
+	Categories: objectCat,
+	// Needs the BuiltinContext to read the allow_net capability, which
+	// restricts the hosts that remote `$ref`s may be fetched from.
+	CanSkipBctx: false,
 }
 
 // JSONMatchSchema returns empty array if the document matches the JSON schema,
@@ -3676,12 +3680,8 @@ func (b *Builtin) IsNondeterministic() bool {
 func (b *Builtin) Expr(operands ...*Term) *Expr {
 	ts := make([]*Term, len(operands)+1)
 	ts[0] = NewTerm(b.Ref())
-	for i := range operands {
-		ts[i+1] = operands[i]
-	}
-	return &Expr{
-		Terms: ts,
-	}
+	copy(ts[1:], operands)
+	return &Expr{Terms: ts}
 }
 
 // Call creates a new term for the built-in with the given operands.

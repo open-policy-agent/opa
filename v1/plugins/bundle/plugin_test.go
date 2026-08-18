@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -4464,8 +4463,8 @@ func TestReconfigurePlugin_OneShot_BundleDeactivation(t *testing.T) {
 
 			expIDs := []string{"test-bundle/bundle/id1"}
 
-			sort.Strings(ids)
-			sort.Strings(expIDs)
+			slices.Sort(ids)
+			slices.Sort(expIDs)
 
 			if !slices.Equal(ids, expIDs) {
 				t.Fatalf("expected ids %v but got %v", expIDs, ids)
@@ -4490,7 +4489,7 @@ func TestReconfigurePlugin_OneShot_BundleDeactivation(t *testing.T) {
 
 			expIDs = []string{}
 
-			sort.Strings(ids)
+			slices.Sort(ids)
 
 			if !slices.Equal(ids, expIDs) {
 				t.Fatalf("expected ids %v but got %v", expIDs, ids)
@@ -4630,8 +4629,8 @@ func TestReconfigurePlugin_ManagerInit_BundleDeactivation(t *testing.T) {
 
 			expIDs := []string{"test-bundle/bundle/id1"}
 
-			sort.Strings(ids)
-			sort.Strings(expIDs)
+			slices.Sort(ids)
+			slices.Sort(expIDs)
 
 			if !slices.Equal(ids, expIDs) {
 				t.Fatalf("expected ids %v but got %v", expIDs, ids)
@@ -4656,7 +4655,7 @@ func TestReconfigurePlugin_ManagerInit_BundleDeactivation(t *testing.T) {
 
 			expIDs = []string{}
 
-			sort.Strings(ids)
+			slices.Sort(ids)
 
 			if !slices.Equal(ids, expIDs) {
 				t.Fatalf("expected ids %v but got %v", expIDs, ids)
@@ -7371,7 +7370,7 @@ func TestPluginManualTriggerWithServerError(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("expected type of error to be %s but got %s", reflect.TypeOf(bundleErrors), reflect.TypeOf(err))
+		t.Fatalf("expected type of error to be %s but got %s", reflect.TypeFor[Errors](), reflect.TypeOf(err))
 	}
 }
 
@@ -7762,8 +7761,8 @@ func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, 
 			return err
 		}
 
-		sort.Strings(ids)
-		sort.Strings(expIDs)
+		slices.Sort(ids)
+		slices.Sort(expIDs)
 
 		if !slices.Equal(ids, expIDs) {
 			return fmt.Errorf("expected ids %v but got %v", expIDs, ids)

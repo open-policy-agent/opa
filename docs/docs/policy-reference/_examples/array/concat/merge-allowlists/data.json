@@ -1,0 +1,6 @@
+{
+  "base_registries": [
+    "registry.internal/prod",
+    "ghcr.io/example"
+  ]
+}

@@ -175,7 +175,7 @@ type primitives struct {
 
 func TestReflectStructPrimitives(t *testing.T) {
 	b := NewBuilder(nil)
-	if _, err := b.AddStruct(reflect.TypeOf(primitives{})); err != nil {
+	if _, err := b.AddStruct(reflect.TypeFor[primitives]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got := mustMarshal(t, b.DefsOrdered())
@@ -196,7 +196,7 @@ type omitFields struct {
 
 func TestOmitEmptyAndNullability(t *testing.T) {
 	b := NewBuilder(nil)
-	if _, err := b.AddStruct(reflect.TypeOf(omitFields{})); err != nil {
+	if _, err := b.AddStruct(reflect.TypeFor[omitFields]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got := mustMarshal(t, b.DefsOrdered())
@@ -216,7 +216,7 @@ type withMaps struct {
 
 func TestMapHandling(t *testing.T) {
 	b := NewBuilder(nil)
-	if _, err := b.AddStruct(reflect.TypeOf(withMaps{})); err != nil {
+	if _, err := b.AddStruct(reflect.TypeFor[withMaps]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got := mustMarshal(t, b.DefsOrdered())
@@ -238,7 +238,7 @@ type outer struct {
 
 func TestNestedStructsAndPointer(t *testing.T) {
 	b := NewBuilder(nil)
-	if _, err := b.AddStruct(reflect.TypeOf(outer{})); err != nil {
+	if _, err := b.AddStruct(reflect.TypeFor[outer]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got := mustMarshal(t, b.DefsOrdered())
@@ -260,7 +260,7 @@ type embedder struct {
 
 func TestEmbeddedStructFieldsArePromoted(t *testing.T) {
 	b := NewBuilder(nil)
-	if _, err := b.AddStruct(reflect.TypeOf(embedder{})); err != nil {
+	if _, err := b.AddStruct(reflect.TypeFor[embedder]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got := mustMarshal(t, b.DefsOrdered())
@@ -281,13 +281,13 @@ type withInterface struct {
 
 func TestResolverInterceptsTypes(t *testing.T) {
 	resolver := func(_ *Builder, t reflect.Type) (any, bool, error) {
-		if t == reflect.TypeOf((*marker)(nil)).Elem() {
+		if t == reflect.TypeFor[marker]() {
 			return OrderedMap{{"description", "opaque marker"}}, true, nil
 		}
 		return nil, false, nil
 	}
 	b := NewBuilder(resolver)
-	if _, err := b.AddStruct(reflect.TypeOf(withInterface{})); err != nil {
+	if _, err := b.AddStruct(reflect.TypeFor[withInterface]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got := mustMarshal(t, b.DefsOrdered())
@@ -305,13 +305,13 @@ func TestResolverResultIsNullableWhenFieldCanBeNull(t *testing.T) {
 	// resolver's bare schema gets wrapped in a nullable form so the
 	// generated schema admits null in addition to the resolved shape.
 	resolver := func(_ *Builder, t reflect.Type) (any, bool, error) {
-		if t == reflect.TypeOf((*marker)(nil)).Elem() {
+		if t == reflect.TypeFor[marker]() {
 			return OrderedMap{{"description", "opaque marker"}}, true, nil
 		}
 		return nil, false, nil
 	}
 	b := NewBuilder(resolver)
-	if _, err := b.AddStruct(reflect.TypeOf(withRequiredInterface{})); err != nil {
+	if _, err := b.AddStruct(reflect.TypeFor[withRequiredInterface]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got := mustMarshal(t, b.DefsOrdered())
@@ -323,7 +323,7 @@ func TestResolverResultIsNullableWhenFieldCanBeNull(t *testing.T) {
 
 func TestInterfaceWithoutResolverErrors(t *testing.T) {
 	b := NewBuilder(nil)
-	_, err := b.AddStruct(reflect.TypeOf(withInterface{}))
+	_, err := b.AddStruct(reflect.TypeFor[withInterface]())
 	if err == nil {
 		t.Fatal("expected error for unresolved non-empty interface")
 	}
@@ -334,13 +334,13 @@ func TestResolverHandledWithNilSchemaErrors(t *testing.T) {
 	// otherwise the field would marshal as JSON null, silently corrupting
 	// output.
 	resolver := func(_ *Builder, t reflect.Type) (any, bool, error) {
-		if t == reflect.TypeOf((*marker)(nil)).Elem() {
+		if t == reflect.TypeFor[marker]() {
 			return nil, true, nil
 		}
 		return nil, false, nil
 	}
 	b := NewBuilder(resolver)
-	_, err := b.AddStruct(reflect.TypeOf(withInterface{}))
+	_, err := b.AddStruct(reflect.TypeFor[withInterface]())
 	if err == nil || !strings.Contains(err.Error(), "nil schema") {
 		t.Fatalf("expected nil-schema error, got: %v", err)
 	}
@@ -386,7 +386,7 @@ type unsupportedKind struct {
 
 func TestUnsupportedKindReportsFieldPath(t *testing.T) {
 	b := NewBuilder(nil)
-	_, err := b.AddStruct(reflect.TypeOf(unsupportedKind{}))
+	_, err := b.AddStruct(reflect.TypeFor[unsupportedKind]())
 	if err == nil || !strings.Contains(err.Error(), "unsupportedKind.Ch") {
 		t.Fatalf("expected error mentioning field path, got: %v", err)
 	}
@@ -398,7 +398,7 @@ type intKeyMap struct {
 
 func TestNonStringMapKeyErrors(t *testing.T) {
 	b := NewBuilder(nil)
-	_, err := b.AddStruct(reflect.TypeOf(intKeyMap{}))
+	_, err := b.AddStruct(reflect.TypeFor[intKeyMap]())
 	if err == nil || !strings.Contains(err.Error(), "map key") {
 		t.Fatalf("expected map-key error, got: %v", err)
 	}
@@ -406,8 +406,8 @@ func TestNonStringMapKeyErrors(t *testing.T) {
 
 func TestAllowAdditionalPropertiesSkipsClosedClause(t *testing.T) {
 	b := NewBuilder(nil)
-	b.AllowAdditionalProperties(reflect.TypeOf(primitives{}))
-	if _, err := b.AddStruct(reflect.TypeOf(primitives{})); err != nil {
+	b.AllowAdditionalProperties(reflect.TypeFor[primitives]())
+	if _, err := b.AddStruct(reflect.TypeFor[primitives]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got := mustMarshal(t, b.DefsOrdered())
@@ -416,8 +416,8 @@ func TestAllowAdditionalPropertiesSkipsClosedClause(t *testing.T) {
 	}
 	// Sanity check: opting in by pointer type also works.
 	b2 := NewBuilder(nil)
-	b2.AllowAdditionalProperties(reflect.TypeOf(&primitives{}))
-	if _, err := b2.AddStruct(reflect.TypeOf(primitives{})); err != nil {
+	b2.AllowAdditionalProperties(reflect.TypeFor[*primitives]())
+	if _, err := b2.AddStruct(reflect.TypeFor[primitives]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got2 := mustMarshal(t, b2.DefsOrdered())
@@ -431,8 +431,8 @@ func TestAllowAdditionalPropertiesIsPerType(t *testing.T) {
 	// `inner` def — additionalProperties:false is the right default for
 	// sub-records.
 	b := NewBuilder(nil)
-	b.AllowAdditionalProperties(reflect.TypeOf(outer{}))
-	if _, err := b.AddStruct(reflect.TypeOf(outer{})); err != nil {
+	b.AllowAdditionalProperties(reflect.TypeFor[outer]())
+	if _, err := b.AddStruct(reflect.TypeFor[outer]()); err != nil {
 		t.Fatalf("AddStruct: %v", err)
 	}
 	got := mustMarshal(t, b.DefsOrdered())

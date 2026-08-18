@@ -1,0 +1,5 @@
+{
+  "deny": [
+    "disallowed ext: report.exe"
+  ]
+}

@@ -66,8 +66,7 @@ func BenchmarkBuiltinGlobMatchAsync(b *testing.B) {
 						wg := sync.WaitGroup{}
 						for i := range clientCount {
 							clientID := i
-							wg.Add(1)
-							go func() {
+							wg.Go(func() {
 								for j := range patternCount {
 									var operands []*ast.Term
 									if reusePattern {
@@ -88,8 +87,7 @@ func BenchmarkBuiltinGlobMatchAsync(b *testing.B) {
 										return
 									}
 								}
-								wg.Done()
-							}()
+							})
 						}
 						wg.Wait()
 					}

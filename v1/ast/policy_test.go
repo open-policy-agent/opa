@@ -527,6 +527,27 @@ func TestRuleBodyEquals(t *testing.T) {
 	assertRulesNotEqual(t, ruleTrue1, assigned)
 }
 
+func TestRuleSetAdd(t *testing.T) {
+	r1 := MustParseRule(`p { true }`)
+	r2 := MustParseRule(`p { false }`)
+
+	rs := NewRuleSet(r1, r2)
+	if len(rs) != 2 {
+		t.Fatalf("got %d rules, want 2: %v", len(rs), rs)
+	}
+
+	rs.Add(r1.Copy())
+	if len(rs) != 2 {
+		t.Fatalf("got %d rules after dup Add, want 2: %v", len(rs), rs)
+	}
+
+	r3 := MustParseRule(`q { true }`)
+	rs.Add(r3)
+	if len(rs) != 3 {
+		t.Fatalf("got %d rules after new Add, want 3: %v", len(rs), rs)
+	}
+}
+
 func TestRuleString(t *testing.T) {
 	trueBody := NewBody(NewExpr(BooleanTerm(true)))
 

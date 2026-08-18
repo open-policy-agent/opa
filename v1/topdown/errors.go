@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -151,6 +152,18 @@ func mergeConflictErr(loc *ast.Location) error {
 		Code:     WithMergeErr,
 		Location: loc,
 		Message:  "real and replacement data could not be merged",
+	}
+}
+
+// unevaluatedOperandErr is returned when a built-in function would have been
+// called with an operand that requires evaluation, which indicates a bug in OPA
+// rather than in the policy being evaluated.
+func unevaluatedOperandErr(loc *ast.Location, name string, pos int, operand *ast.Term) error {
+	return &Error{
+		Code:     InternalErr,
+		Location: loc,
+		Message: "built-in function " + name + " called with operand " + strconv.Itoa(pos) +
+			" that requires evaluation: " + operand.String(),
 	}
 }
 

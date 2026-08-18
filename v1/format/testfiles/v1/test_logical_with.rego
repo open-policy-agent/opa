@@ -1,0 +1,27 @@
+package test
+
+import future.keywords.and
+import future.keywords.or
+
+# a trailing `with` applies to the whole and/or expression
+whole_expression if { input.a and input.b   with input.x as 1 }
+
+parens_around_expression if (input.a and input.b) with input.x as 1
+
+multiple_modifiers if input.a or input.b with input.x as 1 with input.y as 2
+
+indented_modifiers if input.a or input.b with input.x as 1
+	with input.y as 2
+
+# a `with` on a single operand is scoped by parens, which must be kept
+lhs_operand if { (input.a with input.x as 1) and input.b }
+
+rhs_operand if input.a and (input.b with input.x as 1)
+
+both_operands if (input.a with input.x as 1) or (input.b with input.y as 2)
+
+operand_and_expression if input.a and (input.b with input.x as 1) with input.y as 2
+
+explicit_body_operand_lhs if {input.a with input.x as 1} and input.b
+
+explicit_body_operand_rhs if input.a and {input.b with input.x as 1}

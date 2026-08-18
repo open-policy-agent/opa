@@ -25,8 +25,15 @@ import (
 type findDefinitionParams struct {
 	stdinBuffer  bool
 	bundlePaths  repeatedStringFlag
+	capabilities *capabilitiesFlag
 	v0Compatible bool
 	v1Compatible bool
+}
+
+func newFindDefinitionParams() findDefinitionParams {
+	return findDefinitionParams{
+		capabilities: newCapabilitiesFlag(),
+	}
 }
 
 func (p *findDefinitionParams) regoVersion() ast.RegoVersion {
@@ -40,9 +47,17 @@ func (p *findDefinitionParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
+func (p *findDefinitionParams) parserOptions() ast.ParserOptions {
+	popts := ast.ParserOptions{Capabilities: p.capabilities.C}
+	if p.v0Compatible || p.v1Compatible {
+		popts.RegoVersion = p.regoVersion()
+	}
+	return popts
+}
+
 func initOracle(root *cobra.Command, brand string) {
 
-	var findDefinitionParams findDefinitionParams
+	var findDefinitionParams = newFindDefinitionParams()
 
 	var oracleCommand = &cobra.Command{
 		Use:    "oracle",
@@ -109,9 +124,10 @@ by the input location.`,
 
 	findDefinitionCommand.Flags().BoolVarP(&findDefinitionParams.stdinBuffer, "stdin-buffer", "", false, "read buffer from stdin")
 	addBundleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.bundlePaths)
+	addCapabilitiesFlag(findDefinitionCommand.Flags(), findDefinitionParams.capabilities)
+	addV0CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v0Compatible, false)
+	addV1CompatibleFlag(findDefinitionCommand.Flags(), &findDefinitionParams.v1Compatible, false)
 	oracleCommand.AddCommand(findDefinitionCommand)
-	addV0CompatibleFlag(oracleCommand.Flags(), &findDefinitionParams.v0Compatible, false)
-	addV1CompatibleFlag(oracleCommand.Flags(), &findDefinitionParams.v1Compatible, false)
 	root.AddCommand(oracleCommand)
 }
 
@@ -136,6 +152,7 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 				// only .rego will work reliably for the purpose of finding definitions
 				return strings.HasPrefix(info.Name(), ".rego")
 			}).
+			WithCapabilities(params.capabilities.C).
 			WithRegoVersion(params.regoVersion()).
 			AsBundle(params.bundlePaths.v[0])
 		if err != nil {
@@ -170,10 +187,11 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 	// FindDefinition() will instantiate a new compiler, but we don't need to set the
 	// default rego-version because the passed modules already have the rego-version from parsing.
 	result, err := oracle.New().FindDefinition(oracle.DefinitionQuery{
-		Buffer:   bs,
-		Filename: filename,
-		Pos:      offset,
-		Modules:  modules,
+		Buffer:        bs,
+		Filename:      filename,
+		Pos:           offset,
+		Modules:       modules,
+		ParserOptions: params.parserOptions(),
 	})
 
 	if err != nil {

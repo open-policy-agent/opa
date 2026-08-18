@@ -98,7 +98,7 @@ func (*prettyFormatter) Format(e *logrus.Entry) ([]byte, error) {
 			b.WriteString(" = ")
 		}
 		b.WriteString(stringVal)
-		b.WriteString("\n")
+		b.WriteByte('\n')
 	}
 	b.WriteByte('\n')
 	return b.Bytes(), nil

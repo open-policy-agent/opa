@@ -379,11 +379,7 @@ func (a *Annotations) toObject() (*Object, *Error) {
 	}
 
 	if len(a.Organizations) > 0 {
-		orgs := make([]*Term, 0, len(a.Organizations))
-		for _, org := range a.Organizations {
-			orgs = append(orgs, StringTerm(org))
-		}
-		obj.Insert(InternedTerm("organizations"), ArrayTerm(orgs...))
+		obj.Insert(InternedTerm("organizations"), ArrayTerm(util.Map(a.Organizations, StringTerm)...))
 	}
 
 	if len(a.RelatedResources) > 0 {

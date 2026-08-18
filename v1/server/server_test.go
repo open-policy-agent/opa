@@ -68,7 +68,7 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 )
 
-func init() {
+func TestMain(m *testing.M) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.set_outgoing",
 		Decl: astTypes.NewFunction(nil, astTypes.B),
@@ -83,6 +83,8 @@ func init() {
 			return iter(ast.BooleanTerm(true))
 		},
 	)
+
+	os.Exit(m.Run())
 }
 
 type tr struct {
@@ -4372,6 +4374,46 @@ func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
 
 	if !reflect.DeepEqual(decisions[0].HTTPRequestContext, exp) {
 		t.Fatalf("Expected HTTP request context %v but got: %v", exp, decisions[0].HTTPRequestContext)
+	}
+}
+
+// TestDecisionLoggingWithCancelledRequestContext ensures a cancelled/expired request
+// context doesn't reach the decision logger, since that can race a mask/drop policy
+// eval inside the logger and cause the decision event to be dropped.
+func TestDecisionLoggingWithCancelledRequestContext(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+
+	var loggedCtxErr error
+	var loggedCalls int
+
+	f.server = f.server.WithDecisionLoggerWithErr(func(ctx context.Context, _ *Info) error {
+		loggedCalls++
+		loggedCtxErr = ctx.Err()
+		return nil
+	})
+
+	req := newReqV1("GET", "/data/undefined", "")
+
+	ctx, cancel := context.WithCancel(req.Context())
+	cancel() // simulate a client disconnect / request timeout before the decision is logged
+	req = req.WithContext(ctx)
+
+	// The request context is already cancelled before the handler even runs, so the
+	// eval itself may race the cancellation and return either a successful result or
+	// an eval_cancel_error; that outcome isn't what's under test here. What matters is
+	// that the decision logger still runs exactly once, with a context that isn't
+	// cancelled.
+	f.recorder = httptest.NewRecorder()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if loggedCalls != 1 {
+		t.Fatalf("Expected exactly 1 decision log call but got: %d", loggedCalls)
+	}
+
+	if loggedCtxErr != nil {
+		t.Fatalf("Expected the decision logger's context to not be cancelled, got: %v", loggedCtxErr)
 	}
 }
 

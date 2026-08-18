@@ -1,0 +1,65 @@
+package test
+
+multiple_elements if {
+	{1, 2}
+}
+
+ref_element if {
+	{input.x}
+}
+
+scalar_element if {
+	{false}
+}
+
+set_element if {
+	{{1}}
+}
+
+array_element if {
+	{[1]}
+}
+
+parenthesized_scalar_element if {
+	{false}
+}
+
+parenthesized_parenthesized if {
+	{1, 2}
+}
+
+fn(x) if {
+	{x, 2}
+}
+
+collection contains 1 if {
+	{1, 2}
+}
+
+a.b.c if {
+	{1, 2}
+}
+
+with_else := 1 if {
+	{1, 2}
+}
+
+else := 2
+
+already_multiline if {
+	{1, 2}
+}
+
+ref_term if input.x
+
+object_term if {"a": 1}
+
+set_comprehension if {y | y := input.x}
+
+set_comparison if {1, 2} == {1, 2}
+
+negated_multiple_elements if not {1, 2}
+
+negated_ref_element if not {input.x}
+
+negated_with_modifier if not {1} with input as 1

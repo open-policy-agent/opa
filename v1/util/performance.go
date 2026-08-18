@@ -1,6 +1,10 @@
 package util
 
 import (
+	"bytes"
+	"cmp"
+	"encoding"
+	"io"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,12 +17,12 @@ import (
 // put into the pool, and [SyncPool.Get] returns a pointer to T without having
 // to do a type assertion at the call site.
 type SyncPool[T any] struct {
-	pool sync.Pool
+	Pool sync.Pool
 }
 
 func NewSyncPool[T any]() *SyncPool[T] {
 	return &SyncPool[T]{
-		pool: sync.Pool{
+		Pool: sync.Pool{
 			New: func() any {
 				return new(T)
 			},
@@ -27,12 +31,12 @@ func NewSyncPool[T any]() *SyncPool[T] {
 }
 
 func (p *SyncPool[T]) Get() *T {
-	return p.pool.Get().(*T)
+	return p.Pool.Get().(*T)
 }
 
 func (p *SyncPool[T]) Put(x *T) {
 	if x != nil {
-		p.pool.Put(x)
+		p.Pool.Put(x)
 	}
 }
 
@@ -147,8 +151,30 @@ func NumDigitsUint(n uint64) int {
 }
 
 // AppendInt is a less messy version of strconv.AppendInt for base 10 ints.
-func AppendInt(buf []byte, n int) []byte {
+func AppendInt[T Integer](buf []byte, n T) []byte {
 	return strconv.AppendInt(buf, int64(n), 10)
+}
+
+// WriteInt writes the string form of n to out.
+func WriteInt[T Integer](out io.Writer, n T) (int, error) {
+	var buf []byte
+	if b, ok := out.(*bytes.Buffer); ok {
+		buf = b.AvailableBuffer()
+	}
+	return out.Write(AppendInt(buf, n))
+}
+
+// WriteAppender writes the appended text of appender to out.
+func WriteAppender[T encoding.TextAppender](out io.Writer, appender T) (int, error) {
+	var buf []byte
+	if b, ok := out.(*bytes.Buffer); ok {
+		buf = b.AvailableBuffer()
+	}
+	b, err := appender.AppendText(buf)
+	if err != nil {
+		return 0, err
+	}
+	return out.Write(b)
 }
 
 // Atoi is a convenience function for [Atoi64] where an int is preferable to an int64.
@@ -168,6 +194,8 @@ func Atoi(s string) (int, bool) {
 // codebase — most notably ast.Number's Int() and Int64() methods — have no interest in the
 // details of the failure, and keeping this allocation free means both methods can be used
 // not only for conversion, but as a most efficient "IsInt64" check.
+// Additionally this function accepts trailing decimal zeroes ("10.00", not "10.01") as that
+// makes sense in the context of us using JSON numbers.
 func Atoi64(s string) (int64, bool) {
 	sLen := len(s)
 	if sLen > 0 {
@@ -180,9 +208,23 @@ func Atoi64(s string) (int64, bool) {
 			return 0, false
 		}
 
+		var pastDecimal bool
 		var n int64
 		for _, ch := range []byte(s) {
+			if ch == '.' {
+				if !pastDecimal {
+					pastDecimal = true
+					continue
+				}
+				return 0, false
+			}
 			ch -= '0'
+			if pastDecimal {
+				if ch == 0 {
+					continue
+				}
+				return 0, false
+			}
 			if ch > 9 {
 				return 0, false
 			}
@@ -205,7 +247,7 @@ func Atoi64(s string) (int64, bool) {
 
 // SplitMap calls fn for each delim-separated part of text and returns a slice of the results.
 // Cheaper than calling fn on strings.Split(text, delim), as it avoids allocating an intermediate slice of strings.
-func SplitMap[T any](text string, delim string, fn func(string) T) []T {
+func SplitMap[T any](text, delim string, fn func(string) T) []T {
 	sl := make([]T, 0, strings.Count(text, delim)+1)
 	for s := range strings.SplitSeq(text, delim) {
 		sl = append(sl, fn(s))
@@ -263,5 +305,11 @@ func (sp *SlicePool[T]) Put(s *[]T) {
 // SortedFunc is simply a shorthand for [slices.SortFunc] which also returns the sorted slice.
 func SortedFunc[T any, S ~[]T](s S, cmp func(a, b T) int) S {
 	slices.SortFunc(s, cmp)
+	return s
+}
+
+// Sorted is simply a shorthand for [slices.Sort] which also returns the sorted slice.
+func Sorted[T cmp.Ordered, S ~[]T](s S) S {
+	slices.Sort(s)
 	return s
 }

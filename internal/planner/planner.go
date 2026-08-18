@@ -6,10 +6,12 @@
 package planner
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
+	"strings"
 
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -164,12 +166,12 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	// We sort rules, first by ref length, and then using the
 	// Ref.Compare method to break ties. This yields a stable
 	// sorting order for the slice of rules to be planned.
-	sort.Slice(rules, func(i, j int) bool {
-		li, lj := len(rules[i].Ref()), len(rules[j].Ref())
-		if li != lj {
-			return li > lj
+	slices.SortFunc(rules, func(a, b *ast.Rule) int {
+		aRef, bRef := a.Ref(), b.Ref()
+		if c := cmp.Compare(len(aRef), len(bRef)); c != 0 {
+			return -c
 		}
-		return rules[i].Ref().Compare(rules[j].Ref()) < 0
+		return aRef.Compare(bRef)
 	})
 
 	// We know the rules that are closer to the root (shorter static path) are ordered first.
@@ -2441,15 +2443,14 @@ func (p *Planner) planTermSliceRec(terms []*ast.Term, locals []ir.Operand, index
 }
 
 func (p *Planner) planExterns() error {
-
 	p.policy.Static.BuiltinFuncs = make([]*ir.BuiltinFunc, 0, len(p.externs))
 
 	for name, decl := range p.externs {
 		p.policy.Static.BuiltinFuncs = append(p.policy.Static.BuiltinFuncs, &ir.BuiltinFunc{Name: name, Decl: decl.Decl})
 	}
 
-	sort.Slice(p.policy.Static.BuiltinFuncs, func(i, j int) bool {
-		return p.policy.Static.BuiltinFuncs[i].Name < p.policy.Static.BuiltinFuncs[j].Name
+	slices.SortFunc(p.policy.Static.BuiltinFuncs, func(a, b *ir.BuiltinFunc) int {
+		return strings.Compare(a.Name, b.Name)
 	})
 
 	return nil
@@ -2489,7 +2490,7 @@ func (p *Planner) appendStmtToBlock(s ir.Stmt, b *ir.Block) {
 		if str == "" {
 			str = `<query>`
 		}
-		s.SetLocation(p.getFileConst(str), p.loc.Row, p.loc.Col, str, string(p.loc.Text))
+		s.SetLocation(p.getFileConst(str), p.loc.Row, p.loc.Col, str, p.loc.Text)
 	}
 	b.Stmts = append(b.Stmts, s)
 }

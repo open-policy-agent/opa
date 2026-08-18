@@ -474,9 +474,8 @@ func getLocation(x any) string {
 	v := reflect.ValueOf(x).Elem().FieldByName("Location")
 	li := v.Interface()
 	file := v.FieldByName("file").String()
-	text := v.FieldByName("text").String()
 	if loc, ok := li.(ir.Location); ok {
-		return fmt.Sprintf("%s:%d:%d: %s", file, loc.Row, loc.Col, text)
+		return fmt.Sprintf("%s:%d:%d: %s", file, loc.Row, loc.Col, loc.Text)
 	}
 	return "unknown"
 }

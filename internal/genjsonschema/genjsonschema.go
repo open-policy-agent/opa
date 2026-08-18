@@ -15,7 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -70,7 +70,7 @@ func (b *Builder) DefsOrdered() OrderedMap {
 	for n := range b.defs {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	out := make(OrderedMap, 0, len(names))
 	for _, n := range names {
 		out = append(out, Entry{n, b.defs[n]})
@@ -158,7 +158,7 @@ func (b *Builder) reflectStructBody(t reflect.Type) (OrderedMap, error) {
 		return nil, err
 	}
 
-	sort.Strings(required)
+	slices.Sort(required)
 
 	out := OrderedMap{
 		{"type", "object"},
@@ -220,7 +220,7 @@ func (b *Builder) collectFields(t reflect.Type, properties *OrderedMap, required
 		})
 	}
 
-	sort.Slice(fields, func(i, j int) bool { return fields[i].name < fields[j].name })
+	slices.SortFunc(fields, func(a, b pendingField) int { return strings.Compare(a.name, b.name) })
 	for _, f := range fields {
 		*properties = append(*properties, Entry{f.name, f.schema})
 		if f.required {
@@ -327,10 +327,8 @@ func MakeNullable(schema any) any {
 				out[i] = Entry{"type", []string{v, "null"}}
 				return out
 			case []string:
-				for _, s := range v {
-					if s == "null" {
-						return m
-					}
+				if slices.Contains(v, "null") {
+					return m
 				}
 				out := cloneOrderedMap(m)
 				widened := make([]string, len(v)+1)

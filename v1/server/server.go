@@ -232,13 +232,13 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.Handler = s.initHandlerAuthn(s.Handler)
 
 	// compression handler
-	s.Handler, err = s.initHandlerCompression(s.Handler)
+	s.Handler, err = s.initHandlerCompression(ctx, s.Handler)
 	if err != nil {
 		return nil, err
 	}
 	s.DiagnosticHandler = s.initHandlerAuthn(s.DiagnosticHandler)
 
-	s.Handler, err = s.initHandlerDecodingLimits(s.Handler)
+	s.Handler, err = s.initHandlerDecodingLimits(ctx, s.Handler)
 	if err != nil {
 		return nil, err
 	}
@@ -266,12 +266,16 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 
 	if len(errorList) > 0 {
-		errMsg := "error while shutting down: "
+		errMsg := new(strings.Builder)
+		errMsg.WriteString("error while shutting down: ")
 		for i, err := range errorList {
-			//nolint:perfsprint
-			errMsg += fmt.Sprintf("(%d) %s. ", i, err.Error())
+			errMsg.WriteByte('(')
+			util.WriteInt(errMsg, i)
+			errMsg.WriteString(") ")
+			errMsg.WriteString(err.Error())
+			errMsg.WriteString(". ")
 		}
-		return errors.New(errMsg)
+		return errors.New(errMsg.String())
 	}
 	return nil
 }
@@ -812,13 +816,13 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 // Enforces request body size limits on incoming requests. For gzipped requests,
 // it passes the size limit down the body-reading method via the request
 // context.
-func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, error) {
+func (s *Server) initHandlerDecodingLimits(ctx context.Context, handler http.Handler) (http.Handler, error) {
 	cfg := s.manager.GetConfig()
 	var decodingRawConfig []byte
 	if cfg.Server != nil {
 		decodingRawConfig = []byte(cfg.Server.Decoding)
 	}
-	decodingConfig, err := serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).Parse()
+	decodingConfig, err := serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).ParseWithContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -827,13 +831,13 @@ func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, 
 	return decodingHandler, nil
 }
 
-func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, error) {
+func (s *Server) initHandlerCompression(ctx context.Context, handler http.Handler) (http.Handler, error) {
 	cfg := s.manager.GetConfig()
 	var encodingRawConfig []byte
 	if cfg.Server != nil {
 		encodingRawConfig = []byte(cfg.Server.Encoding)
 	}
-	encodingConfig, err := serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).Parse()
+	encodingConfig, err := serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).ParseWithContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -869,7 +873,7 @@ func (s *Server) initRouters(ctx context.Context) {
 	for _, router := range []*http.ServeMux{mainRouter, diagRouter} {
 		if s.metrics != nil {
 			s.metrics.RegisterEndpoints(func(path, method string, handler http.Handler) {
-				router.Handle(fmt.Sprintf("%s %s", method, path), handler)
+				router.Handle(method+" "+path, handler)
 			})
 		}
 
@@ -3187,7 +3191,9 @@ func (l decisionLogger) Log(
 	}
 
 	if l.logger != nil {
-		if err := l.logger(ctx, info); err != nil {
+		// Decouple from request cancellation/deadline so a client disconnect can't
+		// race a mask/drop policy eval in the logger and drop the decision event.
+		if err := l.logger(context.WithoutCancel(ctx), info); err != nil {
 			return fmt.Errorf("decision_logs: %w", err)
 		}
 	}

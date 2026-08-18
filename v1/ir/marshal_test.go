@@ -2,6 +2,7 @@ package ir
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -11,7 +12,7 @@ func TestMakeNumberRefStmtMarshalsBothKeys(t *testing.T) {
 		Index:  7,
 		Target: 3,
 	}
-	stmt.SetLocation(2, 11, 5, "test.rego", "")
+	stmt.SetLocation(2, 11, 5, "test.rego", nil)
 
 	bs, err := json.Marshal(stmt)
 	if err != nil {
@@ -30,6 +31,69 @@ func TestMakeNumberRefStmtMarshalsBothKeys(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("output missing %q\n  got: %s", want, got)
 		}
+	}
+}
+
+func TestLocationEndRowColSetAndMarshalled(t *testing.T) {
+	cases := map[string]struct {
+		text       []byte
+		wantEndRow int
+		wantEndCol int
+	}{
+		"single line": {
+			text:       []byte("foo"),
+			wantEndRow: 11,
+			wantEndCol: 8,
+		},
+		"multi line": {
+			text:       []byte("foo\nbar"),
+			wantEndRow: 12,
+			wantEndCol: 4,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			stmt := &MakeNumberRefStmt{
+				Index:  7,
+				Target: 3,
+			}
+			stmt.SetLocation(2, 11, 5, "test.rego", tc.text)
+
+			endRow, endCol := stmt.Location.End()
+			if endRow != tc.wantEndRow {
+				t.Errorf("expected end row %d, got %d", tc.wantEndRow, endRow)
+			}
+			if endCol != tc.wantEndCol {
+				t.Errorf("expected end col %d, got %d", tc.wantEndCol, endCol)
+			}
+
+			bs, err := json.Marshal(stmt)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			got := string(bs)
+
+			for _, want := range []string{
+				fmt.Sprintf(`"end_row":%d`, tc.wantEndRow),
+				fmt.Sprintf(`"end_col":%d`, tc.wantEndCol),
+			} {
+				if !strings.Contains(got, want) {
+					t.Errorf("output missing %q\n  got: %s", want, got)
+				}
+			}
+
+			var roundTripped MakeNumberRefStmt
+			if err := json.Unmarshal(bs, &roundTripped); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if roundTripped.EndRow != tc.wantEndRow {
+				t.Errorf("round-tripped end row = %d, want %d", roundTripped.EndRow, tc.wantEndRow)
+			}
+			if roundTripped.EndCol != tc.wantEndCol {
+				t.Errorf("round-tripped end col = %d, want %d", roundTripped.EndCol, tc.wantEndCol)
+			}
+		})
 	}
 }
 
@@ -76,7 +140,7 @@ func TestMakeNumberRefStmtUnmarshalAcceptsBothKeys(t *testing.T) {
 
 func TestMakeNumberRefStmtRoundTrip(t *testing.T) {
 	orig := &MakeNumberRefStmt{Index: 13, Target: 4}
-	orig.SetLocation(1, 2, 3, "", "")
+	orig.SetLocation(1, 2, 3, "", nil)
 
 	bs, err := json.Marshal(orig)
 	if err != nil {

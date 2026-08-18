@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !race
-// +build !race
 
 package topdown
 
@@ -189,7 +188,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 		})
 	}
 
-	expError := fmt.Errorf("unallowed host: %s", addr)
+	expError := fmt.Errorf("disallowed host: %s", addr)
 	for name, allowNet := range map[string][]string{
 		"allow_net empty":    {},
 		"allow_net no match": {"example.com"},

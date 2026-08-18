@@ -17,7 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/storage"
-	inmem "github.com/open-policy-agent/opa/v1/storage/inmem/test"
+	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -31,48 +31,41 @@ func BenchmarkArrayIteration(b *testing.B) {
 }
 
 func BenchmarkArrayPlugging(b *testing.B) {
-	ctx := b.Context()
+	type store struct {
+		name  string
+		store storage.Store
+	}
 
-	sizes := []int{10, 100, 1000, 10000}
+	data := make([]any, 1000)
+	for i := range data {
+		data[i] = fmt.Sprintf("whatever%d", i)
+	}
+	src := map[string]any{"fixture": data}
 
-	for _, n := range sizes {
-		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			data := make([]any, n)
-			for i := range n {
-				data[i] = fmt.Sprintf("whatever%d", i)
-			}
-			store := inmem.NewFromObject(map[string]any{"fixture": data})
-			module := `package test
-			fixture := data.fixture
-			main if { x := fixture }`
+	stores := []store{
+		{"mapStore", inmem.NewFromObject(src)},
+		{"astStore", inmem.NewFromASTObject(ast.MustInterfaceToValue(src).(ast.Object))},
+	}
+	mods := map[string]string{"test.rego": "package test\nfixture := data.fixture\nmain if { x := fixture }"}
 
-			query := ast.MustParseBody("data.test.main")
-			compiler := ast.MustCompileModules(map[string]string{
-				"test.rego": module,
-			})
+	for _, tc := range stores {
+		b.Run(tc.name, func(b *testing.B) {
+			ctx := b.Context()
+			err := storage.Txn(ctx, tc.store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				q := NewQuery(ast.MustParseBody("data.test.main")).
+					WithCompiler(ast.MustCompileModules(mods)).
+					WithStore(tc.store).
+					WithTransaction(txn)
 
-			b.ResetTimer()
-
-			for b.Loop() {
-
-				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
-					q := NewQuery(query).
-						WithCompiler(compiler).
-						WithStore(store).
-						WithTransaction(txn)
-
-					_, err := q.Run(ctx)
-					if err != nil {
+				for b.Loop() {
+					if _, err := q.Run(ctx); err != nil {
 						return err
 					}
-
-					return nil
-				})
-
-				if err != nil {
-					b.Fatal(err)
 				}
+				return nil
+			})
+			if err != nil {
+				b.Fatal(err)
 			}
 		})
 	}
@@ -97,17 +90,12 @@ func BenchmarkObjectIteration(b *testing.B) {
 }
 
 func benchmarkIteration(b *testing.B, module string) {
-	ctx := b.Context()
-	query := ast.MustParseBody("data.test.main")
-	compiler := ast.MustCompileModules(map[string]string{
-		"test.rego": module,
-	})
+	p := ast.MustParseBody("data.test.main")
+	c := ast.MustCompileModules(map[string]string{"test.rego": module})
+	q := NewQuery(p).WithCompiler(c)
 
 	for b.Loop() {
-
-		q := NewQuery(query).WithCompiler(compiler)
-		_, err := q.Run(ctx)
-		if err != nil {
+		if _, err := q.Run(b.Context()); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -175,43 +163,39 @@ func BenchmarkConcurrency8Writers(b *testing.B) {
 }
 
 func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
-
 	mod, data := test.GenerateConcurrencyBenchmarkData()
 	ctx := b.Context()
 	store := inmem.NewFromObject(data)
-	mods := map[string]*ast.Module{"module": ast.MustParseModule(mod)}
-	compiler := ast.NewCompiler()
+	body := ast.MustParseBody("data.test.p = x")
+	wg := &sync.WaitGroup{}
 
-	if compiler.Compile(mods); compiler.Failed() {
-		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
+	compiler, err := ast.CompileModules(map[string]string{"module": mod})
+	if err != nil {
+		b.Fatalf("Unexpected compiler error: %v", err)
 	}
 
 	for b.Loop() {
-		wg := new(sync.WaitGroup)
-		queriesPerCore := 1000 / len(params)
-		for j := range params {
-			param := params[j] // capture j'th params before goroutine
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for range queriesPerCore {
-					txn := storage.NewTransactionOrDie(ctx, store, param)
-					query := NewQuery(ast.MustParseBody("data.test.p = x")).
-						WithCompiler(compiler).
-						WithStore(store).
-						WithTransaction(txn)
-					rs, err := query.Run(ctx)
+		for _, param := range params {
+			wg.Go(func() {
+				for range 1000 / len(params) {
+					txn, err := store.NewTransaction(ctx, param)
 					if err != nil {
-						b.Errorf("Unexpected topdown query error: %v", err)
+						b.Errorf("Unexpected transaction error: %v", err)
 						return
 					}
-					if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
+					rs, err := NewQuery(body).
+						WithCompiler(compiler).
+						WithStore(store).
+						WithTransaction(txn).
+						Run(ctx)
+					if err != nil {
+						b.Errorf("Unexpected topdown query error: %v", err)
+					} else if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
 						b.Errorf("Unexpected undefined/extra/bad result: %v", rs)
-						return
 					}
 					store.Abort(ctx, txn)
 				}
-			}()
+			})
 		}
 
 		wg.Wait()
@@ -548,14 +532,16 @@ func BenchmarkWalk(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			err = storage.Txn(b.Context(), store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+			ctx := b.Context()
+
+			err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 				q := NewQuery(compiledQuery).
 					WithStore(store).
 					WithCompiler(compiler).
 					WithTransaction(txn)
 
 				for b.Loop() {
-					rs, err := q.Run(b.Context())
+					rs, err := q.Run(ctx)
 					if err != nil || len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.IntNumberTerm(n-1)) {
 						b.Fatal("Unexpected result:", rs, "err:", err)
 					}

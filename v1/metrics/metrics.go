@@ -311,19 +311,19 @@ type Counter interface {
 }
 
 type counter struct {
-	c uint64
+	c atomic.Uint64
 }
 
 func (c *counter) Incr() {
-	atomic.AddUint64(&c.c, 1)
+	c.c.Add(1)
 }
 
 func (c *counter) Add(n uint64) {
-	atomic.AddUint64(&c.c, n)
+	c.c.Add(n)
 }
 
 func (c *counter) Value() any {
-	return atomic.LoadUint64(&c.c)
+	return c.c.Load()
 }
 
 func Statistics(num ...int64) any {

@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -29,36 +28,42 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// DefaultMaxParsingRecursionDepth is the default maximum recursion
-// depth for the parser
-const DefaultMaxParsingRecursionDepth = 100000
-
-// ErrMaxParsingRecursionDepthExceeded is returned when the parser
-// recursion exceeds the maximum allowed depth
-var ErrMaxParsingRecursionDepthExceeded = errors.New("max parsing recursion depth exceeded")
-
-var RegoV1CompatibleRef = Ref{VarTerm("rego"), InternedTerm("v1")}
-
 // RegoVersion defines the Rego syntax requirements for a module.
-type RegoVersion int
-
-const DefaultRegoVersion = RegoV1
+type RegoVersion uint8
 
 const (
+	// DefaultRegoVersion is the default Rego version for this OPA version.
+	DefaultRegoVersion = RegoV1
+
+	// DefaultMaxParsingRecursionDepth is the default maximum recursion depth for the parser
+	DefaultMaxParsingRecursionDepth = 100000
+)
+
+const (
+	// RegoUndefined represents a Rego version unknown to OPA, like for a policy that has
+	// yet to be parsed and a no version information has been provided by other means.
 	RegoUndefined RegoVersion = iota
-	// RegoV0 is the default, original Rego syntax.
+	// RegoV0 is the original Rego syntax, which was used by default in OPA < 1.0.
 	RegoV0
-	// RegoV0CompatV1 requires modules to comply with both the RegoV0 and RegoV1 syntax (as when 'rego.v1' is imported in a module).
-	// Shortly, RegoV1 compatibility is required, but 'rego.v1' or 'future.keywords' must also be imported.
+	// RegoV0CompatV1 requires modules to comply with both the RegoV0 and RegoV1
+	// syntax (requiring Rego v1 imports in a module to use v1 keywords).
+	// For more information, see https://www.openpolicyagent.org/docs/v0-compatibility
 	RegoV0CompatV1
-	// RegoV1 is the Rego syntax enforced by OPA 1.0; e.g.:
-	// future.keywords part of default keyword set, and don't require imports;
-	// 'if' and 'contains' required in rule heads;
-	// (some) strict checks on by default.
+	// RegoV1 is the Rego syntax enforced by OPA 1.0 and later versions, including the following changes:
+	// - Keywords `in`, `every`, `ìf` and `contains` now part of the default set, and don't require explicit import
+	// - Using 'if' and 'contains' now required in rule heads
+	// - Most compiler checks previously enabled in "strict mode" now enabled by default
+	// For more information, see https://www.openpolicyagent.org/docs/v0-upgrade
 	RegoV1
 )
 
 var (
+	// ErrMaxParsingRecursionDepthExceeded is returned when the parser
+	// recursion exceeds the maximum allowed depth
+	ErrMaxParsingRecursionDepthExceeded = errors.New("max parsing recursion depth exceeded")
+
+	RegoV1CompatibleRef = Ref{VarTerm("rego"), InternedTerm("v1")}
+
 	// this is the name to use for instantiating an empty set, e.g., `set()`.
 	setConstructor = RefTerm(VarTerm("set"))
 
@@ -72,7 +77,6 @@ var (
 	memberWithKeyRef = MemberWithKey.Ref()
 	memberRef        = Member.Ref()
 
-	newlineBytes       = []byte{'\n'}
 	metadataBytes      = []byte("METADATA")
 	metadataParserPool = util.NewSyncPool[metadataParser]()
 )
@@ -342,7 +346,6 @@ func (p *Parser) presentParser() (*Parser, map[string]tokens.Token) {
 // comments as they are found. Any errors encountered while
 // parsing will be accumulated and returned as a list of Errors.
 func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
-
 	if p.po.Capabilities == nil {
 		p.po.Capabilities = CapabilitiesForThisVersion(CapabilitiesRegoVersion(p.po.RegoVersion))
 	}
@@ -352,11 +355,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	if p.po.EffectiveRegoVersion() == RegoV1 {
 		if !p.po.Capabilities.ContainsFeature(FeatureRegoV1) {
 			return nil, nil, Errors{
-				&Error{
-					Code:     ParseErr,
-					Message:  "illegal capabilities: rego_v1 feature required for parsing v1 Rego",
-					Location: nil,
-				},
+				&Error{Code: ParseErr, Message: "illegal capabilities: rego_v1 feature required for parsing v1 Rego"},
 			}
 		}
 
@@ -370,11 +369,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 				// For sake of error reporting, we still need to check that keywords in capabilities are known in v0
 				if _, ok := futureKeywordsV0[kw]; !ok {
 					return nil, nil, Errors{
-						&Error{
-							Code:     ParseErr,
-							Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
-							Location: nil,
-						},
+						&Error{Code: ParseErr, Message: "illegal capabilities: unknown keyword: " + kw},
 					}
 				}
 			}
@@ -383,13 +378,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		// Check that explicitly requested future keywords are known.
 		for _, kw := range p.po.FutureKeywords {
 			if _, ok := allowedFutureKeywords[kw]; !ok {
-				return nil, nil, Errors{
-					&Error{
-						Code:     ParseErr,
-						Message:  fmt.Sprintf("unknown future keyword: %v", kw),
-						Location: nil,
-					},
-				}
+				return nil, nil, Errors{&Error{Code: ParseErr, Message: "unknown future keyword: " + kw}}
 			}
 		}
 	} else {
@@ -397,13 +386,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			var ok bool
 			allowedFutureKeywords[kw], ok = allFutureKeywords[kw]
 			if !ok {
-				return nil, nil, Errors{
-					&Error{
-						Code:     ParseErr,
-						Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
-						Location: nil,
-					},
-				}
+				return nil, nil, Errors{&Error{Code: ParseErr, Message: "illegal capabilities: unknown keyword: " + kw}}
 			}
 		}
 
@@ -413,48 +396,28 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 	}
 
-	var err error
-	p.s.s, err = scanner.New(p.r)
-	if err != nil {
-		return nil, nil, Errors{
-			&Error{
-				Code:     ParseErr,
-				Message:  err.Error(),
-				Location: nil,
-			},
-		}
-	}
-
-	selected := map[string]tokens.Token{}
+	var selected map[string]tokens.Token
 	if p.po.AllFutureKeywords {
+		selected = make(map[string]tokens.Token, len(allowedFutureKeywords))
 		maps.Copy(selected, allowedFutureKeywords)
 	} else {
 		if p.po.EffectiveRegoVersion() == RegoV1 {
+			selected = make(map[string]tokens.Token, len(futureKeywordsV0)+len(p.po.FutureKeywords))
 			for kw := range futureKeywordsV0 {
 				tok, ok := allowedFutureKeywords[kw]
 				if !ok {
-					return nil, nil, Errors{
-						&Error{
-							Code:     ParseErr,
-							Message:  fmt.Sprintf("unknown future keyword: %v", kw),
-							Location: nil,
-						},
-					}
+					return nil, nil, Errors{&Error{Code: ParseErr, Message: "unknown future keyword: " + kw}}
 				}
 				selected[kw] = tok
 			}
+		} else {
+			selected = make(map[string]tokens.Token, len(p.po.FutureKeywords))
 		}
 
 		for _, kw := range p.po.FutureKeywords {
 			tok, ok := allowedFutureKeywords[kw]
 			if !ok {
-				return nil, nil, Errors{
-					&Error{
-						Code:     ParseErr,
-						Message:  fmt.Sprintf("unknown future keyword: %v", kw),
-						Location: nil,
-					},
-				}
+				return nil, nil, Errors{&Error{Code: ParseErr, Message: "unknown future keyword: " + kw}}
 			}
 			selected[kw] = tok
 		}
@@ -464,12 +427,13 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		p.notBodies = true
 	}
 
-	p.s.s = p.s.s.WithKeywords(selected)
+	var err error
+	if p.s.s, err = scanner.New(p.r); err != nil {
+		return nil, nil, Errors{&Error{Code: ParseErr, Message: err.Error()}}
+	}
 
-	if p.po.EffectiveRegoVersion() == RegoV1 {
-		for kw, tok := range futureKeywordsV0 {
-			p.s.s.AddKeyword(kw, tok)
-		}
+	for name, token := range selected {
+		p.s.s.AddKeyword(name, token)
 	}
 
 	// read the first token to initialize the parser
@@ -484,38 +448,36 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	// next type of statement. If a statement can be parsed, continue from that
 	// point trying to parse packages, imports, etc. in the same order.
 	for p.s.tok != tokens.EOF {
-		s := p.save()
-
-		if pkg := p.parsePackage(); pkg != nil {
-			stmts = append(stmts, pkg)
-			continue
-		} else if len(p.s.errors) > 0 {
-			break
+		var s *state
+		if p.s.tok == tokens.Package {
+			s = p.save()
+			if pkg := p.parsePackage(); pkg != nil {
+				stmts = append(stmts, pkg)
+				continue
+			} else if len(p.s.errors) > 0 {
+				break
+			}
+			p.restore(s)
 		}
 
-		p.restore(s)
-		s = p.save()
-
-		if imp := p.parseImport(); imp != nil {
-			if RegoRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
-				p.regoV1Import(imp)
+		if p.s.tok == tokens.Import {
+			s = p.save()
+			if imp := p.parseImport(); imp != nil {
+				if RegoRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
+					p.regoV1Import(imp)
+				} else if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
+					p.futureImport(imp, allowedFutureKeywords)
+				}
+				stmts = append(stmts, imp)
+				continue
+			} else if len(p.s.errors) > 0 {
+				break
 			}
-
-			if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
-				p.futureImport(imp, allowedFutureKeywords)
-			}
-
-			stmts = append(stmts, imp)
-			continue
-		} else if len(p.s.errors) > 0 {
-			break
+			p.restore(s)
 		}
-
-		p.restore(s)
 
 		if !p.po.SkipRules {
 			s = p.save()
-
 			if rules := p.parseRules(); rules != nil {
 				for i := range rules {
 					stmts = append(stmts, rules[i])
@@ -524,7 +486,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			} else if len(p.s.errors) > 0 {
 				break
 			}
-
 			p.restore(s)
 		}
 
@@ -811,6 +772,26 @@ func scanAheadRef(p *Parser) bool {
 	return false
 }
 
+// scanAheadLogicalCall rewrites an `and`/`or` keyword token to tokens.Ident when
+// it's immediately followed by `(`. Only valid where a term is expected: there,
+// the operator reading is impossible, so it must be a function (`&`/`|` set built-ins).
+// Operator position is decided before any term is parsed, which is what keeps `x and (b)` a keyword.
+func scanAheadLogicalCall(p *Parser) {
+	if p.s.tok != tokens.LogicalAnd && p.s.tok != tokens.LogicalOr {
+		return
+	}
+
+	s := p.save()
+	p.scanWS()
+	tok := p.s.tok
+	p.restore(s)
+
+	if tok == tokens.LParen {
+		// This is a call to a function named `and`/`or`
+		p.s.tok = tokens.Ident
+	}
+}
+
 func (p *Parser) parseRules() []*Rule {
 
 	var rule Rule
@@ -897,13 +878,18 @@ func (p *Parser) parseRules() []*Rule {
 		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
 		p.scan()
 		s := p.save()
+
+		// Only a set term with a leading '{' is ambiguous with a body;
+		// e.g.: 'not {...}' and 'set()' parses to a set literal, but have no ambiguous leading '{'
+		leadingBrace := p.s.tok == tokens.LBrace
+
 		if expr := p.parseLiteral(); expr != nil {
 			// NOTE(sr): set literals are never false or undefined, so parsing this as
 			//  p if { true }
 			//       ^^^^^^^^ set of one element, `true`
 			// isn't valid.
 			isSetLiteral := false
-			if t, ok := expr.Terms.(*Term); ok {
+			if t, ok := expr.Terms.(*Term); ok && leadingBrace {
 				_, isSetLiteral = t.Value.(Set)
 			}
 			// expr.Term is []*Term or Every
@@ -911,6 +897,12 @@ func (p *Parser) parseRules() []*Rule {
 				rule.Body.Append(expr)
 				break
 			}
+		}
+
+		if !leadingBrace {
+			// Without a leading '{' there is no '{ BODY }' rule body to fall back to,
+			// so the literal's own error is the useful one; restoring would drop it.
+			return nil
 		}
 
 		// parsing as literal didn't work out, expect '{ BODY }'
@@ -1178,12 +1170,12 @@ func (p *Parser) parseBody(end tokens.Token) Body {
 }
 
 func (p *Parser) parseQuery(requireSemi bool, end tokens.Token) Body {
-	body := Body{}
-
 	if p.s.tok == end {
 		p.error(p.s.Loc(), "found empty body")
 		return nil
 	}
+
+	body := Body{}
 
 	for {
 		expr := p.parseLiteral()
@@ -1236,12 +1228,19 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	// binary. Otherwise, restore and fall through to regular handling.
 	if p.s.tok == tokens.LBrace && p.logicalKeywordsActive() {
 		s := p.save()
+		braceOffset := p.s.loc.Offset
 		bodyLoc := p.s.Loc()
 		p.scan()
 		body := p.parseBody(tokens.RBrace)
 		if body != nil {
 			p.scan() // consume `}`
 			if p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
+				// Only now are the braces known to be an operand rather than a rule body.
+				if isAmbiguousUnionBody(body) {
+					p.errorAmbiguousUnionBody(bodyLoc, braceOffset, body, "")
+					return nil
+				}
+
 				outer := p.parseLogicalOrChain(body, true, bodyLoc)
 				if outer == nil {
 					return nil
@@ -1257,7 +1256,7 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	// parens hold or precede an and/or; otherwise (`({})`, `({a})`, `(a == b)`) it
 	// restores and we fall through so parseExpr handles the term.
 	if p.s.tok == tokens.LParen && p.logicalKeywordsActive() {
-		if body, explicit, loc, committed := p.parseLogicalGroup(false); committed {
+		if body, explicit, loc, committed := p.parseLogicalGroup(false, ""); committed {
 			if body == nil {
 				return nil
 			}
@@ -1291,7 +1290,9 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		if nb == nil {
 			return nil
 		}
-		return p.attachWith(nb)
+		// A not-body is a complete operand, so it may lead an and/or chain:
+		// `not { x } and y`.
+		return p.foldLogicalTail(NewBody(nb), false, nb.Location)
 	}
 
 	switch p.s.tok {
@@ -1325,14 +1326,12 @@ func (p *Parser) isAllowedRefKeywordStr(s string) bool {
 }
 
 func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
-	startOffset := p.s.loc.Offset
-	startLoc := p.s.Loc()
 	s := p.save()
 
 	// Negated parenthesized group: `not (a or b)`. The parens are an operand of
 	// `not`, so any `{...}` inside is a body.
-	if negated && p.notBodies && p.s.tok == tokens.LParen && p.logicalKeywordsActive() {
-		if body, explicit, _, committed := p.parseLogicalGroup(true); committed {
+	if negated && p.notBodies && p.s.tok == tokens.LParen {
+		if body, explicit, _, committed := p.parseLogicalGroup(true, "not "); committed {
 			if body == nil {
 				return nil
 			}
@@ -1395,8 +1394,20 @@ func (p *Parser) parseLiteralExpr(negated bool, notLoc *Location) *Expr {
 			}
 
 			if expr.Location == nil {
-				startLoc.Text = p.s.Text(startOffset, p.s.lastEnd)
+				startLoc := s.Loc()
+				startLoc.Text = p.s.Text(startLoc.Offset, p.s.lastEnd)
 				expr.SetLoc(startLoc)
+			}
+
+			if notLoc == nil && bytes.HasPrefix(expr.Location.Text, []byte("{")) {
+				// `{}` on its own is an empty body
+				if isEmptyObjectTerm(expr) {
+					p.error(expr.Location, "found empty body")
+					return nil
+				}
+
+				p.errorBraceLedOperand(expr.Location, expr.Location.Text, p.s.tok.String())
+				return nil
 			}
 
 			outer := p.parseLogicalOrChain(NewBody(expr), false, expr.Location)
@@ -1567,13 +1578,43 @@ func (p *Parser) parseSome() *Expr {
 }
 
 func (p *Parser) parseNotBody(notLoc *Location) *Expr {
+	braceOffset := p.s.loc.Offset
+	braceLoc := p.s.Loc()
+	s := p.save()
 	p.scan() // consume `{`
+
+	// `not {}` is an empty body, which parseBody reports precisely; only non-empty
+	// braces are worth re-reading as a value.
+	empty := p.s.tok == tokens.RBrace
 
 	body := p.parseBody(tokens.RBrace)
 	if body == nil {
+		if empty {
+			return nil
+		}
+
+		// The braces may hold a value rather than a body. If so, report the
+		// contract and its escapes; if not, keep the body error.
+		failed := p.save()
+		p.restore(s)
+
+		// The operand can extend past the braces (`{1, 2} & input.s == set()`),
+		// and parens group rather than delimit, so it is the whole operand that has to be wrapped.
+		if term := p.parseTermInfixCall(); term != nil {
+			p.errorOperandBraceNeedsBody(braceLoc, p.s.Text(braceOffset, p.s.lastEnd), term, "not ")
+			return nil
+		}
+
+		p.restore(failed)
+
 		return nil
 	}
 	p.scan() // consume `}`
+
+	if isAmbiguousUnionBody(body) {
+		p.errorAmbiguousUnionBody(braceLoc, braceOffset, body, "not ")
+		return nil
+	}
 
 	// Extend the location to also include the 'not ' prefix
 	spanned := p.extendLoc(notLoc)
@@ -1616,7 +1657,7 @@ func (p *Parser) parseLogicalOrChain(lhsBody Body, lhsExplicit bool, lhsLoc *Loc
 	for p.s.tok == tokens.LogicalOr {
 		p.scan()
 
-		rhsBody, rhsExplicit, rhsLoc := p.parseLogicalOperand()
+		rhsBody, rhsExplicit, rhsLoc := p.parseLogicalOperand("or")
 		if rhsBody == nil {
 			return nil
 		}
@@ -1663,7 +1704,7 @@ func (p *Parser) parseLogicalAndChain(lhsBody Body, lhsExplicit bool, lhsLoc *Lo
 	for p.s.tok == tokens.LogicalAnd {
 		p.scan()
 
-		rhsBody, rhsExplicit, _ := p.parseLogicalOperand()
+		rhsBody, rhsExplicit, _ := p.parseLogicalOperand("and")
 		if rhsBody == nil {
 			return nil
 		}
@@ -1705,16 +1746,49 @@ func isNegated(p *Parser) bool {
 	return tok != tokens.Dot && tok != tokens.LBrack
 }
 
-// parseLogicalOperand parses a single operand of an `and`/`or` expression.
-func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
+// parseLogicalOperand parses a single operand of an `and`/`or` expression. op is
+// the operator the operand belongs to, or "" when the caller is speculating and
+// will restore on failure.
+func (p *Parser) parseLogicalOperand(op string) (Body, bool, *Location) {
 	if p.s.tok == tokens.LBrace {
+		braceOffset := p.s.loc.Offset
 		loc := p.s.Loc()
+		s := p.save()
 		p.scan()
+
+		// `{}` is an empty body, which parseBody reports precisely; only non-empty
+		// braces are worth re-reading as a value.
+		empty := p.s.tok == tokens.RBrace
+
 		body := p.parseBody(tokens.RBrace)
 		if body == nil {
+			if empty || op == "" {
+				return nil, false, nil
+			}
+
+			// The braces may hold a value rather than a body.
+			failed := p.save()
+			p.restore(s)
+
+			// The operand can extend past the braces (`{1, 2} & input.s == set()`),
+			// and parens group rather than delimit, so it is the whole operand that has to be wrapped.
+			if term := p.parseTermInfixCall(); term != nil {
+				p.errorBraceLedOperand(loc, p.s.Text(braceOffset, p.s.lastEnd), op)
+				return nil, false, nil
+			}
+
+			p.restore(failed)
+
 			return nil, false, nil
 		}
 		p.scan()
+
+		if isAmbiguousUnionBody(body) {
+			// Report, but hand the body back: if the caller is a paren group that
+			// restores, the error is rolled back with it.
+			p.errorAmbiguousUnionBody(loc, braceOffset, body, "")
+		}
+
 		return body, true, loc
 	}
 
@@ -1738,7 +1812,12 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 	// body. If the parens don't hold a logical group parseLogicalGroup restores
 	// state and we fall through so parseExpr can handle `(a == b)` as a term.
 	if p.s.tok == tokens.LParen && p.logicalKeywordsActive() && (!negated || p.notBodies) {
-		if body, explicit, loc, committed := p.parseLogicalGroup(true); committed {
+		prefix := ""
+		if negated {
+			prefix = "not "
+		}
+
+		if body, explicit, loc, committed := p.parseLogicalGroup(true, prefix); committed {
 			if body == nil {
 				return nil, false, nil
 			}
@@ -1775,6 +1854,99 @@ func (p *Parser) parseLogicalOperand() (Body, bool, *Location) {
 	}
 
 	return NewBody(expr), false, expr.Location
+}
+
+// isAmbiguousUnionBody reports whether b is a single-expression body holding a
+// bare infix `|` set union. Written that way, `{ ... | ... }` cannot be told apart
+// from a set comprehension; the call form (`or(x, y)`) and the parenthesized form
+// (`(x | y)`) can, and are left alone.
+func isAmbiguousUnionBody(b Body) bool {
+	if len(b) == 0 {
+		return false
+	}
+
+	// The first expression decides: `{A | B; C}` also reads as a comprehension with
+	// head A and body `B; C`, so trailing expressions don't disambiguate anything.
+	terms, ok := b[0].Terms.([]*Term)
+	if !ok || !Or.Ref().Equal(b[0].Operator()) {
+		return false
+	}
+
+	// The operator's text is `|` for the infix form and `or` for the call form.
+	if terms[0].Location == nil || string(terms[0].Location.Text) != "|" {
+		return false
+	}
+
+	return b[0].Location == nil || !bytes.HasPrefix(bytes.TrimSpace(b[0].Location.Text), []byte("("))
+}
+
+// errorOperandBraceNeedsBody reports `{...}` in an operand position holding a value instead of expressions.
+func (p *Parser) errorOperandBraceNeedsBody(loc *Location, operand []byte, term *Term, prefix string) {
+	p.hint(fmt.Sprintf("write `%s(%s)` to negate the value, or `%s{%s}` for a body holding it",
+		prefix, operand, prefix, operand))
+	p.errorf(loc, "`{...}` in an operand position must contain expression(s), got: %s", ValueName(braceLedValue(term)))
+}
+
+// braceLedValue returns the value opened by the leading `{` of t. An infix call
+// renders its lhs operand first, so `{1, 2} & s` is brace-led by the set; refs are
+// left alone, as `{"a": 1}["a"]` is reported as the ref it is.
+func braceLedValue(t *Term) Value {
+	if call, ok := t.Value.(Call); ok && len(call) > 0 {
+		if bi, ok := BuiltinMap[call[0].String()]; ok && bi.Infix != "" && len(call) == bi.Decl.Arity()+1 {
+			return braceLedValue(call[1])
+		}
+	}
+
+	return t.Value
+}
+
+// isEmptyObjectTerm reports whether expr is exactly `{}`. In an operand position
+// those braces open a body, so an empty one is an empty body - not the empty
+// object the term parser read.
+func isEmptyObjectTerm(expr *Expr) bool {
+	if len(expr.With) > 0 {
+		return false
+	}
+
+	t, ok := expr.Terms.(*Term)
+	if !ok {
+		return false
+	}
+
+	obj, ok := t.Value.(Object)
+
+	return ok && obj.Len() == 0
+}
+
+// errorBraceLedOperand reports an `and`/`or` operand whose leading `{` opens a
+// value rather than a body. In an operand position the braces are read as an
+// explicit body, so the value form has to be parenthesized, on both sides of the
+// operator.
+func (p *Parser) errorBraceLedOperand(loc *Location, operand []byte, op string) {
+	p.hint(fmt.Sprintf("wrap the operand to keep the value: `(%s) %s ...`", operand, op))
+	p.errorf(loc, "operand of `%s` cannot begin with `{` unless the braces hold a body", op)
+}
+
+// errorParensCannotWrapBody reports `(...)` holding expressions rather than a value.
+func (p *Parser) errorParensCannotWrapBody(loc *Location, braces []byte, prefix string) {
+	p.hint(fmt.Sprintf("drop the parens to keep the body: `%s%s`", prefix, braces))
+	p.error(loc, "`(...)` in an operand position cannot contain a body")
+}
+
+func (p *Parser) errorAmbiguousUnionBody(loc *Location, braceOffset int, body Body, prefix string) {
+	braces := p.s.Text(braceOffset, p.s.lastEnd)
+
+	// Parenthesizing only the union keeps any trailing expressions of the body.
+	union := string(braces)
+	if e := body[0].Location; e != nil {
+		if rel := e.Offset - braceOffset; rel > 0 && rel+len(e.Text) <= len(braces) {
+			union = fmt.Sprintf("%s(%s)%s", braces[:rel], e.Text, braces[rel+len(e.Text):])
+		}
+	}
+
+	p.hint(fmt.Sprintf("write `%s(%s)` for the comprehension, or `%s%s` for the set union",
+		prefix, braces, prefix, union))
+	p.error(loc, "ambiguous `{ ... | ... }` operand: read as a body holding a set-union expression, not as a comprehension")
 }
 
 // isLogicalBody reports whether b is a single-expression body wrapping a
@@ -1820,7 +1992,7 @@ func (p *Parser) expectRParen() bool {
 // operands starting at the current `(`.
 //
 // operandContext reports whether the `(` is already an operand of `and`/`or`/`not`.
-func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, bool) {
+func (p *Parser) parseLogicalGroup(operandContext bool, prefix string) (Body, bool, *Location, bool) {
 	if !p.enter() {
 		return nil, false, nil, true
 	}
@@ -1839,17 +2011,10 @@ func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, 
 		return nil, false, nil, false
 	}
 
-	// A leading `{` is a body only in an operand context; otherwise it's an
-	// object/set literal and we backtrack to the term parser.
-	braceLead := p.s.tok == tokens.LBrace
-
-	lhsBody, lhsExplicit, lhsLoc := p.parseLogicalOperand()
+	lhsBody, lhsExplicit, lhsLoc := p.parseLogicalOperand("")
 	if lhsBody == nil {
-		// An empty `{}` operand (e.g. `not ({})`) is a body error.
-		if operandContext && braceLead {
-			return nil, false, nil, true
-		}
-
+		// Parens are not an operand, so a `{...}` that can't be a body is a value:
+		// restore and let the term parser read it, e.g. `not ({})` is an empty object.
 		p.restore(s)
 
 		return nil, false, nil, false
@@ -1899,16 +2064,22 @@ func (p *Parser) parseLogicalGroup(operandContext bool) (Body, bool, *Location, 
 		return nil, false, nil, false
 
 	case lhsExplicit:
-		// `({ body })`
-		if !p.expectRParen() {
+		// `({ body })`: parens don't wrap a body. Without a top-level `and`/`or`
+		// -- handled above -- the braces are a value, so restore and let the term
+		// parser read them.
+		braces := p.s.Text(lhsLoc.Offset, p.s.lastEnd)
+		p.restore(s)
+
+		probe := p.save()
+		p.scan() // consume `(`
+		term := p.parseTerm()
+		p.restore(probe)
+
+		if term == nil {
+			p.errorParensCannotWrapBody(openLoc, braces, prefix)
 			return nil, false, nil, true
 		}
 
-		if operandContext || p.s.tok == tokens.LogicalAnd || p.s.tok == tokens.LogicalOr {
-			return lhsBody, true, p.extendLoc(openLoc), true
-		}
-
-		p.restore(s)
 		return nil, false, nil, false
 
 	case isLogicalBody(lhsBody):
@@ -2237,6 +2408,10 @@ func (p *Parser) parseTerm() *Term {
 
 	var term *Term
 	var unaryMinusLoc *Location
+
+	// Check if an `and`/`or` token is actually a function call (`&`/`|` set built-ins).
+	scanAheadLogicalCall(p)
+
 	switch p.s.tok {
 	case tokens.Null:
 		term = NullTerm().SetLocation(p.s.Loc())
@@ -3014,7 +3189,7 @@ func (p *Parser) parseVar() *Term {
 		return NewTerm(p.genwildcard()).SetLocation(p.s.Loc())
 	}
 
-	return VarTerm(p.s.lit).SetLocation(p.s.Loc())
+	return NewTerm(InternedVarValue(p.s.lit)).SetLocation(p.s.Loc())
 }
 
 func (p *Parser) genwildcard() Value {
@@ -3049,17 +3224,16 @@ func writeHints(msg *strings.Builder, hints []string) {
 }
 
 func (p *Parser) error(loc *location.Location, reason string) {
-	msg := reason
 	if len(p.s.hints) > 0 {
 		sb := &strings.Builder{}
 		sb.WriteString(reason)
 		writeHints(sb, p.s.hints)
-		msg = sb.String()
+		reason = sb.String()
 	}
 
 	p.s.errors = append(p.s.errors, &Error{
 		Code:     ParseErr,
-		Message:  msg,
+		Message:  reason,
 		Location: loc,
 		Details:  newParserErrorDetail(p.s.s.Bytes(), loc.Offset),
 	})
@@ -3143,11 +3317,10 @@ func (p *Parser) doScan(skipws bool, scanOpts ...scanner.ScanOption) {
 		p.s.loc.Text = p.s.Text(pos.Offset, pos.End)
 		p.s.loc.Tabs = pos.Tabs
 
-		for _, err := range errs {
-			p.error(p.s.Loc(), err.Message)
-		}
-
 		if len(errs) > 0 {
+			for _, err := range errs {
+				p.error(p.s.Loc(), err.Message)
+			}
 			p.s.tok = tokens.Illegal
 		}
 
@@ -3164,17 +3337,28 @@ func (p *Parser) doScan(skipws bool, scanOpts ...scanner.ScanOption) {
 			break
 		}
 
-		// For backwards compatibility leave a nil
-		// Text value if there is no text rather than
-		// an empty string.
-		var commentText []byte
-		if len(p.s.lit) > 1 {
-			commentText = []byte(p.s.lit[1:])
+		var comment *Comment
+		if len(p.s.loc.Text) != 0 {
+			// if location has text, use that to avoid allocating for string->[]byte
+			comment = NewComment(commentFromLocText(p.s.loc.Text[1:]))
+		} else {
+			comment = NewComment([]byte(p.s.lit[1:]))
 		}
-		comment := NewComment(commentText)
 		comment.SetLoc(p.s.Loc())
 		p.s.comments = append(p.s.comments, comment)
 	}
+}
+
+func commentFromLocText(commentText []byte) []byte {
+	l := len(commentText)
+	if l == 1 && commentText[0] == '\r' {
+		commentText, l = nil, 0 // special case - remove lone '\r'
+	}
+	for l > 1 && commentText[l-1] == '\r' { // trim trailing '\r' until the last char
+		commentText = commentText[:l-1]
+		l--
+	}
+	return commentText
 }
 
 func (p *Parser) save() *state {
@@ -3448,13 +3632,13 @@ func (b *metadataParser) Parse() (result *Annotations, err error) {
 	result.Location = b.loc
 
 	// recreate original text of entire metadata block for location text attribute
-	original := bytes.TrimSuffix(b.buf.Bytes(), newlineBytes)
-	numLines := bytes.Count(original, newlineBytes) + 1
+	original := bytes.TrimSuffix(b.buf.Bytes(), []byte("\n"))
+	numLines := bytes.Count(original, []byte("\n")) + 1
 	preAlloc := len("# METADATA\n") + len(original) + numLines*2 // '# ' prefix added per line
 
 	result.Location.Text = append(make([]byte, 0, preAlloc), "# METADATA\n"...)
 
-	for line := range bytes.SplitAfterSeq(original, newlineBytes) {
+	for line := range bytes.SplitAfterSeq(original, []byte("\n")) {
 		result.Location.Text = append(result.Location.Text, "# "...)
 		result.Location.Text = append(result.Location.Text, line...)
 	}
@@ -3731,10 +3915,8 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 			return
 		}
 		keyword := string(kw)
-		_, ok = allowedFutureKeywords[keyword]
-		if !ok {
-			sort.Strings(kwds) // so the error message is stable
-			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", kwds)
+		if _, ok = allowedFutureKeywords[keyword]; !ok {
+			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", util.Sorted(kwds))
 			return
 		}
 

@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -275,13 +276,7 @@ func TestCompilerStageSkippingWithAfterStages(t *testing.T) {
 		c.Compile(map[string]*Module{})
 
 		stages := c.StagesToRun()
-		found := false
-		for _, s := range stages {
-			if s == "CustomAfterCheckTypes" {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(stages, "CustomAfterCheckTypes")
 
 		if !found {
 			t.Error("after stage should be in StagesToRun()")

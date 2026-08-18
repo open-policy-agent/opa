@@ -164,6 +164,15 @@ func Compare(a, b any) int {
 }
 
 func compareJSONNumber(a, b json.Number) int {
+	if a == b {
+		return 0
+	}
+	if ai, ok := Atoi(string(a)); ok {
+		if bi, ok := Atoi(string(b)); ok {
+			return ai - bi
+		}
+		return -1
+	}
 	bigA, ok := new(big.Float).SetString(string(a))
 	if !ok {
 		panic("illegal value")

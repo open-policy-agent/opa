@@ -1096,7 +1096,10 @@ q = true`
 
 func TestCompileUptoNoModules(t *testing.T) {
 	t.Parallel()
-	compiler, module, err := New().compileUpto("SetRuleTree", nil, []byte("package test\np=1"), "test.rego")
+	compiler, module, err := New().compileUpto("SetRuleTree", DefinitionQuery{
+		Buffer:   []byte("package test\np=1"),
+		Filename: "test.rego",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1113,9 +1116,12 @@ func TestCompileUptoNoModules(t *testing.T) {
 
 func TestCompileUptoNoBuffer(t *testing.T) {
 	t.Parallel()
-	compiler, module, err := New().compileUpto("SetRuleTree", map[string]*ast.Module{
-		"test.rego": ast.MustParseModule("package test\np=1"),
-	}, nil, "test.rego")
+	compiler, module, err := New().compileUpto("SetRuleTree", DefinitionQuery{
+		Modules: map[string]*ast.Module{
+			"test.rego": ast.MustParseModule("package test\np=1"),
+		},
+		Filename: "test.rego",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1128,6 +1134,76 @@ func TestCompileUptoNoBuffer(t *testing.T) {
 	if module == nil {
 		t.Fatal("expected parsed module")
 	}
+}
+
+func TestCompileUptoBufferParserOptions(t *testing.T) {
+	t.Parallel()
+
+	const v0Module = `package test
+
+p[x] {
+	x = 1
+}`
+
+	const logicalModule = `package test
+
+import future.keywords.and
+
+p if {
+	q and r
+}
+
+q := 1
+r := 2`
+
+	t.Run("rego version from query", func(t *testing.T) {
+		t.Parallel()
+		_, module, err := New().compileUpto("SetRuleTree", DefinitionQuery{
+			Buffer:        []byte(v0Module),
+			Filename:      "test.rego",
+			ParserOptions: ast.ParserOptions{RegoVersion: ast.RegoV0},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if module == nil {
+			t.Fatal("expected parsed module")
+		}
+	})
+
+	t.Run("rego version from shadowed module", func(t *testing.T) {
+		t.Parallel()
+		shadowed := ast.MustParseModuleWithOpts(v0Module, ast.ParserOptions{RegoVersion: ast.RegoV0})
+
+		_, module, err := New().compileUpto("SetRuleTree", DefinitionQuery{
+			Modules:  map[string]*ast.Module{"test.rego": shadowed},
+			Buffer:   []byte(v0Module),
+			Filename: "test.rego",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if module == nil {
+			t.Fatal("expected parsed module")
+		}
+	})
+
+	t.Run("capabilities from compiler", func(t *testing.T) {
+		t.Parallel()
+		capabilities := ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+		o := New().WithCompiler(ast.NewCompiler().WithCapabilities(capabilities))
+
+		_, module, err := o.compileUpto("SetRuleTree", DefinitionQuery{
+			Buffer:   []byte(logicalModule),
+			Filename: "test.rego",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !module.Rules[0].Body[0].IsAnd() {
+			t.Fatal("expected logical and expression but got:", module.Rules[0].Body[0])
+		}
+	})
 }
 
 func TestUsingCustomCompiler(t *testing.T) {

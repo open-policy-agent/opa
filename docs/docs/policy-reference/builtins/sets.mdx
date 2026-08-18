@@ -3,3 +3,14 @@ title: Set Built-ins
 sidebar_label: Sets
 ---
 <BuiltinTable category={"sets"}/>
+
+## Examples
+
+### `intersection`
+
+`intersection` returns the values that appear in every set of a set-of-sets.
+Comparing a caller's granted scopes with the scopes an endpoint requires is
+a typical case: anything left after subtracting the intersection from the
+requirement is missing.
+
+<PlaygroundExample dir={require.context('../_examples/sets/intersection/required-scopes')} />

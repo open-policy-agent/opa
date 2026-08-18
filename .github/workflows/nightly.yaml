@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -24,7 +24,7 @@ jobs:
         run: make ci-go-race-detector
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
@@ -39,12 +39,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Install Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: .go-version
 
@@ -56,7 +56,7 @@ jobs:
         run: find ast/testdata/fuzz ! -name '*.stmt' ! -type d -print -exec cat {} \;
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -82,7 +82,7 @@ jobs:
           DOCKER_RUNNING: 0
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
@@ -95,11 +95,11 @@ jobs:
     name: Go vulnerability check
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: .go-version
 
@@ -107,7 +107,7 @@ jobs:
       - run: govulncheck ./...
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
@@ -140,12 +140,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Install Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: .go-version
 
@@ -170,7 +170,7 @@ jobs:
         timeout-minutes: 10
 
       - name: Slack Notification
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         with:
           webhook: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }} # zizmor: ignore[secrets-outside-env]
