@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -333,6 +334,15 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 		return
 	}
 
+	switch terms := expr.Terms.(type) {
+	case *LogicalAnd:
+		i.updateLogicalAnd(rule, terms, values)
+		return
+	case *LogicalOr:
+		i.updateLogicalOr(rule, terms, values)
+		return
+	}
+
 	op := expr.Operator()
 	if op == nil {
 		if ts, ok := expr.Terms.(*Term); ok {
@@ -368,6 +378,106 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 	case op.Equal(Interned.Refs.Member) && len(expr.Operands()) == 2:
 		// NOTE(sr): Again, 3 operands means captured output (like above).
 		i.updateMember(rule, expr, values)
+	}
+}
+
+// updateLogicalAnd folds both operands of a conjunction into the rule's
+// indices: `lhs and rhs` only succeeds if both operands do.
+func (i *refindices) updateLogicalAnd(rule *Rule, and *LogicalAnd, values map[Var]Value) {
+	i.updateOperand(rule, and.Lhs, values)
+	i.updateOperand(rule, and.Rhs, values)
+}
+
+// updateLogicalOr folds the operands of a disjunction into the rule's indices.
+// Only a ref that both operands constrain can be indexed, to the values seen on
+// either side: a ref one operand leaves alone says nothing about the rule, as
+// that operand could satisfy the disjunction with the ref holding any value.
+func (i *refindices) updateLogicalOr(rule *Rule, or *LogicalOr, values map[Var]Value) {
+	lhs := i.operandIndices(rule, or.Lhs, values)
+	if len(lhs) == 0 {
+		return
+	}
+
+	rhs := i.operandIndices(rule, or.Rhs, values)
+	if len(rhs) == 0 {
+		return
+	}
+
+	for pos, li := range lhs {
+		hasRef := func(other *refindex) bool { return other.Ref.Equal(li.Ref) }
+
+		if slices.ContainsFunc(lhs[:pos], hasRef) {
+			continue // ref already merged
+		}
+		if !slices.ContainsFunc(rhs, hasRef) {
+			continue // ref not constrained by both operands
+		}
+
+		i.insertUnion(rule, li.Ref, lhs, rhs)
+	}
+}
+
+func (i *refindices) insertUnion(rule *Rule, ref Ref, lhs, rhs []*refindex) {
+	sides := [...][]*refindex{lhs, rhs}
+
+	for _, side := range sides {
+		for _, ri := range side {
+			if ri.Ref.Equal(ref) && ri.isVar() {
+				// Either operand allowing any value widens the disjunction to
+				// any. Not the operand's own var: that is scoped to the operand
+				// body, and must not become resolvable from the outside (see
+				// resolveVarToRef).
+				i.insert(rule, &refindex{Ref: ref, Value: anyValue})
+				return
+			}
+		}
+	}
+
+	for _, side := range sides {
+		for _, ri := range side {
+			if ri.Ref.Equal(ref) {
+				i.insert(rule, ri)
+			}
+		}
+	}
+}
+
+// operandIndices returns the indices that body, as an operand of a disjunction,
+// implies for rule, without adding them to the rule's own indices. The scratch
+// is seeded with what the rule has so far, so that vars bound outside the
+// operand still resolve to their refs.
+func (i *refindices) operandIndices(rule *Rule, body Body, values map[Var]Value) []*refindex {
+	before := i.rules[rule]
+
+	scratch := newrefindices(i.isVirtual)
+	scratch.rules[rule] = slices.Clone(before)
+	scratch.updateOperand(rule, body, values)
+
+	after := scratch.rules[rule]
+
+	var result []*refindex
+	for pos := range after {
+		// insert() replaces an "any value" index in place when it learns a
+		// value for that ref, so a seeded position may hold a new index too.
+		if pos >= len(before) || after[pos] != before[pos] {
+			result = append(result, after[pos])
+		}
+	}
+
+	return result
+}
+
+// updateOperand folds the expressions of an `and`/`or` operand body into the
+// rule's indices. An operand body is a closed scope -- bindings made inside it
+// reach neither the enclosing body nor the sibling operand (see
+// evalLogicalOperand in topdown) -- so its constants are copied in and dropped
+// on return.
+func (i *refindices) updateOperand(rule *Rule, body Body, values map[Var]Value) {
+	scoped := make(map[Var]Value, len(values))
+	maps.Copy(scoped, values)
+
+	for _, expr := range body {
+		i.Update(rule, expr, scoped)
 	}
 }
 
