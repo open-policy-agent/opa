@@ -265,6 +265,43 @@ func TestAllowNetIsPerSchemaLoader(t *testing.T) {
 	})
 }
 
+func TestAllowNetRestrictsFileReferences(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "schema.json")
+	if err := os.WriteFile(filename, []byte(`{"type": "string"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	schema := fmt.Sprintf(`{"$ref": %q}`, "file://"+filepath.ToSlash(filename))
+
+	tests := []struct {
+		note       string
+		allowNet   []string
+		wantDenied bool
+	}{
+		{note: "nil list permits file references", allowNet: nil},
+		{note: "empty list denies file references", allowNet: []string{}, wantDenied: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			sl := NewSchemaLoader()
+			sl.AllowNet = tc.allowNet
+			_, err := sl.Compile(NewStringLoader(schema))
+			if tc.wantDenied {
+				if err == nil {
+					t.Fatal("expected file reference to be denied, but compilation succeeded")
+				}
+				if !strings.Contains(err.Error(), "remote reference loading disabled") {
+					t.Fatalf("expected remote reference loading to be disabled, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected file reference to be permitted, got %v", err)
+			}
+		})
+	}
+}
+
 func TestAllowNetIsCheckedOnRedirects(t *testing.T) {
 	var srv *httptest.Server
 
