@@ -2023,10 +2023,44 @@ type Object interface {
 
 // NewObject creates a new Object with t.
 func NewObject(t ...[2]*Term) Object {
-	obj := newobject(len(t))
-	for i := range t {
-		obj.insert(t[i][0], t[i][1], false)
+	var keys []*objectElem
+	n := len(t)
+	if n > 0 {
+		keys = make([]*objectElem, n)
 	}
+	obj := &object{
+		elems:     make(map[int]*objectElem, n),
+		keys:      keys,
+		sortGuard: sync.Once{},
+	}
+
+	// NOTE(anders): The code below is convoluted, but necessary
+	// since creating objects is something we do a lot and often
+	// on hot paths, this avoids allocating one objectElem per
+	// key-value pair, in favor of a single contiguous block of
+	// memory. The same technique is used in (*object).Copy(),
+	// for the same reasons.
+	elems := make([]objectElem, n)
+	for i, kv := range t {
+		key, val := kv[0], kv[1]
+		elems[i] = objectElem{key: key, value: val}
+		obj.keys[i] = &elems[i]
+
+		keyHash := key.Hash()
+		if head, ok := obj.elems[keyHash]; ok {
+			elems[i].next = head
+		}
+		obj.hash += keyHash + val.Hash()
+
+		if key.IsGround() {
+			obj.ground++
+		}
+		if val.IsGround() {
+			obj.ground++
+		}
+		obj.elems[keyHash] = &elems[i]
+	}
+
 	return obj
 }
 
