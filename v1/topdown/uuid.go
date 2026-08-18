@@ -10,12 +10,10 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
 
-type uuidCachingKey string
+type uuidCachingKey int
 
 func builtinUUIDRFC4122(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
-	var key = uuidCachingKey(operands[0].Value.String())
-
+	key := uuidCachingKey(operands[0].Value.Hash())
 	val, ok := bctx.Cache.Get(key)
 	if ok {
 		return iter(val.(*ast.Term))
@@ -51,6 +49,11 @@ func builtinUUIDParse(_ BuiltinContext, operands []*ast.Term, iter func(term *as
 }
 
 func init() {
+	ast.InternStringTerm(
+		"version", "variant", "nodeid", "macvariables", "time", "clocksequence", "domain", "id",
+		"local:multicast", "global:multicast", "local:unicast", "global:unicast", "RFC4122",
+		"Person", "Group", "Org",
+	)
 	RegisterBuiltinFunc(ast.UUIDRFC4122.Name, builtinUUIDRFC4122)
 	RegisterBuiltinFunc(ast.UUIDParse.Name, builtinUUIDParse)
 }
