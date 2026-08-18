@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -173,7 +172,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		}
 
 		if update.IsPolicy {
-			err = underlying.UpsertPolicy(strings.Join(update.Path, "/"), update.Value)
+			err = underlying.UpsertPolicy(update.Path.PolicyID(), update.Value)
 			if err != nil {
 				return err
 			}

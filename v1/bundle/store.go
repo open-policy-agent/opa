@@ -927,10 +927,7 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					if m := f.module; m != nil {
 						// 'f.module.Path' contains the module's path as it relates to the bundle root, and can be used for looking up the rego-version.
 						// 'f.Path' can differ, based on how the bundle reader was initialized.
-						// The storage path is joined unescaped so that it matches the
-						// policy ID the store's Truncate implementation derives from
-						// the same path.
-						if err := writeModuleRegoVersionToStore(ctx, store, txn, b, *m, strings.Join(p, "/"), runtimeRegoVersion); err != nil {
+						if err := writeModuleRegoVersionToStore(ctx, store, txn, b, *m, p.PolicyID(), runtimeRegoVersion); err != nil {
 							return err
 						}
 					}
