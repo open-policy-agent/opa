@@ -106,6 +106,17 @@ func BenchmarkPartialEvalDynamicComposition(b *testing.B) {
 	}
 }
 
+// Was
+// BenchmarkPartialEvalDynamicCompositionKnownRules/10-16 	   39566	     30391 ns/op	   13041 B/op	     408 allocs/op
+// BenchmarkPartialEvalDynamicCompositionKnownRules/100-16         	    5332	    224829 ns/op	   47862 B/op	    2028 allocs/op
+// BenchmarkPartialEvalDynamicCompositionKnownRules/1000-16        	     271	   4378521 ns/op	  975648 B/op	   45430 allocs/op
+// BenchmarkPartialEvalDynamicCompositionKnownRules/5000-16        	      13	  82562061 ns/op	17643343 B/op	  826324 allocs/op
+//
+// Now
+// BenchmarkPartialEvalDynamicCompositionKnownRules/10-16 	   44154	     27070 ns/op	   12510 B/op	     382 allocs/op
+// BenchmarkPartialEvalDynamicCompositionKnownRules/100-16         	    6354	    189338 ns/op	   41534 B/op	    1732 allocs/op
+// BenchmarkPartialEvalDynamicCompositionKnownRules/1000-16        	     804	   1515485 ns/op	  335291 B/op	   15467 allocs/op
+// BenchmarkPartialEvalDynamicCompositionKnownRules/5000-16        	     142	   8450281 ns/op	 1639188 B/op	   76507 allocs/op
 // BenchmarkPartialEvalDynamicCompositionKnownRules is the counterpart of
 // BenchmarkPartialEvalDynamicComposition for policies that don't depend on the
 // unknown: partial evaluation has to consider every rule that could apply before

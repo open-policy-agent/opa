@@ -383,7 +383,14 @@ func saveRequired(compilerTree *ast.TreeNode, extStack *externalTreeStack, ic *i
 				} else if ic.Disabled(v.ConstantPrefix(), icIgnoreInternal) {
 					found = true
 				} else {
-					found = anyRuleDynamic(compilerTree, extStack, v, ast.RulesOptions{IncludeHiddenModules: false},
+					// Only terms from the call site can be plugged: once traversal
+					// recurses into a rule, that rule's variables belong to another
+					// binding list and could resolve to unrelated values in b.
+					lookup := v
+					if !rec {
+						lookup = plugRefForRuleLookup(v, b)
+					}
+					found = anyRuleDynamic(compilerTree, extStack, lookup, ast.RulesOptions{IncludeHiddenModules: false},
 						func(rule *ast.Rule) bool {
 							return saveRequired(compilerTree, extStack, ic, icIgnoreInternal, ss, b, rule, true)
 						})
@@ -396,6 +403,35 @@ func saveRequired(compilerTree *ast.TreeNode, extStack *externalTreeStack, ic *i
 	vis.Walk(x)
 
 	return found
+}
+
+// plugRefForRuleLookup replaces variables in ref that are bound to a scalar with
+// that value, narrowing rule lookup to the sub-tree that will actually be
+// evaluated. Positions left as-is, because they are unbound or bound to a
+// composite, fan out over all children as before.
+func plugRefForRuleLookup(ref ast.Ref, b *bindings) ast.Ref {
+	if b == nil {
+		return ref
+	}
+
+	cpy := ref
+
+	for i := 1; i < len(ref); i++ {
+		if _, ok := ref[i].Value.(ast.Var); !ok {
+			continue
+		}
+		plugged := b.Plug(ref[i])
+		if !ast.IsScalar(plugged.Value) {
+			continue
+		}
+		if len(cpy) == len(ref) && &cpy[0] == &ref[0] {
+			cpy = make(ast.Ref, len(ref))
+			copy(cpy, ref)
+		}
+		cpy[i] = plugged
+	}
+
+	return cpy
 }
 
 // anyRuleDynamic invokes f for the rules matching ref in the external trees and
