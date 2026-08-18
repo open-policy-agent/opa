@@ -2499,17 +2499,15 @@ func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction
 }
 
 func (s *Server) checkPolicyPackageScope(ctx context.Context, txn storage.Transaction, pkg *ast.Package) error {
-	path, err := pkg.Path.Ptr()
+	// Not Ref.Ptr + ParsePathEscaped: that escapes each segment only to
+	// immediately unescape it again, and any segment holding a '%' that isn't a
+	// valid escape sequence would fail to round-trip.
+	path, err := storage.NewPathForRef(pkg.Path)
 	if err != nil {
 		return err
 	}
 
-	spath, ok := storage.ParsePathEscaped("/" + path)
-	if !ok {
-		return types.BadRequestErr("invalid package path: cannot determine scope")
-	}
-
-	return s.checkPathScope(ctx, txn, spath)
+	return s.checkPathScope(ctx, txn, path)
 }
 
 func (s *Server) getMetrics(r *http.Request) metrics.Metrics {
@@ -2541,13 +2539,15 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 		bundleRoots[name] = roots
 	}
 
-	spath := strings.Trim(path.String(), "/")
-
-	if spath == "" && len(bundleRoots) > 0 {
+	if len(path) == 0 && len(bundleRoots) > 0 {
 		return types.BadRequestErr("can't write to document root with bundle roots configured")
 	}
 
-	spathParts := strings.Split(spath, "/")
+	// Bundle roots are raw, unescaped strings, so the path's segments are
+	// compared as-is. Round-tripping them through Path.String would
+	// percent-encode each segment, and a root like "a/b/foo bar" would never
+	// match a write to /v1/data/a/b/foo%20bar.
+	spathParts := []string(path)
 
 	for name, roots := range bundleRoots {
 		if roots == nil {
@@ -2558,7 +2558,7 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 				return types.BadRequestErr(fmt.Sprintf("all paths owned by bundle %q", name))
 			}
 			if isPathOwned(spathParts, strings.Split(root, "/")) {
-				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", spath, name))
+				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", strings.Join(spathParts, "/"), name))
 			}
 		}
 	}
