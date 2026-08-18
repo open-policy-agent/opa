@@ -206,9 +206,6 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 	}
 	o.allowKeywordsInRefs = capabilities.ContainsFeature(ast.FeatureKeywordsInRefs)
 
-	memberRef := ast.Member.Ref()
-	memberWithKeyRef := ast.MemberWithKey.Ref()
-
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.
 	ast.WalkNodes(x, func(x ast.Node) bool {
@@ -222,7 +219,8 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 
 		case *ast.Expr:
 			switch {
-			case n.IsCall() && memberRef.Equal(n.Operator()) || memberWithKeyRef.Equal(n.Operator()):
+			case n.IsCall() && ast.Interned.Refs.Member.Equal(n.Operator()) ||
+				ast.Interned.Refs.MemberWithKey.Equal(n.Operator()):
 				extraFutureKeywordImports["in"] = struct{}{}
 			case n.IsEvery():
 				extraFutureKeywordImports["every"] = struct{}{}
@@ -2355,7 +2353,7 @@ func (w *writer) writeIterableLine(elements []any, comments []*ast.Comment, fn e
 // `x | y`, which is comprehension syntax at an operand brace.
 func isUnionExpr(expr *ast.Expr) bool {
 	terms, ok := expr.Terms.([]*ast.Term)
-	return ok && len(terms) == 3 && ast.Or.Ref().Equal(terms[0].Value)
+	return ok && len(terms) == 3 && ast.Interned.Refs.Or.Equal(terms[0].Value)
 }
 
 // markUnionLead parenthesizes the set union leading the rendering of expr, if
@@ -2453,7 +2451,7 @@ func termRendersBraceLead(t *ast.Term) bool {
 // literal or as a comprehension term, and must be parenthesized there.
 func isUnionCall(t *ast.Term) bool {
 	call, ok := t.Value.(ast.Call)
-	return ok && ast.Or.Ref().Equal(call[0].Value)
+	return ok && ast.Interned.Refs.Or.Equal(call[0].Value)
 }
 
 func (w *writer) objectWriter() entryWriter {

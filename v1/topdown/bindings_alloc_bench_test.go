@@ -18,6 +18,8 @@ import (
 // BenchmarkBindingsAllocation benchmarks memory allocation for bindings with different sizes.
 // This directly tests the optimization from issue #7266.
 func BenchmarkBindingsAllocation(b *testing.B) {
+	const maxBindings int = 50
+
 	tests := []struct {
 		name     string
 		bindings int
@@ -29,32 +31,32 @@ func BenchmarkBindingsAllocation(b *testing.B) {
 		{"10_bindings", 10},
 		{"16_bindings", 16},
 		{"20_bindings", 20},
-		{"50_bindings", 50},
+		{"50_bindings", maxBindings},
 	}
+
+	var keys, vals [maxBindings]*ast.Term
+	for j := range maxBindings {
+		keys[j] = ast.VarTerm(fmt.Sprintf("x%d", j))
+		vals[j] = ast.InternedTerm(j)
+	}
+
+	u := &undo{}
 
 	for _, tt := range tests {
 		b.Run(tt.name+"_without_hint", func(b *testing.B) {
-			b.ReportAllocs()
-			b.ResetTimer()
 			for b.Loop() {
 				bi := newBindings(0, nil)
 				for j := range tt.bindings {
-					key := ast.VarTerm(fmt.Sprintf("x%d", j))
-					val := ast.IntNumberTerm(j)
-					bi.bind(key, val, nil, &undo{})
+					bi.bind(keys[j], vals[j], nil, u)
 				}
 			}
 		})
 
 		b.Run(tt.name+"_with_hint", func(b *testing.B) {
-			b.ReportAllocs()
-			b.ResetTimer()
 			for b.Loop() {
 				bi := newBindingsWithSize(0, nil, tt.bindings)
 				for j := range tt.bindings {
-					key := ast.VarTerm(fmt.Sprintf("x%d", j))
-					val := ast.IntNumberTerm(j)
-					bi.bind(key, val, nil, &undo{})
+					bi.bind(keys[j], vals[j], nil, u)
 				}
 			}
 		})
@@ -75,7 +77,7 @@ func BenchmarkFunctionArgumentCounts(b *testing.B) {
 			checks := make([]string, argCount)
 			for i := range argCount {
 				args[i] = fmt.Sprintf("x%d", i)
-				checks[i] = fmt.Sprintf("%s == %d", args[i], i)
+				checks[i] = fmt.Sprintf("x%[1]d == %[1]d", i)
 			}
 
 			module := fmt.Sprintf(`package test
@@ -85,10 +87,7 @@ func BenchmarkFunctionArgumentCounts(b *testing.B) {
 			}
 			`, strings.Join(args, ", "), strings.Join(checks, "\n\t\t\t\t"))
 
-			compiler := ast.MustCompileModules(map[string]string{
-				"test.rego": module,
-			})
-
+			compiler := ast.MustCompileModules(map[string]string{"test.rego": module})
 			store := inmem.NewFromObject(map[string]any{})
 
 			// Create call with matching arguments
@@ -98,23 +97,23 @@ func BenchmarkFunctionArgumentCounts(b *testing.B) {
 			}
 			query := ast.MustParseBody(fmt.Sprintf(`data.test.f(%s)`, strings.Join(callArgs, ", ")))
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				q := NewQuery(query).
+					WithCompiler(compiler).
+					WithStore(store).
+					WithTransaction(txn)
 
-			for b.Loop() {
-				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-					q := NewQuery(query).
-						WithCompiler(compiler).
-						WithStore(store).
-						WithTransaction(txn)
-
-					_, err := q.Run(ctx)
-					return err
-				})
-
-				if err != nil {
-					b.Fatal(err)
+				for b.Loop() {
+					if _, err := q.Run(ctx); err != nil {
+						return err
+					}
 				}
+
+				return nil
+			})
+
+			if err != nil {
+				b.Fatal(err)
 			}
 		})
 	}
@@ -122,30 +121,30 @@ func BenchmarkFunctionArgumentCounts(b *testing.B) {
 
 // BenchmarkBindingsArrayHashmapTransition benchmarks the transition from array to map mode.
 func BenchmarkBindingsArrayHashmapTransition(b *testing.B) {
+	var keys [17]*ast.Term
+	var vals [17]value
+
+	for j := range 17 {
+		keys[j] = ast.VarTerm(fmt.Sprintf("x%d", j))
+		vals[j] = value{v: ast.InternedTerm(j)}
+	}
+
 	b.Run("without_hint_transition_at_17", func(b *testing.B) {
-		b.ReportAllocs()
-		b.ResetTimer()
 		for b.Loop() {
 			bh := newBindingsArrayHashmap()
 			// Add 17 bindings to force transition to map
 			for j := range 17 {
-				key := ast.VarTerm(fmt.Sprintf("x%d", j))
-				val := value{v: ast.IntNumberTerm(j)}
-				bh.Put(key, val)
+				bh.Put(keys[j], vals[j])
 			}
 		}
 	})
 
 	b.Run("with_hint_starts_with_map", func(b *testing.B) {
-		b.ReportAllocs()
-		b.ResetTimer()
 		for b.Loop() {
 			bh := newBindingsArrayHashmapWithSize(17)
 			// Add 17 bindings directly to map (no transition)
 			for j := range 17 {
-				key := ast.VarTerm(fmt.Sprintf("x%d", j))
-				val := value{v: ast.IntNumberTerm(j)}
-				bh.Put(key, val)
+				bh.Put(keys[j], vals[j])
 			}
 		}
 	})

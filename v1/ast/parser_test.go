@@ -9225,8 +9225,8 @@ func TestNotImport(t *testing.T) {
 						Body: NewBody(
 							&Expr{
 								Terms: []*Term{
-									NewTerm(Equal.Ref()),
-									CallTerm(NewTerm(Plus.Ref()), NumberTerm("1"), NumberTerm("1")),
+									NewTerm(Interned.Refs.Equal),
+									Plus.Call(NumberTerm("1"), NumberTerm("1")),
 									NumberTerm("3"),
 								},
 								Negated: true,
@@ -9285,8 +9285,8 @@ func TestNotImport(t *testing.T) {
 							NewExpr(
 								&Not{
 									Body: NewBody(Equal.Expr(
-										CallTerm(NewTerm(Plus.Ref()), NumberTerm("1"), NumberTerm("1")),
-										NumberTerm("3"),
+										Plus.Call(InternedTerm(1), InternedTerm(1)),
+										InternedTerm(3),
 									)),
 								},
 							),
@@ -9317,7 +9317,7 @@ func TestNotImport(t *testing.T) {
 							&Expr{
 								Terms: &Not{
 									Body: NewBody(Equal.Expr(
-										CallTerm(NewTerm(Plus.Ref()), NumberTerm("1"), NumberTerm("1")),
+										Plus.Call(InternedTerm(1), InternedTerm(1)),
 										RefTerm(VarTerm("input"), StringTerm("x")),
 									)),
 								},
@@ -9895,7 +9895,7 @@ func TestAmbiguousUnionBodyIsRejected(t *testing.T) {
 			// The parens make the braces a set literal, holding the call.
 			expBody: NewBody(NewExpr(&Not{
 				Body: NewBody(NewExpr(SetTerm(
-					CallTerm(NewTerm(Or.Ref()), VarTerm("a"), VarTerm("b")),
+					CallTerm(NewTerm(Interned.Refs.Or), VarTerm("a"), VarTerm("b")),
 				))),
 			})),
 		},

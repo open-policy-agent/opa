@@ -761,8 +761,6 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 	return nil
 }
 
-var testCaseFuncRef = ast.InternalTestCase.Ref()
-
 // injectTestCaseFunc will inject a call to the 'internal.test_case' function into partial-object test rules.
 // We attempt to find the earliest point in the rule body where we can inject the call, to ensure that the test-case
 // function is called as early as possible so that we capture as many failed test cases as possible.
@@ -812,7 +810,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 			// Only apply to rules that doesn't have manual use of the test-case function
 			manualCall := false
 			ast.WalkExprs(rule.Body, func(expr *ast.Expr) bool {
-				if expr.IsCall() && expr.Operator().Equal(testCaseFuncRef) {
+				if expr.IsCall() && expr.Operator().Equal(ast.Interned.Refs.InternalTestCase) {
 					manualCall = true
 					return true
 				}
@@ -933,7 +931,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 			})
 
 			testCaseFuncExpr := ast.NewExpr([]*ast.Term{
-				ast.NewTerm(ast.InternalTestCase.Ref()),
+				ast.NewTerm(ast.Interned.Refs.InternalTestCase),
 				ast.NewTerm(args),
 			})
 

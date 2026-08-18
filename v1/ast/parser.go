@@ -71,12 +71,6 @@ var (
 		Var("$0"), Var("$1"), Var("$2"), Var("$3"), Var("$4"), Var("$5"),
 		Var("$6"), Var("$7"), Var("$8"), Var("$9"), Var("$10"),
 	}
-
-	// use static references to avoid allocations, and
-	// copy them to  the call term only when needed
-	memberWithKeyRef = MemberWithKey.Ref()
-	memberRef        = Member.Ref()
-
 	metadataBytes      = []byte("METADATA")
 	metadataParserPool = util.NewSyncPool[metadataParser]()
 )
@@ -1868,7 +1862,7 @@ func isAmbiguousUnionBody(b Body) bool {
 	// The first expression decides: `{A | B; C}` also reads as a comprehension with
 	// head A and body `B; C`, so trailing expressions don't disambiguate anything.
 	terms, ok := b[0].Terms.([]*Term)
-	if !ok || !Or.Ref().Equal(b[0].Operator()) {
+	if !ok || !Interned.Refs.Or.Equal(b[0].Operator()) {
 		return false
 	}
 
@@ -2235,7 +2229,7 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 			p.scan()
 			if mhs := p.parseTermRelation(nil, offset); mhs != nil {
 
-				if op := p.parseTermOpName(memberWithKeyRef, tokens.In); op != nil {
+				if op := p.parseTermOpName(Interned.Refs.MemberWithKey, tokens.In); op != nil {
 					if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
 						call := p.setLoc(CallTerm(op, lhs, mhs, rhs), lhs.Location, offset, p.s.lastEnd)
 						switch p.s.tok {
@@ -2252,7 +2246,7 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 
 		_ = scanAheadRef(p)
 
-		if op := p.parseTermOpName(memberRef, tokens.In); op != nil {
+		if op := p.parseTermOpName(Interned.Refs.Member, tokens.In); op != nil {
 			if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
 				call := p.setLoc(CallTerm(op, lhs, rhs), lhs.Location, offset, p.s.lastEnd)
 				switch p.s.tok {

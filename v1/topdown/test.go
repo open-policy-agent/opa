@@ -13,7 +13,7 @@ func builtinTestCase(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		Op:      TestCaseOp,
 		QueryID: bctx.QueryID,
 		Node: ast.NewExpr([]*ast.Term{
-			ast.NewTerm(ast.InternalTestCase.Ref()),
+			ast.NewTerm(ast.Interned.Refs.InternalTestCase),
 			ast.NewTerm(operands[0].Value),
 		}),
 	}
