@@ -1844,3 +1844,47 @@ func BenchmarkFormatVarTerm(b *testing.B) {
 		_ = e.fmtVar()
 	}
 }
+
+func TestCanInlineNegation(t *testing.T) {
+	t.Parallel()
+
+	// A query of three negated expressions over the unknown, as partial
+	// evaluation of a policy with an unknown-dependent rule produces.
+	query := ast.MustParseBody(`not "1" = input.type; not "1" = input.subtype; not input.attribute = "0"`)
+
+	queries := func(n int) []ast.Body {
+		result := make([]ast.Body, n)
+		for i := range result {
+			result[i] = query
+		}
+		return result
+	}
+
+	tests := []struct {
+		note     string
+		queries  []ast.Body
+		expected bool
+	}{
+		{"single query", queries(1), true},
+		{"cross product within limit", queries(2), true},
+		{"cross product above limit", queries(3), false},
+		// The cross product of 100 queries of length three is 3^100, which does
+		// not fit in an int. It must still be rejected: before the size check
+		// moved into the loop, the product wrapped around to a negative value
+		// and partial evaluation went on to enumerate the cross product.
+		{"cross product overflows int", queries(100), false},
+		{"cross product overflows int, larger", queries(2500), false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			safe := ast.NewVarSet()
+
+			if actual := canInlineNegation(safe, tc.queries); actual != tc.expected {
+				t.Errorf("Expected canInlineNegation to return %v but got %v", tc.expected, actual)
+			}
+		})
+	}
+}
