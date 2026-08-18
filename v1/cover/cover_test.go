@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -615,7 +614,7 @@ func TestCoverQueryTracerInterface(t *testing.T) {
 		PlugLocalVars: false,
 	}
 
-	if !reflect.DeepEqual(expected, conf) {
-		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
+	if diff := cmp.Diff(expected, conf); diff != "" {
+		t.Fatalf("Expected config: (-expected +actual)\n%s", diff)
 	}
 }
