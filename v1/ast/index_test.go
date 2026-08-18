@@ -1736,12 +1736,17 @@ func TestSkipIndexingNestedBody(t *testing.T) {
 		return popts
 	}
 
+	// One case per expression shape that holds a body of its own. In each, the
+	// print sits where it cannot be lifted to the rule body: inside an `every`
+	// or `not` body, in an `or` branch that only runs when the other branch is
+	// undefined, or -- for `and` -- printing a value bound inside the operand's
+	// own scope.
 	tests := []struct {
 		note   string
 		nested string
 	}{
 		{"every", `every v in [1] { internal.print("here"); v = 2 }`},
-		{"and", `internal.print("here") and input.bar = 2`},
+		{"and", `{some v in [1]; internal.print(v)} and input.bar = 2`},
 		{"or", `internal.print("here") or input.bar = 2`},
 		{"not", `not { internal.print("here"); input.bar = 2 }`},
 	}
