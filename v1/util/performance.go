@@ -194,6 +194,8 @@ func Atoi(s string) (int, bool) {
 // codebase — most notably ast.Number's Int() and Int64() methods — have no interest in the
 // details of the failure, and keeping this allocation free means both methods can be used
 // not only for conversion, but as a most efficient "IsInt64" check.
+// Additionally this function accepts trailing decimal zeroes ("10.00", not "10.01") as that
+// makes sense in the context of us using JSON numbers.
 func Atoi64(s string) (int64, bool) {
 	sLen := len(s)
 	if sLen > 0 {
@@ -206,9 +208,23 @@ func Atoi64(s string) (int64, bool) {
 			return 0, false
 		}
 
+		var pastDecimal bool
 		var n int64
 		for _, ch := range []byte(s) {
+			if ch == '.' {
+				if !pastDecimal {
+					pastDecimal = true
+					continue
+				}
+				return 0, false
+			}
 			ch -= '0'
+			if pastDecimal {
+				if ch == 0 {
+					continue
+				}
+				return 0, false
+			}
 			if ch > 9 {
 				return 0, false
 			}
