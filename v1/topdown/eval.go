@@ -4717,6 +4717,14 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 
 	for _, query := range queries {
 		size *= len(query)
+
+		// NOTE(tsandall): this limit is arbitrary–it's only in place to prevent the
+		// partial evaluation result from blowing up. In the future, we could make this
+		// configurable or do something more clever.
+		if size > maxInlineNegationSize {
+			return false
+		}
+
 		for _, expr := range query {
 			if containsNestedRefOrCall(vis, expr) {
 				// Expressions containing nested refs or calls cannot be trivially negated
@@ -4744,11 +4752,12 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 		}
 	}
 
-	// NOTE(tsandall): this limit is arbitrary–it's only in place to prevent the
-	// partial evaluation result from blowing up. In the future, we could make this
-	// configurable or do something more clever.
-	return size <= 16
+	return true
 }
+
+// maxInlineNegationSize is the largest cross product of negated queries that
+// evalNotPartial will inline instead of generating support rules for.
+const maxInlineNegationSize = 16
 
 type nestedCheckVisitor struct {
 	vis   *ast.GenericVisitor
