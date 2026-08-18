@@ -2118,6 +2118,68 @@ x if {
 	assertNotFailed(t, c)
 }
 
+// Regression test for GH issue #4577
+func TestCompilerCheckTypesCallsInRefsNotLeaked(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		// The expected error, up to and including the caret line of the detail:
+		// the caret is positioned by rendering the ref, so it moves along with
+		// the substituted call.
+		expErr string
+	}{
+		{
+			note: "builtin call as ref subject",
+			module: `package test
+
+q := opa.runtime()[0].foo`,
+			expErr: "undefined ref: opa.runtime()[0].foo\n" +
+				"\topa.runtime()[0].foo\n" +
+				"\t              ^",
+		},
+		{
+			// rego.metadata.chain() is rewritten into a var of its own after the
+			// call has been hoisted out of the ref.
+			note: "rego.metadata.chain() call as ref subject",
+			module: `package test
+
+p := rego.metadata.chain()[0].annotations`,
+			expErr: "undefined ref: rego.metadata.chain()[0].annotations\n" +
+				"\trego.metadata.chain()[0].annotations\n" +
+				"\t                         ^",
+		},
+		{
+			note: "function call as ref subject",
+			module: `package test
+
+f(x) := {"a": x}
+
+p := f(1)[0]`,
+			expErr: "undefined ref: data.test.f(1)[0]\n" +
+				"\tdata.test.f(1)[0]\n" +
+				"\t               ^",
+		},
+		{
+			note: "call in ref index position",
+			module: `package test
+
+p := {"a": 1}[count([1, 2])]`,
+			expErr: "undefined ref: {\"a\": 1}[count([1, 2])]\n" +
+				"\t{\"a\": 1}[count([1, 2])]\n" +
+				"\t         ^",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{"test": MustParseModule(tc.module)}
+			compileStages(c, StageCheckTypes)
+			assertCompilerErrorStrings(t, c, []string{"rego_type_error: " + tc.expErr})
+		})
+	}
+}
+
 func TestCompilerCheckRuleConflicts(t *testing.T) {
 
 	c := getCompilerWithParsedModules(map[string]string{
@@ -11683,6 +11745,26 @@ func TestQueryCompiler(t *testing.T) {
 			note:     "nested dynamic index locals not leaked in type error",
 			q:        `[1, 2][input.a[input.b]][j]`,
 			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: [1, 2][input.a[input.b]][j]"),
+		},
+		{
+			// Regression test for https://github.com/open-policy-agent/opa/issues/4577:
+			// the generated local for a call in a ref subject must not leak.
+			note:     "call ref subject not leaked in type error",
+			q:        `opa.runtime()[0].foo`,
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: opa.runtime()[0].foo"),
+		},
+		{
+			// A call in an index position is hoisted into a local too.
+			note:     "call index local not leaked in type error",
+			q:        `{"a": 1}[count([1, 2])]`,
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: {\"a\": 1}[count([1, 2])]"),
+		},
+		{
+			// The arguments of a hoisted call are themselves hoisted into
+			// locals, so the call must be recorded before that happens.
+			note:     "nested call arguments not leaked in type error",
+			q:        `count(input.a[input.b])[0]`,
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: count(input.a[input.b])[0]"),
 		},
 		{
 			note:     "imports resolved without package",
