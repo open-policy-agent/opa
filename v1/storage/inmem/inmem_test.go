@@ -600,6 +600,55 @@ func TestTruncateNoExistingPath(t *testing.T) {
 	}
 }
 
+func TestTruncateBasePathWithSpace(t *testing.T) {
+	ctx := t.Context()
+	store := NewFromObject(map[string]any{})
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	buf := archive.MustWriteTarGz([][2]string{
+		{"/a/b/foo bar/data.json", `{"x": 1}`},
+		{"/a/b/foo bar/policy.rego", "package a.b[\"foo bar\"]\n p = 1"},
+	})
+
+	b, err := bundle.NewReader(buf).WithLazyLoadingMode(true).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	params := storage.WriteParams
+	params.BasePaths = []string{"a/b/foo bar"}
+
+	if err := store.Truncate(ctx, txn, params, bundle.NewIterator(b.Raw)); err != nil {
+		t.Fatalf("Unexpected truncate error: %v", err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	actual, err := store.Read(ctx, txn, storage.RootPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := util.MustUnmarshalJSON([]byte(`{"a": {"b": {"foo bar": {"x": 1}}}}`))
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected store to contain %v but got: %v", expected, actual)
+	}
+
+	ids, err := store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exp := []string{"a/b/foo bar/policy.rego"}; !reflect.DeepEqual(exp, ids) {
+		t.Fatalf("Expected policy IDs %v but got: %v", exp, ids)
+	}
+}
+
 func TestTruncate(t *testing.T) {
 	ctx := t.Context()
 	store := NewFromObject(map[string]any{})

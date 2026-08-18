@@ -173,7 +173,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		}
 
 		if update.IsPolicy {
-			err = underlying.UpsertPolicy(strings.TrimLeft(update.Path.String(), "/"), update.Value)
+			err = underlying.UpsertPolicy(strings.Join(update.Path, "/"), update.Value)
 			if err != nil {
 				return err
 			}
@@ -183,11 +183,11 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 				return err
 			}
 
-			var key []string
-			dirpath := strings.TrimLeft(update.Path.String(), "/")
-			if len(dirpath) > 0 {
-				key = strings.Split(dirpath, "/")
-			}
+			// The update's path is used as-is: round-tripping it through
+			// Path.String() would percent-encode segments containing characters
+			// like spaces, and the resulting keys would no longer match the
+			// (unescaped) paths derived from the bundle's roots below.
+			key := []string(update.Path)
 
 			if value != nil {
 				obj, err := mktree(key, value)
