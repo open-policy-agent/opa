@@ -97,7 +97,7 @@ func parseNumeric(s string) (int64, error) {
 // of leading zeroes, as required by SemVer 2.0.0. The identifier character set
 // has already been checked by reMetaIdentifier.
 func validPreRelease(pre string) bool {
-	for _, id := range strings.Split(pre, ".") {
+	for id := range strings.SplitSeq(pre, ".") {
 		if len(id) > 1 && id[0] == '0' && isAllDigits(id) {
 			return false
 		}
@@ -106,7 +106,7 @@ func validPreRelease(pre string) bool {
 }
 
 func isAllDigits(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] < '0' || s[i] > '9' {
 			return false
 		}
