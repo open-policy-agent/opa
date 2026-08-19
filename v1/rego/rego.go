@@ -1872,14 +1872,12 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			return PreparedEvalQuery{}, err
 		}
 
-		// nolint: staticcheck // SA4006 false positive
 		cr, err := r.compileWasm(modules, queries, evalQueryType)
 		if err != nil {
 			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
 		}
 
-		// nolint: staticcheck // SA4006 false positive
 		data, err := r.store.Read(ctx, r.txn, storage.RootPath)
 		if err != nil {
 			_ = txnClose(ctx, err) // Ignore error
