@@ -1,0 +1,37 @@
+# absolute path to a data file, which must load at the root of the data
+# document rather than under a document named after the drive letter
+exec $OPA eval --format pretty --data $WORK/data.json data.yay --fail
+stdout '^true$'
+! stderr .
+
+# absolute path to a policy file
+exec $OPA eval --format pretty --data $WORK/policy.rego --input $WORK/data.json data.test.allow --fail
+stdout '^true$'
+! stderr .
+
+# absolute path to a directory
+exec $OPA eval --format pretty --data $WORK/policies --input $WORK/data.json data.test.allow --fail
+stdout '^true$'
+! stderr .
+
+# absolute path to a bundle
+exec $OPA build --bundle $WORK/policies --output $WORK/bundle.tar.gz
+exec $OPA eval --format pretty --bundle $WORK/bundle.tar.gz --input $WORK/data.json data.test.allow --fail
+stdout '^true$'
+! stderr .
+
+# a data prefix still applies to an absolute path
+exec $OPA eval --format pretty --data x.y:$WORK/data.json data.x.y.yay --fail
+stdout '^true$'
+! stderr .
+
+-- data.json --
+{"yay": true}
+-- policy.rego --
+package test
+
+allow if input.yay
+-- policies/policy.rego --
+package test
+
+allow if input.yay
