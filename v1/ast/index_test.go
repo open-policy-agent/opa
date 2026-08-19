@@ -1747,7 +1747,7 @@ func TestSkipIndexingNestedBody(t *testing.T) {
 	}{
 		{"every", `every v in [1] { internal.print("here"); v = 2 }`},
 		{"and", `{some v in [1]; internal.print(v)} and input.bar = 2`},
-		{"or", `internal.print("here") or input.bar = 2`},
+		{"or", `input.bar = 2 or {internal.print("here"); input.bar = 3}`},
 		{"not", `not { internal.print("here"); input.bar = 2 }`},
 	}
 
