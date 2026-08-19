@@ -2147,10 +2147,8 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 
 	defer store.Abort(ctx, txn)
 
-	var lhs *ast.Term
-	if len(path) == 0 {
-		lhs = ast.NewTerm(ast.DefaultRootRef)
-	} else {
+	lhs := ast.DefaultRootRefTerm
+	if len(path) != 0 {
 		lhs = ast.MustParseTerm("data." + strings.Join(path, "."))
 	}
 

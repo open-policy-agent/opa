@@ -390,9 +390,7 @@ type DecisionResult struct {
 }
 
 func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, work func(state, *DecisionResult)) (*DecisionResult, error) {
-	if record.Metrics == nil {
-		record.Metrics = metrics.New()
-	}
+	record.Metrics = util.Or(record.Metrics, metrics.New)
 	record.Metrics.Timer(metrics.SDKDecisionEval).Start()
 
 	if record.DecisionID == "" {

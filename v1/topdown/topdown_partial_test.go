@@ -2125,11 +2125,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueryASTs: []ast.Body{
 				ast.NewBody(
 					ast.NewExpr(
-						ast.CallTerm(
-							ast.NewTerm(ast.Equal.Ref()),
-							ast.NewTerm(ast.InputRootRef),
-							ast.InternedTerm(1),
-						),
+						ast.Equal.Call(ast.InputRootRefTerm, ast.InternedTerm(1)),
 					),
 				),
 			},
@@ -2279,11 +2275,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueryASTs: []ast.Body{
 				ast.NewBody(
 					ast.NewExpr(
-						ast.CallTerm(
-							ast.NewTerm(ast.Equal.Ref()),
-							ast.NewTerm(ast.InputRootRef),
-							ast.IntNumberTerm(1),
-						),
+						ast.Equal.Call(ast.InputRootRefTerm, ast.InternedTerm(1)),
 					),
 				),
 			},
@@ -6508,9 +6500,9 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 						&ast.Expr{ // legacy negation (equivalent to implicit not-body when serialized to Rego).
 							Negated: true,
 							Terms: []*ast.Term{
-								{Value: ast.Equality.Ref()},
-								ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("x")),
-								ast.NumberTerm("1"),
+								{Value: ast.Interned.Refs.Equality},
+								ast.NewTerm(ast.InputRootRef.Append(ast.InternedTerm("x"))),
+								ast.InternedTerm(1),
 							},
 						},
 					),
@@ -6563,15 +6555,15 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				ast.NewBody(
 					ast.NotExpr(
 						ast.Equality.Expr(
-							ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("x")),
-							ast.NumberTerm("1"),
+							ast.RefTerm(ast.InputRootDocument, ast.InternedTerm("x")),
+							ast.InternedTerm(1),
 						),
 						&ast.Expr{ // legacy negation (equivalent to implicit not-body when serialized to Rego).
 							Negated: true,
 							Terms: []*ast.Term{
 								{Value: ast.Equality.Ref()},
-								ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("y")),
-								ast.NumberTerm("2"),
+								ast.RefTerm(ast.InputRootDocument, ast.InternedTerm("y")),
+								ast.InternedTerm(2),
 							},
 						},
 					),
