@@ -182,10 +182,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 				return err
 			}
 
-			// The update's path is used as-is: round-tripping it through
-			// Path.String() would percent-encode segments containing characters
-			// like spaces, and the resulting keys would no longer match the
-			// (unescaped) paths derived from the bundle's roots below.
+			// Do not round trip via String() to avoid URL encoding.
 			key := []string(update.Path)
 
 			if value != nil {

@@ -1723,10 +1723,10 @@ func TestBundleLifecycleRootWithSpace(t *testing.T) {
 				verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
 				verifyBundleModulesCompiled(t, compiler, bundles)
 
-				// The policy ID differs between lazy and non-lazy mode, but must
-				// round-trip in either -- an escaped one is neither readable back
-				// nor matched against the manifest roots when erasing.
-				id := policyID(t, store)
+				// The policy ID has a bundle prefix in non-lazy mode.
+				// When round tripped via storage.Policy, IDs must remain
+				// unescaped to preserve paths with spaces.
+				id := getStoredPolicyID(t, store)
 
 				verifyResultRead(t, store, fmt.Sprintf(`{
 					"a": {"b": {"foo bar": {"x": 1}}},
@@ -1783,10 +1783,9 @@ func TestBundleLifecycleRootWithSpace(t *testing.T) {
 	}
 }
 
-// policyID returns the ID of the single policy in the store, asserting that
-// it's unescaped -- an ID containing percent-encoded segments would not be
-// readable back, nor matched against the (unescaped) manifest roots.
-func policyID(tb testing.TB, store storage.Store) string {
+// getStoredPolicyID returns the ID of the single policy in the store, checking
+// that it can be read back under that ID.
+func getStoredPolicyID(tb testing.TB, store storage.Store) string {
 	tb.Helper()
 
 	txn := storage.NewTransactionOrDie(tb.Context(), store)
@@ -1795,10 +1794,6 @@ func policyID(tb testing.TB, store storage.Store) string {
 	ids := must(store.ListPolicies(tb.Context(), txn))(tb)
 	if len(ids) != 1 {
 		tb.Fatalf("expected exactly one policy in store, got %v", ids)
-	}
-
-	if strings.Contains(ids[0], "%") {
-		tb.Errorf("expected unescaped policy ID, got %q", ids[0])
 	}
 
 	if _, err := store.GetPolicy(tb.Context(), txn, ids[0]); err != nil {

@@ -2499,9 +2499,6 @@ func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction
 }
 
 func (s *Server) checkPolicyPackageScope(ctx context.Context, txn storage.Transaction, pkg *ast.Package) error {
-	// Not Ref.Ptr + ParsePathEscaped: that escapes each segment only to
-	// immediately unescape it again, and any segment holding a '%' that isn't a
-	// valid escape sequence would fail to round-trip.
 	path, err := storage.NewPathForRef(pkg.Path)
 	if err != nil {
 		return err
@@ -2543,12 +2540,6 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 		return types.BadRequestErr("can't write to document root with bundle roots configured")
 	}
 
-	// Bundle roots are raw, unescaped strings, so the path's segments are
-	// compared as-is. Round-tripping them through Path.String would
-	// percent-encode each segment, and a root like "a/b/foo bar" would never
-	// match a write to /v1/data/a/b/foo%20bar.
-	spathParts := []string(path)
-
 	for name, roots := range bundleRoots {
 		if roots == nil {
 			return types.BadRequestErr(fmt.Sprintf("all paths owned by bundle %q", name))
@@ -2557,8 +2548,8 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 			if root == "" {
 				return types.BadRequestErr(fmt.Sprintf("all paths owned by bundle %q", name))
 			}
-			if isPathOwned(spathParts, strings.Split(root, "/")) {
-				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", strings.Join(spathParts, "/"), name))
+			if isPathOwned(path, strings.Split(root, "/")) {
+				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", strings.Join(path, "/"), name))
 			}
 		}
 	}
