@@ -931,7 +931,8 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 			})
 
 			testCaseFuncExpr := ast.NewExpr([]*ast.Term{
-				ast.NewTerm(ast.Interned.Refs.InternalTestCase),
+				// Copied, as later compiler stages rewrite this body in place.
+				ast.NewTerm(ast.Interned.Refs.InternalTestCase.Copy()),
 				ast.NewTerm(args),
 			})
 
