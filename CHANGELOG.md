@@ -5,12 +5,6 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Fixes
-
-- Security: Make `allow_net` restrict `file://` references in JSON schemas used by
-  `json.match_schema` and `json.verify_schema`, closing a sandbox bypass that allowed local file
-  reads. ([#9000](https://github.com/open-policy-agent/opa/issues/9000))
-
 ## 1.19.1
 
 This release uses the latest version of Go (1.26.6) to build OPA, fixing stdlib vulnerabilities in

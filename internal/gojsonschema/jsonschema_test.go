@@ -28,6 +28,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/open-policy-agent/opa/v1/util/test"
 	"time"
 )
 
@@ -266,10 +268,8 @@ func TestAllowNetIsPerSchemaLoader(t *testing.T) {
 }
 
 func TestAllowNetRestrictsFileReferences(t *testing.T) {
-	filename := filepath.Join(t.TempDir(), "schema.json")
-	if err := os.WriteFile(filename, []byte(`{"type": "string"}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	root := test.TempDirOf(t, "schema.json", `{"type": "string"}`)
+	filename := filepath.Join(root, "schema.json")
 	schema := fmt.Sprintf(`{"$ref": %q}`, "file://"+filepath.ToSlash(filename))
 
 	tests := []struct {
