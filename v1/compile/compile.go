@@ -100,6 +100,7 @@ type Compiler struct {
 	regoVersion                  ast.RegoVersion
 	followSymlinks               bool      // optionally follow symlinks in the bundle directory when building the bundle
 	externalRefs                 []ast.Ref // external entrypoints provided dynamically
+	planAddons                   []string  // optional extra contents to include in the plan (e.g. unplanned_rules)
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -287,6 +288,13 @@ func (c *Compiler) WithPartialNamespace(ns string) *Compiler {
 
 func (c *Compiler) WithRegoVersion(v ast.RegoVersion) *Compiler {
 	c.regoVersion = v
+	return c
+}
+
+// WithPlanAddons sets optional extra data to include in the generated plan.
+// The only supported value is "unplanned_rules".
+func (c *Compiler) WithPlanAddons(contents []string) *Compiler {
+	c.planAddons = contents
 	return c
 }
 
@@ -711,7 +719,8 @@ func (c *Compiler) compilePlan(context.Context) error {
 		WithQueries(queries).
 		WithModules(modules).
 		WithBuiltinDecls(builtins).
-		WithDebug(c.debug.Writer())
+		WithDebug(c.debug.Writer()).
+		WithUnplannedRules(slices.Contains(c.planAddons, "unplanned_rules"))
 	policy, err := p.Plan()
 	if err != nil {
 		return err
