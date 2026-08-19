@@ -1324,3 +1324,32 @@ func TestResultUnmarshalJSONEvalError(t *testing.T) {
 		t.Errorf("Expected message %q, got %q", exp, tdErr.Message)
 	}
 }
+
+func TestRunTestsDoesNotMutateInternedTestCaseRef(t *testing.T) {
+	ctx := t.Context()
+
+	before := ast.Interned.Refs.InternalTestCase[0]
+
+	modules := map[string]*ast.Module{
+		"test.rego": ast.MustParseModule(`package test
+			test_cases[x] if { some x in ["foo", "bar"] }`),
+	}
+
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	ch, err := tester.NewRunner().SetStore(store).SetModules(modules).RunTests(ctx, txn)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	for r := range ch {
+		if !r.Pass() {
+			t.Fatalf("Expected test to pass, got %v", r)
+		}
+	}
+
+	if act := ast.Interned.Refs.InternalTestCase[0]; act != before {
+		t.Errorf("ast.Interned.Refs.InternalTestCase was mutated: %p -> %p", before, act)
+	}
+}
