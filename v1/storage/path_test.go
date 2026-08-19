@@ -201,6 +201,24 @@ func TestPathRef(t *testing.T) {
 	}
 }
 
+func TestPathPolicyID(t *testing.T) {
+	tests := []struct {
+		path Path
+		exp  string
+	}{
+		{RootPath, ""},
+		{Path{"foo", "bar", "policy.rego"}, "foo/bar/policy.rego"},
+		// Segments are joined verbatim, unlike String(), which escapes them.
+		{Path{"foo", "foo bar", "policy.rego"}, "foo/foo bar/policy.rego"},
+		{Path{"foo", "50%off", "policy.rego"}, "foo/50%off/policy.rego"},
+	}
+	for _, tc := range tests {
+		if act := tc.path.PolicyID(); act != tc.exp {
+			t.Errorf("For %v.PolicyID() expected %q but got %q", tc.path, tc.exp, act)
+		}
+	}
+}
+
 // 108.8 ns/op    80 B/op    3 allocs/op // original implementation concat + Join
 // 68.60 ns/op    24 B/op    2 allocs/op // strings.Builder
 // 50.28 ns/op    16 B/op    1 allocs/op // strings.Builder with pre-allocated buffer

@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1676,6 +1677,130 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBundleLifecycleRootWithSpace(t *testing.T) {
+	// A v0 module, so that a rego-version is recorded under /system/modules.
+	files := [][2]string{
+		{"/.manifest", `{"revision": "rev-1", "roots": ["a/b/foo bar"], "rego_version": 0}`},
+		{"/a/b/foo bar/data.json", `{"x": 1}`},
+		{"/a/b/foo bar/policy.rego", `package a.b["foo bar"]
+
+			p[42] { true }
+		`},
+	}
+
+	// The replacement bundle drops the policy, which must therefore be erased.
+	files2 := [][2]string{
+		{"/.manifest", `{"revision": "rev-2", "roots": ["a/b/foo bar"], "rego_version": 1}`},
+		{"/a/b/foo bar/data.json", `{"y": 2}`},
+	}
+
+	newStores := map[string]func(testing.TB) storage.Store{
+		"inmem": func(testing.TB) storage.Store { return mock.New() },
+		"disk": func(tb testing.TB) storage.Store {
+			return must(disk.New(tb.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: tb.TempDir()}))(tb)
+		},
+	}
+
+	for _, lazy := range []bool{false, true} {
+		for _, name := range util.Sorted(util.Keys(newStores)) {
+			t.Run(fmt.Sprintf("lazy=%v/%s", lazy, name), func(t *testing.T) {
+				store := newStores[name](t)
+				compiler := ast.NewCompiler()
+
+				read := func(files [][2]string) map[string]*Bundle {
+					b := must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
+						WithLazyLoadingMode(lazy).
+						WithBundleName("bundle1").
+						Read())(t)
+					return map[string]*Bundle{"bundle1": &b}
+				}
+
+				bundles := read(files)
+				mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+
+				verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
+				verifyBundleModulesCompiled(t, compiler, bundles)
+
+				// The policy ID has a bundle prefix in non-lazy mode.
+				// When round tripped via storage.Policy, IDs must remain
+				// unescaped to preserve paths with spaces.
+				id := getStoredPolicyID(t, store)
+
+				verifyResultRead(t, store, fmt.Sprintf(`{
+					"a": {"b": {"foo bar": {"x": 1}}},
+					"system": {
+						"bundles": {
+							"bundle1": {
+								"manifest": {
+									"revision": "rev-1",
+									"roots": ["a/b/foo bar"],
+									"rego_version": 0
+								},
+								"etag": ""
+							}
+						},
+						"modules": {%q: {"rego_version": 0}}
+					}
+				}`, id))
+
+				// Activating a bundle that no longer contains the policy must
+				// erase both the policy and its rego-version bookkeeping. The
+				// disk store drops the emptied /system/modules object entirely,
+				// the in-memory store leaves it behind empty.
+				mustActivate(t, store, &ActivateOpts{Compiler: ast.NewCompiler(), Bundles: read(files2)})
+
+				modules := `, "modules": {}`
+				if name == "disk" {
+					modules = ""
+				}
+
+				verifyResultRead(t, store, fmt.Sprintf(`{
+					"a": {"b": {"foo bar": {"y": 2}}},
+					"system": {
+						"bundles": {
+							"bundle1": {
+								"manifest": {
+									"revision": "rev-2",
+									"roots": ["a/b/foo bar"],
+									"rego_version": 1
+								},
+								"etag": ""
+							}
+						}%s
+					}
+				}`, modules))
+
+				txn := storage.NewTransactionOrDie(t.Context(), store)
+				defer store.Abort(t.Context(), txn)
+
+				if ids := must(store.ListPolicies(t.Context(), txn))(t); len(ids) != 0 {
+					t.Errorf("expected policy %q to have been erased, store still has %v", id, ids)
+				}
+			})
+		}
+	}
+}
+
+// getStoredPolicyID returns the ID of the single policy in the store, checking
+// that it can be read back under that ID.
+func getStoredPolicyID(tb testing.TB, store storage.Store) string {
+	tb.Helper()
+
+	txn := storage.NewTransactionOrDie(tb.Context(), store)
+	defer store.Abort(tb.Context(), txn)
+
+	ids := must(store.ListPolicies(tb.Context(), txn))(tb)
+	if len(ids) != 1 {
+		tb.Fatalf("expected exactly one policy in store, got %v", ids)
+	}
+
+	if _, err := store.GetPolicy(tb.Context(), txn, ids[0]); err != nil {
+		tb.Errorf("unexpected error reading policy %q: %s", ids[0], err)
+	}
+
+	return ids[0]
 }
 
 func TestBundleLazyModeLifecycleRaw(t *testing.T) {

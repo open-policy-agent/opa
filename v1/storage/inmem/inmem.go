@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -173,7 +172,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		}
 
 		if update.IsPolicy {
-			err = underlying.UpsertPolicy(strings.TrimLeft(update.Path.String(), "/"), update.Value)
+			err = underlying.UpsertPolicy(update.Path.PolicyID(), update.Value)
 			if err != nil {
 				return err
 			}
@@ -183,11 +182,8 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 				return err
 			}
 
-			var key []string
-			dirpath := strings.TrimLeft(update.Path.String(), "/")
-			if len(dirpath) > 0 {
-				key = strings.Split(dirpath, "/")
-			}
+			// Do not round trip via String() to avoid URL encoding.
+			key := []string(update.Path)
 
 			if value != nil {
 				obj, err := mktree(key, value)
