@@ -2973,3 +2973,143 @@ func TestCheckObjectCategoryReturnType(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckWithModifiers(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules []string
+		err     string
+	}{
+		{
+			note: "rule depending on replaced package",
+			modules: []string{
+				`package root.a
+				import data.root
+				rule_a := x if { x = {"b": root.b} }`,
+				`package root.b
+				rule_b if { true }`,
+				`package root.a
+				test_rule_a if { rule_a == {"b": "1"} with data.root.b as "1" }`,
+			},
+		},
+		{
+			note: "replaced document referred to directly",
+			modules: []string{
+				`package p
+				b := true
+				q if { data.p.b == "foo" with data.p.b as "foo" }`,
+			},
+		},
+		{
+			note: "rule depending on replaced document passed to built-in function",
+			modules: []string{
+				`package p
+				b := true
+				a := x if { x = data.p.b }
+				q if { lower(data.p.a) == "foo" with data.p.b as "foo" }`,
+			},
+		},
+		{
+			note: "rule depending transitively on replaced document",
+			modules: []string{
+				`package p
+				b := true
+				a := data.p.b
+				c := data.p.a
+				q if { lower(data.p.c) == "foo" with data.p.b as "foo" }`,
+			},
+		},
+		{
+			note: "rule depending on replaced document inside comprehension",
+			modules: []string{
+				`package p
+				b := true
+				a := x if { x = data.p.b }
+				q if { [y | y := lower(data.p.a)] == ["foo"] with data.p.b as "foo" }`,
+			},
+		},
+		{
+			note: "rule depending on replaced function",
+			modules: []string{
+				`package p
+				f(_) := true
+				a := f(1)
+				q if { lower(data.p.a) == "foo" with data.p.f as "foo" }`,
+			},
+		},
+		{
+			note: "function replacement arity is still checked",
+			modules: []string{
+				`package p
+				f(_) := true
+				mock(_, _) := "foo"
+				q if { f(1) with data.p.f as mock }`,
+			},
+			err: "rego_type_error: data.p.f: arity mismatch",
+		},
+		{
+			note: "variable assigned the replacement value",
+			modules: []string{
+				`package p
+				b := true
+				q if { x := data.p.b with data.p.b as "foo"; lower(x) == "foo" }`,
+			},
+		},
+		{
+			note: "variable assigned neither the replaced nor the replacement type",
+			modules: []string{
+				`package p
+				b := true
+				q if { x := data.p.b with data.p.b as 1; lower(x) == "foo" }`,
+			},
+			err: "rego_type_error: lower: invalid argument(s)",
+		},
+		{
+			note: "rule not depending on replaced document is still checked",
+			modules: []string{
+				`package p
+				b := true
+				a := x if { x = data.p.b }
+				other := 1
+				q if { lower(data.p.a) == "foo" with data.p.other as "foo" }`,
+			},
+			err: "rego_type_error: lower: invalid argument(s)",
+		},
+		{
+			note: "expression unrelated to replaced document is still checked",
+			modules: []string{
+				`package p
+				b := true
+				q if { x := "foo"; sum([1, x]) == 1 with data.p.b as "foo" }`,
+			},
+			err: "rego_type_error: sum: invalid argument(s)",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			modules := map[string]*Module{}
+			for i, module := range tc.modules {
+				name := fmt.Sprintf("mod%d.rego", i)
+				modules[name] = MustParseModule(module)
+			}
+
+			c := NewCompiler()
+			c.Compile(modules)
+
+			if tc.err == "" {
+				if c.Failed() {
+					t.Fatalf("expected no error, got %v", c.Errors)
+				}
+				return
+			}
+
+			if !c.Failed() {
+				t.Fatal("expected error, got none")
+			}
+			if !strings.Contains(c.Errors.Error(), tc.err) {
+				t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s", tc.err, c.Errors.Error())
+			}
+		})
+	}
+}
