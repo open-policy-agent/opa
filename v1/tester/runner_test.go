@@ -759,6 +759,46 @@ func TestRunnerPrintOutput(t *testing.T) {
 	})
 }
 
+// TestRunnerPrintOutputWithCoverage guards against a regression where the
+// supplementary (no-indexing / no-early-exit) coverage passes shared the
+// baseline's print hook, duplicating each print() call's output.
+func TestRunnerPrintOutputWithCoverage(t *testing.T) {
+	files := map[string]string{
+		"/test.rego": `package test
+
+		test_a if { print("A") }`,
+	}
+
+	ctx := t.Context()
+
+	test.WithTempFS(files, func(d string) {
+		modules, store, err := tester.Load([]string{d}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		txn := storage.NewTransactionOrDie(ctx, store)
+		runner := tester.NewRunner().
+			SetStore(store).
+			SetModules(modules).
+			CapturePrintOutput(true).
+			SetCoverageQueryTracer(cover.New())
+		ch, err := runner.RunTests(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for r := range ch {
+			if r.Name != "test_a" {
+				continue
+			}
+			if got := string(r.Output); got != "A\n" {
+				t.Fatalf("expected print output %q, got %q (supplementary coverage passes may be duplicating it)", "A\n", got)
+			}
+		}
+	})
+}
+
 func registerSleepBuiltin() {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.sleep",

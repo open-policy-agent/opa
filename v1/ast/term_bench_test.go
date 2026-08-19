@@ -479,6 +479,27 @@ func BenchmarkSetMembership(b *testing.B) {
 	}
 }
 
+// 418.1 ns/op	     760 B/op	      16 allocs/op // was
+// 337.4 ns/op	     760 B/op	       7 allocs/op // now
+func BenchmarkNewObject(b *testing.B) {
+	kvs := [][2]*Term{
+		{InternedTerm(1), InternedTerm(1)},
+		{InternedTerm(2), InternedTerm(2)},
+		{InternedTerm(3), InternedTerm(3)},
+		{InternedTerm(4), InternedTerm(4)},
+		{InternedTerm(5), InternedTerm(5)},
+		{InternedTerm(6), InternedTerm(6)},
+		{InternedTerm(7), InternedTerm(7)},
+		{InternedTerm(8), InternedTerm(8)},
+		{InternedTerm(9), InternedTerm(9)},
+		{InternedTerm(10), InternedTerm(10)},
+	}
+
+	for b.Loop() {
+		_ = NewObject(kvs...)
+	}
+}
+
 // 241.9 ns/op	     472 B/op	      10 allocs/op
 // 207.7 ns/op	     424 B/op	       9 allocs/op
 func BenchmarkSetCopy(b *testing.B) {
@@ -489,6 +510,8 @@ func BenchmarkSetCopy(b *testing.B) {
 }
 
 // 396.9 ns/op	     664 B/op	      19 allocs/op
+// 198.7 ns/op	     688 B/op	       7 allocs/op
+// 199.2 ns/op	     672 B/op	       6 allocs/op
 func BenchmarkObjectCopy(b *testing.B) {
 	o := NewObject(
 		Item(InternedTerm("a"), InternedTerm(1)),
@@ -758,6 +781,60 @@ func BenchmarkArrayEquality(b *testing.B) {
 			}
 		})
 	}
+}
+
+// Before and after [*object.Equal]:
+// ----------------------------------------------
+// pointer_equality-16         711834544       1.6 ns/op       0 B/op       0 allocs/op (no change)
+//
+// shallow_copy_equality-16        59499      7230 ns/op       0 B/op       0 allocs/op
+// shallow_copy_equality-16     49511161        24 ns/op       0 B/op       0 allocs/op (huge ns/op reduction)
+//
+// deep_copy_equality-16          161464      7217 ns/op       0 B/op       0 allocs/op
+// deep_copy_equality-16          236464	  4954 ns/op       0 B/op       0 allocs/op (decent ns/op reduction)
+func BenchmarkObjectEquality(b *testing.B) {
+	keys := []string{
+		"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+		"n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+	}
+	itms := make([][2]*Term, len(keys))
+	for i, k := range keys {
+		itms[i][0] = InternedTerm(k)
+		itms[i][1] = IntNumberTerm(i)
+	}
+
+	base := ObjectTerm(itms...)
+	for i := range itms {
+		itms[i][1] = base
+	}
+
+	objA := ObjectTerm(itms...)
+	objB := ObjectTerm(itms...)
+	objC := objB.Copy()
+
+	b.Run("pointer equality", func(b *testing.B) {
+		for b.Loop() {
+			if !objA.Equal(objA) { //nolint:gocritic // "suspicious method call with the same argument and receiver"
+				b.Fatal("expected equal")
+			}
+		}
+	})
+
+	b.Run("shallow copy equality", func(b *testing.B) {
+		for b.Loop() {
+			if !objA.Equal(objB) {
+				b.Fatal("expected equal")
+			}
+		}
+	})
+
+	b.Run("deep copy equality", func(b *testing.B) {
+		for b.Loop() {
+			if !objA.Equal(objC) {
+				b.Fatal("expected equal")
+			}
+		}
+	})
 }
 
 func BenchmarkSetString(b *testing.B) {

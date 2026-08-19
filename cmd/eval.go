@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +33,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/runtime/info"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/topdown/lineage"
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -41,6 +43,7 @@ var errIllegalUnknownsArg = errors.New("illegal argument with --unknowns, specif
 type evalCommandParams struct {
 	capabilities              *capabilitiesFlag
 	coverage                  bool
+	coverageRuns              []string
 	partial                   bool
 	unknowns                  []string
 	disableInlining           []string
@@ -79,6 +82,9 @@ type evalCommandParams struct {
 	v1Compatible              bool
 	traceVarValues            bool
 	ReadAstValuesFromStore    bool
+	// seed, when set, seeds non-deterministic builtins via rego.EvalSeed,
+	// making their results reproducible across evaluation passes.
+	seed io.Reader
 }
 
 func (p *evalCommandParams) regoVersion() ast.RegoVersion {
@@ -93,6 +99,7 @@ func (p *evalCommandParams) regoVersion() ast.RegoVersion {
 func newEvalCommandParams() evalCommandParams {
 	return evalCommandParams{
 		capabilities: newCapabilitiesFlag(),
+		coverageRuns: []string{string(cover.KindIndexExcluded), string(cover.KindEarlyExit)},
 		outputFormat: formats.Flag(
 			formats.JSON,
 			formats.Values,
@@ -157,6 +164,14 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 	if p.optimizationLevel > 0 {
 		if len(p.dataPaths.v) > 0 && p.bundlePaths.isFlagSet() {
 			return errors.New("specify either --data or --bundle flag with optimization level greater than 0")
+		}
+	}
+
+	for _, r := range p.coverageRuns {
+		switch cover.Kind(r) {
+		case cover.KindIndexExcluded, cover.KindEarlyExit:
+		default:
+			return fmt.Errorf("invalid --coverage-runs value %q (expected %q or %q)", r, cover.KindIndexExcluded, cover.KindEarlyExit)
 		}
 	}
 
@@ -301,6 +316,9 @@ access.
 `,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if cmd.Flags().Changed("coverage-runs") {
+				params.coverage = true
+			}
 			if err := validateEvalParams(&params, args); err != nil {
 				return err
 			}
@@ -327,6 +345,7 @@ access.
 
 	// Eval specific flags
 	evalCommand.Flags().BoolVarP(&params.coverage, "coverage", "", false, "report coverage")
+	evalCommand.Flags().StringSliceVar(&params.coverageRuns, "coverage-runs", []string{string(cover.KindIndexExcluded), string(cover.KindEarlyExit)}, "supplementary coverage passes that annotate not-covered ranges with a kind (requires --coverage); pass an empty list to disable")
 	evalCommand.Flags().StringArrayVarP(&params.disableInlining, "disable-inlining", "", []string{}, "set paths of documents to exclude from inlining")
 	evalCommand.Flags().BoolVarP(&params.shallowInlining, "shallow-inlining", "", false, "disable inlining of rules that depend on unknowns")
 	evalCommand.Flags().BoolVarP(&params.nondeterministicBuiltions, "nondeterminstic-builtins", "", false, "evaluate nondeterministic builtins (if all arguments are known) during partial eval")
@@ -487,7 +506,31 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 		pq, resultErr = r.PrepareForEval(ctx)
 		if resultErr == nil {
 			parsedModules = pq.Modules()
-			result.Result, resultErr = pq.Eval(ctx, ectx.evalArgs...)
+			if ectx.cover != nil {
+				// Share one non-deterministic builtin cache across all passes so they take the same path.
+				ndbc := builtins.NDBCache{}
+				result.Result, resultErr = pq.Eval(
+					ctx,
+					append(ectx.evalArgs, rego.EvalQueryTracer(ectx.cover), rego.EvalNDBuiltinCache(ndbc))...,
+				)
+				if resultErr == nil {
+					// These results are discarded; a failure here shouldn't
+					// fail the whole eval, but the coverage report may be
+					// missing some Kinds, so warn instead of dropping it.
+					if ectx.coverNoIndex != nil {
+						if _, err := pq.Eval(ctx, append(ectx.evalArgs, cover.NoIndexingEvalOptions(ectx.coverNoIndex, ndbc)...)...); err != nil {
+							fmt.Fprintf(os.Stderr, "warning: coverage pass with rule indexing disabled failed: %v\n", err)
+						}
+					}
+					if ectx.coverNoEarlyExit != nil {
+						if _, err := pq.Eval(ctx, append(ectx.evalArgs, cover.NoEarlyExitEvalOptions(ectx.coverNoEarlyExit, ndbc)...)...); err != nil {
+							fmt.Fprintf(os.Stderr, "warning: coverage pass with early exit disabled failed: %v\n", err)
+						}
+					}
+				}
+			} else {
+				result.Result, resultErr = pq.Eval(ctx, ectx.evalArgs...)
+			}
 		}
 	} else {
 		var pq rego.PreparedPartialQuery
@@ -546,6 +589,8 @@ type evalContext struct {
 	metrics          metrics.Metrics
 	profiler         *resettableProfiler
 	cover            *cover.Cover
+	coverNoIndex     *cover.Cover
+	coverNoEarlyExit *cover.Cover
 	tracer           *topdown.BufferTracer
 	regoArgs         []func(*rego.Rego)
 	evalArgs         []rego.EvalOption
@@ -582,6 +627,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		rego.EvalRuleIndexing(!params.disableIndexing),
 		rego.EvalEarlyExit(!params.disableEarlyExit),
 		rego.EvalNondeterministicBuiltins(params.nondeterministicBuiltions),
+	}
+
+	if params.seed != nil {
+		evalArgs = append(evalArgs, rego.EvalSeed(params.seed))
 	}
 
 	if len(params.imports.v) > 0 {
@@ -686,11 +735,18 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	regoArgs = append(regoArgs, rego.DisableInlining(params.disableInlining), rego.ShallowInlining(params.shallowInlining))
 
-	var c *cover.Cover
+	var c, cNoIndex, cNoEarlyExit *cover.Cover
 
 	if params.coverage {
 		c = cover.New()
-		evalArgs = append(evalArgs, rego.EvalQueryTracer(c))
+		if slices.Contains(params.coverageRuns, string(cover.KindIndexExcluded)) {
+			cNoIndex = cover.New()
+			c.AddRun(cover.KindIndexExcluded, cNoIndex)
+		}
+		if slices.Contains(params.coverageRuns, string(cover.KindEarlyExit)) {
+			cNoEarlyExit = cover.New()
+			c.AddRun(cover.KindEarlyExit, cNoEarlyExit)
+		}
 	}
 
 	if params.strictBuiltinErrors {
@@ -720,6 +776,8 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		metrics:          m,
 		profiler:         &rp,
 		cover:            c,
+		coverNoIndex:     cNoIndex,
+		coverNoEarlyExit: cNoEarlyExit,
 		tracer:           tracer,
 		regoArgs:         regoArgs,
 		evalArgs:         evalArgs,

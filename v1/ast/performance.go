@@ -5,17 +5,35 @@ package ast
 
 import (
 	"encoding"
+	"slices"
 	"strings"
 	"sync"
 )
 
-var builtinNamesByNumParts = sync.OnceValue(func() map[int][]string {
-	m := map[int][]string{}
+// builtinNameShape packs the two properties of a dotted built-in name that are cheap
+// to derive from a ref without allocating — its number of parts and its total length —
+// into a single key, which keeps map lookups on the runtime's fast path for 64-bit
+// keys. uint64 rather than int so that the shift is well defined on 32-bit platforms.
+func builtinNameShape(parts, totalLen int) uint64 {
+	return uint64(parts)<<32 | uint64(totalLen)
+}
+
+// builtinNamesByShape groups multi-part built-in names by shape, so that
+// BuiltinNameFromRef only has to compare against names that could possibly match.
+// Bucketing on length as well as part count narrows the candidates from ~100 names
+// to a handful, and sorting keeps the scan order deterministic: ranging over
+// BuiltinMap yields a fresh random order in every process, which would otherwise
+// make the cost of a lookup vary several-fold from one run to the next.
+var builtinNamesByShape = sync.OnceValue(func() map[uint64][]string {
+	m := map[uint64][]string{}
 	for name := range BuiltinMap {
-		parts := strings.Count(name, ".") + 1
-		if parts > 1 {
-			m[parts] = append(m[parts], name)
+		if parts := strings.Count(name, ".") + 1; parts > 1 {
+			shape := builtinNameShape(parts, len(name))
+			m[shape] = append(m[shape], name)
 		}
+	}
+	for _, names := range m {
+		slices.Sort(names)
 	}
 	return m
 })
@@ -50,17 +68,12 @@ func BuiltinNameFromRef(ref Ref) (string, bool) {
 		totalLen += 1 + len(term.Value.(String)) // account for dot
 	}
 
-	matched, ok := builtinNamesByNumParts()[reflen]
+	matched, ok := builtinNamesByShape()[builtinNameShape(reflen, totalLen)]
 	if !ok {
 		return "", false
 	}
 
 	for _, name := range matched {
-		// This check saves us a huge amount of work, as only very few built-in
-		// names will have the exact same length as the ref we are checking.
-		if len(name) != totalLen {
-			continue
-		}
 		// Example: `name` is "io.jwt.decode" (and so is ref)
 		// The first part is varName, which have already been established to be 'io':
 		// io,   jwt.decode                              io   == io

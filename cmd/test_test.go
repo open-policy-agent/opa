@@ -5,6 +5,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"maps"
@@ -23,6 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/cover"
 	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/repl"
@@ -2618,6 +2620,100 @@ test_get_another_user_denied if {
 
 				if !strings.Contains(buf.String(), "Code coverage threshold not met: got 92.31 instead of 100.00") {
 					t.Fatalf("expected coverage of 92.31, got:\n\n%q", buf.String())
+				}
+			})
+		})
+	}
+}
+
+// TestTestWithCoverageRuns checks that --coverage-runs selects which
+// supplementary coverage passes run (and therefore which kinds are reported)
+// for the test command.
+func TestTestWithCoverageRuns(t *testing.T) {
+	files := map[string]string{
+		// early_exit's second definition is skipped once the first matches;
+		// index_excluded's body is index-excluded for input {"a": "z"}.
+		"policy.rego": `package p
+
+early_exit if { true }
+early_exit if { early_exit_dep }
+
+early_exit_dep if { true }
+
+index_excluded if { input.a == "read" }`,
+		"policy_test.rego": `package p
+
+test_early_exit if { early_exit }
+test_index_excluded if { not index_excluded with input as {"a": "z"} }`,
+	}
+
+	kindsFor := func(t *testing.T, root string, runs []string) map[string]int {
+		t.Helper()
+		var buf bytes.Buffer
+
+		testParams := newTestCommandParams()
+		testParams.coverage = true
+		testParams.coverageRuns = runs
+		testParams.count = 1
+		testParams.outputFormat = formats.Flag(formats.JSON)
+		testParams.output = &buf
+		testParams.errOutput = &buf
+
+		if code := opaTest([]string{root}, testParams); code != 0 {
+			t.Fatalf("unexpected exit code %d: %s", code, buf.String())
+		}
+
+		var report cover.Report
+		if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
+			t.Fatalf("failed to decode coverage report: %v\noutput: %s", err, buf.String())
+		}
+		counts := map[string]int{}
+		for _, fr := range report.Files {
+			for _, rng := range fr.NotCovered {
+				for _, k := range rng.Kinds {
+					counts[string(k)]++
+				}
+			}
+		}
+		return counts
+	}
+
+	cases := map[string]struct {
+		runs      []string
+		wantIndex bool
+		wantEarly bool
+	}{
+		"default runs both": {
+			runs:      []string{"index_excluded", "early_exit"},
+			wantIndex: true,
+			wantEarly: true,
+		},
+		"index only": {
+			runs:      []string{"index_excluded"},
+			wantIndex: true,
+			wantEarly: false,
+		},
+		"early exit only": {
+			runs:      []string{"early_exit"},
+			wantIndex: false,
+			wantEarly: true,
+		},
+		"empty disables": {
+			runs:      []string{},
+			wantIndex: false,
+			wantEarly: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			test.WithTempFS(files, func(root string) {
+				counts := kindsFor(t, root, tc.runs)
+				if got := counts["index_excluded"] > 0; got != tc.wantIndex {
+					t.Errorf("index_excluded present = %v, want %v (counts: %v)", got, tc.wantIndex, counts)
+				}
+				if got := counts["early_exit"] > 0; got != tc.wantEarly {
+					t.Errorf("early_exit present = %v, want %v (counts: %v)", got, tc.wantEarly, counts)
 				}
 			})
 		})

@@ -2781,6 +2781,13 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 
 	doc, err := e.e.Resolve(e.plugged[:e.pos])
 	if err != nil {
+		// The save set check in biunifyValues compares refs as written, so a ref
+		// that only becomes unknown once bindings are plugged (e.g.
+		// data[input.type].x with data.project.x unknown) reaches here, where the
+		// document can't be enumerated and must be saved as evalTree.finish does.
+		if ast.IsUnknownValueErr(err) {
+			return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
+		}
 		return err
 	}
 
@@ -4710,6 +4717,14 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 
 	for _, query := range queries {
 		size *= len(query)
+
+		// NOTE(tsandall): this limit is arbitrary–it's only in place to prevent the
+		// partial evaluation result from blowing up. In the future, we could make this
+		// configurable or do something more clever.
+		if size > maxInlineNegationSize {
+			return false
+		}
+
 		for _, expr := range query {
 			if containsNestedRefOrCall(vis, expr) {
 				// Expressions containing nested refs or calls cannot be trivially negated
@@ -4737,11 +4752,12 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 		}
 	}
 
-	// NOTE(tsandall): this limit is arbitrary–it's only in place to prevent the
-	// partial evaluation result from blowing up. In the future, we could make this
-	// configurable or do something more clever.
-	return size <= 16
+	return true
 }
+
+// maxInlineNegationSize is the largest cross product of negated queries that
+// evalNotPartial will inline instead of generating support rules for.
+const maxInlineNegationSize = 16
 
 type nestedCheckVisitor struct {
 	vis   *ast.GenericVisitor

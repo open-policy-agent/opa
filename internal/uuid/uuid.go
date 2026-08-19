@@ -5,27 +5,36 @@
 package uuid
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
-const (
-	BILLION = 1000000000
-)
+const BILLION = 1000000000
 
 // New Create a version 4 random UUID
 func New(r io.Reader) (string, error) {
-	bs := make([]byte, 16)
-	n, err := io.ReadFull(r, bs)
-	if n != len(bs) || err != nil {
+	var arr [52]byte     // arr, same buffer for both src (16) and dst (36)
+	src := arr[:16]      // src, bytes to encode
+	dst := arr[16:16:52] // dst, to encode, len 0, cap 36 (for appending)
+
+	n, err := io.ReadFull(r, src)
+	if n != 16 || err != nil {
 		return "", err
 	}
-	bs[8] = bs[8]&^0xc0 | 0x80
-	bs[6] = bs[6]&^0xf0 | 0x40
-	return fmt.Sprintf("%x-%x-%x-%x-%x", bs[0:4], bs[4:6], bs[6:8], bs[8:10], bs[10:]), nil
+	src[8] = src[8]&^0xc0 | 0x80
+	src[6] = src[6]&^0xf0 | 0x40
+
+	dst = append(hex.AppendEncode(dst, src[:4]), '-')
+	dst = append(hex.AppendEncode(dst, src[4:6]), '-')
+	dst = append(hex.AppendEncode(dst, src[6:8]), '-')
+	dst = append(hex.AppendEncode(dst, src[8:10]), '-')
+
+	return util.ByteSliceToString(hex.AppendEncode(dst, src[10:])), nil
 }
 
 // Parse will use the google/uuid library to parse the string into a uuid

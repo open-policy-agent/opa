@@ -117,12 +117,20 @@ func requireEnv(name string) string {
 
 // runBenchlab runs a single benchlab comparison for pkg, writing its
 // bench/benchstat output under .benchlab/ for parseBenchstatFile to pick up.
+//
+// One benchmark run per rep, rather than benchlab's default of five: benchstat
+// treats every sample as independent, but samples from one process share a map
+// hash seed, a heap layout and a set of interned globals, so a cluster of five
+// tells us far less than its size suggests. Sampling from fifteen processes
+// instead of three keeps the total sample count while letting per-process
+// effects land in the within-group variance, where they belong.
 func runBenchlab(before, after, pkg string) error {
 	cmd := exec.Command("benchlab",
 		"-commit", before+","+after,
 		"-pkg", pkg,
 		"-host", "local:tags=opa_wasm",
-		"-reps", "3",
+		"-reps", "15",
+		"-count", "1",
 		"-benchtime", "300ms",
 		"-run", "^$",
 	)
