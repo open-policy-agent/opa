@@ -28,9 +28,7 @@ const CompileErrorLimitDefault = 10
 
 var (
 	errLimitReached = newErrorString(CompileErr, nil, "error limit reached")
-
-	doubleEq     = Equal.Ref()
-	emptyPackage = &Package{Path: Ref{VarTerm("")}}
+	emptyPackage    = &Package{Path: Ref{VarTerm("")}}
 )
 
 // Compiler contains the state of a compilation process.
@@ -1910,6 +1908,7 @@ func (c *Compiler) checkTypes() {
 		WithBuiltins(c.builtins).
 		WithRequiredCapabilities(c.Required).
 		WithVarRewriter(rewriteRefErrVars(c.localvargen.subjects, c.RewrittenVars)).
+		WithDependentsResolver(c.dependentRuleRefs).
 		WithAllowUndefinedFunctionCalls(c.allowUndefinedFuncCalls)
 	var as *AnnotationSet
 	if c.useTypeCheckAnnotations {
@@ -1920,6 +1919,40 @@ func (c *Compiler) checkTypes() {
 		c.err(err)
 	}
 	c.TypeEnv = env
+}
+
+// dependentRuleRefs returns the refs of the rules that ref could refer to,
+// together with the refs of the rules that transitively depend on them.
+func (c *Compiler) dependentRuleRefs(ref Ref) []Ref {
+	if c.Graph == nil {
+		return nil
+	}
+
+	rules := c.GetRulesDynamicWithOpts(ref, RulesOptions{IncludeHiddenModules: true})
+	if len(rules) == 0 {
+		return nil
+	}
+
+	refs := make([]Ref, 0, len(rules))
+	visited := make(map[*Rule]struct{}, len(rules))
+
+	var visit func(*Rule)
+	visit = func(rule *Rule) {
+		if _, ok := visited[rule]; ok {
+			return
+		}
+		visited[rule] = struct{}{}
+		refs = append(refs, rule.Ref().GroundPrefix())
+		for dependent := range c.Graph.Dependents(rule) {
+			visit(dependent.(*Rule))
+		}
+	}
+
+	for _, rule := range rules {
+		visit(rule)
+	}
+
+	return refs
 }
 
 func (c *Compiler) checkUnsafeBuiltins() {
@@ -2934,10 +2967,8 @@ func containsPrintCall(x any) bool {
 	return found
 }
 
-var printRef = Print.Ref()
-
 func isPrintCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(printRef)
+	return x.IsCall() && x.Operator().Equal(Interned.Refs.Print)
 }
 
 // rewriteRefsInHead will rewrite rules so that the head does not contain any
@@ -3218,19 +3249,15 @@ func rewriteRegoMetadataCalls(metadataChainVar *Var, metadataRuleVar *Var, body 
 	return errs
 }
 
-var regoMetadataChainRef = RegoMetadataChain.Ref()
-var regoMetadataRuleRef = RegoMetadataRule.Ref()
-
 func isRegoMetadataChainCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(regoMetadataChainRef)
+	return x.IsCall() && Interned.Refs.RegoMetadataChain.Equal(x.Operator())
 }
 
 func isRegoMetadataRuleCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(regoMetadataRuleRef)
+	return x.IsCall() && Interned.Refs.RegoMetadataRule.Equal(x.Operator())
 }
 
 func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
-
 	metaArray := NewArray()
 	for _, link := range chain {
 		// Dropping leading 'data' element of path
@@ -3911,6 +3938,7 @@ func (qc *queryCompiler) checkTypes(_ *QueryContext, body Body) (Body, error) {
 	checker := newTypeChecker().
 		WithSchemaSet(qc.compiler.schemaSet).
 		WithInputType(qc.compiler.inputType).
+		WithDependentsResolver(qc.compiler.dependentRuleRefs).
 		WithVarRewriter(rewriteRefErrVars(qc.refSubjects, qc.rewritten, qc.compiler.RewrittenVars))
 	qc.typeEnv, errs = checker.CheckBody(qc.compiler.TypeEnv, body)
 	if len(errs) > 0 {
@@ -6014,11 +6042,12 @@ func rewriteComprehensionTerms(f *equalityFactory, node any) (any, error) {
 // partial evaluation cases we do want to rewrite == to = to simplify the
 // result.
 func rewriteEquals(x any) (modified bool) {
+	// Note: can't use Interned.Refs.Equality here as this may be mutated
 	unifyOp := Equality.Ref()
 	t := NewGenericTransformer(func(x any) (any, error) {
 		if x, ok := x.(*Expr); ok && x.IsCall() {
 			operator := x.Operator()
-			if operator.Equal(doubleEq) && len(x.Operands()) == 2 {
+			if operator.Equal(Interned.Refs.Equal) && len(x.Operands()) == 2 {
 				modified = true
 				x.SetOperator(NewTerm(unifyOp))
 			}
@@ -6436,7 +6465,25 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 
 func expandExprRef(gen *localVarGenerator, v []*Term) (support []*Expr) {
 	// Start by calling a normal expandExprTerm on all terms.
-	support = expandExprTermSlice(gen, v)
+	for i := range v {
+		// A call in a ref, e.g. the opa.runtime() in opa.runtime()[0].foo, is
+		// hoisted into a generated local by expandExprTerm below. Record the
+		// call that local stands in for, so type errors on this ref render the
+		// call rather than the local. The call has to be copied first:
+		// expandExprTerm hoists nested calls out of its arguments in place.
+		var subject Value
+		if call, ok := v[i].Value.(Call); ok {
+			subject = call.Copy()
+		}
+
+		var extras []*Expr
+		extras, v[i] = expandExprTerm(gen, v[i])
+		support = append(support, extras...)
+
+		if local, ok := v[i].Value.(Var); ok && subject != nil {
+			gen.putSubject(local, subject)
+		}
+	}
 
 	// Rewrite references in order to support indirect references.  We rewrite
 	// e.g.
@@ -6466,15 +6513,6 @@ func expandExprTermArray(gen *localVarGenerator, arr *Array) (support []*Expr) {
 	for i := range arr.Len() {
 		extras, v := expandExprTerm(gen, arr.Elem(i))
 		arr.set(i, v)
-		support = append(support, extras...)
-	}
-	return
-}
-
-func expandExprTermSlice(gen *localVarGenerator, v []*Term) (support []*Expr) {
-	for i := range v {
-		var extras []*Expr
-		extras, v[i] = expandExprTerm(gen, v[i])
 		support = append(support, extras...)
 	}
 	return

@@ -525,11 +525,10 @@ func makeDisjointSets(livevars ast.VarSet, query ast.Body) (*unionFind, bool) {
 }
 
 func isNoop(expr *ast.Expr) bool {
-
 	switch t := expr.Terms.(type) {
 	case []*ast.Term:
 		// A==A can be ignored
-		if expr.Operator().Equal(ast.Equal.Ref()) {
+		if expr.Operator().Equal(ast.Interned.Refs.Equal) {
 			return expr.Operand(0).Equal(expr.Operand(1))
 		}
 		return false

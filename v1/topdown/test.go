@@ -13,7 +13,8 @@ func builtinTestCase(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		Op:      TestCaseOp,
 		QueryID: bctx.QueryID,
 		Node: ast.NewExpr([]*ast.Term{
-			ast.NewTerm(ast.InternalTestCase.Ref()),
+			// Copied, as tracers may transform the node.
+			ast.NewTerm(ast.Interned.Refs.InternalTestCase.Copy()),
 			ast.NewTerm(operands[0].Value),
 		}),
 	}

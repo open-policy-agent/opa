@@ -122,6 +122,7 @@ type EvalContext struct {
 	printHook                   print.Hook
 	capabilities                *ast.Capabilities
 	strictBuiltinErrors         bool
+	builtinErrorList            *[]topdown.Error
 	virtualCache                topdown.VirtualCache
 	baseCache                   topdown.BaseCache
 	tracing                     tracing.Options
@@ -388,6 +389,15 @@ func EvalPrintHook(ph print.Hook) EvalOption {
 	}
 }
 
+// EvalBuiltinErrorList overrides, for this Eval call only, the list
+// built-in errors are appended to — letting a caller that evaluates the
+// same PreparedEvalQuery multiple times keep each call's errors separate.
+func EvalBuiltinErrorList(list *[]topdown.Error) EvalOption {
+	return func(e *EvalContext) {
+		e.builtinErrorList = list
+	}
+}
+
 // EvalVirtualCache sets the topdown.VirtualCache to use for evaluation.
 // This is optional, and if not set, the default cache is used.
 func EvalVirtualCache(vc topdown.VirtualCache) EvalOption {
@@ -489,6 +499,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		printHook:                pq.r.printHook,
 		capabilities:             pq.r.capabilities,
 		strictBuiltinErrors:      pq.r.strictBuiltinErrors,
+		builtinErrorList:         pq.r.builtinErrorList,
 		tracing:                  pq.r.distributedTracingOpts,
 	}
 
@@ -2342,7 +2353,7 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithInterQueryBuiltinValueCache(ectx.interQueryBuiltinValueCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
-		WithBuiltinErrorList(r.builtinErrorList).
+		WithBuiltinErrorList(ectx.builtinErrorList).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
 		WithDistributedTracingOpts(r.distributedTracingOpts).
@@ -2823,12 +2834,11 @@ func (*Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (as
 // where rewriting them can substantially simplify the result, and it is unlikely
 // that the caller would need expression values.
 func (*Rego) rewriteEqualsForPartialQueryCompile(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
-	doubleEq := ast.Equal.Ref()
 	unifyOp := ast.Equality.Ref()
 	ast.WalkExprs(query, func(x *ast.Expr) bool {
 		if x.IsCall() {
 			operator := x.Operator()
-			if operator.Equal(doubleEq) && len(x.Operands()) == 2 {
+			if operator.Equal(ast.Interned.Refs.Equal) && len(x.Operands()) == 2 {
 				x.SetOperator(ast.NewTerm(unifyOp))
 			}
 		}

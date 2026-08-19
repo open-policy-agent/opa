@@ -13,12 +13,46 @@ type internable interface {
 	bool | string | int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64
 }
 
+type interned struct {
+	Refs *internedRefs
+}
+
+type internedRefs struct {
+	Equal             Ref
+	Equality          Ref
+	GlobMatch         Ref
+	InternalPrint     Ref
+	InternalTestCase  Ref
+	Member            Ref
+	MemberWithKey     Ref
+	Or                Ref
+	Print             Ref
+	RegoMetadataChain Ref
+	RegoMetadataRule  Ref
+}
+
 // NOTE! Great care must be taken **not** to modify the terms returned
 // from these functions, as they are shared across all callers.
 // This package is currently considered experimental, and may change
 // at any time without notice.
 
 var (
+	Interned = &interned{
+		Refs: &internedRefs{
+			Equal:             Equal.Ref(),
+			Equality:          Equality.Ref(),
+			GlobMatch:         GlobMatch.Ref(),
+			InternalPrint:     InternalPrint.Ref(),
+			InternalTestCase:  InternalTestCase.Ref(),
+			Member:            Member.Ref(),
+			MemberWithKey:     MemberWithKey.Ref(),
+			Or:                Or.Ref(),
+			Print:             Print.Ref(),
+			RegoMetadataChain: RegoMetadataChain.Ref(),
+			RegoMetadataRule:  RegoMetadataRule.Ref(),
+		},
+	}
+
 	InternedNullValue Value = Null{}
 	InternedNullTerm        = NewTerm(InternedNullValue)
 

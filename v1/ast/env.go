@@ -14,7 +14,10 @@ import (
 
 // TypeEnv contains type info for static analysis such as type checking.
 type TypeEnv struct {
-	tree       *typeTreeNode
+	tree *typeTreeNode
+	// vars is the tree the types inferred for variables are stored in, which is
+	// tree except in the environments created for with modifiers.
+	vars       *typeTreeNode
 	next       *TypeEnv
 	newChecker func() *typeChecker
 }
@@ -22,8 +25,10 @@ type TypeEnv struct {
 // newTypeEnv returns an empty TypeEnv. The constructor is not exported because
 // type environments should only be created by the type checker.
 func newTypeEnv(f func() *typeChecker) *TypeEnv {
+	tree := newTypeTree()
 	return &TypeEnv{
-		tree:       newTypeTree(),
+		tree:       tree,
+		vars:       tree,
 		newChecker: f,
 	}
 }
@@ -231,7 +236,17 @@ func (env *TypeEnv) wrap() *TypeEnv {
 	cpy := *env
 	cpy.next = env
 	cpy.tree = newTypeTree()
+	cpy.vars = cpy.tree
 	return &cpy
+}
+
+// wrapWith returns a TypeEnv for checking a single expression carrying with
+// modifiers: unlike wrap, the types it infers for variables are kept in the
+// enclosing environment, as those variables outlive the expression.
+func (env *TypeEnv) wrapWith() *TypeEnv {
+	cpy := env.wrap()
+	cpy.vars = env.vars
+	return cpy
 }
 
 // typeTreeNode is used to store type information in a tree.

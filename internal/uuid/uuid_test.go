@@ -5,6 +5,7 @@ package uuid
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"reflect"
 	"testing"
@@ -145,5 +146,26 @@ func TestMACVars(t *testing.T) {
 				t.Errorf("got %s, expected %s", got, expected[i])
 			}
 		})
+	}
+}
+
+// 328.2 ns/op	     184 B/op	       7 allocs/op // Using fmt.Sprintf
+// 195.6 ns/op	      64 B/op	       1 allocs/op // Using hex.AppendEncode
+func BenchmarkNew(b *testing.B) {
+	for b.Loop() {
+		if _, err := New(rand.Reader); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// 391.6 ns/op	     480 B/op	      11 allocs/op
+func BenchmarkParse(b *testing.B) {
+	for b.Loop() {
+		if res, err := Parse("{000003e8-48b9-21ee-b200-325096b39f47}"); err != nil {
+			b.Fatal(err)
+		} else {
+			_ = res
+		}
 	}
 }

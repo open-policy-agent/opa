@@ -55,10 +55,14 @@ var RootDocumentNames = NewSet(
 // All refs to data in the policy engine's storage layer are prefixed with this ref.
 var DefaultRootRef = Ref{DefaultRootDocument}
 
+var DefaultRootRefTerm = NewTerm(DefaultRootRef)
+
 // InputRootRef is a reference to the root of the input document.
 //
 // All refs to query arguments are prefixed with this ref.
 var InputRootRef = Ref{InputRootDocument}
+
+var InputRootRefTerm = NewTerm(InputRootRef)
 
 // SchemaRootRef is a reference to the root of the schema document.
 //
@@ -69,10 +73,7 @@ var SchemaRootRef = Ref{SchemaRootDocument}
 
 // RootDocumentRefs contains the prefixes of top-level documents that all
 // non-local references start with.
-var RootDocumentRefs = NewSet(
-	NewTerm(DefaultRootRef),
-	NewTerm(InputRootRef),
-)
+var RootDocumentRefs = NewSet(DefaultRootRefTerm, InputRootRefTerm)
 
 // SystemDocumentKey is the name of the top-level key that identifies the system
 // document.
