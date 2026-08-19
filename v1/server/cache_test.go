@@ -18,7 +18,6 @@ func TestCacheLimit(t *testing.T) {
 
 	// Fill the cache with values
 	var i int
-	//nolint:intrange
 	for i = 0; i < max; i++ {
 		c.Insert(strconv.Itoa(i), i)
 	}

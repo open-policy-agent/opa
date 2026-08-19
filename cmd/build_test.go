@@ -80,7 +80,6 @@ func TestBuildProducesBundle(t *testing.T) {
 }
 
 func TestBuildRespectsCapabilities(t *testing.T) {
-	//nolint:prealloc // test slice is extended dynamically, initial values are clearer as slice literal
 	tests := []struct {
 		note       string
 		caps       string

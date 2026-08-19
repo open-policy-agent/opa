@@ -24,7 +24,7 @@ type Position = v1.Position
 //
 // Deprecated: PositionSlice is unused inside OPA and will be removed in a
 // future release.
-type PositionSlice = v1.PositionSlice //nolint:staticcheck
+type PositionSlice = v1.PositionSlice
 
 // Range represents a range of positions in a file.
 type Range = v1.Range

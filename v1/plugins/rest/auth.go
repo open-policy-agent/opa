@@ -156,8 +156,8 @@ func convertSignatureToBase64(alg string, der []byte) (string, error) {
 	return signatureData, nil
 }
 
-func pointsFromDER(der []byte) (R, S *big.Int, err error) { //nolint:gocritic
-	R, S = &big.Int{}, &big.Int{}
+func pointsFromDER(der []byte) (bigR, bigS *big.Int, err error) {
+	bigR, bigS = &big.Int{}, &big.Int{}
 	data := asn1.RawValue{}
 	if _, err := asn1.Unmarshal(der, &data); err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshall the signature from DER format %v", err)
@@ -170,8 +170,8 @@ func pointsFromDER(der []byte) (R, S *big.Int, err error) { //nolint:gocritic
 	r := data.Bytes[2 : rLen+2]
 	// Ignore the next 0x02 and slen bytes and just take the start of S to the end of the byte array
 	s := data.Bytes[rLen+4:]
-	R.SetBytes(r)
-	S.SetBytes(s)
+	bigR.SetBytes(r)
+	bigS.SetBytes(s)
 	return
 }
 

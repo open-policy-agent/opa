@@ -13,6 +13,7 @@ linters:
     - mirror
     - misspell
     - modernize
+    - nolintlint
     - perfsprint
     - prealloc
     - revive # replacement for golint
@@ -108,16 +109,18 @@ linters:
     rules:
       - linters:
           - staticcheck
-        text: This package is intended for older projects transitioning from OPA v0.x
-        path-except: v1/
-      - linters:
-          - staticcheck
         text: SA1019 # Using a deprecated function, variable, constant or field
         path: _test\.go
+      - linters:
+          - prealloc
+          - errcheck
+        path: _test\.go # Using a deprecated function, variable, constant or field
     paths:
-      - internal/gojsonschema
-      - internal/methodlesstemplate
-      - node_modules
+      # v0 - ^ needed to avoid matching name in any path
+      - ^ast|^bundle|^cover|^compile|^debug|^dependencies|^download|^format|^loader|^server
+      - ^topdown|^plugins|^rego|^repl|^resolver|^runtime|^sdk|^storage|^test|^util
+      # various exclusions
+      - ^internal/gojsonschema|^internal/methodlesstemplate|node_modules|example_test
 issues:
   # don't hide issues in CI runs because they are the same type
   max-same-issues: 0

@@ -2370,7 +2370,6 @@ func (t *testServer) generateClientKeys() {
 
 	var pemBlock *pem.Block
 	if t.clientCertPassword != "" {
-		// nolint: staticcheck // We don't want to forbid users from using this encryption.
 		pemBlock, err = x509.EncryptPEMBlock(rand.Reader, "RSA PRIVATE KEY", x509.MarshalPKCS1PrivateKey(clientKey),
 			[]byte(t.clientCertPassword), x509.PEMCipherAES128)
 		if err != nil {
