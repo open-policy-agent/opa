@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
@@ -1276,6 +1277,7 @@ func TestSplitPrefix(t *testing.T) {
 
 	tests := []struct {
 		input     string
+		goos      string
 		wantParts []string
 		wantPath  string
 	}{
@@ -1311,18 +1313,77 @@ func TestSplitPrefix(t *testing.T) {
 			wantParts: []string{"x", "y"},
 			wantPath:  "file:///c:/a/b/c",
 		},
+		{
+			input:    "c:/a/b/c",
+			goos:     "windows",
+			wantPath: "c:/a/b/c",
+		},
+		{
+			input:    `C:\a\b\c`,
+			goos:     "windows",
+			wantPath: `C:\a\b\c`,
+		},
+		{
+			input:     "c:a/b",
+			goos:      "windows",
+			wantParts: []string{"c"},
+			wantPath:  "a/b",
+		},
+		{
+			input:     "x.y:c:/a/b",
+			goos:      "windows",
+			wantParts: []string{"x", "y"},
+			wantPath:  "c:/a/b",
+		},
+		{
+			input:     "c:/a/b/c",
+			goos:      "linux",
+			wantParts: []string{"c"},
+			wantPath:  "/a/b/c",
+		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.input, func(t *testing.T) {
+		t.Run(tc.goos+tc.input, func(t *testing.T) {
+			if tc.goos != "" {
+				prev := goos
+				goos = tc.goos
+				t.Cleanup(func() { goos = prev })
+			}
+
 			parts, gotPath := SplitPrefix(tc.input)
 			if !slices.Equal(parts, tc.wantParts) {
 				t.Errorf("wanted parts %v but got %v", tc.wantParts, parts)
 			}
 			if gotPath != tc.wantPath {
-				t.Errorf("wanted path %q but got %q", gotPath, tc.wantPath)
+				t.Errorf("wanted path %q but got %q", tc.wantPath, gotPath)
 			}
 		})
+	}
+}
+
+func TestLoadWindowsAbsolutePath(t *testing.T) {
+	prev := goos
+	goos = "windows"
+	t.Cleanup(func() { goos = prev })
+
+	fsys := fstest.MapFS{
+		"c:/policies/foo.json": &fstest.MapFile{Data: []byte(`{"a": [1,2,3]}`)},
+		"c:/policies/bar.rego": &fstest.MapFile{Data: []byte("package bar\n")},
+	}
+
+	loaded, err := NewFileLoader().WithFS(fsys).All([]string{"c:/policies"})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected := parseJSON(`{"a": [1,2,3]}`)
+	if !reflect.DeepEqual(loaded.Documents, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+	}
+
+	if _, ok := loaded.Modules["c:/policies/bar.rego"]; !ok {
+		t.Fatalf("Expected c:/policies/bar.rego to be loaded, got: %v", loaded.Modules)
 	}
 }
 

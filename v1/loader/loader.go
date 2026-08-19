@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -28,6 +29,9 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+// goos is overridden in tests to exercise Windows path handling on other platforms.
+var goos = runtime.GOOS
 
 // Result represents the result of successfully loading zero or more files.
 type Result struct {
@@ -592,11 +596,27 @@ func SplitPrefix(path string) ([]string, string) {
 	if strings.Index(path, "://") == strings.Index(path, ":") {
 		return nil, path
 	}
+	// On Windows, the drive letter of an absolute path is part of the path, not a
+	// data prefix.
+	if isAbsWindowsPath(path) {
+		return nil, path
+	}
 	parts := strings.SplitN(path, ":", 2)
 	if len(parts) == 2 && len(parts[0]) > 0 {
 		return strings.Split(parts[0], "."), parts[1]
 	}
 	return nil, path
+}
+
+// isAbsWindowsPath returns true on Windows if path starts with a drive letter
+// followed by a colon and a separator, e.g. c:/foo. Drive-relative paths like
+// c:foo are excluded so that single-character data prefixes still work.
+func isAbsWindowsPath(path string) bool {
+	if goos != "windows" || len(path) < 3 || path[1] != ':' || !isSlash(path[2]) {
+		return false
+	}
+	c := path[0]
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 func (l *Result) merge(path string, result any) error {
