@@ -51,6 +51,7 @@ type (
 		v1Compatible       bool
 		followSymlinks     bool
 		wasmIncludePrint   bool
+		planAddons         []string
 		stderr             io.Writer
 	}
 	// deferredFileWriter is a wrapper around [*os.File] that defers the creation of the file until
@@ -283,6 +284,7 @@ against ` + brand + ` v0.22.0:
 	buildCommand.Flags().StringVar(&buildParams.ns, "partial-namespace", "partial", "set the namespace to use for partially evaluated files in an optimized bundle")
 	buildCommand.Flags().BoolVar(&buildParams.followSymlinks, "follow-symlinks", false, "follow symlinks in the input set of paths when building the bundle")
 	buildCommand.Flags().BoolVar(&buildParams.wasmIncludePrint, "wasm-include-print", false, "enable print statements inside of WebAssembly modules compiled by the compiler")
+	buildCommand.Flags().StringArrayVar(&buildParams.planAddons, "plan-addons", []string{}, "include optional extra data in the plan; supported value: unplanned_rules (requires --target=plan)")
 
 	addBundleModeFlag(buildCommand.Flags(), &buildParams.bundleMode, false)
 	addIgnoreFlag(buildCommand.Flags(), &buildParams.ignore)
@@ -361,7 +363,8 @@ func dobuild(params buildParams, args []string) error {
 		WithBundleVerificationConfig(bvc).
 		WithBundleSigningConfig(bsc).
 		WithPartialNamespace(params.ns).
-		WithFollowSymlinks(params.followSymlinks)
+		WithFollowSymlinks(params.followSymlinks).
+		WithPlanAddons(params.planAddons)
 
 	compiler = compiler.WithRegoVersion(params.regoVersion())
 

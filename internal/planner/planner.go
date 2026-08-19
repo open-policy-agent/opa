@@ -52,6 +52,8 @@ type Planner struct {
 
 	allRules     map[*ast.Rule]bool // all rules parsed from input modules, used to track unplanned rules for additional reporting (e.g. coverage)
 	plannedRules map[*ast.Rule]bool
+
+	unplannedRules bool // whether to populate policy.UnplannedRules
 }
 
 // debugf prepends the planner location. We're passing callstack depth 2 because
@@ -121,6 +123,14 @@ func (p *Planner) WithDebug(sink io.Writer) *Planner {
 	return p
 }
 
+// WithUnplannedRules controls whether the resulting policy includes the
+// list of rules that were parsed but never planned (i.e. not reachable
+// from any entrypoint). Disabled by default.
+func (p *Planner) WithUnplannedRules(yes bool) *Planner {
+	p.unplannedRules = yes
+	return p
+}
+
 // Plan returns a IR plan for the policy query.
 func (p *Planner) Plan() (*ir.Policy, error) {
 
@@ -136,7 +146,9 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 		return nil, err
 	}
 
-	p.buildUnplannedRules()
+	if p.unplannedRules {
+		p.buildUnplannedRules()
+	}
 
 	return p.policy, nil
 }

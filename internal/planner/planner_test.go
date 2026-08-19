@@ -35,7 +35,7 @@ unused if { true }
 
 	policy, err := New().WithQueries([]QuerySet{
 		{Name: "test", Queries: queries},
-	}).WithModules([]*ast.Module{m}).WithBuiltinDecls(ast.BuiltinMap).Plan()
+	}).WithModules([]*ast.Module{m}).WithBuiltinDecls(ast.BuiltinMap).WithUnplannedRules(true).Plan()
 	if err != nil {
 		t.Fatal(err)
 	}
