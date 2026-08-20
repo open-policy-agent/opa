@@ -5,7 +5,6 @@
 // Package repl implements a Read-Eval-Print-Loop (REPL) for interacting with the policy engine.
 //
 // The REPL is typically used from the command line, however, it can also be used as a library.
-// nolint: goconst // String reuse here doesn't make sense to deduplicate.
 package repl
 
 import (

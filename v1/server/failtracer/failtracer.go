@@ -55,7 +55,7 @@ func (*failTracer) Config() topdown.TraceConfig {
 }
 
 func (b *failTracer) Hints(unknowns []ast.Ref) []Hint {
-	var hints []Hint //nolint:prealloc
+	var hints []Hint
 	seenRefs := map[string]struct{}{}
 	candidates := make([]string, 0, len(unknowns))
 	for _, ref := range unknowns {

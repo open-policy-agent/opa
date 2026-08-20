@@ -2,7 +2,6 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint: goconst // string duplication is for test readability.
 package server
 
 import (
@@ -2648,7 +2647,7 @@ func TestBundleScope(t *testing.T) {
 
 			if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
 				Revision: "AAAAA",
-				Roots:    &[]string{"a/b/c", "x/y", "foobar"},
+				Roots:    &[]string{"a/b/c", "x/y", "foobar", "q/foo bar"},
 			}); err != nil {
 				t.Fatal(err)
 			}
@@ -2740,6 +2739,49 @@ func TestBundleScope(t *testing.T) {
 					body:   `{"a": "b"}`,
 					code:   http.StatusBadRequest,
 					resp:   `{"code": "invalid_parameter", "message": "can't write to document root with bundle roots configured"}`,
+				},
+				// A root segment that needs escaping must still be recognized as
+				// owned; the request path arrives percent-encoded.
+				{
+					method: "PUT",
+					path:   "/data/q/foo%20bar",
+					body:   "1",
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path q/foo bar is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/data/q/foo%20bar/x",
+					body:   "1",
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path q/foo bar/x is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PATCH",
+					path:   "/data/q",
+					body:   `[{"path": "/foo bar", "op": "add", "value": 1}]`,
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path q/foo bar is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/policies/test2",
+					body:   `package q["foo bar"]`,
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path q/foo bar is owned by bundle \"test-bundle\""}`,
+				},
+				// ...but a sibling that merely shares a prefix is not owned.
+				{
+					method: "PUT",
+					path:   "/data/q/foo",
+					body:   "1",
+					code:   http.StatusNoContent,
+				},
+				{
+					method: "PUT",
+					path:   "/policies/test3",
+					body:   `package q.foo`,
+					code:   http.StatusOK,
 				},
 			}
 

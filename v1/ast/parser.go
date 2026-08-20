@@ -513,7 +513,7 @@ func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 }
 
 func parseAnnotations(comments []*Comment) (stmts []*Annotations, errs Errors) {
-	numBlocks := CountFunc(comments, IsMetadataComment)
+	numBlocks := util.Count(IsMetadataComment, comments...)
 	if numBlocks == 0 {
 		return nil, nil
 	}
@@ -1666,6 +1666,8 @@ func (p *Parser) parseLogicalOrChain(lhsBody Body, lhsExplicit bool, lhsLoc *Loc
 			rhsExplicit = false
 		}
 
+		p.checkVoidCallOperands(lhsBody, rhsBody, "or")
+
 		exprLoc := p.extendLoc(lhsLoc)
 		node := &LogicalOr{
 			Lhs:         lhsBody,
@@ -1702,6 +1704,8 @@ func (p *Parser) parseLogicalAndChain(lhsBody Body, lhsExplicit bool, lhsLoc *Lo
 		if rhsBody == nil {
 			return nil
 		}
+
+		p.checkVoidCallOperands(lhsBody, rhsBody, "and")
 
 		exprLoc := p.extendLoc(lhsLoc)
 		node := &LogicalAnd{
@@ -1919,6 +1923,45 @@ func isEmptyObjectTerm(expr *Expr) bool {
 func (p *Parser) errorBraceLedOperand(loc *Location, operand []byte, op string) {
 	p.hint(fmt.Sprintf("wrap the operand to keep the value: `(%s) %s ...`", operand, op))
 	p.errorf(loc, "operand of `%s` cannot begin with `{` unless the braces hold a body", op)
+}
+
+func (p *Parser) checkVoidCallOperands(lhs, rhs Body, op string) {
+	if name, loc := voidCallOperand(lhs); name != "" {
+		p.errorVoidCallOperand(loc, name, op)
+	}
+
+	if name, loc := voidCallOperand(rhs); name != "" {
+		p.errorVoidCallOperand(loc, name, op)
+	}
+}
+
+func (p *Parser) errorVoidCallOperand(loc *Location, name, op string) {
+	p.hint(fmt.Sprintf("`%s` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail", name))
+	p.errorf(loc, "operand of `%s` cannot consist only of calls to `%s`", op, name)
+}
+
+// voidCallOperand returns the name and location of the first void builtin called by
+// an operand whose body does nothing else; negated operands are left alone.
+func voidCallOperand(body Body) (string, *Location) {
+	var name string
+	var loc *Location
+
+	for _, expr := range body {
+		if expr.Negated || !expr.IsCall() {
+			return "", nil
+		}
+
+		bi, ok := BuiltinMap[expr.Operator().String()]
+		if !ok || bi.Decl == nil || bi.Decl.Result() != nil {
+			return "", nil
+		}
+
+		if name == "" {
+			name, loc = bi.Name, expr.Location
+		}
+	}
+
+	return name, loc
 }
 
 // errorParensCannotWrapBody reports `(...)` holding expressions rather than a value.

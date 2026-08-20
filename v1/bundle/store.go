@@ -805,13 +805,13 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 		if err != nil {
 			return nil, nil, err
 		}
-		path, err := module.Package.Path.Ptr()
+		path, err := storage.NewPathForRef(module.Package.Path)
 		if err != nil {
 			return nil, nil, err
 		}
 		deleted := false
 		for root := range roots {
-			if RootPathsContain([]string{root}, path) {
+			if rootPathsContainSegments([]string{root}, path) {
 				if err := store.DeletePolicy(ctx, txn, id); err != nil {
 					return nil, nil, err
 				}
@@ -927,7 +927,7 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					if m := f.module; m != nil {
 						// 'f.module.Path' contains the module's path as it relates to the bundle root, and can be used for looking up the rego-version.
 						// 'f.Path' can differ, based on how the bundle reader was initialized.
-						if err := writeModuleRegoVersionToStore(ctx, store, txn, b, *m, p.String(), runtimeRegoVersion); err != nil {
+						if err := writeModuleRegoVersionToStore(ctx, store, txn, b, *m, p.PolicyID(), runtimeRegoVersion); err != nil {
 							return err
 						}
 					}

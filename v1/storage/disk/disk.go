@@ -302,7 +302,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		}
 
 		if update.IsPolicy {
-			err = underlyingTxn.UpsertPolicy(ctx, strings.TrimLeft(update.Path.String(), "/"), update.Value)
+			err = underlyingTxn.UpsertPolicy(ctx, update.Path.PolicyID(), update.Value)
 			if err != nil {
 				if err != badger.ErrTxnTooBig {
 					return wrapError(err)
@@ -317,7 +317,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 				xid = db.xid.Add(uint64(1))
 				underlyingTxn = newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, db)
 
-				if err = underlyingTxn.UpsertPolicy(ctx, strings.TrimLeft(update.Path.String(), "/"), update.Value); err != nil {
+				if err = underlyingTxn.UpsertPolicy(ctx, update.Path.PolicyID(), update.Value); err != nil {
 					return wrapError(err)
 				}
 			}

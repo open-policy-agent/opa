@@ -684,6 +684,34 @@
       ],
       "additionalProperties": false
     },
+    "Location": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "end_col",
+        "end_row",
+        "file",
+        "row"
+      ],
+      "additionalProperties": false
+    },
     "MakeArrayStmt": {
       "type": "object",
       "properties": {
@@ -1170,6 +1198,12 @@
         },
         "static": {
           "$ref": "#/$defs/Static"
+        },
+        "unplanned_rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UnplannedRule"
+          }
         }
       },
       "additionalProperties": false
@@ -1938,6 +1972,29 @@
       },
       "required": [
         "value"
+      ],
+      "additionalProperties": false
+    },
+    "UnplannedRule": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Location"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "location",
+        "path"
       ],
       "additionalProperties": false
     },

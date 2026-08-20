@@ -86,19 +86,10 @@ func TestTopDownLogicalAnd(t *testing.T) {
 			fail: true,
 		},
 		{
-			note: "lhs fails: rhs not evaluated (short-circuit)",
+			note: "print inside both explicit body operands",
 			module: `package test
 				p if {
-					false and print("rhs")
-				}`,
-			notes: n(),
-			fail:  true,
-		},
-		{
-			note: "lhs succeeds: rhs evaluated",
-			module: `package test
-				p if {
-					print("lhs") and print("rhs")
+					{print("lhs"); true} and {print("rhs"); true}
 				}`,
 			notes: n("lhs", "rhs"),
 		},
@@ -167,20 +158,12 @@ func TestTopDownLogicalOr(t *testing.T) {
 			fail: true,
 		},
 		{
-			note: "lhs succeeds: rhs not evaluated (short-circuit)",
+			note: "print inside both explicit body operands, rhs skipped",
 			module: `package test
 				p if {
-					print("lhs") or print("rhs")
+					{print("lhs"); true} or {print("rhs"); true}
 				}`,
 			notes: n("lhs"),
-		},
-		{
-			note: "lhs fails: rhs evaluated",
-			module: `package test
-				p if {
-					false or print("rhs")
-				}`,
-			notes: n("rhs"),
 		},
 		{
 			note: "explicit body operands",

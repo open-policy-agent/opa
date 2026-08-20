@@ -4,7 +4,6 @@
 
 //go:build !bench_disk
 
-// nolint: unused // build tags confuse these linters
 package authz
 
 import "github.com/open-policy-agent/opa/v1/storage/disk"

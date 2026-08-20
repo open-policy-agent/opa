@@ -2279,6 +2279,76 @@ func TestParseLogical_BraceLedOperandHintExtent(t *testing.T) {
 	}
 }
 
+func TestParseLogical_VoidCallOperandIsRejected(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	// Every builtin declared without a result type.
+	operands := []struct {
+		name string
+		call string
+	}{
+		{"print", `print("x")`},
+		{"internal.print", `internal.print([{"x"}])`},
+		{"internal.test_case", `internal.test_case(["x"])`},
+	}
+
+	positions := []struct {
+		note string
+		expr string
+		op   string
+	}{
+		{note: "lhs of and", expr: "%s and z", op: "and"},
+		{note: "rhs of and", expr: "z and %s", op: "and"},
+		{note: "lhs of or", expr: "%s or z", op: "or"},
+		{note: "rhs of or", expr: "z or %s", op: "or"},
+		{note: "both operands of and", expr: "%s and %s", op: "and"},
+		{note: "both operands of or", expr: "%s or %s", op: "or"},
+		{note: "middle of an and chain", expr: "y and %s and z", op: "and"},
+		{note: "middle of an or chain", expr: "y or %s or z", op: "or"},
+		// `and` binds tighter, so the operand belongs to it, not to the `or`.
+		{note: "and operand inside an or chain", expr: "y or z and %s", op: "and"},
+		// Parens group rather than delimit, so the operand is still the bare call.
+		{note: "parenthesized lhs of and", expr: "(%s) and z", op: "and"},
+		// Braces don't change the semantics: the operand still cannot fail.
+		{note: "explicit body operand, lhs of and", expr: "{%s} and z", op: "and"},
+		{note: "explicit body operand, rhs of or", expr: "z or {%s}", op: "or"},
+		{note: "explicit body of only void calls", expr: "{%s; %s} and z", op: "and"},
+	}
+
+	for _, tc := range operands {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, ptc := range positions {
+				t.Run(ptc.note, func(t *testing.T) {
+					input := strings.ReplaceAll(ptc.expr, "%s", tc.call)
+					expErr := fmt.Sprintf("operand of `%s` cannot consist only of calls to `%s` "+
+						"(hint: `%s` produces no value and always succeeds, so the operand can never "+
+						"fail; move it out of the operand, or add an expression that can fail)",
+						ptc.op, tc.name, tc.name)
+
+					assertParseErrorContains(t, ptc.note, input, expErr, opts)
+				})
+			}
+		})
+	}
+
+	allowed := []string{
+		`{print("x"); true} and z`,
+		`{some v in [1]; print(v)} and z`,
+		`not print("x") and z`,
+		`not {print("x")} and z`,
+		`x := [1 | print("x")] and z`,
+		`print(f(x)) ; z`,
+	}
+
+	for _, input := range allowed {
+		t.Run(input, func(t *testing.T) {
+			if _, err := ParseBodyWithOpts(input, opts); err != nil {
+				t.Fatalf("unexpected error for %q: %v", input, err)
+			}
+		})
+	}
+}
+
 // TestParseLogical_NotBodyLeadingOperand covers a not-body leading an and/or chain.
 func TestParseLogical_NotBodyLeadingOperand(t *testing.T) {
 	opts := logicalParserOpts("not")

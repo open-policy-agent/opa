@@ -22,9 +22,10 @@ import (
 type (
 	// Policy represents a planned policy query.
 	Policy struct {
-		Static *Static `json:"static,omitempty"`
-		Plans  *Plans  `json:"plans,omitempty"`
-		Funcs  *Funcs  `json:"funcs,omitempty"`
+		Static         *Static          `json:"static,omitempty"`
+		Plans          *Plans           `json:"plans,omitempty"`
+		Funcs          *Funcs           `json:"funcs,omitempty"`
+		UnplannedRules []*UnplannedRule `json:"unplanned_rules,omitempty"`
 	}
 
 	// Static represents a static data segment that is indexed into by the policy.
@@ -97,6 +98,15 @@ type (
 	// StringConst represents a string value.
 	StringConst struct {
 		Value string `json:"value"`
+	}
+
+	// UnplannedRule represents a rule that was parsed but not included in the
+	// plan because it is not reachable from the entrypoint.
+	// This is used for coverage reporting, to distinguish rules that were never
+	// planned from rules that were planned but never executed.
+	UnplannedRule struct {
+		Path     string    `json:"path"`
+		Location *Location `json:"location"`
 	}
 )
 

@@ -2125,7 +2125,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueryASTs: []ast.Body{
 				ast.NewBody(
 					ast.NewExpr(
-						ast.Equal.Call(ast.InputRootRefTerm, ast.InternedTerm(1)),
+						ast.Equal.Call(ast.NewTerm(ast.InputRootRef.Copy()), ast.InternedTerm(1)),
 					),
 				),
 			},
@@ -2275,7 +2275,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueryASTs: []ast.Body{
 				ast.NewBody(
 					ast.NewExpr(
-						ast.Equal.Call(ast.InputRootRefTerm, ast.InternedTerm(1)),
+						ast.Equal.Call(ast.NewTerm(ast.InputRootRef.Copy()), ast.InternedTerm(1)),
 					),
 				),
 			},
@@ -6499,7 +6499,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 						&ast.Expr{ // legacy negation (equivalent to implicit not-body when serialized to Rego).
 							Negated: true,
 							Terms: []*ast.Term{
-								{Value: ast.Interned.Refs.Equality},
+								{Value: ast.Equality.Ref()},
 								ast.NewTerm(ast.InputRootRef.Append(ast.InternedTerm("x"))),
 								ast.InternedTerm(1),
 							},
@@ -7070,9 +7070,11 @@ func pIsDefined(t *testing.T, ctx context.Context, module, pkg, inputJSON string
 	return len(rs) > 0
 }
 
+// Transformed on copies, as ast.Transform rewrites refs in place.
+
 func replaceWildcardsInBodySet(s bodySet) {
 	for i := range s {
-		x, _ := ast.TransformVars(s[i], func(v ast.Var) (ast.Value, error) {
+		x, _ := ast.TransformVars(s[i].Copy(), func(v ast.Var) (ast.Value, error) {
 			if v.IsWildcard() {
 				return ast.WildcardValue, nil
 			}
@@ -7084,7 +7086,7 @@ func replaceWildcardsInBodySet(s bodySet) {
 
 func replaceWildcardsInModuleSet(s moduleSet) {
 	for i := range s {
-		x, _ := ast.TransformVars(s[i], func(v ast.Var) (ast.Value, error) {
+		x, _ := ast.TransformVars(s[i].Copy(), func(v ast.Var) (ast.Value, error) {
 			if v.IsWildcard() {
 				return ast.WildcardValue, nil
 			}
