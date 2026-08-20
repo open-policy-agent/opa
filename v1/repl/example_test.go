@@ -14,7 +14,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 )
 
-// nolint // example code
 func ExampleREPL_OneShot() {
 	// Initialize context for the example. Normally the caller would obtain the
 	// context from an input parameter or instantiate their own.

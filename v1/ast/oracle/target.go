@@ -4,6 +4,8 @@
 package oracle
 
 import (
+	"slices"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
@@ -37,8 +39,8 @@ func findTarget(stack []ast.Node) *target {
 
 	// If top wasn't a var, walk up the stack looking for a Ref.
 	if targetTerm == nil {
-		for i := len(stack) - 1; i >= 0; i-- {
-			if term, ok := stack[i].(*ast.Term); ok {
+		for _, s := range slices.Backward(stack) {
+			if term, ok := s.(*ast.Term); ok {
 				switch term.Value.(type) {
 				case ast.Ref:
 					// Found a ref - this is our target

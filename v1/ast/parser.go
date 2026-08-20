@@ -513,7 +513,7 @@ func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 }
 
 func parseAnnotations(comments []*Comment) (stmts []*Annotations, errs Errors) {
-	numBlocks := CountFunc(comments, IsMetadataComment)
+	numBlocks := util.Count(IsMetadataComment, comments...)
 	if numBlocks == 0 {
 		return nil, nil
 	}

@@ -308,6 +308,12 @@ func SortedFunc[T any, S ~[]T](s S, cmp func(a, b T) int) S {
 	return s
 }
 
+// SortedStableFunc is simply a shorthand for [slices.SortStableFunc] which also returns the sorted slice.
+func SortedStableFunc[T any, S ~[]T](s S, cmp func(a, b T) int) S {
+	slices.SortStableFunc(s, cmp)
+	return s
+}
+
 // Sorted is simply a shorthand for [slices.Sort] which also returns the sorted slice.
 func Sorted[T cmp.Ordered, S ~[]T](s S) S {
 	slices.Sort(s)

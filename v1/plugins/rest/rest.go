@@ -102,8 +102,8 @@ func (c *Config) AuthPlugin(lookup AuthPluginLookupFunc) (HTTPAuthPlugin, error)
 	}
 	// reflection avoids need for this code to change as auth plugins are added
 	s := reflect.ValueOf(c.Credentials)
-	for i := range s.NumField() {
-		if s.Field(i).IsNil() {
+	for _, field := range s.Fields() {
+		if field.IsNil() {
 			continue
 		}
 
@@ -111,7 +111,7 @@ func (c *Config) AuthPlugin(lookup AuthPluginLookupFunc) (HTTPAuthPlugin, error)
 			return nil, errors.New("a maximum one credential method must be specified")
 		}
 
-		candidate = s.Field(i).Interface().(HTTPAuthPlugin)
+		candidate = field.Interface().(HTTPAuthPlugin)
 	}
 
 	if candidate == nil {

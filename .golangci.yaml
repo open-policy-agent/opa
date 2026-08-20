@@ -13,6 +13,7 @@ linters:
     - mirror
     - misspell
     - modernize
+    - nolintlint
     - perfsprint
     - prealloc
     - revive # replacement for golint
@@ -27,6 +28,12 @@ linters:
         - github.com/open-policy-agent/opa/v1/util.WriteAppender
         - github.com/open-policy-agent/opa/v1/util.WriteInt
         - (io.Writer).Write
+        # Intermediate token writes are safe to ignore: a jsontext.Encoder
+        # sticks to its first error, so checking the last call in a sequence
+        # (as these files already do) is sufficient. See the "ignoring errors
+        # for brevity" example in the encoding/json/jsontext.Encoder docs.
+        - (*encoding/json/jsontext.Encoder).WriteToken
+        - (*encoding/json/jsontext.Encoder).WriteValue
     forbidigo:
       forbid:
         - pattern: '^sort\.[A-Z][a-zA-Z]+$'
@@ -108,16 +115,18 @@ linters:
     rules:
       - linters:
           - staticcheck
-        text: This package is intended for older projects transitioning from OPA v0.x
-        path-except: v1/
-      - linters:
-          - staticcheck
         text: SA1019 # Using a deprecated function, variable, constant or field
         path: _test\.go
+      - linters:
+          - prealloc
+          - errcheck
+        path: _test\.go # Using a deprecated function, variable, constant or field
     paths:
-      - internal/gojsonschema
-      - internal/methodlesstemplate
-      - node_modules
+      # v0 - ^ needed to avoid matching name in any path
+      - ^ast|^bundle|^cover|^compile|^debug|^dependencies|^download|^format|^loader|^server
+      - ^topdown|^plugins|^rego|^repl|^resolver|^runtime|^sdk|^storage|^test|^util
+      # various exclusions
+      - ^internal/gojsonschema|^internal/methodlesstemplate|node_modules|example_test
 issues:
   # don't hide issues in CI runs because they are the same type
   max-same-issues: 0

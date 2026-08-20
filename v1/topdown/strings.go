@@ -316,8 +316,8 @@ func builtinIndexOf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	}
 
 	if isASCII(string(base)) && isASCII(string(search)) {
-		// this is a false positive in the indexAlloc rule that thinks
-		// we're converting byte arrays to strings
+		// this is a false positive in the indexAlloc rule that thinks we're converting
+		// byte arrays to strings. still a false positive as of 2026-08-19.
 		//nolint:gocritic
 		return iter(ast.InternedTerm(strings.Index(string(base), string(search))))
 	}

@@ -171,8 +171,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		return err
 	}
 
-	//nolint:prealloc // option list has known initial values, extended with opa.managerOpts
-	opts := []func(*plugins.Manager){
+	opts := append([]func(*plugins.Manager){
 		plugins.Info(runtimeInfo),
 		plugins.Logger(opa.logger),
 		plugins.ConsoleLogger(opa.console),
@@ -180,8 +179,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		plugins.EnablePrintStatements(opa.logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: opa.logger}),
 		plugins.WithHooks(opa.hooks),
-	}
-	opts = append(opts, opa.managerOpts...)
+	}, opa.managerOpts...)
 
 	// Plumb in storage for external bundle activation plugin, if registered with bundle.RegisterStore,
 	// unless the user has passed their own store already.
@@ -779,6 +777,6 @@ type loggingPrintHook struct {
 }
 
 func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
-	h.logger.WithFields(map[string]any{"line": pctx.Location.String()}).Info(msg)
+	h.logger.WithFields(map[string]any{"line": pctx.Location.String()}).Info("%s", msg)
 	return nil
 }

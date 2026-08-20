@@ -236,8 +236,7 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	if err := reporter.Report(dup); err != nil {
 		_, _ = fmt.Fprintln(testParams.errOutput, err)
 		if !testParams.benchmark {
-			var coverageThresholdError *cover.CoverageThresholdError
-			if errors.As(err, &coverageThresholdError) {
+			if _, ok := errors.AsType[*cover.CoverageThresholdError](err); ok {
 				return 2, err
 			}
 		}

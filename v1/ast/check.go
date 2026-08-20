@@ -16,6 +16,10 @@ import (
 
 type varRewriter func(Ref) Ref
 
+// dependentsResolver returns the refs of the rules that (transitively) depend on
+// the document(s) at ref.
+type dependentsResolver func(Ref) []Ref
+
 // typeChecker implements type checking on queries and rules. Errors are
 // accumulated on the typeChecker so that a single run can report multiple
 // issues.
@@ -29,6 +33,8 @@ type typeChecker struct {
 	input               types.Type
 	allowUndefinedFuncs bool
 	schemaTypes         map[string]types.Type
+	dependentsResolver  dependentsResolver
+	withTrees           map[string]*typeTreeNode
 }
 
 // newTypeChecker returns a new typeChecker object that has no errors.
@@ -56,6 +62,7 @@ func (tc *typeChecker) copy() *typeChecker {
 		WithInputType(tc.input).
 		WithAllowUndefinedFunctionCalls(tc.allowUndefinedFuncs).
 		WithBuiltins(tc.builtins).
+		WithDependentsResolver(tc.dependentsResolver).
 		WithRequiredCapabilities(tc.required)
 }
 
@@ -86,6 +93,13 @@ func (tc *typeChecker) WithAllowNet(hosts []string) *typeChecker {
 
 func (tc *typeChecker) WithVarRewriter(f varRewriter) *typeChecker {
 	tc.varRewriter = f
+	return tc
+}
+
+// WithDependentsResolver sets the function used to look up the rules that depend
+// on the document(s) replaced by a with modifier.
+func (tc *typeChecker) WithDependentsResolver(f dependentsResolver) *typeChecker {
+	tc.dependentsResolver = f
 	return tc
 }
 
@@ -124,17 +138,27 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 
 	for _, bexpr := range body {
 		WalkExprs(bexpr, func(expr *Expr) bool {
-			closureErrs := tc.checkClosures(env, expr)
+			exprEnv, exprVis, exprGV := env, vis, gv
+
+			if len(expr.With) > 0 {
+				if withEnv := tc.withEnv(env, expr); withEnv != env {
+					exprEnv = withEnv
+					exprVis = newRefChecker(withEnv, tc.varRewriter)
+					exprGV = NewGenericVisitor(exprVis.Visit)
+				}
+			}
+
+			closureErrs := tc.checkClosures(exprEnv, expr)
 			errors = append(errors, closureErrs...)
 
 			// reset errors from previous iteration
-			vis.errs = nil
-			gv.Walk(expr)
-			errors = append(errors, vis.errs...)
+			exprVis.errs = nil
+			exprGV.Walk(expr)
+			errors = append(errors, exprVis.errs...)
 
-			if err := tc.checkExpr(env, expr); err != nil {
+			if err := tc.checkExpr(exprEnv, expr); err != nil {
 				hasClosureErrors := len(closureErrs) > 0
-				hasRefErrors := len(vis.errs) > 0
+				hasRefErrors := len(exprVis.errs) > 0
 				// Suppress this error if a more actionable one has occurred. In
 				// this case, if an error occurred in a ref or closure contained in
 				// this expression, and the error is due to a nil type, then it's
@@ -271,7 +295,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 			// If args are not referred to in body, infer as any.
 			WalkTerms(arg, func(t *Term) bool {
 				if _, ok := t.Value.(Var); ok && cpy.GetByValue(t.Value) == nil {
-					cpy.tree.PutOne(t.Value, types.A)
+					cpy.vars.PutOne(t.Value, types.A)
 				}
 				return false
 			})
@@ -479,6 +503,99 @@ func checkExprEq(env *TypeEnv, expr *Expr) *Error {
 	return nil
 }
 
+// withEnv returns the TypeEnv to check expr against, where the documents its
+// with modifiers replace can also have the type of their replacement value, and
+// the rules depending on those documents are widened to any.
+func (tc *typeChecker) withEnv(env *TypeEnv, expr *Expr) *TypeEnv {
+	cpy := env
+	targets := make([]Ref, 0, len(expr.With))
+	targetTypes := make([]types.Type, 0, len(expr.With))
+
+	for _, w := range expr.With {
+		target, ok := w.Target.Value.(Ref)
+		if !ok {
+			continue
+		}
+
+		targetType := env.GetByRef(target)
+
+		// Keeping the declaration of a replaced function allows its arity to be
+		// checked against the replacement.
+		_, isFunc := targetType.(*types.Function)
+
+		if tree := tc.relaxedDependents(target, isFunc); tree != nil {
+			layer := cpy.wrapWith()
+			// Shared with every other expression replacing this target.
+			layer.tree = tree
+			cpy = layer
+		}
+
+		if !isFunc {
+			// A non-ground target replaces an unknown part of the document, so
+			// nothing more specific than any can be said about its prefix.
+			tpe := types.A
+			if target.IsGround() && targetType != nil {
+				// Or returns nil if only one of the two is a function.
+				if valueType := env.GetByValue(w.Value.Value); valueType != nil {
+					if or := types.Or(targetType, valueType); or != nil {
+						tpe = or
+					}
+				}
+			}
+			targets = append(targets, target.GroundPrefix())
+			targetTypes = append(targetTypes, tpe)
+		}
+	}
+
+	if len(targets) == 0 {
+		return cpy
+	}
+
+	// Wrapped last, so that a replaced document keeps the type of its
+	// replacement value even if another modifier replaces one of its dependencies.
+	cpy = cpy.wrapWith()
+	for i := range targets {
+		cpy.tree.Put(targets[i], targetTypes[i])
+	}
+
+	return cpy
+}
+
+// relaxedDependents returns a cached type tree where the rules affected by
+// replacing the document(s) at target are typed as any, or nil if there are none.
+func (tc *typeChecker) relaxedDependents(target Ref, isFunc bool) *typeTreeNode {
+	if tc.dependentsResolver == nil {
+		return nil
+	}
+
+	key := target.String()
+	if isFunc {
+		key = "f:" + key
+	}
+
+	if tree, ok := tc.withTrees[key]; ok {
+		return tree
+	}
+
+	var tree *typeTreeNode
+	for _, ref := range tc.dependentsResolver(target) {
+		if isFunc && ref.Equal(target) {
+			continue
+		}
+		if tree == nil {
+			tree = newTypeTree()
+		}
+		tree.Put(ref, types.A)
+	}
+
+	if tc.withTrees == nil {
+		tc.withTrees = map[string]*typeTreeNode{}
+	}
+	tc.withTrees[key] = tree
+
+	return tree
+}
+
 func (tc *typeChecker) checkExprWith(env *TypeEnv, expr *Expr, i int) *Error {
 	if i == len(expr.With) {
 		return nil
@@ -656,9 +773,9 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 			if exist := env.GetByValue(term.Value); exist != nil {
 				return unifies(exist, tpe)
 			}
-			env.tree.PutOne(term.Value, tpe)
+			env.vars.PutOne(term.Value, tpe)
 		} else {
-			env.tree.PutOne(term.Value, types.Or(env.GetByValue(term.Value), tpe))
+			env.vars.PutOne(term.Value, types.Or(env.GetByValue(term.Value), tpe))
 		}
 		return true
 	default:
@@ -805,7 +922,7 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, tpe, getOneOfForNode(node))
 			}
 		} else {
-			rc.env.tree.PutOne(head.Value, tpe)
+			rc.env.vars.PutOne(head.Value, tpe)
 		}
 	}
 
@@ -859,7 +976,7 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, keys, getOneOfForType(tpe))
 			}
 		} else {
-			rc.env.tree.PutOne(head.Value, types.Keys(tpe))
+			rc.env.vars.PutOne(head.Value, types.Keys(tpe))
 		}
 
 	case Ref:
@@ -1189,12 +1306,8 @@ func newArgError(loc *Location, builtinName Ref, msg string, have []types.Type, 
 	return err
 }
 
-func getOneOfForNode(node *typeTreeNode) (result []Value) {
-	node.Children().Iter(func(k Value, _ *typeTreeNode) bool {
-		result = append(result, k)
-		return false
-	})
-	return util.SortedFunc(result, Value.Compare)
+func getOneOfForNode(node *typeTreeNode) []Value {
+	return util.SortedFunc(node.Children().Keys(), Value.Compare)
 }
 
 func getOneOfForType(tpe types.Type) (result []Value) {
