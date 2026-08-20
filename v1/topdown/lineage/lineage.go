@@ -5,6 +5,8 @@
 package lineage
 
 import (
+	"slices"
+
 	"github.com/open-policy-agent/opa/v1/topdown"
 )
 
@@ -66,8 +68,8 @@ func Filter(trace []*topdown.Event, filter func(*topdown.Event) bool) (result []
 			}
 
 			// Add the path to the result, reversing it in the process.
-			for i := len(path) - 1; i >= 0; i-- {
-				result = append(result, path[i])
+			for _, p := range slices.Backward(path) {
+				result = append(result, p)
 			}
 
 			qids = map[uint64]*topdown.Event{}

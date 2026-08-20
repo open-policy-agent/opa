@@ -313,7 +313,7 @@ type errorHandler struct {
 }
 
 func (e *errorHandler) Handle(err error) {
-	e.logger.Warn("Distributed tracing: " + err.Error())
+	e.logger.Warn("Distributed tracing: %s", err.Error())
 }
 
 // NOTE(sr): This adapter code is used to ensure that whatever otel logs, now or
@@ -335,11 +335,11 @@ func (s *sink) Enabled(level int) bool {
 func (*sink) Init(logr.RuntimeInfo) {} // ignored
 
 func (s *sink) Info(_ int, msg string, _ ...any) {
-	s.logger.Info(msg)
+	s.logger.Info("%s", msg)
 }
 
 func (s *sink) Error(err error, msg string, _ ...any) {
-	s.logger.WithFields(map[string]any{"err": err}).Error(msg)
+	s.logger.WithFields(map[string]any{"err": err}).Error("%s", msg)
 }
 
 func (s *sink) WithName(name string) logr.LogSink {

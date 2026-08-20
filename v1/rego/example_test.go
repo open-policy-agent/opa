@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -504,15 +505,13 @@ q = {1, 2, 3} if { true }`,
 		))
 
 	_, err := r.Eval(ctx)
-
-	switch err := err.(type) {
-	case ast.Errors:
+	if err, ok := errors.AsType[ast.Errors](err); ok {
 		for _, e := range err {
 			fmt.Println("code:", e.Code)
 			fmt.Println("row:", e.Location.Row)
 			fmt.Println("filename:", e.Location.File)
 		}
-	default:
+	} else {
 		// Some other error occurred.
 	}
 

@@ -4,6 +4,8 @@
 package oracle
 
 import (
+	"slices"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
@@ -27,8 +29,8 @@ func findDefinition(
 	// Walk down the stack from innermost to outermost, collecting matches.
 	// The matchResult tracks the best match found (ref or variable).
 	result := &matchResult{}
-	for i := len(stack) - 1; i >= 0; i-- {
-		matchFn(stack[i], compiler, parsed, result)
+	for _, s := range slices.Backward(stack) {
+		matchFn(s, compiler, parsed, result)
 		// exit if we found a ref (refs always win)
 		if !result.isVar && result.loc != nil {
 			break

@@ -391,7 +391,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 		// include the local overrides in the status update
 		if len(c.overriddenConfigKeys) != 0 {
 			msg := fmt.Sprintf("Keys in the discovered configuration overridden by boot configuration: %v", strings.Join(c.overriddenConfigKeys, ", "))
-			c.logger.Debug(msg)
+			c.logger.Debug("%s", msg)
 			c.status.Message = msg
 		}
 		c.overriddenConfigKeys = nil
@@ -485,7 +485,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 	// Surface configuration warnings (e.g. unrecognized options) for the
 	// discovered configuration, mirroring what the runtime does at boot.
 	for _, w := range config.Warnings {
-		c.logger.Warn(w)
+		c.logger.Warn("%s", w)
 	}
 
 	// Note: We don't currently support changes to the discovery

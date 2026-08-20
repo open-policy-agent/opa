@@ -412,7 +412,7 @@ func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table 
 				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
 				Formatting: tw.CellFormatting{
 					AutoWrap:  tw.WrapNone,
-					MergeMode: tw.MergeBoth,
+					MergeMode: tw.MergeBoth, //nolint:staticcheck
 				},
 			},
 		}),
