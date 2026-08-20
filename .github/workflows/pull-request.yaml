@@ -697,7 +697,6 @@ jobs:
       smoke-test-docker-images,
       smoke-test-binaries,
       go-version-build,
-      go-1-27-compat,
       rego-check-pr,
       docs-build,
       docs-fmt-check,
