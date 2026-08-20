@@ -2,6 +2,7 @@ import { React, useEffect, useMemo, useRef, useState } from "react";
 
 import BrowserOnly from "@docusaurus/BrowserOnly";
 
+import useSnippetHighlighting from "./highlighting";
 import styles from "./styles.module.css";
 
 const emojis = [
@@ -52,12 +53,17 @@ export default function RunSnippet({ id, files, depends, command, playgroundLink
     return () => el.removeEventListener("result", handler);
   }, [output, isLoading]);
 
+  // codapi drops the syntax highlighting as soon as the snippet is edited
+  useSnippetHighlighting(snippetRef);
+
   if (!command && !files) {
     // json file
     return (
-      <BrowserOnly>
-        {() => <codapi-snippet editor="basic" id={id} data-copy-exclude></codapi-snippet>}
-      </BrowserOnly>
+      <div ref={snippetRef}>
+        <BrowserOnly>
+          {() => <codapi-snippet editor="basic" id={id} data-copy-exclude></codapi-snippet>}
+        </BrowserOnly>
+      </div>
     );
   }
 
