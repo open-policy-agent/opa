@@ -2822,8 +2822,9 @@ corge contains 1 if {
 	}
 }
 
+//go:fix inline
 func pointTo[T any](v T) *T {
-	return &v
+	return new(v)
 }
 
 func bundleRegoVersion(v ast.RegoVersion) int {
@@ -4441,7 +4442,7 @@ func TestReconfigurePlugin_OneShot_BundleDeactivation(t *testing.T) {
 			}
 
 			if tc.bundleRegoVersion != ast.RegoUndefined {
-				b.Manifest.RegoVersion = pointTo(tc.bundleRegoVersion.Int())
+				b.Manifest.RegoVersion = new(tc.bundleRegoVersion.Int())
 			}
 
 			b.Manifest.Init()
@@ -4578,7 +4579,7 @@ func TestReconfigurePlugin_ManagerInit_BundleDeactivation(t *testing.T) {
 			}
 
 			if tc.bundleRegoVersion != ast.RegoUndefined {
-				b.Manifest.RegoVersion = pointTo(tc.bundleRegoVersion.Int())
+				b.Manifest.RegoVersion = new(tc.bundleRegoVersion.Int())
 			}
 
 			b.Manifest.Init()
