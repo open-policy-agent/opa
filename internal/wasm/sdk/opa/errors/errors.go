@@ -61,8 +61,7 @@ func IsCancel(err error) bool {
 
 // Is allows matching error types using errors.Is (see IsCancel).
 func (e *Error) Is(target error) bool {
-	var t *Error
-	if errors.As(target, &t) {
+	if t, ok := errors.AsType[*Error](target); ok {
 		return (t.Code == "" || e.Code == t.Code) &&
 			(t.Message == "" || e.Message == t.Message)
 	}

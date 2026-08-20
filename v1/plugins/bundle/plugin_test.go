@@ -7358,8 +7358,7 @@ func TestPluginManualTriggerWithServerError(t *testing.T) {
 
 	plugin.Stop(ctx)
 
-	var bundleErrors Errors
-	if errors.As(err, &bundleErrors) {
+	if bundleErrors, ok := errors.AsType[Errors](err); ok {
 		if len(bundleErrors) != 1 {
 			t.Fatalf("expected exactly one error, got %d", len(bundleErrors))
 		}

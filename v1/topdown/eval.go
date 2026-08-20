@@ -4068,8 +4068,7 @@ func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 func (e evalTerm) enumerate(iter unifyIterator) error {
 	var deferredEe *deferredEarlyExitError
 	handleErr := func(err error) error {
-		var dee *deferredEarlyExitError
-		if errors.As(err, &dee) {
+		if dee, ok := errors.AsType[*deferredEarlyExitError](err); ok {
 			if deferredEe == nil {
 				deferredEe = dee
 			}

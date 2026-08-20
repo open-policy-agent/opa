@@ -20,8 +20,7 @@ func main() {
 	}() // orderly shutdown, run all defer routines
 
 	if err := cmd.RootCommand.Execute(); err != nil {
-		var e *cmd.ExitError
-		if errors.As(err, &e) {
+		if e, ok := errors.AsType[*cmd.ExitError](err); ok {
 			exit = e.Exit
 		} else {
 			exit = 1
