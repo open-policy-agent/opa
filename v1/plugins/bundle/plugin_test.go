@@ -2822,7 +2822,6 @@ corge contains 1 if {
 	}
 }
 
-//go:fix inline
 func pointTo[T any](v T) *T {
 	return new(v)
 }
