@@ -848,9 +848,7 @@ main contains "hello" if {
 							// runExec to hang indefinitely. WithContext allows us to cancel the context
 							// when we have the required errors logged.
 							var wg sync.WaitGroup
-							wg.Add(1)
-							go func() {
-								defer wg.Done()
+							wg.Go(func() {
 								err := runExecWithContext(ctx, params)
 								// we cancelled the context, so we expect that error
 								if err != nil && err.Error() != "context canceled" {
@@ -864,7 +862,7 @@ main contains "hello" if {
 									t.Error(err)
 									return
 								}
-							}()
+							})
 
 							test.EventuallyOrFatal(t, 5*time.Second, func() bool {
 								for _, expErr := range tc.expErrs {
