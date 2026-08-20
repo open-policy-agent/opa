@@ -90,8 +90,8 @@ func TestParseConfigNonStringDecisionErrors(t *testing.T) {
 func TestCoreValidationRootSpecMatchesConfigStruct(t *testing.T) {
 	structKeys := map[string]struct{}{}
 	objType := reflect.TypeFor[Config]()
-	for i := range objType.NumField() {
-		name, _, _ := strings.Cut(objType.Field(i).Tag.Get("json"), ",")
+	for field := range objType.Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name == "" || name == "-" {
 			continue
 		}
