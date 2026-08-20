@@ -31,8 +31,7 @@ func RegisterJSONFields[T any]() {
 		panic(fmt.Sprintf("types: RegisterJSONFields[%s]: not a struct", t))
 	}
 	f := make(map[string]bool, t.NumField())
-	for i := range t.NumField() {
-		sf := t.Field(i)
+	for sf := range t.Fields() {
 		tag := sf.Tag.Get("json")
 		if tag == "-" {
 			continue
