@@ -1729,6 +1729,64 @@ func TestSkipIndexing(t *testing.T) {
 	}
 }
 
+func TestSkipIndexingNestedBody(t *testing.T) {
+	logicalOpts := func(popts ParserOptions) ParserOptions {
+		popts.Capabilities = CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
+		popts.FutureKeywords = []string{"and", "or", "not"}
+		return popts
+	}
+
+	// One case per expression shape that holds a body of its own. In each, the
+	// print sits where it cannot be lifted to the rule body: inside an `every`
+	// or `not` body, in an `or` branch that only runs when the other branch is
+	// undefined, or -- for `and` -- printing a value bound inside the operand's
+	// own scope.
+	tests := []struct {
+		note   string
+		nested string
+	}{
+		{"every", `every v in [1] { internal.print("here"); v == 2 }`},
+		{"and", `{some v in [1]; internal.print(v)} and input.bar == 2`},
+		{"or", `input.bar == 2 or {internal.print("here"); input.bar == 3}`},
+		{"not", `not { internal.print("here"); input.bar == 2 }`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module := module(`package test
+
+			p if {
+				`+tc.nested+`
+				input.foo == 7
+			}
+
+			p if {
+				input.foo == 9
+			}`, logicalOpts)
+
+			index := newBaseDocEqIndex(func(Ref) bool { return false })
+
+			if !index.Build(module.Rules) {
+				t.Fatal("expected index build to succeed")
+			}
+
+			// input.foo is 9, so only the second rule can be defined -- but the
+			// first rule has to be evaluated anyway, up to the point where it
+			// fails, for the nested print to run.
+			result, err := index.Lookup(testResolver{input: MustParseTerm(`{"foo": 9}`)})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			expected := NewRuleSet(module.Rules...)
+
+			if !NewRuleSet(result.Rules...).Equal(expected) {
+				t.Fatalf("Expected rules to be %v but got: %v", expected, result.Rules)
+			}
+		})
+	}
+}
+
 func TestBaseDocIndexResultEarlyExit(t *testing.T) {
 
 	tests := []struct {
