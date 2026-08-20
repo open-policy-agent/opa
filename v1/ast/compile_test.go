@@ -6876,6 +6876,48 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			wantErr: errors.New("test.rego:5: rego_compile_error: var x referenced above"),
 		},
 		{
+			note: "some/in key used in domain",
+			module: `
+				package test
+				p if {
+					some i, x in [[0]][i]
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: var i used in some domain"),
+		},
+		{
+			note: "some/in key used in domain after some",
+			module: `
+				package test
+				p if {
+					some i
+					some i, x in [[0]][i]
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var i used in some domain"),
+		},
+		{
+			note: "some/in key used in domain after assignment",
+			module: `
+				package test
+				p if {
+					i := 0
+					some i, x in [[0]][i]
+				}
+			`,
+			wantErr: errors.New("test.rego:5: rego_compile_error: var i used in some domain"),
+		},
+		{
+			note: "some/in value used in domain",
+			module: `
+				package test
+				p if {
+					some x in [[0]][x]
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: var x used in some domain"),
+		},
+		{
 			note: "declare unused err",
 			module: `
 				package test
