@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -26,11 +25,11 @@ func ManifestToProto(m *Manifest) (*pb.Manifest, error) {
 		return nil, nil
 	}
 	out := &pb.Manifest{
-		Revision: proto.String(m.Revision),
+		Revision: new(m.Revision),
 	}
 	if m.Roots != nil {
 		out.Roots = append([]string(nil), (*m.Roots)...)
-		out.RootsSet = proto.Bool(true)
+		out.RootsSet = new(true)
 	}
 	if len(m.WasmResolvers) > 0 {
 		out.Wasm = make([]*pb.WasmResolver, len(m.WasmResolvers))
@@ -43,7 +42,7 @@ func ManifestToProto(m *Manifest) (*pb.Manifest, error) {
 		}
 	}
 	if m.RegoVersion != nil {
-		out.RegoVersion = proto.Int32(int32(*m.RegoVersion))
+		out.RegoVersion = new(int32(*m.RegoVersion))
 	}
 	if len(m.FileRegoVersions) > 0 {
 		out.FileRegoVersions = make(map[string]int32, len(m.FileRegoVersions))
@@ -66,8 +65,8 @@ func wasmResolverToProto(w *WasmResolver) (*pb.WasmResolver, error) {
 		return nil, nil
 	}
 	out := &pb.WasmResolver{
-		Entrypoint: proto.String(w.Entrypoint),
-		Module:     proto.String(w.Module),
+		Entrypoint: new(w.Entrypoint),
+		Module:     new(w.Module),
 	}
 	if len(w.Annotations) > 0 {
 		out.Annotations = make([]*pb.Annotations, len(w.Annotations))
@@ -87,10 +86,10 @@ func annotationsToProto(a *ast.Annotations) (*pb.Annotations, error) {
 		return nil, nil
 	}
 	out := &pb.Annotations{
-		Scope:         proto.String(a.Scope),
-		Title:         proto.String(a.Title),
-		Entrypoint:    proto.Bool(a.Entrypoint),
-		Description:   proto.String(a.Description),
+		Scope:         new(a.Scope),
+		Title:         new(a.Title),
+		Entrypoint:    new(a.Entrypoint),
+		Description:   new(a.Description),
 		Organizations: append([]string(nil), a.Organizations...),
 	}
 	if len(a.RelatedResources) > 0 {
@@ -143,8 +142,8 @@ func relatedResourceToProto(r *ast.RelatedResourceAnnotation) *pb.RelatedResourc
 		return nil
 	}
 	return &pb.RelatedResourceAnnotation{
-		Ref:         proto.String(r.Ref.String()),
-		Description: proto.String(r.Description),
+		Ref:         new(r.Ref.String()),
+		Description: new(r.Description),
 	}
 }
 
@@ -153,8 +152,8 @@ func authorToProto(a *ast.AuthorAnnotation) *pb.AuthorAnnotation {
 		return nil
 	}
 	return &pb.AuthorAnnotation{
-		Name:  proto.String(a.Name),
-		Email: proto.String(a.Email),
+		Name:  new(a.Name),
+		Email: new(a.Email),
 	}
 }
 
@@ -163,8 +162,8 @@ func schemaToProto(s *ast.SchemaAnnotation) (*pb.SchemaAnnotation, error) {
 		return nil, nil
 	}
 	out := &pb.SchemaAnnotation{
-		Path:   proto.String(s.Path.String()),
-		Schema: proto.String(s.Schema.String()),
+		Path:   new(s.Path.String()),
+		Schema: new(s.Schema.String()),
 	}
 	if s.Definition != nil {
 		v, err := jsonNormalizeValue(*s.Definition)
@@ -181,7 +180,7 @@ func compileToProto(c *ast.CompileAnnotation) *pb.CompileAnnotation {
 		return nil
 	}
 	out := &pb.CompileAnnotation{
-		MaskRule: proto.String(c.MaskRule.String()),
+		MaskRule: new(c.MaskRule.String()),
 	}
 	if len(c.Unknowns) > 0 {
 		out.Unknowns = make([]string, len(c.Unknowns))
@@ -197,9 +196,9 @@ func locationToProto(l *location.Location) *pb.Location {
 		return nil
 	}
 	return &pb.Location{
-		File: proto.String(l.File),
-		Row:  proto.Int32(int32(l.Row)),
-		Col:  proto.Int32(int32(l.Col)),
+		File: new(l.File),
+		Row:  new(int32(l.Row)),
+		Col:  new(int32(l.Col)),
 	}
 }
 

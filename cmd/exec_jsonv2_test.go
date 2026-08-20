@@ -49,8 +49,9 @@ func (r execResultItemError) isEmpty() bool {
 	return r.Code == "" && r.Message == ""
 }
 
+//go:fix inline
 func toAnyPtr(a any) *any {
-	return &a
+	return new(a)
 }
 
 func toStringSlice(a *any) []string {
