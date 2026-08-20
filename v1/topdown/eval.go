@@ -3613,8 +3613,8 @@ func (q vcKeyScope) AppendText(buf []byte) ([]byte, error) {
 func (q vcKeyScope) reduce() vcKeyScope {
 	ref := q.Ref.CopyNonGround()
 	var i int
-	for i = len(q.Ref) - 1; i >= 0; i-- {
-		if _, ok := q.Ref[i].Value.(ast.Var); !ok {
+	for _, v := range slices.Backward(q.Ref) {
+		if _, ok := v.Value.(ast.Var); !ok {
 			break
 		}
 	}
@@ -4978,9 +4978,9 @@ func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
 // tree levels. keys are the ground parameter terms in reference order.
 func wrapExternalParams(keys []*ast.Term, tree *ast.TreeNode) *ast.TreeNode {
 	node := tree
-	for i := len(keys) - 1; i >= 0; i-- {
+	for _, key := range slices.Backward(keys) {
 		node = &ast.TreeNode{
-			Children: map[ast.Value]*ast.TreeNode{keys[i].Value: node},
+			Children: map[ast.Value]*ast.TreeNode{key.Value: node},
 		}
 	}
 	return node

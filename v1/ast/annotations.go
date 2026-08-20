@@ -741,8 +741,8 @@ func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
 	subPkgAnnots := as.GetSubpackagesScope(rule.Module.Package.Path)
 	// We need to reverse the order, as subPkgAnnots ordering will start at the root,
 	// whereas we want to end at the root.
-	for i := len(subPkgAnnots) - 1; i >= 0; i-- {
-		refs = append(refs, NewAnnotationsRef(subPkgAnnots[i]))
+	for _, subPkgAnnot := range slices.Backward(subPkgAnnots) {
+		refs = append(refs, NewAnnotationsRef(subPkgAnnot))
 	}
 
 	return refs
@@ -768,8 +768,8 @@ func (as *AnnotationSet) MergedLabels(rule *Rule) (labels map[string]any, key st
 // we iterate in reverse to fold outer-to-inner.
 func mergeChainLabels(chain AnnotationsRefSet) map[string]any {
 	var merged map[string]any
-	for i := len(chain) - 1; i >= 0; i-- {
-		a := chain[i].Annotations
+	for _, c := range slices.Backward(chain) {
+		a := c.Annotations
 		if a == nil || len(a.Labels) == 0 {
 			continue
 		}

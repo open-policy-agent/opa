@@ -4,6 +4,8 @@
 package oracle
 
 import (
+	"slices"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
@@ -103,9 +105,9 @@ func getLocMinMax(x ast.Node) (int, int) {
 // has rewritten the rule bodies slightly. By ignoring appended generated body expressions,
 // we can still use the "circling in on the variable" logic based on node locations.
 func findLastExpr(body ast.Body) *ast.Expr {
-	for i := len(body) - 1; i >= 0; i-- {
-		if !body[i].Generated {
-			return body[i]
+	for _, b := range slices.Backward(body) {
+		if !b.Generated {
+			return b
 		}
 	}
 	// NOTE(sr): I believe this shouldn't happen -- we only ever start circling in on a node

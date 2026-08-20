@@ -5,6 +5,8 @@
 package planner
 
 import (
+	"slices"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ir"
 )
@@ -34,8 +36,8 @@ func (vs varstack) GetOrEmpty(k ast.Var) ir.Local {
 }
 
 func (vs varstack) Get(k ast.Var) (ir.Local, bool) {
-	for i := len(vs) - 1; i >= 0; i-- {
-		if l, ok := vs[i][k]; ok {
+	for _, v := range slices.Backward(vs) {
+		if l, ok := v[k]; ok {
 			return l, true
 		}
 	}
