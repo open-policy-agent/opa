@@ -453,9 +453,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		consoleLogger = l
 	}
 
-	if params.Router == nil {
-		params.Router = http.NewServeMux()
-	}
+	params.Router = util.Or(params.Router, http.NewServeMux)
 
 	metricsConfig, parseConfigErr := extractMetricsConfig(ctx, config, params)
 	if parseConfigErr != nil {

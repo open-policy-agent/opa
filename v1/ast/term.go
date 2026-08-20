@@ -857,9 +857,6 @@ func (str String) Equal(other Value) bool {
 // Compare compares str to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (str String) Compare(other Value) int {
-	// Optimize for the common case of one string being compared to another by
-	// using a direct comparison of values. This avoids the allocation performed
-	// when calling Compare and its any argument conversion.
 	if otherStr, ok := other.(String); ok {
 		if str == otherStr {
 			return 0

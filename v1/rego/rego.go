@@ -507,9 +507,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		o(ectx)
 	}
 
-	if ectx.metrics == nil {
-		ectx.metrics = metrics.New()
-	}
+	ectx.metrics = util.Or(ectx.metrics, metrics.New)
 
 	if ectx.instrument {
 		ectx.instrumentation = topdown.NewInstrumentation(ectx.metrics)
@@ -542,11 +540,9 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 	}
 
 	if ectx.parsedInput == nil {
-		if ectx.rawInput == nil {
-			// Fall back to the original Rego objects input if none was specified
-			// Note that it could still be nil
-			ectx.rawInput = pq.r.rawInput
-		}
+		// Fall back to the original Rego objects input if none was specified
+		// Note that it could still be nil
+		ectx.rawInput = util.NilOr(ectx.rawInput, pq.r.rawInput)
 
 		if pq.r.targetPlugin(pq.r.target) == nil && // no plugin claims this target
 			pq.r.target != targetWasm {
@@ -1479,9 +1475,7 @@ func New(options ...func(r *Rego)) *Rego {
 		r.ownStore = false
 	}
 
-	if r.metrics == nil {
-		r.metrics = metrics.New()
-	}
+	r.metrics = util.Or(r.metrics, metrics.New)
 
 	if r.instrument {
 		r.instrumentation = topdown.NewInstrumentation(r.metrics)

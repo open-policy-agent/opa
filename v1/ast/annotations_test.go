@@ -1285,14 +1285,13 @@ func TestAnnotations_toObject(t *testing.T) {
 		)),
 	)
 
-	obj, err := annotations.toObject()
+	term, err := annotations.toTerm()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 
-	if Compare(*obj, expected) != 0 {
-		t.Fatalf("object generated from annotations\n\n%v\n\ndoesn't match expected\n\n%v",
-			*obj, expected)
+	if term.Value.Compare(expected) != 0 {
+		t.Fatalf("object generated from annotations\n\n%v\n\ndoesn't match expected\n\n%v", term, expected)
 	}
 }
 
@@ -1370,5 +1369,62 @@ func TestAnnotations_StringDeterministic(t *testing.T) {
 	}
 	if escaped := `\u003cb\u003e\u0026\u003c/b\u003e`; !strings.Contains(exp, escaped) {
 		t.Fatalf("expected HTML characters to be escaped as %s, got %s", escaped, exp)
+	}
+}
+
+func BenchmarkAnnotationToTerm(b *testing.B) {
+	annotations := &Annotations{
+		Entrypoint:  true,
+		Scope:       annotationScopeRule,
+		Title:       "A title",
+		Description: "A description",
+		Organizations: []string{
+			"Acme Corp.",
+			"Tyrell Corp.",
+		},
+		RelatedResources: []*RelatedResourceAnnotation{
+			{
+				Ref:         mustParseURL("https://example.com"),
+				Description: "An example",
+			},
+			{
+				Ref: mustParseURL("https://another.example.com"),
+			},
+		},
+		Authors: []*AuthorAnnotation{
+			{
+				Name:  "John Doe",
+				Email: "john@example.com",
+			},
+			{
+				Name: "Jane Doe",
+			},
+			{
+				Email: "foo@example.com",
+			},
+		},
+		Custom: map[string]any{
+			"number": 42,
+			"float":  2.2,
+			"string": "a",
+			"bool":   true,
+			"list": []any{
+				"a", "b",
+			},
+		},
+		Labels: map[string]any{
+			"tier": "fast",
+			"foo":  "bar",
+		},
+		Location: &Location{
+			File: "module",
+			Row:  42,
+		},
+	}
+
+	for b.Loop() {
+		if _, err := annotations.toTerm(); err != nil {
+			b.Fatalf("unexpected error: %s", err.Error())
+		}
 	}
 }
