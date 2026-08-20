@@ -3793,8 +3793,7 @@ func (qc *queryCompiler) TypeEnv() *TypeEnv {
 }
 
 func (qc *queryCompiler) applyErrorLimit(err error) error {
-	var errs Errors
-	if errors.As(err, &errs) {
+	if errs, ok := errors.AsType[Errors](err); ok {
 		if qc.compiler.maxErrs > 0 && len(errs) > qc.compiler.maxErrs {
 			err = append(errs[:qc.compiler.maxErrs], errLimitReached)
 		}

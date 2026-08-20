@@ -3033,9 +3033,8 @@ func parseStringsToRefs(s []string) ([]ast.Ref, error) {
 // was defined.
 func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, err error, iter func(*ast.Term) error) error {
 	if err != nil {
-		var e *HaltError
 		sb := strings.Builder{}
-		if errors.As(err, &e) {
+		if e, ok := errors.AsType[*HaltError](err); ok {
 			sb.Grow(len(name) + len(e.Error()) + 2)
 			sb.WriteString(name)
 			sb.WriteString(": ")
