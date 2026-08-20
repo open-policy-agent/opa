@@ -12685,8 +12685,7 @@ func TestCustomBuiltinWithCompileModulesWithOpt(t *testing.T) {
 				if err == nil {
 					t.Fatalf("expected error code %s but got success", tc.expectedErrorCode)
 				}
-				var astError Errors
-				if errors.As(err, &astError) {
+				if astError, ok := errors.AsType[Errors](err); ok {
 					if astError[0].Code != tc.expectedErrorCode {
 						t.Fatalf("expected error code %s but got %s", tc.expectedErrorCode, astError[0].Code)
 					}

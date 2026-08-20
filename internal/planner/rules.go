@@ -2,6 +2,7 @@ package planner
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -322,8 +323,8 @@ func (s *functionMocksStack) PopFrame() {
 
 func (s *functionMocksStack) Lookup(f string) *ast.Term {
 	current := s.stack.PeekGroup()
-	for i := len(current) - 1; i >= 0; i-- {
-		if t, ok := current[i][f]; ok {
+	for _, c := range slices.Backward(current) {
+		if t, ok := c[f]; ok {
 			return t
 		}
 	}

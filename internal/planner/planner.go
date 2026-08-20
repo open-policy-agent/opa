@@ -945,8 +945,8 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 			p.mocks.PopFrame()
 			if shadowing {
 				p.funcs.Pop()
-				for i := len(dataRefs) - 1; i >= 0; i-- {
-					p.rules.Pop(dataRefs[i])
+				for _, dataRef := range slices.Backward(dataRefs) {
+					p.rules.Pop(dataRef)
 				}
 			}
 
@@ -970,8 +970,8 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		p.mocks.PopFrame()
 		if shadowing {
 			p.funcs.Pop()
-			for i := len(dataRefs) - 1; i >= 0; i-- {
-				p.rules.Pop(dataRefs[i])
+			for _, dataRef := range slices.Backward(dataRefs) {
+				p.rules.Pop(dataRef)
 			}
 		}
 		return err

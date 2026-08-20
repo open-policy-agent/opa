@@ -4,7 +4,6 @@ package aws
 import (
 	"bytes"
 	"crypto"
-	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -113,23 +112,10 @@ func deriveKeyFromAccessKeyPair(accessKey, secretKey string) (*ecdsa.PrivateKey,
 	}
 	d = d.Add(d, one)
 
-	priv := new(ecdsa.PrivateKey)
-	priv.PublicKey.Curve = p256
-	priv.D = d
-
 	dBytes := make([]byte, 32)
 	d.FillBytes(dBytes)
 
-	ecdhPriv, err := ecdh.P256().NewPrivateKey(dBytes)
-	if err != nil {
-		return nil, err
-	}
-	pubBytes := ecdhPriv.PublicKey().Bytes()
-
-	priv.PublicKey.X = new(big.Int).SetBytes(pubBytes[1:33])
-	priv.PublicKey.Y = new(big.Int).SetBytes(pubBytes[33:])
-
-	return priv, nil
+	return ecdsa.ParseRawPrivateKey(p256, dBytes)
 }
 
 // v4aCredentials is Context, ECDSA, and Optional Session Token that can be used

@@ -138,7 +138,7 @@ func (s *Server) certLoopPolling(logger logging.Logger) Loop {
 		for range time.NewTicker(s.certRefresh).C {
 			err := s.reloadTLSConfig(logger)
 			if err != nil {
-				logger.Error(fmt.Sprintf("Failed to reload TLS config: %s", err))
+				logger.Error("Failed to reload TLS config: %s", err)
 			}
 		}
 

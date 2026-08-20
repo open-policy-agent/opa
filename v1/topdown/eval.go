@@ -3612,9 +3612,10 @@ func (q vcKeyScope) AppendText(buf []byte) ([]byte, error) {
 // reduce removes vars from the tail of the ref.
 func (q vcKeyScope) reduce() vcKeyScope {
 	ref := q.Ref.CopyNonGround()
-	var i int
-	for i = len(q.Ref) - 1; i >= 0; i-- {
-		if _, ok := q.Ref[i].Value.(ast.Var); !ok {
+	i := -1
+	for idx, v := range slices.Backward(q.Ref) {
+		if _, ok := v.Value.(ast.Var); !ok {
+			i = idx
 			break
 		}
 	}
@@ -4068,8 +4069,7 @@ func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 func (e evalTerm) enumerate(iter unifyIterator) error {
 	var deferredEe *deferredEarlyExitError
 	handleErr := func(err error) error {
-		var dee *deferredEarlyExitError
-		if errors.As(err, &dee) {
+		if dee, ok := errors.AsType[*deferredEarlyExitError](err); ok {
 			if deferredEe == nil {
 				deferredEe = dee
 			}
@@ -4979,9 +4979,9 @@ func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
 // tree levels. keys are the ground parameter terms in reference order.
 func wrapExternalParams(keys []*ast.Term, tree *ast.TreeNode) *ast.TreeNode {
 	node := tree
-	for i := len(keys) - 1; i >= 0; i-- {
+	for _, key := range slices.Backward(keys) {
 		node = &ast.TreeNode{
-			Children: map[ast.Value]*ast.TreeNode{keys[i].Value: node},
+			Children: map[ast.Value]*ast.TreeNode{key.Value: node},
 		}
 	}
 	return node

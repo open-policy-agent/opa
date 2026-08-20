@@ -206,8 +206,8 @@ func printFailure(w io.Writer, trace []*topdown.Event, verbose bool, failureLine
 
 	if failureLine {
 		_, _ = fmt.Fprintln(w)
-		for i := len(trace) - 1; i >= 0; i-- {
-			e := trace[i]
+		for _, e := range slices.Backward(trace) {
+
 			if e.Op == topdown.FailOp && e.Location != nil && e.QueryID != 0 {
 				if expr, isExpr := e.Node.(*ast.Expr); isExpr {
 					if _, isEvery := expr.Terms.(*ast.Every); isEvery {

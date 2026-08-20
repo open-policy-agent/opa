@@ -49,10 +49,6 @@ func (r execResultItemError) isEmpty() bool {
 	return r.Code == "" && r.Message == ""
 }
 
-func toAnyPtr(a any) *any {
-	return &a
-}
-
 func toStringSlice(a *any) []string {
 	switch a := (*a).(type) {
 	case []string:
@@ -150,15 +146,15 @@ func TestExecBasic(t *testing.T) {
 		resultSliceEquals(t, []execResultItem{
 			{
 				Path:   "/test.json",
-				Result: toAnyPtr([]string{"hello"}),
+				Result: new(any([]string{"hello"})),
 			},
 			{
 				Path:   "/test2.yaml",
-				Result: toAnyPtr([]string{"hello"}),
+				Result: new(any([]string{"hello"})),
 			},
 			{
 				Path:   "/test3.yml",
-				Result: toAnyPtr([]string{"hello"}),
+				Result: new(any([]string{"hello"})),
 			},
 		}, output.Result)
 	})
@@ -203,7 +199,7 @@ func TestExecDecisionOption(t *testing.T) {
 		resultSliceEquals(t, []execResultItem{
 			{
 				Path:   "/test.json",
-				Result: toAnyPtr([]string{"hello"}),
+				Result: new(any([]string{"hello"})),
 			},
 		}, output.Result)
 	})
@@ -237,7 +233,7 @@ func TestExecBundleFlag(t *testing.T) {
 		resultSliceEquals(t, []execResultItem{
 			{
 				Path:   "/files/test.json",
-				Result: toAnyPtr([]string{"hello"}),
+				Result: new(any([]string{"hello"})),
 			},
 		}, output.Result)
 	})
@@ -336,7 +332,7 @@ main contains "hello" if {
 					resultSliceEquals(t, []execResultItem{
 						{
 							Path:   "/test.json",
-							Result: toAnyPtr([]string{"hello"}),
+							Result: new(any([]string{"hello"})),
 						},
 					}, output.Result)
 				}
@@ -545,7 +541,7 @@ main contains "hello" if {
 					resultSliceEquals(t, []execResultItem{
 						{
 							Path:   "/test.json",
-							Result: toAnyPtr([]string{"hello"}),
+							Result: new(any([]string{"hello"})),
 						},
 					}, output.Result)
 				}
@@ -852,9 +848,7 @@ main contains "hello" if {
 							// runExec to hang indefinitely. WithContext allows us to cancel the context
 							// when we have the required errors logged.
 							var wg sync.WaitGroup
-							wg.Add(1)
-							go func() {
-								defer wg.Done()
+							wg.Go(func() {
 								err := runExecWithContext(ctx, params)
 								// we cancelled the context, so we expect that error
 								if err != nil && err.Error() != "context canceled" {
@@ -868,7 +862,7 @@ main contains "hello" if {
 									t.Error(err)
 									return
 								}
-							}()
+							})
 
 							test.EventuallyOrFatal(t, 5*time.Second, func() bool {
 								for _, expErr := range tc.expErrs {
@@ -902,7 +896,7 @@ main contains "hello" if {
 							resultSliceEquals(t, []execResultItem{
 								{
 									Path:   "/files/test.json",
-									Result: toAnyPtr([]string{"hello"}),
+									Result: new(any([]string{"hello"})),
 								},
 							}, output.Result)
 						}
