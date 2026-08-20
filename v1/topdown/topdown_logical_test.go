@@ -44,10 +44,9 @@ func touchCount(label string) int {
 	return int(counter.(*atomic.Int64).Load())
 }
 
-// logicalParserOptions opts in to the experimental `and` / `or` keywords.
+// logicalParserOptions opts in to the `and` / `or` keywords.
 func logicalParserOptions() ast.ParserOptions {
 	return ast.ParserOptions{
-		Capabilities:   ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
 		FutureKeywords: []string{"and", "or"},
 	}
 }

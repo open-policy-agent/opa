@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/local_collision: same name in both and-operand bodies"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -14,7 +13,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/local_collision: same name in both or-operand bodies"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -27,7 +25,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/local_collision: same name across and-body and outer scope"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -43,7 +40,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/local_collision: same `some` iter name in both operand bodies"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -56,7 +52,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/local_collision: nested explicit body re-uses same name"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

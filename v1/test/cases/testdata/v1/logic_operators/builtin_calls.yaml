@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/builtin_calls: and with builtins on both sides"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -17,7 +16,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/builtin_calls: and with builtins, rhs fails"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -32,7 +30,6 @@ cases:
       s: "no-leading-slash"
     want_result: []
   - note: "logic_op/builtin_calls: or with builtins on both sides"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -48,7 +45,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/builtin_calls: nested builtin call, distinct result temporaries"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -64,7 +60,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/builtin_calls: comprehension in builtin, or branch"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
