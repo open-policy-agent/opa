@@ -107,11 +107,7 @@ func setup(u string, token string) error {
 		return err
 	}
 
-	if err := loader.Start(context.Background()); err != nil {
-		return err
-	}
-
-	return nil
+	return loader.Start(context.Background())
 }
 
 func cleanup() {

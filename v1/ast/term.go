@@ -1912,13 +1912,9 @@ func (s *set) Map(f func(*Term) (*Term, error)) (Set, error) {
 // argument to f is the reduced value (starting with i) and the second argument
 // to f is the element in s.
 func (s *set) Reduce(i *Term, f func(*Term, *Term) (*Term, error)) (*Term, error) {
-	err := s.Iter(func(x *Term) error {
-		var err error
+	err := s.Iter(func(x *Term) (err error) {
 		i, err = f(i, x)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	return i, err
 }
