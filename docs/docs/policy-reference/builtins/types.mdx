@@ -3,3 +3,19 @@ title: Type Built-ins
 sidebar_label: Types
 ---
 <BuiltinTable category={"types"}/>
+
+## Examples
+
+### `type_name`
+
+`type_name` returns the Rego type of a value as a string. Use it when input may
+arrive with the wrong JSON type and the deny message should name the actual type.
+
+<PlaygroundExample dir={require.context('../_examples/types/type_name/reject-wrong-type')} />
+
+### `is_string`
+
+`is_string` (and the related `is_*` helpers) return a boolean type check. Prefer
+them in rule bodies when you only need a yes/no guard.
+
+<PlaygroundExample dir={require.context('../_examples/types/is_string/require-string-labels')} />
