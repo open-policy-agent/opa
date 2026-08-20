@@ -5911,8 +5911,8 @@ func resolveRefsInTermSlice(globals map[Var]*usedRef, ignore *declaredVarStack, 
 type declaredVarStack []VarSet
 
 func (s declaredVarStack) Contains(v Var) bool {
-	for i := len(s) - 1; i >= 0; i-- {
-		if _, ok := s[i][v]; ok {
+	for _, v0 := range slices.Backward(s) {
+		if _, ok := v0[v]; ok {
 			return ok
 		}
 	}
@@ -6625,8 +6625,8 @@ func (s localDeclaredVars) Insert(x, y Var, occurrence varOccurrence) {
 }
 
 func (s localDeclaredVars) Declared(x Var) (y Var, ok bool) {
-	for i := len(s.vars) - 1; i >= 0; i-- {
-		if y, ok = s.vars[i].vs[x]; ok {
+	for _, v := range slices.Backward(s.vars) {
+		if y, ok = v.vs[x]; ok {
 			return
 		}
 	}
@@ -6642,8 +6642,8 @@ func (s localDeclaredVars) Occurrence(x Var) varOccurrence {
 // GlobalOccurrence returns a flag that indicates whether x has occurred in the
 // global scope.
 func (s localDeclaredVars) GlobalOccurrence(x Var) (varOccurrence, bool) {
-	for i := len(s.vars) - 1; i >= 0; i-- {
-		if occ, ok := s.vars[i].occurrence[x]; ok {
+	for _, v := range slices.Backward(s.vars) {
+		if occ, ok := v.occurrence[x]; ok {
 			return occ, true
 		}
 	}
@@ -6652,8 +6652,8 @@ func (s localDeclaredVars) GlobalOccurrence(x Var) (varOccurrence, bool) {
 
 // Seen marks x as seen by incrementing its counter
 func (s localDeclaredVars) Seen(x Var) {
-	for i := len(s.vars) - 1; i >= 0; i-- {
-		dvs := s.vars[i]
+	for _, dvs := range slices.Backward(s.vars) {
+
 		if c, ok := dvs.count[x]; ok {
 			dvs.count[x] = c + 1
 			return
@@ -6665,8 +6665,8 @@ func (s localDeclaredVars) Seen(x Var) {
 
 // Count returns how many times x has been seen
 func (s localDeclaredVars) Count(x Var) int {
-	for i := len(s.vars) - 1; i >= 0; i-- {
-		if c, ok := s.vars[i].count[x]; ok {
+	for _, v := range slices.Backward(s.vars) {
+		if c, ok := v.count[x]; ok {
 			return c
 		}
 	}

@@ -273,9 +273,9 @@ func parseBenchstatFile(path string) ([]change, error) {
 // its "# benchstat -flags... <file>" comment header.
 func sourceFileFromHeader(header string) (string, error) {
 	fields := strings.Fields(header)
-	for i := len(fields) - 1; i >= 0; i-- {
-		if strings.HasSuffix(fields[i], ".txt") {
-			return fields[i], nil
+	for _, field := range slices.Backward(fields) {
+		if strings.HasSuffix(field, ".txt") {
+			return field, nil
 		}
 	}
 	return "", fmt.Errorf("no source file found in header %q", header)
