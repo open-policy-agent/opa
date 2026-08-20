@@ -2,6 +2,7 @@ import { React, useEffect, useMemo, useRef, useState } from "react";
 
 import BrowserOnly from "@docusaurus/BrowserOnly";
 
+import useSnippetHighlighting, { useJsonHighlighting, useResultHighlighting } from "./highlighting";
 import styles from "./styles.module.css";
 
 const emojis = [
@@ -32,7 +33,9 @@ const emojis = [
 export default function RunSnippet({ id, files, depends, command, playgroundLink, output }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showInitialOutput, setShowInitialOutput] = useState(!!output);
+  const [snippet, setSnippet] = useState(null);
   const snippetRef = useRef(null);
+  const outputRef = useRef(null);
   const loadDelay = 500;
 
   useEffect(() => {
@@ -44,20 +47,26 @@ export default function RunSnippet({ id, files, depends, command, playgroundLink
   }, []);
 
   useEffect(() => {
-    if (!output || !snippetRef.current) return;
-    const el = snippetRef.current.querySelector("codapi-snippet");
-    if (!el) return;
+    if (!output || !snippet) return;
     const handler = () => setShowInitialOutput(false);
-    el.addEventListener("result", handler);
-    return () => el.removeEventListener("result", handler);
-  }, [output, isLoading]);
+    snippet.addEventListener("result", handler);
+    return () => snippet.removeEventListener("result", handler);
+  }, [output, snippet]);
+
+  // codapi drops the syntax highlighting as soon as the snippet is edited, and
+  // renders both the initial and the evaluated output as plain text
+  useSnippetHighlighting(snippetRef);
+  useJsonHighlighting(outputRef, output);
+  useResultHighlighting(snippet);
 
   if (!command && !files) {
     // json file
     return (
-      <BrowserOnly>
-        {() => <codapi-snippet editor="basic" id={id} data-copy-exclude></codapi-snippet>}
-      </BrowserOnly>
+      <div ref={snippetRef}>
+        <BrowserOnly>
+          {() => <codapi-snippet editor="basic" id={id} data-copy-exclude></codapi-snippet>}
+        </BrowserOnly>
+      </div>
     );
   }
 
@@ -69,6 +78,7 @@ export default function RunSnippet({ id, files, depends, command, playgroundLink
         <BrowserOnly>
           {() => (
             <codapi-snippet
+              ref={setSnippet}
               sandbox="javascript"
               engine="playground"
               editor="basic"
@@ -96,7 +106,7 @@ export default function RunSnippet({ id, files, depends, command, playgroundLink
       {showInitialOutput && (
         <div>
           <div className={styles.dn}>Output</div>
-          <pre>{output}</pre>
+          <pre ref={outputRef}>{output}</pre>
         </div>
       )}
       {/* must be at the end or it'll become the codapi policy */}
