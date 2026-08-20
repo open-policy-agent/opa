@@ -22,7 +22,7 @@ func DoRequestWithClient(req *http.Request, client *http.Client, desc string, lo
 		"url":     req.URL.String(),
 		"status":  resp.Status,
 		"headers": resp.Header,
-	}).Debug("Received response from " + desc + " service.")
+	}).Debug("Received response from %s service.", desc)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -587,6 +587,15 @@ func TestMetadataServiceErrorHandled(t *testing.T) {
 }
 
 func TestV4Signing(t *testing.T) {
+	// NOTE(sr): Since Go 1.26, crypto/ecdsa ignores the io.Reader passed via
+	// aws.SetRandomSource and always mixes in OS randomness, unless
+	// GODEBUG=cryptocustomrand=1 is set. This restores the old, fully-seeded
+	// behaviour so the pinned v4a signatures below stay meaningful. See
+	// https://go.dev/doc/go1.26#crypto-ecdsa. This GODEBUG setting is expected
+	// to be removed in a future Go release, at which point this test needs to
+	// be revisited.
+	t.Setenv("GODEBUG", "cryptocustomrand=1")
+
 	ts := ec2CredTestServer{}
 	ts.start()
 	defer ts.stop()
@@ -781,6 +790,9 @@ func TestV4SigningForApiGateway(t *testing.T) {
 }
 
 func TestV4SigningOmitsIgnoredHeaders(t *testing.T) {
+	// NOTE(sr): see the comment on TestV4Signing for why this is needed.
+	t.Setenv("GODEBUG", "cryptocustomrand=1")
+
 	ts := ec2CredTestServer{}
 	ts.start()
 	defer ts.stop()
@@ -949,6 +961,9 @@ func TestV4SigningDoesNotMutateBody(t *testing.T) {
 }
 
 func TestV4SigningWithMultiValueHeaders(t *testing.T) {
+	// NOTE(sr): see the comment on TestV4Signing for why this is needed.
+	t.Setenv("GODEBUG", "cryptocustomrand=1")
+
 	ts := ec2CredTestServer{}
 	ts.start()
 	defer ts.stop()

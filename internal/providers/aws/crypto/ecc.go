@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"bytes"
-	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/hmac"
@@ -31,34 +30,8 @@ func ECDSAKeyFromPoint(curve elliptic.Curve, d *big.Int) *ecdsa.PrivateKey {
 	dBytes := make([]byte, (curve.Params().BitSize+7)/8)
 	d.FillBytes(dBytes)
 
-	privKey := &ecdsa.PrivateKey{
-		PublicKey: ecdsa.PublicKey{
-			Curve: curve,
-		},
-		D: d,
-	}
-
-	var pubBytes []byte
-	switch curve {
-	case elliptic.P256():
-		if ecdhPriv, err := ecdh.P256().NewPrivateKey(dBytes); err == nil {
-			pubBytes = ecdhPriv.PublicKey().Bytes()
-		}
-	case elliptic.P384():
-		if ecdhPriv, err := ecdh.P384().NewPrivateKey(dBytes); err == nil {
-			pubBytes = ecdhPriv.PublicKey().Bytes()
-		}
-	case elliptic.P521():
-		if ecdhPriv, err := ecdh.P521().NewPrivateKey(dBytes); err == nil {
-			pubBytes = ecdhPriv.PublicKey().Bytes()
-		}
-	}
-
-	if len(pubBytes) > 0 {
-		byteLen := (curve.Params().BitSize + 7) / 8
-		privKey.X = new(big.Int).SetBytes(pubBytes[1 : 1+byteLen])
-		privKey.Y = new(big.Int).SetBytes(pubBytes[1+byteLen:])
-	} else {
+	privKey, err := ecdsa.ParseRawPrivateKey(curve, dBytes)
+	if err != nil {
 		panic(fmt.Sprintf("unsupported curve or invalid private key: %v", curve))
 	}
 
@@ -67,8 +40,8 @@ func ECDSAKeyFromPoint(curve elliptic.Curve, d *big.Int) *ecdsa.PrivateKey {
 
 // mathIntToBytes writes val as a big-endian, fixed-length byte slice into out,
 // zero-padding on the left when val.Bytes() is shorter than out. This satisfies
-// the uncompressed SEC 1 encoding (0x04 || X || Y) expected by crypto/ecdh's
-// NewPublicKey: https://pkg.go.dev/crypto/ecdh#Curve.NewPublicKey
+// the uncompressed SEC 1 encoding (0x04 || X || Y) expected by
+// ecdsa.ParseUncompressedPublicKey: https://pkg.go.dev/crypto/ecdsa#ParseUncompressedPublicKey
 func mathIntToBytes(val *big.Int, out []byte) {
 	valBytes := val.Bytes()
 	copy(out[len(out)-len(valBytes):], valBytes)
@@ -86,27 +59,12 @@ func ECDSAPublicKey(curve elliptic.Curve, x, y []byte) (*ecdsa.PublicKey, error)
 	mathIntToBytes(xPoint, buf[1:1+byteLen])
 	mathIntToBytes(yPoint, buf[1+byteLen:])
 
-	var err error
-	switch curve {
-	case elliptic.P256():
-		_, err = ecdh.P256().NewPublicKey(buf)
-	case elliptic.P384():
-		_, err = ecdh.P384().NewPublicKey(buf)
-	case elliptic.P521():
-		_, err = ecdh.P521().NewPublicKey(buf)
-	default:
-		err = fmt.Errorf("unsupported curve for ECDSA: %v", curve)
-	}
-
+	pub, err := ecdsa.ParseUncompressedPublicKey(curve, buf)
 	if err != nil {
 		return nil, fmt.Errorf("point(%v, %v) is not on the given curve", xPoint.String(), yPoint.String())
 	}
 
-	return &ecdsa.PublicKey{
-		Curve: curve,
-		X:     xPoint,
-		Y:     yPoint,
-	}, nil
+	return pub, nil
 }
 
 // VerifySignature takes the provided public key, hash, and asn1 encoded signature and returns

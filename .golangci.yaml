@@ -28,6 +28,12 @@ linters:
         - github.com/open-policy-agent/opa/v1/util.WriteAppender
         - github.com/open-policy-agent/opa/v1/util.WriteInt
         - (io.Writer).Write
+        # Intermediate token writes are safe to ignore: a jsontext.Encoder
+        # sticks to its first error, so checking the last call in a sequence
+        # (as these files already do) is sufficient. See the "ignoring errors
+        # for brevity" example in the encoding/json/jsontext.Encoder docs.
+        - (*encoding/json/jsontext.Encoder).WriteToken
+        - (*encoding/json/jsontext.Encoder).WriteValue
     forbidigo:
       forbid:
         - pattern: '^sort\.[A-Z][a-zA-Z]+$'

@@ -508,7 +508,13 @@ func (*cng) Read(p []byte) (int, error) {
 }
 
 func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
-	t.Parallel()
+	// NOTE(sr): Since Go 1.26, crypto/ecdsa ignores the io.Reader passed via WithSeed
+	// and always mixes in OS randomness, unless GODEBUG=cryptocustomrand=1 is set. This
+	// restores the old, fully-seeded behaviour so the assertions below stay meaningful.
+	// See https://go.dev/doc/go1.26#crypto-ecdsa. This GODEBUG setting is expected to be
+	// removed in a future Go release, at which point this test needs to be revisited.
+	// t.Setenv can't be combined with t.Parallel, so this test doesn't call t.Parallel.
+	t.Setenv("GODEBUG", "cryptocustomrand=1")
 
 	query := `io.jwt.encode_sign({"alg": "ES256"},{"pay": "load"},
 	  {"kty":"EC",

@@ -3612,9 +3612,10 @@ func (q vcKeyScope) AppendText(buf []byte) ([]byte, error) {
 // reduce removes vars from the tail of the ref.
 func (q vcKeyScope) reduce() vcKeyScope {
 	ref := q.Ref.CopyNonGround()
-	var i int
-	for _, v := range slices.Backward(q.Ref) {
+	i := -1
+	for idx, v := range slices.Backward(q.Ref) {
 		if _, ok := v.Value.(ast.Var); !ok {
+			i = idx
 			break
 		}
 	}

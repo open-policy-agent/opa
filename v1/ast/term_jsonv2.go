@@ -47,8 +47,8 @@ var (
 // These are here to ensure that we do not fall down to TextAppender, which
 // Go 1.27's encoding/json would otherwise use, encoding these as JSON strings.
 
-func (b Boolean) MarshalJSONTo(e *jsontext.Encoder) error {
-	return e.WriteToken(jsontext.Bool(bool(b)))
+func (bol Boolean) MarshalJSONTo(e *jsontext.Encoder) error {
+	return e.WriteToken(jsontext.Bool(bool(bol)))
 }
 
 func (Null) MarshalJSONTo(e *jsontext.Encoder) error {
@@ -112,19 +112,19 @@ func (ref Ref) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 	return jsonv2.WriteMarshalerToArrayOrNull(e, ref)
 }
 
-func (t *TemplateString) MarshalJSONTo(e *jsontext.Encoder) (err error) {
+func (ts *TemplateString) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 	// Token write errors are unchecked: an unbalanced value fails at the closing
 	// token. A marshaller can fail having written a balanced value, so is checked.
 	e.WriteToken(jsontext.BeginObject)
 	e.WriteToken(jsontext.String("parts"))
-	if t.Parts == nil {
+	if ts.Parts == nil {
 		// Parts has no omitempty tag, so it's always written. Matches
 		// encoding/json v1, which encodes a nil slice as null rather than as an
 		// empty array.
 		e.WriteToken(jsontext.Null)
 	} else {
 		e.WriteToken(jsontext.BeginArray)
-		for _, p := range t.Parts {
+		for _, p := range ts.Parts {
 			switch v := p.(type) {
 			case *Expr:
 				if err := v.MarshalJSONTo(e); err != nil {
@@ -140,7 +140,7 @@ func (t *TemplateString) MarshalJSONTo(e *jsontext.Encoder) (err error) {
 	}
 
 	e.WriteToken(jsontext.String("multi_line"))
-	e.WriteToken(jsontext.Bool(t.MultiLine))
+	e.WriteToken(jsontext.Bool(ts.MultiLine))
 
 	return e.WriteToken(jsontext.EndObject)
 }
@@ -197,12 +197,12 @@ func (obj *object) MarshalJSONTo(e *jsontext.Encoder) error {
 	return e.WriteToken(jsontext.EndArray)
 }
 
-func (l *lazyObj) MarshalJSONTo(e *jsontext.Encoder) error {
-	return l.force().(*object).MarshalJSONTo(e)
+func (lob *lazyObj) MarshalJSONTo(e *jsontext.Encoder) error {
+	return lob.force().(*object).MarshalJSONTo(e)
 }
 
-func (l *lazyObj) MarshalJSON() ([]byte, error) {
-	return l.force().(*object).MarshalJSON()
+func (lob *lazyObj) MarshalJSON() ([]byte, error) {
+	return lob.force().(*object).MarshalJSON()
 }
 
 // MarshalJSON returns JSON encoded bytes representing obj.
