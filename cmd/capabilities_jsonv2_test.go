@@ -162,7 +162,9 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureTemplateStrings,
 			},
 			expFutureKeywords: []string{
+				"and",
 				"not",
+				"or",
 			},
 		},
 		{
@@ -176,11 +178,13 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureKeywordsInRefs,
 			},
 			expFutureKeywords: []string{
+				"and",
 				"in",
 				"every",
 				"contains",
 				"if",
 				"not",
+				"or",
 			},
 		},
 	}
