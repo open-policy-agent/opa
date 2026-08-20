@@ -2428,8 +2428,3 @@ func TestMerge(t *testing.T) {
 		})
 	}
 }
-
-//go:fix inline
-func pointTo[T any](x T) *T {
-	return new(x)
-}
