@@ -133,6 +133,53 @@ export default function useSnippetHighlighting(containerRef) {
   }, [containerRef, theme]);
 }
 
+// Snippet output doesn't go through a Docusaurus code block - RunSnippet renders
+// it in a plain pre, and so does codapi - so highlight it here to match the
+// snippet it belongs to. useJsonHighlighting covers the output rendered before a
+// run, useResultHighlighting the output of each run.
+export function useJsonHighlighting(elementRef, text) {
+  const theme = usePrismTheme();
+
+  useEffect(() => {
+    if (elementRef.current && text) {
+      highlightJson(elementRef.current, text, theme);
+    }
+  }, [elementRef, text, theme]);
+}
+
+export function useResultHighlighting(snippet) {
+  const theme = usePrismTheme();
+
+  useEffect(() => {
+    if (!snippet) {
+      return;
+    }
+    // Codapi dispatches 'result' once it has rendered the output.
+    const onResult = () => {
+      const output = snippet.querySelector("codapi-output code") ?? snippet.querySelector("codapi-output");
+      if (output) {
+        highlightJson(output, output.textContent, theme);
+      }
+    };
+    snippet.addEventListener("result", onResult);
+    return () => snippet.removeEventListener("result", onResult);
+  }, [snippet, theme]);
+}
+
+// highlightJson leaves the element alone when its content isn't JSON, which is
+// the case for an evaluation error.
+function highlightJson(element, text, theme) {
+  try {
+    JSON.parse(text);
+  } catch {
+    return;
+  }
+  const lines = highlight(text, "json");
+  if (lines) {
+    render(element, lines, tokenStyles(theme, "json"));
+  }
+}
+
 // Mirrors codapi's own lookup.
 function findCodeElement(container) {
   const previous = container?.previousElementSibling;
