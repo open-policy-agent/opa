@@ -1336,10 +1336,44 @@ func TestSplitPrefix(t *testing.T) {
 			wantPath:  "c:/a/b",
 		},
 		{
+			// A drive-rooted path is read as a path, so a single-character
+			// prefix over a rooted path is spelled by qualifying the path.
+			input:     "c:C:/a/b",
+			goos:      "windows",
+			wantParts: []string{"c"},
+			wantPath:  "C:/a/b",
+		},
+		{
+			input:    `\\?\c:\a\b`,
+			goos:     "windows",
+			wantPath: `\\?\c:\a\b`,
+		},
+		{
+			input:    "//?/c:/a/b",
+			goos:     "windows",
+			wantPath: "//?/c:/a/b",
+		},
+		{
+			input:    `\\.\c:\a\b`,
+			goos:     "windows",
+			wantPath: `\\.\c:\a\b`,
+		},
+		{
+			input:    `\\server\share\a`,
+			goos:     "windows",
+			wantPath: `\\server\share\a`,
+		},
+		{
 			input:     "c:/a/b/c",
 			goos:      "linux",
 			wantParts: []string{"c"},
 			wantPath:  "/a/b/c",
+		},
+		{
+			input:     `\\?\c:\a\b`,
+			goos:      "linux",
+			wantParts: []string{`\\?\c`},
+			wantPath:  `\a\b`,
 		},
 	}
 

@@ -25,6 +25,12 @@ exec $OPA eval --format pretty --data x.y:$WORK/data.json data.x.y.yay --fail
 stdout '^true$'
 ! stderr .
 
+# a single-character prefix is not mistaken for a drive letter, since the
+# absolute path following it is itself qualified
+exec $OPA eval --format pretty --data c:$WORK/data.json data.c.yay --fail
+stdout '^true$'
+! stderr .
+
 -- data.json --
 {"yay": true}
 -- policy.rego --

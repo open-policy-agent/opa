@@ -596,9 +596,9 @@ func SplitPrefix(path string) ([]string, string) {
 	if strings.Index(path, "://") == strings.Index(path, ":") {
 		return nil, path
 	}
-	// On Windows, the drive letter of an absolute path is part of the path, not a
-	// data prefix.
-	if isAbsWindowsPath(path) {
+	// On Windows, a leading colon can belong to the path itself, separating the
+	// volume name from the rest of the path, rather than to a data prefix.
+	if hasWindowsVolumeName(path) {
 		return nil, path
 	}
 	parts := strings.SplitN(path, ":", 2)
@@ -608,15 +608,23 @@ func SplitPrefix(path string) ([]string, string) {
 	return nil, path
 }
 
-// isAbsWindowsPath returns true on Windows if path starts with a drive letter
-// followed by a colon and a separator, e.g. c:/foo. Drive-relative paths like
-// c:foo are excluded so that single-character data prefixes still work.
-func isAbsWindowsPath(path string) bool {
-	if goos != "windows" || len(path) < 3 || path[1] != ':' || !isSlash(path[2]) {
+// hasWindowsVolumeName returns true on Windows if path begins with a volume
+// name, i.e. a drive letter followed by a colon and a separator (c:/foo) or a
+// UNC/device prefix (\\?\c:\foo), but not a drive-relative path (c:foo), which
+// is read as a single-character data prefix instead.
+func hasWindowsVolumeName(path string) bool {
+	if goos != "windows" || len(path) < 3 {
 		return false
 	}
+	// UNC and device paths, e.g. \\server\share or \\?\c:\foo. These aren't all
+	// loadable -- UNC reads are rejected outright -- but they're never prefixes,
+	// and splitting them would hide the path from that check.
+	if isSlash(path[0]) && isSlash(path[1]) {
+		return true
+	}
+	// Drive-rooted paths, e.g. c:/foo.
 	c := path[0]
-	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
+	return ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') && path[1] == ':' && isSlash(path[2])
 }
 
 func (l *Result) merge(path string, result any) error {
