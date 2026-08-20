@@ -1216,7 +1216,6 @@ func (c *Compiler) buildRequiredCapabilities() {
 					if c.moduleIsRegoV1(c.Modules[name]) {
 						for kw := range futureKeywords {
 							// Don't output experimental keywords for wildcard imports
-							// TODO: Remove on and/or release
 							if _, internal := experimentalFutureKeywords[kw]; internal {
 								continue
 							}
@@ -1224,7 +1223,6 @@ func (c *Compiler) buildRequiredCapabilities() {
 						}
 					} else {
 						for kw := range allFutureKeywords {
-							// TODO: Remove on and/or release
 							if _, internal := experimentalFutureKeywords[kw]; internal {
 								continue
 							}

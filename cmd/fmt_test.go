@@ -1346,9 +1346,7 @@ foo["if"]["else"] := true
 	}
 }
 
-// Experimental future keywords are hidden from the default capabilities, so
-// formatting a module that imports one requires --capabilities to list it.
-func TestFmtFormatExperimentalKeywords(t *testing.T) {
+func TestFmtFormatLogicalKeywords(t *testing.T) {
 	unformatted := `package test
 
 import future.keywords.and
@@ -1365,36 +1363,22 @@ import future.keywords.or
 p if input.a and input.b or input.c
 `
 
-	experimental := func() fmtCommandParams {
-		params := newFmtCommandParams()
-		params.capabilitiesFlag.C = ast.CapabilitiesForThisVersion(
-			ast.CapabilitiesRegoVersion(ast.RegoV1),
-			ast.CapabilitiesExperimentalKeywords(true))
-		return *params
-	}
-
 	cases := []struct {
-		note        string
-		params      fmtCommandParams
-		expected    string
-		expectedErr string
+		note     string
+		params   fmtCommandParams
+		expected string
 	}{
 		{
-			note:        "default capabilities",
-			params:      *newFmtCommandParams(),
-			expectedErr: "rego_parse_error: unexpected keyword, must be one of [contains every if in not]",
-		},
-		{
-			note:     "capabilities listing the keywords",
-			params:   experimental(),
+			note:     "default capabilities",
+			params:   *newFmtCommandParams(),
 			expected: formatted,
 		},
 		{
-			note: "capabilities listing the keywords, --check-result",
+			note: "default capabilities, --check-result",
 			params: func() fmtCommandParams {
-				params := experimental()
+				params := newFmtCommandParams()
 				params.checkResult = true
-				return params
+				return *params
 			}(),
 			expected: formatted,
 		},
@@ -1413,19 +1397,7 @@ p if input.a and input.b or input.c
 					t.Fatalf("Unexpected error: %s", err)
 				}
 
-				err = formatFile(&tc.params, &stdout, policyFile, info, err)
-
-				if tc.expectedErr != "" {
-					if err == nil {
-						t.Fatalf("Expected error but got: %s", stdout.String())
-					}
-					if !strings.Contains(err.Error(), tc.expectedErr) {
-						t.Fatalf("Expected error to contain:\n\n%s\n\nGot:\n\n%s", tc.expectedErr, err.Error())
-					}
-					return
-				}
-
-				if err != nil {
+				if err := formatFile(&tc.params, &stdout, policyFile, info, err); err != nil {
 					t.Fatalf("Unexpected error: %s", err)
 				}
 				if actual := stdout.String(); actual != tc.expected {
@@ -1437,19 +1409,7 @@ p if input.a and input.b or input.c
 		t.Run("stdin, "+tc.note, func(t *testing.T) {
 			var stdout bytes.Buffer
 
-			err := formatStdin(&tc.params, bytes.NewReader([]byte(unformatted)), &stdout)
-
-			if tc.expectedErr != "" {
-				if err == nil {
-					t.Fatalf("Expected error but got: %s", stdout.String())
-				}
-				if !strings.Contains(err.Error(), tc.expectedErr) {
-					t.Fatalf("Expected error to contain:\n\n%s\n\nGot:\n\n%s", tc.expectedErr, err.Error())
-				}
-				return
-			}
-
-			if err != nil {
+			if err := formatStdin(&tc.params, bytes.NewReader([]byte(unformatted)), &stdout); err != nil {
 				t.Fatalf("Unexpected error: %s", err)
 			}
 			if actual := stdout.String(); actual != tc.expected {

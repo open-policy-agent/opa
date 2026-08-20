@@ -160,7 +160,6 @@ r = true`,
 		{
 			name: "and, implicit",
 			node: ast.MustParseExprWithOpts("x and y", ast.ParserOptions{
-				Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
 				AllFutureKeywords: true,
 			}),
 			want: `x and y`,
@@ -184,7 +183,6 @@ r = true`,
 		{
 			name: "and, explicit",
 			node: ast.MustParseExprWithOpts("{ x } and { y }", ast.ParserOptions{
-				Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
 				AllFutureKeywords: true,
 			}),
 			want: `{ x } and { y }`,
@@ -192,7 +190,6 @@ r = true`,
 		{
 			name: "or, implicit",
 			node: ast.MustParseExprWithOpts("x or y", ast.ParserOptions{
-				Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
 				AllFutureKeywords: true,
 			}),
 			want: `x or y`,
@@ -216,7 +213,6 @@ r = true`,
 		{
 			name: "or, explicit",
 			node: ast.MustParseExprWithOpts("{ x } or { y }", ast.ParserOptions{
-				Capabilities:      ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
 				AllFutureKeywords: true,
 			}),
 			want: `{ x } or { y }`,

@@ -2,6 +2,7 @@ package oracle
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1190,10 +1191,7 @@ r := 2`
 
 	t.Run("capabilities from compiler", func(t *testing.T) {
 		t.Parallel()
-		capabilities := ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
-		o := New().WithCompiler(ast.NewCompiler().WithCapabilities(capabilities))
-
-		_, module, err := o.compileUpto("SetRuleTree", DefinitionQuery{
+		_, module, err := New().compileUpto("SetRuleTree", DefinitionQuery{
 			Buffer:   []byte(logicalModule),
 			Filename: "test.rego",
 		})
@@ -1202,6 +1200,20 @@ r := 2`
 		}
 		if !module.Rules[0].Body[0].IsAnd() {
 			t.Fatal("expected logical and expression but got:", module.Rules[0].Body[0])
+		}
+
+		// The compiler's capabilities gate the keywords available to the buffer.
+		capabilities := ast.CapabilitiesForThisVersion()
+		capabilities.FutureKeywords = slices.DeleteFunc(capabilities.FutureKeywords, func(kw string) bool {
+			return kw == "and"
+		})
+		o := New().WithCompiler(ast.NewCompiler().WithCapabilities(capabilities))
+
+		if _, _, err := o.compileUpto("SetRuleTree", DefinitionQuery{
+			Buffer:   []byte(logicalModule),
+			Filename: "test.rego",
+		}); err == nil {
+			t.Fatal("expected parse error")
 		}
 	})
 }

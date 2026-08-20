@@ -100,13 +100,6 @@ func TestFormatSourceError(t *testing.T) {
 	}
 }
 
-// TODO: Remove once `and`/`or` are no longer experimental keywords.
-func experimentalKeywordCapabilities(v ast.RegoVersion) *ast.Capabilities {
-	return ast.CapabilitiesForThisVersion(
-		ast.CapabilitiesRegoVersion(v),
-		ast.CapabilitiesExperimentalKeywords(true))
-}
-
 func TestFormatV0Source(t *testing.T) {
 	regoFiles, err := filepath.Glob("testfiles/v0/*.rego")
 	if err != nil {
@@ -126,8 +119,7 @@ func TestFormatV0Source(t *testing.T) {
 			}
 
 			popts := ast.ParserOptions{
-				RegoVersion:  ast.RegoV0,
-				Capabilities: experimentalKeywordCapabilities(ast.RegoV0),
+				RegoVersion: ast.RegoV0,
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV0,
@@ -187,8 +179,7 @@ func TestFormatV1Source(t *testing.T) {
 			}
 
 			popts := ast.ParserOptions{
-				RegoVersion:  ast.RegoV1,
-				Capabilities: experimentalKeywordCapabilities(ast.RegoV1),
+				RegoVersion: ast.RegoV1,
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV1,
@@ -931,7 +922,6 @@ p if {
 				}`,
 				ast.ParserOptions{
 					FutureKeywords: []string{"and"},
-					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
 				}),
 			expected: `package test
 
@@ -950,7 +940,6 @@ p {
 				}`,
 				ast.ParserOptions{
 					FutureKeywords: []string{"and"},
-					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
 				}),
 			expected: `package test
 
@@ -969,7 +958,6 @@ p if {
 				}`,
 				ast.ParserOptions{
 					FutureKeywords: []string{"or"},
-					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
 				}),
 			expected: `package test
 
@@ -988,7 +976,6 @@ p {
 				}`,
 				ast.ParserOptions{
 					FutureKeywords: []string{"or"},
-					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
 				}),
 			expected: `package test
 
@@ -1355,7 +1342,7 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 						t.Fatalf("Failed to read rego source: %v", err)
 					}
 
-					caps := experimentalKeywordCapabilities(regoVersion)
+					caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(regoVersion))
 					feats := make([]string, 0, len(caps.Features))
 					for _, f := range caps.Features {
 						if f != ast.FeatureKeywordsInRefs {
@@ -1368,7 +1355,7 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 						RegoVersion: regoVersion,
 						// The source is parsed with keywords in refs allowed; it is
 						// only the formatting of refs that drops the feature.
-						Capabilities: experimentalKeywordCapabilities(regoVersion),
+						Capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(regoVersion)),
 					}
 					opts := Opts{
 						RegoVersion:   regoVersion,

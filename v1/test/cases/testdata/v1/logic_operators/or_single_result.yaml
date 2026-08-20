@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/or/single-result: both operands succeed contributes one element"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -16,7 +15,6 @@ cases:
     want_result:
       - x: [1]
   - note: "logic_op/or/single-result: nested or, all branches succeed contributes one element"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -29,7 +27,6 @@ cases:
     want_result:
       - x: [1]
   - note: "logic_op/or/single-result: inside iterating comprehension, one entry per outer binding"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

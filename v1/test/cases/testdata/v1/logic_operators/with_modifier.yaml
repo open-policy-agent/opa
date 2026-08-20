@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/with: outer with on and propagates to both operand bodies"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -14,7 +13,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/with: with on lhs only, scoped to lhs"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -29,7 +27,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/with: with on lhs only, scoped to lhs, but falls through to called scope"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -48,7 +45,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/with: outer with on or, both operands see modified input"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

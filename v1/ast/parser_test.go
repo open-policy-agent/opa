@@ -2909,7 +2909,7 @@ func TestImport(t *testing.T) {
 func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "future", "import future", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
-	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [contains every if in not]")
+	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [and contains every if in not or]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "`future` imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
 
@@ -2940,11 +2940,10 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 	// These tests assert that "import future..." and "import rego.v1" statements in policies cause
 	// the proper keywords to be added to the parser's list of known keywords, and that they don't add any others.
 	tests := []struct {
-		note, imp    string
-		regoVersion  RegoVersion
-		capabilities *Capabilities
-		exp          map[string]tokens.Token
-		absent       []string
+		note, imp   string
+		regoVersion RegoVersion
+		exp         map[string]tokens.Token
+		absent      []string
 	}{
 		{
 			note: "simple import",
@@ -2991,11 +2990,10 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 			absent:      []string{"in", "every", "contains", "if"},
 		},
 		{
-			note:         "not imported in v0 does not enable experimental future keywords",
-			regoVersion:  RegoV0,
-			capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
-			imp:          "import future.keywords.not",
-			absent:       []string{"and", "or"},
+			note:        "not imported in v0 does not enable the logical future keywords",
+			regoVersion: RegoV0,
+			imp:         "import future.keywords.not",
+			absent:      []string{"and", "or"},
 		},
 		{
 			note:        "in imported in v0 does not enable the other v0 future keywords",
@@ -3005,24 +3003,21 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 			absent:      []string{"every", "contains", "if"},
 		},
 		{
-			note:         "not imported does not enable experimental keywords",
-			capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
-			imp:          "import future.keywords.not",
-			absent:       []string{"and", "or"},
+			note:   "not imported does not enable the logical keywords",
+			imp:    "import future.keywords.not",
+			absent: []string{"and", "or"},
 		},
 		{
-			note:         "in imported does not enable experimental keywords",
-			capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
-			imp:          "import future.keywords.in",
-			exp:          map[string]tokens.Token{"in": tokens.In},
-			absent:       []string{"and", "or"},
+			note:   "in imported does not enable the logical keywords",
+			imp:    "import future.keywords.in",
+			exp:    map[string]tokens.Token{"in": tokens.In},
+			absent: []string{"and", "or"},
 		},
 		{
-			note:         "and imported does not enable or",
-			capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
-			imp:          "import future.keywords.and",
-			exp:          map[string]tokens.Token{"and": tokens.LogicalAnd},
-			absent:       []string{"or"},
+			note:   "and imported does not enable or",
+			imp:    "import future.keywords.and",
+			exp:    map[string]tokens.Token{"and": tokens.LogicalAnd},
+			absent: []string{"or"},
 		},
 	}
 	for _, tc := range tests {
@@ -3030,9 +3025,6 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 			parser := NewParser().WithFilename("").WithReader(bytes.NewBufferString(tc.imp))
 			if tc.regoVersion != RegoUndefined {
 				parser = parser.WithRegoVersion(tc.regoVersion)
-			}
-			if tc.capabilities != nil {
-				parser = parser.WithCapabilities(tc.capabilities)
 			}
 			_, _, errs := parser.Parse()
 			if exp, act := 0, len(errs); exp != act {
