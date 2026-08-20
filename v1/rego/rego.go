@@ -1950,33 +1950,27 @@ func (r *Rego) PrepareForPartial(ctx context.Context, opts ...PrepareOption) (Pr
 	return PreparedPartialQuery{preparedQuery{r, pCfg}}, err
 }
 
-func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage) error {
-	var err error
-
+func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage) (err error) {
 	r.parsedInput, err = r.parseInput()
 	if err != nil {
 		return err
 	}
 
-	err = r.loadFiles(ctx, r.txn, r.metrics)
-	if err != nil {
+	if err := r.loadFiles(ctx, r.txn, r.metrics); err != nil {
 		return err
 	}
 
-	err = r.loadBundles(ctx, r.txn, r.metrics)
-	if err != nil {
+	if err := r.loadBundles(ctx, r.txn, r.metrics); err != nil {
 		return err
 	}
 
-	err = r.parseModules(ctx, r.txn, r.metrics)
-	if err != nil {
+	if err := r.parseModules(ctx, r.txn, r.metrics); err != nil {
 		return err
 	}
 
 	// Compile the modules *before* the query, else functions
 	// defined in the module won't be found...
-	err = r.compileModules(ctx, r.txn, r.metrics)
-	if err != nil {
+	if err := r.compileModules(ctx, r.txn, r.metrics); err != nil {
 		return err
 	}
 
@@ -1985,7 +1979,7 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
-	queryImports := []*ast.Import{}
+	var queryImports []*ast.Import
 	for _, imp := range imports {
 		path := imp.Path.Value.(ast.Ref)
 		if path.HasPrefix([]*ast.Term{ast.FutureRootDocument}) || path.HasPrefix([]*ast.Term{ast.RegoRootDocument}) {
@@ -1993,13 +1987,11 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		}
 	}
 
-	r.parsedQuery, err = r.parseQuery(queryImports, r.metrics)
-	if err != nil {
+	if r.parsedQuery, err = r.parseQuery(queryImports, r.metrics); err != nil {
 		return err
 	}
 
-	err = r.compileAndCacheQuery(qType, r.parsedQuery, imports, r.metrics, extras)
-	if err != nil {
+	if err = r.compileAndCacheQuery(qType, r.parsedQuery, imports, r.metrics, extras); err != nil {
 		return err
 	}
 
@@ -2204,7 +2196,6 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 
 	// Only compile again if there are new modules.
 	if len(r.bundles) > 0 || len(r.parsedModules) > 0 {
-
 		// The bundle.Activate call will activate any bundles passed in
 		// (ie compile + handle data store changes), and include any of
 		// the additional modules passed in. If no bundles are provided
@@ -2212,18 +2203,20 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 		// Use this as the single-point of compiling everything only a
 		// single time.
 		opts := &bundle.ActivateOpts{
-			Ctx:           ctx,
-			Store:         r.store,
-			Txn:           txn,
-			Compiler:      r.compilerForTxn(ctx, r.store, txn),
-			Metrics:       m,
-			Bundles:       r.bundles,
-			ExtraModules:  r.parsedModules,
-			ParserOptions: ast.ParserOptions{RegoVersion: r.regoVersion},
+			Ctx:          ctx,
+			Store:        r.store,
+			Txn:          txn,
+			Compiler:     r.compilerForTxn(ctx, r.store, txn),
+			Metrics:      m,
+			Bundles:      r.bundles,
+			ExtraModules: r.parsedModules,
+			ParserOptions: ast.ParserOptions{
+				RegoVersion:  r.regoVersion,
+				Capabilities: r.capabilities,
+			},
 		}
-		err := bundle.Activate(opts)
-		if err != nil {
-			return err
+		if err := bundle.Activate(opts); err != nil {
+			return fmt.Errorf("bundle activation failed: %w", err)
 		}
 	}
 
@@ -2269,11 +2262,13 @@ func (r *Rego) prepareImports() ([]*ast.Import, error) {
 	imports := r.parsedImports
 
 	if len(r.imports) > 0 {
-		s := make([]string, len(r.imports))
+		var sb strings.Builder
 		for i := range r.imports {
-			s[i] = fmt.Sprintf("import %v", r.imports[i])
+			sb.WriteString("import ")
+			sb.WriteString(r.imports[i])
+			sb.WriteByte('\n')
 		}
-		parsed, err := ast.ParseImports(strings.Join(s, "\n"))
+		parsed, err := ast.ParseImports(sb.String())
 		if err != nil {
 			return nil, err
 		}
