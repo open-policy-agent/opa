@@ -152,3 +152,11 @@ variable bindings makes every expression in the body true.
 
 Variables declared inside the body (`listener` above) are scoped locally and are not
 visible outside the `not` block.
+
+Assignments are only allowed in an explicit body. Since the binding never escapes the
+negation, assigning in the single-expression form (`not listener := server.listener`)
+is rejected at compile-time:
+
+```
+rego_compile_error: cannot assign vars inside negated expression
+```
