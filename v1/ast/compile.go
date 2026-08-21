@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/gojsonschema"
@@ -136,6 +137,10 @@ type Compiler struct {
 	pathExists                 func([]string) (bool, error)
 	pathConflictCheckRoots     []string
 	injectedVirtual            func(Ref) bool // optional custom virtual document checker
+	indexData                  ValueResolver  // optional data source for unrolling collections into the indices
+	maxIndexCollection         int            // largest collection unrolled into an index
+	indexDataRefs              []Ref          // data refs the indices read values from
+	staleIndexData             *staleIndexRefs
 	after                      map[string][]CompilerStageDefinition
 	metrics                    metrics.Metrics
 	capabilities               *Capabilities                 // user-supplied capabilities
@@ -433,6 +438,7 @@ func NewCompiler() *Compiler {
 
 	c.ModuleTree = NewModuleTree(nil)
 	c.RuleTree = NewRuleTree(c.ModuleTree)
+	c.staleIndexData = &staleIndexRefs{}
 
 	c.stages = []stage{
 		// Reference resolution should run first as it may be used to lazily
@@ -659,6 +665,126 @@ func (c *Compiler) QueryCompiler() QueryCompiler {
 func (c *Compiler) WithVirtual(fn func(Ref) bool) *Compiler {
 	c.injectedVirtual = fn
 	return c
+}
+
+// MaterializeIndexData resolves the collections of membership expressions -- the
+// `data.admin_roles` of `allow if input.role in data.admin_roles` -- through
+// resolver, and rebuilds the rule indices with their values unrolled into them,
+// the way a collection literal is. A lookup is then a single hash lookup on
+// input.role no matter how many such rules there are, and needs no access to
+// the collection at all.
+//
+// Collections holding more than maxCollectionSize values are not unrolled, since
+// each value costs a trie node; passing zero leaves the indices alone. See
+// IndexDataRefs for what to unroll again, and when.
+//
+// Call this after Compile -- and before the compiler serves any query, since it
+// mutates the rule indices in place. Calling it beforehand also works: the
+// resolver is then used by the first build, which is what a caller compiling
+// through another package (say rego.CompilerHook) is left with.
+func (c *Compiler) MaterializeIndexData(resolver ValueResolver, maxCollectionSize int) {
+	if maxCollectionSize <= 0 {
+		return
+	}
+
+	c.indexData = resolver
+	c.maxIndexCollection = maxCollectionSize
+
+	if len(c.Modules) == 0 || len(c.indexDataRefs) == 0 {
+		// Either nothing is compiled yet, in which case the first build picks
+		// the resolver up, or nothing in this policy reads data and rebuilding
+		// the indices would change nothing.
+		return
+	}
+
+	c.buildRuleIndices()
+	c.staleIndexData.clear()
+}
+
+// MarkIndexDataStale reports that the data at refs has changed since it was
+// read into the rule indices, so that values read from those refs stop being
+// used to exclude rules -- leaving them as indexed as they were before, and the
+// rest of each index pruning as usual. The next MaterializeIndexData picks the
+// new values up.
+//
+// This is the cheap alternative to recompiling on a data change: marking costs a
+// pointer swap, where recompiling a policy of any size does not belong on the
+// path of a data write. It is safe to call while queries are being evaluated.
+func (c *Compiler) MarkIndexDataStale(refs []Ref) {
+	c.staleIndexData.mark(refs)
+}
+
+// IndexDataStale reports whether the value the rule indices read from ref is
+// known to have changed since. See MarkIndexDataStale.
+func (c *Compiler) IndexDataStale(ref Ref) bool {
+	return c.staleIndexData.contains(ref)
+}
+
+// staleIndexRefs holds the refs whose data has moved out from under the rule
+// indices. It is read on every index lookup that has values to check and
+// written when data changes, so it is swapped rather than locked, and lives
+// behind a pointer so that copies of a Compiler share it.
+type staleIndexRefs struct {
+	refs atomic.Pointer[[]Ref]
+}
+
+func (s *staleIndexRefs) mark(refs []Ref) {
+	if s == nil || len(refs) == 0 {
+		return
+	}
+
+	for {
+		current := s.refs.Load()
+
+		marked := []Ref{}
+		if current != nil {
+			marked = append(marked, *current...)
+		}
+		for _, ref := range refs {
+			marked = appendUnique(marked, ref)
+		}
+
+		if len(marked) == lenRefs(current) {
+			return // all of them were marked already
+		}
+		if s.refs.CompareAndSwap(current, &marked) {
+			return
+		}
+	}
+}
+
+func (s *staleIndexRefs) contains(ref Ref) bool {
+	if s == nil {
+		return false
+	}
+	if current := s.refs.Load(); current != nil {
+		return containsRef(*current, ref)
+	}
+	return false
+}
+
+func (s *staleIndexRefs) clear() {
+	if s != nil {
+		s.refs.Store(nil)
+	}
+}
+
+func lenRefs(refs *[]Ref) int {
+	if refs == nil {
+		return 0
+	}
+	return len(*refs)
+}
+
+// IndexDataRefs returns the refs of the collections the rule indices are
+// built from, whether or not MaterializeIndexData has unrolled them: a collection
+// that was missing, or too large, is one whose data still decides what the
+// indices should look like.
+//
+// Nothing rebuilds a rule index by itself, so a caller that materializes data in has to
+// call MaterializeIndexData again when the data at any of these refs changes.
+func (c *Compiler) IndexDataRefs() []Ref {
+	return c.indexDataRefs
 }
 
 // Compile runs the compilation process on the input modules. The compiled
@@ -1120,6 +1246,8 @@ func (c *Compiler) counterAdd(name string, n uint64) {
 
 func (c *Compiler) buildRuleIndices() {
 
+	c.indexDataRefs = nil
+
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		if len(node.Values) == 0 && node.External == nil {
 			return false
@@ -1153,9 +1281,13 @@ func (c *Compiler) buildRuleIndices() {
 			}
 		}
 
-		index := newBaseDocEqIndex(c.isVirtual)
+		index := newBaseDocEqIndex(c.isVirtual, withIndexData(c.indexData, c.maxIndexCollection))
 		if index.Build(rules) {
 			node.Index = index
+
+			for _, ref := range index.DataRefs() {
+				c.indexDataRefs = appendUnique(c.indexDataRefs, ref)
+			}
 		}
 		return hasNonGroundRef // currently, we don't allow those branches to go deeper
 	})

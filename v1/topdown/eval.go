@@ -1818,6 +1818,19 @@ type evalResolver struct {
 	args []*ast.Term
 }
 
+// IndexDataStale tells a rule index that a value it read from data can't be
+// used: a `with` statement replaced it for this evaluation (at, above, or below
+// ref), partial evaluation must treat it as unknown, or the data has changed
+// since it was read (ast.Compiler.MarkIndexDataStale). Only ref itself is
+// checked -- during partial evaluation the unknowns are usually input, which
+// says nothing about the data an index read. See ast.IndexDataChecker.
+func (e *evalResolver) IndexDataStale(ref ast.Ref) bool {
+	return e.e.targetStack.Overlaps(ref) ||
+		e.e.saveSet.Contains(ast.NewTerm(ref), nil) ||
+		e.e.inliningControl.Disabled(ref, true) ||
+		e.e.compiler.IndexDataStale(ref)
+}
+
 func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 	e.e.instr.startTimer(evalOpResolve)
 

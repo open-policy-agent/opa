@@ -238,6 +238,24 @@ func (s *refStack) Prefixed(ref ast.Ref) bool {
 	return false
 }
 
+// Overlaps reports whether any replacement target shares a prefix with ref in
+// either direction. Unlike Prefixed, which answers "is ref's value replaced",
+// this also catches a replacement *below* ref -- which leaves ref itself in
+// place but changes what is inside it.
+func (s *refStack) Overlaps(ref ast.Ref) bool {
+	if s != nil {
+		sl := s.sl.Slice()
+		for _, s := range slices.Backward(sl) {
+			if slices.ContainsFunc(s.refs, func(target ast.Ref) bool {
+				return ref.HasPrefix(target) || target.HasPrefix(ref)
+			}) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 type comprehensionCache struct {
 	stack util.SliceStack[map[*ast.Term]*comprehensionCacheElem]
 }
