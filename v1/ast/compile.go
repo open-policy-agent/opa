@@ -6921,6 +6921,27 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 				container = v[2]
 			}
 
+			// Vars bound by this `some .. in` must not also appear in the domain.
+			bound := NewVarSet()
+			if key != nil {
+				bound.Update(key.Vars())
+			}
+			if val != nil {
+				bound.Update(val.Vars())
+			}
+			domainVis := NewVarVisitor().WithParams(VarVisitorParams{SkipClosures: true})
+			domainVis.Walk(container)
+			nerrs := len(errs)
+			for _, v0 := range bound.Intersect(domainVis.Vars()).Sorted() {
+				if v0.IsWildcard() {
+					continue
+				}
+				errs = append(errs, NewError(CompileErr, decl.Loc(), "var %v used in some domain", v0))
+			}
+			if len(errs) > nerrs {
+				return nil, errs
+			}
+
 			var rhs *Term
 			switch c := container.Value.(type) {
 			case Ref:
