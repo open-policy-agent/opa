@@ -124,14 +124,15 @@ roles := {
 
 For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables). For example:
 
-| Expression                  | Indexed | Notes                        |
-| --------------------------- | ------- | ---------------------------- |
-| `input.x`                   | yes     |                              |
-| `input.x == "foo"`          | yes     |                              |
-| `input.x.y == "bar"`        | yes     |                              |
-| `input.x == ["foo", i]`     | yes     |                              |
-| `input.x[i] == "foo"`       | no      | reference contains variables |
-| `input.x[input.y] == "foo"` | no      | reference is nested          |
+| Expression                  | Indexed | Notes                                                       |
+| --------------------------- | ------- | ----------------------------------------------------------- |
+| `input.x`                   | yes     |                                                             |
+| `input.x == "foo"`          | yes     |                                                             |
+| `input.x.y == "bar"`        | yes     |                                                             |
+| `input.x == ["foo", i]`     | yes     |                                                             |
+| `input.x == data.config.x`  | yes     | see [statements that read data](#statements-that-read-data) |
+| `input.x[i] == "foo"`       | no      | reference contains variables                                |
+| `input.x[input.y] == "foo"` | no      | reference is nested                                         |
 
 #### Glob statements
 
@@ -152,14 +153,69 @@ For `value in collection` statements to be indexed, the value must be a scalar (
 
 Both directions of membership are supported:
 
-| Expression                                | Indexed | Notes                                   |
-| ----------------------------------------- | ------- | --------------------------------------- |
-| `input.role in {"admin", "user"}`         | yes     |                                         |
-| `"admin" in input.roles`                  | yes     |                                         |
-| `input.roles[_] == "admin"`               | yes     | treated as `"admin" in input.roles`     |
-| `x := input.role; x in {"admin", "user"}` | yes     | variable resolved to ref via assignment |
-| `{"nested": "obj"} in input.items`        | no      | non-scalar membership value             |
-| `some k, v in input.obj; v == "admin"`    | no      | three-operand `in` not indexed          |
+| Expression                                | Indexed | Notes                                                       |
+| ----------------------------------------- | ------- | ----------------------------------------------------------- |
+| `input.role in {"admin", "user"}`         | yes     |                                                             |
+| `"admin" in input.roles`                  | yes     |                                                             |
+| `input.roles[_] == "admin"`               | yes     | treated as `"admin" in input.roles`                         |
+| `x := input.role; x in {"admin", "user"}` | yes     | variable resolved to ref via assignment                     |
+| `input.role in data.admin_roles`          | yes     | see [statements that read data](#statements-that-read-data) |
+| `{"nested": "obj"} in input.items`        | no      | non-scalar membership value                                 |
+| `some k, v in input.obj; v == "admin"`    | no      | three-operand `in` not indexed                              |
+
+#### Statements that read data
+
+Equality and membership statements can compare against data instead of a literal:
+
+```rego
+package tenants
+
+allow if input.tenant == data.config.tenant
+
+allow if input.subject in data.groups.admins.members
+```
+
+An index is keyed on the values a rule compares against, so OPA reads these refs
+when it builds one and stores what it finds: the equality is indexed against
+whatever `data.config.tenant` held at that moment, and the membership as one
+entry per member of the collection. A lookup is then the same constant-time
+lookup it would be against a literal, however many rules of this shape a policy
+has — which is what makes a policy with one rule per group practical, instead of
+one that evaluates every group's rule on every decision.
+
+Because the index holds a copy, a data change reaching any of the refs it read
+must not leave it pruning against values that have moved. What happens instead is
+that the entries read from those refs stop excluding rules — leaving those rules
+as indexed as they were before the data was read into them, while the rest of the
+index keeps pruning — and the next compilation reads the current values back in.
+Nothing is recompiled on the write itself: a data update costs microseconds, not
+a policy compilation. The same applies, for a single evaluation, to a `with`
+statement replacing one of those refs and to partial evaluation treating it as
+unknown.
+
+So in a deployment where this data changes constantly and policies rarely do, the
+index settles back into the behaviour it had without this feature, and costs
+nothing. It pays where the data is stable between policy updates — including data
+delivered in bundles, since activating one compiles and reads the values it
+brought.
+
+Each value of a collection costs roughly 250 bytes of index per rule, so only
+collections up to 1000 values are stored; a larger one is left out, and the rules
+using it are candidates for every input value. So is a ref that rules contribute
+to, since resolving it would mean evaluating policy:
+
+| Expression                                           | Indexed | Notes                                              |
+| ---------------------------------------------------- | ------- | -------------------------------------------------- |
+| `input.tenant == data.config.tenant`                 | yes     | value read from data                               |
+| `input.subject in data.groups.eng.members`           | yes     | one index entry per member                         |
+| `xs := data.groups.eng.members; input.subject in xs` | yes     | variable resolved to the ref                       |
+| `input.subject in data.groups[input.team].members`   | no      | collection reference contains variables            |
+| `input.role in data.roles_of[input.user]`            | no      | same                                               |
+| `input.subject in data.computed_members`             | no      | `data.computed_members` is a rule, not stored data |
+
+Embedders can tune this: `plugins.RuleIndexData(n)` sets the largest collection
+stored in an index, and `plugins.RuleIndexData(0)` turns off reading data into
+indices altogether.
 
 #### Bare reference statements
 
