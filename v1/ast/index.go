@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -333,6 +334,15 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 		return
 	}
 
+	switch terms := expr.Terms.(type) {
+	case *LogicalAnd:
+		i.updateLogicalAnd(rule, terms, values)
+		return
+	case *LogicalOr:
+		i.updateLogicalOr(rule, terms, values)
+		return
+	}
+
 	op := expr.Operator()
 	if op == nil {
 		if ts, ok := expr.Terms.(*Term); ok {
@@ -368,6 +378,122 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 	case op.Equal(Interned.Refs.Member) && len(expr.Operands()) == 2:
 		// NOTE(sr): Again, 3 operands means captured output (like above).
 		i.updateMember(rule, expr, values)
+	}
+}
+
+// updateLogicalAnd folds both operands of a conjunction into the rule's
+// indices: `lhs and rhs` only succeeds if both operands do.
+//
+// Each operand is indexed against the indices the rule has so far, not against
+// what its sibling contributes: operand bodies are separate scopes, so the same
+// var in each is a different var, and resolveVarToRef must not connect them.
+func (i *refindices) updateLogicalAnd(rule *Rule, and *LogicalAnd, values map[Var]Value) {
+	lhs := i.operandIndices(rule, and.Lhs, values)
+	rhs := i.operandIndices(rule, and.Rhs, values)
+
+	i.insertOperand(rule, lhs)
+	i.insertOperand(rule, rhs)
+}
+
+// insertOperand adds indices derived inside an operand body to the rule's own.
+// A var value is recorded as anyValue: the var itself is scoped to the operand
+// body and must not become resolvable from the outside, but what it tells us
+// about the ref -- that it has to be defined -- still holds.
+func (i *refindices) insertOperand(rule *Rule, indices []*refindex) {
+	for _, ri := range indices {
+		if ri.isVar() {
+			ri = &refindex{Ref: ri.Ref, Value: anyValue, Mapper: ri.Mapper}
+		}
+		i.insert(rule, ri)
+	}
+}
+
+// updateLogicalOr folds the operands of a disjunction into the rule's indices.
+// Only a ref that both operands constrain can be indexed, to the values seen on
+// either side: a ref one operand leaves alone says nothing about the rule, as
+// that operand could satisfy the disjunction with the ref holding any value.
+func (i *refindices) updateLogicalOr(rule *Rule, or *LogicalOr, values map[Var]Value) {
+	lhs := i.operandIndices(rule, or.Lhs, values)
+	if len(lhs) == 0 {
+		return
+	}
+
+	rhs := i.operandIndices(rule, or.Rhs, values)
+	if len(rhs) == 0 {
+		return
+	}
+
+	for pos, li := range lhs {
+		hasRef := func(other *refindex) bool { return other.Ref.Equal(li.Ref) }
+
+		if slices.ContainsFunc(lhs[:pos], hasRef) {
+			continue // ref already merged
+		}
+		if !slices.ContainsFunc(rhs, hasRef) {
+			continue // ref not constrained by both operands
+		}
+
+		i.insertUnion(rule, li.Ref, lhs, rhs)
+	}
+}
+
+func (i *refindices) insertUnion(rule *Rule, ref Ref, lhs, rhs []*refindex) {
+	sides := [...][]*refindex{lhs, rhs}
+
+	for _, side := range sides {
+		for _, ri := range side {
+			if ri.Ref.Equal(ref) && ri.isVar() {
+				// Either operand allowing any value widens the disjunction to
+				// any. Not the operand's own var: that is scoped to the operand
+				// body, and must not become resolvable from the outside (see
+				// resolveVarToRef).
+				i.insert(rule, &refindex{Ref: ref, Value: anyValue})
+				return
+			}
+		}
+	}
+
+	for _, side := range sides {
+		for _, ri := range side {
+			if ri.Ref.Equal(ref) {
+				i.insert(rule, ri)
+			}
+		}
+	}
+}
+
+// operandIndices returns the indices that body, as an operand, implies for rule,
+// without adding them to the rule's own indices. The scratch is seeded with what
+// the rule has so far, so that vars bound outside the operand still resolve to
+// their refs; anything the scratch holds that the seed didn't is new.
+func (i *refindices) operandIndices(rule *Rule, body Body, values map[Var]Value) []*refindex {
+	before := i.rules[rule]
+
+	scratch := newrefindices(i.isVirtual)
+	scratch.rules[rule] = slices.Clone(before)
+	scratch.updateOperand(rule, body, values)
+
+	var result []*refindex
+	for _, ri := range scratch.rules[rule] {
+		if !slices.Contains(before, ri) {
+			result = append(result, ri)
+		}
+	}
+
+	return result
+}
+
+// updateOperand folds the expressions of an `and`/`or` operand body into the
+// rule's indices. An operand body is a closed scope -- bindings made inside it
+// reach neither the enclosing body nor the sibling operand (see
+// evalLogicalOperand in topdown) -- so its constants are copied in and dropped
+// on return.
+func (i *refindices) updateOperand(rule *Rule, body Body, values map[Var]Value) {
+	scoped := make(map[Var]Value, len(values))
+	maps.Copy(scoped, values)
+
+	for _, expr := range body {
+		i.Update(rule, expr, scoped)
 	}
 }
 
