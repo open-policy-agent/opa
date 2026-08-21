@@ -383,9 +383,29 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 
 // updateLogicalAnd folds both operands of a conjunction into the rule's
 // indices: `lhs and rhs` only succeeds if both operands do.
+//
+// Each operand is indexed against the indices the rule has so far, not against
+// what its sibling contributes: operand bodies are separate scopes, so the same
+// var in each is a different var, and resolveVarToRef must not connect them.
 func (i *refindices) updateLogicalAnd(rule *Rule, and *LogicalAnd, values map[Var]Value) {
-	i.updateOperand(rule, and.Lhs, values)
-	i.updateOperand(rule, and.Rhs, values)
+	lhs := i.operandIndices(rule, and.Lhs, values)
+	rhs := i.operandIndices(rule, and.Rhs, values)
+
+	i.insertOperand(rule, lhs)
+	i.insertOperand(rule, rhs)
+}
+
+// insertOperand adds indices derived inside an operand body to the rule's own.
+// A var value is recorded as anyValue: the var itself is scoped to the operand
+// body and must not become resolvable from the outside, but what it tells us
+// about the ref -- that it has to be defined -- still holds.
+func (i *refindices) insertOperand(rule *Rule, indices []*refindex) {
+	for _, ri := range indices {
+		if ri.isVar() {
+			ri = &refindex{Ref: ri.Ref, Value: anyValue, Mapper: ri.Mapper}
+		}
+		i.insert(rule, ri)
+	}
 }
 
 // updateLogicalOr folds the operands of a disjunction into the rule's indices.
@@ -442,10 +462,10 @@ func (i *refindices) insertUnion(rule *Rule, ref Ref, lhs, rhs []*refindex) {
 	}
 }
 
-// operandIndices returns the indices that body, as an operand of a disjunction,
-// implies for rule, without adding them to the rule's own indices. The scratch
-// is seeded with what the rule has so far, so that vars bound outside the
-// operand still resolve to their refs.
+// operandIndices returns the indices that body, as an operand, implies for rule,
+// without adding them to the rule's own indices. The scratch is seeded with what
+// the rule has so far, so that vars bound outside the operand still resolve to
+// their refs; anything the scratch holds that the seed didn't is new.
 func (i *refindices) operandIndices(rule *Rule, body Body, values map[Var]Value) []*refindex {
 	before := i.rules[rule]
 
@@ -453,14 +473,10 @@ func (i *refindices) operandIndices(rule *Rule, body Body, values map[Var]Value)
 	scratch.rules[rule] = slices.Clone(before)
 	scratch.updateOperand(rule, body, values)
 
-	after := scratch.rules[rule]
-
 	var result []*refindex
-	for pos := range after {
-		// insert() replaces an "any value" index in place when it learns a
-		// value for that ref, so a seeded position may hold a new index too.
-		if pos >= len(before) || after[pos] != before[pos] {
-			result = append(result, after[pos])
+	for _, ri := range scratch.rules[rule] {
+		if !slices.Contains(before, ri) {
+			result = append(result, ri)
 		}
 	}
 
