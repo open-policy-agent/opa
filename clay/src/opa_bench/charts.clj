@@ -27,6 +27,42 @@
                       (>= v 1e3) (format "%.2fK allocs" (/ v 1e3))
                       :else       (format "%.0f allocs" v)))))
 
+(defn- commit-url [sha]
+  (str "https://github.com/open-policy-agent/opa/commit/" sha))
+
+(defn- missing-gaps
+  "Runs of commits with no data for a benchmark, sitting strictly between two
+   commits that do have data. Gaps before the first or after the last known
+   data point are ignored, since those just mean the benchmark hadn't been
+   added yet / hasn't been run yet, not that data went missing."
+  [commits-ordered bench-commit-set]
+  (loop [shas commits-ordered gaps [] current-run [] last-known nil]
+    (if (empty? shas)
+      gaps
+      (let [sha (first shas)]
+        (if (contains? bench-commit-set sha)
+          (recur (rest shas)
+                 (if (and last-known (seq current-run))
+                   (conj gaps {:after last-known :before sha :commits current-run})
+                   gaps)
+                 []
+                 sha)
+          (recur (rest shas) gaps (conj current-run sha) last-known))))))
+
+(defn- gaps-by-before
+  "Maps the sha right after a gap to {:after sha :commits [{:sha :message :url} ...]},
+   so the UI can look up 'what's missing right before this hovered commit'."
+  [gaps]
+  (into {}
+        (map (fn [{:keys [after before commits]}]
+               [before {:after after
+                        :commits (mapv (fn [sha]
+                                         {:sha     sha
+                                          :message (or (:message (data/commits sha)) "")
+                                          :url     (commit-url sha)})
+                                       commits)}]))
+        gaps))
+
 (defn benchmark-chart [pkg bench-name]
   (let [bench-rows (->> data/rows
                         (filter #(and (= (:pkg %) pkg)
@@ -34,6 +70,10 @@
                         (sort-by :date))
         by-measure (group-by :measure bench-rows)
         tag-xs     (into #{} (keep :tag) bench-rows)
+        bench-commits (into #{} (map :commit) bench-rows)
+        gaps-by-before* (-> data/commits-ordered
+                            (missing-gaps bench-commits)
+                            gaps-by-before)
         traces     (for [[measure rows] by-measure
                          :when (some #(pos? (:value %)) rows)]
                      (let [basis-val (get data/basis [pkg bench-name measure] 1)
@@ -48,8 +88,7 @@
                                    :author  (:author c)
                                    :date    (:date c)
                                    :message (or (:message c) "")
-                                   :url     (str "https://github.com/open-policy-agent/opa/commit/"
-                                                 (:commit r))}))
+                                   :url     (commit-url (:commit r))}))
                               rows)
                         :name (measure-labels measure measure)
                         :type "scatter"
@@ -69,10 +108,8 @@
                                        :author  (:author c)
                                        :date    (:date c)
                                        :message (or (:message c) "")
-                                       :url     (str "https://github.com/open-policy-agent/opa/commit/"
-                                                     (:commit r))}])))
+                                       :url     (commit-url (:commit r))}])))
                           bench-rows)
-        all-x      (mapv #(or (:tag %) (subs (:commit %) 0 7)) bench-rows)
         tick-vals  (filterv some? (mapv :tag bench-rows))
         layout     {:yaxis    {:type "log" :title (str "Relative to " data/latest-tag)}
                     :xaxis    {:title "" :tickangle -45
@@ -95,12 +132,15 @@
        [:pre {:id "commit-info"
               :style "margin-top:12px;padding:10px;min-height:80px;font-size:13px;white-space:pre-wrap"}
         "Hover over a point to see commit details. Click to open on GitHub."]
+       [:div {:id "gap-info" :class "gap-box" :style "display:none"}]
        [:script {:type "text/javascript"}
         (format "
 (function() {
   var el = document.getElementById('chart');
   var info = document.getElementById('commit-info');
+  var gapInfo = document.getElementById('gap-info');
   var commitByX = %s;
+  var gapsByBefore = %s;
   var traces = %s;
   var baseLayout = %s;
 
@@ -120,6 +160,33 @@
 
   Plotly.newPlot(el, traces, layout, {responsive: true});
 
+  function renderGap(gap) {
+    if (!gap) {
+      gapInfo.style.display = 'none';
+      gapInfo.innerHTML = '';
+      return;
+    }
+    gapInfo.style.display = '';
+    gapInfo.innerHTML = '';
+    var header = document.createElement('div');
+    header.className = 'gap-box-header';
+    header.textContent = gap.commits.length + ' commit' + (gap.commits.length === 1 ? '' : 's') +
+      ' with no data since ' + gap.after.slice(0, 7);
+    gapInfo.appendChild(header);
+    var ul = document.createElement('ul');
+    gap.commits.forEach(function(c) {
+      var li = document.createElement('li');
+      var a = document.createElement('a');
+      a.href = c.url;
+      a.target = '_blank';
+      a.textContent = c.sha.slice(0, 7);
+      li.appendChild(a);
+      li.appendChild(document.createTextNode(' ' + c.message));
+      ul.appendChild(li);
+    });
+    gapInfo.appendChild(ul);
+  }
+
   el.on('plotly_hover', function(d) {
     var x = d.points[0].x;
     var cd = commitByX[x];
@@ -129,6 +196,7 @@
                          'Date:   ' + cd.date + '\\n\\n' +
                          cd.message;
     }
+    renderGap(cd && gapsByBefore[cd.sha]);
   });
 
   el.on('plotly_click', function(d) {
@@ -139,6 +207,7 @@
 })();
 "
                 (json/write-str commit-by-x)
+                (json/write-str gaps-by-before*)
                 (json/write-str (vec traces))
                 (json/write-str layout))]])))
 
