@@ -2,7 +2,6 @@
 # Operand bodies with internal enumeration.
 cases:
   - note: "logic_op/iteration: and"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -15,7 +14,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/iteration: and lhs would yield multiple successes, comprehension emits once"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -28,7 +26,6 @@ cases:
     want_result:
       - x: [1]
   - note: "logic_op/iteration: and rhs would yield multiple successes, comprehension emits once"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -41,7 +38,6 @@ cases:
     want_result:
       - x: [1]
   - note: "logic_op/iteration: and lhs+rhs would yield multiple successes, comprehension emits once"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -54,7 +50,6 @@ cases:
     want_result:
       - x: [1]
   - note: "logic_op/iteration: or lhs would yield multiple successes, comprehension emits once"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -67,7 +62,6 @@ cases:
     want_result:
       - x: [1]
   - note: "logic_op/iteration: or rhs would yield multiple successes, comprehension emits once"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -80,7 +74,6 @@ cases:
     want_result:
       - x: [1]
   - note: "logic_op/iteration: enumeration inside operand body, no fail-and-retry"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -94,7 +87,6 @@ cases:
     want_result:
       - x: [1]
   - note: "logic_op/iteration: enumeration inside operand body, all fail"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -108,7 +100,6 @@ cases:
     want_result:
       - x: []
   - note: "logic_op/iteration: not around or with iteration"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -125,7 +116,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/iteration: not around or with iteration, one element matches"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -140,7 +130,6 @@ cases:
       xs: [0, 5, 200]
     want_result: []
   - note: "logic_op/iteration: not around and with iteration"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -157,7 +146,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/iteration: not around and with iteration, one element matches"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

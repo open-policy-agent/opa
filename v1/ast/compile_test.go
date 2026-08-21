@@ -1607,7 +1607,6 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 	for i, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			opts := ParserOptions{
-				Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				AllFutureKeywords: true,
 			}
 			c := NewCompiler()
@@ -1815,7 +1814,6 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 			// Compile test module.
 			opts := ParserOptions{
-				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				FutureKeywords: []string{"and", "or"},
 			}
 
@@ -3894,10 +3892,6 @@ func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocat
 			compiler.Modules = map[string]*Module{
 				"test": MustParseModuleWithOpts(tc.module, ParserOptions{
 					RegoVersion: RegoV0,
-					Capabilities: CapabilitiesForThisVersion(
-						CapabilitiesRegoVersion(RegoV0),
-						CapabilitiesExperimentalKeywords(true),
-					),
 				}),
 			}
 			compileStages(compiler, "")
@@ -8201,16 +8195,7 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 		exp    string
 	}
 
-	caps := CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
-
-	opts := CompileOpts{
-		ParserOptions: ParserOptions{
-			Capabilities: caps,
-		},
-	}
-
 	popts := func(options ParserOptions) ParserOptions {
-		options.Capabilities = caps
 		options.AllFutureKeywords = true
 		return options
 	}
@@ -8223,7 +8208,7 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				t.Run(tc.note, func(t *testing.T) {
 					t.Parallel()
 					t.Helper()
-					c := MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, opts)
+					c := MustCompileModules(map[string]string{"test.rego": tc.module})
 					if exp, act := module(tc.exp, popts), c.Modules["test.rego"]; !exp.Equal(act) {
 						t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, act)
 					}
@@ -11376,7 +11361,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 				import future.keywords
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
-			keywords: []string{"contains", "every", "if", "in", "not"},
+			keywords: []string{"and", "contains", "every", "if", "in", "not", "or"},
 		},
 		{
 			note: "future.keywords wildcard, v1 module",
@@ -11387,7 +11372,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			features: []string{"rego_v1"},
-			keywords: []string{"not"},
+			keywords: []string{"and", "not", "or"},
 		},
 		{
 			note: "future.keywords wildcard, default rego-version module (v1)",
@@ -11397,7 +11382,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 				import future.keywords
 			`,
 			features: []string{"rego_v1"},
-			keywords: []string{"not"},
+			keywords: []string{"and", "not", "or"},
 		},
 		{
 			note: "future.keywords specific, v0 module",
@@ -12700,8 +12685,7 @@ func TestCustomBuiltinWithCompileModulesWithOpt(t *testing.T) {
 				if err == nil {
 					t.Fatalf("expected error code %s but got success", tc.expectedErrorCode)
 				}
-				var astError Errors
-				if errors.As(err, &astError) {
+				if astError, ok := errors.AsType[Errors](err); ok {
 					if astError[0].Code != tc.expectedErrorCode {
 						t.Fatalf("expected error code %s but got %s", tc.expectedErrorCode, astError[0].Code)
 					}
@@ -14919,11 +14903,7 @@ func TestCompilerAndOrRegoVersionParity(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			popts := ParserOptions{
-				RegoVersion: tc.regoVersion,
-				Capabilities: CapabilitiesForThisVersion(
-					CapabilitiesRegoVersion(tc.regoVersion),
-					CapabilitiesExperimentalKeywords(true),
-				),
+				RegoVersion:    tc.regoVersion,
 				FutureKeywords: []string{"and", "or"},
 			}
 
@@ -14944,7 +14924,6 @@ func TestCompilerAndOrRegoVersionParity(t *testing.T) {
 
 func TestCompilerAndOrImports(t *testing.T) {
 	popts := ParserOptions{
-		Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 		FutureKeywords: []string{"and", "or"},
 	}
 
@@ -15918,7 +15897,6 @@ func TestCompilerAndOrImports(t *testing.T) {
 					}
 				}
 			`, ParserOptions{
-				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				FutureKeywords: []string{"and", "or", "not"},
 			}),
 		},
@@ -15943,7 +15921,6 @@ func TestCompilerAndOrImports(t *testing.T) {
 					}
 				}
 			`, ParserOptions{
-				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				FutureKeywords: []string{"and", "or", "not"},
 			}),
 		},
@@ -16146,7 +16123,6 @@ func TestCompilerAndOrImports(t *testing.T) {
 					not (input.a or input.b)
 				}
 			`, ParserOptions{
-				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				FutureKeywords: []string{"and", "or", "not"},
 			}),
 		},
@@ -16233,7 +16209,6 @@ func TestCompilerAndOrImports(t *testing.T) {
 
 func TestCompilerLogicalGroupRewrites(t *testing.T) {
 	popts := ParserOptions{
-		Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 		FutureKeywords: []string{"and", "or", "not"},
 	}
 
@@ -16312,7 +16287,6 @@ func TestCompilerLogicalGroupRewrites(t *testing.T) {
 
 func TestQueryCompilerAndOrImports(t *testing.T) {
 	popts := ParserOptions{
-		Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 		AllFutureKeywords: true,
 	}
 	c := NewCompiler()

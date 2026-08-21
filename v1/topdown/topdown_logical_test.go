@@ -44,10 +44,9 @@ func touchCount(label string) int {
 	return int(counter.(*atomic.Int64).Load())
 }
 
-// logicalParserOptions opts in to the experimental `and` / `or` keywords.
+// logicalParserOptions opts in to the `and` / `or` keywords.
 func logicalParserOptions() ast.ParserOptions {
 	return ast.ParserOptions{
-		Capabilities:   ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
 		FutureKeywords: []string{"and", "or"},
 	}
 }
@@ -87,7 +86,16 @@ func TestTopDownLogicalAnd(t *testing.T) {
 			fail: true,
 		},
 		{
-			note: "print inside both explicit body operands",
+			note: "lhs fails: rhs not evaluated (short-circuit)",
+			module: `package test
+				p if {
+					false and {print("rhs"); true}
+				}`,
+			notes: n(),
+			fail:  true,
+		},
+		{
+			note: "lhs succeeds: rhs evaluated",
 			module: `package test
 				p if {
 					{print("lhs"); true} and {print("rhs"); true}
@@ -159,12 +167,20 @@ func TestTopDownLogicalOr(t *testing.T) {
 			fail: true,
 		},
 		{
-			note: "print inside both explicit body operands, rhs skipped",
+			note: "lhs succeeds: rhs not evaluated (short-circuit)",
 			module: `package test
 				p if {
 					{print("lhs"); true} or {print("rhs"); true}
 				}`,
 			notes: n("lhs"),
+		},
+		{
+			note: "lhs fails: rhs evaluated",
+			module: `package test
+				p if {
+					false or {print("rhs"); true}
+				}`,
+			notes: n("rhs"),
 		},
 		{
 			note: "explicit body operands",

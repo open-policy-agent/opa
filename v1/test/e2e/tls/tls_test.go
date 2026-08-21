@@ -172,8 +172,7 @@ func TestNotDefaultTLSVersion(t *testing.T) {
 		if err == nil {
 			t.Error("expected err - protocol version not supported, got nil")
 		}
-		var exp *url.Error
-		if !errors.As(err, &exp) {
+		if exp, ok := errors.AsType[*url.Error](err); !ok {
 			t.Errorf("expected err type %[1]T, got %[2]T: %[2]v", exp, err)
 		}
 	})

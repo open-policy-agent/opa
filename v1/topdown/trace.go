@@ -894,7 +894,7 @@ func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 
 	w.WriteByte('\n')
 	printArrows(w, byCol, -1)
-	for i := len(byCol) - 1; i >= 0; i-- {
+	for i := range slices.Backward(byCol) {
 		w.WriteByte('\n')
 		printArrows(w, byCol, i)
 	}

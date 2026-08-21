@@ -777,6 +777,6 @@ type loggingPrintHook struct {
 }
 
 func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
-	h.logger.WithFields(map[string]any{"line": pctx.Location.String()}).Info(msg)
+	h.logger.WithFields(map[string]any{"line": pctx.Location.String()}).Info("%s", msg)
 	return nil
 }

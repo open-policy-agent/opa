@@ -788,24 +788,15 @@ func (e *eval) evalWithPush(input, data *ast.Term, functionMocks [][2]*ast.Term,
 		e.data = data
 	}
 
-	if e.comprehensionCache == nil {
-		e.comprehensionCache = newComprehensionCache()
-	}
-
+	e.comprehensionCache = util.Or(e.comprehensionCache, newComprehensionCache)
 	e.comprehensionCache.Push()
 	e.virtualCache.Push()
 
-	if e.targetStack == nil {
-		e.targetStack = newRefStack()
-	}
-
+	e.targetStack = util.Or(e.targetStack, newRefStack)
 	e.targetStack.Push(targets)
 	e.inliningControl.PushDisable(disable, true)
 
-	if e.functionMocks == nil {
-		e.functionMocks = newFunctionMocksStack()
-	}
-
+	e.functionMocks = util.Or(e.functionMocks, newFunctionMocksStack)
 	e.functionMocks.PutPairs(functionMocks)
 
 	return oldInput, oldData, pushedFrame
@@ -1405,16 +1396,13 @@ func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool,
 }
 
 func (e *eval) buildComprehensionCache(a *ast.Term) (*ast.Term, error) {
-
 	index := e.comprehensionIndex(a)
 	if index == nil {
 		e.instr.counterIncr(evalOpComprehensionCacheSkip)
 		return nil, nil
 	}
 
-	if e.comprehensionCache == nil {
-		e.comprehensionCache = newComprehensionCache()
-	}
+	e.comprehensionCache = util.Or(e.comprehensionCache, newComprehensionCache)
 
 	cache, ok := e.comprehensionCache.Elem(a)
 	if !ok {
@@ -3624,9 +3612,10 @@ func (q vcKeyScope) AppendText(buf []byte) ([]byte, error) {
 // reduce removes vars from the tail of the ref.
 func (q vcKeyScope) reduce() vcKeyScope {
 	ref := q.Ref.CopyNonGround()
-	var i int
-	for i = len(q.Ref) - 1; i >= 0; i-- {
-		if _, ok := q.Ref[i].Value.(ast.Var); !ok {
+	i := -1
+	for idx, v := range slices.Backward(q.Ref) {
+		if _, ok := v.Value.(ast.Var); !ok {
+			i = idx
 			break
 		}
 	}
@@ -4080,8 +4069,7 @@ func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 func (e evalTerm) enumerate(iter unifyIterator) error {
 	var deferredEe *deferredEarlyExitError
 	handleErr := func(err error) error {
-		var dee *deferredEarlyExitError
-		if errors.As(err, &dee) {
+		if dee, ok := errors.AsType[*deferredEarlyExitError](err); ok {
 			if deferredEe == nil {
 				deferredEe = dee
 			}
@@ -4991,9 +4979,9 @@ func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
 // tree levels. keys are the ground parameter terms in reference order.
 func wrapExternalParams(keys []*ast.Term, tree *ast.TreeNode) *ast.TreeNode {
 	node := tree
-	for i := len(keys) - 1; i >= 0; i-- {
+	for _, key := range slices.Backward(keys) {
 		node = &ast.TreeNode{
-			Children: map[ast.Value]*ast.TreeNode{keys[i].Value: node},
+			Children: map[ast.Value]*ast.TreeNode{key.Value: node},
 		}
 	}
 	return node

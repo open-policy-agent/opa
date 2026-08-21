@@ -5006,7 +5006,9 @@
     }
   ],
   "future_keywords": [
-    "not"
+    "and",
+    "not",
+    "or"
   ],
   "wasm_abi_versions": [
     {

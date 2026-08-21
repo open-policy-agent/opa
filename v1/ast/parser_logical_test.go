@@ -8,10 +8,8 @@ import (
 )
 
 func logicalParserOpts(extraFuture ...string) ParserOptions {
-	caps := CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
 	fk := append([]string{"and", "or"}, extraFuture...)
 	return ParserOptions{
-		Capabilities:   caps,
 		FutureKeywords: fk,
 	}
 }
@@ -19,7 +17,6 @@ func logicalParserOpts(extraFuture ...string) ParserOptions {
 func logicalParserOptsForVersion(v RegoVersion, extraFuture ...string) ParserOptions {
 	opts := logicalParserOpts(extraFuture...)
 	opts.RegoVersion = v
-	opts.Capabilities = CapabilitiesForThisVersion(CapabilitiesRegoVersion(v), CapabilitiesExperimentalKeywords(true))
 	return opts
 }
 
@@ -457,29 +454,9 @@ func TestParseLogical_RefsContainingAndOr(t *testing.T) {
 	}
 }
 
-func TestParseLogical_NoLeakageOnImport(t *testing.T) {
-	t.Run("import error does not leak keyword names", func(t *testing.T) {
-		opts := ParserOptions{Capabilities: CapabilitiesForThisVersion()}
-		input := `package x
-			import future.keywords.and
-		`
-		_, _, err := ParseStatementsWithOpts("", input, opts)
-		if err == nil {
-			t.Fatal("expected parse error for import of and without experimental caps")
-		}
-		// Error message is of the form "unexpected keyword, must be one of
-		// [...]". The bracketed list must not include `and` or `or`.
-		msg := err.Error()
-		for _, leaked := range []string{"[and ", " and]", " and ", "[or ", " or]", " or "} {
-			if strings.Contains(msg, leaked) {
-				t.Errorf("error leaks internal keyword existence (%q present in %q)", leaked, msg)
-			}
-		}
-	})
-
-	t.Run("import accepted with experimental caps", func(t *testing.T) {
+func TestParseLogical_KeywordImport(t *testing.T) {
+	t.Run("import accepted", func(t *testing.T) {
 		opts := ParserOptions{
-			Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 			FutureKeywords: []string{"and"},
 		}
 		input := `package x
@@ -529,8 +506,7 @@ func TestParseLogical_NoLeakageOnImport(t *testing.T) {
 			},
 		}
 		opts := ParserOptions{
-			RegoVersion:  RegoV1,
-			Capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+			RegoVersion: RegoV1,
 		}
 		for _, tc := range tests {
 			t.Run(tc.note, func(t *testing.T) {
@@ -575,8 +551,7 @@ func TestParseLogical_NoLeakageOnImport(t *testing.T) {
 			},
 		}
 		opts := ParserOptions{
-			RegoVersion:  RegoV1,
-			Capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+			RegoVersion: RegoV1,
 		}
 		for _, tc := range tests {
 			t.Run(tc.note, func(t *testing.T) {
@@ -591,8 +566,6 @@ func TestParseLogical_NoLeakageOnImport(t *testing.T) {
 // TestParseLogical_PartialActivation exercises the case where one of `and` /
 // `or` is enabled in the scanner but the other is not.
 func TestParseLogical_PartialActivation(t *testing.T) {
-	caps := CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
-
 	tests := []struct {
 		note      string
 		enable    []string
@@ -649,7 +622,6 @@ func TestParseLogical_PartialActivation(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			opts := ParserOptions{
-				Capabilities:   caps,
 				FutureKeywords: tc.enable,
 			}
 			body, err := ParseBodyWithOpts(tc.input, opts)
@@ -902,11 +874,7 @@ func TestParseLogical_InnerExprHasLocation(t *testing.T) {
 		}
 	`
 
-	popts := ParserOptions{
-		Capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
-	}
-
-	mod, err := ParseModuleWithOpts("test.rego", module, popts)
+	mod, err := ParseModuleWithOpts("test.rego", module, ParserOptions{})
 	if err != nil {
 		t.Fatalf("unexpected parse error: %v", err)
 	}

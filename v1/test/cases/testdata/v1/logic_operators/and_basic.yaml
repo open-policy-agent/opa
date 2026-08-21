@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/and/basic: both operands true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -14,7 +13,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/and/basic: lhs false"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -26,7 +24,6 @@ cases:
         }
     want_result: []
   - note: "logic_op/and/basic: rhs false"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -38,7 +35,6 @@ cases:
         }
     want_result: []
   - note: "logic_op/and/basic: both false"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -50,7 +46,6 @@ cases:
         }
     want_result: []
   - note: "logic_op/and/basic: both succeed via input"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -66,7 +61,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/and/basic: lhs undefined ref"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -80,7 +74,6 @@ cases:
       "y": 2
     want_result: []
   - note: "logic_op/and/basic: rhs undefined ref"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -94,7 +87,6 @@ cases:
       x: 1
     want_result: []
   - note: "logic_op/and/basic: virtual rule refs on both sides"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -113,7 +105,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/and/basic: virtual rule ref, rhs fails"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -131,7 +122,6 @@ cases:
       "y": 0
     want_result: []
   - note: "logic_op/and/basic: dotted data refs both defined"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -148,7 +138,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/and/basic: indexed data refs"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

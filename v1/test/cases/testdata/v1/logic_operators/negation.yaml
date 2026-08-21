@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/negation: not {x and y}, de Morgan equivalent"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -18,7 +17,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/negation: not {x and y}, both true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -34,7 +32,6 @@ cases:
       "y": true
     want_result: []
   - note: "logic_op/negation: not {x or y}, neither true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -51,7 +48,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/negation: not {x or y}, one true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -67,7 +63,6 @@ cases:
       "y": true
     want_result: []
   - note: "logic_op/negation: not x and not y, inner negation"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -83,7 +78,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/negation: not x or not y, inner negation"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -99,7 +93,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/negation: not {not x or not y}, double negation"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -116,7 +109,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/negation: not {x and not y}, mixed"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

@@ -32,7 +32,7 @@ func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
 		fields = make(map[string]any, 1)
 	}
 	fields["line"] = pctx.Location.String()
-	logging.WithContext(h.logger.WithFields(fields), pctx.Context).Info(msg)
+	logging.WithContext(h.logger.WithFields(fields), pctx.Context).Info("%s", msg)
 	return nil
 }
 

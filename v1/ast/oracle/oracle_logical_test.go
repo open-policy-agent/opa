@@ -15,13 +15,8 @@ import (
 // from the module before parsing, and its byte offset becomes the query position.
 const cursorMarker = "‸"
 
-func experimentalCapabilities() *ast.Capabilities {
-	return ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
-}
-
 func logicalParserOpts() ast.ParserOptions {
 	return ast.ParserOptions{
-		Capabilities:   experimentalCapabilities(),
 		FutureKeywords: []string{"and", "or", "not"},
 	}
 }
@@ -288,7 +283,7 @@ r := 2`,
 		},
 		{
 			note: "keywords activated by future import",
-			opts: &ast.ParserOptions{Capabilities: experimentalCapabilities()},
+			opts: &ast.ParserOptions{},
 			modules: map[string]string{
 				"buffer.rego": `package test
 
@@ -396,22 +391,6 @@ q := 1
 
 r := 2`,
 			exp: errors.New("rego_parse_error"),
-		},
-		{
-			note: "buffer parse error - future import not in capabilities",
-			opts: &ast.ParserOptions{},
-			buffer: `package test
-
-import future.keywords.and
-
-p if {
-	‸q and r
-}
-
-q := 1
-
-r := 2`,
-			exp: errors.New("unexpected keyword, must be one of"),
 		},
 	}
 

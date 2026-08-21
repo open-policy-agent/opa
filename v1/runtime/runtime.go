@@ -453,9 +453,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		consoleLogger = l
 	}
 
-	if params.Router == nil {
-		params.Router = http.NewServeMux()
-	}
+	params.Router = util.Or(params.Router, http.NewServeMux)
 
 	metricsConfig, parseConfigErr := extractMetricsConfig(ctx, config, params)
 	if parseConfigErr != nil {
@@ -539,7 +537,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	// Surface non-fatal config warnings (e.g. unrecognized options).
 	for _, w := range manager.Config.Warnings {
-		logger.Warn(w)
+		logger.Warn("%s", w)
 	}
 
 	if err := manager.Init(ctx); err != nil {
@@ -650,7 +648,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 	rt.logger.WithFields(map[string]any{
 		"addrs":            *rt.Params.Addrs,
 		"diagnostic-addrs": *rt.Params.DiagnosticAddrs,
-	}).Info(serverInitializingMessage)
+	}).Info("%s", serverInitializingMessage)
 
 	if rt.Params.Authorization == server.AuthorizationOff && rt.Params.Authentication == server.AuthenticationToken {
 		rt.logger.Error("Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information.")

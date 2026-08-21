@@ -927,7 +927,6 @@ func TestPlannerLogicalOps(t *testing.T) {
 	}
 
 	parserOpts := ast.ParserOptions{
-		Capabilities:   ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
 		FutureKeywords: []string{"and", "or", "not"},
 	}
 

@@ -93,7 +93,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			if i.onlyGroundRefs {
 				i.onlyGroundRefs = rule.Head.Reference.IsGround()
 			}
-			if !slices.ContainsFunc(rule.Body, skipIndexingOperator) {
+			if !bodySkipsIndexing(rule.Body) {
 				clear(values)
 				for i := range rule.Body {
 					indices.Update(rule, rule.Body[i], values)
@@ -198,8 +198,8 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 		if len(tr.unordered[pos]) == 0 {
 			continue
 		}
-		slices.SortFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
-		nodes := tr.unordered[pos]
+
+		nodes := util.SortedFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
 		root := nodes[0].rule
 
 		result.Rules = append(result.Rules, root)
@@ -1146,4 +1146,42 @@ func stringSliceToArray(s []string) *Array {
 func skipIndexingOperator(expr *Expr) bool {
 	op := expr.OperatorTerm()
 	return op != nil && skipIndexing.Contains(op)
+}
+
+// bodySkipsIndexing reports whether body contains an expression that must not
+// be indexed away, either at the top level or inside a nested body. The nested
+// bodies matter: a rule holding a `print` call inside an `and`, `or`, `not` or
+// `every` body is still a rule whose side effects are lost if the indexer
+// excludes it from evaluation.
+func bodySkipsIndexing(body Body) bool {
+	if slices.ContainsFunc(body, skipIndexingOperator) {
+		return true
+	}
+	for _, expr := range body {
+		if !exprHasNestedBody(expr) {
+			continue
+		}
+		found := false
+		WalkBodies(expr, func(b Body) bool {
+			if !found && slices.ContainsFunc(b, skipIndexingOperator) {
+				found = true
+			}
+			return found
+		})
+		if found {
+			return true
+		}
+	}
+	return false
+}
+
+// exprHasNestedBody is a cheap pre-check for bodySkipsIndexing: only these
+// expression shapes hold a body directly, so only these are worth the cost of
+// a full walk.
+func exprHasNestedBody(expr *Expr) bool {
+	switch expr.Terms.(type) {
+	case *Every, *Not, *LogicalAnd, *LogicalOr:
+		return true
+	}
+	return false
 }

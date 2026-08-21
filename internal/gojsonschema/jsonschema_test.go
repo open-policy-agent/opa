@@ -154,6 +154,13 @@ func TestSuite(t *testing.T) {
 }
 
 func TestFormats(t *testing.T) {
+	// NOTE(sr): Go 1.26 tightened url.Parse to reject ambiguous (unbracketed)
+	// colons in the host of http(s) URLs by default (see the urlstrictcolons
+	// GODEBUG setting, https://go.dev/doc/go1.26#net-url). One of the upstream
+	// JSON-Schema-Test-Suite cases for the (lenient) "iri" format relies on the
+	// old, lenient parsing of a bracketless IPv6 host, so restore it here.
+	t.Setenv("GODEBUG", "urlstrictcolons=0")
+
 	wd, err := os.Getwd()
 	if err != nil {
 		panic(err.Error())

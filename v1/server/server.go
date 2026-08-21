@@ -944,8 +944,8 @@ func (s *Server) initRouters(ctx context.Context) {
 func createMiddleware(mw ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(hnd http.Handler) http.Handler {
 		next := hnd
-		for k := len(mw) - 1; k >= 0; k-- {
-			next = mw[k](next)
+		for _, m := range slices.Backward(mw) {
+			next = m(next)
 		}
 		return next
 	}

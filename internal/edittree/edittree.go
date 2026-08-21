@@ -168,6 +168,7 @@ package edittree
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/edittree/bitvector"
@@ -435,16 +436,16 @@ func (e *EditTree) unsafeInsertArray(idx int, value *ast.Term) *EditTree {
 		}
 	}
 	// Do rewrites in reverse order to make room for the newly-inserted element.
-	for i := len(rewritesScalars) - 1; i >= 0; i-- {
-		originalIdx := rewritesScalars[i]
-		rewriteIdx := rewritesScalars[i] + 1
+	for _, originalIdx := range slices.Backward(rewritesScalars) {
+
+		rewriteIdx := originalIdx + 1
 		v := e.childScalarValues[originalIdx]
 		e.deleteChildValue(originalIdx)
 		e.setChildScalarValue(rewriteIdx, v)
 	}
-	for i := len(rewritesComposites) - 1; i >= 0; i-- {
-		originalIdx := rewritesComposites[i]
-		rewriteIdx := rewritesComposites[i] + 1
+	for _, originalIdx := range slices.Backward(rewritesComposites) {
+
+		rewriteIdx := originalIdx + 1
 		v := e.childCompositeValues[originalIdx]
 		e.deleteChildValue(originalIdx)
 		e.setChildCompositeValue(rewriteIdx, v)

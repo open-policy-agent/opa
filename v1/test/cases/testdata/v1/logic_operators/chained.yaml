@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/chained: a and b and c, all true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -18,7 +17,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/chained: a and b and c, middle false"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -34,7 +32,6 @@ cases:
       c: true
     want_result: []
   - note: "logic_op/chained: a or b or c, only middle true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -51,7 +48,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/chained: a or b or c, all false"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -67,7 +63,6 @@ cases:
       c: false
     want_result: []
   - note: "logic_op/chained: a and b or c and d, right side wins"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -87,7 +82,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/chained: a or b and c or d, b-and-c is the only true conjunct"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -107,7 +101,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/chained: deeply nested explicit bodies"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

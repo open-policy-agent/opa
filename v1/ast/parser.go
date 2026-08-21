@@ -513,7 +513,7 @@ func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 }
 
 func parseAnnotations(comments []*Comment) (stmts []*Annotations, errs Errors) {
-	numBlocks := CountFunc(comments, IsMetadataComment)
+	numBlocks := util.Count(IsMetadataComment, comments...)
 	if numBlocks == 0 {
 		return nil, nil
 	}
@@ -3893,11 +3893,8 @@ var allFutureKeywords map[string]tokens.Token
 // experimentalFutureKeywords are future keywords that exist in the parser but are
 // intentionally hidden from the default capabilities advertisement.
 // They are only activated when a policy imports them AND the active
-// capabilities explicitly list them.
-var experimentalFutureKeywords = map[string]struct{}{
-	"and": {},
-	"or":  {},
-}
+// capabilities explicitly list them. There are currently none.
+var experimentalFutureKeywords = map[string]struct{}{}
 
 var allFutureKeywordTokens map[tokens.Token]struct{}
 

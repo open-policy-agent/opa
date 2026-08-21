@@ -22,12 +22,12 @@ type textAppenderValue struct {
 	err  error
 }
 
-func (textAppenderValue) Compare(Value) int             { return 0 }
-func (textAppenderValue) Find(Ref) (Value, error)       { return nil, nil }
-func (textAppenderValue) Hash() int                     { return 0 }
-func (textAppenderValue) IsGround() bool                { return true }
-func (v textAppenderValue) String() string              { return v.text }
-func (v textAppenderValue) StringLength() int           { return len(v.text) }
+func (textAppenderValue) Compare(Value) int       { return 0 }
+func (textAppenderValue) Find(Ref) (Value, error) { return nil, nil }
+func (textAppenderValue) Hash() int               { return 0 }
+func (textAppenderValue) IsGround() bool          { return true }
+func (v textAppenderValue) String() string        { return v.text }
+func (v textAppenderValue) StringLength() int     { return len(v.text) }
 
 func (v textAppenderValue) AppendText(buf []byte) ([]byte, error) {
 	if v.err != nil {
