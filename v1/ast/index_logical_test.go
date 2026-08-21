@@ -10,10 +10,8 @@ import (
 )
 
 func TestBaseDocEqIndexingLogical(t *testing.T) {
-	opts := ParserOptions{
-		Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
-		FutureKeywords: []string{"and", "or", "not"},
-	}
+	// `not` for the `not (...)` operand form, which is still gated on the import.
+	opts := ParserOptions{FutureKeywords: []string{"and", "or", "not"}}
 
 	tests := []struct {
 		note     string
@@ -50,12 +48,31 @@ func TestBaseDocEqIndexingLogical(t *testing.T) {
 			expected: []int{2},
 		},
 		{
+			note: "and: contradicting operands",
+			module: `package test
+			p if input.x = 1 and input.x = 2	# 0
+			p if input.x = 1					# 1
+			p if input.x = 2					# 2`,
+			// Rule 0 can never be defined, but the index only widens input.x to
+			// either value; evaluation is what rules it out.
+			input:    `{"x": 1}`,
+			expected: []int{0, 1},
+		},
+		{
 			note: "and chain",
 			module: `package test
 			p if input.x = 1 and input.y = 2 and input.z = 3	# 0
 			p if input.x = 1									# 1`,
 			input:    `{"x": 1, "y": 2, "z": 9}`,
 			expected: []int{1},
+		},
+		{
+			note: "and chain, all operands match",
+			module: `package test
+			p if input.x = 1 and input.y = 2 and input.z = 3	# 0
+			p if input.x = 1									# 1`,
+			input:    `{"x": 1, "y": 2, "z": 3}`,
+			expected: []int{0, 1},
 		},
 		{
 			note: "and: alongside sequential expressions",
@@ -69,12 +86,31 @@ func TestBaseDocEqIndexingLogical(t *testing.T) {
 			expected: []int{1},
 		},
 		{
+			note: "and: alongside sequential expressions, all match",
+			module: `package test
+			p if {
+				input.a = 1
+				input.b = 2 and input.c = 3	# 0
+			}
+			p if input.a = 1				# 1`,
+			input:    `{"a": 1, "b": 2, "c": 3}`,
+			expected: []int{0, 1},
+		},
+		{
 			note: "and: explicit body operands",
 			module: `package test
 			p if {input.a = 1; input.b = 2} and input.c = 3	# 0
 			p if input.a = 1								# 1`,
 			input:    `{"a": 1, "b": 9, "c": 3}`,
 			expected: []int{1},
+		},
+		{
+			note: "and: explicit body operands, all match",
+			module: `package test
+			p if {input.a = 1; input.b = 2} and input.c = 3	# 0
+			p if input.a = 1								# 1`,
+			input:    `{"a": 1, "b": 2, "c": 3}`,
+			expected: []int{0, 1},
 		},
 		{
 			note: "and: operand with membership",
@@ -101,6 +137,14 @@ func TestBaseDocEqIndexingLogical(t *testing.T) {
 			expected: []int{1},
 		},
 		{
+			note: "and: operand with glob.match, pattern matches",
+			module: `package test
+			p if {__local0__ = input.x; glob.match("foo:*", [":"], __local0__)} and input.y = 3	# 0
+			p if input.y = 3																	# 1`,
+			input:    `{"x": "foo:baz", "y": 3}`,
+			expected: []int{0, 1},
+		},
+		{
 			note: "and: non-indexable operand doesn't affect the other",
 			module: `package test
 			p if input.x = 1 and count(input.y) = 3	# 0
@@ -117,11 +161,40 @@ func TestBaseDocEqIndexingLogical(t *testing.T) {
 			expected: []int{1},
 		},
 		{
+			note: "and: each operand has its own scope for constants, both match",
+			module: `package test
+			p if {v = 1; input.a = v} and {v = 2; input.b = v}	# 0
+			p if input.a = 1									# 1`,
+			input:    `{"a": 1, "b": 2}`,
+			expected: []int{0, 1},
+		},
+		{
+			note: "and: a var bound to a ref doesn't resolve in the sibling operand",
+			module: `package test
+			p if {input.b = x} and {x = 1}	# 0
+			p if input.b = 1				# 1`,
+			// The two x are different vars, so all the index can require of
+			// input.b is that it is defined -- not that it is 1.
+			input:    `{"b": 5}`,
+			expected: []int{0},
+		},
+		{
 			note: "and: negated operand",
 			module: `package test
 			p if not input.x = 1 and input.y = 2	# 0
 			p if input.y = 9						# 1`,
 			input:    `{"x": 5, "y": 2}`,
+			expected: []int{0},
+		},
+
+		{
+			note: "and: whole expression negated",
+			module: `package test
+			p if not (input.x = 1 and input.y = 2)	# 0
+			p if input.x = 9						# 1`,
+			// Nothing is indexed for a negated expression: the rule is defined
+			// for the inputs its operands reject.
+			input:    `{"x": 1, "y": 2}`,
 			expected: []int{0},
 		},
 
@@ -159,7 +232,7 @@ func TestBaseDocEqIndexingLogical(t *testing.T) {
 			expected: []int{},
 		},
 		{
-			note: "or: distinct refs are not indexed",
+			note: "or: distinct refs are not indexed, rhs satisfied",
 			module: `package test
 			p if input.x = 1 or input.y = 2	# 0
 			p if input.x = 9				# 1`,
