@@ -6701,8 +6701,7 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs, strict)
 		case body[i].IsEvery():
 			expr, errs = rewriteEveryStatement(g, stack, body[i], errs, strict)
-		case body[i].IsNot() && body[i].Terms.(*Not).ExplicitBody:
-			// Only explicit not bodies are allowed to declare vars
+		case body[i].IsNot():
 			expr, errs = rewriteNotStatement(g, stack, body[i], errs, strict)
 		case body[i].IsAnd() || body[i].IsOr():
 			expr, errs = rewriteLogicalStatement(g, stack, body[i], errs, strict)
@@ -6945,7 +6944,23 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 	return nil, errs
 }
 
+const (
+	errAssignInNegated    = "cannot assign vars inside negated expression"
+	errAssignInAndOperand = "cannot assign vars inside implicit and operand"
+	errAssignInOrOperand  = "cannot assign vars inside implicit or operand"
+)
+
 func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
+	if not := expr.Terms.(*Not); !not.ExplicitBody {
+		// Only explicit not bodies are allowed to declare vars.
+		numErrsBefore := len(errs)
+		errs = rewriteDeclaredVarsInImplicitBody(g, stack, not.Body, errAssignInNegated, errs, strict)
+		if len(errs) > numErrsBefore {
+			return expr, errs
+		}
+		return rewriteDeclaredVarsInExpr(g, stack, expr, errs, strict)
+	}
+
 	e := expr.Copy()
 	not := e.Terms.(*Not)
 
@@ -6961,24 +6976,31 @@ func rewriteNotStatement(g *localVarGenerator, stack *localDeclaredVars, expr *E
 func rewriteLogicalStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
 	e := expr.Copy()
 
+	numErrsBefore := len(errs)
+
 	switch t := e.Terms.(type) {
 	case *LogicalAnd:
-		if t.ExplicitLhs {
-			t.Lhs, errs = rewriteLogicalOperandBody(g, stack, t.Lhs, errs, strict)
-		}
-		if t.ExplicitRhs {
-			t.Rhs, errs = rewriteLogicalOperandBody(g, stack, t.Rhs, errs, strict)
-		}
+		t.Lhs, errs = rewriteLogicalOperand(g, stack, t.Lhs, t.ExplicitLhs, errAssignInAndOperand, errs, strict)
+		t.Rhs, errs = rewriteLogicalOperand(g, stack, t.Rhs, t.ExplicitRhs, errAssignInAndOperand, errs, strict)
 	case *LogicalOr:
-		if t.ExplicitLhs {
-			t.Lhs, errs = rewriteLogicalOperandBody(g, stack, t.Lhs, errs, strict)
-		}
-		if t.ExplicitRhs {
-			t.Rhs, errs = rewriteLogicalOperandBody(g, stack, t.Rhs, errs, strict)
-		}
+		t.Lhs, errs = rewriteLogicalOperand(g, stack, t.Lhs, t.ExplicitLhs, errAssignInOrOperand, errs, strict)
+		t.Rhs, errs = rewriteLogicalOperand(g, stack, t.Rhs, t.ExplicitRhs, errAssignInOrOperand, errs, strict)
+	}
+
+	if len(errs) > numErrsBefore {
+		return e, errs
 	}
 
 	return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
+}
+
+func rewriteLogicalOperand(g *localVarGenerator, stack *localDeclaredVars, body Body, explicit bool, errMsg string, errs Errors, strict bool) (Body, Errors) {
+	if explicit {
+		return rewriteLogicalOperandBody(g, stack, body, errs, strict)
+	}
+
+	// Only explicit operand bodies are allowed to declare vars.
+	return body, rewriteDeclaredVarsInImplicitBody(g, stack, body, errMsg, errs, strict)
 }
 
 func rewriteLogicalOperandBody(g *localVarGenerator, stack *localDeclaredVars, body Body, errs Errors, strict bool) (Body, Errors) {
@@ -6987,6 +7009,24 @@ func rewriteLogicalOperandBody(g *localVarGenerator, stack *localDeclaredVars, b
 
 	used := NewVarSet()
 	return rewriteDeclaredVarsInBody(g, stack, used, body, errs, strict)
+}
+
+// rewriteDeclaredVarsInImplicitBody rejects assignments made directly in an implicit
+// and/or operand or not body. These contribute no bindings to the enclosing body,
+// so the assignment is dead code. Only assignments need rejecting, as the parser
+// doesn't allow some/every in an implicit body.
+func rewriteDeclaredVarsInImplicitBody(g *localVarGenerator, stack *localDeclaredVars, body Body, errMsg string, errs Errors, strict bool) Errors {
+	for i := range body {
+		switch {
+		case body[i].IsAssignment():
+			errs = append(errs, newErrorString(CompileErr, body[i].Loc(), errMsg))
+		case body[i].IsNot():
+			body[i], errs = rewriteNotStatement(g, stack, body[i], errs, strict)
+		case body[i].IsAnd(), body[i].IsOr():
+			body[i], errs = rewriteLogicalStatement(g, stack, body[i], errs, strict)
+		}
+	}
+	return errs
 }
 
 func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
@@ -7008,7 +7048,7 @@ func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, e
 func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
 
 	if expr.Negated {
-		errs = append(errs, NewError(CompileErr, expr.Location, "cannot assign vars inside negated expression"))
+		errs = append(errs, newErrorString(CompileErr, expr.Location, errAssignInNegated))
 		return expr, errs
 	}
 

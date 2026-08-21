@@ -116,6 +116,13 @@ func TestTopDownLogicalAnd(t *testing.T) {
 					{x := 1; x > 0} and {x := 2; x > 1}
 				}`,
 		},
+		{
+			note: "chained explicit body operands",
+			module: `package test
+				p if {
+					{x := 1; x > 0} and true and {y := 2; y > 0}
+				}`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -187,6 +194,13 @@ func TestTopDownLogicalOr(t *testing.T) {
 			module: `package test
 				p if {
 					{x := 0; x > 0} or {y := 2; y > 0}
+				}`,
+		},
+		{
+			note: "chained explicit body operands",
+			module: `package test
+				p if {
+					{x := 0; x > 0} or false or {y := 2; y > 0}
 				}`,
 		},
 	}
@@ -418,6 +432,62 @@ func runTouchCase(t *testing.T, label, module string, wantTouch int) {
 
 	if t.Failed() || testing.Verbose() {
 		PrettyTrace(os.Stderr, *tr)
+	}
+}
+
+func TestTopDownLogicalImplicitOperandAssignment(t *testing.T) {
+	// Regression test
+
+	t.Parallel()
+
+	tests := []struct {
+		note   string
+		module string
+		expErr string
+	}{
+		{
+			note: "and, implicit operand",
+			module: `package test
+				p if {
+					input.a and x := input.b
+					x == 1
+				}`,
+			expErr: "cannot assign vars inside implicit and operand",
+		},
+		{
+			note: "or, implicit operand",
+			module: `package test
+				p if {
+					input.a or x := input.b
+					x == 1
+				}`,
+			expErr: "cannot assign vars inside implicit or operand",
+		},
+		{
+			note: "not, implicit body",
+			module: `package test
+				import future.keywords.not
+				p if {
+					not x := input.b
+					x == 1
+				}`,
+			expErr: "cannot assign vars inside negated expression",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			c := ast.NewCompiler()
+			c.Compile(map[string]*ast.Module{"test": ast.MustParseModuleWithOpts(tc.module, logicalParserOptions())})
+			if !c.Failed() {
+				t.Fatalf("expected compile error, got module: %v", c.Modules["test"])
+			}
+			if !strings.Contains(c.Errors.Error(), tc.expErr) {
+				t.Fatalf("expected error containing %q, got: %v", tc.expErr, c.Errors)
+			}
+		})
 	}
 }
 

@@ -120,3 +120,35 @@ cases:
       f: true
     want_result:
       - x: true
+  - note: "logic_op/chained: explicit bodies with locals at both ends of and-chain"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.and
+
+        p if {
+          { a := input.a; a > 0 } and input.b and { c := input.c; c > 0 }
+        }
+    input:
+      a: 1
+      b: true
+      c: 2
+    want_result:
+      - x: true
+  - note: "logic_op/chained: explicit bodies with locals at both ends of or-chain"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        import future.keywords.or
+
+        p if {
+          { a := input.a; a > 0 } or input.b or { c := input.c; c > 0 }
+        }
+    input:
+      a: 0
+      b: false
+      c: 2
+    want_result:
+      - x: true
