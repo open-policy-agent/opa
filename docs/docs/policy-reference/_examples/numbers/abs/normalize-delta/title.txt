@@ -1,1 +1,1 @@
-Normalize a signed delta with abs
+Enforce measurement tolerance with abs

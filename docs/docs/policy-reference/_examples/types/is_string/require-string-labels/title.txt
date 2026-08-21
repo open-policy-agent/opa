@@ -1,1 +1,1 @@
-Require string-typed labels with is_string
+Validate resource annotations with is_string

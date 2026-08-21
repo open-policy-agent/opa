@@ -1,5 +1,4 @@
 {
-  "requested": 20,
-  "min_allowed": 2,
-  "max_allowed": 10
+  "service": "checkout",
+  "requested_replicas": 20
 }

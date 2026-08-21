@@ -1,6 +1,10 @@
 {
-  "labels": {
-    "app": "checkout",
-    "owner": "payments"
+  "kind": "Pod",
+  "metadata": {
+    "name": "checkout-service",
+    "annotations": {
+      "team": "web",
+      "public-egress": true
+    }
   }
 }
