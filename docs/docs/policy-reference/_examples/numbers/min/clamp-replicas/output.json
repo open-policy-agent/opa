@@ -1,3 +1,5 @@
 {
-  "clamped": 10
+  "effective_replicas": 10,
+  "max_replicas": 10,
+  "min_replicas": 2
 }

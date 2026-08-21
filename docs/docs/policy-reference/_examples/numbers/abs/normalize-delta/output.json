@@ -1,4 +1,5 @@
 {
   "delta": -3,
+  "tolerance": 5,
   "within_tolerance": true
 }

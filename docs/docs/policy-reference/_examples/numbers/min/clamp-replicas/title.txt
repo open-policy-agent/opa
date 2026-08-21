@@ -1,1 +1,1 @@
-Clamp a replica count with min and max
+Clamp replica limits with min and max
