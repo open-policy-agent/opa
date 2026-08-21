@@ -25,6 +25,10 @@
                      :date    (get-in commit [:author :date])}]))
         commits-raw))
 
+(def commits-ordered
+  "All known commits on main, oldest first. The GitHub API returns newest-first."
+  (->> commits-raw (map :sha) reverse vec))
+
 (def tags-raw
   (github-fetch "tags?per_page=100"))
 
