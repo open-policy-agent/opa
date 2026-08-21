@@ -532,21 +532,71 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 		}
 	}
 
-	addRef := func(t *Term) error {
-		i.insert(rule, &refindex{Ref: ref, Value: t.Value})
+	switch rval.(type) {
+	case *Array, Set, Object:
+		i.insertCollection(rule, ref, rval)
+	}
+}
+
+// insertCollection records every value in collection as an alternative value
+// for ref: `x in <collection>` matches if any one of them matches.
+//
+// Only the "any" entries are reconciled up front, and the values themselves are
+// appended without the per-value scan insert does. Inserting them one by one
+// costs a scan over everything recorded for the rule so far -- which, for a
+// collection, is dominated by the values already appended, making the whole
+// thing quadratic in the collection's size. The scan only buys duplicate
+// suppression, and a duplicate value here is harmless: it appends a second,
+// identically prioritized rule node to the same trie child, which the traversal
+// already folds together.
+func (i *refindices) insertCollection(rule *Rule, ref Ref, collection Value) {
+	n := collectionLen(collection)
+	if n == 0 {
+		// `x in []` never holds, but the index records constraints, not
+		// contradictions: leave the rule to its other expressions.
+		return
+	}
+
+	// A value from the collection supersedes the "any" entry that the
+	// expression binding the value recorded for the same ref, exactly like a
+	// scalar does in insert.
+	i.rules[rule] = slices.DeleteFunc(i.rules[rule], func(other *refindex) bool {
+		return other.isVar() && other.Ref.Equal(ref)
+	})
+
+	entries := make([]*refindex, 0, n)
+	appendValue := func(t *Term) error {
+		entries = append(entries, &refindex{Ref: ref, Value: t.Value})
 		return nil
 	}
 
-	switch rcol := rval.(type) {
+	switch coll := collection.(type) {
 	case *Array:
-		_ = rcol.Iter(addRef)
+		_ = coll.Iter(appendValue)
 	case Set:
-		_ = rcol.Iter(addRef)
+		_ = coll.Iter(appendValue)
 	case Object:
-		_ = rcol.Iter(func(_, v *Term) error {
-			return addRef(v)
+		_ = coll.Iter(func(_, v *Term) error {
+			return appendValue(v)
 		})
 	}
+
+	i.rules[rule] = append(i.rules[rule], entries...)
+
+	count, _ := i.frequency.Get(ref)
+	i.frequency.Put(ref, count+len(entries))
+}
+
+func collectionLen(collection Value) int {
+	switch coll := collection.(type) {
+	case *Array:
+		return coll.Len()
+	case Set:
+		return coll.Len()
+	case Object:
+		return coll.Len()
+	}
+	return 0
 }
 
 func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term) Ref {

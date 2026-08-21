@@ -895,6 +895,34 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
+			note: "internal.member_2: duplicate values in rhs array match once",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, ["admin", "admin"])
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, ["admin", "admin"]) }`,
+			},
+		},
+		{
+			// Every "any" entry for the ref is superseded, not just the first
+			// one, so a second local bound to the same ref doesn't weaken the
+			// membership constraint.
+			note: "internal.member_2: two locals bound to the same ref (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`),
+			ruleset:    "p",
+			input:      `{"role": "guest"}`,
+			expectedRS: []string{},
+		},
+		{
 			note: "internal.member_2: unknown value triggers traverseUnknown (duplicate prevention)",
 			module: module(`package test
 			p if {
