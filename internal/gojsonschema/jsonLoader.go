@@ -209,6 +209,9 @@ func (l *jsonReferenceLoader) LoadJSON() (any, error) {
 	refToURL.GetUrl().Fragment = ""
 
 	if reference.HasFileScheme {
+		if l.limits.allowNet != nil {
+			return nil, fmt.Errorf("remote reference loading disabled: %s", reference.String())
+		}
 
 		filename := strings.TrimPrefix(refToURL.String(), "file://")
 		filename, err = url.QueryUnescape(filename)
