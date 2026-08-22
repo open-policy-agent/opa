@@ -5,7 +5,6 @@
 package config
 
 import (
-	"context"
 	"reflect"
 	"slices"
 	"strings"
@@ -117,7 +116,7 @@ func TestCoreValidationRootSpecMatchesConfigStruct(t *testing.T) {
 func rootSpecKeys(t *testing.T) map[string]struct{} {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler, err := compileValidationPolicy()
 	if err != nil {
 		t.Fatalf("compile: %v", err)
