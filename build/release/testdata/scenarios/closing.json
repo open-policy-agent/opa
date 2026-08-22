@@ -1,0 +1,49 @@
+{
+  "1201": [
+    {
+      "Number": 101,
+      "ReporterLogin": "bob",
+      "URL": "https://github.com/example/example/issues/101"
+    }
+  ],
+  "1202": [
+    {
+      "Number": 102,
+      "ReporterLogin": "carol",
+      "URL": "https://github.com/example/example/issues/102"
+    }
+  ],
+  "1203": [],
+  "1204": [
+    {
+      "Number": 105,
+      "ReporterLogin": "frank",
+      "URL": "https://github.com/example/example/issues/105"
+    },
+    {
+      "Number": 104,
+      "ReporterLogin": "bob",
+      "URL": "https://github.com/example/example/issues/104"
+    }
+  ],
+  "1205": [
+    {
+      "Number": 106,
+      "ReporterLogin": "alice",
+      "URL": "https://github.com/example/example/issues/106"
+    }
+  ],
+  "1209": [],
+  "1210": [],
+  "1211": [],
+  "1212": [],
+  "1213": [],
+  "1214": [],
+  "1215": [],
+  "1216": [],
+  "1217": [],
+  "1218": [],
+  "1219": [],
+  "1220": [],
+  "1221": []
+}

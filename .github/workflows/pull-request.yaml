@@ -238,6 +238,21 @@ jobs:
       run: make check
       timeout-minutes: 30
 
+  release-tool:
+    name: Release Tool
+    runs-on: ubuntu-24.04
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.go == 'true' }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+
+    - name: Vet, Test and Lint build/release
+      run: make check-release-tool
+      timeout-minutes: 10
+
   yaml-lint:
     name: YAML Lint
     runs-on: ubuntu-24.04
@@ -688,6 +703,7 @@ jobs:
       go-build,
       go-test,
       go-lint,
+      release-tool,
       yaml-lint,
       gh-actions-lint,
       proto-check,
