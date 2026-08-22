@@ -1,0 +1,4 @@
+{
+  "service": "checkout",
+  "requested_replicas": 20
+}
