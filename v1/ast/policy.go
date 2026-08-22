@@ -1299,7 +1299,11 @@ func (expr *Expr) Operator() Ref {
 	if op == nil {
 		return nil
 	}
-	return op.Value.(Ref)
+	ref, ok := op.Value.(Ref)
+	if !ok {
+		return nil
+	}
+	return ref
 }
 
 // OperatorTerm returns the name of the function or built-in this expression
