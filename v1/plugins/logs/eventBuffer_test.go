@@ -6,7 +6,6 @@ package logs
 
 import (
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -180,7 +179,7 @@ func TestStopEventBufferLoop(t *testing.T) {
 			}
 			e = newEventBuffer(100, 100, rest.Client{}, uploadPath, tc.bufferType).WithLogger(logging.NewNoOpLogger())
 			e.Push(newTestEvent(t, strconv.Itoa(100), false))
-			if err := e.Upload(context.Background()); err != nil {
+			if err := e.Upload(t.Context()); err != nil {
 				t.Fatal(err)
 			}
 			e.Stop(t.Context())

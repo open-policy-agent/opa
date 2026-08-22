@@ -104,6 +104,10 @@ linters:
           "-QF1003",
           "-QF1008",
         ]
+    usetesting:
+      os-temp-dir: true
+      context-background: true
+      context-todo: true
   exclusions:
     warn-unused: true
     generated: lax

@@ -4140,7 +4140,7 @@ func TestServicePluginInitialization(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = disco.Start(context.Background())
+	err = disco.Start(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -143,7 +143,7 @@ func TestExternalSourceResolverDistinguishesAbsentFromUnknown(t *testing.T) {
 	t.Run("opted-in source tells absent from unknown", func(t *testing.T) {
 		idx := &resolverCapturingIndex{distinguish: true, got: map[string]resolveResult{}}
 		ei := &ExternalIndex{Index: idx, Ref: prefix}
-		if _, _, err := ei.Tree(context.Background(), rt, prefix, nil, resolver, nil, nil, nil); err != nil {
+		if _, _, err := ei.Tree(t.Context(), rt, prefix, nil, resolver, nil, nil, nil); err != nil {
 			t.Fatal(err)
 		}
 		if got := idx.got["input.foo"]; !got.unknown {
@@ -160,7 +160,7 @@ func TestExternalSourceResolverDistinguishesAbsentFromUnknown(t *testing.T) {
 	t.Run("default collapses absent into unknown", func(t *testing.T) {
 		idx := &resolverCapturingIndex{distinguish: false, got: map[string]resolveResult{}}
 		ei := &ExternalIndex{Index: idx, Ref: prefix}
-		if _, _, err := ei.Tree(context.Background(), rt, prefix, nil, resolver, nil, nil, nil); err != nil {
+		if _, _, err := ei.Tree(t.Context(), rt, prefix, nil, resolver, nil, nil, nil); err != nil {
 			t.Fatal(err)
 		}
 		if got := idx.got["input.foo"]; !got.unknown {
@@ -177,7 +177,7 @@ func TestExternalSourceResolverDistinguishesAbsentFromUnknown(t *testing.T) {
 	t.Run("nil resolver is treated as all-unknown", func(t *testing.T) {
 		idx := &resolverCapturingIndex{distinguish: true, got: map[string]resolveResult{}}
 		ei := &ExternalIndex{Index: idx, Ref: prefix}
-		if _, _, err := ei.Tree(context.Background(), rt, prefix, nil, nil, nil, nil, nil); err != nil {
+		if _, _, err := ei.Tree(t.Context(), rt, prefix, nil, nil, nil, nil, nil); err != nil {
 			t.Fatal(err)
 		}
 		for _, ref := range []string{"input.foo", "input.bar", "input.baz"} {

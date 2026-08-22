@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -23,8 +22,6 @@ func BenchmarkEnumerateComprehensions(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("size_%d", size), func(b *testing.B) {
-			ctx := context.Background()
-
 			// Generate mock dataset with nested objects
 			data := generateNestedDataset(size)
 			store := inmem.NewFromObject(data)
@@ -91,13 +88,13 @@ user_lookup[id] := user if {
 			b.ResetTimer()
 
 			for b.Loop() {
-				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				err := storage.Txn(b.Context(), store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 					q := NewQuery(query).
 						WithCompiler(compiler).
 						WithStore(store).
 						WithTransaction(txn)
 
-					_, err := q.Run(ctx)
+					_, err := q.Run(b.Context())
 					return err
 				})
 
@@ -179,8 +176,6 @@ func generateNestedDataset(size int) map[string]any {
 // BenchmarkEnumerateRandomAccess benchmarks random access patterns
 // that exercise virtual document enumeration
 func BenchmarkEnumerateRandomAccess(b *testing.B) {
-	ctx := context.Background()
-
 	data := generateNestedDataset(10000)
 	store := inmem.NewFromObject(data)
 
@@ -219,13 +214,13 @@ premium_by_dept[dept] := users if {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		err := storage.Txn(b.Context(), store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 			q := NewQuery(query).
 				WithCompiler(compiler).
 				WithStore(store).
 				WithTransaction(txn)
 
-			_, err := q.Run(ctx)
+			_, err := q.Run(b.Context())
 			return err
 		})
 

@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -80,10 +79,7 @@ result := {x: z | x := arr[_]; y := x * 2; z := y + 1}`,
 			}
 
 			store := inmem.New()
-			ctx := context.Background()
-
-			b.ReportAllocs()
-			b.ResetTimer()
+			ctx := b.Context()
 
 			for b.Loop() {
 				q := NewQuery(ast.MustParseBody(tc.query)).
@@ -143,18 +139,13 @@ result := [z | x := arr[_]; y := [a | a := arr[_]; a > x][_]; z := x + y]`,
 			}
 
 			store := inmem.New()
-			ctx := context.Background()
-
-			b.ReportAllocs()
-			b.ResetTimer()
 
 			for b.Loop() {
 				q := NewQuery(ast.MustParseBody(tc.query)).
 					WithCompiler(compiler).
 					WithStore(store)
 
-				_, err := q.Run(ctx)
-				if err != nil {
+				if _, err := q.Run(b.Context()); err != nil {
 					b.Fatalf("Query failed: %v", err)
 				}
 			}
