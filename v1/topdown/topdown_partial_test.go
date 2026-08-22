@@ -4824,6 +4824,95 @@ q if { input.x = 7 }`},
 				`x1 = input.y[c1]; x1.z = 1 and {__local0__1 = x1.z; neq(__local0__1, 2)}`,
 			},
 		},
+		{
+			note:  "alias index: alias source known",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package alias
+
+				path := input.path`,
+				`package test
+
+				import data.alias.path
+
+				p if path == ["a"]
+				p if path == ["b"]
+				p if path == ["c"]`,
+			},
+			unknowns:    []string{`data.other`},
+			input:       `{"path": ["b"]}`,
+			wantQueries: []string{``},
+		},
+		{
+			note:  "alias index: alias source unknown",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package alias
+
+				path := input.path`,
+				`package test
+
+				import data.alias.path
+
+				p if path == ["a"]
+				p if path == ["b"]
+				p if path == ["c"]`,
+			},
+			unknowns: []string{`data.alias`},
+			input:    `{"path": ["b"]}`,
+			wantQueries: []string{
+				`data.alias.path = ["a"]`,
+				`data.alias.path = ["b"]`,
+				`data.alias.path = ["c"]`,
+			},
+		},
+		{
+			note:  "alias index: alias source unknown by exact ref",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package alias
+
+				path := input.path`,
+				`package test
+
+				import data.alias.path
+
+				p if path == ["a"]
+				p if path == ["b"]
+				p if path == ["c"]`,
+			},
+			unknowns: []string{`data.alias.path`},
+			input:    `{"path": ["b"]}`,
+			wantQueries: []string{
+				`data.alias.path = ["a"]`,
+				`data.alias.path = ["b"]`,
+				`data.alias.path = ["c"]`,
+			},
+		},
+		{
+			note:  "alias index: intermediate alias source unknown",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package alias
+
+				req := input.attributes
+				method := req.method`,
+				`package test
+
+				import data.alias.method
+
+				p if method == "GET"
+				p if method == "PUT"
+				p if method == "POST"`,
+			},
+			unknowns: []string{`data.alias.req`},
+			input:    `{"attributes": {"method": "GET"}}`,
+			wantQueries: []string{
+				`"GET" = data.alias.req.method`,
+				`"PUT" = data.alias.req.method`,
+				`"POST" = data.alias.req.method`,
+			},
+		},
 	}
 
 	ctx := t.Context()

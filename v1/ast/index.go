@@ -49,10 +49,12 @@ type (
 	}
 	baseDocEqIndex struct {
 		isVirtual      func(Ref) bool
+		resolveAlias   func(Ref) (Ref, []Ref)
 		root           *trieNode
 		defaultRule    *Rule
 		kind           RuleKind
 		onlyGroundRefs bool
+		aliasSources   []Ref
 	}
 )
 
@@ -66,9 +68,15 @@ func (ir *IndexResult) Empty() bool {
 	return len(ir.Rules) == 0 && ir.Default == nil
 }
 
-func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
+func newBaseDocEqIndex(isVirtual func(Ref) bool, resolveAliases ...func(Ref) (Ref, []Ref)) *baseDocEqIndex {
+	var resolveAlias func(Ref) (Ref, []Ref)
+	if len(resolveAliases) > 0 {
+		resolveAlias = resolveAliases[0]
+	}
+
 	return &baseDocEqIndex{
 		isVirtual:      isVirtual,
+		resolveAlias:   resolveAlias,
 		root:           newTrieNodeImpl(),
 		onlyGroundRefs: true,
 	}
@@ -81,6 +89,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 
 	i.kind = rules[0].Head.RuleKind()
 	indices := newrefindices(i.isVirtual)
+	indices.resolveAlias = i.resolveAlias
 	values := make(map[Var]Value)
 
 	// build indices for each rule.
@@ -102,6 +111,8 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			return false
 		})
 	}
+
+	i.aliasSources = indices.aliasSources
 
 	// build trie out of indices.
 	for idx := range rules {
@@ -156,6 +167,10 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 		})
 	}
 	return true
+}
+
+func (i *baseDocEqIndex) AliasSources() []Ref {
+	return i.aliasSources
 }
 
 func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
@@ -298,10 +313,12 @@ type refindex struct {
 }
 
 type refindices struct {
-	isVirtual func(Ref) bool
-	rules     map[*Rule][]*refindex
-	frequency *util.HasherMap[Ref, int]
-	sorted    []Ref
+	isVirtual    func(Ref) bool
+	resolveAlias func(Ref) (Ref, []Ref)
+	rules        map[*Rule][]*refindex
+	frequency    *util.HasherMap[Ref, int]
+	sorted       []Ref
+	aliasSources []Ref
 }
 
 func newrefindices(isVirtual func(Ref) bool) *refindices {
@@ -376,7 +393,15 @@ func (i *refindices) isValidIndexRef(ref Ref) bool {
 	return RootDocumentNames.Contains(ref[0]) &&
 		!ref.IsNested() &&
 		ref.IsGround() &&
-		!i.isVirtual(ref)
+		(!i.isVirtual(ref) || i.aliasTarget(ref) != nil)
+}
+
+func (i *refindices) aliasTarget(ref Ref) Ref {
+	if i.resolveAlias == nil {
+		return nil
+	}
+	target, _ := i.resolveAlias(ref)
+	return target
 }
 
 // Sorted returns a sorted list of references that the indices were built from.
@@ -604,6 +629,20 @@ func resolveVarToRef(ri []*refindex, args []*Term, v Var) Ref {
 }
 
 func (i *refindices) insert(rule *Rule, index *refindex) {
+	if i.resolveAlias != nil {
+		if resolved, sources := i.resolveAlias(index.Ref); resolved != nil {
+			if _, isVar := index.Value.(Var); isVar {
+				return
+			}
+			index.Ref = resolved
+			for _, src := range sources {
+				if !slices.ContainsFunc(i.aliasSources, func(r Ref) bool { return RefEqual(r, src) }) {
+					i.aliasSources = append(i.aliasSources, src)
+				}
+			}
+		}
+	}
+
 	count, _ := i.frequency.Get(index.Ref)
 	i.frequency.Put(index.Ref, count+1)
 

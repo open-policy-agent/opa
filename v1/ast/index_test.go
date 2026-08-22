@@ -11,6 +11,7 @@ import (
 
 type testResolver struct {
 	input       *Term
+	data        *Term
 	failRef     Ref
 	unknownRefs Set
 	args        []Value
@@ -32,6 +33,16 @@ func (r testResolver) Resolve(ref Ref) (Value, error) {
 	}
 	if ref.HasPrefix(InputRootRef) {
 		v, err := r.input.Value.Find(ref[1:])
+		if err != nil {
+			return nil, nil
+		}
+		return v, nil
+	}
+	if ref.HasPrefix(DefaultRootRef) {
+		if r.data == nil {
+			return nil, nil
+		}
+		v, err := r.data.Value.Find(ref[1:])
 		if err != nil {
 			return nil, nil
 		}
