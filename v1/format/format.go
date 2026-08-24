@@ -2107,11 +2107,13 @@ func (w *writer) writeObjectComprehension(object *ast.ObjectComprehension, loc *
 	w.write("{")
 	defer w.write("}")
 
-	object.Value.Location = object.Key.Location // Ensure the value is not written on the next line.
-	if object.Key.Location.Row-loc.Row > 1 {
-		w.endLine()
-		w.startLine()
-	}
+	// Ensure the value is not written on the next line. writeComprehension
+	// breaks before the term whenever the term's row is below the row the
+	// comprehension opened on, so the value is given a location on that row
+	// rather than the key's, which may already be a row further down.
+	valueLoc := *object.Key.Location
+	valueLoc.Row = loc.Row
+	object.Value.Location = &valueLoc
 
 	paren := isUnionCall(object.Key)
 	if paren {
