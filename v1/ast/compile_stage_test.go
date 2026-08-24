@@ -207,7 +207,7 @@ func TestWithOnlyStagesUpToInternal(t *testing.T) {
 		{
 			name:          "up to BuildRuleIndices",
 			target:        StageBuildRuleIndices,
-			expectedCount: 32, // includes "after" stage from init()
+			expectedCount: 33,
 			shouldContain: []StageID{
 				StageResolveRefs,
 				StageCheckTypes,
@@ -221,7 +221,7 @@ func TestWithOnlyStagesUpToInternal(t *testing.T) {
 		{
 			name:          "up to last stage",
 			target:        StageBuildRequiredCapabilities,
-			expectedCount: 34, // includes "after" stage from init()
+			expectedCount: 35,
 			shouldContain: []StageID{
 				StageResolveRefs,
 				StageBuildRequiredCapabilities,

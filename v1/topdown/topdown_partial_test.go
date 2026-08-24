@@ -5862,21 +5862,22 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				} 
 			`},
 			wantQueries: []string{"data.partial.test.p = true"},
+			// `q := x if { x := input.x }` compiles to the pure-alias shape, so
+			// StageInlineRefAliases rewrites `data.test.q` to `input.x` before
+			// partial evaluation runs. `q` is then referenced by nothing and
+			// drops out of the residual. It remains a queryable document on the
+			// compiled policy -- only the support module loses it.
 			wantSupport: []string{`
 				package partial.test
 				
 				p = true if { 
 					not data.partial.__not1_0_2__
 				}
-				
-				q = __local0__3 if { 
-					__local0__3 = input.x 
-				}
 			`, `
 				package partial
 
 				__not1_0_2__ = true if { 
-					data.partial.test.q = __local2__1
+					__local2__1 = input.x
 					plus(__local2__1, 1, __local1__1)
 					__local1__1 = 2 
 				}
