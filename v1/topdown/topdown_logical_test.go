@@ -593,6 +593,26 @@ func TestTopDownLogicalRuleIndexing(t *testing.T) {
 		`p if {x = 1} and {input.a = x}`,
 		`p if {input.a = x} or {x = 1}`,
 		`p if {input.a = x} and {x = 1} and {input.b = 2}`,
+		`p if {
+			{input.a = x} and {true}
+			{x = 1} and {true}
+		 }`,
+		`p if input.a = 1 or input.b = 2`,
+		`p if input.a = 1 or input.b = 2 or input.c = 3`,
+		`p if {input.a = 1; input.b = 2} or {input.a = 2; input.c = 1}`,
+		`p if {input.a = 1 or input.b = 1} and {input.b = 2 or input.c = 2}`,
+		`p if {input.a = 1 or input.b = 1} or {input.b = 2 or input.c = 2}`,
+		`p if input.a = 1 or count(input.b) = 3`,
+		`p if count(input.b) = 3 or input.a = 1`,
+		`p if input.a = 1 or not input.b = 2`,
+		`p if input.a in {1, 2} or input.b = 2`,
+		`p if glob.match("f*", [], input.a) or input.b = 2`,
+		`p if {input.a = x} or {x = 1; input.b = x}`,
+		`p if input.a or input.b = 2`,
+		`p if {input.a = 1 and input.b = 1} or {input.a = 1 and input.b = 2} or input.c = 3`,
+		`p if {input.a = 1; input.b = 1} or {input.a = 1; input.b = 2} or {input.a = 2}
+		 p if input.c = 1
+		 p if {input.a = 3 or input.b = 3} and input.c = 3`,
 		`p if not input.a = 1 and input.b = 2`,
 		`p if input.a in {1, 2} and input.b = 2`,
 		`p if glob.match("f*", [], input.a) and input.b = 2`,
@@ -607,12 +627,14 @@ func TestTopDownLogicalRuleIndexing(t *testing.T) {
 
 	values := []string{`1`, `2`, `3`, `"foo"`, `true`}
 
-	inputs := make([]string, 0, 1+(2+len(values))*len(values))
-	inputs = append(inputs, `{}`)
+	inputs := []string{`{}`}
 	for _, a := range values {
-		inputs = append(inputs, `{"a": `+a+`}`, `{"b": `+a+`}`)
+		inputs = append(inputs, `{"a": `+a+`}`, `{"b": `+a+`}`, `{"c": `+a+`}`)
 		for _, b := range values {
 			inputs = append(inputs, `{"a": `+a+`, "b": `+b+`}`)
+			for _, c := range values {
+				inputs = append(inputs, `{"a": `+a+`, "b": `+b+`, "c": `+c+`}`)
+			}
 		}
 	}
 
@@ -639,7 +661,7 @@ func TestTopDownLogicalRuleIndexing(t *testing.T) {
 						WithIndexing(indexing).
 						Run(t.Context())
 					if err != nil {
-						t.Fatalf("input %v, indexing %v: unexpected error: %v", in, indexing, err)
+						return fmt.Sprintf("error: %v", err)
 					}
 
 					return fmt.Sprintf("%v", res)

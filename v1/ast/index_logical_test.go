@@ -232,31 +232,54 @@ func TestBaseDocEqIndexingLogical(t *testing.T) {
 			expected: []int{},
 		},
 		{
-			note: "or: distinct refs are not indexed, rhs satisfied",
+			note: "or: distinct refs, lhs satisfied",
 			module: `package test
 			p if input.x = 1 or input.y = 2	# 0
 			p if input.x = 9				# 1`,
-			input:    `{"y": 2}`,
+			input:    `{"x": 1, "y": 9}`,
 			expected: []int{0},
 		},
 		{
-			note: "or: distinct refs are not indexed, both operands unsatisfied",
+			note: "or: distinct refs, rhs satisfied",
 			module: `package test
 			p if input.x = 1 or input.y = 2	# 0
 			p if input.x = 9				# 1`,
-			// Rule 0 remains a candidate: the indexer can't exclude it, and
-			// evaluation is what rules it out.
-			input:    `{"x": 5, "y": 5}`,
+			input:    `{"x": 5, "y": 2}`,
 			expected: []int{0},
 		},
 		{
-			note: "or: only the ref shared by both operands is indexed",
+			note: "or: distinct refs, neither operand satisfied",
+			module: `package test
+			p if input.x = 1 or input.y = 2	# 0
+			p if input.x = 9				# 1`,
+			// Each operand is its own path, so a rule whose operands mention
+			// different refs can be excluded on both of them.
+			input:    `{"x": 5, "y": 3}`,
+			expected: []int{},
+		},
+		{
+			note: "or: each operand is indexed on all of its refs",
 			module: `package test
 			p if {input.x = 1; input.y = 2} or {input.x = 3; input.z = 4}	# 0
 			p if input.x = 9												# 1`,
-			// input.y and input.z are dropped, so the mismatched input.y doesn't
-			// exclude the rule, but the input.x value does have to be one of the two.
+			// input.y rules out the lhs, and input.x the rhs.
 			input:    `{"x": 1, "y": 9}`,
+			expected: []int{},
+		},
+		{
+			note: "or: lhs operand fully satisfied",
+			module: `package test
+			p if {input.x = 1; input.y = 2} or {input.x = 3; input.z = 4}	# 0
+			p if input.x = 9												# 1`,
+			input:    `{"x": 1, "y": 2}`,
+			expected: []int{0},
+		},
+		{
+			note: "or: rhs operand fully satisfied",
+			module: `package test
+			p if {input.x = 1; input.y = 2} or {input.x = 3; input.z = 4}	# 0
+			p if input.x = 9												# 1`,
+			input:    `{"x": 3, "z": 4}`,
 			expected: []int{0},
 		},
 		{
@@ -324,15 +347,54 @@ func TestBaseDocEqIndexingLogical(t *testing.T) {
 			expected: []int{1},
 		},
 		{
-			note: "and: nested in or operand, only the first multi-valued ref is indexed",
+			note: "and: nested in or operand, neither branch matches fully",
 			module: `package test
 			p if {input.x = 1 and input.y = 2} or {input.x = 3 and input.y = 4}	# 0
 			p if input.x = 9													# 1`,
-			// The trie holds one child per value, so Build stops at the first
-			// ref it has several values for (input.x, the more frequent one),
-			// leaving rule 0 a candidate for any input.y value.
 			input:    `{"x": 1, "y": 9}`,
+			expected: []int{},
+		},
+		{
+			note: "and: nested in or operand, one branch matches fully",
+			module: `package test
+			p if {input.x = 1 and input.y = 2} or {input.x = 3 and input.y = 4}	# 0
+			p if input.x = 9													# 1`,
+			input:    `{"x": 3, "y": 4}`,
 			expected: []int{0},
+		},
+		{
+			note: "or in both operands of an and",
+			module: `package test
+			p if {input.x = 1 or input.x = 2} and {input.y = 3 or input.y = 4}	# 0
+			p if input.x = 9													# 1`,
+			// One path per combination: (1,3), (1,4), (2,3), (2,4).
+			input:    `{"x": 2, "y": 3}`,
+			expected: []int{0},
+		},
+		{
+			note: "or in both operands of an and, no combination matches",
+			module: `package test
+			p if {input.x = 1 or input.x = 2} and {input.y = 3 or input.y = 4}	# 0
+			p if input.x = 9													# 1`,
+			input:    `{"x": 2, "y": 9}`,
+			expected: []int{},
+		},
+		{
+			note: "too many combinations to index",
+			module: `package test
+			p if {
+				{input.a = 1 or input.a = 2} and
+				{input.b = 1 or input.b = 2} and
+				{input.c = 1 or input.c = 2} and
+				{input.d = 1 or input.d = 2} and
+				{input.e = 1 or input.e = 2} and
+				{input.f = 1 or input.f = 2}
+			}						# 0
+			p if input.a = 9		# 1`,
+			// 64 combinations is past maxIndexPaths, so the disjunctions are
+			// dropped and rule 0 stays a candidate for anything.
+			input:    `{"a": 9}`,
+			expected: []int{0, 1},
 		},
 	}
 
