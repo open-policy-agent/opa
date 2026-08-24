@@ -55,6 +55,10 @@ type remoteRefLimits struct {
 	// A nil set permits any host; an empty set permits none.
 	allowNet map[string]struct{}
 
+	// A file:// $ref is denied whenever DenyFileScheme is set, independent
+	// of allowNet. allowNet governs only remote HTTP fetches.
+	denyFileScheme bool
+
 	// LoadJSON takes no arguments, so the context rides on the loader instead.
 	// Loaders are built per Compile call, so its scope is that one compilation.
 	// A nil ctx means context.Background().
@@ -209,8 +213,8 @@ func (l *jsonReferenceLoader) LoadJSON() (any, error) {
 	refToURL.GetUrl().Fragment = ""
 
 	if reference.HasFileScheme {
-		if l.limits.allowNet != nil {
-			return nil, fmt.Errorf("remote reference loading disabled: %s", reference.String())
+		if l.limits.denyFileScheme {
+			return nil, fmt.Errorf("file reference loading disabled: %s", reference.String())
 		}
 
 		filename := strings.TrimPrefix(refToURL.String(), "file://")

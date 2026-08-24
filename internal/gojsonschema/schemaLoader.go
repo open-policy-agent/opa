@@ -32,6 +32,11 @@ type SchemaLoader struct {
 	// AllowNet is the list of hosts that remote references may be fetched
 	// from. A nil list permits any host; a non-nil empty list permits none.
 	AllowNet []string
+	// DenyFileScheme, when true, makes file:// $ref loading fail
+	// unconditionally. It is independent of AllowNet, which governs only
+	// remote HTTP fetches. The zero value (false) preserves the historical
+	// behavior of allowing local file references.
+	DenyFileScheme bool
 	// Context, when set, aborts in-flight remote reference fetches. Callers
 	// that have one -- evaluation, which holds the query's context -- should
 	// pass it so a cancelled or timed-out query doesn't leave requests
@@ -153,8 +158,9 @@ func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
 	// limits come from the compilation, not the root loader. The pool resolves
 	// every $ref through this factory, however deeply nested.
 	d.Pool.jsonLoaderFactory = rootSchema.LoaderFactory().withRemoteRefLimits(remoteRefLimits{
-		allowNet: newAllowNetSet(sl.AllowNet),
-		ctx:      sl.Context,
+		allowNet:       newAllowNetSet(sl.AllowNet),
+		denyFileScheme: sl.DenyFileScheme,
+		ctx:            sl.Context,
 	})
 	d.DocumentReference = ref
 	d.ReferencePool = newSchemaReferencePool()
