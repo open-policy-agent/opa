@@ -6908,6 +6908,80 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 			wantErr: errors.New("arg a redeclared"),
 		},
+		{
+			note: "assign in implicit and operand err",
+			module: `
+				package test
+				p if {
+					input.a and x := input.b
+					x = 1
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: cannot assign vars inside implicit and operand"),
+		},
+		{
+			note: "assign in implicit or operand err",
+			module: `
+				package test
+				p if {
+					input.a or x := input.b
+					x = 1
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: cannot assign vars inside implicit or operand"),
+		},
+		{
+			note: "assign in implicit not body err",
+			module: `
+				package test
+				p if {
+					not x := input.b
+					x = 1
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: cannot assign vars inside negated expression"),
+		},
+		{
+			note: "assign in implicit and operand nested in explicit or operand err",
+			module: `
+				package test
+				p if {
+					input.a or { input.b and x := input.c }
+					x = 1
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: cannot assign vars inside implicit and operand"),
+		},
+		{
+			note: "assign in explicit or operand",
+			module: `
+				package test
+				p if {
+					input.a or { x := input.b; x == 1 }
+				}
+			`,
+			exp: `
+				package test
+				p if {
+					input.a or { __local0__ = input.b; __local0__ = 1 }
+				}
+			`,
+		},
+		{
+			note: "assign in explicit not body",
+			module: `
+				package test
+				p if {
+					not { x := input.b; x == 1 }
+				}
+			`,
+			exp: `
+				package test
+				p if {
+					not { __local0__ = input.b; __local0__ = 1 }
+				}
+			`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -13768,7 +13842,7 @@ func TestCompilerNotImport(t *testing.T) {
 			`, popts),
 		},
 		{
-			note: "negated call with vars, inside comprehension, unsafe assignment",
+			note: "negated call with vars, inside comprehension, assignment in implicit not body",
 			module: `package negation
 				import future.keywords.not
 
@@ -13779,7 +13853,7 @@ func TestCompilerNotImport(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:     CompileErr,
-					Message:  "var x is unsafe",
+					Message:  "cannot assign vars inside negated expression",
 					Location: &Location{File: "mod.rego", Row: 4, Col: 15, Text: []byte(`not x := "foo"`)},
 				},
 			},
@@ -13823,8 +13897,62 @@ func TestCompilerNotImport(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:     CompileErr,
-					Message:  "var a is unsafe", // FIXME: Use more specific error msg: "cannot assign vars inside negated expression"
+					Message:  "cannot assign vars inside negated expression",
 					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1")},
+				},
+			},
+		},
+		{
+			note: "negated assignment, outer ref to var",
+			module: `package negation
+				import future.keywords.not
+
+				p if {
+					not a := 1
+					a = 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:     CompileErr,
+					Message:  "cannot assign vars inside negated expression",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1")},
+				},
+			},
+		},
+		{
+			note: "negated assignment, outer redeclaration of var",
+			module: `package negation
+				import future.keywords.not
+
+				p if {
+					not a := 1
+					a := 2
+					a == 2
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:     CompileErr,
+					Message:  "cannot assign vars inside negated expression",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1")},
+				},
+			},
+		},
+		{
+			note: "negated assignment, implicit not body nested in explicit not-body",
+			module: `package negation
+				import future.keywords.not
+
+				p if {
+					not { not a := 1 }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:     CompileErr,
+					Message:  "cannot assign vars inside negated expression",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 12, Text: []byte("not a := 1")},
 				},
 			},
 		},
@@ -13844,6 +13972,24 @@ func TestCompilerNotImport(t *testing.T) {
 			`, popts),
 		},
 		{
+			note: "negated assignment, explicit not-body, outer ref to var",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a := 1 }
+					a = 1
+				}
+			`,
+			// outer and inner 'a':s are different variables bound in different scopes
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					not { __local0__ = 1 }
+					a = 1
+				}
+			`, popts),
+		},
+		{
 			note: "negated assignment, call",
 			module: `package negation
 				import future.keywords.not
@@ -13855,7 +14001,7 @@ func TestCompilerNotImport(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:     CompileErr,
-					Message:  "var a is unsafe",
+					Message:  "cannot assign vars inside negated expression",
 					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1 + 2")},
 				},
 			},
@@ -14962,11 +15108,11 @@ func TestCompilerAndOrImports(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:    CompileErr,
-					Message: "var x is unsafe",
+					Message: "cannot assign vars inside implicit and operand",
 				},
 				&Error{
 					Code:    CompileErr,
-					Message: "var y is unsafe",
+					Message: "cannot assign vars inside implicit and operand",
 				},
 			},
 		},
@@ -14980,13 +15126,151 @@ func TestCompilerAndOrImports(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:    CompileErr,
-					Message: "var x is unsafe",
+					Message: "cannot assign vars inside implicit or operand",
 				},
 				&Error{
 					Code:    CompileErr,
-					Message: "var y is unsafe",
+					Message: "cannot assign vars inside implicit or operand",
 				},
 			},
+		},
+		{
+			note: "and, assignment in implicit body, var referenced in outer scope",
+			module: `package logic
+				p if {
+					input.a and x := input.b
+					x == 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside implicit and operand",
+				},
+			},
+		},
+		{
+			note: "or, assignment in implicit body, var referenced in outer scope",
+			module: `package logic
+				p if {
+					input.a or x := input.b
+					x == 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside implicit or operand",
+				},
+			},
+		},
+		{
+			note: "or, assignment in implicit body, var reassigned in outer scope",
+			module: `package logic
+				p if {
+					input.a or x := input.b
+					x := 1
+					x == 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside implicit or operand",
+				},
+			},
+		},
+		{
+			note: "or, assignment in implicit body nested in explicit body",
+			module: `package logic
+				p if {
+					input.a or { input.b and x := input.c }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside implicit and operand",
+				},
+			},
+		},
+		{
+			note: "and, assignment in implicit not body",
+			module: `package logic
+				import future.keywords.not
+
+				p if {
+					input.a and not x := input.b
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside negated expression",
+				},
+			},
+		},
+		{
+			note: "and, assignment in explicit not body, implicit operand",
+			module: `package logic
+				import future.keywords.not
+
+				p if {
+					input.a and not { x := input.b; x == 1 }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package logic
+				p = true if {
+					input.a and not {
+						__local0__ = input.b
+						__local0__ = 1
+					}
+				}
+			`, ParserOptions{
+				FutureKeywords: []string{"and", "or", "not"},
+			}),
+		},
+		{
+			note: "and, chained, assignment in explicit bodies",
+			module: `package logic
+				p if {
+					{ x := 1; x > 0 } and true and { y := 2; y > 0 }
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					{ __local0__ = 1; gt(__local0__, 0) } and true and { __local1__ = 2; gt(__local1__, 0) }
+				}
+			`,
+		},
+		{
+			note: "or, chained, assignment in explicit bodies",
+			module: `package logic
+				p if {
+					{ x := 1; x > 0 } or true or { y := 2; y > 0 }
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					{ __local0__ = 1; gt(__local0__, 0) } or true or { __local1__ = 2; gt(__local1__, 0) }
+				}
+			`,
+		},
+		{
+			note: "and, assignment in explicit body nested in implicit operand",
+			module: `package logic
+				p if {
+					input.a or input.b and { x := input.c; x > 1 }
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					input.a or input.b and {
+						__local0__ = input.c
+						gt(__local0__, 1)
+					}
+				}
+			`,
 		},
 		{
 			note: "and, unification, forbidden in implicit body",
@@ -16292,12 +16576,23 @@ func TestQueryCompilerAndOrImports(t *testing.T) {
 	c := NewCompiler()
 
 	tests := []struct {
-		note  string
-		query string
+		note    string
+		query   string
+		wantErr string
 	}{
-		{"and basic", "input.x and input.y"},
-		{"or basic", "input.x or input.y"},
-		{"explicit body with internal local", "{x := 1; x > 0} and true"},
+		{note: "and basic", query: "input.x and input.y"},
+		{note: "or basic", query: "input.x or input.y"},
+		{note: "explicit body with internal local", query: "{x := 1; x > 0} and true"},
+		{
+			note:    "assign in implicit or operand",
+			query:   "input.x or y := input.y",
+			wantErr: "cannot assign vars inside implicit or operand",
+		},
+		{
+			note:    "assign in implicit not body",
+			query:   "input.x and not y := input.y",
+			wantErr: "cannot assign vars inside negated expression",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -16306,7 +16601,15 @@ func TestQueryCompilerAndOrImports(t *testing.T) {
 				t.Fatalf("parse: %v", err)
 			}
 			qc := c.QueryCompiler()
-			if _, err := qc.Compile(body); err != nil {
+			_, err = qc.Compile(body)
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error %q, got success", tc.wantErr)
+				}
+				if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected error %q, got: %v", tc.wantErr, err)
+				}
+			} else if err != nil {
 				t.Fatalf("query compile failed: %v", err)
 			}
 		})

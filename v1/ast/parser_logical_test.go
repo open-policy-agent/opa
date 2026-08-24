@@ -343,13 +343,38 @@ func TestParseLogical_ParseErrors(t *testing.T) {
 		{"and, inside every domain", "every x in y and z {x}", "unexpected and keyword"},
 		{"or, inside every domain", "every x in y or z {x}", "unexpected or keyword"},
 		{"some-in as an operand", "some x in xs and y", "unexpected and keyword"},
+		{"some-in as a rhs operand", "y and some x in xs", "unexpected some keyword"},
+		{"some-in as a rhs operand, or", "y or some x in xs", "unexpected some keyword"},
 		{"some decl as an operand", "some x and y", "unexpected and keyword"},
 		{"every as an operand", "every x in xs { x } and y", "unexpected and keyword"},
 		{"every as an operand, or", "every x in xs { x } or y", "unexpected or keyword"},
+		{"every as a rhs operand", "y and every x in xs { x }", "unexpected every keyword"},
+		{"every as a rhs operand, or", "y or every x in xs { x }", "unexpected every keyword"},
+		{"some decl as a rhs operand", "y and some x", "unexpected some keyword"},
 	}
 	for _, tc := range exprTests {
 		t.Run(tc.note, func(t *testing.T) {
 			assertParseErrorContains(t, tc.note, tc.input, tc.expected, opts)
+		})
+	}
+
+	// Implicit not bodies, which are only parsed when the `not` keyword is imported.
+	notOpts := logicalParserOpts("not")
+
+	notExprTests := []struct {
+		note     string
+		input    string
+		expected string
+	}{
+		{"some-in as a not body", "not some x in xs", "unexpected some keyword: illegal negation of 'some'"},
+		{"some decl as a not body", "not some x", "unexpected some keyword: illegal negation of 'some'"},
+		{"every as a not body", "not every x in xs { x }", "unexpected every keyword: illegal negation of 'every'"},
+		{"some-in as a negated operand", "y or not some x in xs", "unexpected some keyword"},
+		{"every as a negated operand", "y or not every x in xs { x }", "unexpected every keyword"},
+	}
+	for _, tc := range notExprTests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseErrorContains(t, tc.note, tc.input, tc.expected, notOpts)
 		})
 	}
 
