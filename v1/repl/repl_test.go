@@ -3258,6 +3258,337 @@ p {
 	}
 }
 
+type replAction struct {
+	line      string
+	expOutput string
+	expErrs   []string
+}
+
+func runReplActions(t *testing.T, repl *REPL, buffer *bytes.Buffer, actions []replAction) {
+	t.Helper()
+
+	ctx := t.Context()
+
+	for _, action := range actions {
+		buffer.Reset()
+		err := repl.OneShot(ctx, action.line)
+
+		if len(action.expErrs) != 0 {
+			if err == nil {
+				t.Fatalf("%q: expected error but got: %s", action.line, buffer.String())
+			}
+			for _, e := range action.expErrs {
+				if !strings.Contains(err.Error(), e) {
+					t.Fatalf("%q: expected error to contain:\n\n%q\n\nbut got:\n\n%v", action.line, e, err)
+				}
+			}
+		} else {
+			if err != nil {
+				t.Fatalf("%q: unexpected error: %v", action.line, err)
+			}
+			expectOutput(t, buffer.String(), action.expOutput)
+		}
+	}
+}
+
+func TestEvalLogicalKeywords(t *testing.T) {
+	tests := []struct {
+		note    string
+		actions []replAction
+	}{
+		{
+			note: "and, implicit operands",
+			actions: []replAction{
+				{line: "import future.keywords.and"},
+				{line: "1 == 1 and 2 == 2", expOutput: "true\n"},
+			},
+		},
+		{
+			note: "and, lhs undefined",
+			actions: []replAction{
+				{line: "import future.keywords.and"},
+				{line: "1 == 2 and 2 == 2", expOutput: "undefined\n"},
+			},
+		},
+		{
+			note: "and, explicit operands",
+			actions: []replAction{
+				{line: "import future.keywords.and"},
+				{line: "{x := 1; x == 1} and {y := 2; y == 2}", expOutput: "true\n"},
+			},
+		},
+		{
+			note: "and, implicit operands binding vars",
+			actions: []replAction{
+				{line: "import future.keywords.and"},
+				{line: "x = 1 and y = 2", expErrs: []string{"var x is unsafe", "var y is unsafe"}},
+			},
+		},
+		{
+			note: "or, lhs undefined",
+			actions: []replAction{
+				{line: "import future.keywords.or"},
+				{line: "1 == 2 or 1 == 1", expOutput: "true\n"},
+			},
+		},
+		{
+			note: "or, both operands undefined",
+			actions: []replAction{
+				{line: "import future.keywords.or"},
+				{line: "1 == 2 or 1 == 3", expOutput: "undefined\n"},
+			},
+		},
+		{
+			note: "or, nested through explicit body",
+			actions: []replAction{
+				{line: "import future.keywords"},
+				{line: "1 == 2 or {1 == 1 and {not false}}", expOutput: "true\n"},
+			},
+		},
+		{
+			note: "wildcard future import",
+			actions: []replAction{
+				{line: "import future.keywords"},
+				{line: "false or 1 == 1 and 2 == 2", expOutput: "true\n"},
+			},
+		},
+		{
+			note: "import and expression in same submission",
+			actions: []replAction{
+				{line: "import future.keywords.and\n1 == 1 and 2 == 2", expOutput: "true\n"},
+			},
+		},
+		{
+			note: "keyword not imported",
+			actions: []replAction{
+				{
+					line: "1 == 1 and 2 == 2",
+					expErrs: []string{
+						"var and is unsafe (hint: `import future.keywords.and` to import a future keyword)",
+					},
+				},
+			},
+		},
+		{
+			note: "and inside every body",
+			actions: []replAction{
+				{line: "import future.keywords"},
+				{line: "every x in [1, 2] { x > 0 and x < 3 }", expOutput: "true\n"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		for _, regoVersion := range []ast.RegoVersion{ast.RegoV0, ast.RegoV1} {
+			t.Run(regoVersion.String()+", "+tc.note, func(t *testing.T) {
+				var buffer bytes.Buffer
+				repl := newRepl(newTestStore(), &buffer).WithRegoVersion(regoVersion)
+				runReplActions(t, repl, &buffer, tc.actions)
+			})
+		}
+	}
+}
+
+func TestEvalLogicalKeywordsRules(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		actions     []replAction
+	}{
+		{
+			note:        "v0, rule with or, show, unset",
+			regoVersion: ast.RegoV0,
+			actions: []replAction{
+				{line: "import future.keywords.or"},
+				{
+					line:      "p { 1 == 2 or 1 == 1 }",
+					expOutput: "Rule 'p' defined in package repl. Type 'show' to see rules.\n",
+				},
+				{line: "p", expOutput: "true\n"},
+				{line: "show", expOutput: `package repl
+
+import future.keywords.or
+
+p {
+	1 == 2 or 1 == 1
+}
+`},
+				{line: "unset p"},
+				{line: "p", expErrs: []string{"var p is unsafe"}},
+			},
+		},
+		{
+			note:        "v1, rule with or, show, unset",
+			regoVersion: ast.RegoV1,
+			actions: []replAction{
+				{line: "import future.keywords.or"},
+				{
+					line:      "p if { 1 == 2 or 1 == 1 }",
+					expOutput: "Rule 'p' defined in package repl. Type 'show' to see rules.\n",
+				},
+				{line: "p", expOutput: "true\n"},
+				{line: "show", expOutput: `package repl
+
+import future.keywords.or
+
+p if 1 == 2 or 1 == 1
+`},
+				{line: "unset p"},
+				{line: "p", expErrs: []string{"var p is unsafe"}},
+			},
+		},
+		{
+			note:        "v1, keyword import dropped on package switch",
+			regoVersion: ast.RegoV1,
+			actions: []replAction{
+				{line: "import future.keywords.and"},
+				{line: "package foo"},
+				{
+					line: "1 == 1 and 2 == 2",
+					expErrs: []string{
+						"var and is unsafe (hint: `import future.keywords.and` to import a future keyword)",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var buffer bytes.Buffer
+			repl := newRepl(newTestStore(), &buffer).WithRegoVersion(tc.regoVersion)
+			runReplActions(t, repl, &buffer, tc.actions)
+		})
+	}
+}
+
+// Parse errors are buffered as (potentially) incomplete input, which is why an
+// or expression missing its keyword import produces no output at all.
+func TestEvalLogicalKeywordsParseErrorBuffering(t *testing.T) {
+	tests := []struct {
+		note           string
+		bufferDisabled bool
+		expErrs        []string
+	}{
+		{
+			note:           "buffering enabled",
+			bufferDisabled: false,
+		},
+		{
+			note:           "buffering disabled",
+			bufferDisabled: true,
+			expErrs:        []string{"rego_parse_error"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var buffer bytes.Buffer
+			repl := newRepl(newTestStore(), &buffer).
+				WithRegoVersion(ast.RegoV1).
+				DisableMultiLineBuffering(tc.bufferDisabled)
+
+			runReplActions(t, repl, &buffer, []replAction{
+				{line: "p if { 1 == 2 or 1 == 1 }", expErrs: tc.expErrs},
+			})
+		})
+	}
+}
+
+func TestEvalLogicalKeywordsPartial(t *testing.T) {
+	tests := []struct {
+		note    string
+		actions []replAction
+	}{
+		{
+			note: "or query",
+			actions: []replAction{
+				{line: "import future.keywords.or"},
+				{line: "unknown input"},
+				{line: "input.x == 1 or input.y == 2", expOutput: `┌─────────┬────────────────────────────┐
+│ Query 1 │ input.x = 1 or input.y = 2 │
+└─────────┴────────────────────────────┘
+`},
+			},
+		},
+		{
+			note: "and query",
+			actions: []replAction{
+				{line: "import future.keywords.and"},
+				{line: "unknown input"},
+				{line: "input.x == 1 and input.y == 2", expOutput: `┌─────────┬─────────────────────────────┐
+│ Query 1 │ input.x = 1 and input.y = 2 │
+└─────────┴─────────────────────────────┘
+`},
+			},
+		},
+		{
+			note: "and through rule",
+			actions: []replAction{
+				{line: "import future.keywords"},
+				{line: "unknown input"},
+				{
+					line:      "p if { input.a and input.b }",
+					expOutput: "Rule 'p' defined in package repl. Type 'show' to see rules.\n",
+				},
+				{line: "p", expOutput: `┌─────────┬─────────────────────┐
+│ Query 1 │ input.a and input.b │
+└─────────┴─────────────────────┘
+`},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		for _, regoVersion := range []ast.RegoVersion{ast.RegoV0, ast.RegoV1} {
+			t.Run(regoVersion.String()+", "+tc.note, func(t *testing.T) {
+				var buffer bytes.Buffer
+				repl := newRepl(inmem.New(), &buffer).WithRegoVersion(regoVersion)
+				runReplActions(t, repl, &buffer, tc.actions)
+			})
+		}
+	}
+}
+
+func TestEvalLogicalKeywordsTrace(t *testing.T) {
+	for _, regoVersion := range []ast.RegoVersion{ast.RegoV0, ast.RegoV1} {
+		t.Run(regoVersion.String(), func(t *testing.T) {
+			var buffer bytes.Buffer
+			repl := newRepl(newTestStore(), &buffer).WithRegoVersion(regoVersion)
+
+			runReplActions(t, repl, &buffer, []replAction{
+				{line: "import future.keywords.or"},
+				{line: "trace"},
+				{line: "1 == 2 or 1 == 1", expOutput: `query:1     Enter equal(1, 2) or equal(1, 1)
+query:1     | Eval equal(1, 2) or equal(1, 1)
+query:1     | Enter equal(1, 2)
+query:1     | | Eval equal(1, 2)
+query:1     | | Fail equal(1, 2)
+query:1     | Enter equal(1, 1)
+query:1     | | Eval equal(1, 1)
+query:1     | | Exit equal(1, 1) early
+query:1     | Redo equal(1, 1)
+query:1     | | Redo equal(1, 1)
+query:1     | Exit equal(1, 2) or equal(1, 1)
+query:1     Redo equal(1, 2) or equal(1, 1)
+query:1     | Redo equal(1, 2) or equal(1, 1)
+true
+`},
+			})
+		})
+	}
+}
+
+func TestEvalNotBodyRegoV1(t *testing.T) {
+	var buffer bytes.Buffer
+	repl := newRepl(newTestStore(), &buffer).WithRegoVersion(ast.RegoV1)
+
+	runReplActions(t, repl, &buffer, []replAction{
+		{line: "import future.keywords.not"},
+		{line: "not {1 == 2}", expOutput: "true\n"},
+	})
+}
+
 func TestEvalPackage(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore()
