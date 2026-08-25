@@ -1,6 +1,6 @@
 ---
 sidebar_label: import
-title: 'Rego Keyword Examples: import'
+title: 'Rego Keyword: import'
 ---
 
 In Rego, the `import` keyword is used to include references in the current file

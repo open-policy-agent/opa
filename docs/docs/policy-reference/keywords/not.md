@@ -1,6 +1,6 @@
 ---
 sidebar_label: not
-title: 'Rego Keyword Examples: not'
+title: 'Rego Keyword: not'
 ---
 
 The `not` keyword is the primary means of expressing

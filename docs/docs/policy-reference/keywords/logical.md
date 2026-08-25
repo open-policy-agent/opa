@@ -1,6 +1,6 @@
 ---
 sidebar_label: and, or
-title: 'Rego Keyword Examples: and, or'
+title: 'Rego Keywords: and, or'
 ---
 
 The `and`/`or` keywords are logical operators whose evaluation either succeeds or fails, and [neither produces a value](#expressions-not-values);
