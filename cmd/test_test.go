@@ -575,8 +575,9 @@ test_foo if {
 `,
 				"data.json": `{"c": 3}`,
 			},
-			// Note: each dynamic array element is broken out into a separate "co-expression" by the compiler.
-			// Since we failed on the 2nd element (b), we don't have value for the 3rd element (data.c).
+			// Note: `b` is an alias rule, so the compiler inlines it and the statement
+			// becomes indexable. The index rules the body out without evaluating it, so
+			// there is no failing expression inside the body to annotate.
 			expected: `%ROOT%/test.rego:7:
 data.test.test_foo: FAIL (%TIME%)
 --------------------------------------------------------------------------------
@@ -584,11 +585,6 @@ FAILURES
 --------------------------------------------------------------------------------
 data.test.test_foo: FAIL (%TIME%)
 
-  %ROOT%/test.rego:8:
-    	[a, b, data.c] == [4, 5, 6]
-    	 |  |
-    	 |  undefined
-    	 1
 
 --------------------------------------------------------------------------------
 FAIL: 1/1
