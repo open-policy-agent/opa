@@ -1177,6 +1177,16 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 		}
 
 	case Ref:
+		// A ref rooted at a local -- `x := input; x.foo == "bar"` -- indexes the
+		// same as the ref that local aliases, so long as the local resolves.
+		if head, isVar := v[0].Value.(Var); isVar && !RootDocumentNames.Contains(v[0]) {
+			resolved := resolveVarToRef(i.resolvable(rule), args, head)
+			if resolved == nil {
+				return false
+			}
+			v = resolved.Concat(v[1:])
+		}
+
 		if !i.isValidIndexRef(v) {
 			return false
 		}
