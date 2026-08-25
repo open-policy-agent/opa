@@ -13,6 +13,7 @@ import (
 
 type testResolver struct {
 	input       *Term
+	data        *Term
 	failRef     Ref
 	unknownRefs Set
 	args        []Value
@@ -34,6 +35,13 @@ func (r testResolver) Resolve(ref Ref) (Value, error) {
 	}
 	if ref.HasPrefix(InputRootRef) {
 		v, err := r.input.Value.Find(ref[1:])
+		if err != nil {
+			return nil, nil
+		}
+		return v, nil
+	}
+	if r.data != nil && ref.HasPrefix(DefaultRootRef) {
+		v, err := r.data.Value.Find(ref[1:])
 		if err != nil {
 			return nil, nil
 		}
@@ -71,6 +79,80 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	} {
 		input.b = 1
 	}`, opts)
+
+	// NOTE(sr): pseudo-compiled, as with everyModWithDomain above. These are what
+	//
+	//   p if { x := input; x.foo == "a" }
+	//
+	// and friends get rewritten to -- the ref ends up rooted at a local rather
+	// than at input, and the indexer has to resolve that head to index at all.
+	//
+	// Note that `in` and glob.match never receive a ref operand directly: their
+	// operands are always hoisted to a variable first, so those two benefit only
+	// via the assignment that does the hoisting. The cases below are written the
+	// way the compiler actually emits them.
+	localHeadMod := MustParseModuleWithOpts(`package test
+
+	whole if { __local0__ = input; __local0__.foo = "a" }
+	whole if { __local1__ = input; __local1__.foo = "b" }
+
+	intermediate if { __local2__ = input.a.b; __local2__.c = "a" }
+	intermediate if { __local3__ = input.a.b; __local3__.c = "b" }
+
+	member if { __local4__ = input; __local5__ = __local4__.foo; "a" in __local5__ }
+	member if { __local6__ = input; __local7__ = __local6__.foo; "b" in __local7__ }
+
+	globmatch if { __local8__ = input; __local9__ = __local8__.foo; glob.match("a/*", ["/"], __local9__) }
+	globmatch if { __local10__ = input; __local11__ = __local10__.foo; glob.match("b/*", ["/"], __local11__) }
+
+	# The head resolves to a composite rather than a ref, so there is nothing to
+	# index and both rules have to be evaluated.
+	unresolvable if { __local12__ = [1, 2, 3]; __local12__[0] = 1 }
+	unresolvable if { __local13__ = [1, 2, 3]; __local13__[0] = 2 }
+
+	# Bare refs run through the equality path, too, so their heads resolve as well.
+	naked_local if { __local14__ = input; __local14__.foo }
+	naked_local if { __local15__ = input; __local15__.bar }
+
+	# The assignment __local17__ = __local16__ records "input.a = __local17__" next
+	# to "input.a = __local16__", so a head reached through a chain of assignments
+	# resolves just as well as one assigned the ref directly.
+	chained if { __local16__ = input.a; __local17__ = __local16__; __local17__.b = "a" }
+	chained if { __local18__ = input.a; __local19__ = __local18__; __local19__.b = "b" }
+
+	# Nothing sets input apart from data here.
+	from_data if { __local20__ = data.roles; __local20__.a = 1 }
+	from_data if { __local21__ = data.roles; __local21__.a = 2 }
+
+	# The ref spliced onto the resolved head still has to be ground,
+	nonground if { __local22__ = input; __local22__.foo[__local23__] = "a" }
+	nonground if { __local24__ = input; __local24__.foo[__local25__] = "b" }
+
+	# and a wildcard is no exception -- even though "input.foo[_] = value" is indexed,
+	# since the ground-prefix path (updateEqWildcardRef) gives up on a locally-rooted
+	# ref before the head gets a chance to resolve.
+	wildcard if { __local26__ = input; __local26__.foo[_] = "a" }
+	wildcard if { __local27__ = input; __local27__.foo[_] = "b" }
+
+	# The head resolves to a ref, but a virtual one, which the indexer cannot look up.
+	virtual if { __local28__ = data.test.vd; __local28__.foo = "a" }
+	virtual if { __local29__ = data.test.vd; __local29__.foo = "b" }`, opts)
+
+	// The operand body of an `and`/`or` is its own scope, so the local assigned in
+	// the enclosing body has to be resolved through refindices.resolvable (see
+	// operandAlternatives) rather than the rule's own indices alone.
+	logicalOpts := ParserOptions{
+		Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+		FutureKeywords: []string{"and", "or", "not"},
+	}
+
+	logicalHeadMod := MustParseModuleWithOpts(`package test
+
+	conj if { __local0__ = input; __local0__.foo = "a" and __local0__.bar = "a" }
+	conj if { __local1__ = input; __local1__.foo = "b" and __local1__.bar = "b" }
+
+	disj if { __local2__ = input; __local2__.foo = "a" or __local2__.foo = "aa" }
+	disj if { __local3__ = input; __local3__.foo = "b" or __local3__.foo = "bb" }`, logicalOpts)
 
 	refMod := MustParseModuleWithOpts(`package test
 
@@ -244,6 +326,8 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		ruleset     string
 		ruleRef     Ref
 		input       string
+		data        string
+		isVirtual   func(Ref) bool
 		unknowns    []string
 		args        []Value
 		expectedRS  any
@@ -704,6 +788,112 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset:    "p",
 			input:      `{"a": [1]}`,
 			expectedRS: RuleSet([]*Rule{everyModWithDomain.Rules[0]}),
+		},
+		{
+			note:       "local ref head: whole input document",
+			module:     localHeadMod,
+			ruleset:    "whole",
+			input:      `{"foo": "a"}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[0]}),
+		},
+		{
+			note:       "local ref head: inside an `and` operand",
+			module:     logicalHeadMod,
+			ruleset:    "conj",
+			input:      `{"foo": "a", "bar": "a"}`,
+			expectedRS: RuleSet([]*Rule{logicalHeadMod.Rules[0]}),
+		},
+		{
+			note:       "local ref head: inside an `or` operand",
+			module:     logicalHeadMod,
+			ruleset:    "disj",
+			input:      `{"foo": "aa"}`,
+			expectedRS: RuleSet([]*Rule{logicalHeadMod.Rules[2]}),
+		},
+		{
+			note:       "local ref head: intermediate ref",
+			module:     localHeadMod,
+			ruleset:    "intermediate",
+			input:      `{"a": {"b": {"c": "a"}}}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[2]}),
+		},
+		{
+			note:       "local ref head: membership, via the hoisting assignment",
+			module:     localHeadMod,
+			ruleset:    "member",
+			input:      `{"foo": ["a"]}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[4]}),
+		},
+		{
+			note:       "local ref head: glob.match, via the hoisting assignment",
+			module:     localHeadMod,
+			ruleset:    "globmatch",
+			input:      `{"foo": "a/b"}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[6]}),
+		},
+		{
+			note:       "local ref head: unresolvable head is not indexed",
+			module:     localHeadMod,
+			ruleset:    "unresolvable",
+			input:      `{}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[8], localHeadMod.Rules[9]}),
+		},
+		{
+			note:       "local ref head: bare ref",
+			module:     localHeadMod,
+			ruleset:    "naked_local",
+			input:      `{"foo": true}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[10]}),
+		},
+		{
+			note:       "local ref head: chain of assignments",
+			module:     localHeadMod,
+			ruleset:    "chained",
+			input:      `{"a": {"b": "a"}}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[12]}),
+		},
+		{
+			note:       "local ref head: rooted at data",
+			module:     localHeadMod,
+			ruleset:    "from_data",
+			data:       `{"roles": {"a": 1}}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[14]}),
+		},
+		{
+			note:       "local ref head: non-ground remainder is not indexed",
+			module:     localHeadMod,
+			ruleset:    "nonground",
+			input:      `{"foo": ["a"]}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[16], localHeadMod.Rules[17]}),
+		},
+		{
+			note:       "local ref head: wildcard remainder is not indexed",
+			module:     localHeadMod,
+			ruleset:    "wildcard",
+			input:      `{"foo": ["a"]}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[18], localHeadMod.Rules[19]}),
+		},
+		{
+			note:       "local ref head: virtual document is not indexed",
+			module:     localHeadMod,
+			ruleset:    "virtual",
+			isVirtual:  func(ref Ref) bool { return ref.HasPrefix(MustParseRef("data.test.vd")) },
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[20], localHeadMod.Rules[21]}),
+		},
+		{
+			// Deliberate: resolveVarToRef maps a formal to an `args[i]` ref, which
+			// isValidIndexRef rejects -- indexing bare formals works by bypassing that
+			// validation, and sub-paths of args would need the resolver to know about them.
+			note: "local ref head: function argument is not indexed",
+			module: module(`package test
+			f(x) = 1 if { x.foo = "a" }
+			f(x) = 2 if { x.foo = "b" }`),
+			ruleset: "f",
+			args:    []Value{MustParseTerm(`{"foo": "a"}`).Value},
+			expectedRS: []string{
+				`f(x) = 1 if { x.foo = "a" }`,
+				`f(x) = 2 if { x.foo = "b" }`,
+			},
 		},
 		{
 			note:        "ref: single value, ground ref",
@@ -1356,6 +1546,11 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				input = MustParseTerm(tc.input)
 			}
 
+			var data *Term
+			if tc.data != "" {
+				data = MustParseTerm(tc.data)
+			}
+
 			var expectedRS RuleSet
 
 			switch e := tc.expectedRS.(type) {
@@ -1369,9 +1564,12 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				panic("Unexpected test case: expected value")
 			}
 
-			index := newBaseDocEqIndex(func(Ref) bool {
-				return false
-			})
+			isVirtual := tc.isVirtual
+			if isVirtual == nil {
+				isVirtual = func(Ref) bool { return false }
+			}
+
+			index := newBaseDocEqIndex(isVirtual)
 
 			if !index.Build(rules) {
 				t.Fatalf("Expected index build to succeed")
@@ -1387,7 +1585,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				}
 			}
 
-			result, err := index.Lookup(testResolver{input: input, unknownRefs: unknownRefs, args: tc.args})
+			result, err := index.Lookup(testResolver{input: input, data: data, unknownRefs: unknownRefs, args: tc.args})
 			if err != nil {
 				t.Fatalf("Unexpected error during index lookup: %v", err)
 			}
