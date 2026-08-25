@@ -79,8 +79,6 @@ func TestInlineAliasesLeavesNonAliasRulesAlone(t *testing.T) {
 	c := compileForInlining(t, map[string]string{
 		"policy.rego": `package test
 
-import rego.v1
-
 p if {
 	input.attributes.request.http.method == "GET"
 	data.config.enabled
@@ -97,8 +95,6 @@ func TestInlineAliasesRewritesAliasReferences(t *testing.T) {
 	c := compileForInlining(t, map[string]string{
 		"http.rego": `package http
 
-import rego.v1
-
 request := input.attributes.request.http
 
 method := request.method
@@ -106,7 +102,6 @@ method := request.method
 		"policy.rego": `package test
 
 import data.http.method
-import rego.v1
 
 p if method == "GET"
 `,
@@ -121,13 +116,9 @@ func TestInlineAliasesRewritesReferenceBelowAlias(t *testing.T) {
 	c := compileForInlining(t, map[string]string{
 		"http.rego": `package http
 
-import rego.v1
-
 request := input.attributes.request.http
 `,
 		"policy.rego": `package test
-
-import rego.v1
 
 p if data.http.request.host == "example.com"
 `,
@@ -141,7 +132,7 @@ p if data.http.request.host == "example.com"
 func TestInlineAliasesDepthLimit(t *testing.T) {
 	chain := func(n int) string {
 		var b strings.Builder
-		b.WriteString("package chain\n\nimport rego.v1\n\n")
+		b.WriteString("package chain\n\n")
 		for i := n - 1; i >= 1; i-- {
 			fmt.Fprintf(&b, "a%d := a%d\n\n", i, i-1)
 		}
@@ -164,8 +155,6 @@ func TestInlineAliasesDepthLimit(t *testing.T) {
 			c := compileForInlining(t, map[string]string{
 				"zzz_chain.rego": chain(tc.hops),
 				"aaa_policy.rego": fmt.Sprintf(`package test
-
-import rego.v1
 
 p if %s == 1
 `, last),
@@ -234,8 +223,8 @@ func TestInlineAliasesRejectsNonAliasShapes(t *testing.T) {
 				consumer = "p if data.alias.v == 1"
 			}
 			c := compileForInlining(t, map[string]string{
-				"alias.rego":  "package alias\n\nimport rego.v1\n\n" + tc.alias + "\n",
-				"policy.rego": "package test\n\nimport rego.v1\n\n" + consumer + "\n",
+				"alias.rego":  "package alias\n\n" + tc.alias + "\n",
+				"policy.rego": "package test\n\n" + consumer + "\n",
 			})
 
 			assertRefs(t, c, "policy.rego", "p",
@@ -261,15 +250,11 @@ func TestInlineAliasesWithInScopeBlocks(t *testing.T) {
 			c := compileForInlining(t, map[string]string{
 				"http.rego": `package http
 
-import rego.v1
-
 request := input.attributes.request.http
 
 method := request.method
 `,
 				"policy.rego": fmt.Sprintf(`package test
-
-import rego.v1
 
 p if data.http.method == "GET"
 
@@ -294,29 +279,21 @@ func TestInlineAliasesWithOutOfScopeDoesNotBlock(t *testing.T) {
 	c := compileForInlining(t, map[string]string{
 		"http.rego": `package http
 
-import rego.v1
-
 request := input.attributes.request.http
 
 method := request.method
 `,
 		"policy.rego": `package test
 
-import rego.v1
-
 p if data.http.method == "GET"
 `,
 		"masking.rego": `package system.log
-
-import rego.v1
 
 mask contains "/input/x" if {
 	data.other.claims with input as input.input
 }
 `,
 		"other.rego": `package other
-
-import rego.v1
 
 claims := input.claims
 `,
@@ -335,13 +312,9 @@ func TestInlineAliasesWithInsideComprehension(t *testing.T) {
 	c := compileForInlining(t, map[string]string{
 		"alias.rego": `package alias
 
-import rego.v1
-
 v := input.x
 `,
 		"policy.rego": `package test
-
-import rego.v1
 
 p := xs if {
 	xs := {y | y := data.alias.v with input as {"x": 42}}
@@ -354,17 +327,13 @@ p := xs if {
 		[]string{"input.x"})
 }
 
-func TestInlineAliasesSkipsTestRules(t *testing.T) {
+func TestInlineAliasesProcessesTestRules(t *testing.T) {
 	c := compileForInlining(t, map[string]string{
 		"alias.rego": `package alias
-
-import rego.v1
 
 v := input.x
 `,
 		"policy_test.rego": `package test
-
-import rego.v1
 
 test_foo if data.alias.v == 1
 
@@ -373,8 +342,8 @@ helper if data.alias.v == 1
 	})
 
 	assertRefs(t, c, "policy_test.rego", "test_foo",
-		[]string{"data.alias.v"},
-		[]string{"input.x"})
+		[]string{"input.x"},
+		[]string{"data.alias.v"})
 
 	assertRefs(t, c, "policy_test.rego", "helper",
 		[]string{"input.x"},
@@ -384,8 +353,6 @@ helper if data.alias.v == 1
 func TestInlineAliasesResolvesDataRootedAlias(t *testing.T) {
 	c := compileForInlining(t, map[string]string{
 		"alias.rego": `package alias
-
-import rego.v1
 
 path := data.request.path
 `,
