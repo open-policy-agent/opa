@@ -6,43 +6,35 @@ package topdown
 
 import "github.com/open-policy-agent/opa/v1/ast"
 
-type compareFunc func(a, b ast.Value) bool
-
-func compareGreaterThan(a, b ast.Value) bool {
-	return a.Compare(b) > 0
+func builtinGreaterThan(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return iter(ast.InternedTerm(operands[0].Value.Compare(operands[1].Value) > 0))
 }
 
-func compareGreaterThanEq(a, b ast.Value) bool {
-	return a.Compare(b) >= 0
+func builtinGreaterThanEq(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return iter(ast.InternedTerm(operands[0].Value.Compare(operands[1].Value) >= 0))
 }
 
-func compareLessThan(a, b ast.Value) bool {
-	return a.Compare(b) < 0
+func builtinLessThan(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return iter(ast.InternedTerm(operands[0].Value.Compare(operands[1].Value) < 0))
 }
 
-func compareLessThanEq(a, b ast.Value) bool {
-	return a.Compare(b) <= 0
+func builtinLessThanEq(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return iter(ast.InternedTerm(operands[0].Value.Compare(operands[1].Value) <= 0))
 }
 
-func compareNotEq(a, b ast.Value) bool {
-	return a.Compare(b) != 0
+func builtinNotEqual(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return iter(ast.InternedTerm(!operands[0].Equal(operands[1])))
 }
 
-func compareEq(a, b ast.Value) bool {
-	return a.Compare(b) == 0
-}
-
-func builtinCompare(cmp compareFunc) BuiltinFunc {
-	return func(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-		return iter(ast.InternedTerm(cmp(operands[0].Value, operands[1].Value)))
-	}
+func builtinEqual(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return iter(ast.InternedTerm(operands[0].Equal(operands[1])))
 }
 
 func init() {
-	RegisterBuiltinFunc(ast.GreaterThan.Name, builtinCompare(compareGreaterThan))
-	RegisterBuiltinFunc(ast.GreaterThanEq.Name, builtinCompare(compareGreaterThanEq))
-	RegisterBuiltinFunc(ast.LessThan.Name, builtinCompare(compareLessThan))
-	RegisterBuiltinFunc(ast.LessThanEq.Name, builtinCompare(compareLessThanEq))
-	RegisterBuiltinFunc(ast.NotEqual.Name, builtinCompare(compareNotEq))
-	RegisterBuiltinFunc(ast.Equal.Name, builtinCompare(compareEq))
+	RegisterBuiltinFunc(ast.GreaterThan.Name, builtinGreaterThan)
+	RegisterBuiltinFunc(ast.GreaterThanEq.Name, builtinGreaterThanEq)
+	RegisterBuiltinFunc(ast.LessThan.Name, builtinLessThan)
+	RegisterBuiltinFunc(ast.LessThanEq.Name, builtinLessThanEq)
+	RegisterBuiltinFunc(ast.NotEqual.Name, builtinNotEqual)
+	RegisterBuiltinFunc(ast.Equal.Name, builtinEqual)
 }

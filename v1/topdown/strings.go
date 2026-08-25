@@ -20,6 +20,11 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+var (
+	trueAny                 any = true
+	errEmptySearchCharacter     = errors.New("empty search character")
+)
+
 func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	a, b := operands[0].Value, operands[1].Value
 
@@ -104,11 +109,11 @@ func anyStartsWithAny(strs []string, prefixes []string) bool {
 
 	trie := patricia.NewTrie()
 	for i := range strs {
-		trie.Insert([]byte(strs[i]), true)
+		trie.Insert(util.StringToByteSlice(strs[i]), trueAny)
 	}
 
 	for i := range prefixes {
-		if trie.MatchSubtree([]byte(prefixes[i])) {
+		if trie.MatchSubtree(util.StringToByteSlice(prefixes[i])) {
 			return true
 		}
 	}
@@ -312,7 +317,7 @@ func builtinIndexOf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 	if len(string(search)) == 0 {
-		return errors.New("empty search character")
+		return errEmptySearchCharacter
 	}
 
 	if isASCII(string(base)) && isASCII(string(search)) {
@@ -350,7 +355,7 @@ func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return err
 	}
 	if len(string(search)) == 0 {
-		return errors.New("empty search character")
+		return errEmptySearchCharacter
 	}
 
 	baseRunes := []rune(string(base))
@@ -372,7 +377,6 @@ func builtinIndexOfN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 }
 
 func builtinSubstring(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	base, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -590,10 +594,7 @@ func builtinSplitN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	} else {
 		parts := strings.Split(text, delim)
 		start := max(len(parts)+n, 0)
-		result = make([]*ast.Term, len(parts)-start)
-		for i, p := range parts[start:] {
-			result[i] = ast.InternedTerm(p)
-		}
+		result = util.Map(parts[start:], ast.InternedTerm)
 	}
 
 	return iter(ast.ArrayTerm(result...))
@@ -857,7 +858,7 @@ func reverseString(str string) string {
 		utf8.EncodeRune(buf[size-start:], r)
 	}
 
-	return string(buf)
+	return util.ByteSliceToString(buf)
 }
 
 func init() {

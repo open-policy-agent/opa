@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 
@@ -857,15 +858,9 @@ func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 	if containsTabs && len(varRows) > 1 {
 		// We can't (currently) reliably point to var locations when they are on different rows that contain tabs.
 		// So we'll just print them in alphabetical order instead.
-		byName := make([]varInfo, 0, len(exprVars))
-		for _, info := range exprVars {
-			byName = append(byName, info)
-		}
-		slices.SortStableFunc(byName, func(a, b varInfo) int {
-			return strings.Compare(a.Title(), b.Title())
-		})
-
 		w.WriteString("\n\nWhere:\n")
+
+		byName := slices.SortedStableFunc(maps.Values(exprVars), cmpVarInfoTitle)
 		for _, info := range byName {
 			fmt.Fprintf(w, "\n%s: %s", info.Title(), iStrs.Truncate(info.Value(), maxPrettyExprVarWidth))
 		}
@@ -898,6 +893,10 @@ func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 		w.WriteByte('\n')
 		printArrows(w, byCol, i)
 	}
+}
+
+func cmpVarInfoTitle(a, b varInfo) int {
+	return strings.Compare(a.Title(), b.Title())
 }
 
 func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {

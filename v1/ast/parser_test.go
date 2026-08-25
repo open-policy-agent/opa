@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-policy-agent/opa/v1/ast/internal/tokens"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const (
@@ -10606,11 +10607,7 @@ func assertExplicitBodiesEqualInBody(t *testing.T, exp, act Body) {
 }
 
 func describeExprs(b Body) string {
-	parts := make([]string, 0, len(b))
-	for _, e := range b {
-		parts = append(parts, describeExpr(e))
-	}
-	return strings.Join(parts, "; ")
+	return strings.Join(util.Map(b, describeExpr), "; ")
 }
 
 func describeExpr(e *Expr) string {
