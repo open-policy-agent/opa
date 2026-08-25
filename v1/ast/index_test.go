@@ -6,6 +6,8 @@ package ast
 
 import (
 	"errors"
+	"slices"
+	"strconv"
 	"testing"
 )
 
@@ -1505,6 +1507,62 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 	index = newBaseDocEqIndex(func(Ref) bool { return true })
 	if index.Build(nil) {
 		t.Fatalf("Expected index build to fail")
+	}
+}
+
+func TestRefIndicesInsert(t *testing.T) {
+	ref := MustParseRef("input.x")
+
+	// values as they reach insert(): a var stands for "any value" (see anyValue
+	// and the "naked ref" case in Update), anything else for that value.
+	anyIndex := func() *refindex { return &refindex{Ref: ref, Value: Var("x")} }
+	valIndex := func(v int) *refindex { return &refindex{Ref: ref, Value: Number(strconv.Itoa(v))} }
+
+	tests := []struct {
+		note   string
+		insert []*refindex
+		exp    []Value
+	}{
+		{
+			note:   "value narrows an any-value index",
+			insert: []*refindex{anyIndex(), valIndex(1)},
+			exp:    []Value{Number("1")},
+		},
+		{
+			note:   "an any-value index does not widen a value",
+			insert: []*refindex{valIndex(1), anyIndex()},
+			exp:    []Value{Number("1"), Var("x")},
+		},
+		{
+			note:   "the same value twice is one index",
+			insert: []*refindex{valIndex(1), valIndex(1)},
+			exp:    []Value{Number("1")},
+		},
+		{
+			note:   "distinct values are both kept",
+			insert: []*refindex{valIndex(1), valIndex(2)},
+			exp:    []Value{Number("1"), Number("2")},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ri := newrefindices(func(Ref) bool { return false })
+			rule := MustParseRule(`p if input.x = 1`)
+
+			for _, index := range tc.insert {
+				ri.insert(rule, index)
+			}
+
+			act := make([]Value, 0, len(ri.rules[rule]))
+			for _, index := range ri.rules[rule] {
+				act = append(act, index.Value)
+			}
+
+			if len(act) != len(tc.exp) || !slices.EqualFunc(act, tc.exp, ValueEqual) {
+				t.Errorf("expected values %v, got %v", tc.exp, act)
+			}
+		})
 	}
 }
 
