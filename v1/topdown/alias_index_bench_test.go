@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -44,7 +43,7 @@ path := input.path`
 
 			store := inmem.New()
 			input := ast.MustParseTerm(`{"path": ["ep200"]}`)
-			ctx := context.Background()
+			ctx := b.Context()
 
 			b.ReportAllocs()
 			b.ResetTimer()
