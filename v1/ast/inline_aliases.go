@@ -216,7 +216,7 @@ func (c *Compiler) inlinableAlias(ref Ref, blocked []Ref, cache map[String]inlin
 	resolved, sources := c.resolveRefAlias(ref)
 	ok := resolved != nil
 	if ok {
-		for _, src := range append(sources, resolved) {
+		for _, src := range sources {
 			if refOverlapsAny(src, blocked) {
 				ok = false
 				break
