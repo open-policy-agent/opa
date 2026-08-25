@@ -6,7 +6,7 @@ package ast
 
 import (
 	"maps"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -148,7 +148,7 @@ func blockedCacheKey(blocked []Ref) string {
 	for i := range blocked {
 		keys[i] = blocked[i].String()
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return strings.Join(keys, "\x00")
 }
 
