@@ -5,6 +5,29 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Logical `and`/`or` Keywords ([#7602](https://github.com/open-policy-agent/opa/pull/7602))
+
+The `and` and `or` keywords express conjunction and disjunction _inside_ a single rule body,
+without extracting a helper rule. Both are opt-in future keywords, and neither produces a
+value; an expression using them either succeeds or fails.
+
+```rego
+package example
+
+import future.keywords.or
+
+allow if {
+    input.user.admin or input.user.owner
+}
+```
+
+`not` binds tighter than `and`, which binds tighter than `or`; use parentheses to group.
+Multiple rules remain the idiom for disjunctions that contribute a value.
+See [Rego Keywords: and, or](https://www.openpolicyagent.org/docs/policy-reference/keywords/logical)
+for precedence, scoping, and when to prefer each.
+
+Authored by @johanfylling
+
 ## 1.19.1
 
 This release uses the latest version of Go (1.26.6) to build OPA, fixing stdlib vulnerabilities in
