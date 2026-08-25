@@ -90,6 +90,18 @@ The `future.keywords.not` import fixes a long-standing semantic issue with negat
 Read more about it in the [Improved Negation Semantics](./not#improved-negation-semantics) section of the `not` keyword overview.
 :::
 
+### Importing `future.keywords.and`
+
+[import future.keywords.and](./logical#and) enables the `and` logical operand
+(`x and y`).
+This import is independent of the [rego.v1 import](#importing-regov1).
+
+### Importing `future.keywords.or`
+
+[import future.keywords.or](./logical#or) enables the `or` logical operand
+(`x or y`).
+This import is independent of the [rego.v1 import](#importing-regov1).
+
 ## Importing `rego.v1`
 
 In [OPA 1.0](https://www.openpolicyagent.org/docs/v0-upgrade) a number of

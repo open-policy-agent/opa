@@ -358,6 +358,7 @@ The reference documentation for these functions can be found under
 The following words are reserved and cannot be used as variable names or rule
 names:
 
+- `and` ([Examples](./policy-reference/keywords/logical#and))
 - `as`
 - `contains` ([Examples](./policy-reference/keywords/contains))
 - `data`
@@ -372,6 +373,7 @@ names:
 - `package`
 - `not` ([Examples](./policy-reference/keywords/not))
 - `null`
+- `or` ([Examples](./policy-reference/keywords/logical#or))
 - `some` ([Examples](./policy-reference/keywords/some))
 - `true`
 - `with`
