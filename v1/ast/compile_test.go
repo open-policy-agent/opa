@@ -2178,6 +2178,134 @@ p := {"a": 1}[count([1, 2])]`,
 	}
 }
 
+func TestCompilerCheckTypesMemberOperator(t *testing.T) {
+	schema := `{
+		"type": "object",
+		"properties": {
+			"numbers": {
+				"type": "array",
+				"items": {"type": "number"}
+			},
+			"names": {
+				"type": "object",
+				"properties": {
+					"first": {"type": "string"},
+					"last": {"type": "string"}
+				},
+				"additionalProperties": false
+			}
+		},
+		"additionalProperties": false
+	}`
+
+	tests := []struct {
+		note   string
+		module string
+		expErr string
+	}{
+		{
+			note: "string in array of numbers",
+			module: `p if {
+	"admin" in input.numbers
+}`,
+			expErr: "match error\n\tleft  : string\n\tright : number",
+		},
+		{
+			note: "declared var in array of numbers used as string",
+			module: `p if {
+	some x in input.numbers
+	x == "admin"
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "string index of array of numbers",
+			module: `p if {
+	some i, _ in input.numbers
+	i == "admin"
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "number in object of strings",
+			module: `p if {
+	1 in input.names
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "number key of object of strings",
+			module: `p if {
+	some k, _ in input.names
+	k == 1
+}`,
+			expErr: "match error\n\tleft  : string\n\tright : number",
+		},
+		{
+			note: "number in array of numbers",
+			module: `p if {
+	1 in input.numbers
+}`,
+		},
+		{
+			note: "declared var in array of numbers used as number",
+			module: `p if {
+	some x in input.numbers
+	x > 1
+}`,
+		},
+		{
+			note: "string in object of strings",
+			module: `p if {
+	"admin" in input.names
+}`,
+		},
+		{
+			note: "string in string",
+			module: `p if {
+	"a" in input.names.first
+}`,
+		},
+		{
+			note: "unknown collection type",
+			module: `p if {
+	xs := json.unmarshal("[1]")
+	"a" in xs
+}`,
+		},
+	}
+
+	var ischema any
+	if err := json.Unmarshal([]byte(schema), &ischema); err != nil {
+		t.Fatal(err)
+	}
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(MustParseRef("schema.input"), ischema)
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module := `# METADATA
+# schemas:
+#   - input: schema.input
+package test
+
+` + tc.module
+
+			c := NewCompiler().WithSchemas(schemaSet).WithUseTypeCheckAnnotations(true)
+			c.Modules = map[string]*Module{"test": MustParseModuleWithOpts(module, ParserOptions{
+				ProcessAnnotation: true,
+			})}
+			compileStages(c, StageCheckTypes)
+
+			if tc.expErr == "" {
+				assertNotFailed(t, c)
+			} else {
+				assertCompilerErrorStrings(t, c, []string{"rego_type_error: " + tc.expErr})
+			}
+		})
+	}
+}
+
 func TestCompilerCheckRuleConflicts(t *testing.T) {
 
 	c := getCompilerWithParsedModules(map[string]string{
