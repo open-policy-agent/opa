@@ -384,8 +384,6 @@ path := data.request.path
 `,
 		"policy.rego": `package test
 
-import rego.v1
-
 p if data.alias.path == ["a"]
 `,
 	})
