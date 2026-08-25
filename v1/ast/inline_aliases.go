@@ -19,7 +19,7 @@ func (c *Compiler) inlineRefAliases() {
 	}
 
 	blockedRules := c.withScopes()
-	caches := map[string]map[String]inlinedAlias{"": {}}
+	caches := map[string]*aliasCache{"": {}}
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
@@ -29,7 +29,7 @@ func (c *Compiler) inlineRefAliases() {
 			cacheKey := blockedCacheKey(blocked)
 			cache, ok := caches[cacheKey]
 			if !ok {
-				cache = map[String]inlinedAlias{}
+				cache = &aliasCache{}
 				caches[cacheKey] = cache
 			}
 			c.inlineAliasesInBody(rule.Body, blocked, cache)
@@ -157,7 +157,11 @@ type inlinedAlias struct {
 	ok       bool
 }
 
-func (c *Compiler) inlineAliasesInBody(body Body, blocked []Ref, cache map[String]inlinedAlias) {
+type aliasCache struct {
+	entries map[String]inlinedAlias
+}
+
+func (c *Compiler) inlineAliasesInBody(body Body, blocked []Ref, cache *aliasCache) {
 	for _, expr := range body {
 		if len(expr.With) > 0 {
 			continue
@@ -196,7 +200,7 @@ func (c *Compiler) inlineAliasesInBody(body Body, blocked []Ref, cache map[Strin
 	}
 }
 
-func (c *Compiler) inlinableAlias(ref Ref, blocked []Ref, cache map[String]inlinedAlias) (Ref, bool) {
+func (c *Compiler) inlinableAlias(ref Ref, blocked []Ref, cache *aliasCache) (Ref, bool) {
 	if !RootDocumentNames.Contains(ref[0]) || !ref.IsGround() || ref.IsNested() {
 		return nil, false
 	}
@@ -206,7 +210,7 @@ func (c *Compiler) inlinableAlias(ref Ref, blocked []Ref, cache map[String]inlin
 	}
 
 	key := String(ref.String())
-	if hit, ok := cache[key]; ok {
+	if hit, ok := cache.entries[key]; ok {
 		return hit.resolved, hit.ok
 	}
 
@@ -224,7 +228,10 @@ func (c *Compiler) inlinableAlias(ref Ref, blocked []Ref, cache map[String]inlin
 		resolved = nil
 	}
 
-	cache[key] = inlinedAlias{resolved: resolved, ok: ok}
+	if cache.entries == nil {
+		cache.entries = map[String]inlinedAlias{}
+	}
+	cache.entries[key] = inlinedAlias{resolved: resolved, ok: ok}
 
 	return resolved, ok
 }
