@@ -24,9 +24,6 @@ func (c *Compiler) inlineRefAliases() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		WalkRules(mod, func(rule *Rule) bool {
-			if strings.HasPrefix(string(rule.Head.Name), "test_") {
-				return false
-			}
 
 			blocked := blockedRules[rule]
 			cacheKey := blockedCacheKey(blocked)
