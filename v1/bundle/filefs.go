@@ -35,13 +35,11 @@ func NewFSLoader(filesystem fs.FS) (DirectoryLoader, error) {
 // NewFSLoaderWithRoot returns a basic DirectoryLoader implementation
 // that will load files from a fs.FS interface at the supplied root
 func NewFSLoaderWithRoot(filesystem fs.FS, root string) DirectoryLoader {
-	d := dirLoaderFS{
+	return &dirLoaderFS{
 		filesystem: filesystem,
 		root:       normalizeRootDirectory(root),
 		pathFormat: Chrooted,
 	}
-
-	return &d
 }
 
 func (d *dirLoaderFS) walkDir(path string, dirEntry fs.DirEntry, err error) error {
@@ -135,6 +133,5 @@ func (d *dirLoaderFS) NextFile() (*Descriptor, error) {
 	}
 
 	cleanedPath := formatPath(fileName, d.root, d.pathFormat)
-	f := NewDescriptor(cleanedPath, cleanedPath, fh).WithCloser(fh)
-	return f, nil
+	return NewDescriptor(cleanedPath, cleanedPath, fh).WithCloser(fh), nil
 }

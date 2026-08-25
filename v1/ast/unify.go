@@ -226,7 +226,10 @@ func (u *unifier) unifyAll(a Var, b Value) {
 			SkipClosures:   true,
 		})
 		vis.Walk(b)
-		unsafe := vis.Vars().Diff(u.safe).Diff(u.unified)
+		unsafe := vis.Vars().
+			DeleteFunc(u.safe.Contains).
+			DeleteFunc(u.unified.Contains)
+
 		if len(unsafe) == 0 {
 			u.markSafe(a)
 		} else {

@@ -328,15 +328,7 @@ func (wr *WasmResolver) Equal(other *WasmResolver) bool {
 type stringSet map[string]struct{}
 
 func (ss stringSet) Equal(other stringSet) bool {
-	if len(ss) != len(other) {
-		return false
-	}
-	for k := range other {
-		if _, ok := ss[k]; !ok {
-			return false
-		}
-	}
-	return true
+	return maps.Equal(ss, other)
 }
 
 func (m *Manifest) validateAndInjectDefaults(b Bundle) error {

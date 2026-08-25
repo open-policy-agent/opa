@@ -441,6 +441,12 @@ func TermValueIs[T Value](term *Term) (ok bool) {
 	return ok
 }
 
+// ToTerm exists solely to be able to map concrete Value
+// implementations to *Term in util.Map, util.MapKeys, etc.
+func ToTerm[T Value](v T) *Term {
+	return NewTerm(v)
+}
+
 // IsConstant returns true if the AST value is constant.
 // Note that this is only a shallow check as we currently don't have a real
 // notion of constant "vars" in the AST implementation. Meaning that while we could
@@ -1255,7 +1261,7 @@ func (ref Ref) Equal(other Value) bool {
 // or greater than other.
 func (ref Ref) Compare(other Value) int {
 	if o, ok := other.(Ref); ok {
-		return termSliceCompare(ref, o)
+		return slices.CompareFunc(ref, o, TermValueCompare)
 	}
 	return valueTypeCompare(ref, other)
 }
@@ -1515,7 +1521,7 @@ func (arr *Array) Equal(other Value) bool {
 // or greater than other.
 func (arr *Array) Compare(other Value) int {
 	if b, ok := other.(*Array); ok {
-		return termSliceCompare(arr.elems, b.elems)
+		return slices.CompareFunc(arr.elems, b.elems, TermValueCompare)
 	}
 
 	return valueTypeCompare(arr, other)
@@ -2197,12 +2203,7 @@ func (lob *lazyObj) Keys() []*Term {
 	if lob.strict != nil {
 		return lob.strict.Keys()
 	}
-	ret := make([]*Term, 0, len(lob.native))
-	for k := range lob.native {
-		ret = append(ret, InternedTerm(k))
-	}
-
-	return util.SortedFunc(ret, TermValueCompare)
+	return util.SortedFunc(util.MapKeys(lob.native, InternedTerm), TermValueCompare)
 }
 
 func (lob *lazyObj) KeysIterator() ObjectKeysIterator {
@@ -2986,7 +2987,7 @@ func (c Call) Copy() Call {
 // or greater than other.
 func (c Call) Compare(other Value) int {
 	if oc, ok := other.(Call); ok {
-		return termSliceCompare(c, oc)
+		return slices.CompareFunc(c, oc, TermValueCompare)
 	}
 	return valueTypeCompare(c, other)
 }

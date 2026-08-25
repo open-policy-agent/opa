@@ -345,7 +345,7 @@ func (mod *Module) Compare(other *Module) int {
 	if cmp := slices.CompareFunc(mod.Annotations, other.Annotations, (*Annotations).Compare); cmp != 0 {
 		return cmp
 	}
-	return rulesCompare(mod.Rules, other.Rules)
+	return slices.CompareFunc(mod.Rules, other.Rules, (*Rule).Compare)
 }
 
 // Copy returns a deep copy of mod.
@@ -466,7 +466,7 @@ func (c *Comment) Equal(other *Comment) bool {
 // Compare returns an integer indicating whether pkg is less than, equal to,
 // or greater than other.
 func (pkg *Package) Compare(other *Package) int {
-	return termSliceCompare(pkg.Path, other.Path)
+	return slices.CompareFunc(pkg.Path, other.Path, TermValueCompare)
 }
 
 // Copy returns a deep copy of pkg.
@@ -823,10 +823,10 @@ func (head *Head) Compare(other *Head) int {
 	} else if !head.Assign && other.Assign {
 		return 1
 	}
-	if cmp := termSliceCompare(head.Args, other.Args); cmp != 0 {
+	if cmp := slices.CompareFunc(head.Args, other.Args, TermValueCompare); cmp != 0 {
 		return cmp
 	}
-	if cmp := termSliceCompare(head.Reference, other.Reference); cmp != 0 {
+	if cmp := slices.CompareFunc(head.Reference, other.Reference, TermValueCompare); cmp != 0 {
 		return cmp
 	}
 	if cmp := VarCompare(head.Name, other.Name); cmp != 0 {
@@ -1115,7 +1115,7 @@ func (expr *Expr) Compare(other *Expr) int {
 			return cmp
 		}
 	case []*Term:
-		if cmp := termSliceCompare(t, other.Terms.([]*Term)); cmp != 0 {
+		if cmp := slices.CompareFunc(t, other.Terms.([]*Term), TermValueCompare); cmp != 0 {
 			return cmp
 		}
 	case *SomeDecl:
@@ -1140,7 +1140,7 @@ func (expr *Expr) Compare(other *Expr) int {
 		}
 	}
 
-	return withSliceCompare(expr.With, other.With)
+	return slices.CompareFunc(expr.With, other.With, (*With).Compare)
 }
 
 func (expr *Expr) sortOrder() int {
@@ -1471,7 +1471,7 @@ func (d *SomeDecl) Copy() *SomeDecl {
 // Compare returns an integer indicating whether d is less than, equal to, or
 // greater than other.
 func (d *SomeDecl) Compare(other *SomeDecl) int {
-	return termSliceCompare(d.Symbols, other.Symbols)
+	return slices.CompareFunc(d.Symbols, other.Symbols, TermValueCompare)
 }
 
 // Hash returns a hash code of d.
@@ -1820,12 +1820,7 @@ func (rs *RuleSet) Add(rule *Rule) {
 
 // Contains returns true if rs contains rule.
 func (rs RuleSet) Contains(rule *Rule) bool {
-	for i := range rs {
-		if rs[i].Equal(rule) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(rs, rule.Equal)
 }
 
 // Diff returns a new RuleSet containing rules in rs that are not in other.

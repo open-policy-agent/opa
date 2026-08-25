@@ -23,9 +23,7 @@ func checkDuplicateImports(modules []*Module) (errors Errors) {
 	return
 }
 
-func checkRootDocumentOverrides(node any) Errors {
-	errors := Errors{}
-
+func checkRootDocumentOverrides(node any) (errors Errors) {
 	WalkRules(node, func(rule *Rule) bool {
 		name := rule.Head.Name
 		if len(rule.Head.Reference) > 0 {
@@ -74,7 +72,10 @@ func walkCalls(node any, f func(any) bool) {
 			}
 		case *Head:
 			// GenericVisitor doesn't walk the rule head ref
-			walkCalls(y.Reference, f)
+			// (Ref -> any escapes to heap, so walk terms instead)
+			for _, term := range y.Reference {
+				walkCalls(term, f)
+			}
 		}
 		return false
 	})

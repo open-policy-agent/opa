@@ -31,21 +31,15 @@ func All(x any) (resolved []ast.Ref, err error) {
 			return true
 		case ast.Body:
 			vars := ast.NewVarVisitor()
-			vars.Walk(x)
-
-			arr := ast.NewArray()
-			for v := range vars.Vars() {
-				if v.IsWildcard() {
-					continue
-				}
-				arr = arr.Append(ast.NewTerm(v))
-			}
-
+			vars.WalkBody(x)
 			// The analysis will discard variables that are not used in
 			// direct comparisons or in the output. Since lone Bodies are
 			// often queries, we want all the variables to be in the output.
 			r := &ast.Rule{
-				Head: &ast.Head{Name: ast.Var("_"), Value: ast.NewTerm(arr)},
+				Head: &ast.Head{
+					Name:  ast.Var("_"),
+					Value: ast.ArrayTerm(util.MapKeys(vars.Vars().DeleteFunc(ast.Var.IsWildcard), ast.ToTerm)...),
+				},
 				Body: x,
 			}
 			rawResolved = append(rawResolved, ruleDeps(r)...)
@@ -274,15 +268,18 @@ func ruleDeps(rule *ast.Rule) (resolved []ast.Ref) {
 
 	usedVars := varVisitor.Vars()
 
-	// Vars included in refs must be counted as used.
-	ast.WalkRefs(rule.Body, func(r ast.Ref) bool {
-		for i := 1; i < len(r); i++ {
-			if v, ok := r[i].Value.(ast.Var); ok {
-				usedVars.Add(v)
+	// Walk each expression to avoid Body -> any boxing (heap allocation).
+	for _, expr := range rule.Body {
+		// Vars included in refs must be counted as used.
+		ast.WalkRefs(expr, func(r ast.Ref) bool {
+			for _, t := range r[1:] {
+				if v, ok := t.Value.(ast.Var); ok {
+					usedVars.Add(v)
+				}
 			}
-		}
-		return false
-	})
+			return false
+		})
+	}
 
 	resolveRemainingVars(joined, visitor, usedVars, headVars)
 	return resolved

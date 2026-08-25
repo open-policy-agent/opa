@@ -62,10 +62,11 @@ func BuiltinNameFromRef(ref Ref) (string, bool) {
 
 	totalLen := len(varName)
 	for _, term := range ref[1:] {
-		if _, ok = term.Value.(String); !ok {
+		tvs, ok := term.Value.(String)
+		if !ok {
 			return "", false
 		}
-		totalLen += 1 + len(term.Value.(String)) // account for dot
+		totalLen += 1 + len(tvs) // account for dot
 	}
 
 	matched, ok := builtinNamesByShape()[builtinNameShape(reflen, totalLen)]
@@ -99,12 +100,16 @@ func BuiltinNameFromRef(ref Ref) (string, bool) {
 }
 
 func AppendDelimeted[T encoding.TextAppender](buf []byte, appenders []T, delim string) ([]byte, error) {
-	for i, item := range appenders {
-		if i > 0 {
-			buf = append(buf, delim...)
-		}
-		var err error
-		if buf, err = item.AppendText(buf); err != nil {
+	if len(appenders) == 0 {
+		return buf, nil
+	}
+	var err error
+	if buf, err = appenders[0].AppendText(buf); err != nil {
+		return nil, err
+	}
+
+	for _, item := range appenders[1:] {
+		if buf, err = item.AppendText(append(buf, delim...)); err != nil {
 			return nil, err
 		}
 	}

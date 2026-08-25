@@ -2118,18 +2118,6 @@ func (c *Compiler) getExports() *util.HasherMap[Ref, []Ref] {
 	return rules
 }
 
-func refSliceEqual(a, b []Ref) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !a[i].Equal(b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
 func hashMapAdd(rules *util.HasherMap[Ref, []Ref], pkg, rule Ref) {
 	prev, ok := rules.Get(pkg)
 	if !ok {
@@ -2640,15 +2628,12 @@ func rewriteTemplateString(tsr *templateStringRewriter, safe VarSet, loc *Locati
 				// Note: we don't care about not exprs here
 				vis = ClearOrNewVarVisitor(vis).WithParams(SafetyCheckVisitorParams)
 				vis.Walk(t)
-				vars := vis.Vars()
-				if vars.DiffCount(safe) > 0 {
-					unsafe := vars.Diff(safe)
-					for _, v := range unsafe.Sorted() {
-						if w, ok := tsr.rewritten[v]; ok {
-							v = w
-						}
-						errs = append(errs, NewError(CompileErr, t.Loc(), "var %v is undeclared", v))
+				unsafe := vis.Vars().DeleteFunc(safe.Contains)
+				for _, v := range unsafe.Sorted() {
+					if w, ok := tsr.rewritten[v]; ok {
+						v = w
 					}
+					errs = append(errs, NewError(CompileErr, t.Loc(), "var %v is undeclared", v))
 				}
 
 				loc := t.Loc()
@@ -2829,15 +2814,12 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 			// Note: we don't care about not exprs here
 			vis = vis.Clear().WithParams(SafetyCheckVisitorParams)
 			vis.Walk(args[j])
-			vars := vis.Vars()
-			if vars.DiffCount(safe) > 0 {
-				unsafe := vars.Diff(safe)
-				for _, v := range unsafe.Sorted() {
-					if w, ok := rewritten[v]; ok {
-						v = w
-					}
-					errs = append(errs, NewError(CompileErr, args[j].Loc(), "var %v is undeclared", v))
+			unsafe := vis.Vars().DeleteFunc(safe.Contains)
+			for _, v := range unsafe.Sorted() {
+				if w, ok := rewritten[v]; ok {
+					v = w
 				}
+				errs = append(errs, NewError(CompileErr, args[j].Loc(), "var %v is undeclared", v))
 			}
 		}
 
@@ -3356,11 +3338,7 @@ func (c *Compiler) rewriteLocalVarsInRule(rule *Rule, unusedArgs VarSet, argsSta
 		if rule.Head.Value != nil && !IsScalar(rule.Head.Value.Value) {
 			valueVars := rule.Head.Value.Vars()
 			vis.vars.Update(valueVars)
-			for arg := range unusedArgs {
-				if valueVars.Contains(arg) {
-					delete(unusedArgs, arg)
-				}
-			}
+			unusedArgs.DeleteFunc(valueVars.Contains)
 		}
 
 		used = vis.Vars()
@@ -4063,7 +4041,9 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 	}
 
 	outputs := outputVarsForBody(body, arity, ReservedVars, nil)
-	unsafe := body.Vars(SafetyCheckVisitorParams).Diff(outputs).Diff(ReservedVars)
+	unsafe := body.Vars(SafetyCheckVisitorParams).
+		DeleteFunc(outputs.Contains).
+		DeleteFunc(ReservedVars.Contains)
 
 	if len(unsafe) > 0 {
 		dbg.Printf("%s: comprehension index: unsafe vars: %v", expr.Location, unsafe)
@@ -4100,12 +4080,7 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 		return nil
 	}
 
-	result := make([]*Term, 0, len(indexVars))
-	for v := range indexVars {
-		result = append(result, NewTerm(v))
-	}
-	slices.SortFunc(result, TermValueCompare)
-
+	result := util.SortedFunc(util.MapKeys(indexVars, ToTerm), TermValueCompare)
 	debugRes := make([]*Term, len(result))
 	for i, r := range result {
 		if o, ok := rwVars[r.Value.(Var)]; ok {
@@ -4796,10 +4771,7 @@ func (g *Graph) Sort() (sorted []util.T, ok bool) {
 		temp:   map[util.T]struct{}{},
 	}
 
-	nodesList := make([]util.T, 0, len(g.nodes))
-	for node := range g.nodes {
-		nodesList = append(nodesList, node)
-	}
+	nodesList := util.Keys(g.nodes)
 	sortGraphNodes(nodesList)
 	for _, node := range nodesList {
 		if !sorter.Visit(node) {
@@ -5010,10 +4982,8 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	for _, e := range body {
 		vis = vis.Clear().WithParams(SafetyCheckVisitorParamsWithArity(arity))
 		vis.Walk(e)
-		for v := range vis.Vars() {
-			if _, ok := safe[v]; !ok {
-				unsafe.Add(e, v)
-			}
+		for v := range vis.Vars().DeleteFunc(safe.Contains) {
+			unsafe.Add(e, v)
 		}
 	}
 
@@ -5034,13 +5004,13 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 			// check closures: is this expression closing over variables that
 			// haven't been made safe by what's already included in `reordered`?
 			unsafeVarsInClosures(e, unsVis)
-			cv := unsVis.Vars().Intersect(bodyVars).Diff(globals)
+			cv := unsVis.Vars().Intersect(bodyVars).DeleteFunc(globals.Contains)
 			unsVis.Clear()
 
 			ob := outputVarsForBody(reordered, arity, safe, vis)
 
 			if cv.DiffCount(ob) > 0 {
-				uv := cv.Diff(ob)
+				uv := cv.DeleteFunc(ob.Contains)
 				if uv.Equal(ovs) { // special case "closure-self"
 					continue
 				}
@@ -5300,8 +5270,7 @@ func (xform *bodySafetyTransformer) reorderComprehensionSafety(tv VarSet, body B
 	bv.Update(xform.globals)
 
 	if tv.DiffCount(bv) > 0 {
-		uv := tv.Diff(bv)
-		for v := range uv {
+		for v := range tv.Diff(bv) {
 			xform.unsafe.Add(xform.current, v)
 		}
 	}
@@ -5361,11 +5330,10 @@ func outputVarsForBody(body Body, arity func(Ref) int, safe VarSet, vis *VarVisi
 	output := VarSet{}
 
 	vis = ClearOrNewVarVisitor(vis)
-
 	for _, e := range body {
 		o.Update(outputVarsForExpr(e, arity, o, output, vis))
 	}
-	return o.Diff(safe)
+	return o.DeleteFunc(safe.Contains)
 }
 
 // OutputVarsFromExpr returns all variables which are the "output" for
@@ -5473,7 +5441,7 @@ func outputVarsForExprCall(expr *Expr, arity int, safe VarSet, terms []*Term, vi
 	vis = ClearOrNewVarVisitor(vis).WithParams(params)
 	vis.WalkArgs(Args(terms[:numInputTerms]))
 
-	unsafe := vis.Vars().Diff(output).DiffCount(safe)
+	unsafe := vis.Vars().DeleteFunc(output.Contains).DiffCount(safe)
 	if unsafe > 0 {
 		return VarSet{}
 	}
@@ -5574,9 +5542,9 @@ func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Modul
 	return &localVarGenerator{exclude: vis.vars, suffix: LocalVarPrefix}
 }
 
-func newLocalVarGenerator(suffix string, node any) *localVarGenerator {
+func newLocalVarGenerator(suffix string, body Body) *localVarGenerator {
 	vis := NewVarVisitor()
-	vis.Walk(node)
+	vis.WalkBody(body)
 	return &localVarGenerator{exclude: vis.vars, suffix: LocalVarPrefix + suffix}
 }
 
@@ -5599,7 +5567,7 @@ func getGlobals(pkg *Package, rules []Ref, imports []*Import) map[Var]*usedRef {
 
 	for _, ref := range rules {
 		v := ref[0].Value.(Var)
-		globals[v] = &usedRef{ref: pkg.Path.Append(StringTerm(string(v)))}
+		globals[v] = &usedRef{ref: pkg.Path.Append(InternedTerm(string(v)))}
 	}
 
 	for _, imp := range imports {
@@ -6810,13 +6778,12 @@ func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, c
 
 	for v := range used {
 		if gv, ok := stack.Declared(v); ok {
-			bodyvars.Add(gv)
-		} else {
-			bodyvars.Add(v)
+			v = gv
 		}
+		bodyvars.Add(v)
 	}
 
-	dbv := declared.Diff(bodyvars)
+	dbv := declared.DeleteFunc(bodyvars.Contains)
 	if dbv.DiffCount(used) == 0 {
 		return errs
 	}
@@ -6826,7 +6793,7 @@ func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, c
 		reversed[v] = k
 	}
 
-	for _, gv := range dbv.Diff(used).Sorted() {
+	for _, gv := range dbv.DeleteFunc(used.Contains).Sorted() {
 		rv := reversed[gv]
 		if !rv.IsGenerated() {
 			// Scan through body exprs, looking for a match between the
@@ -7301,7 +7268,7 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 	// Ensure that values that are built-ins are rewritten to Ref (not Var)
 	if v, ok := value.Value.(Var); ok {
 		if _, ok := c.builtins[v.String()]; ok {
-			value.Value = Ref([]*Term{NewTerm(v)})
+			value.Value = Ref([]*Term{NewTerm(value.Value)})
 		}
 	}
 	isBuiltinRefOrVar, err := isBuiltinRefOrVar(c.builtins, unsafeBuiltinsMap, target)
@@ -7362,8 +7329,8 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 	case isBuiltinRefOrVar:
 		// NOTE(sr): first we ensure that parsed Var builtins (`count`, `concat`, etc)
 		// are rewritten to their proper Ref convention
-		if v, ok := target.Value.(Var); ok {
-			target.Value = Ref([]*Term{NewTerm(v)})
+		if _, ok := target.Value.(Var); ok {
+			target.Value = Ref([]*Term{NewTerm(target.Value)})
 		}
 
 		targetRef := target.Value.(Ref)

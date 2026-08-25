@@ -301,7 +301,7 @@ func ParseCompleteDocRuleWithDotsFromTerm(module *Module, term *Term) (*Rule, er
 	}
 
 	if _, ok := ref[0].Value.(Var); !ok {
-		return nil, fmt.Errorf("invalid rule head: %v", ref)
+		return nil, fmt.Errorf("invalid rule head: %v", term.Value)
 	}
 	head := RefHead(ref, BooleanTerm(true).SetLocation(term.Location))
 	head.generatedValue = true
@@ -326,7 +326,7 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 	}
 
 	if _, ok := ref[0].Value.(Var); !ok {
-		return nil, fmt.Errorf("invalid rule head: %v", ref)
+		return nil, fmt.Errorf("invalid rule head: %v", lhs.Value)
 	}
 
 	head := RefHead(ref, rhs)
@@ -352,13 +352,12 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 // ParsePartialSetDocRuleFromTerm returns a rule if the term can be interpreted
 // as a partial set document definition.
 func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
-
 	ref, ok := term.Value.(Ref)
 	if !ok || len(ref) == 1 {
 		return nil, fmt.Errorf("%vs cannot be used for rule head", ValueName(term.Value))
 	}
 	if _, ok := ref[0].Value.(Var); !ok {
-		return nil, fmt.Errorf("invalid rule head: %v", ref)
+		return nil, fmt.Errorf("invalid rule head: %v", term.Value)
 	}
 
 	head := RefHead(ref)
@@ -388,7 +387,6 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 // ParseRuleFromCallEqExpr returns a rule if the term can be interpreted as a
 // function definition (e.g., f(x) = y => f(x) = y { true }).
 func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
-
 	call, ok := lhs.Value.(Call)
 	if !ok {
 		return nil, errors.New("must be call")
@@ -399,7 +397,7 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 		return nil, fmt.Errorf("%vs cannot be used in function signature", ValueName(call[0].Value))
 	}
 	if _, ok := ref[0].Value.(Var); !ok {
-		return nil, fmt.Errorf("invalid rule head: %v", ref)
+		return nil, fmt.Errorf("invalid rule head: %v", call[0].Value)
 	}
 
 	head := RefHead(ref, rhs)
@@ -421,7 +419,6 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 // ParseRuleFromCallExpr returns a rule if the terms can be interpreted as a
 // function returning true or some value (e.g., f(x) => f(x) = true { true }).
 func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
-
 	if len(terms) <= 1 {
 		return nil, errors.New("rule argument list must take at least one argument")
 	}
@@ -429,7 +426,7 @@ func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
 	loc := terms[0].Location
 	ref := terms[0].Value.(Ref)
 	if _, ok := ref[0].Value.(Var); !ok {
-		return nil, fmt.Errorf("invalid rule head: %v", ref)
+		return nil, fmt.Errorf("invalid rule head: %v", terms[0].Value)
 	}
 	head := RefHead(ref, BooleanTerm(true).SetLocation(loc))
 	head.Location = loc

@@ -925,7 +925,6 @@ func (e *eval) evalNotPartial(expr *ast.Expr, unNegateFn unNegateFn, complementF
 }
 
 func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, supportTermsFn supportTermsFn, unknowns ast.VarSet, queries []ast.Body, iter evalIterator) error {
-
 	// Prepare support rule head.
 	supportName := fmt.Sprintf("__not%d_%d_%d__", e.queryID, e.index, negationID)
 	term := ast.RefTerm(ast.DefaultRootDocument, e.saveNamespace, ast.StringTerm(supportName))
@@ -938,27 +937,15 @@ func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, supportT
 		bodyVars.Update(q.Vars(ast.VarVisitorParams{}))
 	}
 
-	unknowns = unknowns.Intersect(bodyVars)
-
 	// Make rule args. Sort them to ensure order is deterministic.
-	args := make([]*ast.Term, 0, len(unknowns))
-
-	for v := range unknowns {
-		args = append(args, ast.NewTerm(v))
-	}
-
-	slices.SortFunc(args, ast.TermValueCompare)
-
+	args := util.SortedFunc(util.MapKeys(unknowns.Intersect(bodyVars), ast.ToTerm), ast.TermValueCompare)
 	if len(args) > 0 {
 		head.Args = args
 	}
 
 	// Save support rules.
 	for _, query := range queries {
-		e.saveSupport.Insert(path, &ast.Rule{
-			Head: head,
-			Body: query,
-		})
+		e.saveSupport.Insert(path, &ast.Rule{Head: head, Body: query})
 	}
 
 	// Save expression that refers to support rule set.
@@ -1369,13 +1356,11 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 }
 
 func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {
-
 	if e.unknown(a, b1) {
 		return e.biunifyComprehensionPartial(a, b, b1, b2, swap, iter)
 	}
 
 	value, err := e.buildComprehensionCache(a)
-
 	if err != nil {
 		return err
 	} else if value != nil {
@@ -3025,8 +3010,7 @@ func (h *evalVirtualPartialCacheHint) keyWithoutScope() ast.Ref {
 }
 
 func (e evalVirtualPartial) eval(iter unifyIterator) error {
-	unknown := e.e.unknown(e.ref[:e.pos+1], e.bindings)
-
+	unknown := e.e.unknownRef(e.ref[:e.pos+1], e.bindings)
 	if len(e.ref) == e.pos+1 {
 		if unknown {
 			return e.partialEvalSupport(iter)
@@ -3065,7 +3049,7 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 
 	if e.e.partial() {
 		m := maxRefLength(e.ir.Rules, len(e.ref))
-		if e.e.unknown(e.ref[e.pos+1:m], e.bindings) {
+		if e.e.unknownRef(e.ref[e.pos+1:m], e.bindings) {
 			for _, rule := range e.ir.Rules {
 				if err := e.evalOneRulePostUnify(iter, rule); err != nil {
 					return err
@@ -3431,11 +3415,8 @@ func (e evalVirtualPartial) evalTerm(iter unifyIterator, pos int, term *ast.Term
 	return eval.eval(iter)
 }
 
-func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCacheHint, error) {
-
-	var hint evalVirtualPartialCacheHint
-
-	if e.e.unknown(e.ref[:e.pos+1], e.bindings) {
+func (e evalVirtualPartial) evalCache(iter unifyIterator) (hint evalVirtualPartialCacheHint, err error) {
+	if e.e.unknownRef(e.ref[:e.pos+1], e.bindings) {
 		// FIXME: Return empty hint if unknowns in any e.ref elem overlapping with applicable rule refs?
 		return hint, nil
 	}

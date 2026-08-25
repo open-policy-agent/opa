@@ -175,7 +175,7 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 	safe.Update(ast.ReservedVars)
 	safe.Update(p.livevars)
 	safe.Update(ast.OutputVarsFromBody(p.compiler, result, safe))
-	unsafe := result.Vars(ast.SafetyCheckVisitorParamsWithArity(p.compiler.GetArity)).Diff(safe)
+	unsafe := result.Vars(ast.SafetyCheckVisitorParamsWithArity(p.compiler.GetArity)).DeleteFunc(safe.Contains)
 
 	for _, b := range sortbindings(removedEqs) {
 		removedEq := ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v))

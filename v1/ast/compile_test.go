@@ -444,10 +444,7 @@ func refMapEqual(a, b *util.HasherMap[Ref, []Ref]) bool {
 		if !ok {
 			return true
 		}
-		if !refSliceEqual(v, v2) {
-			return true
-		}
-		return false
+		return !slices.EqualFunc(v, v2, RefEqual)
 	})
 }
 
@@ -2982,7 +2979,7 @@ func TestCompilerExprExpansion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			gen := newLocalVarGenerator("", NullTerm())
+			gen := newLocalVarGenerator("", Body{})
 			expr := MustParseExpr(tc.input)
 			result := expandExpr(gen, expr.Copy())
 			if len(result) != len(tc.expected) {

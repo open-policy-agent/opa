@@ -120,6 +120,17 @@ func (s VarSet) Update(vs VarSet) {
 	}
 }
 
+// DeleteFunc removes all variables from the set for which the provided predicate f is true.
+// The delete operation is performed *in place* and the modified VarSet is returned for convenience.
+func (s VarSet) DeleteFunc(f func(Var) bool) VarSet {
+	for v := range s {
+		if f(v) {
+			delete(s, v)
+		}
+	}
+	return s
+}
+
 func (s VarSet) String() string {
 	return fmt.Sprintf("%v", util.KeysSorted(s))
 }

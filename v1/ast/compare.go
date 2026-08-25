@@ -107,10 +107,10 @@ func Compare(a, b any) int {
 	case Var:
 		return VarCompare(a, b.(Var))
 	case Ref:
-		return termSliceCompare(a, b.(Ref))
+		return slices.CompareFunc(a, b.(Ref), TermValueCompare)
 	case *Array:
 		b := b.(*Array)
-		return termSliceCompare(a.elems, b.elems)
+		return slices.CompareFunc(a.elems, b.elems, TermValueCompare)
 	case *lazyObj:
 		return Compare(a.force(), b)
 	case *object:
@@ -130,7 +130,7 @@ func Compare(a, b any) int {
 		b := b.(*SetComprehension)
 		return a.Compare(b)
 	case Call:
-		return termSliceCompare(a, b.(Call))
+		return slices.CompareFunc(a, b.(Call), TermValueCompare)
 	case *Expr:
 		return a.Compare(b.(*Expr))
 	case *SomeDecl:
@@ -150,7 +150,7 @@ func Compare(a, b any) int {
 	case *Rule:
 		return a.Compare(b.(*Rule))
 	case Args:
-		return termSliceCompare(a, b.(Args))
+		return slices.CompareFunc(a, b.(Args), TermValueCompare)
 	case *Import:
 		return a.Compare(b.(*Import))
 	case *Package:
@@ -247,52 +247,6 @@ func sortOrder(x any) int {
 	panic(fmt.Sprintf("illegal value: %T", x))
 }
 
-func rulesCompare(a, b []*Rule) int {
-	minLen := min(len(b), len(a))
-	for i := range minLen {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-	if len(a) < len(b) {
-		return -1
-	}
-	if len(b) < len(a) {
-		return 1
-	}
-	return 0
-}
-
-func termSliceCompare(a, b []*Term) int {
-	minLen := min(len(b), len(a))
-	for i := range minLen {
-		if cmp := a[i].Value.Compare(b[i].Value); cmp != 0 {
-			return cmp
-		}
-	}
-	if len(a) < len(b) {
-		return -1
-	} else if len(b) < len(a) {
-		return 1
-	}
-	return 0
-}
-
-func withSliceCompare(a, b []*With) int {
-	minLen := min(len(b), len(a))
-	for i := range minLen {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-	if len(a) < len(b) {
-		return -1
-	} else if len(b) < len(a) {
-		return 1
-	}
-	return 0
-}
-
 func VarCompare(a, b Var) int {
 	if a == b {
 		return 0
@@ -329,7 +283,7 @@ func ValueEqual(a, b Value) bool {
 }
 
 func RefCompare(a, b Ref) int {
-	return termSliceCompare(a, b)
+	return slices.CompareFunc(a, b, TermValueCompare)
 }
 
 func RefEqual(a, b Ref) bool {
