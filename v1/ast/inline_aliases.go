@@ -4,15 +4,22 @@
 
 package ast
 
-import "strings"
+import (
+	"maps"
+	"sort"
+	"strings"
+)
 
 func (c *Compiler) inlineRefAliases() {
 	if len(c.Modules) == 0 {
 		return
 	}
+	if !c.hasPureAliasRules() {
+		return
+	}
 
-	scopes := c.withScopes()
-	cache := map[*Rule]map[String]inlinedAlias{}
+	blockedRules := c.withScopes()
+	caches := map[string]map[String]inlinedAlias{"": {}}
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
@@ -21,30 +28,49 @@ func (c *Compiler) inlineRefAliases() {
 				return false
 			}
 
-			blocked := blockedForRule(scopes, rule)
-			if cache[rule] == nil {
-				cache[rule] = map[String]inlinedAlias{}
+			blocked := blockedRules[rule]
+			cacheKey := blockedCacheKey(blocked)
+			cache, ok := caches[cacheKey]
+			if !ok {
+				cache = map[String]inlinedAlias{}
+				caches[cacheKey] = cache
 			}
-			c.inlineAliasesInBody(rule.Body, blocked, cache[rule])
+			c.inlineAliasesInBody(rule.Body, blocked, cache)
 			return false
 		})
 	}
 }
 
-type withScope struct {
-	target    Ref
-	reachable map[*Rule]struct{}
+func (c *Compiler) hasPureAliasRules() bool {
+	for _, name := range c.sorted {
+		found := false
+		WalkRules(c.Modules[name], func(rule *Rule) bool {
+			if !found {
+				found = pureAliasTarget([]*Rule{rule}) != nil
+			}
+			return false
+		})
+		if found {
+			return true
+		}
+	}
+	return false
 }
 
-func (c *Compiler) withScopes() []withScope {
-	var scopes []withScope
+func (c *Compiler) withScopes() map[*Rule][]Ref {
+	type scopeGroup struct {
+		target Ref
+		seeds  map[*Rule]struct{}
+	}
+
+	groups := map[string]*scopeGroup{}
 
 	for _, name := range c.sorted {
 		WalkExprs(c.Modules[name], func(expr *Expr) bool {
 			if len(expr.With) == 0 {
 				return false
 			}
-			reachable := c.rulesReachableFrom(expr)
+			seeds := c.seedRulesFrom(expr)
 			for _, w := range expr.With {
 				ref, ok := w.Target.Value.(Ref)
 				if !ok {
@@ -54,30 +80,49 @@ func (c *Compiler) withScopes() []withScope {
 				if len(ground) == 0 {
 					continue
 				}
-				scopes = append(scopes, withScope{target: ground, reachable: reachable})
+				key := ground.String()
+				group := groups[key]
+				if group == nil {
+					group = &scopeGroup{target: ground, seeds: map[*Rule]struct{}{}}
+					groups[key] = group
+				}
+				for rule := range seeds {
+					group.seeds[rule] = struct{}{}
+				}
 			}
 			return false
 		})
 	}
 
-	return scopes
+	blocked := map[*Rule][]Ref{}
+	for _, group := range groups {
+		for rule := range c.rulesReachableFrom(group.seeds) {
+			blocked[rule] = append(blocked[rule], group.target)
+		}
+	}
+	return blocked
 }
 
-func (c *Compiler) rulesReachableFrom(expr *Expr) map[*Rule]struct{} {
-	reachable := map[*Rule]struct{}{}
-
-	var queue []*Rule
+func (c *Compiler) seedRulesFrom(expr *Expr) map[*Rule]struct{} {
+	seeds := map[*Rule]struct{}{}
 	WalkRefs(expr, func(ref Ref) bool {
 		for _, rule := range c.GetRulesDynamic(ref.ConstantPrefix()) {
 			for node := rule; node != nil; node = node.Else {
-				if _, seen := reachable[node]; !seen {
-					reachable[node] = struct{}{}
-					queue = append(queue, node)
-				}
+				seeds[node] = struct{}{}
 			}
 		}
 		return false
 	})
+	return seeds
+}
+
+func (c *Compiler) rulesReachableFrom(seeds map[*Rule]struct{}) map[*Rule]struct{} {
+	reachable := maps.Clone(seeds)
+
+	queue := make([]*Rule, 0, len(seeds))
+	for rule := range seeds {
+		queue = append(queue, rule)
+	}
 
 	for len(queue) > 0 {
 		rule := queue[0]
@@ -97,15 +142,17 @@ func (c *Compiler) rulesReachableFrom(expr *Expr) map[*Rule]struct{} {
 	return reachable
 }
 
-func blockedForRule(scopes []withScope, rule *Rule) []Ref {
-	var blocked []Ref
-	for _, scope := range scopes {
-		if _, ok := scope.reachable[rule]; ok {
-			blocked = append(blocked, scope.target)
-		}
+func blockedCacheKey(blocked []Ref) string {
+	if len(blocked) == 0 {
+		return ""
 	}
 
-	return blocked
+	keys := make([]string, len(blocked))
+	for i := range blocked {
+		keys[i] = blocked[i].String()
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, "\x00")
 }
 
 type inlinedAlias struct {
