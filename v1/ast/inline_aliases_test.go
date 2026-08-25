@@ -247,14 +247,15 @@ func TestInlineAliasesRejectsNonAliasShapes(t *testing.T) {
 
 func TestInlineAliasesWithInScopeBlocks(t *testing.T) {
 	for _, tc := range []struct {
-		note   string
-		target string
+		note        string
+		target      string
+		wantInlined bool
 	}{
 		{note: "targets the alias itself", target: "data.http.method"},
 		{note: "targets a prefix of the alias", target: "data.http"},
-		{note: "targets the resolved base document", target: "input.attributes.request.http.method"},
-		{note: "targets a prefix of the resolved base document", target: "input.attributes"},
-		{note: "targets the root input document", target: "input"},
+		{note: "targets the resolved base document", target: "input.attributes.request.http.method", wantInlined: true},
+		{note: "targets a prefix of the resolved base document", target: "input.attributes", wantInlined: true},
+		{note: "targets the root input document", target: "input", wantInlined: true},
 	} {
 		t.Run(tc.note, func(t *testing.T) {
 			c := compileForInlining(t, map[string]string{
@@ -276,9 +277,15 @@ probe if p with %s as "GET"
 `, tc.target),
 			})
 
-			assertRefs(t, c, "policy.rego", "p",
-				[]string{"data.http.method"},
-				[]string{"input.attributes.request.http.method"})
+			if tc.wantInlined {
+				assertRefs(t, c, "policy.rego", "p",
+					[]string{"input.attributes.request.http.method"},
+					[]string{"data.http.method"})
+			} else {
+				assertRefs(t, c, "policy.rego", "p",
+					[]string{"data.http.method"},
+					[]string{"input.attributes.request.http.method"})
+			}
 		})
 	}
 }
