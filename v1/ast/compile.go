@@ -690,6 +690,19 @@ func (c *Compiler) MaterializeIndexData(resolver ValueResolver, maxCollectionSiz
 	c.indexData = resolver
 	c.maxIndexCollection = maxCollectionSize
 
+	// An external source compiles its rules when a query reaches them, with a
+	// resolver of its own -- so it reads its own data in, and only needs to be
+	// told how much of it (see ExternalIndex.Tree).
+	if c.externalSources.Len() > 0 {
+		c.RuleTree.DepthFirst(func(node *TreeNode) bool {
+			if node.External != nil {
+				node.External.MaxIndexData = maxCollectionSize
+				return true
+			}
+			return false
+		})
+	}
+
 	if len(c.Modules) == 0 || len(c.indexDataRefs) == 0 {
 		// Either nothing is compiled yet, in which case the first build picks
 		// the resolver up, or nothing in this policy reads data and rebuilding
@@ -4515,6 +4528,13 @@ func (n *TreeNode) add(path Ref, val any) {
 type ExternalIndex struct {
 	Index ExternalRuleIndex
 	Ref   Ref
+
+	// MaxIndexData is how much data the indices built for this source's rules
+	// may read in, mirroring the maxCollectionSize of
+	// (*Compiler).MaterializeIndexData. The rules are compiled when a query
+	// reaches them, so Tree resolves that data itself, with the resolver it is
+	// given; all it needs from the surrounding compiler is the budget.
+	MaxIndexData int
 }
 
 // Tree resolves external rules for prefix, using resolver to resolve references
@@ -4560,8 +4580,10 @@ func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, par
 	}
 	c0 := NewCompiler()
 
+	var skipped []StageID
 	if o != nil {
 		if len(o.SkippedStages) > 0 {
+			skipped = o.SkippedStages
 			c0.WithSkipStages(o.SkippedStages...)
 		}
 
@@ -4593,6 +4615,14 @@ func (ei *ExternalIndex) Tree(ctx context.Context, rt *TreeNode, prefix Ref, par
 	c0.Compile(modules)
 	if c0.Failed() {
 		return nil, nil, c0.Errors
+	}
+
+	// Read the data these rules compare against into their indices, with the
+	// resolver the caller handed us -- which is the evaluator's, so the values
+	// are the ones this query sees, and nothing outlives it. A source that
+	// builds no indices at all is left alone.
+	if ei.MaxIndexData > 0 && !slices.Contains(skipped, StageBuildRuleIndices) {
+		c0.MaterializeIndexData(resolver, ei.MaxIndexData)
 	}
 
 	node := c0.RuleTree.Find(prefix)

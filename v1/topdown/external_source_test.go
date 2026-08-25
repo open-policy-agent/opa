@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"sync/atomic"
 	"testing"
 
@@ -725,4 +726,133 @@ check if data.authz.allowed with input as {"user": "alice"}`)
 	if len(qrs) != 1 {
 		t.Errorf("Expected 1 result, got %d", len(qrs))
 	}
+}
+
+// spExternalSource stands in for a structured-policy plugin with incremental
+// loading: the rules arrive per query and compare against data delivered in a
+// bundle -- one rule per group.
+type spExternalSource struct {
+	rules []*ast.Rule
+	opts  *ast.ExternalSourceOptions
+}
+
+func (s *spExternalSource) Init(context.Context, ast.Ref) (ast.ExternalRuleIndex, error) {
+	return &spExternalIndex{rules: s.rules, opts: s.opts}, nil
+}
+
+func (*spExternalSource) Refs() []ast.Ref { return []ast.Ref{ast.MustParseRef("data.sp")} }
+
+type spExternalIndex struct {
+	rules []*ast.Rule
+	opts  *ast.ExternalSourceOptions
+}
+
+func (i *spExternalIndex) Opts() *ast.ExternalSourceOptions { return i.opts }
+
+func (i *spExternalIndex) Lookup(context.Context, ...ast.LookupOption) ([]*ast.Rule, ast.ExternalRuleIndex, error) {
+	return i.rules, nil, nil
+}
+
+// storeDataResolver resolves data refs for the compiler, as the plugin manager
+// does for the compilers it installs.
+type storeDataResolver struct{ data *ast.Term }
+
+func (r storeDataResolver) Resolve(ref ast.Ref) (ast.Value, error) {
+	if !ref.HasPrefix(ast.DefaultRootRef) {
+		return nil, ast.UnknownValueErr{}
+	}
+	v, err := r.data.Value.Find(ref[1:])
+	if err != nil {
+		return nil, nil
+	}
+	return v, nil
+}
+
+func TestExternalSourceMaterializesIndexData(t *testing.T) {
+	const groups = 5
+
+	data := ast.MustParseTerm(`{"groups": {
+		"g0": {"members": ["person-0"]},
+		"g1": {"members": ["person-1"]},
+		"g2": {"members": ["person-2"]},
+		"g3": {"members": ["person-3"]},
+		"g4": {"members": ["person-4"]}
+	}}`)
+
+	rules := make([]*ast.Rule, 0, groups)
+	for g := range groups {
+		id := "g" + strconv.Itoa(g)
+		rules = append(rules, ast.MustParseModule(`package sp
+
+		allow contains "` + id + `" if input.subject in data.groups.` + id + `.members`).Rules[0])
+	}
+
+	// what the index was able to exclude, which is the point of reading the data
+	matched := func(t *testing.T, maxIndexData int, opts *ast.ExternalSourceOptions) []string {
+		t.Helper()
+
+		compiler := ast.NewCompiler()
+		compiler.WithExternalSource(ast.MustParseRef("data.sp"), &spExternalSource{rules: rules, opts: opts})
+		compiler.Compile(map[string]*ast.Module{})
+		if compiler.Failed() {
+			t.Fatal(compiler.Errors)
+		}
+		compiler.MaterializeIndexData(storeDataResolver{data: data}, maxIndexData)
+
+		store := inmem.NewFromObject(map[string]any{
+			"groups": map[string]any{
+				"g0": map[string]any{"members": []any{"person-0"}},
+				"g1": map[string]any{"members": []any{"person-1"}},
+				"g2": map[string]any{"members": []any{"person-2"}},
+				"g3": map[string]any{"members": []any{"person-3"}},
+				"g4": map[string]any{"members": []any{"person-4"}},
+			},
+		})
+		ctx := t.Context()
+		txn, err := store.NewTransaction(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer store.Abort(ctx, txn)
+
+		tracer := NewBufferTracer()
+		if _, err := NewQuery(ast.MustParseBody("data.sp.allow")).
+			WithCompiler(compiler).
+			WithStore(store).
+			WithTransaction(txn).
+			WithInput(ast.MustParseTerm(`{"subject": "person-3"}`)).
+			WithQueryTracer(tracer).
+			Run(ctx); err != nil {
+			t.Fatal(err)
+		}
+
+		var messages []string
+		for _, event := range *tracer {
+			if event.Op == IndexOp {
+				messages = append(messages, event.Message)
+			}
+		}
+		return messages
+	}
+
+	t.Run("only the group the subject is in survives the lookup", func(t *testing.T) {
+		if act := matched(t, 1000, nil); len(act) != 1 || act[0] != "(matched 1 rule)" {
+			t.Errorf("expected one rule to match, got %v", act)
+		}
+	})
+
+	t.Run("nothing is read in when the budget is zero", func(t *testing.T) {
+		if act := matched(t, 0, nil); len(act) != 1 || act[0] != "(matched 5 rules)" {
+			t.Errorf("expected every rule to match, got %v", act)
+		}
+	})
+
+	// A source handing over pre-compiled rules and skipping index building gets
+	// no indices, and so nothing to read data into either.
+	t.Run("a source that skips index building is left alone", func(t *testing.T) {
+		opts := &ast.ExternalSourceOptions{SkippedStages: []ast.StageID{ast.StageBuildRuleIndices}}
+		if act := matched(t, 1000, opts); len(act) != 0 {
+			t.Errorf("expected no index lookup at all, got %v", act)
+		}
+	})
 }
