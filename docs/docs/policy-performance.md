@@ -122,16 +122,21 @@ roles := {
 
 #### Equality statements
 
-For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables). For example:
+For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables).
 
-| Expression                  | Indexed | Notes                        |
-| --------------------------- | ------- | ---------------------------- |
-| `input.x`                   | yes     |                              |
-| `input.x == "foo"`          | yes     |                              |
-| `input.x.y == "bar"`        | yes     |                              |
-| `input.x == ["foo", i]`     | yes     |                              |
-| `input.x[i] == "foo"`       | no      | reference contains variables |
-| `input.x[input.y] == "foo"` | no      | reference is nested          |
+A reference whose **last** element is a variable is indexed as well, as long as the other side is a scalar. The indexer then indexes the ground prefix of the reference, selecting the rules whose scalar occurs among the values found there — the exact match is still established when the rule body is evaluated. For example:
+
+| Expression                  | Indexed | Notes                                                 |
+| --------------------------- | ------- | ----------------------------------------------------- |
+| `input.x`                   | yes     |                                                       |
+| `input.x == "foo"`          | yes     |                                                       |
+| `input.x.y == "bar"`        | yes     |                                                       |
+| `input.x == ["foo", i]`     | yes     |                                                       |
+| `input.x[i] == "foo"`       | yes     | ground prefix `input.x` is indexed                    |
+| `input.x[_] == "foo"`       | yes     | ground prefix `input.x` is indexed                    |
+| `input.x[input.y] == "foo"` | yes     | ground prefix `input.x` is indexed                    |
+| `input.x[i].y == "foo"`     | no      | variable is not the reference's last element          |
+| `input.x[i] == ["foo"]`     | no      | non-scalar value on a reference containing a variable |
 
 #### Glob statements
 
@@ -183,6 +188,29 @@ Statements joined by the [`and` and `or` keywords](./policy-reference/keywords/l
 | `input.x == 1 or input.y == 2`         | yes     | both operands are indexed             |
 | `input.x == 1 or count(input.y) == 3`  | no      | `count(...)` is not indexable         |
 | `not (input.x == 1 and input.y == 2)`  | no      | negated expressions are never indexed |
+
+#### References rooted at a local variable
+
+Building a reference on top of a local variable does not defeat the indexer. When the head of a reference is a variable that was assigned a reference earlier in the rule body, the indexer resolves that head and indexes the statement as if the whole reference had been spelled out: `x := input; x.foo == "a"` is indexed just like `input.foo == "a"`.
+
+The head must resolve to a reference rooted at `input` or `data`, and the resolved reference is then subject to exactly the same conditions as one written out by hand. A head that resolves to a document produced by another rule is not indexed, since the indexer only looks up base documents. `in` and `glob.match` statements benefit from the same resolution: the compiler hoists their reference operand into a local variable of its own, which the indexer then resolves.
+
+The resolution also applies where a local stands in for a whole value rather than the head of a reference, chained assignments included, and inside the operands of an `and` or `or`, where a local assigned in the enclosing rule body still resolves.
+
+| Expression                                    | Indexed | Notes                                    |
+| --------------------------------------------- | ------- | ---------------------------------------- |
+| `x := input; x.foo == "a"`                    | yes     | indexed as `input.foo == "a"`            |
+| `x := input.a.b; x.c == "a"`                  | yes     | indexed as `input.a.b.c == "a"`          |
+| `x := input.a; y := x; y.b == "a"`            | yes     | chains of assignments resolve            |
+| `x := input.role; y := x; y == "a"`           | yes     | indexed as `input.role == "a"`           |
+| `x := input; "a" in x.foo`                    | yes     |                                          |
+| `x := input; glob.match("a/*", ["/"], x.foo)` | yes     |                                          |
+| `x := input; x.foo`                           | yes     | bare reference                           |
+| `x := input; x.foo[i] == "a"`                 | yes     | ground prefix `input.foo` is indexed     |
+| `x := input; x.foo[i].bar == "a"`             | no      | variable is not the last element         |
+| `x := {"a": 1}; x.a == 1`                     | no      | head does not resolve to a reference     |
+| `x := some_rule; x.foo == "a"`                | no      | resolved reference is a virtual document |
+| `f(x) if x.foo == "a"`                        | no      | head is a function argument              |
 
 ### Early Exit in Rule Evaluation
 
