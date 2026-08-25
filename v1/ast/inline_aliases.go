@@ -158,7 +158,7 @@ type inlinedAlias struct {
 }
 
 type aliasCache struct {
-	entries map[String]inlinedAlias
+	entries map[string]inlinedAlias
 }
 
 func (c *Compiler) inlineAliasesInBody(body Body, blocked []Ref, cache *aliasCache) {
@@ -209,7 +209,7 @@ func (c *Compiler) inlinableAlias(ref Ref, blocked []Ref, cache *aliasCache) (Re
 		return nil, false
 	}
 
-	key := String(ref.String())
+	key := ref.String()
 	if hit, ok := cache.entries[key]; ok {
 		return hit.resolved, hit.ok
 	}
@@ -229,7 +229,7 @@ func (c *Compiler) inlinableAlias(ref Ref, blocked []Ref, cache *aliasCache) (Re
 	}
 
 	if cache.entries == nil {
-		cache.entries = map[String]inlinedAlias{}
+		cache.entries = map[string]inlinedAlias{}
 	}
 	cache.entries[key] = inlinedAlias{resolved: resolved, ok: ok}
 
