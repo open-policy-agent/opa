@@ -1658,6 +1658,10 @@ func notBodyNeedsParens(b Body) bool {
 	case *LogicalOr, *LogicalAnd:
 		// `not` binds tighter than `and`/`or`
 		return true
+	case *Not:
+		// `not not x` doesn't parse: the operand of a `not` must be parenthesized
+		// for the inner negation to be read back as a body.
+		return true
 	case *Term:
 		return rendersWithLeadingBrace(t.Value)
 	}
