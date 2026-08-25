@@ -1,40 +1,3 @@
-.versionTag a:link {
-  color: inherit;
-}
-
-.versionTag {
-  background-color: slategrey;
-  color: white;
-  font-weight: bold;
-  font-size: 0.8rem;
-  padding: 0.1rem 0.2rem;
-  border-radius: 0.2rem;
-  margin-bottom: 0.5rem;
-}
-
-.versionTag a:visited {
-  color: inherit;
-}
-
-.wasmTag {
-  background-color: seagreen;
-  color: white;
-  font-weight: bold;
-  font-size: 0.8rem;
-  padding: 0.1rem 0.2rem;
-  border-radius: 0.2rem;
-}
-
-.sdkTag {
-  background-color: darkgoldenrod;
-  color: white;
-  font-weight: bold;
-  font-size: 0.8rem;
-  padding: 0.1rem 0.2rem;
-  border-radius: 0.2rem;
-  white-space: nowrap;
-}
-
 .categoryTag {
   font-weight: bold;
   font-size: 0.8rem;
@@ -102,10 +65,27 @@
   border-radius: 0.2rem;
 }
 
-.metaCell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
+/* Per-implementation filters, styled like the Wasm toggle above but taking the colour of the
+   implementation tags in the Meta column, so an enabled filter reads as the tag it selects for. */
+.implementation_0 {
+  cursor: pointer;
+  user-select: none;
+  background-color: slategrey;
+  color: white;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  margin-left: 0.4rem;
+  border-radius: 0.2rem;
+}
+.implementation_1 {
+  cursor: pointer;
+  user-select: none;
+  background-color: steelblue;
+  color: white;
+  font-weight: bold;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.2rem;
+  margin-left: 0.4rem;
+  border-radius: 0.2rem;
 }

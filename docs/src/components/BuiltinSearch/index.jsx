@@ -2,13 +2,25 @@ import builtins from "@generated/builtin-data/default/builtins.json";
 import React, { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
+import BuiltinCompatCells, {
+  BuiltinCompatHeadings,
+  builtinCompatTargets,
+  builtinImplementations,
+} from "../BuiltinCompat";
 import styles from "./styles.module.css";
 
 export default function BuiltinSearch({ entryLimit, alwaysShow, elementId }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedImplementations, setSelectedImplementations] = useState([]);
   const [isWasm, setIsWasm] = useState(false);
-  const isFiltered = isWasm || searchTerm || selectedCategory || alwaysShow;
+  const implementations = builtinImplementations();
+  const isFiltered = isWasm || searchTerm || selectedCategory
+    || selectedImplementations.length > 0 || alwaysShow;
+  const toggleImplementation = (id) =>
+    setSelectedImplementations((selected) =>
+      selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]
+    );
   const displayLimit = entryLimit;
   const allRows = useMemo(() => {
     return (Object.keys(builtins._categories).filter((a) => (a != "internal"))
@@ -36,6 +48,7 @@ export default function BuiltinSearch({ entryLimit, alwaysShow, elementId }) {
               name: builtin,
               category: category,
               wasm: fn.wasm,
+              implementations: fn.implementations || {},
               introduced: fn.introduced,
               infix: isInfix,
               signature: signature,
@@ -51,6 +64,9 @@ export default function BuiltinSearch({ entryLimit, alwaysShow, elementId }) {
       || (row.signature.includes(searchTerm) && row.infix)) // filter name
     && (!selectedCategory || row.category == selectedCategory) // filter category
     && (!isWasm || row.wasm) // filter wasm
+    // filter implementations: every selected one must support the builtin, so selecting more
+    // than one narrows to the builtins they have in common
+    && selectedImplementations.every((id) => id in row.implementations)
     && isFiltered // ensures that at least one criteria is being filtered on
   ));
   return (
@@ -76,6 +92,17 @@ export default function BuiltinSearch({ entryLimit, alwaysShow, elementId }) {
         <span className={isWasm ? styles.wasm_1 : styles.wasm_0} onClick={(e) => setIsWasm(!isWasm)}>
           {isWasm ? "✓" : "✗"} Wasm Only
         </span>
+        {implementations.map((impl) => (
+          <span
+            key={impl.id}
+            className={selectedImplementations.includes(impl.id)
+              ? styles.implementation_1
+              : styles.implementation_0}
+            onClick={() => toggleImplementation(impl.id)}
+          >
+            {selectedImplementations.includes(impl.id) ? "✓" : "✗"} {impl.label} Only
+          </span>
+        ))}
       </div>
       {isFiltered && renderResults(filteredRows, entryLimit)}
     </>
@@ -94,13 +121,13 @@ function renderTable(filteredRows) {
       <colgroup>
         <col />
         <col style={{ width: "100%" }} />
-        <col />
+        {builtinCompatTargets().map((target) => <col key={target.key} style={{ width: "4rem" }} />)}
       </colgroup>
       <thead>
         <tr>
           <th>Category</th>
           <th>Name</th>
-          <th>Meta</th>
+          <BuiltinCompatHeadings />
         </tr>
       </thead>
       <tbody>
@@ -123,32 +150,7 @@ function renderRow(row) {
         <br />
         <code>{row.signature}</code>
       </td>
-      <td>
-        <div className={styles.metaCell}>
-          {row.introduced && row.introduced !== "edge" && row.introduced !== "v0.17.0" && (
-            <span className={styles.versionTag}>
-              <a
-                href={`https://github.com/open-policy-agent/opa/releases/${row.introduced}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span>{row.introduced}</span>
-              </a>
-            </span>
-          )}
-          {row.introduced === "edge" && <span>edge</span>} {row.wasm
-            ? (
-              <span className={styles.wasmTag}>
-                Wasm
-              </span>
-            )
-            : (
-              <span className={styles.sdkTag}>
-                SDK-dependent
-              </span>
-            )}
-        </div>
-      </td>
+      <BuiltinCompatCells fn={row} />
     </tr>
   );
 }
