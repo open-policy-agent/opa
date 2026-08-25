@@ -759,14 +759,14 @@ func TestRefConcat(t *testing.T) {
 	if !a.Concat(terms).Equal(a) {
 		t.Fatal("Expected no change")
 	}
-	terms = append(terms, StringTerm("qux"))
+	terms = append(terms, InternedTerm("qux"))
 	exp := MustParseTerm("foo.bar.baz.qux")
 	result := a.Concat(terms)
 	if !result.Equal(exp.Value) {
 		t.Fatalf("Expected %v but got %v", exp, result)
 	}
 	exp = MustParseTerm("foo.bar.baz.qux[0]")
-	terms = append(terms, IntNumberTerm(0))
+	terms = append(terms, InternedTerm(0))
 	result = a.Concat(terms)
 	if !result.Equal(exp.Value) {
 		t.Fatalf("Expected %v but got %v", exp, result)
@@ -1161,11 +1161,7 @@ func TestArrayOperations(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			arr := MustParseTerm(tc.input).Value.(*Array)
-
-			var expected []*Term
-			for _, e := range tc.expected {
-				expected = append(expected, MustParseTerm(e))
-			}
+			expected := util.Map(tc.expected, MustParseTerm)
 
 			results = nil
 			tc.iterator(arr)

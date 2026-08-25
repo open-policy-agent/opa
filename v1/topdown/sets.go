@@ -11,7 +11,6 @@ import (
 
 // Deprecated: deprecated in v0.4.2 in favour of minus/infix "-" operation.
 func builtinSetDiff(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	s1, err := builtins.SetOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -27,7 +26,6 @@ func builtinSetDiff(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 
 // builtinSetIntersection returns the intersection of the given input sets
 func builtinSetIntersection(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	inputSet, err := builtins.SetOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -40,8 +38,8 @@ func builtinSetIntersection(_ BuiltinContext, operands []*ast.Term, iter func(*a
 
 	var result ast.Set
 
-	err = inputSet.Iter(func(x *ast.Term) error {
-		n, err := builtins.SetOperand(x.Value, 1)
+	for _, term := range inputSet.Slice() {
+		n, err := builtins.SetOperand(term.Value, 1)
 		if err != nil {
 			return err
 		}
@@ -51,10 +49,6 @@ func builtinSetIntersection(_ BuiltinContext, operands []*ast.Term, iter func(*a
 		} else {
 			result = result.Intersect(n)
 		}
-		return nil
-	})
-	if err != nil {
-		return err
 	}
 	return iter(ast.NewTerm(result))
 }
@@ -72,31 +66,22 @@ func builtinSetUnion(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 
 	// First pass: count total elements for pre-allocation
 	totalSize := 0
-	err = inputSet.Iter(func(x *ast.Term) error {
-		item, err := builtins.SetOperand(x.Value, 1)
+	for _, term := range inputSet.Slice() {
+		item, err := builtins.SetOperand(term.Value, 1)
 		if err != nil {
 			return err
 		}
 		totalSize += item.Len()
-		return nil
-	})
-	if err != nil {
-		return err
 	}
 
 	// Pre-allocate result set with estimated capacity
-	result := ast.NewSetWithCapacity(totalSize)
-
-	err = inputSet.Iter(func(x *ast.Term) error {
-		item, _ := builtins.SetOperand(x.Value, 1) // error checked above
-		item.Foreach(result.Add)
-		return nil
-	})
-	if err != nil {
-		return err
+	terms := make([]*ast.Term, 0, totalSize)
+	for _, term := range inputSet.Slice() {
+		item, _ := builtins.SetOperand(term.Value, 1) // error checked above
+		terms = append(terms, item.Slice()...)
 	}
 
-	return iter(ast.NewTerm(result))
+	return iter(ast.SetTerm(terms...))
 }
 
 func init() {

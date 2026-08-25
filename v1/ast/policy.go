@@ -1853,11 +1853,7 @@ func (rs RuleSet) Merge(other RuleSet) RuleSet {
 }
 
 func (rs RuleSet) String() string {
-	buf := make([]string, 0, len(rs))
-	for _, rule := range rs {
-		buf = append(buf, rule.String())
-	}
-	return "{" + strings.Join(buf, ", ") + "}"
+	return "{" + strings.Join(util.Map(rs, (*Rule).String), ", ") + "}"
 }
 
 // Returns true if the equality or assignment expression referred to by expr
