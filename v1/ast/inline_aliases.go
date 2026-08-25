@@ -69,9 +69,11 @@ func (c *Compiler) rulesReachableFrom(expr *Expr) map[*Rule]struct{} {
 	var queue []*Rule
 	WalkRefs(expr, func(ref Ref) bool {
 		for _, rule := range c.GetRulesDynamic(ref.ConstantPrefix()) {
-			if _, seen := reachable[rule]; !seen {
-				reachable[rule] = struct{}{}
-				queue = append(queue, rule)
+			for node := rule; node != nil; node = node.Else {
+				if _, seen := reachable[node]; !seen {
+					reachable[node] = struct{}{}
+					queue = append(queue, node)
+				}
 			}
 		}
 		return false
