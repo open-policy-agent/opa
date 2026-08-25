@@ -3188,6 +3188,8 @@ func TestIllegalFunctionCallRewrite(t *testing.T) {
 		note           string
 		module         string
 		expectedErrors []string
+		// Some regressions only trigger in compiler stages after StageRewriteLocalVars.
+		compileFully bool
 	}{
 		/*{
 		  			note: "function call override in function value",
@@ -3259,6 +3261,30 @@ p := [data() | data := 1]`,
 				"called function data shadowed",
 			},
 		},
+		{
+			note: "function call on override of 'input' root document in rule body",
+			module: `package test
+p {
+	input := 0
+	input()
+}`,
+			expectedErrors: []string{
+				"undefined function ",
+			},
+			compileFully: true,
+		},
+		{
+			note: "function call on override of 'data' root document in rule body",
+			module: `package test
+p {
+	data := 0
+	data()
+}`,
+			expectedErrors: []string{
+				"undefined function ",
+			},
+			compileFully: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -3269,10 +3295,15 @@ p := [data() | data := 1]`,
 				AllFutureKeywords: true,
 			}
 
-			compiler.Modules = map[string]*Module{
+			modules := map[string]*Module{
 				"test": MustParseModuleWithOpts(tc.module, opts),
 			}
-			compileStages(compiler, StageRewriteLocalVars)
+			if !tc.compileFully {
+				compiler.Modules = modules
+				compileStages(compiler, StageRewriteLocalVars)
+			} else {
+				compiler.Compile(modules)
+			}
 
 			result := make([]string, 0, len(compiler.Errors))
 			for i := range compiler.Errors {
