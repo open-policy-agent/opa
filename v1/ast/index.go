@@ -594,6 +594,11 @@ func (i *refindices) tryIndexWildcardRef(rule *Rule, a, b Value, constants map[V
 		return false
 	}
 
+	ref = i.resolveRefHead(rule, rule.Head.Args, ref)
+	if ref == nil {
+		return false
+	}
+
 	groundPrefix := ref.GroundPrefix()
 	if len(groundPrefix) != len(ref)-1 || !i.isValidIndexRef(groundPrefix) {
 		return false
@@ -725,6 +730,28 @@ func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term)
 	}
 
 	return ref
+}
+
+// resolveRefHead resolves a ref rooted at a local variable -- what
+//
+//	x := input
+//	x.foo == "bar"
+//
+// gets compiled to -- into the ref that local aliases, splicing the remainder of
+// the ref onto it: `input.foo`. Refs that are already rooted at a root document
+// are returned unchanged; a head that does not resolve yields nil.
+func (i *refindices) resolveRefHead(rule *Rule, args []*Term, ref Ref) Ref {
+	head, isVar := ref[0].Value.(Var)
+	if !isVar || RootDocumentNames.Contains(ref[0]) {
+		return ref
+	}
+
+	resolved := resolveVarToRef(i.resolvable(rule), args, head)
+	if resolved == nil {
+		return nil
+	}
+
+	return resolved.Concat(ref[1:])
 }
 
 // resolveVarToRef checks the previously prepared `*refindex` slice for
@@ -1179,15 +1206,8 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 	case Ref:
 		// A ref rooted at a local -- `x := input; x.foo == "bar"` -- indexes the
 		// same as the ref that local aliases, so long as the local resolves.
-		if head, isVar := v[0].Value.(Var); isVar && !RootDocumentNames.Contains(v[0]) {
-			resolved := resolveVarToRef(i.resolvable(rule), args, head)
-			if resolved == nil {
-				return false
-			}
-			v = resolved.Concat(v[1:])
-		}
-
-		if !i.isValidIndexRef(v) {
+		v = i.resolveRefHead(rule, args, v)
+		if v == nil || !i.isValidIndexRef(v) {
 			return false
 		}
 

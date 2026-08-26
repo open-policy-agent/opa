@@ -124,19 +124,19 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	from_data if { __local20__ = data.roles; __local20__.a = 1 }
 	from_data if { __local21__ = data.roles; __local21__.a = 2 }
 
-	# The ref spliced onto the resolved head still has to be ground,
-	nonground if { __local22__ = input; __local22__.foo[__local23__] = "a" }
-	nonground if { __local24__ = input; __local24__.foo[__local25__] = "b" }
+	# The ref spliced onto the resolved head is subject to the same conditions as one
+	# written out: a single trailing variable is fine, wildcard or not -- only the
+	# ground prefix gets indexed, exactly as for "input.foo[_] = value" --
+	trailingvar if { __local22__ = input; __local22__.foo[__local23__] = "a" }
+	trailingvar if { __local24__ = input; __local24__.foo[_] = "b" }
 
-	# and a wildcard is no exception -- even though "input.foo[_] = value" is indexed,
-	# since the ground-prefix path (updateEqWildcardRef) gives up on a locally-rooted
-	# ref before the head gets a chance to resolve.
-	wildcard if { __local26__ = input; __local26__.foo[_] = "a" }
-	wildcard if { __local27__ = input; __local27__.foo[_] = "b" }
+	# but a variable anywhere else leaves nothing indexable.
+	nonground if { __local25__ = input; __local25__.foo[__local26__].bar = "a" }
+	nonground if { __local27__ = input; __local27__.foo[__local28__].bar = "b" }
 
 	# The head resolves to a ref, but a virtual one, which the indexer cannot look up.
-	virtual if { __local28__ = data.test.vd; __local28__.foo = "a" }
-	virtual if { __local29__ = data.test.vd; __local29__.foo = "b" }`, opts)
+	virtual if { __local29__ = data.test.vd; __local29__.foo = "a" }
+	virtual if { __local30__ = data.test.vd; __local30__.foo = "b" }`, opts)
 
 	// The operand body of an `and`/`or` is its own scope, so the local assigned in
 	// the enclosing body has to be resolved through refindices.resolvable (see
@@ -860,17 +860,17 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[14]}),
 		},
 		{
+			note:       "local ref head: trailing variable, ground prefix is indexed",
+			module:     localHeadMod,
+			ruleset:    "trailingvar",
+			input:      `{"foo": ["a"]}`,
+			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[16]}),
+		},
+		{
 			note:       "local ref head: non-ground remainder is not indexed",
 			module:     localHeadMod,
 			ruleset:    "nonground",
-			input:      `{"foo": ["a"]}`,
-			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[16], localHeadMod.Rules[17]}),
-		},
-		{
-			note:       "local ref head: wildcard remainder is not indexed",
-			module:     localHeadMod,
-			ruleset:    "wildcard",
-			input:      `{"foo": ["a"]}`,
+			input:      `{"foo": [{"bar": "a"}]}`,
 			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[18], localHeadMod.Rules[19]}),
 		},
 		{
