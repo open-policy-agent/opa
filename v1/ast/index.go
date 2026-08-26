@@ -106,7 +106,6 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 
 	// build trie out of indices.
 	sorted := indices.Sorted()
-	disjunctions := len(indices.disjunctions) > 0
 
 	for idx := range rules {
 		var prio int
@@ -117,7 +116,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			// Each set of indices the rule can be reached through gets its own
 			// path. They share a priority, so a lookup arriving at the rule down
 			// several of them still reports it once (see trieTraversalResult.Add).
-			if !disjunctions || len(indices.disjunctions[rule]) == 0 {
+			if len(indices.disjunctions[rule]) == 0 {
 				i.insertPath(sorted, indices.rules[rule], [...]int{idx, prio}, rule)
 			} else {
 				for _, path := range indices.paths(rule) {
