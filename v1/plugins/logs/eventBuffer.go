@@ -278,11 +278,7 @@ func (b *eventBuffer) Upload(ctx context.Context) error {
 		return nil
 	}
 
-	if err := b.uploadChunks(ctx, result, b.client, b.uploadPath); err != nil {
-		return err
-	}
-
-	return nil
+	return b.uploadChunks(ctx, result, b.client, b.uploadPath)
 }
 
 // uploadChunks attempts to upload multiple chunks to the configured client.

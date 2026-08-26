@@ -89,14 +89,10 @@ func Transform(t Transformer, x any) (any, error) {
 		}
 		return y, nil
 	case *Import:
-		y.Path, err = transformTerm(t, y.Path)
-		if err != nil {
-			return nil, err
+		if y.Path, err = transformTerm(t, y.Path); err == nil {
+			y.Alias, err = transformVar(t, y.Alias)
 		}
-		if y.Alias, err = transformVar(t, y.Alias); err != nil {
-			return nil, err
-		}
-		return y, nil
+		return y, err
 	case *Rule:
 		if y.Head, err = transformHead(t, y.Head); err != nil {
 			return nil, err
