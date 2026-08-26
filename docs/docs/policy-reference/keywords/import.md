@@ -1,6 +1,6 @@
 ---
 sidebar_label: import
-title: 'Rego Keyword Examples: import'
+title: 'Rego Keyword: import'
 ---
 
 In Rego, the `import` keyword is used to include references in the current file
@@ -70,7 +70,7 @@ output := sprintf("Hello, %v", [p1.name])
 
 ## Importing Future Keywords
 
-The `in`, `every`, `if`, `contains`, and `not` (semantic update) keywords
+The `in`, `every`, `if`, `contains`, `not` (semantic update), `and`, and `or` keywords
 have been introduced to the Rego language over time, and in order to prevent
 them from breaking policies that existed before their introduction, an opt-in mechanism
 has been necessary. The `future.keywords.*` imports facilitate this
@@ -78,6 +78,7 @@ opt-in mechanism. With the release of OPA v1.x, the `in`, `every`, `if`, and `co
 keywords have become a standard part of the Rego language, and no longer require an import.
 The `not` keyword has always been a standard part of the Rego language, but has since its introduction
 received a semantic update that requires author opt-in through importing `future.keywords.not`.
+The `and` and `or` keywords are not part of the Rego v0/v1 syntax, and require an import.
 
 ### Importing `future.keywords.not`
 
@@ -89,6 +90,18 @@ This import is independent of the [rego.v1 import](#importing-regov1).
 The `future.keywords.not` import fixes a long-standing semantic issue with negation in Rego.
 Read more about it in the [Improved Negation Semantics](./not#improved-negation-semantics) section of the `not` keyword overview.
 :::
+
+### Importing `future.keywords.and`
+
+[import future.keywords.and](./logical#and) enables the `and` logical operator
+(`x and y`).
+This import is independent of the [rego.v1 import](#importing-regov1).
+
+### Importing `future.keywords.or`
+
+[import future.keywords.or](./logical#or) enables the `or` logical operator
+(`x or y`).
+This import is independent of the [rego.v1 import](#importing-regov1).
 
 ## Importing `rego.v1`
 

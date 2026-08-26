@@ -1,6 +1,6 @@
 module github.com/open-policy-agent/opa/e2e
 
-go 1.25.7
+go 1.26.0
 
 // Always use OPA from the same checkout.
 replace github.com/open-policy-agent/opa => ../

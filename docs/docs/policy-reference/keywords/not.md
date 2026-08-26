@@ -1,6 +1,6 @@
 ---
 sidebar_label: not
-title: 'Rego Keyword Examples: not'
+title: 'Rego Keyword: not'
 ---
 
 The `not` keyword is the primary means of expressing
@@ -160,3 +160,23 @@ is rejected at compile-time:
 ```
 rego_compile_error: cannot assign vars inside negated expression
 ```
+
+## Combining with `and` and `or`
+
+`not` binds tighter than the [`and` and `or` keywords](./logical), so `not a and b`
+negates only `a`. To negate a whole conjunction or disjunction, group it:
+
+```rego
+package negation
+
+import future.keywords.not
+import future.keywords.or
+
+p if {
+    not (input.a or input.b)
+}
+```
+
+Grouping with `not (...)` or `not { ... }` requires the `future.keywords.not` import in
+addition to the `and`/`or` import. Without it the parentheses are read as an ordinary
+grouped expression, which cannot contain `and` or `or`.
