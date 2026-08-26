@@ -154,6 +154,17 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	disj if { __local2__ = input; __local2__.foo = "a" or __local2__.foo = "aa" }
 	disj if { __local3__ = input; __local3__.foo = "b" or __local3__.foo = "bb" }`, logicalOpts)
 
+	// NOTE(sr): pseudo-compiled once more -- this is
+	//
+	//   p if { x := input.role; y := x; y == "a" }
+	//
+	// The chain of assignments records "input.role can be anything" once per local,
+	// and the concrete value from the comparison replaces only the first of them.
+	chainedValueMod := MustParseModuleWithOpts(`package test
+
+	p if { __local0__ = input.role; __local1__ = __local0__; __local1__ = "a" }
+	p if { __local2__ = input.role; __local3__ = __local2__; __local3__ = "b" }`, opts)
+
 	refMod := MustParseModuleWithOpts(`package test
 
 	ref.single.value.ground = x if x := input.x
@@ -879,6 +890,13 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset:    "virtual",
 			isVirtual:  func(ref Ref) bool { return ref.HasPrefix(MustParseRef("data.test.vd")) },
 			expectedRS: RuleSet([]*Rule{localHeadMod.Rules[20], localHeadMod.Rules[21]}),
+		},
+		{
+			note:       "chained assignment: concrete value supersedes the leftover any-entry",
+			module:     chainedValueMod,
+			ruleset:    "p",
+			input:      `{"role": "a"}`,
+			expectedRS: RuleSet([]*Rule{chainedValueMod.Rules[0]}),
 		},
 		{
 			// Deliberate: resolveVarToRef maps a formal to an `args[i]` ref, which

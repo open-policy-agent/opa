@@ -141,6 +141,20 @@ func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int,
 					values = append(values, ri)
 				}
 			}
+
+			// A var value records "this ref can be anything", which a concrete value
+			// for the same ref supersedes: everything on one path has to hold, so the
+			// concrete value is the stronger of the two constraints. A chain of
+			// assignments, `x := input.a; y := x`, leaves one var entry per local
+			// behind, and only the first of them is replaced when the concrete value
+			// is inserted. Keeping the rest would index the rule under anyValue below
+			// and give up all the discrimination the concrete value buys us.
+			if len(values) > 1 {
+				if concrete := slices.DeleteFunc(slices.Clone(values), (*refindex).isVar); len(concrete) > 0 {
+					values = concrete
+				}
+			}
+
 			if len(values) == 0 {
 				node = node.Insert(ref, nil, nil)
 			} else if len(values) == 1 {
