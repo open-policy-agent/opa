@@ -16,9 +16,7 @@ package example
 
 import future.keywords.or
 
-allow if {
-    input.user.admin or input.user.owner
-}
+allow if input.user.admin or input.user.owner
 ```
 
 `not` binds tighter than `and`, which binds tighter than `or`; use parentheses to group.
