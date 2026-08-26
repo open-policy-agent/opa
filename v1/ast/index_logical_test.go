@@ -311,7 +311,10 @@ func TestBaseDocEqIndexingLogical(t *testing.T) {
 			module: `package test
 			p if input.x = 1 or count(input.y) = 3	# 0
 			p if input.x = 9						# 1`,
-			input:    `{"x": 5, "y": [1, 2, 3]}`,
+			// Neither operand holds, so evaluation won't define rule 0, but
+			// count() isn't indexable and the index can't exclude the rule on
+			// input.x alone.
+			input:    `{"x": 5, "y": [1, 2]}`,
 			expected: []int{0},
 		},
 		{
