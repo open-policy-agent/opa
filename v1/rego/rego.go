@@ -1991,11 +1991,7 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
-	if err = r.compileAndCacheQuery(qType, r.parsedQuery, imports, r.metrics, extras); err != nil {
-		return err
-	}
-
-	return nil
+	return r.compileAndCacheQuery(qType, r.parsedQuery, imports, r.metrics, extras)
 }
 
 func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {

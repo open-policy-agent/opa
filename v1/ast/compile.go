@@ -4478,18 +4478,13 @@ type legacyExternalResolver struct {
 	inner ValueResolver
 }
 
-func (r legacyExternalResolver) Resolve(ref Ref) (Value, error) {
+func (r legacyExternalResolver) Resolve(ref Ref) (v Value, err error) {
 	if !ref.HasPrefix(InputRootRef) {
-		return nil, UnknownValueErr{}
+		err = UnknownValueErr{}
+	} else if v, err = r.inner.Resolve(ref); err == nil && v == nil {
+		err = UnknownValueErr{}
 	}
-	v, err := r.inner.Resolve(ref)
-	if err != nil {
-		return nil, err
-	}
-	if v == nil {
-		return nil, UnknownValueErr{}
-	}
-	return v, nil
+	return v, err
 }
 
 // unknownResolver treats every reference as unknown. It is used as a safe

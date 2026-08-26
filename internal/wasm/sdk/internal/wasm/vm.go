@@ -670,11 +670,8 @@ func (i *VM) cloneDataSegment() (int32, []byte) {
 
 func call(ctx context.Context, vm *VM, name string, args ...int32) (int32, error) {
 	res, err := callOrCancel(ctx, vm, name, args...)
-	if err != nil {
+	if err != nil || res == nil {
 		return 0, err
-	}
-	if res == nil {
-		return 0, nil
 	}
 	return res.(int32), nil
 }

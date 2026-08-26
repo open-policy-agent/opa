@@ -978,11 +978,7 @@ func createSymlink(target, symlink string) error {
 			return err
 		}
 	} else if errors.Is(lerr, os.ErrNotExist) {
-		if err := os.Symlink(target, symlink); err != nil {
-			return err
-		}
-
-		return nil
+		return os.Symlink(target, symlink)
 	}
 
 	return lerr

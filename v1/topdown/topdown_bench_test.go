@@ -117,18 +117,13 @@ func BenchmarkLargeJSON(b *testing.B) {
 	for b.Loop() {
 
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 			q := NewQuery(query).
 				WithCompiler(compiler).
 				WithStore(store).
 				WithTransaction(txn)
 
 			_, err := q.Run(ctx)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		})
 
 		if err != nil {
@@ -732,20 +727,14 @@ func BenchmarkObjectSubset(b *testing.B) {
 			b.ResetTimer()
 
 			for b.Loop() {
-
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 					q := NewQuery(query).
 						WithCompiler(compiler).
 						WithStore(store).
 						WithTransaction(txn)
 
 					_, err := q.Run(ctx)
-					if err != nil {
-						return err
-					}
-
-					return nil
+					return err
 				})
 
 				if err != nil {
@@ -808,11 +797,7 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 						WithTransaction(txn)
 
 					_, err := q.Run(ctx)
-					if err != nil {
-						return err
-					}
-
-					return nil
+					return err
 				})
 
 				if err != nil {
@@ -898,11 +883,7 @@ func BenchmarkGlob(b *testing.B) {
 						WithTransaction(txn)
 
 					_, err := q.Run(ctx)
-					if err != nil {
-						return err
-					}
-
-					return nil
+					return err
 				})
 
 				if err != nil {

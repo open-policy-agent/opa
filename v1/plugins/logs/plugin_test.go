@@ -2658,10 +2658,7 @@ func TestPluginMasking(t *testing.T) {
 			store := inmem.New()
 
 			err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-				if err := store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy); err != nil {
-					return err
-				}
-				return nil
+				return store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy)
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -2814,10 +2811,7 @@ func TestPluginDrop(t *testing.T) {
 
 			//checks if raw policy is valid and stores policy in store
 			err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-				if err := store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy); err != nil {
-					return err
-				}
-				return nil
+				return store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy)
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -2887,10 +2881,7 @@ func TestPluginMaskErrorHandling(t *testing.T) {
 
 	// checks if raw policy is valid and stores policy in store
 	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-		if err := store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy); err != nil {
-			return err
-		}
-		return nil
+		return store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -2965,10 +2956,7 @@ func TestPluginDropErrorHandling(t *testing.T) {
 
 	//checks if raw policy is valid and stores policy in store
 	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-		if err := store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy); err != nil {
-			return err
-		}
-		return nil
+		return store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy)
 	})
 	if err != nil {
 		t.Fatal(err)

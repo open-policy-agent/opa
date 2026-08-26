@@ -69,11 +69,9 @@ func Parse(version string) (v Version, err error) {
 		return v, err
 	}
 
-	if v.Patch, err = strconv.ParseInt(after, 10, 64); err != nil {
-		return v, err
-	}
+	v.Patch, err = strconv.ParseInt(after, 10, 64)
 
-	return v, nil
+	return v, err
 }
 
 // MustParse is like Parse but panics if the version string is invalid instead of returning an error.
