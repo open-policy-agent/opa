@@ -67,7 +67,6 @@ func newResultTerm(valid bool, data *ast.Term) *ast.Term {
 func newPatternValidatingSchemaLoader(bctx BuiltinContext) *gojsonschema.SchemaLoader {
 	sl := gojsonschema.NewSchemaLoader()
 	sl.ValidatePatterns = true
-	sl.DenyFileScheme = true
 	sl.Context = bctx.Context
 	if bctx.Capabilities != nil {
 		sl.AllowNet = bctx.Capabilities.AllowNet

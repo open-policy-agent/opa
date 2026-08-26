@@ -1636,6 +1636,7 @@ func compileSchema(goSchema any, allowNet []string) (*gojsonschema.Schema, error
 	var refLoader gojsonschema.JSONLoader
 	sl := gojsonschema.NewSchemaLoader()
 	sl.AllowNet = allowNet
+	sl.AllowFilesystem = true
 
 	if goSchema != nil {
 		refLoader = gojsonschema.NewGoLoader(goSchema)

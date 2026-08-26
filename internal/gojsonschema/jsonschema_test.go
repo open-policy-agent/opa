@@ -284,6 +284,7 @@ func TestFileReferencesIgnoreAllowNet(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			sl := NewSchemaLoader()
 			sl.AllowNet = tc.allowNet
+			sl.AllowFilesystem = true
 			_, err := sl.Compile(NewStringLoader(schema))
 			if err != nil {
 				t.Fatalf("expected file reference to be permitted, got %v", err)
@@ -292,7 +293,7 @@ func TestFileReferencesIgnoreAllowNet(t *testing.T) {
 	}
 }
 
-func TestDenyFileSchemeRestrictsFileReferences(t *testing.T) {
+func TestAllowFilesystemDefaultsToDenyFileReferences(t *testing.T) {
 	root := test.TempDirOf(t, "schema.json", `{"type": "string"}`)
 	filename := filepath.Join(root, "schema.json")
 	schema := fmt.Sprintf(`{"$ref": %q}`, "file://"+filepath.ToSlash(filename))
@@ -310,7 +311,6 @@ func TestDenyFileSchemeRestrictsFileReferences(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			sl := NewSchemaLoader()
 			sl.AllowNet = tc.allowNet
-			sl.DenyFileScheme = true
 			_, err := sl.Compile(NewStringLoader(schema))
 			if err == nil {
 				t.Fatal("expected file reference to be denied, but compilation succeeded")

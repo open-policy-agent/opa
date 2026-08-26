@@ -49,15 +49,16 @@ import (
 // matches the stdlib default.
 const maxRemoteRefRedirects = 10
 
-// remoteRefLimits bounds the outbound requests a loader may make while
-// resolving remote references. The zero value is unrestricted.
-type remoteRefLimits struct {
+// loaderLimits controls the external resources a loader may access while
+// resolving references. Its zero value permits any network host and denies
+// filesystem access.
+type loaderLimits struct {
 	// A nil set permits any host; an empty set permits none.
 	allowNet map[string]struct{}
 
-	// A file:// $ref is denied whenever DenyFileScheme is set, independent
+	// Local file access is allowed only when allowFilesystem is set, independent
 	// of allowNet. allowNet governs only remote HTTP fetches.
-	denyFileScheme bool
+	allowFilesystem bool
 
 	// LoadJSON takes no arguments, so the context rides on the loader instead.
 	// Loaders are built per Compile call, so its scope is that one compilation.
@@ -93,20 +94,20 @@ type JSONLoader interface {
 type JSONLoaderFactory interface {
 	// New creates a new JSON loader for the given source
 	New(source string) JSONLoader
-	// withRemoteRefLimits returns a copy of the factory whose loaders resolve
-	// remote references subject to the given limits.
-	withRemoteRefLimits(limits remoteRefLimits) JSONLoaderFactory
+	// withLoaderLimits returns a copy of the factory whose loaders resolve
+	// references subject to the given limits.
+	withLoaderLimits(limits loaderLimits) JSONLoaderFactory
 }
 
 // DefaultJSONLoaderFactory is the default JSON loader factory
 type DefaultJSONLoaderFactory struct {
-	limits remoteRefLimits
+	limits loaderLimits
 }
 
 // FileSystemJSONLoaderFactory is a JSON loader factory that uses http.FileSystem
 type FileSystemJSONLoaderFactory struct {
 	fs     http.FileSystem
-	limits remoteRefLimits
+	limits loaderLimits
 }
 
 // New creates a new JSON loader for the given source
@@ -127,12 +128,12 @@ func (f FileSystemJSONLoaderFactory) New(source string) JSONLoader {
 	}
 }
 
-func (d DefaultJSONLoaderFactory) withRemoteRefLimits(limits remoteRefLimits) JSONLoaderFactory {
+func (d DefaultJSONLoaderFactory) withLoaderLimits(limits loaderLimits) JSONLoaderFactory {
 	d.limits = limits
 	return d
 }
 
-func (f FileSystemJSONLoaderFactory) withRemoteRefLimits(limits remoteRefLimits) JSONLoaderFactory {
+func (f FileSystemJSONLoaderFactory) withLoaderLimits(limits loaderLimits) JSONLoaderFactory {
 	f.limits = limits
 	return f
 }
@@ -151,7 +152,7 @@ func (o osFileSystem) Open(name string) (http.File, error) {
 type jsonReferenceLoader struct {
 	fs     http.FileSystem
 	source string
-	limits remoteRefLimits
+	limits loaderLimits
 }
 
 func (l *jsonReferenceLoader) isAllowed(ref *url.URL) bool {
@@ -189,6 +190,7 @@ func NewReferenceLoader(source string) JSONLoader {
 	return &jsonReferenceLoader{
 		fs:     osFS,
 		source: source,
+		limits: loaderLimits{allowFilesystem: true},
 	}
 }
 
@@ -197,6 +199,7 @@ func NewReferenceLoaderFileSystem(source string, fs http.FileSystem) JSONLoader 
 	return &jsonReferenceLoader{
 		fs:     fs,
 		source: source,
+		limits: loaderLimits{allowFilesystem: true},
 	}
 }
 
@@ -213,7 +216,7 @@ func (l *jsonReferenceLoader) LoadJSON() (any, error) {
 	refToURL.GetUrl().Fragment = ""
 
 	if reference.HasFileScheme {
-		if l.limits.denyFileScheme {
+		if !l.limits.allowFilesystem {
 			return nil, fmt.Errorf("file reference loading disabled: %s", reference.String())
 		}
 
