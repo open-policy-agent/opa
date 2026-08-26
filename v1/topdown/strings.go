@@ -107,6 +107,10 @@ func anyStartsWithAny(strs []string, prefixes []string) bool {
 		return strings.HasPrefix(strs[0], prefixes[0])
 	}
 
+	// The trie is local, and only ever inserted into and searched, so it's safe
+	// to hand it byte slices aliasing the operand strings' memory. Note that
+	// patricia's compact() writes through the key slices it retains, so Delete
+	// and DeleteSubtree must not be used here: they'd corrupt those strings.
 	trie := patricia.NewTrie()
 	for i := range strs {
 		trie.Insert(util.StringToByteSlice(strs[i]), trueAny)
