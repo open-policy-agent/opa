@@ -477,8 +477,26 @@ func (w *writer) writeModule(module *ast.Module) error {
 
 	comments = trimTrailingWhitespaceInComments(comments)
 
+	// Imports added by the formatter get an assigned line number, which can sort
+	// after a rule's. An import written after a rule has no effect.
+	var added []*ast.Import
+	if addedImportFollowsRule(others) {
+		others = slices.DeleteFunc(others, func(x any) bool {
+			imp, ok := x.(*ast.Import)
+			if !ok || !isAddedImport(imp) {
+				return false
+			}
+			added = append(added, imp)
+			return true
+		})
+	}
+
 	var err error
 	comments, err = w.writePackage(pkg, comments)
+	if err != nil {
+		return err
+	}
+	comments, err = w.writeImports(added, comments)
 	if err != nil {
 		return err
 	}
@@ -2943,6 +2961,32 @@ func nextImportLoc(imps []*ast.Import, node ast.Node) *ast.Location {
 func isFutureKeywordsImport(imp *ast.Import) bool {
 	path := imp.Path.Value.(ast.Ref)
 	return len(path) >= 2 && ast.FutureRootDocument.Equal(path[0])
+}
+
+func isAddedImport(imp *ast.Import) bool {
+	return imp.Loc() != nil && imp.Loc().File == defaultLocationFile
+}
+
+// addedImportFollowsRule reports whether an import added by the formatter would
+// be written at or after the first rule.
+func addedImportFollowsRule(others []any) bool {
+	firstRule := -1
+	for _, x := range others {
+		if r, ok := x.(*ast.Rule); ok && r.Loc() != nil {
+			if firstRule < 0 || r.Loc().Row < firstRule {
+				firstRule = r.Loc().Row
+			}
+		}
+	}
+	if firstRule < 0 {
+		return false
+	}
+	for _, x := range others {
+		if imp, ok := x.(*ast.Import); ok && isAddedImport(imp) && imp.Loc().Row >= firstRule {
+			return true
+		}
+	}
+	return false
 }
 
 func ensureRegoV1Import(imps []*ast.Import) []*ast.Import {

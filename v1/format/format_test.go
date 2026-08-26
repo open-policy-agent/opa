@@ -1094,6 +1094,47 @@ func TestFormatAST_Error(t *testing.T) {
 	}
 }
 
+func TestFormatAddedImportsPrecedeRules(t *testing.T) {
+	// Partial evaluation drops the imports and emits rules at line 1, so the
+	// formatter has to add an import for every keyword the rules use.
+	cases := []struct {
+		note   string
+		module string
+	}{
+		{
+			note:   "and and or",
+			module: "package t\n\nimport future.keywords.and\nimport future.keywords.or\n\nallow if input.a and input.b or input.c\n",
+		},
+		{
+			note:   "and and not",
+			module: "package t\n\nimport future.keywords.and\nimport future.keywords.not\n\nallow if not (input.a) and input.b\n",
+		},
+		{
+			note:   "or and not",
+			module: "package t\n\nimport future.keywords.not\nimport future.keywords.or\n\nallow if not (input.a) or input.b\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			module := ast.MustParseModule(tc.module)
+			module.Imports = nil
+			for _, rule := range module.Rules {
+				rule.SetLoc(ast.NewLocation(rule.Loc().Text, "", 1, 1))
+			}
+
+			formatted, err := Ast(module)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if _, err := ast.ParseModule("formatted.rego", string(formatted)); err != nil {
+				t.Fatalf("Expected formatted module to parse, got %s:\n\n%s", err, formatted)
+			}
+		})
+	}
+}
+
 func TestFormatDeepCopy(t *testing.T) {
 
 	original := ast.Body{
