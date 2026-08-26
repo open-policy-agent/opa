@@ -11490,6 +11490,38 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			keywords: []string{"and", "not", "or"},
 		},
 		{
+			// The wildcard import must activate every keyword it reports as required.
+			note: "future.keywords wildcard, not body and and/or used, v0 module",
+			module: `
+				package x
+
+				import future.keywords
+
+				p if {
+					not { input.a; input.b }
+					input.c and input.d or input.e
+				}
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
+			keywords: []string{"and", "contains", "every", "if", "in", "not", "or"},
+		},
+		{
+			note: "future.keywords wildcard, not body and and/or used, v1 module",
+			module: `
+				package x
+
+				import future.keywords
+
+				p if {
+					not { input.a; input.b }
+					input.c and input.d or input.e
+				}
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			features: []string{"rego_v1"},
+			keywords: []string{"and", "not", "or"},
+		},
+		{
 			note: "future.keywords specific, v0 module",
 			module: `
 				package x
