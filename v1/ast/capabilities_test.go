@@ -146,8 +146,204 @@ func TestParserCapabilitiesWithWildcardOptInAndOlderOPA(t *testing.T) {
 	}
 }
 
-func TestLoadCapabilitiesVersion(t *testing.T) {
+func TestParserCapabilitiesFutureKeywordOptIn(t *testing.T) {
+	tests := []struct {
+		note       string
+		advertised []string
+		module     string
+		expErr     bool
+	}{
+		{
+			note:       "in advertised, specific import",
+			advertised: []string{"in"},
+			module: `package test
+				import future.keywords.in
+				p { 1 in [1, 2] }`,
+		},
+		{
+			note:       "in advertised, wildcard import",
+			advertised: []string{"in"},
+			module: `package test
+				import future.keywords
+				p { 1 in [1, 2] }`,
+		},
+		{
+			note:       "in advertised, wildcard import, not used",
+			advertised: []string{"in"},
+			module: `package test
+				import future.keywords
+				p { not {input.a; input.b} }`,
+			expErr: true,
+		},
+		{
+			note:       "every advertised, specific import",
+			advertised: []string{"every"},
+			module: `package test
+				import future.keywords.every
+				p { every x in [1, 2] { x } }`,
+		},
+		{
+			note:       "every advertised, wildcard import",
+			advertised: []string{"every"},
+			module: `package test
+				import future.keywords
+				p { every x in [1, 2] { x } }`,
+		},
+		{
+			note:       "every advertised, wildcard import, not used",
+			advertised: []string{"every"},
+			module: `package test
+				import future.keywords
+				p { not {input.a; input.b} }`,
+			expErr: true,
+		},
+		{
+			note:       "contains advertised, specific import",
+			advertised: []string{"contains"},
+			module: `package test
+				import future.keywords.contains
+				p contains "a" { true }`,
+		},
+		{
+			note:       "contains advertised, wildcard import",
+			advertised: []string{"contains"},
+			module: `package test
+				import future.keywords
+				p contains "a" { true }`,
+		},
+		{
+			note:       "contains advertised, wildcard import, not used",
+			advertised: []string{"contains"},
+			module: `package test
+				import future.keywords
+				p { not {input.a; input.b} }`,
+			expErr: true,
+		},
+		{
+			note:       "if advertised, specific import",
+			advertised: []string{"if"},
+			module: `package test
+				import future.keywords.if
+				p if { true }`,
+		},
+		{
+			note:       "if advertised, wildcard import",
+			advertised: []string{"if"},
+			module: `package test
+				import future.keywords
+				p if { true }`,
+		},
+		{
+			note:       "if advertised, wildcard import, not used",
+			advertised: []string{"if"},
+			module: `package test
+				import future.keywords
+				p { not {input.a; input.b} }`,
+			expErr: true,
+		},
+		{
+			note:       "not advertised, specific import",
+			advertised: []string{"not"},
+			module: `package test
+				import future.keywords.not
+				p { not {input.a; input.b} }`,
+		},
+		{
+			note:       "not advertised, wildcard import",
+			advertised: []string{"not"},
+			module: `package test
+				import future.keywords
+				p { not {input.a; input.b} }`,
+		},
+		{
+			note:       "not advertised, wildcard import, and used",
+			advertised: []string{"not"},
+			module: `package test
+				import future.keywords
+				p { input.a and input.b }`,
+			expErr: true,
+		},
+		{
+			note:       "and advertised, specific import",
+			advertised: []string{"and"},
+			module: `package test
+				import future.keywords.and
+				p { input.a and input.b }`,
+		},
+		{
+			note:       "and advertised, wildcard import",
+			advertised: []string{"and"},
+			module: `package test
+				import future.keywords
+				p { input.a and input.b }`,
+		},
+		{
+			note:       "and advertised, wildcard import, not used",
+			advertised: []string{"and"},
+			module: `package test
+				import future.keywords
+				p { not {input.a; input.b} }`,
+			expErr: true,
+		},
+		{
+			note:       "or advertised, specific import",
+			advertised: []string{"or"},
+			module: `package test
+				import future.keywords.or
+				p { input.a or input.b }`,
+		},
+		{
+			note:       "or advertised, wildcard import",
+			advertised: []string{"or"},
+			module: `package test
+				import future.keywords
+				p { input.a or input.b }`,
+		},
+		{
+			note:       "or advertised, wildcard import, not used",
+			advertised: []string{"or"},
+			module: `package test
+				import future.keywords
+				p { not {input.a; input.b} }`,
+			expErr: true,
+		},
+		{
+			note:       "and and or advertised, wildcard import",
+			advertised: []string{"and", "or"},
+			module: `package test
+				import future.keywords
+				p { input.a and input.b or input.c }`,
+		},
+		{
+			note:       "and and or advertised, wildcard import, not used",
+			advertised: []string{"and", "or"},
+			module: `package test
+				import future.keywords
+				p { not (input.a or input.b) }`,
+			expErr: true,
+		},
+	}
 
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			opts := ParserOptions{
+				Capabilities: &Capabilities{FutureKeywords: tc.advertised},
+				RegoVersion:  RegoV0, // lock it down to v0 to get every future keyword
+			}
+
+			mod, err := ParseModuleWithOpts("test.rego", tc.module, opts)
+			if tc.expErr {
+				if err == nil {
+					t.Fatalf("expected error, got: %v", mod)
+				}
+			} else if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestLoadCapabilitiesVersion(t *testing.T) {
 	capabilitiesVersions, err := LoadCapabilitiesVersions()
 	if err != nil {
 		t.Fatal("expected success", err)

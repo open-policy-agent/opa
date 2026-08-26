@@ -10798,6 +10798,280 @@ func parserOptsWithFutureKeywords(kws ...string) ParserOptions {
 	return opts
 }
 
+func TestFutureKeywordActivationRoutes(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+		keyword     string
+		specific    string // module importing the keyword specifically
+		wildcard    string // module importing all future keywords
+		noImport    string // module without any future keyword import
+		exp         string
+		noImportErr bool
+	}{
+		{
+			note:        "v0, in",
+			regoVersion: RegoV0,
+			keyword:     "in",
+			specific: `package test
+				import future.keywords.in
+				p { 1 in [1, 2] }`,
+			wildcard: `package test
+				import future.keywords
+				p { 1 in [1, 2] }`,
+			noImport: `package test
+				p { 1 in [1, 2] }`,
+			exp:         "internal.member_2(1, [1, 2])",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, in",
+			regoVersion: RegoV1,
+			keyword:     "in",
+			specific: `package test
+				import future.keywords.in
+				p if 1 in [1, 2]`,
+			wildcard: `package test
+				import future.keywords
+				p if 1 in [1, 2]`,
+			noImport: `package test
+				p if 1 in [1, 2]`,
+			exp: "internal.member_2(1, [1, 2])",
+		},
+		{
+			note:        "v0, every",
+			regoVersion: RegoV0,
+			keyword:     "every",
+			specific: `package test
+				import future.keywords.every
+				p { every x in [1, 2] { x } }`,
+			wildcard: `package test
+				import future.keywords
+				p { every x in [1, 2] { x } }`,
+			noImport: `package test
+				p { every x in [1, 2] { x } }`,
+			exp:         "every x in [1, 2] { x }",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, every",
+			regoVersion: RegoV1,
+			keyword:     "every",
+			specific: `package test
+				import future.keywords.every
+				p if every x in [1, 2] { x }`,
+			wildcard: `package test
+				import future.keywords
+				p if every x in [1, 2] { x }`,
+			noImport: `package test
+				p if every x in [1, 2] { x }`,
+			exp: "every x in [1, 2] { x }",
+		},
+		{
+			note:        "v0, contains",
+			regoVersion: RegoV0,
+			keyword:     "contains",
+			specific: `package test
+				import future.keywords.contains
+				p contains "a"`,
+			wildcard: `package test
+				import future.keywords
+				p contains "a"`,
+			noImport: `package test
+				p contains "a"`,
+			exp:         "true",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, contains",
+			regoVersion: RegoV1,
+			keyword:     "contains",
+			specific: `package test
+				import future.keywords.contains
+				p contains "a"`,
+			wildcard: `package test
+				import future.keywords
+				p contains "a"`,
+			noImport: `package test
+				p contains "a"`,
+			exp: "true",
+		},
+		{
+			note:        "v0, if",
+			regoVersion: RegoV0,
+			keyword:     "if",
+			specific: `package test
+				import future.keywords.if
+				p if { true }`,
+			wildcard: `package test
+				import future.keywords
+				p if { true }`,
+			noImport: `package test
+				p if { true }`,
+			exp:         "true",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, if",
+			regoVersion: RegoV1,
+			keyword:     "if",
+			specific: `package test
+				import future.keywords.if
+				p if { true }`,
+			wildcard: `package test
+				import future.keywords
+				p if { true }`,
+			noImport: `package test
+				p if { true }`,
+			exp: "true",
+		},
+		{
+			note:        "v0, not",
+			regoVersion: RegoV0,
+			keyword:     "not",
+			specific: `package test
+				import future.keywords.not
+				p { not {input.a; input.b} }`,
+			wildcard: `package test
+				import future.keywords
+				p { not {input.a; input.b} }`,
+			noImport: `package test
+				p { not {input.a; input.b} }`,
+			exp:         "not {input.a; input.b}",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, not",
+			regoVersion: RegoV1,
+			keyword:     "not",
+			specific: `package test
+				import future.keywords.not
+				p if not {input.a; input.b}`,
+			wildcard: `package test
+				import future.keywords
+				p if not {input.a; input.b}`,
+			noImport: `package test
+				p if not {input.a; input.b}`,
+			exp:         "not {input.a; input.b}",
+			noImportErr: true,
+		},
+		{
+			note:        "v0, and",
+			regoVersion: RegoV0,
+			keyword:     "and",
+			specific: `package test
+				import future.keywords.and
+				p { input.a and input.b }`,
+			wildcard: `package test
+				import future.keywords
+				p { input.a and input.b }`,
+			noImport: `package test
+				p { input.a and input.b }`,
+			exp:         "input.a and input.b",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, and",
+			regoVersion: RegoV1,
+			keyword:     "and",
+			specific: `package test
+				import future.keywords.and
+				p if input.a and input.b`,
+			wildcard: `package test
+				import future.keywords
+				p if input.a and input.b`,
+			noImport: `package test
+				p if input.a and input.b`,
+			exp:         "input.a and input.b",
+			noImportErr: true,
+		},
+		{
+			note:        "v0, or",
+			regoVersion: RegoV0,
+			keyword:     "or",
+			specific: `package test
+				import future.keywords.or
+				p { input.a or input.b }`,
+			wildcard: `package test
+				import future.keywords
+				p { input.a or input.b }`,
+			noImport: `package test
+				p { input.a or input.b }`,
+			exp:         "input.a or input.b",
+			noImportErr: true,
+		},
+		{
+			note:        "v1, or",
+			regoVersion: RegoV1,
+			keyword:     "or",
+			specific: `package test
+				import future.keywords.or
+				p if input.a or input.b`,
+			wildcard: `package test
+				import future.keywords
+				p if input.a or input.b`,
+			noImport: `package test
+				p if input.a or input.b`,
+			exp:         "input.a or input.b",
+			noImportErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			routes := []struct {
+				note   string
+				module string
+				opts   ParserOptions
+			}{
+				{
+					note:   "import future.keywords." + tc.keyword,
+					module: tc.specific,
+					opts:   ParserOptions{RegoVersion: tc.regoVersion},
+				},
+				{
+					note:   "import future.keywords",
+					module: tc.wildcard,
+					opts:   ParserOptions{RegoVersion: tc.regoVersion},
+				},
+				{
+					note:   "ParserOptions.FutureKeywords",
+					module: tc.noImport,
+					opts:   ParserOptions{RegoVersion: tc.regoVersion, FutureKeywords: []string{tc.keyword}},
+				},
+				{
+					note:   "ParserOptions.AllFutureKeywords",
+					module: tc.noImport,
+					opts:   ParserOptions{RegoVersion: tc.regoVersion, AllFutureKeywords: true},
+				},
+			}
+
+			for _, route := range routes {
+				t.Run(route.note, func(t *testing.T) {
+					mod, err := ParseModuleWithOpts("test.rego", route.module, route.opts)
+					if err != nil {
+						t.Fatalf("expected successful parse, got: %v", err)
+					}
+					if act := mod.Rules[0].Body.String(); act != tc.exp {
+						t.Errorf("expected body %q but got %q", tc.exp, act)
+					}
+				})
+			}
+
+			t.Run("not activated", func(t *testing.T) {
+				mod, err := ParseModuleWithOpts("test.rego", tc.noImport, ParserOptions{RegoVersion: tc.regoVersion})
+				if tc.noImportErr {
+					if err == nil {
+						t.Fatalf("expected parse error, got: %v", mod)
+					}
+				} else if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			})
+		})
+	}
+}
+
 func TestOperandRenderRoundTrip(t *testing.T) {
 	tests := []struct {
 		note      string
