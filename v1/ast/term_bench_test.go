@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -201,10 +202,7 @@ func BenchmarkObjectFind(b *testing.B) {
 }
 
 func BenchmarkObjectInsert(b *testing.B) {
-	nums := make([]*Term, 0, 100)
-	for i := range 100 {
-		nums = append(nums, InternedTerm(i))
-	}
+	nums := slices.Collect(InternedIntRange(0, 100))
 
 	b.Run("existing key and value", func(b *testing.B) {
 		obj := newobject(0)
@@ -275,13 +273,10 @@ func BenchmarkObjectCreationAndLookup(b *testing.B) {
 }
 
 // insert           38148     30049 ns/op   58912 B/op     528 allocs/op
-// terms_array      65698     17079 ns/op   34680 B/op     506 allocs/op
+// terms_array      106726    11183 ns/op	34968 B/op       7 allocs/op
 func BenchmarkObjectCreateWithInsertVsTermsArray(b *testing.B) {
 	n := 500
-	interned := make([]*Term, n)
-	for i := range n {
-		interned[i] = InternedTerm(i)
-	}
+	interned := slices.Collect(InternedIntRange(0, n))
 
 	b.Run("insert", func(b *testing.B) {
 		for b.Loop() {

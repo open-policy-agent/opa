@@ -1813,9 +1813,11 @@ func (s *set) Find(path Ref) (Value, error) {
 }
 
 // Diff returns elements in s that are not in other.
+// A returned empty set will be an interned representation that
+// should not be modified without copying.
 func (s *set) Diff(other Set) Set {
 	if s.Compare(other) == 0 {
-		return NewSet()
+		return InternedEmptySetValue.(Set)
 	}
 
 	result := newset(len(s.keys))
@@ -2197,11 +2199,10 @@ func (lob *lazyObj) Keys() []*Term {
 	}
 	ret := make([]*Term, 0, len(lob.native))
 	for k := range lob.native {
-		ret = append(ret, StringTerm(k))
+		ret = append(ret, InternedTerm(k))
 	}
-	slices.SortFunc(ret, TermValueCompare)
 
-	return ret
+	return util.SortedFunc(ret, TermValueCompare)
 }
 
 func (lob *lazyObj) KeysIterator() ObjectKeysIterator {

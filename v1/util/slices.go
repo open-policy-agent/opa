@@ -20,9 +20,11 @@ func Map[T any, U any](s []T, f func(T) U) []U {
 
 // MapAppend applies f to each element of src and appends the results to dst, returning the resulting slice.
 func MapAppend[T any, U any](dst []U, src []T, f func(T) U) []U {
-	dst = slices.Grow(dst, len(src))
-	for _, v := range src {
-		dst = append(dst, f(v))
+	if len(src) > 0 {
+		dst = slices.Grow(dst, len(src))
+		for _, v := range src {
+			dst = append(dst, f(v))
+		}
 	}
 	return dst
 }

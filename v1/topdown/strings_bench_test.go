@@ -2,6 +2,7 @@ package topdown
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -372,11 +373,7 @@ func BenchmarkLongSprintf(b *testing.B) {
 }
 
 func repeatTerm(t *ast.Term, n int) *ast.Term {
-	terms := make([]*ast.Term, 0, n)
-	for range n {
-		terms = append(terms, t)
-	}
-	return ast.ArrayTerm(terms...)
+	return ast.ArrayTerm(slices.Repeat([]*ast.Term{t}, n)...)
 }
 
 func BenchmarkSplitLenVsStringsCount(b *testing.B) {

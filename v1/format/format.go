@@ -1273,6 +1273,12 @@ func notBodyNeedsParens(expr *ast.Expr) bool {
 		return true
 	}
 
+	// `not not x` doesn't parse: a nested negation must be parenthesized to be
+	// read back as a body.
+	if _, ok := expr.Terms.(*ast.Not); ok {
+		return true
+	}
+
 	// A value that renders brace-led would be re-read as an explicit body.
 	return exprRendersBraceLead(expr)
 }

@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Position represents a file location.
@@ -111,8 +112,7 @@ func (s rangeSet) Slice() []Range {
 	for _, r := range s {
 		rs = append(rs, r)
 	}
-	slices.SortFunc(rs, Range.Compare)
-	return rs
+	return util.SortedFunc(rs, Range.Compare)
 }
 
 // fileRangeSets maps a file to the set of ranges recorded for it.
