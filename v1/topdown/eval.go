@@ -2832,6 +2832,13 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 	// Reuse the same enumerateNext for virtual documents
 	for _, k := range e.node.Sorted {
 		key := ast.NewTerm(k)
+
+		// next() descends into both the base document and the rule tree, so
+		// enumerating a key present in both would yield it twice.
+		if docHasKey(doc, key) {
+			continue
+		}
+
 		en.key = key
 		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, en.call); err != nil {
 			return err
@@ -2839,6 +2846,25 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 	}
 
 	return nil
+}
+
+// docHasKey returns true if key is one of the keys evalTree.enumerate yields
+// for the base document doc.
+func docHasKey(doc ast.Value, key *ast.Term) bool {
+	switch doc := doc.(type) {
+	case ast.Object:
+		return doc.Get(key) != nil
+	case *ast.Array:
+		i, ok := key.Value.(ast.Number)
+		if !ok {
+			return false
+		}
+		idx, ok := i.Int()
+		return ok && idx >= 0 && idx < doc.Len()
+	case ast.Set:
+		return doc.Contains(key)
+	}
+	return false
 }
 
 func (e evalTree) extent() (*ast.Term, error) {

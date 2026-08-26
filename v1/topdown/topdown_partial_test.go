@@ -4927,6 +4927,56 @@ q if { input.x = 7 }`},
 	}
 }
 
+func TestTopDownPartialEvalEnumerateBaseAndVirtualDocKeyOnce(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	params := fixtureParams{
+		note:  "enumerate base doc key shadowed by rule tree node once (#4787)",
+		query: "data.test.p = x",
+		data:  `{"x": {"a": {"n": 1}, "b": {"n": 2}}}`,
+		modules: []string{
+			`package test
+			p contains k if { data.x[k] = input.y }`,
+			`package x.a
+			unrelated := 1`,
+		},
+	}
+
+	prepareTest(ctx, t, params, func(ctx context.Context, t *testing.T, f fixture) {
+		query := NewQuery(f.query).
+			WithCompiler(f.compiler).
+			WithStore(f.store).
+			WithTransaction(f.txn).
+			WithUnknowns([]*ast.Term{ast.MustParseTerm("input")})
+
+		_, support, err := query.PartialRun(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(support) != 1 {
+			t.Fatalf("expected 1 support module, got %d: %v", len(support), support)
+		}
+
+		exp := ast.MustParseModule(`package partial.test
+
+		p contains "a" if input.y = {"n": 1, "unrelated": 1}
+		p contains "b" if input.y = {"n": 2}`)
+
+		if len(support[0].Rules) != len(exp.Rules) {
+			t.Fatalf("expected %d support rules, got %d:\n%v", len(exp.Rules), len(support[0].Rules), support[0])
+		}
+
+		for i := range exp.Rules {
+			if !exp.Rules[i].Equal(support[0].Rules[i]) {
+				t.Fatalf("expected support module:\n%v\n\ngot:\n%v", exp, support[0])
+			}
+		}
+	})
+}
+
 func TestTopDownPartialEvalNegation(t *testing.T) {
 	t.Parallel()
 
