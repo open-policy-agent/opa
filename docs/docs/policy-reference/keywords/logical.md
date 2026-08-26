@@ -17,9 +17,9 @@ see the built-ins section for [intersection (&)](/docs/policy-reference/builtins
 
 The `and`/`or` keywords are not part of the standard v0 and v1 Rego syntax, and must be [imported](./import#importing-future-keywords) to be enabled:
 
-* and: `import future.keywords.and`
-* or: `import future.keywords.or`
-* both, along with every other future keyword: `import future.keywords`
+- and: `import future.keywords.and`
+- or: `import future.keywords.or`
+- both, along with every other future keyword: `import future.keywords`
 
 Importing `rego.v1` does _not_ enable them.
 
@@ -27,10 +27,10 @@ Importing `rego.v1` does _not_ enable them.
 
 The `or` keyword represents a logical disjunction in Rego. An `or` expression:
 
-* is an infix operator with a left-hand and a right-hand operand: `<LHS> or <RHS>`
-* is `defined` if _either_ operand succeeds; an operand fails when it is `undefined` _or_ evaluates to `false`
-* [produces no value](#expressions-not-values) — only `defined` or `undefined`
-* [cannot bind variables](#variables-and-scope) that are visible outside the expression
+- is an infix operator with a left-hand and a right-hand operand: `<LHS> or <RHS>`
+- is `defined` if _either_ operand succeeds; an operand fails when it is `undefined` _or_ evaluates to `false`
+- [produces no value](#expressions-not-values) — only `defined` or `undefined`
+- [cannot bind variables](#variables-and-scope) that are visible outside the expression
 
 ```rego
 package example
@@ -50,23 +50,23 @@ The `or` operator is _not_ a drop-in replacement for incremental rules.
 
 Prefer expressing disjunction with `or` when:
 
-* The disjunction is deeply embedded inside a rule and extracting it into a separate rule hurts readability
-* Creating small one-line rules where the expression doesn't need to bind a value: `p if x or y`
+- The disjunction is deeply embedded inside a rule and extracting it into a separate rule hurts readability
+- Creating small one-line rules where the expression doesn't need to bind a value: `p if x or y`
 
 Prefer expressing disjunction with incremental rules when:
 
-* The disjunction must result in a value, and not only control flow
-* The disjunction is complex and involves multiple conditions
-* The disjunction can be re-used across your policy
+- The disjunction must result in a value, and not only control flow
+- The disjunction is complex and involves multiple conditions
+- The disjunction can be re-used across your policy
 
 ## and
 
 The `and` keyword represents a logical conjunction in Rego. An `and` expression:
 
-* is an infix operator with a left-hand and a right-hand operand: `<LHS> and <RHS>`
-* is `defined` only if _both_ operands succeed; an operand fails when it is `undefined` _or_ evaluates to `false`
-* [produces no value](#expressions-not-values) — only `defined` or `undefined`
-* [cannot bind variables](#variables-and-scope) that are visible outside the expression
+- is an infix operator with a left-hand and a right-hand operand: `<LHS> and <RHS>`
+- is `defined` only if _both_ operands succeed; an operand fails when it is `undefined` _or_ evaluates to `false`
+- [produces no value](#expressions-not-values) — only `defined` or `undefined`
+- [cannot bind variables](#variables-and-scope) that are visible outside the expression
 
 ```rego
 package example
@@ -86,14 +86,14 @@ succeed, the rule succeeds. The `and` operator is _not_ a drop-in replacement fo
 
 Prefer expressing conjunction with `and` when:
 
-* Creating composite logical expressions together with [or](#or): `x or y and z`
-* Creating small one-line rules where the expression doesn't need to bind a value: `p if x and y`
+- Creating composite logical expressions together with [or](#or): `x or y and z`
+- Creating small one-line rules where the expression doesn't need to bind a value: `p if x and y`
 
 Prefer expressing conjunction with multiple expressions within a rule body when:
 
-* The conjunction must result in a value, and not only control flow
-* The conjunction is not part of a disjunctive expression ([or](#or))
-* The conjunction can be re-used across your policy
+- The conjunction must result in a value, and not only control flow
+- The conjunction is not part of a disjunctive expression ([or](#or))
+- The conjunction can be re-used across your policy
 
 ## Expressions, not values
 
@@ -134,12 +134,12 @@ p := [x |
 
 `and` and `or` expressions are short-circuited: if the evaluation result of one operand makes evaluation of the second redundant, it won't be evaluated.
 
-| Expression              | Left-hand evaluated | Right-hand evaluated |
-|-------------------------|---------------------|----------------------|
-| `<succeeds> and <any>`  | :white_check_mark:  | :white_check_mark:   |
-| `<fails> and <any>`     | :white_check_mark:  | :x:                  |
-| `<succeeds> or <any>`   | :white_check_mark:  | :x:                  |
-| `<fails> or <any>`      | :white_check_mark:  | :white_check_mark:   |
+| Expression             | Left-hand evaluated | Right-hand evaluated |
+| ---------------------- | ------------------- | -------------------- |
+| `<succeeds> and <any>` | :white_check_mark:  | :white_check_mark:   |
+| `<fails> and <any>`    | :white_check_mark:  | :x:                  |
+| `<succeeds> or <any>`  | :white_check_mark:  | :x:                  |
+| `<fails> or <any>`     | :white_check_mark:  | :white_check_mark:   |
 
 ## Precedence and grouping
 
@@ -157,7 +157,7 @@ Tightest to loosest binding:
 Use parentheses to override the default binding:
 
 | Expression                 | Reads as                                                             |
-|----------------------------|----------------------------------------------------------------------|
+| -------------------------- | -------------------------------------------------------------------- |
 | `1 + 1 == 2 and x in s`    | `(1 + 1 == 2) and (x in s)`                                          |
 | `not a and b`              | `(not a) and b` (only the operand is negated)                        |
 | `not (a and b)`            | `not (a and b)` (the whole conjunction is negated)                   |
@@ -205,7 +205,7 @@ Operands read variables from the enclosing rule body freely, but only an explici
 bind new ones. Variables bound in an explicit body are local to it, and not visible outside.
 
 | Expression            | Result                                                                                                    |
-|-----------------------|-----------------------------------------------------------------------------------------------------------|
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
 | `x := 1 or input.b`   | `rego_compile_error: cannot assign vars inside implicit or operand`                                       |
 | `x = 1 or input.b`    | `rego_unsafe_var_error: var x is unsafe`                                                                  |
 | `{x := 1} or input.b` | allowed; `x` is not visible outside the braces                                                            |
@@ -229,7 +229,7 @@ expression, or to an operand that is a group or an [explicit body](#explicit-bod
 to a single-expression operand:
 
 | Placement                     | Applies to                                                          |
-|-------------------------------|---------------------------------------------------------------------|
+| ----------------------------- | ------------------------------------------------------------------- |
 | `a or b with input as x`      | the whole expression                                                |
 | `a or (b with input as x)`    | that operand only                                                   |
 | `a or {b with input as x}`    | that operand only ([explicit body](#explicit-bodies))               |
