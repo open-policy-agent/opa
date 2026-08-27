@@ -53,8 +53,49 @@ type (
 		defaultRule    *Rule
 		kind           RuleKind
 		onlyGroundRefs bool
+		cfg            indexConfig
+		dataRefs       []Ref
+	}
+
+	// indexConfig holds the optional index features, see newBaseDocEqIndex.
+	indexConfig struct {
+		// data, when set, resolves the collection of a membership expression
+		// while the index is built, so that `x in <ref>` can be indexed like
+		// `x in <collection literal>`.
+		data ValueResolver
+
+		// maxCollection bounds the number of values a single collection may
+		// contribute to the trie. Larger collections aren't unrolled.
+		maxCollection int
+	}
+
+	// indexOption controls optional index features, see newBaseDocEqIndex.
+	indexOption func(*baseDocEqIndex)
+
+	// IndexDataChecker may be implemented by a ValueResolver to tell a rule
+	// index when data it resolved while being built cannot be trusted for the
+	// evaluation at hand.
+	IndexDataChecker interface {
+		// IndexDataStale reports whether the value at ref may differ from the
+		// one seen when the index was built, e.g. because a `with` statement
+		// replaced it, or because it is unknown during partial evaluation.
+		IndexDataStale(ref Ref) bool
 	}
 )
+
+// withIndexData lets the index resolve the collections of membership
+// expressions through resolver while it is built, so that `x in <ref>` is
+// unrolled into the trie like a collection literal. Collections holding more
+// than maxCollection values are left alone; a maxCollection of zero disables
+// unrolling, but the refs are still reported by CollectionRefs.
+func withIndexData(resolver ValueResolver, maxCollection int) indexOption {
+	return func(i *baseDocEqIndex) {
+		if maxCollection > 0 {
+			i.cfg.data = resolver
+			i.cfg.maxCollection = maxCollection
+		}
+	}
+}
 
 // NewIndexResult returns a new IndexResult object.
 func NewIndexResult(kind RuleKind) *IndexResult {
@@ -66,12 +107,16 @@ func (ir *IndexResult) Empty() bool {
 	return len(ir.Rules) == 0 && ir.Default == nil
 }
 
-func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
-	return &baseDocEqIndex{
+func newBaseDocEqIndex(isVirtual func(Ref) bool, opts ...indexOption) *baseDocEqIndex {
+	i := &baseDocEqIndex{
 		isVirtual:      isVirtual,
 		root:           newTrieNodeImpl(),
 		onlyGroundRefs: true,
 	}
+	for _, opt := range opts {
+		opt(i)
+	}
+	return i
 }
 
 func (i *baseDocEqIndex) Build(rules []*Rule) bool {
@@ -80,7 +125,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	}
 
 	i.kind = rules[0].Head.RuleKind()
-	indices := newrefindices(i.isVirtual)
+	indices := newrefindices(i.isVirtual, i.cfg)
 	values := make(map[Var]Value)
 
 	// build indices for each rule.
@@ -122,7 +167,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 					if len(values) == 0 {
 						node = node.Insert(ref, nil, nil)
 					} else if len(values) == 1 {
-						node = node.Insert(ref, values[0].Value, values[0].Mapper)
+						node = node.insertIndex(ref, values[0])
 					} else {
 						if slices.ContainsFunc(values, (*refindex).isVar) {
 							child := node.Insert(ref, anyValue, values[0].Mapper)
@@ -138,7 +183,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 							// This creates separate paths for each value so different rules with overlapping
 							// values don't interfere with each other.
 							for _, val := range values {
-								child := node.Insert(ref, val.Value, val.Mapper)
+								child := node.insertIndex(ref, val)
 								child.append([...]int{idx, prio}, rule)
 							}
 							prio++
@@ -155,7 +200,22 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			return false
 		})
 	}
+
+	i.dataRefs = indices.dataRefs
+
 	return true
+}
+
+// DataRefs returns the refs the index reads values from: the collection of a
+// membership expression, `data.groups.admins.members` for a rule saying
+// `input.subject in data.groups.admins.members`, and the value of an equality,
+// `data.config.tenant` for `input.tenant == data.config.tenant`.
+//
+// This is a property of the policy, reported whether or not the index resolved
+// any of them (see withIndexData): a collection that is missing, or too large
+// to unroll, is one whose data still decides what the index should look like.
+func (i *baseDocEqIndex) DataRefs() []Ref {
+	return i.dataRefs
 }
 
 func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
@@ -295,6 +355,11 @@ type refindex struct {
 	Ref    Ref
 	Value  Value
 	Mapper *valueMapper
+
+	// From, when set, is the ref of the collection this value was unrolled
+	// from: the index only holds it because the data at that ref said so, and
+	// has to stop relying on it when that data can't be trusted.
+	From Ref
 }
 
 type refindices struct {
@@ -302,13 +367,16 @@ type refindices struct {
 	rules     map[*Rule][]*refindex
 	frequency *util.HasherMap[Ref, int]
 	sorted    []Ref
+	cfg       indexConfig
+	dataRefs  []Ref
 }
 
-func newrefindices(isVirtual func(Ref) bool) *refindices {
+func newrefindices(isVirtual func(Ref) bool, cfg indexConfig) *refindices {
 	return &refindices{
 		isVirtual: isVirtual,
 		rules:     map[*Rule][]*refindex{},
 		frequency: util.NewHasherMap[Ref, int](RefEqual),
+		cfg:       cfg,
 	}
 }
 
@@ -532,21 +600,126 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 		}
 	}
 
-	addRef := func(t *Term) error {
-		i.insert(rule, &refindex{Ref: ref, Value: t.Value})
+	// The collection is behind a ref: `input.role in data.admin_roles`.
+	// Constants take precedence -- a literal collection is right here, no need
+	// to look anywhere else.
+	if !IsConstant(rval) {
+		if cref := i.resolveAndValidateRef(rule, rule.Head.Args, rhs); cref != nil {
+			i.collect(cref)
+			if collection := i.unrollable(cref); collection != nil {
+				i.insertCollection(rule, ref, collection, cref)
+			}
+		}
+		return
+	}
+
+	switch rval.(type) {
+	case *Array, Set, Object:
+		i.insertCollection(rule, ref, rval, nil)
+	}
+}
+
+// unrollable resolves the collection at ref for unrolling into the index, and
+// returns nil if that isn't possible or isn't worth it: the data isn't
+// available while the index is built, the value isn't a collection, or it holds
+// more values than the trie should carry.
+func (i *refindices) unrollable(ref Ref) Value {
+	if i.cfg.data == nil {
 		return nil
 	}
 
-	switch rcol := rval.(type) {
+	v, err := i.cfg.data.Resolve(ref)
+	if err != nil || v == nil {
+		return nil
+	}
+
+	switch v.(type) {
+	case *Array, Set, Object:
+	default:
+		return nil
+	}
+
+	if n := collectionLen(v); n == 0 || n > i.cfg.maxCollection {
+		return nil
+	}
+
+	return v
+}
+
+func (i *refindices) collect(ref Ref) {
+	i.dataRefs = appendUnique(i.dataRefs, ref)
+}
+
+func appendUnique(refs []Ref, ref Ref) []Ref {
+	if containsRef(refs, ref) {
+		return refs
+	}
+	return append(refs, ref)
+}
+
+func containsRef(refs []Ref, ref Ref) bool {
+	return slices.ContainsFunc(refs, func(other Ref) bool { return RefEqual(other, ref) })
+}
+
+// insertCollection records every value in collection as an alternative value
+// for ref: `x in <collection>` matches if any one of them matches.
+//
+// Only the "any" entries are reconciled up front, and the values themselves are
+// appended without the per-value scan insert does. Inserting them one by one
+// costs a scan over everything recorded for the rule so far -- which, for a
+// collection, is dominated by the values already appended, making the whole
+// thing quadratic in the collection's size. The scan only buys duplicate
+// suppression, and a duplicate value here is harmless: it appends a second,
+// identically prioritized rule node to the same trie child, which the traversal
+// already folds together.
+func (i *refindices) insertCollection(rule *Rule, ref Ref, collection Value, from Ref) {
+	n := collectionLen(collection)
+	if n == 0 {
+		// `x in []` never holds, but the index records constraints, not
+		// contradictions: leave the rule to its other expressions.
+		return
+	}
+
+	// A value from the collection supersedes the "any" entry that the
+	// expression binding the value recorded for the same ref, exactly like a
+	// scalar does in insert.
+	i.rules[rule] = slices.DeleteFunc(i.rules[rule], func(other *refindex) bool {
+		return other.isVar() && other.Ref.Equal(ref)
+	})
+
+	entries := make([]*refindex, 0, n)
+	appendValue := func(t *Term) error {
+		entries = append(entries, &refindex{Ref: ref, Value: t.Value, From: from})
+		return nil
+	}
+
+	switch coll := collection.(type) {
 	case *Array:
-		_ = rcol.Iter(addRef)
+		_ = coll.Iter(appendValue)
 	case Set:
-		_ = rcol.Iter(addRef)
+		_ = coll.Iter(appendValue)
 	case Object:
-		_ = rcol.Iter(func(_, v *Term) error {
-			return addRef(v)
+		_ = coll.Iter(func(_, v *Term) error {
+			return appendValue(v)
 		})
 	}
+
+	i.rules[rule] = append(i.rules[rule], entries...)
+
+	count, _ := i.frequency.Get(ref)
+	i.frequency.Put(ref, count+len(entries))
+}
+
+func collectionLen(collection Value) int {
+	switch coll := collection.(type) {
+	case *Array:
+		return coll.Len()
+	case Set:
+		return coll.Len()
+	case Object:
+		return coll.Len()
+	}
+	return 0
 }
 
 func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term) Ref {
@@ -688,9 +861,59 @@ type trieNode struct {
 	undefined *trieNode
 	scalars   *util.HasherMap[Value, *trieNode]
 	array     *trieNode
+	fromData  []*dataChildren
 	rules     []*ruleNode
 	value     *Term
 	multiple  bool
+}
+
+// dataChildren are the children of a ref's node that only exist because the
+// data at ref said so: the values of a collection unrolled into the trie (see
+// withIndexData). When that data can't be trusted for an evaluation -- replaced
+// by a `with` statement, or unknown during partial evaluation -- these children
+// stop discriminating and are all visited, which leaves the rules below them
+// exactly as indexed as they were before their collection was unrolled. The
+// other children of the node keep pruning.
+type dataChildren struct {
+	ref      Ref
+	children []*trieNode
+}
+
+// addDataChild records that child is keyed on a value that came from the
+// collection at ref.
+func (node *trieNode) addDataChild(ref Ref, child *trieNode) {
+	for _, dc := range node.fromData {
+		if RefEqual(dc.ref, ref) {
+			if !slices.Contains(dc.children, child) {
+				dc.children = append(dc.children, child)
+			}
+			return
+		}
+	}
+	node.fromData = append(node.fromData, &dataChildren{ref: ref, children: []*trieNode{child}})
+}
+
+// traverseData visits the children whose collection can't be trusted for this
+// evaluation. Resolvers that don't implement IndexDataChecker are taken at
+// their word.
+func (node *trieNode) traverseData(resolver ValueResolver, tr *trieTraversalResult) error {
+	checker, ok := resolver.(IndexDataChecker)
+	if !ok {
+		return nil
+	}
+
+	for _, dc := range node.fromData {
+		if !checker.IndexDataStale(dc.ref) {
+			continue
+		}
+		for _, child := range dc.children {
+			if err := child.Traverse(resolver, tr); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (node *trieNode) append(prio [2]int, rule *Rule) {
@@ -741,6 +964,16 @@ func (node *trieNode) Do(walker trieWalker) {
 
 	node.array.Do(next)
 	node.next.Do(next)
+}
+
+// insertIndex inserts the child for a single refindex, remembering the ones
+// keyed on a value that came from data (see dataChildren).
+func (node *trieNode) insertIndex(ref Ref, ri *refindex) *trieNode {
+	child := node.Insert(ref, ri.Value, ri.Mapper)
+	if ri.From != nil {
+		node.next.addDataChild(ri.From, child)
+	}
+	return child
 }
 
 func (node *trieNode) Insert(ref Ref, value Value, mapper *valueMapper) *trieNode {
@@ -883,6 +1116,10 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		}
 	}
 
+	if len(node.fromData) > 0 {
+		return node.traverseData(resolver, tr)
+	}
+
 	return nil
 }
 
@@ -1012,6 +1249,16 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 			}
 		} else if bval, ok := indexValue(b); ok {
 			b = bval
+		} else if bref, ok := b.(Ref); ok {
+			// The value is behind a ref of its own -- `input.tenant ==
+			// data.config.tenant` -- so it is only a value once that ref is
+			// resolved. See materialize.
+			bval, from := i.materialized(rule, bref)
+			if bval == nil {
+				return false
+			}
+			i.insert(rule, &refindex{Ref: v, Value: bval, From: from})
+			return true
 		} else {
 			return false
 		}
@@ -1020,6 +1267,47 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 		return true
 	}
 	return false
+}
+
+// materialized resolves ref, for a value the index would otherwise have no way
+// to know, and reports the ref it came from so that the index can stop relying
+// on it when that data can't be trusted (see dataChildren). It returns nil
+// unless ref reaches a ground base document -- input isn't readable while the
+// index is built, and rules aren't resolvable at lookup time either -- and
+// unless what it resolves to is a value the trie can be keyed on.
+func (i *refindices) materialized(rule *Rule, ref Ref) (Value, Ref) {
+	// A ref rooted at a local -- `x := data.config; input.tenant == x.tenant` --
+	// holds what that local aliases, so long as the local resolves to a ref of
+	// its own.
+	if head, isVar := ref[0].Value.(Var); isVar && !RootDocumentNames.Contains(ref[0]) {
+		resolved := resolveVarToRef(i.rules[rule], rule.Head.Args, head)
+		if resolved == nil {
+			return nil, nil
+		}
+		ref = resolved.Concat(ref[1:])
+	}
+
+	if !ref.HasPrefix(DefaultRootRef) || !i.isValidIndexRef(ref) {
+		return nil, nil
+	}
+
+	i.collect(ref)
+
+	if i.cfg.data == nil {
+		return nil, nil
+	}
+
+	v, err := i.cfg.data.Resolve(ref)
+	if err != nil || v == nil {
+		return nil, nil
+	}
+
+	value, ok := indexValue(v)
+	if !ok {
+		return nil, nil
+	}
+
+	return value, ref
 }
 
 func indexValue(b Value) (Value, bool) {

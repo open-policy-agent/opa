@@ -38,7 +38,7 @@ func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []Ref) *baseDo
 	idx := newBaseDocEqIndex(func(Ref) bool { return false })
 	idx.kind = rules[0].Head.RuleKind()
 
-	indices := newrefindices(idx.isVirtual)
+	indices := newrefindices(idx.isVirtual, idx.cfg)
 	values := make(map[Var]Value)
 
 	for ridx := range rules {

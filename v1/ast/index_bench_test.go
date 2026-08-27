@@ -108,6 +108,54 @@ func BenchmarkBuildNonsensicalIndex(b *testing.B) {
 	}
 }
 
+// Index build for a single rule whose membership collection holds n values.
+// Recording collection values without the per-value duplicate scan took this
+// from quadratic to linear: at n = 8000, the build was 226ms before.
+//
+// BenchmarkBuildMembershipIndex/1000-16        272750 ns/op
+// BenchmarkBuildMembershipIndex/8000-16       2157209 ns/op
+// BenchmarkBuildMembershipIndex/100000-16    12888042 ns/op
+func BenchmarkBuildMembershipIndex(b *testing.B) {
+	for _, n := range []int{1000, 8000, 100000} {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			rules := membershipRules(b, n)
+
+			for b.Loop() {
+				index := newBaseDocEqIndex(isVirtual)
+				if !index.Build(rules) {
+					b.Fatal("failed to build index")
+				}
+			}
+		})
+	}
+}
+
+// membershipRules returns one compiled `allow if input.subject in {...}` rule
+// over a set of n values.
+func membershipRules(b *testing.B, n int) []*Rule {
+	b.Helper()
+
+	var sb strings.Builder
+	sb.WriteString("package p\n\nallow if input.subject in {")
+	for i := range n {
+		if i > 0 {
+			sb.WriteByte(',')
+		}
+		sb.WriteString(`"u`)
+		sb.WriteString(strconv.Itoa(i))
+		sb.WriteByte('"')
+	}
+	sb.WriteString("}\n")
+
+	c := NewCompiler()
+	c.Compile(map[string]*Module{"p.rego": MustParseModule(sb.String())})
+	if c.Failed() {
+		b.Fatal(c.Errors)
+	}
+
+	return c.Modules["p.rego"].Rules
+}
+
 type inputResolver struct {
 	input Value
 }

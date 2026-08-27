@@ -11,9 +11,16 @@ import (
 
 type testResolver struct {
 	input       *Term
+	data        *Term
 	failRef     Ref
 	unknownRefs Set
+	staleRefs   Set
 	args        []Value
+}
+
+// IndexDataStale implements IndexDataChecker.
+func (r testResolver) IndexDataStale(ref Ref) bool {
+	return r.staleRefs != nil && r.staleRefs.Contains(NewTerm(ref))
 }
 
 func (r testResolver) Resolve(ref Ref) (Value, error) {
@@ -32,6 +39,16 @@ func (r testResolver) Resolve(ref Ref) (Value, error) {
 	}
 	if ref.HasPrefix(InputRootRef) {
 		v, err := r.input.Value.Find(ref[1:])
+		if err != nil {
+			return nil, nil
+		}
+		return v, nil
+	}
+	if ref.HasPrefix(DefaultRootRef) {
+		if r.data == nil {
+			return nil, nil
+		}
+		v, err := r.data.Value.Find(ref[1:])
 		if err != nil {
 			return nil, nil
 		}
@@ -895,6 +912,34 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
+			note: "internal.member_2: duplicate values in rhs array match once",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				internal.member_2(__local0__, ["admin", "admin"])
+			}`),
+			ruleset: "p",
+			input:   `{"role": "admin"}`,
+			expectedRS: []string{
+				`p if { __local0__ = input.role; internal.member_2(__local0__, ["admin", "admin"]) }`,
+			},
+		},
+		{
+			// Every "any" entry for the ref is superseded, not just the first
+			// one, so a second local bound to the same ref doesn't weaken the
+			// membership constraint.
+			note: "internal.member_2: two locals bound to the same ref (no match)",
+			module: module(`package test
+			p if {
+				__local0__ = input.role
+				__local1__ = input.role
+				internal.member_2(__local0__, {"admin", "foo"})
+			}`),
+			ruleset:    "p",
+			input:      `{"role": "guest"}`,
+			expectedRS: []string{},
+		},
+		{
 			note: "internal.member_2: unknown value triggers traverseUnknown (duplicate prevention)",
 			module: module(`package test
 			p if {
@@ -1414,6 +1459,333 @@ func TestBaseDocEqIndexing(t *testing.T) {
 
 }
 
+func TestBaseDocEqIndexingMaterializedData(t *testing.T) {
+	opts := ParserOptions{AllFutureKeywords: true}
+
+	// `p if input.role in data.admins`, sent through the compiler
+	mod := MustParseModuleWithOpts(`package test
+	p if {
+		__local0__ = input.role
+		__local1__ = data.admins
+		internal.member_2(__local0__, __local1__)
+	}`, opts)
+
+	build := func(t *testing.T, data string, maxCollection int, extra ...indexOption) *baseDocEqIndex {
+		t.Helper()
+
+		opts := append([]indexOption{
+			withIndexData(testResolver{data: MustParseTerm(data)}, maxCollection),
+		}, extra...)
+
+		index := newBaseDocEqIndex(func(Ref) bool { return false }, opts...)
+		if !index.Build(mod.Rules) {
+			t.Fatal("expected index build to succeed")
+		}
+		return index
+	}
+
+	lookup := func(t *testing.T, index *baseDocEqIndex, resolver testResolver) int {
+		t.Helper()
+
+		result, err := index.Lookup(resolver)
+		if err != nil {
+			t.Fatalf("unexpected error during index lookup: %v", err)
+		}
+		return len(result.Rules)
+	}
+
+	t.Run("prunes on the materialized values", func(t *testing.T) {
+		index := build(t, `{"admins": ["alice"]}`, 100)
+		data := MustParseTerm(`{"admins": ["alice"]}`)
+
+		if exp, act := 1, lookup(t, index, testResolver{input: MustParseTerm(`{"role": "alice"}`), data: data}); exp != act {
+			t.Errorf("expected %d rule(s), got %d", exp, act)
+		}
+		if exp, act := 0, lookup(t, index, testResolver{input: MustParseTerm(`{"role": "eve"}`), data: data}); exp != act {
+			t.Errorf("expected %d rule(s), got %d", exp, act)
+		}
+	})
+
+	t.Run("reports the data ref", func(t *testing.T) {
+		index := build(t, `{"admins": ["alice"]}`, 100)
+
+		refs := index.DataRefs()
+		if len(refs) != 1 || !refs[0].Equal(MustParseRef("data.admins")) {
+			t.Errorf("expected [data.admins], got %v", refs)
+		}
+	})
+
+	t.Run("object values are materialized, not keys", func(t *testing.T) {
+		index := build(t, `{"admins": {"a": "alice"}}`, 100)
+		data := MustParseTerm(`{"admins": {"a": "alice"}}`)
+
+		if exp, act := 1, lookup(t, index, testResolver{input: MustParseTerm(`{"role": "alice"}`), data: data}); exp != act {
+			t.Errorf("expected %d rule(s), got %d", exp, act)
+		}
+		if exp, act := 0, lookup(t, index, testResolver{input: MustParseTerm(`{"role": "a"}`), data: data}); exp != act {
+			t.Errorf("expected %d rule(s), got %d", exp, act)
+		}
+	})
+
+	t.Run("a collection over the cap is not unrolled, but still reported", func(t *testing.T) {
+		index := build(t, `{"admins": ["alice", "bob"]}`, 1)
+
+		if refs := index.DataRefs(); len(refs) != 1 {
+			t.Errorf("expected the collection ref to be reported, got %v", refs)
+		}
+		// nothing constrains input.role, so the rule stays a candidate
+		resolver := testResolver{
+			input: MustParseTerm(`{"role": "eve"}`),
+			data:  MustParseTerm(`{"admins": ["alice", "bob"]}`),
+		}
+		if exp, act := 1, lookup(t, index, resolver); exp != act {
+			t.Errorf("expected %d rule(s), got %d", exp, act)
+		}
+	})
+
+	// Only the children that came from the collection stop discriminating: a
+	// rule constraining the same ref by other means keeps being pruned.
+	// `input.fox == data.whatever.token` -- the value is a ref too, and one
+	// scalar in the trie is all it takes to index it.
+	t.Run("a scalar behind a ref becomes the indexed value", func(t *testing.T) {
+		mod := MustParseModuleWithOpts(`package test
+		p if input.fox == data.whatever.token
+		p if input.fox == "literal"`, opts)
+
+		data := MustParseTerm(`{"whatever": {"token": "s3cret"}}`)
+		index := newBaseDocEqIndex(func(Ref) bool { return false },
+			withIndexData(testResolver{data: data}, 100))
+		if !index.Build(mod.Rules) {
+			t.Fatal("expected index build to succeed")
+		}
+
+		if refs := index.DataRefs(); len(refs) != 1 ||
+			!refs[0].Equal(MustParseRef("data.whatever.token")) {
+			t.Errorf("expected [data.whatever.token], got %v", refs)
+		}
+
+		for input, exp := range map[string]int{
+			`{"fox": "s3cret"}`:  1,
+			`{"fox": "literal"}`: 1,
+			`{"fox": "nope"}`:    0,
+		} {
+			result, err := index.Lookup(testResolver{input: MustParseTerm(input), data: data})
+			if err != nil {
+				t.Fatalf("unexpected error during index lookup: %v", err)
+			}
+			if act := len(result.Rules); exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", input, exp, act)
+			}
+		}
+	})
+
+	// `x := data.whatever; input.fox == x.token` -- the value's ref is rooted at a
+	// local, which resolves to the ref it aliases.
+	t.Run("a scalar behind a ref rooted at a local", func(t *testing.T) {
+		mod := MustParseModuleWithOpts(`package test
+		p if {
+			__local0__ = data.whatever
+			input.fox = __local0__.token
+		}`, opts)
+
+		data := MustParseTerm(`{"whatever": {"token": "s3cret"}}`)
+		index := newBaseDocEqIndex(func(Ref) bool { return false },
+			withIndexData(testResolver{data: data}, 100))
+		if !index.Build(mod.Rules) {
+			t.Fatal("expected index build to succeed")
+		}
+
+		if refs := index.DataRefs(); len(refs) != 1 ||
+			!refs[0].Equal(MustParseRef("data.whatever.token")) {
+			t.Errorf("expected [data.whatever.token], got %v", refs)
+		}
+
+		for input, exp := range map[string]int{
+			`{"fox": "s3cret"}`: 1,
+			`{"fox": "nope"}`:   0,
+		} {
+			result, err := index.Lookup(testResolver{input: MustParseTerm(input), data: data})
+			if err != nil {
+				t.Fatalf("unexpected error during index lookup: %v", err)
+			}
+			if act := len(result.Rules); exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", input, exp, act)
+			}
+		}
+	})
+
+	// The local has to resolve to a ref: aliasing a literal leaves nothing to read.
+	t.Run("a local that doesn't resolve to a ref", func(t *testing.T) {
+		mod := MustParseModuleWithOpts(`package test
+		p if {
+			__local0__ = {"token": "s3cret"}
+			input.fox = __local0__.token
+		}`, opts)
+
+		index := newBaseDocEqIndex(func(Ref) bool { return false },
+			withIndexData(testResolver{data: MustParseTerm(`{}`)}, 100))
+		if !index.Build(mod.Rules) {
+			t.Fatal("expected index build to succeed")
+		}
+
+		if refs := index.DataRefs(); len(refs) != 0 {
+			t.Errorf("expected no data refs, got %v", refs)
+		}
+	})
+
+	t.Run("a scalar behind a ref stops pruning when stale", func(t *testing.T) {
+		mod := MustParseModuleWithOpts(`package test
+		p if input.fox == data.whatever.token`, opts)
+
+		data := MustParseTerm(`{"whatever": {"token": "s3cret"}}`)
+		index := newBaseDocEqIndex(func(Ref) bool { return false },
+			withIndexData(testResolver{data: data}, 100))
+		if !index.Build(mod.Rules) {
+			t.Fatal("expected index build to succeed")
+		}
+
+		result, err := index.Lookup(testResolver{
+			input:     MustParseTerm(`{"fox": "nope"}`),
+			data:      data,
+			staleRefs: NewSet(NewTerm(MustParseRef("data.whatever.token"))),
+		})
+		if err != nil {
+			t.Fatalf("unexpected error during index lookup: %v", err)
+		}
+		if exp, act := 1, len(result.Rules); exp != act {
+			t.Errorf("expected %d rule(s), got %d", exp, act)
+		}
+	})
+
+	t.Run("stale data leaves the rest of the index alone", func(t *testing.T) {
+		mod := MustParseModuleWithOpts(`package test
+		p if {
+			__local0__ = input.role
+			__local1__ = data.admins
+			internal.member_2(__local0__, __local1__)
+		}
+		p if {
+			input.role = "root"
+		}`, opts)
+
+		index := newBaseDocEqIndex(func(Ref) bool { return false },
+			withIndexData(testResolver{data: MustParseTerm(`{"admins": ["alice"]}`)}, 100))
+		if !index.Build(mod.Rules) {
+			t.Fatal("expected index build to succeed")
+		}
+
+		// as if evaluated under `p with data.admins as ["eve"]`
+		result, err := index.Lookup(testResolver{
+			input:     MustParseTerm(`{"role": "eve"}`),
+			data:      MustParseTerm(`{"admins": ["eve"]}`),
+			staleRefs: NewSet(NewTerm(MustParseRef("data.admins"))),
+		})
+		if err != nil {
+			t.Fatalf("unexpected error during index lookup: %v", err)
+		}
+
+		// the membership rule is a candidate again, the `= "root"` rule is not
+		if len(result.Rules) != 1 || !result.Rules[0].Equal(mod.Rules[0]) {
+			t.Errorf("expected only the membership rule, got %v", result.Rules)
+		}
+	})
+
+	t.Run("no pruning when the resolver reports the data stale", func(t *testing.T) {
+		index := build(t, `{"admins": ["alice"]}`, 100)
+
+		// e.g. `p with data.admins as ["eve"]`: the materialized values say nothing
+		// about this evaluation, so every rule has to be evaluated.
+		resolver := testResolver{
+			input:     MustParseTerm(`{"role": "eve"}`),
+			data:      MustParseTerm(`{"admins": ["eve"]}`),
+			staleRefs: NewSet(NewTerm(MustParseRef("data.admins"))),
+		}
+		if exp, act := 1, lookup(t, index, resolver); exp != act {
+			t.Errorf("expected %d rule(s), got %d", exp, act)
+		}
+	})
+
+	t.Run("materialized values are not refreshed by a lookup", func(t *testing.T) {
+		index := build(t, `{"admins": ["alice"]}`, 100)
+
+		// Pinning the contract of WithIndexData: the index prunes against the
+		// data it was built with, whatever the resolver says now, so whoever
+		// enables it has to recompile when that data changes.
+		resolver := testResolver{
+			input: MustParseTerm(`{"role": "eve"}`),
+			data:  MustParseTerm(`{"admins": ["eve"]}`),
+		}
+		if exp, act := 0, lookup(t, index, resolver); exp != act {
+			t.Errorf("expected %d rule(s), got %d", exp, act)
+		}
+	})
+}
+
+// A collection that a rule contributes to isn't in the store, so its values
+// can't be materializedto the index -- and can't be resolved on lookup either, which
+// is what isValidIndexRef rejects virtual refs for. Such a membership expression
+// contributes nothing to the index and the rule stays a candidate.
+func TestIndexDataNotMaterializedForVirtualCollections(t *testing.T) {
+	// what the store holds at those paths, shadowed by the rules below
+	data := MustParseTerm(`{"test": {
+		"groups": {"admins": {"members": ["alice"]}},
+		"members": ["alice"]
+	}}`)
+
+	tests := []struct {
+		note         string
+		module       string
+		materialized []string
+	}{
+		{
+			note: "collection is a complete rule",
+			module: `package test
+			groups.admins.members := ["carol"]
+			allow if input.subject in data.test.groups.admins.members`,
+		},
+		{
+			note: "collection is produced by a general ref rule",
+			module: `package test
+			groups[k].members := ["carol"] if some k in ["admins"]
+			allow if input.subject in data.test.groups.admins.members`,
+		},
+		{
+			note: "collection is a partial set rule",
+			module: `package test
+			members contains "carol"
+			allow if input.subject in data.test.members`,
+		},
+		{
+			note: "collection is base data, rules elsewhere in the package",
+			module: `package test
+			other := 1
+			allow if input.subject in data.test.groups.admins.members`,
+			materialized: []string{"data.test.groups.admins.members"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Compile(map[string]*Module{"test.rego": MustParseModule(tc.module)})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+			c.MaterializeIndexData(testResolver{data: data}, 100)
+
+			materialized := c.IndexDataRefs()
+			if len(materialized) != len(tc.materialized) {
+				t.Fatalf("expected %v to be reported, got %v", tc.materialized, materialized)
+			}
+			for i := range tc.materialized {
+				if !materialized[i].Equal(MustParseRef(tc.materialized[i])) {
+					t.Errorf("expected %v, got %v", tc.materialized[i], materialized[i])
+				}
+			}
+		})
+	}
+}
+
 func TestBaseDocEqIndexingPriorities(t *testing.T) {
 
 	module := module(`
@@ -1509,7 +1881,7 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 }
 
 func TestRefIndicesSorted(t *testing.T) {
-	ri := newrefindices(func(Ref) bool { return false })
+	ri := newrefindices(func(Ref) bool { return false }, indexConfig{})
 
 	// Insert refs with distinct frequencies in an order that doesn't match
 	// the expected (frequency-descending) output, so that a sort which

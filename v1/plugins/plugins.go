@@ -6,6 +6,7 @@
 package plugins
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -222,6 +223,7 @@ type Manager struct {
 	serverInitializedOnce        sync.Once
 	printHook                    print.Hook
 	enablePrintStatements        bool
+	ruleIndexDataMaxCollection   int
 	router                       *http.ServeMux
 	prometheusRegister           prometheus.Registerer
 	tracerProvider               *trace.TracerProvider
@@ -422,6 +424,34 @@ func EnablePrintStatements(yes bool) func(*Manager) {
 	}
 }
 
+// DefaultRuleIndexDataMaxCollection is the largest collection materialized into
+// a rule index unless RuleIndexData says otherwise. It is a trade of memory for
+// lookup speed: each value costs around 250 bytes of trie per rule, so a
+// thousand of them is a quarter of a megabyte for a collection every rule in a
+// package shares.
+const DefaultRuleIndexDataMaxCollection = 1000
+
+// RuleIndexData sets how much data the rule indices may materialize: a
+// membership expression over a data ref, like `input.role in data.admin_roles`,
+// is indexed as the collection it resolves to, and an equality against one,
+// like `input.tenant == data.config.tenant`, as the value it resolves to (see
+// ast.Compiler.MaterializeIndexData). That turns a lookup into a single hash
+// lookup however many such rules there are, instead of leaving every one of
+// them a candidate.
+//
+// Collections holding more than maxCollectionSize values are left alone, since
+// each value costs a trie node. Zero disables materializing altogether; the
+// default is DefaultRuleIndexDataMaxCollection.
+//
+// The manager materializes into every compiler it installs, and recompiles when
+// a commit writes anywhere near the data the indices read -- see
+// Manager.onCommit.
+func RuleIndexData(maxCollectionSize int) func(*Manager) {
+	return func(m *Manager) {
+		m.ruleIndexDataMaxCollection = maxCollectionSize
+	}
+}
+
 func PrintHook(h print.Hook) func(*Manager) {
 	return func(m *Manager) {
 		m.printHook = h
@@ -541,16 +571,17 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 	}
 
 	m := &Manager{
-		Store:                 store,
-		Config:                parsedConfig,
-		ID:                    id,
-		maxErrors:             -1,
-		serverInitialized:     make(chan struct{}),
-		bootstrapConfigLabels: parsedConfig.Labels,
-		extraRoutes:           map[string]ExtraRoute{},
-		pluginStatusCh:        make(chan pluginStatusMsg),
-		stopPluginStatusCh:    make(chan chan struct{}),
-		pluginStatusDoneCh:    make(chan struct{}),
+		Store:                      store,
+		Config:                     parsedConfig,
+		ID:                         id,
+		maxErrors:                  -1,
+		ruleIndexDataMaxCollection: DefaultRuleIndexDataMaxCollection,
+		serverInitialized:          make(chan struct{}),
+		bootstrapConfigLabels:      parsedConfig.Labels,
+		extraRoutes:                map[string]ExtraRoute{},
+		pluginStatusCh:             make(chan pluginStatusMsg),
+		stopPluginStatusCh:         make(chan chan struct{}),
+		pluginStatusDoneCh:         make(chan struct{}),
 	}
 
 	for _, f := range opts {
@@ -647,6 +678,8 @@ func (m *Manager) Init(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+
+		m.materializeIndexData(ctx, txn, result.Compiler)
 
 		SetCompilerOnContext(params.Context, result.Compiler)
 
@@ -1098,6 +1131,27 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 		compiler, _ = loadCompilerFromStore(ctx, m.Store, txn, m.enablePrintStatements, m.ParserOptions(), m.GetExternalSources())
 	}
 
+	// The rule indices read the data they compare against when they were built,
+	// and nothing rebuilds a rule index by itself.
+	if inUse := m.GetCompiler(); compiler != nil && compiler != inUse {
+		// A compiler compiled for this transaction, not serving queries yet: it
+		// sees the data this transaction wrote, so read that data into its
+		// indices before installing it. This is also where a snapshot bundle's
+		// own data is picked up, which the activation itself compiled too early
+		// to see.
+		m.materializeIndexData(ctx, txn, compiler)
+	} else if serving := cmp.Or(compiler, inUse); serving != nil {
+		// The compiler in play read its values before this commit -- a write
+		// through the Data API, or a delta bundle, which patches data and hands
+		// back the very compiler already installed. Recompiling here would put a
+		// policy compilation on the path of every data write, which for
+		// deployments with dynamic data is most of them; mark the refs whose
+		// data moved instead. Values read from them stop excluding rules, which
+		// leaves those rules as indexed as they were before the data was read
+		// into them, and the next compilation picks the new values up.
+		serving.MarkIndexDataStale(m.indexDataRefsAffectedBy(event, serving))
+	}
+
 	if compiler != nil {
 		m.setCompiler(compiler)
 
@@ -1310,6 +1364,78 @@ func (m *Manager) PrintHook() print.Hook {
 
 func (m *Manager) EnablePrintStatements() bool {
 	return m.enablePrintStatements
+}
+
+// materializeIndexData unrolls the data behind the compiler's membership expressions
+// into its rule indices. compiler must not be serving queries yet.
+func (m *Manager) materializeIndexData(ctx context.Context, txn storage.Transaction, compiler *ast.Compiler) {
+	if m.ruleIndexDataMaxCollection > 0 && compiler != nil {
+		resolver := storeResolver{ctx: ctx, store: m.Store, txn: txn}
+		compiler.MaterializeIndexData(resolver, m.ruleIndexDataMaxCollection)
+	}
+}
+
+// storeResolver answers the compiler's data lookups out of the store, within
+// the transaction it was made for -- and only for as long as that is open.
+// Refs into anything else, input or function arguments, are unknown to it.
+type storeResolver struct {
+	ctx   context.Context
+	store storage.Store
+	txn   storage.Transaction
+}
+
+func (r storeResolver) Resolve(ref ast.Ref) (ast.Value, error) {
+	if !ref.HasPrefix(ast.DefaultRootRef) {
+		return nil, ast.UnknownValueErr{}
+	}
+
+	path, err := storage.NewPathForRef(ref)
+	if err != nil {
+		// Not a path into the data document, e.g. a ref with a composite or
+		// non-ground key: nothing is stored there.
+		return nil, nil
+	}
+
+	value, err := r.store.Read(r.ctx, r.txn, path)
+	if err != nil {
+		if storage.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if v, ok := value.(ast.Value); ok { // store returns AST values
+		return v, nil
+	}
+
+	return ast.InterfaceToValue(value)
+}
+
+// indexDataRefsAffectedBy returns the collection refs the compiler's rule
+// indices are built from that the event's writes reach, either because a write
+// lands inside one of the collections or because it replaces something they
+// live under.
+func (m *Manager) indexDataRefsAffectedBy(event storage.TriggerEvent, compiler *ast.Compiler) []ast.Ref {
+	if !event.DataChanged() || m.ruleIndexDataMaxCollection == 0 || compiler == nil {
+		return nil
+	}
+
+	var affected []ast.Ref
+
+	for _, ref := range compiler.IndexDataRefs() {
+		path, err := storage.NewPathForRef(ref)
+		if err != nil {
+			continue
+		}
+		for _, write := range event.Data {
+			if write.Path.HasPrefix(path) || path.HasPrefix(write.Path) {
+				affected = append(affected, ref)
+				break
+			}
+		}
+	}
+
+	return affected
 }
 
 // ServerInitialized signals a channel indicating that the OPA
