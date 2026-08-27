@@ -171,6 +171,62 @@ A bare reference used as a boolean check (without an explicit comparison) is als
 | `input.x.y`  | yes     |                               |
 | `input.x[i]` | no      | reference contains a variable |
 
+#### References through alias rules
+
+References to other rules (virtual documents) are not indexed, because their value
+is only known once the rule has been evaluated. There is one exception: a rule whose
+only job is to give another reference a shorter name. The indexer resolves such an
+alias to the reference it reads, and then indexes the statement as if it had been
+written against that reference directly. This keeps the ergonomics of aliases without
+giving up indexing:
+
+```rego
+package http
+
+request := input.attributes.request.http
+method := request.method
+```
+
+```rego
+package example
+
+import data.http.method
+
+# indexed as if written 'input.attributes.request.http.method == "GET"'
+allow if method == "GET"
+```
+
+Aliases are resolved through any number of steps (`method` above reads through
+`request`), and a reference below an alias is resolved too, so
+`data.http.request.host == "example.com"` is indexed as
+`input.attributes.request.http.host == "example.com"`.
+
+Only rules of the shape below are treated as aliases. Any other rule is left
+unindexed, as before:
+
+| Rule                                        | Alias | Notes                               |
+| ------------------------------------------- | ----- | ----------------------------------- |
+| `path := input.path`                        | yes   |                                     |
+| `path := data.request.path`                 | yes   | any root document, not just `input` |
+| `path := input.path if input.mode == "x"`   | no    | body is more than the reference     |
+| `path := input.path` + `default path := []` | no    | has a default value                 |
+| `path := input.path` + `path := ["z"]`      | no    | more than one definition            |
+| `paths[k] := input.paths[k]`                | no    | rule head is not ground             |
+| `path := input.paths[_]`                    | no    | reference contains a variable       |
+| `path := input[input.key]`                  | no    | reference is nested                 |
+
+Statements that capture the alias value in a variable before using it are not
+resolved either, so bare reference checks (`path`), `glob.match`, and `in` where the
+collection is an alias stay unindexed. Comparisons (`path == ["a"]`, `path[_] == "a"`)
+are.
+
+The value read through an alias is the same value the rule would have produced, so
+this does not change evaluation results. Where the alias itself is replaced or
+unknown, the rules are evaluated without the index: statements using a
+[`with`](./policy-language/#with-keyword) mock on the alias (or on a document
+containing it), and, during [partial evaluation](/blog/partial-evaluation-162750eaf422),
+an alias that is unknown or excluded from inlining.
+
 ### Early Exit in Rule Evaluation
 
 In general, OPA has to iterate all potential variable bindings to determine the outcome

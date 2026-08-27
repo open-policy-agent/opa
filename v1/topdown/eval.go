@@ -1773,7 +1773,13 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term, index ast.RuleIndex) (*as
 	var err error
 
 	resolver.e = e
-	if e.indexing {
+	useIndex := e.indexing
+	if useIndex {
+		if asi, ok := index.(aliasSourceIndex); ok {
+			useIndex = !slices.ContainsFunc(asi.AliasSources(), e.aliasSourceOverridden)
+		}
+	}
+	if useIndex {
 		resolver.args = args
 		result, err = index.Lookup(resolver)
 	} else {
@@ -1811,6 +1817,14 @@ func (e *eval) getRules(ref ast.Ref, args []*ast.Term, index ast.RuleIndex) (*as
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 	return (&evalResolver{e: e}).Resolve(ref)
+}
+
+type aliasSourceIndex interface {
+	AliasSources() []ast.Ref
+}
+
+func (e *eval) aliasSourceOverridden(ref ast.Ref) bool {
+	return e.targetStack.Prefixed(ref) || e.unknownRef(ref, nil)
 }
 
 type evalResolver struct {

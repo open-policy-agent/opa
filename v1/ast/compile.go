@@ -1153,7 +1153,7 @@ func (c *Compiler) buildRuleIndices() {
 			}
 		}
 
-		index := newBaseDocEqIndex(c.isVirtual)
+		index := newBaseDocEqIndex(c.isVirtual, c.resolveRefAlias)
 		if index.Build(rules) {
 			node.Index = index
 		}
@@ -4555,6 +4555,104 @@ func (n *TreeNode) DepthFirst(f func(*TreeNode) bool) {
 func (c *Compiler) isVirtual(ref Ref) bool {
 	return (c.injectedVirtual != nil && c.injectedVirtual(ref)) ||
 		c.RuleTree.isVirtual(ref.GroundPrefix())
+}
+
+func (c *Compiler) resolveRefAlias(ref Ref) (Ref, []Ref) {
+	var sources []Ref
+	resolved := ref
+	// Arbitrary depth limit, practically more than will be used
+	for range 8 {
+		if c.injectedVirtualRef(resolved) {
+			return nil, nil
+		}
+		prefixLen, rules := c.ruleNodeFor(resolved)
+		if rules == nil {
+			return nil, nil
+		}
+		target := pureAliasTarget(rules)
+		if target == nil {
+			return nil, nil
+		}
+		sources = append(sources, resolved[:prefixLen])
+		next := make(Ref, 0, len(target)+len(resolved)-prefixLen)
+		next = append(next, target...)
+		next = append(next, resolved[prefixLen:]...)
+		resolved = next
+		if !RootDocumentNames.Contains(resolved[0]) || !resolved.IsGround() || resolved.IsNested() {
+			return nil, nil
+		}
+		if !c.isVirtual(resolved) {
+			return resolved, sources
+		}
+	}
+
+	return nil, nil
+}
+
+func (c *Compiler) injectedVirtualRef(ref Ref) bool {
+	return c.injectedVirtual != nil && c.injectedVirtual(ref)
+}
+
+func (c *Compiler) ruleNodeFor(ref Ref) (int, []*Rule) {
+	node := c.RuleTree
+	for i := range ref {
+		child := node.Child(ref[i].Value)
+		if child == nil || child.External != nil {
+			return 0, nil
+		}
+		if c.injectedVirtualRef(ref[:i+1]) {
+			return 0, nil
+		}
+		if len(child.Values) > 0 {
+			return i + 1, child.Values
+		}
+		node = child
+	}
+	return 0, nil
+}
+
+func pureAliasTarget(rules []*Rule) Ref {
+	if len(rules) != 1 {
+		return nil
+	}
+
+	rule := rules[0]
+	if rule.Default || rule.Else != nil || len(rule.Head.Args) > 0 ||
+		rule.Head.RuleKind() != SingleValue || rule.Head.Value == nil ||
+		!rule.Head.Reference.IsGround() {
+		return nil
+	}
+
+	v, ok := rule.Head.Value.Value.(Var)
+	if !ok || len(rule.Body) != 1 {
+		return nil
+	}
+
+	expr := rule.Body[0]
+	if expr.Negated || len(expr.With) > 0 || !expr.IsEquality() {
+		return nil
+	}
+
+	a, b := expr.Operand(0), expr.Operand(1)
+	if av, ok := a.Value.(Var); ok && av.Equal(v) {
+		if ref, ok := b.Value.(Ref); ok {
+			return groundUnnestedRootRef(ref)
+		}
+	}
+	if bv, ok := b.Value.(Var); ok && bv.Equal(v) {
+		if ref, ok := a.Value.(Ref); ok {
+			return groundUnnestedRootRef(ref)
+		}
+	}
+
+	return nil
+}
+
+func groundUnnestedRootRef(ref Ref) Ref {
+	if RootDocumentNames.Contains(ref[0]) && ref.IsGround() && !ref.IsNested() {
+		return ref
+	}
+	return nil
 }
 
 // isVirtual returns true if the ref is virtual (has rules).

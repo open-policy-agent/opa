@@ -16678,3 +16678,354 @@ func TestQueryCompilerAndOrImports(t *testing.T) {
 		})
 	}
 }
+
+func TestRuleIndexAliasResolution(t *testing.T) {
+	tests := []struct {
+		note       string
+		modules    map[string]string
+		virtual    []string
+		ruleset    string
+		input      string
+		data       string
+		expRules   int
+		expSources []string
+	}{
+		{
+			note: "pure alias substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input.path`,
+				"test.rego": `package test
+import data.alias.path
+p if path == ["a"]
+p if path == ["b"]
+p if path == ["c"]`,
+			},
+			ruleset:    "data.test.p",
+			input:      `{"path": ["b"]}`,
+			expRules:   1,
+			expSources: []string{"data.alias.path"},
+		},
+		{
+			note: "chained alias substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+req := input.attributes
+method := req.method`,
+				"test.rego": `package test
+import data.alias.method
+p if method == "GET"
+p if method == "PUT"
+p if method == "POST"`,
+			},
+			ruleset:    "data.test.p",
+			input:      `{"attributes": {"method": "GET"}}`,
+			expRules:   1,
+			expSources: []string{"data.alias.method", "data.alias.req"},
+		},
+		{
+			note: "ref suffix below the alias substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+query := input.parsed_query`,
+				"test.rego": `package test
+import data.alias.query
+p if query.plan == ["core"]
+p if query.plan == ["plus"]`,
+			},
+			ruleset:    "data.test.p",
+			input:      `{"parsed_query": {"plan": ["core"]}}`,
+			expRules:   1,
+			expSources: []string{"data.alias.query"},
+		},
+		{
+			note: "alias with default not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+default path := []
+path := input.path`,
+				"test.rego": `package test
+import data.alias.path
+p if path == ["a"]
+p if path == ["b"]
+p if path == ["c"]`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"path": ["b"]}`,
+			expRules: 3,
+		},
+		{
+			note: "conditional alias not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input.path if input.mode == "x"`,
+				"test.rego": `package test
+import data.alias.path
+p if path == ["a"]
+p if path == ["b"]`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"path": ["b"], "mode": "x"}`,
+			expRules: 2,
+		},
+		{
+			note: "multiple alias definitions not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input.path if input.a
+path := ["z"] if input.b`,
+				"test.rego": `package test
+import data.alias.path
+p if path == ["a"]
+p if path == ["b"]`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"path": ["b"], "a": true}`,
+			expRules: 2,
+		},
+		{
+			note: "alias of a conditional virtual document not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+thing := input.thing if input.mode == "x"
+q := data.alias.thing`,
+				"test.rego": `package test
+import data.alias.q
+p if q == ["a"]
+p if q == ["b"]`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"thing": ["b"], "mode": "x"}`,
+			expRules: 2,
+		},
+		{
+			note: "presence check through alias adds no index dimension",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input.path`,
+				"test.rego": `package test
+import data.alias.path
+p if path
+p if path
+p if path`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"path": ["b"]}`,
+			expRules: 3,
+		},
+		{
+			note: "wildcard ref through alias substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+roles := input.roles`,
+				"test.rego": `package test
+import data.alias.roles
+p if roles[_] == "admin"
+p if roles[_] == "hr"
+p if roles[_] == "dev"`,
+			},
+			ruleset:    "data.test.p",
+			input:      `{"roles": ["hr"]}`,
+			expRules:   1,
+			expSources: []string{"data.alias.roles"},
+		},
+		{
+			note: "membership through alias not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+roles := input.roles`,
+				"test.rego": `package test
+import data.alias.roles
+p if "admin" in roles
+p if "hr" in roles
+p if "dev" in roles`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"roles": ["hr"]}`,
+			expRules: 3,
+		},
+		{
+			note: "glob match through alias not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input.path`,
+				"test.rego": `package test
+import data.alias.path
+p if glob.match("a:*", [":"], path)
+p if glob.match("b:*", [":"], path)
+p if glob.match("c:*", [":"], path)`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"path": "b:1"}`,
+			expRules: 3,
+		},
+		{
+			note: "alias to a base document under data substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := data.raw.path`,
+				"test.rego": `package test
+import data.alias.path
+p if path == ["a"]
+p if path == ["b"]
+p if path == ["c"]`,
+			},
+			ruleset:    "data.test.p",
+			input:      `{}`,
+			data:       `{"raw": {"path": ["b"]}}`,
+			expRules:   1,
+			expSources: []string{"data.alias.path"},
+		},
+		{
+			note: "alias to a ref containing a variable not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input.paths[_]`,
+				"test.rego": `package test
+import data.alias.path
+p if path == "a"
+p if path == "b"`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"paths": ["b"]}`,
+			expRules: 2,
+		},
+		{
+			note: "alias to a nested ref not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input[input.key]`,
+				"test.rego": `package test
+import data.alias.path
+p if path == "a"
+p if path == "b"`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"key": "k", "k": "b"}`,
+			expRules: 2,
+		},
+		{
+			note: "alias rule with a non-ground head not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+paths[k] := input.paths[k]`,
+				"test.rego": `package test
+p if data.alias.paths.a == "x"
+p if data.alias.paths.a == "y"`,
+			},
+			ruleset:  "data.test.p",
+			input:    `{"paths": {"a": "y"}}`,
+			expRules: 2,
+		},
+		{
+			note: "alias claimed by injected virtual document checker not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input.path`,
+				"test.rego": `package test
+import data.alias.path
+p if path == ["a"]
+p if path == ["b"]
+p if path == ["c"]`,
+			},
+			virtual:  []string{"data.alias.path"},
+			ruleset:  "data.test.p",
+			input:    `{"path": ["b"]}`,
+			expRules: 3,
+		},
+		{
+			note: "alias claimed by injected virtual document checker not substituted below the alias",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input.path`,
+				"test.rego": `package test
+import data.alias.path
+p if path[0] == "a"
+p if path[0] == "b"
+p if path[0] == "c"`,
+			},
+			virtual:  []string{"data.alias.path"},
+			ruleset:  "data.test.p",
+			input:    `{"path": ["b"]}`,
+			expRules: 3,
+		},
+		{
+			note: "alias prefix claimed by injected virtual document checker not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+path := input.path`,
+				"test.rego": `package test
+import data.alias.path
+p if path == ["a"]
+p if path == ["b"]
+p if path == ["c"]`,
+			},
+			virtual:  []string{"data.alias"},
+			ruleset:  "data.test.p",
+			input:    `{"path": ["b"]}`,
+			expRules: 3,
+		},
+		{
+			note: "chained alias claimed by injected virtual document checker not substituted",
+			modules: map[string]string{
+				"alias.rego": `package alias
+req := input.attributes
+method := req.method`,
+				"test.rego": `package test
+import data.alias.method
+p if method == "GET"
+p if method == "PUT"
+p if method == "POST"`,
+			},
+			virtual:  []string{"data.alias.req"},
+			ruleset:  "data.test.p",
+			input:    `{"attributes": {"method": "GET"}}`,
+			expRules: 3,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			if tc.virtual != nil {
+				c = c.WithVirtual(func(ref Ref) bool { return slices.Contains(tc.virtual, ref.String()) })
+			}
+			names := util.KeysSorted(tc.modules)
+			for _, name := range names {
+				c.Modules[name] = MustParseModule(tc.modules[name])
+				c.sorted = append(c.sorted, name)
+			}
+			compileStages(c, StageBuildRuleIndices)
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+
+			idx := c.RuleIndex(MustParseRef(tc.ruleset))
+			if idx == nil {
+				t.Fatalf("expected rule index for %v", tc.ruleset)
+			}
+
+			resolver := testResolver{input: MustParseTerm(tc.input)}
+			if tc.data != "" {
+				resolver.data = MustParseTerm(tc.data)
+			}
+			result, err := idx.Lookup(resolver)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Rules) != tc.expRules {
+				t.Errorf("expected %d candidate rules, got %d", tc.expRules, len(result.Rules))
+			}
+
+			sources := idx.(*baseDocEqIndex).AliasSources()
+			if len(sources) != len(tc.expSources) {
+				t.Fatalf("expected alias sources %v, got %v", tc.expSources, sources)
+			}
+			for _, exp := range tc.expSources {
+				if !slices.ContainsFunc(sources, func(r Ref) bool { return r.String() == exp }) {
+					t.Errorf("expected alias source %v in %v", exp, sources)
+				}
+			}
+		})
+	}
+}
