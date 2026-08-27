@@ -2027,6 +2027,7 @@ w if { true } w if { true }`)
 		}
 	}
 }
+
 // TestCompilerCheckSafetyAssignmentDirectional verifies that the RHS of `:=`
 // cannot be made safe through the LHS. See issue #3546.
 func TestCompilerCheckSafetyAssignmentDirectional(t *testing.T) {

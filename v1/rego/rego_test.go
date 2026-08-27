@@ -544,7 +544,7 @@ c := z if {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			r := New(Query(tc.q), Module("test.rego", module))
-			rs, err := r.Eval(context.Background())
+			rs, err := r.Eval(t.Context())
 			if err != nil {
 				t.Fatalf("eval: %v", err)
 			}
