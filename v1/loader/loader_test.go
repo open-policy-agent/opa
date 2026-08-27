@@ -1330,6 +1330,20 @@ func TestSplitPrefix(t *testing.T) {
 			wantPath:  "a/b",
 		},
 		{
+			// Only a single character can name a drive, so a longer prefix
+			// over a rooted path is still a prefix on Windows.
+			input:     "foo:/a/b",
+			goos:      "windows",
+			wantParts: []string{"foo"},
+			wantPath:  "/a/b",
+		},
+		{
+			input:     "x.y:/a/b",
+			goos:      "windows",
+			wantParts: []string{"x", "y"},
+			wantPath:  "/a/b",
+		},
+		{
 			input:     "x.y:c:/a/b",
 			goos:      "windows",
 			wantParts: []string{"x", "y"},
