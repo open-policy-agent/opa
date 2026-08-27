@@ -171,6 +171,19 @@ A bare reference used as a boolean check (without an explicit comparison) is als
 | `input.x.y`  | yes     |                               |
 | `input.x[i]` | no      | reference contains a variable |
 
+#### Logical (`and`/`or`) statements
+
+Statements joined by the [`and` and `or` keywords](./policy-reference/keywords/logical) are indexed on the indexable statements found inside their operands, following the rules above. An `and` requires both of its operands, so each is indexed on its own and an operand with nothing indexable in it still leaves the other to narrow the rule. An `or` requires only one of its operands, so it is indexed only when every operand has something indexable: an operand that doesn't could be satisfied by any input, leaving nothing the rule can be excluded on. Combining the two multiplies the ways a rule can be reached, as in `{input.a == 1 or input.a == 2} and {input.b == 1 or input.b == 2}`, which has four; past 32 for a single rule only the conditions common to every combination are indexed.
+
+| Expression                             | Indexed | Notes                                 |
+| -------------------------------------- | ------- | ------------------------------------- |
+| `input.x == 1 and input.y == 2`        | yes     | both operands narrow the rule         |
+| `input.x == 1 and count(input.y) == 3` | yes     | indexed on `input.x` only             |
+| `input.x == 1 or input.x == 2`         | yes     | either value of `input.x` matches     |
+| `input.x == 1 or input.y == 2`         | yes     | both operands are indexed             |
+| `input.x == 1 or count(input.y) == 3`  | no      | `count(...)` is not indexable         |
+| `not (input.x == 1 and input.y == 2)`  | no      | negated expressions are never indexed |
+
 ### Early Exit in Rule Evaluation
 
 In general, OPA has to iterate all potential variable bindings to determine the outcome
