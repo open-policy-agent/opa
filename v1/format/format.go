@@ -1326,11 +1326,19 @@ type logicalStep struct {
 	lhsEndRow int
 }
 
-// breaksLine reports whether the rhs operand is written on a line of its own.
-// Explicit operands always open their brace on the operator's line, so only an
-// implicit operand starting on a later row than the operator breaks.
+// breaksLine reports whether the rhs operand is written on a line of its own,
+// i.e. starts on a later row than the end of everything left of the operator.
+// An explicit operand starts at its opening brace, an implicit one at its sole
+// expression; a missing location leaves the row unknown, so no break.
 func (s logicalStep) breaksLine() bool {
-	return !s.rhs.explicit && s.rhs.body[0].Location.Row > s.lhsEndRow
+	var start *ast.Location
+	if s.rhs.explicit {
+		start = s.rhs.brace
+	} else if len(s.rhs.body) > 0 {
+		start = s.rhs.body[0].Location
+	}
+
+	return start != nil && start.Row > s.lhsEndRow
 }
 
 func (w *writer) writeLogical(expr *ast.Expr, comments []*ast.Comment) ([]*ast.Comment, error) {
