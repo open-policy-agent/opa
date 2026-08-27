@@ -31,17 +31,13 @@ type Error struct {
 }
 
 func NewBundleError(bundleName string, cause error) Error {
-	var (
-		httpError download.HTTPError
-	)
-	switch {
-	case cause == nil:
+	if cause == nil {
 		return Error{BundleName: bundleName, Code: "", HTTPCode: -1, Message: "", Err: nil}
-	case errors.As(cause, &httpError):
-		return Error{BundleName: bundleName, Code: errCode, HTTPCode: httpError.StatusCode, Message: httpError.Error(), Err: cause}
-	default:
-		return Error{BundleName: bundleName, Code: errCode, HTTPCode: -1, Message: cause.Error(), Err: cause}
 	}
+	if httpError, ok := errors.AsType[download.HTTPError](cause); ok {
+		return Error{BundleName: bundleName, Code: errCode, HTTPCode: httpError.StatusCode, Message: httpError.Error(), Err: cause}
+	}
+	return Error{BundleName: bundleName, Code: errCode, HTTPCode: -1, Message: cause.Error(), Err: cause}
 }
 
 func (e Error) Error() string {

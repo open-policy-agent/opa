@@ -87,11 +87,8 @@ func (c *realClient) IssueURL(number int) string {
 // isCommitNotFound matches GitHub's 422 "No commit found for SHA", i.e. an
 // unpushed commit. Matching on status alone survives message rewording.
 func isCommitNotFound(err error) bool {
-	var gerr *github.ErrorResponse
-	if errors.As(err, &gerr) && gerr.Response != nil {
-		return gerr.Response.StatusCode == http.StatusUnprocessableEntity
-	}
-	return false
+	gerr, ok := errors.AsType[*github.ErrorResponse](err)
+	return ok && gerr.Response != nil && gerr.Response.StatusCode == http.StatusUnprocessableEntity
 }
 
 func (c *realClient) Commit(ctx context.Context, sha string) (*Commit, error) {

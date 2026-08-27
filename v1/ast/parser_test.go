@@ -5568,8 +5568,8 @@ func TestRuleFromBodyRefs(t *testing.T) {
 
 func assertErrorWithMessage(t *testing.T, err error, msg string) {
 	t.Helper()
-	var errs Errors
-	if !errors.As(err, &errs) {
+	errs, ok := errors.AsType[Errors](err)
+	if !ok {
 		t.Fatalf("expected Errors, got %v %[1]T", err)
 	}
 	if exp, act := 1, len(errs); exp != act {

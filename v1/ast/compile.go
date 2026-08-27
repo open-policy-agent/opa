@@ -2118,18 +2118,6 @@ func (c *Compiler) getExports() *util.HasherMap[Ref, []Ref] {
 	return rules
 }
 
-func refSliceEqual(a, b []Ref) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !a[i].Equal(b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
 func hashMapAdd(rules *util.HasherMap[Ref, []Ref], pkg, rule Ref) {
 	prev, ok := rules.Get(pkg)
 	if !ok {
@@ -5677,17 +5665,15 @@ func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
 			return true
 
 		case *Term:
-			if _, ok := x.Value.(Ref); ok {
-				if RootDocumentRefs.Contains(x) {
-					// We could support args named input, data, etc. however
-					// this would require rewriting terms in the head and body.
-					// Preventing root document shadowing is simpler, and
-					// arguably, will prevent confusing names from being used.
-					// NOTE: this check is also performed as part of strict-mode in
-					// checkRootDocumentOverrides.
-					err = fmt.Errorf("args must not shadow %v (use a different variable name)", x)
-					return true
-				}
+			if TermValueIs[Ref](x) && RootDocumentRefs.Contains(x) {
+				// We could support args named input, data, etc. however
+				// this would require rewriting terms in the head and body.
+				// Preventing root document shadowing is simpler, and
+				// arguably, will prevent confusing names from being used.
+				// NOTE: this check is also performed as part of strict-mode in
+				// checkRootDocumentOverrides.
+				err = fmt.Errorf("args must not shadow %v (use a different variable name)", x)
+				return true
 			}
 		}
 		return false

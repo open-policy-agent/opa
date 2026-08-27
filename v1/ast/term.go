@@ -1235,20 +1235,8 @@ func (ref Ref) CopyNonGround() Ref {
 
 // Equal returns true if ref is equal to other.
 func (ref Ref) Equal(other Value) bool {
-	switch o := other.(type) {
-	case Ref:
-		if len(ref) == len(o) {
-			for i := range ref {
-				if !ref[i].Equal(o[i]) {
-					return false
-				}
-			}
-
-			return true
-		}
-	}
-
-	return false
+	o, ok := other.(Ref)
+	return ok && slices.EqualFunc(ref, o, (*Term).Equal)
 }
 
 // Compare compares ref to other, return <0, 0, or >0 if it is less than, equal to,

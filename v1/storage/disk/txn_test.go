@@ -58,8 +58,7 @@ func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testin
 	}
 
 	_, err = storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
-	var notFound *storage.Error
-	ok := errors.As(err, &notFound)
+	notFound, ok := errors.AsType[*storage.Error](err)
 	if !ok {
 		t.Errorf("expected %T, got %v", notFound, err)
 	}

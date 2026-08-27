@@ -596,14 +596,16 @@ func (w *writer) writeComments(comments []*ast.Comment) error {
 func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) ([]*ast.Comment, error) {
 	for i, rule := range rules {
 		var err error
-		comments, err = w.insertComments(comments, rule.Location)
-		if err != nil && !errors.As(err, &unexpectedCommentError{}) {
-			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
+		if comments, err = w.insertComments(comments, rule.Location); err != nil {
+			if _, ok := errors.AsType[unexpectedCommentError](err); !ok {
+				w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
+			}
 		}
 
-		comments, err = w.writeRule(rule, false, comments)
-		if err != nil && !errors.As(err, &unexpectedCommentError{}) {
-			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
+		if comments, err = w.writeRule(rule, false, comments); err != nil {
+			if _, ok := errors.AsType[unexpectedCommentError](err); !ok {
+				w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
+			}
 		}
 
 		if i < len(rules)-1 && w.groupableOneLiner(rule) {
@@ -671,9 +673,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	var unexpectedComment bool
 	comments, err = w.writeHead(rule.Head, rule.Default, isExpandedConst, comments)
 	if err != nil {
-		if errors.As(err, &unexpectedCommentError{}) {
-			unexpectedComment = true
-		} else {
+		if unexpectedComment = isUnexpectedCommentError(err); !unexpectedComment {
 			return nil, err
 		}
 	}
@@ -739,7 +739,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	comments, err = w.writeBody(rule.Body, comments)
 	if err != nil {
 		// the unexpected comment error is passed up to be handled by writeHead
-		if !errors.As(err, &unexpectedCommentError{}) {
+		if _, ok := errors.AsType[unexpectedCommentError](err); !ok {
 			return nil, err
 		}
 	}
@@ -976,9 +976,10 @@ func (w *writer) writeBody(body ast.Body, comments []*ast.Comment) ([]*ast.Comme
 		}
 		w.startLine()
 
-		comments, err = w.writeExpr(expr, comments)
-		if err != nil && !errors.As(err, &unexpectedCommentError{}) {
-			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
+		if comments, err = w.writeExpr(expr, comments); err != nil {
+			if _, ok := errors.AsType[unexpectedCommentError](err); !ok {
+				w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
+			}
 		}
 		w.endLine()
 	}
@@ -1209,11 +1210,9 @@ func (w *writer) writeEvery(every *ast.Every, loc *ast.Location, comments []*ast
 	}
 	w.write(" {")
 	comments, err = w.writeComprehensionBody('{', '}', every.Body, loc, loc, comments)
-	if err != nil {
+	if err != nil && !isUnexpectedCommentError(err) {
 		// the unexpected comment error is passed up to be handled by writeHead
-		if !errors.As(err, &unexpectedCommentError{}) {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	if len(every.Body) == 1 &&
@@ -1246,10 +1245,8 @@ func (w *writer) writeNot(not *ast.Not, loc *ast.Location, comments []*ast.Comme
 
 		w.write("{")
 		comments, err = w.writeComprehensionBody('{', '}', not.Body, loc, loc, comments)
-		if err != nil {
-			if !errors.As(err, &unexpectedCommentError{}) {
-				return nil, err
-			}
+		if err != nil && !isUnexpectedCommentError(err) {
+			return nil, err
 		}
 
 		if last := not.Body[len(not.Body)-1]; last.Location != nil && last.Location.Row == loc.Row {
@@ -1263,10 +1260,8 @@ func (w *writer) writeNot(not *ast.Not, loc *ast.Location, comments []*ast.Comme
 		}
 
 		comments, err = w.writeExpr(not.Body[0], comments)
-		if err != nil {
-			if !errors.As(err, &unexpectedCommentError{}) {
-				return nil, err
-			}
+		if err != nil && !isUnexpectedCommentError(err) {
+			return nil, err
 		}
 
 		if parens {
@@ -1345,7 +1340,7 @@ func (w *writer) writeLogical(expr *ast.Expr, comments []*ast.Comment) ([]*ast.C
 	lhs, steps := flattenLogical(expr)
 
 	comments, err := w.writeLogicalOperand(lhs, comments)
-	if err != nil && !errors.As(err, &unexpectedCommentError{}) {
+	if err != nil && !isUnexpectedCommentError(err) {
 		return comments, err
 	}
 
@@ -1367,7 +1362,7 @@ func (w *writer) writeLogical(expr *ast.Expr, comments []*ast.Comment) ([]*ast.C
 		}
 
 		comments, err = w.writeLogicalOperand(s.rhs, comments)
-		if err != nil && !errors.As(err, &unexpectedCommentError{}) {
+		if err != nil && !isUnexpectedCommentError(err) {
 			return comments, err
 		}
 	}
@@ -1398,10 +1393,8 @@ func (w *writer) writeLogicalOperand(o logicalOperand, comments []*ast.Comment) 
 
 	w.write("{")
 	comments, err := w.writeComprehensionBody('{', '}', o.body, o.brace, o.brace, comments)
-	if err != nil {
-		if !errors.As(err, &unexpectedCommentError{}) {
-			return comments, err
-		}
+	if err != nil && !isUnexpectedCommentError(err) {
+		return comments, err
 	}
 
 	if last := o.body[len(o.body)-1]; last.Location != nil && last.Location.Row == o.brace.Row {
@@ -1623,14 +1616,12 @@ func (w *writer) writeWith(with *ast.With, comments []*ast.Comment, indented boo
 	}
 	w.write(" as ")
 	comments, err = w.writeTerm(with.Value, comments)
-	if err != nil {
+	if err != nil && !isUnexpectedCommentError(err) {
 		// An unexpectedCommentError from writeTerm signals that it fell
 		// back to writing the term's original unformatted text — the value
 		// was written successfully, so don't abort the surrounding chain
 		// of `with` clauses (issue #8765).
-		if !errors.As(err, &unexpectedCommentError{}) {
-			return comments, err
-		}
+		return comments, err
 	}
 	return comments, nil
 }
@@ -1659,7 +1650,7 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) ([]*ast.Comm
 
 	comments, err := w.writeTermParens(false, term, comments)
 	if err != nil {
-		if errors.As(err, &unexpectedCommentError{}) {
+		if isUnexpectedCommentError(err) {
 			w.buf.Truncate(currentLen)
 			w.level = currentLevel
 
@@ -1921,7 +1912,7 @@ func (w *writer) writeRef(x ast.Ref, comments []*ast.Comment) ([]*ast.Comment, e
 				w.write("[")
 				comments, err = w.writeTerm(t, comments)
 				if err != nil {
-					if errors.As(err, &unexpectedCommentError{}) {
+					if _, ok := errors.AsType[unexpectedCommentError](err); ok {
 						// add a new line so that the closing bracket isn't part of the unexpected comment
 						w.write("\n")
 					} else {
@@ -3069,4 +3060,9 @@ func isRegoV1Compatible(imp *ast.Import) bool {
 	return len(path) == 2 &&
 		ast.RegoRootDocument.Equal(path[0]) &&
 		path[1].Equal(ast.InternedTerm("v1"))
+}
+
+func isUnexpectedCommentError(err error) bool {
+	_, ok := errors.AsType[unexpectedCommentError](err)
+	return ok
 }
