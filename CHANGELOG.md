@@ -3,28 +3,224 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 1.20.0
 
-### Logical `and`/`or` Keywords ([#7602](https://github.com/open-policy-agent/opa/pull/7602))
+This release contains a mix of new features and bug fixes. Notably:
 
-The `and` and `or` keywords express conjunction and disjunction _inside_ a single rule body,
-without extracting a helper rule. Both are opt-in future keywords, and neither produces a
-value; an expression using them either succeeds or fails.
+- **New Rego keywords: `and` and `or`**, for combining conditions inside a single rule body
+- `allow_net` now restricts remote JSON Schema `$ref` fetching from `json.match_schema` and `json.verify_schema`
+- Coverage reports can now explain _why_ a range is not covered
+- Much faster partial evaluation for dynamically composed policies
+
+### New Rego keywords: `and` and `or` ([#7602](https://github.com/open-policy-agent/opa/issues/7602))
+
+Rego gains two keywords for combining conditions inside a single rule body — a long-standing
+request, and one of the larger additions to the language in some time. `and` and `or` let control
+flow that previously had to be split across helper rules stay where it is read.
+
+Before, a rule body that needed to succeed on one of several conditions meant extracting a rule:
 
 ```rego
 package example
 
-import future.keywords.or
+allow if {
+	input.method == "GET"
+	admin_or_public_owner
+}
 
-allow if input.user.admin or input.user.owner
+admin_or_public_owner if input.user.admin
+
+admin_or_public_owner if {
+	input.user.owner
+	input.resource.public
+}
 ```
 
-`not` binds tighter than `and`, which binds tighter than `or`; use parentheses to group.
-Multiple rules remain the idiom for disjunctions that contribute a value.
-See [Rego Keywords: and, or](https://www.openpolicyagent.org/docs/policy-reference/keywords/logical)
-for precedence, scoping, and when to prefer each.
+Now:
+
+```rego
+package example
+
+import future.keywords.and
+import future.keywords.or
+
+# the and groups first, so this reads as:
+# an admin, or an owner of a public resource
+allow if {
+	input.method == "GET"
+	input.user.admin or input.user.owner and input.resource.public
+}
+```
+
+Both keywords are opt-in [future keywords](https://www.openpolicyagent.org/docs/policy-reference/keywords/import#importing-future-keywords):
+`import future.keywords.and`, `import future.keywords.or`, or `import future.keywords` for both.
+
+An `and`/`or` expression either succeeds or fails; it never produces a value. So you can't assign
+one to a variable, pass one to a function, or use one as the head of a comprehension.
+
+Operands can read variables from the rule body around them, but can't create new ones for the rest
+of the rule to use — wrap an operand in braces to give it a body of its own, and any variables it
+creates stay inside those braces. Only as much is evaluated as needed: if the left side settles the
+outcome, the right side is skipped. And when both sides of an `or` succeed, you still get a single
+result; evaluation doesn't split in two.
+
+Further reading:
+
+- [Rego Keywords: and, or](https://www.openpolicyagent.org/docs/policy-reference/keywords/logical) — the full reference
+- [Precedence and grouping](https://www.openpolicyagent.org/docs/policy-reference/keywords/logical#precedence-and-grouping) — how the operators group, and where parentheses are needed
+- [Combining with `not`](https://www.openpolicyagent.org/docs/policy-reference/keywords/not#combining-with-and-and-or)
+- [Incremental rules](https://www.openpolicyagent.org/docs/policy-language#incremental-definitions) — the idiom when the alternatives must produce a value
+
+Try the new keywords in the [Rego Playground](https://play.openpolicyagent.org/), or in your
+editor with the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=tsandall.opa)
+or the [IntelliJ IDEA plugin](https://github.com/open-policy-agent/opa-idea-plugin) — see
+[Editor and IDE Support](https://www.openpolicyagent.org/docs/editor-and-ide-support) for others.
 
 Authored by @johanfylling
+
+### Behavior change: `allow_net` applies to remote JSON Schema `$ref`s ([#8979](https://github.com/open-policy-agent/opa/pull/8979))
+
+The [`allow_net`](https://www.openpolicyagent.org/docs/policy-language#remote-references-in-json-schemas)
+capability restricts which hosts remote JSON Schema `$ref`s may be fetched from, but it was only
+wired up on the compile-time type-checking path. Policies using neither `-s` schemas nor
+[`# METADATA schemas:`](https://www.openpolicyagent.org/docs/policy-language#metadata-schemas)
+annotations never reached it, and an unset allowlist permitted every host — so
+[`json.match_schema`](https://www.openpolicyagent.org/docs/policy-reference/builtins/object#builtin-object-jsonmatch_schema)
+and [`json.verify_schema`](https://www.openpolicyagent.org/docs/policy-reference/builtins/object#builtin-object-jsonverify_schema),
+which compile schemas at evaluation time, fetched `$ref`s from anywhere. Their schema argument can
+come from `input`, so the host was not necessarily under the policy author's control.
+
+The allowlist now travels with the schema loader and is checked per caller at any nesting depth.
+Every redirect hop is checked too, matching `http.send`, and the inter-query cache key includes the
+allowlist so a permissive caller cannot populate the cache for a restrictive one.
+
+Authored by @sspaink, reported by @charlesdaniels
+
+### Coverage reports explain why a range is not covered ([#8937](https://github.com/open-policy-agent/opa/pull/8937))
+
+[Coverage reports](https://www.openpolicyagent.org/docs/policy-testing#coverage) showed that a
+range was uncovered, but not why: ranges skipped by rule indexing
+or early exit looked identical to dead code.
+
+Not-covered ranges are now tagged with a `Kind` — `index_excluded` or `early_exit` — determined
+by re-evaluating with each optimization disabled and diffing the extra coverage data. Both
+supplementary passes run by default when `--coverage` is set; the new `--coverage-runs` flag on
+`opa eval` and `opa test` selects which of them to run, and an empty list disables them.
+
+Authored by @charlieegan3
+
+### Runtime, SDK, Tooling
+
+- bundle: Fix roots containing percent-encoded characters ([#6704](https://github.com/open-policy-agent/opa/issues/6704)) authored by @sspaink, reported by @sirpi
+- compile: Validate plan-addons exist ([#9092](https://github.com/open-policy-agent/opa/pull/9092)) authored by @charlieegan3
+- config: Migrate `server.encoding` and `server.decoding` validation to Rego ([#8903](https://github.com/open-policy-agent/opa/pull/8903)) authored by @sspaink
+- debug: Allow configuring variable value length limit ([#8907](https://github.com/open-policy-agent/opa/pull/8907)) authored by @oh-summy
+- format: Add support for formatting `and`/`or` logical expressions ([#8683](https://github.com/open-policy-agent/opa/issues/8683)) reported and authored by @johanfylling
+- format: Converge object comprehension layout ([#9075](https://github.com/open-policy-agent/opa/issues/9075)) reported and authored by @hamodywe
+- format: Don't group rules that aren't written on one line ([#8981](https://github.com/open-policy-agent/opa/pull/8981)) authored by @sspaink
+- format: Don't unwrap one-line rule body braces from a single set term ([#8972](https://github.com/open-policy-agent/opa/pull/8972)) authored by @johanfylling
+- format: Honor line breaks before explicit `and`/`or` operand bodies ([#9053](https://github.com/open-policy-agent/opa/issues/9053)) authored by @sspaink, reported by @anderseknert
+- format: Keep parens around a nested `not` operand ([#9079](https://github.com/open-policy-agent/opa/pull/9079)) authored by @sspaink
+- format: Wrap set union `|` infix in parens when output would be re-interpreted as comprehension ([#8977](https://github.com/open-policy-agent/opa/pull/8977)) authored by @johanfylling
+- format: Write added imports before rules ([#9083](https://github.com/open-policy-agent/opa/pull/9083)) authored by @sspaink
+- loader: Fix loading absolute paths on Windows ([#4521](https://github.com/open-policy-agent/opa/issues/4521)) authored by @sspaink, reported by @lcarva
+- oracle: Support `and`/`or` logical keywords ([#8819](https://github.com/open-policy-agent/opa/issues/8819)) reported and authored by @johanfylling
+- plugins: Avoid predictable OCI temp store ([#8853](https://github.com/open-policy-agent/opa/pull/8853)) authored by @br0x2
+- plugins: Fix overly verbose return of errors ([#9090](https://github.com/open-policy-agent/opa/pull/9090)) authored by @anderseknert
+- rego: Pass capabilities to the parser in `(*Rego).compileModules` ([#9059](https://github.com/open-policy-agent/opa/pull/9059)) authored by @anderseknert
+- repl: Add support for `and`/`or` imports ([#9066](https://github.com/open-policy-agent/opa/issues/9066)) reported and authored by @johanfylling
+- repl: Allow interactive ref head rule definitions ([#5498](https://github.com/open-policy-agent/opa/issues/5498)) authored by @sspaink, reported by @philipaconrad
+- runtime: Allow registering hooks, and pass them to discovery ([#9064](https://github.com/open-policy-agent/opa/pull/9064)) authored by @srenatus
+- server: Decouple decision logging from request context cancellation ([#9023](https://github.com/open-policy-agent/opa/pull/9023)) authored by @srenatus
+- wasm: Address regression causing memory corruption ([#8995](https://github.com/open-policy-agent/opa/pull/8995)) authored by @charlieegan3
+
+### Compiler, Topdown and Rego
+
+- ast: Allow non-infix `and()`/`or()` set built-in calls ([#9012](https://github.com/open-policy-agent/opa/pull/9012)) authored by @johanfylling
+- ast: Correct regression in Ruleset Add ([#9027](https://github.com/open-policy-agent/opa/pull/9027)) authored by @charlieegan3
+- ast: Don't index away rules with a nested `print` call ([#9038](https://github.com/open-policy-agent/opa/pull/9038)) authored by @sspaink
+- ast: Don't leak generated locals for calls in ref type errors ([#4577](https://github.com/open-policy-agent/opa/issues/4577)) authored by @sspaink, reported by @johanfylling
+- ast: Don't leak generated locals in ref type errors ([#8897](https://github.com/open-policy-agent/opa/issues/8897)) authored by @sspaink, reported by @anderseknert
+- ast: Don't report type errors for documents replaced by `with` ([#2903](https://github.com/open-policy-agent/opa/issues/2903)) authored by @sspaink, reported by @gshively11
+- ast: Fix `future.keywords` wildcard import not including the `not` keyword ([#9093](https://github.com/open-policy-agent/opa/pull/9093)) authored by @johanfylling
+- ast: Fix panic for shadowed root document calls in Rego v0 ([#9067](https://github.com/open-policy-agent/opa/issues/9067)) reported and authored by @Sergane
+- ast: Index rules with `and`/`or` expressions ([#8997](https://github.com/open-policy-agent/opa/issues/8997)) authored by @sspaink, reported by @johanfylling
+- ast: Name the enclosing rule in unsafe var errors on shared lines ([#4967](https://github.com/open-policy-agent/opa/issues/4967)) authored by @sspaink, reported by @johanfylling
+- ast: Only re-parse brace-led set terms as rule bodies ([#8974](https://github.com/open-policy-agent/opa/pull/8974)) authored by @johanfylling
+- ast: Print undeclared var names ([#5624](https://github.com/open-policy-agent/opa/issues/5624)) authored by @sspaink, reported by @anderseknert
+- ast: Reject `print` calls as `and`/`or` operands ([#9047](https://github.com/open-policy-agent/opa/pull/9047)) authored by @sspaink
+- ast: Reject assignments in implicit `not`, `and` and `or` bodies ([#9069](https://github.com/open-policy-agent/opa/pull/9069)) authored by @johanfylling
+- ast: Reject bare ambiguous `{ ... | ... }` `not` operands ([#8978](https://github.com/open-policy-agent/opa/pull/8978)) authored by @johanfylling
+- ir: Add end locations in plan statements ([#9007](https://github.com/open-policy-agent/opa/pull/9007)) authored by @charlieegan3
+- ir: Add list of unplanned rules to plan data ([#9031](https://github.com/open-policy-agent/opa/pull/9031)) authored by @charlieegan3
+- topdown,tester: Don't put shared interned refs into mutable ASTs ([#9048](https://github.com/open-policy-agent/opa/pull/9048)) authored by @sspaink
+- topdown: A few tracing/profiling improvements ([#9010](https://github.com/open-policy-agent/opa/pull/9010)) authored by @anderseknert
+- topdown: Clean up `http.send` implementation ([#8975](https://github.com/open-policy-agent/opa/pull/8975)) authored by @anderseknert
+- topdown: Don't yield a key in both base and virtual docs twice ([#4787](https://github.com/open-policy-agent/opa/issues/4787)) authored by @sspaink, reported by @jeniawhite
+- topdown: Error on built-in calls with unevaluated operands ([#3680](https://github.com/open-policy-agent/opa/issues/3680)) authored by @sspaink, reported by @tsandall
+- topdown: Fix false modulo by zero for multiples of 2^64 ([#8989](https://github.com/open-policy-agent/opa/pull/8989)) authored by @sueun-dev
+- topdown: Fix negation inlining limit overflowing ([#9036](https://github.com/open-policy-agent/opa/pull/9036)) authored by @sspaink
+- topdown: Fix sum overflow when integer elements fit int64 but the sum does not ([#6281](https://github.com/open-policy-agent/opa/issues/6281)) authored by @sueun-dev, reported by @tsandall
+- topdown: Save enumerated refs over unknown data ([#5471](https://github.com/open-policy-agent/opa/issues/5471)) authored by @sspaink, reported by @jaredzhou
+- topdown: Speed up partial evaluation of dynamically composed policies ([#5216](https://github.com/open-policy-agent/opa/issues/5216)) authored by @sspaink, reported by @srlk
+- topdown: Treat an empty JSON Schema `enum` as unsatisfiable ([#8910](https://github.com/open-policy-agent/opa/issues/8910)) authored by @locker95, reported by @jwilhelm-cariad
+- ast: Add `Equal` implementation for `*object` ([#9025](https://github.com/open-policy-agent/opa/pull/9025)) authored by @anderseknert
+- ast: Add sync pool for `strings.Reader` ([#9016](https://github.com/open-policy-agent/opa/pull/9016)) authored by @anderseknert
+- ast: Avoid excessive save/restore calls in parser ([#9018](https://github.com/open-policy-agent/opa/pull/9018)) authored by @anderseknert
+- ast: Bucket built-in name lookup by ref shape ([#9034](https://github.com/open-policy-agent/opa/pull/9034)) authored by @srenatus
+- ast: Fix performance regression in `InterfaceToValue` ([#9021](https://github.com/open-policy-agent/opa/pull/9021)) authored by @anderseknert
+- ast: Remove a few unnecessary allocations ([#9009](https://github.com/open-policy-agent/opa/pull/9009)) authored by @anderseknert
+- ast: Use pointer comparison in `Equal` methods ([#9020](https://github.com/open-policy-agent/opa/pull/9020)) authored by @anderseknert
+- eval: Catch booleans trying to escape to the heap ([#8968](https://github.com/open-policy-agent/opa/pull/8968)) authored by @anderseknert
+- perf: Allocate less in `ast.NewObject` ([#9035](https://github.com/open-policy-agent/opa/pull/9035)) authored by @anderseknert
+- perf: Heap allocation hunting ([#9082](https://github.com/open-policy-agent/opa/pull/9082)) authored by @anderseknert
+- perf: Improved UUID implementation ([#9039](https://github.com/open-policy-agent/opa/pull/9039)) authored by @anderseknert
+- topdown: Various `io.Writer` improvements ([#9017](https://github.com/open-policy-agent/opa/pull/9017)) authored by @anderseknert
+
+### Docs, Website, Ecosystem
+
+- docs/ecosystem: Add Scanara to the ecosystem page ([#9094](https://github.com/open-policy-agent/opa/pull/9094)) authored by @ScanaraStack
+- docs/ecosystem: Describe what GOPAL actually covers ([#9080](https://github.com/open-policy-agent/opa/pull/9080)) authored by @kmadan
+- docs/policy-reference: Add examples for common built-ins ([#8913](https://github.com/open-policy-agent/opa/pull/8913)) authored by @locker95
+- docs/website: Refresh Apache APISIX ecosystem resources ([#8957](https://github.com/open-policy-agent/opa/pull/8957)) authored by @Yilialinn
+- docs: Add `endswith` and `replace` built-in examples ([#8991](https://github.com/open-policy-agent/opa/pull/8991)) authored by @locker95
+- docs: Add `split` and `lower` built-in examples ([#8992](https://github.com/open-policy-agent/opa/pull/8992)) authored by @locker95
+- docs: Clarify `glob.match` indexing requirements ([#8209](https://github.com/open-policy-agent/opa/issues/8209)) authored by @lopster568, reported by @anderseknert
+- docs: Document `and`/`or` keywords ([#8682](https://github.com/open-policy-agent/opa/issues/8682)) reported and authored by @johanfylling
+- docs: Highlight `and`/`or` keywords in Rego syntax ([#9002](https://github.com/open-policy-agent/opa/pull/9002)) authored by @sspaink
+- docs: Improve `to_number` built-in description ([#8984](https://github.com/open-policy-agent/opa/pull/8984)) authored by @anderseknert
+- docs: Keep snippets highlighted while they are edited ([#8431](https://github.com/open-policy-agent/opa/issues/8431)) authored by @sspaink, reported by @anderseknert
+
+### Miscellaneous
+
+- ast: Annotations code cleanup ([#9049](https://github.com/open-policy-agent/opa/pull/9049)) authored by @anderseknert
+- ast: Enable `modernize` linter for golangci-lint ([#8996](https://github.com/open-policy-agent/opa/pull/8996)) authored by @anderseknert
+- ast: Enable static check of consistent receiver names ([#9008](https://github.com/open-policy-agent/opa/pull/9008)) authored by @anderseknert
+- ast: Move global `builtin.Ref()` vars to a single location ([#9040](https://github.com/open-policy-agent/opa/pull/9040)) authored by @anderseknert
+- ast: Move interning experiment behind `noisy` tag ([#9034](https://github.com/open-policy-agent/opa/pull/9034)) authored by @srenatus
+- ast: Replace use of `sort` package with modern alternatives ([#9013](https://github.com/open-policy-agent/opa/pull/9013)) authored by @anderseknert
+- ast: Use `slices.CompareFunc` for imports and annotations ([#9019](https://github.com/open-policy-agent/opa/pull/9019)) authored by @anderseknert
+- build/release: Create new release tool ([#8959](https://github.com/open-policy-agent/opa/pull/8959)) authored by @johanfylling
+- build(go): Modernize for the Go 1.26 standard library ([#9056](https://github.com/open-policy-agent/opa/pull/9056)) authored by @srenatus
+- bundle: Use `util.WithPrefix` ([#9005](https://github.com/open-policy-agent/opa/pull/9005)) authored by @anderseknert
+- ci: Migrate proto-check to bufbuild/buf-action ([#9030](https://github.com/open-policy-agent/opa/pull/9030)) authored by @srenatus
+- ci: Serialize benchmarks workflow to avoid racing writes to benchmarks branch ([#9065](https://github.com/open-policy-agent/opa/pull/9065)) authored by @srenatus
+- lint: Enable all `usetesting` options ([#9072](https://github.com/open-policy-agent/opa/pull/9072)) authored by @anderseknert
+- lint: Remove `intrange` linter, as it's covered by `modernize` ([#9014](https://github.com/open-policy-agent/opa/pull/9014)) authored by @anderseknert
+- releng: Sample benchmarks from 15 processes, not 3 ([#9034](https://github.com/open-policy-agent/opa/pull/9034)) authored by @srenatus
+- releng: Update post-merge benchmark regression check ([#9029](https://github.com/open-policy-agent/opa/pull/9029)) authored by @srenatus
+- server_test: Adjust test to avoid flakey decision log test outcome ([#9026](https://github.com/open-policy-agent/opa/pull/9026)) authored by @srenatus
+- test: Clean up irrelevant nolint directives ([#9050](https://github.com/open-policy-agent/opa/pull/9050)) authored by @anderseknert
+- test: Restore print-based `and`/`or` short-circuit tests ([#9057](https://github.com/open-policy-agent/opa/pull/9057)) authored by @sspaink
+- topdown: Add `uri` built-in compliance cases for parser edge cases ([#8980](https://github.com/open-policy-agent/opa/pull/8980)) authored by @sspaink
+- topdown: Cover `uuid.parse` input format leniency ([#9003](https://github.com/open-policy-agent/opa/pull/9003)) authored by @sspaink
+- topdown: Modernize fixes and some string building improvements ([#8993](https://github.com/open-policy-agent/opa/pull/8993)) authored by @anderseknert
+- util: Don't return a nil slice from `StringToByteSlice("")` ([#9091](https://github.com/open-policy-agent/opa/pull/9091)) authored by @srenatus
+- Dependency updates; notably:
+  - build(go): Bump the build toolchain to Go 1.27, and the `go.mod` language version to 1.26 ([#9051](https://github.com/open-policy-agent/opa/pull/9051)) authored by @srenatus
+  - build(deps): Bump github.com/dgraph-io/badger/v4 from 4.9.4 to 4.9.5
+  - build(deps): Bump github.com/prometheus/client_golang from 1.24.0 to 1.24.1
+  - build(deps): Bump go.opentelemetry.io/proto/otlp from 1.10.0 to 1.11.0
 
 ## 1.19.1
 
