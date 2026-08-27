@@ -1,7 +1,6 @@
 package changelog
 
 import (
-	"context"
 	"flag"
 	"os"
 	"path/filepath"
@@ -64,7 +63,7 @@ func TestGolden(t *testing.T) {
 				t.Fatalf("read fixture: %v", err)
 			}
 
-			entries, err := Resolve(context.Background(), rec.Client(), rec.SHAs, rec.Message, nil, nil)
+			entries, err := Resolve(t.Context(), rec.Client(), rec.SHAs, rec.Message, nil, nil)
 			if err != nil {
 				t.Fatalf("resolve: %v", err)
 			}

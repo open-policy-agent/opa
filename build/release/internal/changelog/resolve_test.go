@@ -169,7 +169,7 @@ func TestResolve_TableCases(t *testing.T) {
 				return tc.message, nil
 			}
 
-			entries, err := Resolve(context.Background(), fc, []string{tc.sha}, msg, nil, nil)
+			entries, err := Resolve(t.Context(), fc, []string{tc.sha}, msg, nil, nil)
 			if err != nil {
 				t.Fatalf("Resolve: %v", err)
 			}
@@ -237,7 +237,7 @@ func TestResolve_ProgressCallback(t *testing.T) {
 		calls = append(calls, call{done, total, sha, subject})
 	}
 
-	if _, err := Resolve(context.Background(), fc, shas, msg, progress, nil); err != nil {
+	if _, err := Resolve(t.Context(), fc, shas, msg, progress, nil); err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
 	if len(calls) != len(shas) {
@@ -302,7 +302,7 @@ func TestResolve_LocalOnlyCommit(t *testing.T) {
 				}
 				return tc.message, nil
 			}
-			entries, err := Resolve(context.Background(), fc, []string{"abc1234"}, msg, nil, nil)
+			entries, err := Resolve(t.Context(), fc, []string{"abc1234"}, msg, nil, nil)
 			if err != nil {
 				t.Fatalf("Resolve: %v", err)
 			}
@@ -353,7 +353,7 @@ func TestResolve_ResolvedCallback(t *testing.T) {
 	var seen []bool
 	resolved := func(e *Entry) { seen = append(seen, e.IsLocalOnly) }
 
-	entries, err := Resolve(context.Background(), fc, []string{"aaaa111", "bbbb222"}, msg, nil, resolved)
+	entries, err := Resolve(t.Context(), fc, []string{"aaaa111", "bbbb222"}, msg, nil, resolved)
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}

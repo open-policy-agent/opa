@@ -1,7 +1,7 @@
 package changelog
 
 import (
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -50,15 +50,15 @@ func ParseRequires(content string) map[string]string {
 }
 
 func stripComment(line string) string {
-	if i := strings.Index(line, "//"); i >= 0 {
-		return line[:i]
+	if before, _, ok := strings.Cut(line, "//"); ok {
+		return before
 	}
 	return line
 }
 
 func commentOf(line string) string {
-	if i := strings.Index(line, "//"); i >= 0 {
-		return line[i+2:]
+	if _, after, ok := strings.Cut(line, "//"); ok {
+		return after
 	}
 	return ""
 }
@@ -94,6 +94,6 @@ func DiffRequires(fromContent, toContent string) []ModuleChange {
 		}
 		out = append(out, ModuleChange{Module: mod, NewVersion: newV})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Module < out[j].Module })
+	slices.SortFunc(out, func(a, b ModuleChange) int { return strings.Compare(a.Module, b.Module) })
 	return out
 }

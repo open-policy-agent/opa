@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -184,7 +185,7 @@ func TestCommitsBetween_ExcludesMerges(t *testing.T) {
 		t.Fatalf("got %d commits %v, want 2 (the merge commit must be excluded)", len(got), got)
 	}
 	for _, want := range []string{feature, mainline} {
-		if !contains(got, want) {
+		if !slices.Contains(got, want) {
 			t.Errorf("%s missing from %v", want, got)
 		}
 	}
@@ -286,13 +287,4 @@ func TestRunIncludesStderr(t *testing.T) {
 	if !strings.Contains(err.Error(), "v9.9.9") {
 		t.Errorf("error %q does not mention the bad ref", err)
 	}
-}
-
-func contains(haystack []string, needle string) bool {
-	for _, s := range haystack {
-		if s == needle {
-			return true
-		}
-	}
-	return false
 }

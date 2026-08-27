@@ -1,8 +1,9 @@
 package changelog
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/build/release/internal/gh"
@@ -27,12 +28,12 @@ func Render(entries []Entry, repoURL string) string {
 			misc = append(misc, bullet)
 		}
 	}
-	sort.Strings(misc)
-	sort.Strings(deps)
+	slices.Sort(misc)
+	slices.Sort(deps)
 
 	if len(deps) > 0 {
 		misc = append(misc, dependencyParent)
-		sort.Strings(misc)
+		slices.Sort(misc)
 	}
 	if len(misc) == 0 {
 		return ""
@@ -78,8 +79,8 @@ func renderBullet(e *Entry, repoURL string) string {
 // listed so none is dropped.
 func chooseLink(e *Entry, repoURL string) string {
 	if len(e.Issues) > 0 {
-		sorted := append([]*gh.Issue(nil), e.Issues...)
-		sort.Slice(sorted, func(i, j int) bool { return sorted[i].Number < sorted[j].Number })
+		sorted := slices.Clone(e.Issues)
+		slices.SortFunc(sorted, func(a, b *gh.Issue) int { return cmp.Compare(a.Number, b.Number) })
 		parts := make([]string, len(sorted))
 		for i, iss := range sorted {
 			parts[i] = fmt.Sprintf("[#%d](%s)", iss.Number, iss.URL)

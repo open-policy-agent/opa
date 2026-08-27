@@ -72,8 +72,8 @@ func subjectNamesModule(subject, module string) bool {
 	base := majorSuffix.ReplaceAllString(module, "")
 
 	candidates := []string{base}
-	if i := strings.IndexByte(base, '/'); i >= 0 {
-		candidates = append(candidates, base[i+1:])
+	if _, after, ok := strings.Cut(base, "/"); ok {
+		candidates = append(candidates, after)
 	}
 	if i := strings.LastIndexByte(base, '/'); i >= 0 {
 		candidates = append(candidates, base[i+1:])

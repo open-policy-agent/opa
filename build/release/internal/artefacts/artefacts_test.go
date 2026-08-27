@@ -119,7 +119,7 @@ func TestSetVersion(t *testing.T) {
 
 func withoutVersionLine(content string) string {
 	var kept []string
-	for _, l := range strings.Split(content, "\n") {
+	for l := range strings.SplitSeq(content, "\n") {
 		if strings.HasPrefix(l, "var Version = ") {
 			continue
 		}

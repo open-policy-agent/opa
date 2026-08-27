@@ -49,7 +49,7 @@ func (*stubClient) IssueURL(n int) string {
 // and asserts the replay client answers identically — including the
 // commit-not-found path that drives the local-only fallback.
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	stub := &stubClient{
 		commits: map[string]*gh.Commit{
 			"aaa": {SHA: "aaa", AuthorLogin: "alice", Files: []string{"v1/ast/parser.go"}},
@@ -160,7 +160,7 @@ func TestReplayFailsLoudlyOnMissingRecords(t *testing.T) {
 		Closing:  map[int][]*gh.Issue{},
 	}
 	c := rec.Client()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, tc := range []struct {
 		name string
