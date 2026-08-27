@@ -71,12 +71,6 @@ var (
 		Var("$0"), Var("$1"), Var("$2"), Var("$3"), Var("$4"), Var("$5"),
 		Var("$6"), Var("$7"), Var("$8"), Var("$9"), Var("$10"),
 	}
-
-	// use static references to avoid allocations, and
-	// copy them to  the call term only when needed
-	memberWithKeyRef = MemberWithKey.Ref()
-	memberRef        = Member.Ref()
-
 	metadataBytes      = []byte("METADATA")
 	metadataParserPool = util.NewSyncPool[metadataParser]()
 )
@@ -519,7 +513,7 @@ func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 }
 
 func parseAnnotations(comments []*Comment) (stmts []*Annotations, errs Errors) {
-	numBlocks := CountFunc(comments, IsMetadataComment)
+	numBlocks := util.Count(IsMetadataComment, comments...)
 	if numBlocks == 0 {
 		return nil, nil
 	}
@@ -1672,6 +1666,8 @@ func (p *Parser) parseLogicalOrChain(lhsBody Body, lhsExplicit bool, lhsLoc *Loc
 			rhsExplicit = false
 		}
 
+		p.checkVoidCallOperands(lhsBody, rhsBody, "or")
+
 		exprLoc := p.extendLoc(lhsLoc)
 		node := &LogicalOr{
 			Lhs:         lhsBody,
@@ -1708,6 +1704,8 @@ func (p *Parser) parseLogicalAndChain(lhsBody Body, lhsExplicit bool, lhsLoc *Lo
 		if rhsBody == nil {
 			return nil
 		}
+
+		p.checkVoidCallOperands(lhsBody, rhsBody, "and")
 
 		exprLoc := p.extendLoc(lhsLoc)
 		node := &LogicalAnd{
@@ -1868,7 +1866,7 @@ func isAmbiguousUnionBody(b Body) bool {
 	// The first expression decides: `{A | B; C}` also reads as a comprehension with
 	// head A and body `B; C`, so trailing expressions don't disambiguate anything.
 	terms, ok := b[0].Terms.([]*Term)
-	if !ok || !Or.Ref().Equal(b[0].Operator()) {
+	if !ok || !Interned.Refs.Or.Equal(b[0].Operator()) {
 		return false
 	}
 
@@ -1925,6 +1923,45 @@ func isEmptyObjectTerm(expr *Expr) bool {
 func (p *Parser) errorBraceLedOperand(loc *Location, operand []byte, op string) {
 	p.hint(fmt.Sprintf("wrap the operand to keep the value: `(%s) %s ...`", operand, op))
 	p.errorf(loc, "operand of `%s` cannot begin with `{` unless the braces hold a body", op)
+}
+
+func (p *Parser) checkVoidCallOperands(lhs, rhs Body, op string) {
+	if name, loc := voidCallOperand(lhs); name != "" {
+		p.errorVoidCallOperand(loc, name, op)
+	}
+
+	if name, loc := voidCallOperand(rhs); name != "" {
+		p.errorVoidCallOperand(loc, name, op)
+	}
+}
+
+func (p *Parser) errorVoidCallOperand(loc *Location, name, op string) {
+	p.hint(fmt.Sprintf("`%s` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail", name))
+	p.errorf(loc, "operand of `%s` cannot consist only of calls to `%s`", op, name)
+}
+
+// voidCallOperand returns the name and location of the first void builtin called by
+// an operand whose body does nothing else; negated operands are left alone.
+func voidCallOperand(body Body) (string, *Location) {
+	var name string
+	var loc *Location
+
+	for _, expr := range body {
+		if expr.Negated || !expr.IsCall() {
+			return "", nil
+		}
+
+		bi, ok := BuiltinMap[expr.Operator().String()]
+		if !ok || bi.Decl == nil || bi.Decl.Result() != nil {
+			return "", nil
+		}
+
+		if name == "" {
+			name, loc = bi.Name, expr.Location
+		}
+	}
+
+	return name, loc
 }
 
 // errorParensCannotWrapBody reports `(...)` holding expressions rather than a value.
@@ -2235,7 +2272,7 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 			p.scan()
 			if mhs := p.parseTermRelation(nil, offset); mhs != nil {
 
-				if op := p.parseTermOpName(memberWithKeyRef, tokens.In); op != nil {
+				if op := p.parseTermOpName(Interned.Refs.MemberWithKey, tokens.In); op != nil {
 					if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
 						call := p.setLoc(CallTerm(op, lhs, mhs, rhs), lhs.Location, offset, p.s.lastEnd)
 						switch p.s.tok {
@@ -2252,7 +2289,7 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 
 		_ = scanAheadRef(p)
 
-		if op := p.parseTermOpName(memberRef, tokens.In); op != nil {
+		if op := p.parseTermOpName(Interned.Refs.Member, tokens.In); op != nil {
 			if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
 				call := p.setLoc(CallTerm(op, lhs, rhs), lhs.Location, offset, p.s.lastEnd)
 				switch p.s.tok {
@@ -3856,11 +3893,8 @@ var allFutureKeywords map[string]tokens.Token
 // experimentalFutureKeywords are future keywords that exist in the parser but are
 // intentionally hidden from the default capabilities advertisement.
 // They are only activated when a policy imports them AND the active
-// capabilities explicitly list them.
-var experimentalFutureKeywords = map[string]struct{}{
-	"and": {},
-	"or":  {},
-}
+// capabilities explicitly list them. There are currently none.
+var experimentalFutureKeywords = map[string]struct{}{}
 
 var allFutureKeywordTokens map[tokens.Token]struct{}
 
@@ -3920,14 +3954,13 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 			return
 		}
 
-		if keyword == "not" {
-			p.notBodies = true
-		}
-
 		kwds = []string{keyword} // overwrite
 	}
 
 	for _, kw := range kwds {
+		if kw == "not" {
+			p.notBodies = true
+		}
 		p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
 	}
 }

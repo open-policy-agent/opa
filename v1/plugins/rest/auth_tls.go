@@ -147,12 +147,12 @@ func (ap *clientTLSAuthPlugin) loadCertificate() (*tls.Certificate, error) {
 		return nil, errors.New("PEM data could not be found")
 	}
 
-	// nolint: staticcheck // We don't want to forbid users from using this encryption.
+	//nolint: staticcheck // We don't want to forbid users from using this encryption.
 	if x509.IsEncryptedPEMBlock(block) {
 		if ap.PrivateKeyPassphrase == "" {
 			return nil, errors.New("client private key passphrase is needed, because the certificate is password encrypted")
 		}
-		// nolint: staticcheck // We don't want to forbid users from using this encryption.
+		//nolint: staticcheck // We don't want to forbid users from using this encryption.
 		decryptedBlock, err := x509.DecryptPEMBlock(block, []byte(ap.PrivateKeyPassphrase))
 		if err != nil {
 			return nil, err

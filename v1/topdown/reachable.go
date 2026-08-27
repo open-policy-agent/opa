@@ -40,10 +40,12 @@ func builtinReachable(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 
 	var queue []*ast.Term
 	switch initial := operands[1].Value.(type) {
-	case *ast.Array, ast.Set:
+	case *ast.Array:
 		foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
 			queue = append(queue, t)
 		})
+	case ast.Set:
+		queue = append(queue, initial.Slice()...)
 	default:
 		return builtins.NewOperandTypeErr(2, initial, "{array, set}")
 	}
@@ -113,10 +115,12 @@ func builtinReachablePaths(_ BuiltinContext, operands []*ast.Term, iter func(*as
 	// initialised to the initial set of nodes we start out with.
 	var queue []*ast.Term
 	switch initial := operands[1].Value.(type) {
-	case *ast.Array, ast.Set:
+	case *ast.Array:
 		foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
 			queue = append(queue, t)
 		})
+	case ast.Set:
+		queue = append(queue, initial.Slice()...)
 	default:
 		return builtins.NewOperandTypeErr(2, initial, "{array, set}")
 	}

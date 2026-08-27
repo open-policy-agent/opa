@@ -5,7 +5,6 @@
 // Package repl implements a Read-Eval-Print-Loop (REPL) for interacting with the policy engine.
 //
 // The REPL is typically used from the command line, however, it can also be used as a library.
-// nolint: goconst // String reuse here doesn't make sense to deduplicate.
 package repl
 
 import (
@@ -1055,21 +1054,29 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 }
 
 func (r *REPL) parserOptions() (ast.ParserOptions, error) {
-	if r.regoVersion == ast.RegoV1 {
-		return ast.ParserOptions{RegoVersion: ast.RegoV1}, nil
+	if r.currentModuleID == "" {
+		return ast.ParserOptions{RegoVersion: r.regoVersion}, nil
 	}
-	if r.currentModuleID != "" {
-		opts, err := future.ParserOptionsFromFutureImports(r.modules[r.currentModuleID].Imports)
-		if err == nil {
-			for _, i := range r.modules[r.currentModuleID].Imports {
-				if ast.RegoV1CompatibleRef.Equal(i.Path.Value) {
-					opts.RegoVersion = ast.RegoV1
-				}
-			}
-		}
+
+	imports := r.modules[r.currentModuleID].Imports
+
+	opts, err := future.ParserOptionsFromFutureImports(imports)
+	if err != nil {
 		return opts, err
 	}
-	return ast.ParserOptions{RegoVersion: r.regoVersion}, nil
+
+	if r.regoVersion == ast.RegoV1 {
+		opts.RegoVersion = ast.RegoV1
+		return opts, nil
+	}
+
+	for _, i := range imports {
+		if ast.RegoV1CompatibleRef.Equal(i.Path.Value) {
+			opts.RegoVersion = ast.RegoV1
+		}
+	}
+
+	return opts, nil
 }
 
 func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
@@ -1144,7 +1151,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt any) error {
 		}
 
 		if len(r.unknowns) > 0 {
-			err = r.evalPartial(ctx, compiler, input, compiledBody)
+			err = r.evalPartial(ctx, compiler, input, stmt)
 		} else {
 			err = r.evalBody(ctx, compiler, input, stmt)
 			if r.types {
@@ -1225,7 +1232,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, r.stderr, output)
+		return pr.Pretty(r.output, r.stderrWriter(), output)
 	}
 }
 
@@ -1278,7 +1285,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, r.stderr, output)
+		return pr.Pretty(r.output, r.stderrWriter(), output)
 	}
 }
 
@@ -1895,12 +1902,12 @@ For example:
 	> import input.params
 
 	# Import a future keyword.
-	> import future.keywords.in
-	> 1 in [0, 2, 1]
+	> import future.keywords.or
+	> 1 == 2 or 1 == 1
 	true
 
 	# Define rule that refers to "params".
-	> is_post { params.method = "POST" }
+	> is_post if { params.method = "POST" }
 
 	# Test evaluation.
 	> is_post

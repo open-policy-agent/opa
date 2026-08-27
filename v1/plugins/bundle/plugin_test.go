@@ -2,7 +2,6 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint: goconst // string duplication is for test readability.
 package bundle
 
 import (
@@ -2824,7 +2823,7 @@ corge contains 1 if {
 }
 
 func pointTo[T any](v T) *T {
-	return &v
+	return new(v)
 }
 
 func bundleRegoVersion(v ast.RegoVersion) int {
@@ -4442,7 +4441,7 @@ func TestReconfigurePlugin_OneShot_BundleDeactivation(t *testing.T) {
 			}
 
 			if tc.bundleRegoVersion != ast.RegoUndefined {
-				b.Manifest.RegoVersion = pointTo(tc.bundleRegoVersion.Int())
+				b.Manifest.RegoVersion = new(tc.bundleRegoVersion.Int())
 			}
 
 			b.Manifest.Init()
@@ -4579,7 +4578,7 @@ func TestReconfigurePlugin_ManagerInit_BundleDeactivation(t *testing.T) {
 			}
 
 			if tc.bundleRegoVersion != ast.RegoUndefined {
-				b.Manifest.RegoVersion = pointTo(tc.bundleRegoVersion.Int())
+				b.Manifest.RegoVersion = new(tc.bundleRegoVersion.Int())
 			}
 
 			b.Manifest.Init()
@@ -7359,8 +7358,7 @@ func TestPluginManualTriggerWithServerError(t *testing.T) {
 
 	plugin.Stop(ctx)
 
-	var bundleErrors Errors
-	if errors.As(err, &bundleErrors) {
+	if bundleErrors, ok := errors.AsType[Errors](err); ok {
 		if len(bundleErrors) != 1 {
 			t.Fatalf("expected exactly one error, got %d", len(bundleErrors))
 		}

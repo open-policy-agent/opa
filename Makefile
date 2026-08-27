@@ -20,7 +20,7 @@ GOOS := $(shell go env GOOS)
 GO_TAGS ?=
 override GO_TAGS := $(GO_TAGS) -tags=opa_wasm
 
-GOLANGCI_LINT_VERSION := v2.12.2
+GOLANGCI_LINT_VERSION := v2.13.0
 YAML_LINT_VERSION := 0.29.0
 YAML_LINT_FORMAT ?= auto
 

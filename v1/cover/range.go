@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Position represents a file location.
@@ -34,11 +35,27 @@ func (sl PositionSlice) Sort() {
 	})
 }
 
-// Range represents a range of positions in a file.
+// Range represents a range of positions in a file. Kinds categorizes why a
+// range was not covered, e.g. KindIndexExcluded; it's empty when covered or
+// the reason is unknown, and can hold more than one Kind.
 type Range struct {
 	Start Position `json:"start"`
 	End   Position `json:"end"`
+	Kinds []Kind   `json:"kinds,omitempty"`
 }
+
+// Kind categorizes why a Range was not covered.
+type Kind string
+
+const (
+	// KindIndexExcluded marks a not-covered range that the rule indexer
+	// excluded without attempting it.
+	KindIndexExcluded Kind = "index_excluded"
+
+	// KindEarlyExit marks a not-covered range that early-exit optimizations
+	// skipped without attempting it.
+	KindEarlyExit Kind = "early_exit"
+)
 
 // In returns true if the row is inside the range.
 func (r Range) In(row int) bool {
@@ -68,6 +85,47 @@ func (r Range) contains(other Range) bool {
 		(r.End.Row == other.End.Row && r.End.Col >= other.End.Col)
 
 	return otherStartsWithin && otherEndsWithin
+}
+
+// rangeKey identifies a Range by position only, so Kinds never participates
+// in a rangeSet's identity.
+type rangeKey struct {
+	Start Position
+	End   Position
+}
+
+func (r Range) key() rangeKey {
+	return rangeKey{Start: r.Start, End: r.End}
+}
+
+// rangeSet is a set of ranges, keyed by position only (see Range.key).
+type rangeSet map[rangeKey]Range
+
+// Add inserts r into the set.
+func (s rangeSet) Add(r Range) {
+	s[r.key()] = r
+}
+
+// Slice returns the ranges in the set as a slice, sorted by Range.Compare.
+func (s rangeSet) Slice() []Range {
+	rs := make([]Range, 0, len(s))
+	for _, r := range s {
+		rs = append(rs, r)
+	}
+	return util.SortedFunc(rs, Range.Compare)
+}
+
+// fileRangeSets maps a file to the set of ranges recorded for it.
+type fileRangeSets map[string]rangeSet
+
+// Add records r against file, creating its rangeSet on first use.
+func (m fileRangeSets) Add(file string, r Range) {
+	s, ok := m[file]
+	if !ok {
+		s = rangeSet{}
+		m[file] = s
+	}
+	s.Add(r)
 }
 
 // rangeOf returns a Range for loc, deriving the end row/col from loc.Text via

@@ -1607,7 +1607,6 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 	for i, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			opts := ParserOptions{
-				Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				AllFutureKeywords: true,
 			}
 			c := NewCompiler()
@@ -1815,7 +1814,6 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 			// Compile test module.
 			opts := ParserOptions{
-				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				FutureKeywords: []string{"and", "or"},
 			}
 
@@ -2116,6 +2114,68 @@ x if {
 }`)}
 	compileStages(c, StageCheckTypes)
 	assertNotFailed(t, c)
+}
+
+// Regression test for GH issue #4577
+func TestCompilerCheckTypesCallsInRefsNotLeaked(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		// The expected error, up to and including the caret line of the detail:
+		// the caret is positioned by rendering the ref, so it moves along with
+		// the substituted call.
+		expErr string
+	}{
+		{
+			note: "builtin call as ref subject",
+			module: `package test
+
+q := opa.runtime()[0].foo`,
+			expErr: "undefined ref: opa.runtime()[0].foo\n" +
+				"\topa.runtime()[0].foo\n" +
+				"\t              ^",
+		},
+		{
+			// rego.metadata.chain() is rewritten into a var of its own after the
+			// call has been hoisted out of the ref.
+			note: "rego.metadata.chain() call as ref subject",
+			module: `package test
+
+p := rego.metadata.chain()[0].annotations`,
+			expErr: "undefined ref: rego.metadata.chain()[0].annotations\n" +
+				"\trego.metadata.chain()[0].annotations\n" +
+				"\t                         ^",
+		},
+		{
+			note: "function call as ref subject",
+			module: `package test
+
+f(x) := {"a": x}
+
+p := f(1)[0]`,
+			expErr: "undefined ref: data.test.f(1)[0]\n" +
+				"\tdata.test.f(1)[0]\n" +
+				"\t               ^",
+		},
+		{
+			note: "call in ref index position",
+			module: `package test
+
+p := {"a": 1}[count([1, 2])]`,
+			expErr: "undefined ref: {\"a\": 1}[count([1, 2])]\n" +
+				"\t{\"a\": 1}[count([1, 2])]\n" +
+				"\t         ^",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{"test": MustParseModule(tc.module)}
+			compileStages(c, StageCheckTypes)
+			assertCompilerErrorStrings(t, c, []string{"rego_type_error: " + tc.expErr})
+		})
+	}
 }
 
 func TestCompilerCheckRuleConflicts(t *testing.T) {
@@ -3128,6 +3188,8 @@ func TestIllegalFunctionCallRewrite(t *testing.T) {
 		note           string
 		module         string
 		expectedErrors []string
+		// Some regressions only trigger in compiler stages after StageRewriteLocalVars.
+		compileFully bool
 	}{
 		/*{
 		  			note: "function call override in function value",
@@ -3199,6 +3261,30 @@ p := [data() | data := 1]`,
 				"called function data shadowed",
 			},
 		},
+		{
+			note: "function call on override of 'input' root document in rule body",
+			module: `package test
+p {
+	input := 0
+	input()
+}`,
+			expectedErrors: []string{
+				"undefined function ",
+			},
+			compileFully: true,
+		},
+		{
+			note: "function call on override of 'data' root document in rule body",
+			module: `package test
+p {
+	data := 0
+	data()
+}`,
+			expectedErrors: []string{
+				"undefined function ",
+			},
+			compileFully: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -3209,10 +3295,15 @@ p := [data() | data := 1]`,
 				AllFutureKeywords: true,
 			}
 
-			compiler.Modules = map[string]*Module{
+			modules := map[string]*Module{
 				"test": MustParseModuleWithOpts(tc.module, opts),
 			}
-			compileStages(compiler, StageRewriteLocalVars)
+			if !tc.compileFully {
+				compiler.Modules = modules
+				compileStages(compiler, StageRewriteLocalVars)
+			} else {
+				compiler.Compile(modules)
+			}
 
 			result := make([]string, 0, len(compiler.Errors))
 			for i := range compiler.Errors {
@@ -3832,10 +3923,6 @@ func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocat
 			compiler.Modules = map[string]*Module{
 				"test": MustParseModuleWithOpts(tc.module, ParserOptions{
 					RegoVersion: RegoV0,
-					Capabilities: CapabilitiesForThisVersion(
-						CapabilitiesRegoVersion(RegoV0),
-						CapabilitiesExperimentalKeywords(true),
-					),
 				}),
 			}
 			compileStages(compiler, "")
@@ -6852,6 +6939,80 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 			wantErr: errors.New("arg a redeclared"),
 		},
+		{
+			note: "assign in implicit and operand err",
+			module: `
+				package test
+				p if {
+					input.a and x := input.b
+					x = 1
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: cannot assign vars inside implicit and operand"),
+		},
+		{
+			note: "assign in implicit or operand err",
+			module: `
+				package test
+				p if {
+					input.a or x := input.b
+					x = 1
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: cannot assign vars inside implicit or operand"),
+		},
+		{
+			note: "assign in implicit not body err",
+			module: `
+				package test
+				p if {
+					not x := input.b
+					x = 1
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: cannot assign vars inside negated expression"),
+		},
+		{
+			note: "assign in implicit and operand nested in explicit or operand err",
+			module: `
+				package test
+				p if {
+					input.a or { input.b and x := input.c }
+					x = 1
+				}
+			`,
+			wantErr: errors.New("test.rego:4: rego_compile_error: cannot assign vars inside implicit and operand"),
+		},
+		{
+			note: "assign in explicit or operand",
+			module: `
+				package test
+				p if {
+					input.a or { x := input.b; x == 1 }
+				}
+			`,
+			exp: `
+				package test
+				p if {
+					input.a or { __local0__ = input.b; __local0__ = 1 }
+				}
+			`,
+		},
+		{
+			note: "assign in explicit not body",
+			module: `
+				package test
+				p if {
+					not { x := input.b; x == 1 }
+				}
+			`,
+			exp: `
+				package test
+				p if {
+					not { __local0__ = input.b; __local0__ = 1 }
+				}
+			`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -8139,16 +8300,7 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 		exp    string
 	}
 
-	caps := CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
-
-	opts := CompileOpts{
-		ParserOptions: ParserOptions{
-			Capabilities: caps,
-		},
-	}
-
 	popts := func(options ParserOptions) ParserOptions {
-		options.Capabilities = caps
 		options.AllFutureKeywords = true
 		return options
 	}
@@ -8161,7 +8313,7 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 				t.Run(tc.note, func(t *testing.T) {
 					t.Parallel()
 					t.Helper()
-					c := MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, opts)
+					c := MustCompileModules(map[string]string{"test.rego": tc.module})
 					if exp, act := module(tc.exp, popts), c.Modules["test.rego"]; !exp.Equal(act) {
 						t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, act)
 					}
@@ -11314,7 +11466,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 				import future.keywords
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
-			keywords: []string{"contains", "every", "if", "in", "not"},
+			keywords: []string{"and", "contains", "every", "if", "in", "not", "or"},
 		},
 		{
 			note: "future.keywords wildcard, v1 module",
@@ -11325,7 +11477,7 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			`,
 			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			features: []string{"rego_v1"},
-			keywords: []string{"not"},
+			keywords: []string{"and", "not", "or"},
 		},
 		{
 			note: "future.keywords wildcard, default rego-version module (v1)",
@@ -11335,7 +11487,39 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 				import future.keywords
 			`,
 			features: []string{"rego_v1"},
-			keywords: []string{"not"},
+			keywords: []string{"and", "not", "or"},
+		},
+		{
+			// The wildcard import must activate every keyword it reports as required.
+			note: "future.keywords wildcard, not body and and/or used, v0 module",
+			module: `
+				package x
+
+				import future.keywords
+
+				p if {
+					not { input.a; input.b }
+					input.c and input.d or input.e
+				}
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
+			keywords: []string{"and", "contains", "every", "if", "in", "not", "or"},
+		},
+		{
+			note: "future.keywords wildcard, not body and and/or used, v1 module",
+			module: `
+				package x
+
+				import future.keywords
+
+				p if {
+					not { input.a; input.b }
+					input.c and input.d or input.e
+				}
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			features: []string{"rego_v1"},
+			keywords: []string{"and", "not", "or"},
 		},
 		{
 			note: "future.keywords specific, v0 module",
@@ -11683,6 +11867,26 @@ func TestQueryCompiler(t *testing.T) {
 			note:     "nested dynamic index locals not leaked in type error",
 			q:        `[1, 2][input.a[input.b]][j]`,
 			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: [1, 2][input.a[input.b]][j]"),
+		},
+		{
+			// Regression test for https://github.com/open-policy-agent/opa/issues/4577:
+			// the generated local for a call in a ref subject must not leak.
+			note:     "call ref subject not leaked in type error",
+			q:        `opa.runtime()[0].foo`,
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: opa.runtime()[0].foo"),
+		},
+		{
+			// A call in an index position is hoisted into a local too.
+			note:     "call index local not leaked in type error",
+			q:        `{"a": 1}[count([1, 2])]`,
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: {\"a\": 1}[count([1, 2])]"),
+		},
+		{
+			// The arguments of a hoisted call are themselves hoisted into
+			// locals, so the call must be recorded before that happens.
+			note:     "nested call arguments not leaked in type error",
+			q:        `count(input.a[input.b])[0]`,
+			expected: errors.New("1 error occurred: 1:1: rego_type_error: undefined ref: count(input.a[input.b])[0]"),
 		},
 		{
 			note:     "imports resolved without package",
@@ -12618,8 +12822,7 @@ func TestCustomBuiltinWithCompileModulesWithOpt(t *testing.T) {
 				if err == nil {
 					t.Fatalf("expected error code %s but got success", tc.expectedErrorCode)
 				}
-				var astError Errors
-				if errors.As(err, &astError) {
+				if astError, ok := errors.AsType[Errors](err); ok {
 					if astError[0].Code != tc.expectedErrorCode {
 						t.Fatalf("expected error code %s but got %s", tc.expectedErrorCode, astError[0].Code)
 					}
@@ -13702,7 +13905,7 @@ func TestCompilerNotImport(t *testing.T) {
 			`, popts),
 		},
 		{
-			note: "negated call with vars, inside comprehension, unsafe assignment",
+			note: "negated call with vars, inside comprehension, assignment in implicit not body",
 			module: `package negation
 				import future.keywords.not
 
@@ -13713,7 +13916,7 @@ func TestCompilerNotImport(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:     CompileErr,
-					Message:  "var x is unsafe",
+					Message:  "cannot assign vars inside negated expression",
 					Location: &Location{File: "mod.rego", Row: 4, Col: 15, Text: []byte(`not x := "foo"`)},
 				},
 			},
@@ -13757,8 +13960,62 @@ func TestCompilerNotImport(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:     CompileErr,
-					Message:  "var a is unsafe", // FIXME: Use more specific error msg: "cannot assign vars inside negated expression"
+					Message:  "cannot assign vars inside negated expression",
 					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1")},
+				},
+			},
+		},
+		{
+			note: "negated assignment, outer ref to var",
+			module: `package negation
+				import future.keywords.not
+
+				p if {
+					not a := 1
+					a = 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:     CompileErr,
+					Message:  "cannot assign vars inside negated expression",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1")},
+				},
+			},
+		},
+		{
+			note: "negated assignment, outer redeclaration of var",
+			module: `package negation
+				import future.keywords.not
+
+				p if {
+					not a := 1
+					a := 2
+					a == 2
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:     CompileErr,
+					Message:  "cannot assign vars inside negated expression",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1")},
+				},
+			},
+		},
+		{
+			note: "negated assignment, implicit not body nested in explicit not-body",
+			module: `package negation
+				import future.keywords.not
+
+				p if {
+					not { not a := 1 }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:     CompileErr,
+					Message:  "cannot assign vars inside negated expression",
+					Location: &Location{File: "mod.rego", Row: 5, Col: 12, Text: []byte("not a := 1")},
 				},
 			},
 		},
@@ -13778,6 +14035,24 @@ func TestCompilerNotImport(t *testing.T) {
 			`, popts),
 		},
 		{
+			note: "negated assignment, explicit not-body, outer ref to var",
+			module: `package negation
+				import future.keywords.not
+				
+				p if {
+					not { a := 1 }
+					a = 1
+				}
+			`,
+			// outer and inner 'a':s are different variables bound in different scopes
+			expMod: MustParseModuleWithOpts(`package negation
+				p = true if {
+					not { __local0__ = 1 }
+					a = 1
+				}
+			`, popts),
+		},
+		{
 			note: "negated assignment, call",
 			module: `package negation
 				import future.keywords.not
@@ -13789,7 +14064,7 @@ func TestCompilerNotImport(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:     CompileErr,
-					Message:  "var a is unsafe",
+					Message:  "cannot assign vars inside negated expression",
 					Location: &Location{File: "mod.rego", Row: 5, Col: 6, Text: []byte("not a := 1 + 2")},
 				},
 			},
@@ -14837,11 +15112,7 @@ func TestCompilerAndOrRegoVersionParity(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			popts := ParserOptions{
-				RegoVersion: tc.regoVersion,
-				Capabilities: CapabilitiesForThisVersion(
-					CapabilitiesRegoVersion(tc.regoVersion),
-					CapabilitiesExperimentalKeywords(true),
-				),
+				RegoVersion:    tc.regoVersion,
 				FutureKeywords: []string{"and", "or"},
 			}
 
@@ -14862,7 +15133,6 @@ func TestCompilerAndOrRegoVersionParity(t *testing.T) {
 
 func TestCompilerAndOrImports(t *testing.T) {
 	popts := ParserOptions{
-		Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 		FutureKeywords: []string{"and", "or"},
 	}
 
@@ -14901,11 +15171,11 @@ func TestCompilerAndOrImports(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:    CompileErr,
-					Message: "var x is unsafe",
+					Message: "cannot assign vars inside implicit and operand",
 				},
 				&Error{
 					Code:    CompileErr,
-					Message: "var y is unsafe",
+					Message: "cannot assign vars inside implicit and operand",
 				},
 			},
 		},
@@ -14919,13 +15189,151 @@ func TestCompilerAndOrImports(t *testing.T) {
 			expErrs: Errors{
 				&Error{
 					Code:    CompileErr,
-					Message: "var x is unsafe",
+					Message: "cannot assign vars inside implicit or operand",
 				},
 				&Error{
 					Code:    CompileErr,
-					Message: "var y is unsafe",
+					Message: "cannot assign vars inside implicit or operand",
 				},
 			},
+		},
+		{
+			note: "and, assignment in implicit body, var referenced in outer scope",
+			module: `package logic
+				p if {
+					input.a and x := input.b
+					x == 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside implicit and operand",
+				},
+			},
+		},
+		{
+			note: "or, assignment in implicit body, var referenced in outer scope",
+			module: `package logic
+				p if {
+					input.a or x := input.b
+					x == 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside implicit or operand",
+				},
+			},
+		},
+		{
+			note: "or, assignment in implicit body, var reassigned in outer scope",
+			module: `package logic
+				p if {
+					input.a or x := input.b
+					x := 1
+					x == 1
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside implicit or operand",
+				},
+			},
+		},
+		{
+			note: "or, assignment in implicit body nested in explicit body",
+			module: `package logic
+				p if {
+					input.a or { input.b and x := input.c }
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside implicit and operand",
+				},
+			},
+		},
+		{
+			note: "and, assignment in implicit not body",
+			module: `package logic
+				import future.keywords.not
+
+				p if {
+					input.a and not x := input.b
+				}
+			`,
+			expErrs: Errors{
+				&Error{
+					Code:    CompileErr,
+					Message: "cannot assign vars inside negated expression",
+				},
+			},
+		},
+		{
+			note: "and, assignment in explicit not body, implicit operand",
+			module: `package logic
+				import future.keywords.not
+
+				p if {
+					input.a and not { x := input.b; x == 1 }
+				}
+			`,
+			expMod: MustParseModuleWithOpts(`package logic
+				p = true if {
+					input.a and not {
+						__local0__ = input.b
+						__local0__ = 1
+					}
+				}
+			`, ParserOptions{
+				FutureKeywords: []string{"and", "or", "not"},
+			}),
+		},
+		{
+			note: "and, chained, assignment in explicit bodies",
+			module: `package logic
+				p if {
+					{ x := 1; x > 0 } and true and { y := 2; y > 0 }
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					{ __local0__ = 1; gt(__local0__, 0) } and true and { __local1__ = 2; gt(__local1__, 0) }
+				}
+			`,
+		},
+		{
+			note: "or, chained, assignment in explicit bodies",
+			module: `package logic
+				p if {
+					{ x := 1; x > 0 } or true or { y := 2; y > 0 }
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					{ __local0__ = 1; gt(__local0__, 0) } or true or { __local1__ = 2; gt(__local1__, 0) }
+				}
+			`,
+		},
+		{
+			note: "and, assignment in explicit body nested in implicit operand",
+			module: `package logic
+				p if {
+					input.a or input.b and { x := input.c; x > 1 }
+				}
+			`,
+			expMod: `package logic
+				p = true if {
+					input.a or input.b and {
+						__local0__ = input.c
+						gt(__local0__, 1)
+					}
+				}
+			`,
 		},
 		{
 			note: "and, unification, forbidden in implicit body",
@@ -15836,7 +16244,6 @@ func TestCompilerAndOrImports(t *testing.T) {
 					}
 				}
 			`, ParserOptions{
-				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				FutureKeywords: []string{"and", "or", "not"},
 			}),
 		},
@@ -15861,7 +16268,6 @@ func TestCompilerAndOrImports(t *testing.T) {
 					}
 				}
 			`, ParserOptions{
-				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				FutureKeywords: []string{"and", "or", "not"},
 			}),
 		},
@@ -16064,7 +16470,6 @@ func TestCompilerAndOrImports(t *testing.T) {
 					not (input.a or input.b)
 				}
 			`, ParserOptions{
-				Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 				FutureKeywords: []string{"and", "or", "not"},
 			}),
 		},
@@ -16151,7 +16556,6 @@ func TestCompilerAndOrImports(t *testing.T) {
 
 func TestCompilerLogicalGroupRewrites(t *testing.T) {
 	popts := ParserOptions{
-		Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 		FutureKeywords: []string{"and", "or", "not"},
 	}
 
@@ -16230,18 +16634,28 @@ func TestCompilerLogicalGroupRewrites(t *testing.T) {
 
 func TestQueryCompilerAndOrImports(t *testing.T) {
 	popts := ParserOptions{
-		Capabilities:      CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 		AllFutureKeywords: true,
 	}
 	c := NewCompiler()
 
 	tests := []struct {
-		note  string
-		query string
+		note    string
+		query   string
+		wantErr string
 	}{
-		{"and basic", "input.x and input.y"},
-		{"or basic", "input.x or input.y"},
-		{"explicit body with internal local", "{x := 1; x > 0} and true"},
+		{note: "and basic", query: "input.x and input.y"},
+		{note: "or basic", query: "input.x or input.y"},
+		{note: "explicit body with internal local", query: "{x := 1; x > 0} and true"},
+		{
+			note:    "assign in implicit or operand",
+			query:   "input.x or y := input.y",
+			wantErr: "cannot assign vars inside implicit or operand",
+		},
+		{
+			note:    "assign in implicit not body",
+			query:   "input.x and not y := input.y",
+			wantErr: "cannot assign vars inside negated expression",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -16250,7 +16664,15 @@ func TestQueryCompilerAndOrImports(t *testing.T) {
 				t.Fatalf("parse: %v", err)
 			}
 			qc := c.QueryCompiler()
-			if _, err := qc.Compile(body); err != nil {
+			_, err = qc.Compile(body)
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error %q, got success", tc.wantErr)
+				}
+				if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected error %q, got: %v", tc.wantErr, err)
+				}
+			} else if err != nil {
 				t.Fatalf("query compile failed: %v", err)
 			}
 		})

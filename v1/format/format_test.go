@@ -100,13 +100,6 @@ func TestFormatSourceError(t *testing.T) {
 	}
 }
 
-// TODO: Remove once `and`/`or` are no longer experimental keywords.
-func experimentalKeywordCapabilities(v ast.RegoVersion) *ast.Capabilities {
-	return ast.CapabilitiesForThisVersion(
-		ast.CapabilitiesRegoVersion(v),
-		ast.CapabilitiesExperimentalKeywords(true))
-}
-
 func TestFormatV0Source(t *testing.T) {
 	regoFiles, err := filepath.Glob("testfiles/v0/*.rego")
 	if err != nil {
@@ -126,8 +119,7 @@ func TestFormatV0Source(t *testing.T) {
 			}
 
 			popts := ast.ParserOptions{
-				RegoVersion:  ast.RegoV0,
-				Capabilities: experimentalKeywordCapabilities(ast.RegoV0),
+				RegoVersion: ast.RegoV0,
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV0,
@@ -187,8 +179,7 @@ func TestFormatV1Source(t *testing.T) {
 			}
 
 			popts := ast.ParserOptions{
-				RegoVersion:  ast.RegoV1,
-				Capabilities: experimentalKeywordCapabilities(ast.RegoV1),
+				RegoVersion: ast.RegoV1,
 			}
 			opts := Opts{
 				RegoVersion:   ast.RegoV1,
@@ -931,7 +922,6 @@ p if {
 				}`,
 				ast.ParserOptions{
 					FutureKeywords: []string{"and"},
-					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
 				}),
 			expected: `package test
 
@@ -950,7 +940,6 @@ p {
 				}`,
 				ast.ParserOptions{
 					FutureKeywords: []string{"and"},
-					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
 				}),
 			expected: `package test
 
@@ -969,7 +958,6 @@ p if {
 				}`,
 				ast.ParserOptions{
 					FutureKeywords: []string{"or"},
-					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
 				}),
 			expected: `package test
 
@@ -988,7 +976,6 @@ p {
 				}`,
 				ast.ParserOptions{
 					FutureKeywords: []string{"or"},
-					Capabilities:   experimentalKeywordCapabilities(ast.RegoV1),
 				}),
 			expected: `package test
 
@@ -1102,6 +1089,47 @@ func TestFormatAST_Error(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), tc.expErr) {
 				t.Fatalf("Expected error to contain:\n\n%q\n\ngot:\n\n%q", tc.expErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestFormatAddedImportsPrecedeRules(t *testing.T) {
+	// Partial evaluation drops the imports and emits rules at line 1, so the
+	// formatter has to add an import for every keyword the rules use.
+	cases := []struct {
+		note   string
+		module string
+	}{
+		{
+			note:   "and and or",
+			module: "package t\n\nimport future.keywords.and\nimport future.keywords.or\n\nallow if input.a and input.b or input.c\n",
+		},
+		{
+			note:   "and and not",
+			module: "package t\n\nimport future.keywords.and\nimport future.keywords.not\n\nallow if not (input.a) and input.b\n",
+		},
+		{
+			note:   "or and not",
+			module: "package t\n\nimport future.keywords.not\nimport future.keywords.or\n\nallow if not (input.a) or input.b\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			module := ast.MustParseModule(tc.module)
+			module.Imports = nil
+			for _, rule := range module.Rules {
+				rule.SetLoc(ast.NewLocation(rule.Loc().Text, "", 1, 1))
+			}
+
+			formatted, err := Ast(module)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if _, err := ast.ParseModule("formatted.rego", string(formatted)); err != nil {
+				t.Fatalf("Expected formatted module to parse, got %s:\n\n%s", err, formatted)
 			}
 		})
 	}
@@ -1355,7 +1383,7 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 						t.Fatalf("Failed to read rego source: %v", err)
 					}
 
-					caps := experimentalKeywordCapabilities(regoVersion)
+					caps := ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(regoVersion))
 					feats := make([]string, 0, len(caps.Features))
 					for _, f := range caps.Features {
 						if f != ast.FeatureKeywordsInRefs {
@@ -1368,7 +1396,7 @@ func TestFormatKeywordsInRefs(t *testing.T) {
 						RegoVersion: regoVersion,
 						// The source is parsed with keywords in refs allowed; it is
 						// only the formatting of refs that drops the feature.
-						Capabilities: experimentalKeywordCapabilities(regoVersion),
+						Capabilities: ast.CapabilitiesForThisVersion(ast.CapabilitiesRegoVersion(regoVersion)),
 					}
 					opts := Opts{
 						RegoVersion:   regoVersion,

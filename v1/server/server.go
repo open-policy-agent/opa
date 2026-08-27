@@ -944,8 +944,8 @@ func (s *Server) initRouters(ctx context.Context) {
 func createMiddleware(mw ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(hnd http.Handler) http.Handler {
 		next := hnd
-		for k := len(mw) - 1; k >= 0; k-- {
-			next = mw[k](next)
+		for _, m := range slices.Backward(mw) {
+			next = m(next)
 		}
 		return next
 	}
@@ -2499,17 +2499,12 @@ func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction
 }
 
 func (s *Server) checkPolicyPackageScope(ctx context.Context, txn storage.Transaction, pkg *ast.Package) error {
-	path, err := pkg.Path.Ptr()
+	path, err := storage.NewPathForRef(pkg.Path)
 	if err != nil {
 		return err
 	}
 
-	spath, ok := storage.ParsePathEscaped("/" + path)
-	if !ok {
-		return types.BadRequestErr("invalid package path: cannot determine scope")
-	}
-
-	return s.checkPathScope(ctx, txn, spath)
+	return s.checkPathScope(ctx, txn, path)
 }
 
 func (s *Server) getMetrics(r *http.Request) metrics.Metrics {
@@ -2541,13 +2536,9 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 		bundleRoots[name] = roots
 	}
 
-	spath := strings.Trim(path.String(), "/")
-
-	if spath == "" && len(bundleRoots) > 0 {
+	if len(path) == 0 && len(bundleRoots) > 0 {
 		return types.BadRequestErr("can't write to document root with bundle roots configured")
 	}
-
-	spathParts := strings.Split(spath, "/")
 
 	for name, roots := range bundleRoots {
 		if roots == nil {
@@ -2557,8 +2548,8 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 			if root == "" {
 				return types.BadRequestErr(fmt.Sprintf("all paths owned by bundle %q", name))
 			}
-			if isPathOwned(spathParts, strings.Split(root, "/")) {
-				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", spath, name))
+			if isPathOwned(path, strings.Split(root, "/")) {
+				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", strings.Join(path, "/"), name))
 			}
 		}
 	}

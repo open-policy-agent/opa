@@ -163,6 +163,8 @@ func TestCapabilitiesCurrent(t *testing.T) {
 			},
 			expFutureKeywords: []string{
 				"not",
+				"and",
+				"or",
 			},
 		},
 		{
@@ -181,6 +183,8 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				"contains",
 				"if",
 				"not",
+				"and",
+				"or",
 			},
 		},
 	}

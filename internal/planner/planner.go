@@ -49,6 +49,11 @@ type Planner struct {
 	lnext   ir.Local                // next variable to use
 	loc     *location.Location      // location currently "being planned"
 	debug   debug.Debug             // debug information produced during planning
+
+	allRules     map[*ast.Rule]bool // all rules parsed from input modules, used to track unplanned rules for additional reporting (e.g. coverage)
+	plannedRules map[*ast.Rule]bool
+
+	unplannedRules bool // whether to populate policy.UnplannedRules
 }
 
 // debugf prepends the planner location. We're passing callstack depth 2 because
@@ -83,6 +88,9 @@ func New() *Planner {
 		funcs: newFuncstack(),
 		mocks: newFunctionMocksStack(),
 		debug: debug.Discard(),
+
+		allRules:     map[*ast.Rule]bool{},
+		plannedRules: map[*ast.Rule]bool{},
 	}
 }
 
@@ -115,6 +123,14 @@ func (p *Planner) WithDebug(sink io.Writer) *Planner {
 	return p
 }
 
+// WithUnplannedRules controls whether the resulting policy includes the
+// list of rules that were parsed but never planned (i.e. not reachable
+// from any entrypoint). Disabled by default.
+func (p *Planner) WithUnplannedRules(yes bool) *Planner {
+	p.unplannedRules = yes
+	return p
+}
+
 // Plan returns a IR plan for the policy query.
 func (p *Planner) Plan() (*ir.Policy, error) {
 
@@ -130,7 +146,30 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 		return nil, err
 	}
 
+	if p.unplannedRules {
+		p.buildUnplannedRules()
+	}
+
 	return p.policy, nil
+}
+
+// buildUnplannedRules populates policy.UnplannedRules with the rules that
+// were parsed but never planned (i.e. not reachable from any entrypoint),
+// for coverage reporting purposes.
+func (p *Planner) buildUnplannedRules() {
+	for rule := range p.allRules {
+		if p.plannedRules[rule] {
+			continue
+		}
+		p.policy.UnplannedRules = append(p.policy.UnplannedRules, &ir.UnplannedRule{
+			Path:     rule.Ref().String(),
+			Location: p.newLocation(rule.Loc()),
+		})
+	}
+
+	slices.SortFunc(p.policy.UnplannedRules, func(a, b *ir.UnplannedRule) int {
+		return strings.Compare(a.Path, b.Path)
+	})
 }
 
 func (p *Planner) buildFunctrie() error {
@@ -151,6 +190,8 @@ func (p *Planner) buildFunctrie() error {
 		}
 
 		for _, rule := range module.Rules {
+			p.allRules[rule] = true
+
 			r := rule.Ref().StringPrefix()
 			val := p.rules.LookupOrInsert(r)
 
@@ -163,6 +204,10 @@ func (p *Planner) buildFunctrie() error {
 }
 
 func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
+	for _, rule := range rules {
+		p.plannedRules[rule] = true
+	}
+
 	// We sort rules, first by ref length, and then using the
 	// Ref.Compare method to break ties. This yields a stable
 	// sorting order for the slice of rules to be planned.
@@ -900,8 +945,8 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 			p.mocks.PopFrame()
 			if shadowing {
 				p.funcs.Pop()
-				for i := len(dataRefs) - 1; i >= 0; i-- {
-					p.rules.Pop(dataRefs[i])
+				for _, dataRef := range slices.Backward(dataRefs) {
+					p.rules.Pop(dataRef)
 				}
 			}
 
@@ -925,8 +970,8 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		p.mocks.PopFrame()
 		if shadowing {
 			p.funcs.Pop()
-			for i := len(dataRefs) - 1; i >= 0; i-- {
-				p.rules.Pop(dataRefs[i])
+			for _, dataRef := range slices.Backward(dataRefs) {
+				p.rules.Pop(dataRef)
 			}
 		}
 		return err
@@ -2478,6 +2523,18 @@ func (p *Planner) getFileConst(s string) int {
 		p.files[s] = index
 	}
 	return index
+}
+
+// newLocation builds a fresh *ir.Location from an ast.Location. It lives on
+// Planner because it needs p.getFileConst to resolve the file constant index.
+func (p *Planner) newLocation(loc *location.Location) *ir.Location {
+	str := loc.File
+	if str == "" {
+		str = `<query>`
+	}
+	l := &ir.Location{}
+	l.SetLocation(p.getFileConst(str), loc.Row, loc.Col, str, loc.Text)
+	return l
 }
 
 func (p *Planner) appendStmt(s ir.Stmt) {

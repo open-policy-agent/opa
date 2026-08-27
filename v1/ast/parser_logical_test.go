@@ -8,10 +8,8 @@ import (
 )
 
 func logicalParserOpts(extraFuture ...string) ParserOptions {
-	caps := CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
 	fk := append([]string{"and", "or"}, extraFuture...)
 	return ParserOptions{
-		Capabilities:   caps,
 		FutureKeywords: fk,
 	}
 }
@@ -19,7 +17,6 @@ func logicalParserOpts(extraFuture ...string) ParserOptions {
 func logicalParserOptsForVersion(v RegoVersion, extraFuture ...string) ParserOptions {
 	opts := logicalParserOpts(extraFuture...)
 	opts.RegoVersion = v
-	opts.Capabilities = CapabilitiesForThisVersion(CapabilitiesRegoVersion(v), CapabilitiesExperimentalKeywords(true))
 	return opts
 }
 
@@ -346,13 +343,38 @@ func TestParseLogical_ParseErrors(t *testing.T) {
 		{"and, inside every domain", "every x in y and z {x}", "unexpected and keyword"},
 		{"or, inside every domain", "every x in y or z {x}", "unexpected or keyword"},
 		{"some-in as an operand", "some x in xs and y", "unexpected and keyword"},
+		{"some-in as a rhs operand", "y and some x in xs", "unexpected some keyword"},
+		{"some-in as a rhs operand, or", "y or some x in xs", "unexpected some keyword"},
 		{"some decl as an operand", "some x and y", "unexpected and keyword"},
 		{"every as an operand", "every x in xs { x } and y", "unexpected and keyword"},
 		{"every as an operand, or", "every x in xs { x } or y", "unexpected or keyword"},
+		{"every as a rhs operand", "y and every x in xs { x }", "unexpected every keyword"},
+		{"every as a rhs operand, or", "y or every x in xs { x }", "unexpected every keyword"},
+		{"some decl as a rhs operand", "y and some x", "unexpected some keyword"},
 	}
 	for _, tc := range exprTests {
 		t.Run(tc.note, func(t *testing.T) {
 			assertParseErrorContains(t, tc.note, tc.input, tc.expected, opts)
+		})
+	}
+
+	// Implicit not bodies, which are only parsed when the `not` keyword is imported.
+	notOpts := logicalParserOpts("not")
+
+	notExprTests := []struct {
+		note     string
+		input    string
+		expected string
+	}{
+		{"some-in as a not body", "not some x in xs", "unexpected some keyword: illegal negation of 'some'"},
+		{"some decl as a not body", "not some x", "unexpected some keyword: illegal negation of 'some'"},
+		{"every as a not body", "not every x in xs { x }", "unexpected every keyword: illegal negation of 'every'"},
+		{"some-in as a negated operand", "y or not some x in xs", "unexpected some keyword"},
+		{"every as a negated operand", "y or not every x in xs { x }", "unexpected every keyword"},
+	}
+	for _, tc := range notExprTests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseErrorContains(t, tc.note, tc.input, tc.expected, notOpts)
 		})
 	}
 
@@ -457,29 +479,9 @@ func TestParseLogical_RefsContainingAndOr(t *testing.T) {
 	}
 }
 
-func TestParseLogical_NoLeakageOnImport(t *testing.T) {
-	t.Run("import error does not leak keyword names", func(t *testing.T) {
-		opts := ParserOptions{Capabilities: CapabilitiesForThisVersion()}
-		input := `package x
-			import future.keywords.and
-		`
-		_, _, err := ParseStatementsWithOpts("", input, opts)
-		if err == nil {
-			t.Fatal("expected parse error for import of and without experimental caps")
-		}
-		// Error message is of the form "unexpected keyword, must be one of
-		// [...]". The bracketed list must not include `and` or `or`.
-		msg := err.Error()
-		for _, leaked := range []string{"[and ", " and]", " and ", "[or ", " or]", " or "} {
-			if strings.Contains(msg, leaked) {
-				t.Errorf("error leaks internal keyword existence (%q present in %q)", leaked, msg)
-			}
-		}
-	})
-
-	t.Run("import accepted with experimental caps", func(t *testing.T) {
+func TestParseLogical_KeywordImport(t *testing.T) {
+	t.Run("import accepted", func(t *testing.T) {
 		opts := ParserOptions{
-			Capabilities:   CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
 			FutureKeywords: []string{"and"},
 		}
 		input := `package x
@@ -529,8 +531,7 @@ func TestParseLogical_NoLeakageOnImport(t *testing.T) {
 			},
 		}
 		opts := ParserOptions{
-			RegoVersion:  RegoV1,
-			Capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+			RegoVersion: RegoV1,
 		}
 		for _, tc := range tests {
 			t.Run(tc.note, func(t *testing.T) {
@@ -575,8 +576,7 @@ func TestParseLogical_NoLeakageOnImport(t *testing.T) {
 			},
 		}
 		opts := ParserOptions{
-			RegoVersion:  RegoV1,
-			Capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
+			RegoVersion: RegoV1,
 		}
 		for _, tc := range tests {
 			t.Run(tc.note, func(t *testing.T) {
@@ -591,8 +591,6 @@ func TestParseLogical_NoLeakageOnImport(t *testing.T) {
 // TestParseLogical_PartialActivation exercises the case where one of `and` /
 // `or` is enabled in the scanner but the other is not.
 func TestParseLogical_PartialActivation(t *testing.T) {
-	caps := CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true))
-
 	tests := []struct {
 		note      string
 		enable    []string
@@ -649,7 +647,6 @@ func TestParseLogical_PartialActivation(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			opts := ParserOptions{
-				Capabilities:   caps,
 				FutureKeywords: tc.enable,
 			}
 			body, err := ParseBodyWithOpts(tc.input, opts)
@@ -902,11 +899,7 @@ func TestParseLogical_InnerExprHasLocation(t *testing.T) {
 		}
 	`
 
-	popts := ParserOptions{
-		Capabilities: CapabilitiesForThisVersion(CapabilitiesExperimentalKeywords(true)),
-	}
-
-	mod, err := ParseModuleWithOpts("test.rego", module, popts)
+	mod, err := ParseModuleWithOpts("test.rego", module, ParserOptions{})
 	if err != nil {
 		t.Fatalf("unexpected parse error: %v", err)
 	}
@@ -1909,6 +1902,11 @@ func TestParseLogical_ParenSerialization(t *testing.T) {
 		{"not group, drops redundant outer group", "(not a)", "not a"},
 		{"not group, drops redundant operand group", "not (a)", "not a"},
 		{"not group as operand", "x and not (a or b)", "x and not (a or b)"},
+		{"nested negation keeps parens", "not (not a)", "not (not a)"},
+		{"nested negation of group keeps parens", "not (not (a or b))", "not (not (a or b))"},
+		{"nested negation of body keeps parens", "not (not {a; b})", "not (not {a; b})"},
+		{"nested negation as and operand", "x and not (not a)", "x and not (not a)"},
+		{"nested negation as or operand", "x or not (not a)", "x or not (not a)"},
 		{"explicit body stays braced", "a and {b or c}", "a and { b or c }"},
 		{"with operand group, lhs", "(a with input as x) or b", "(a with input as x) or b"},
 		{"with operand group, rhs", "a or (b with input as x)", "a or (b with input as x)"},
@@ -2308,6 +2306,76 @@ func TestParseLogical_BraceLedOperandHintExtent(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			assertParseErrorContains(t, tc.note, tc.input, tc.expErr, opts)
+		})
+	}
+}
+
+func TestParseLogical_VoidCallOperandIsRejected(t *testing.T) {
+	opts := logicalParserOpts("not")
+
+	// Every builtin declared without a result type.
+	operands := []struct {
+		name string
+		call string
+	}{
+		{"print", `print("x")`},
+		{"internal.print", `internal.print([{"x"}])`},
+		{"internal.test_case", `internal.test_case(["x"])`},
+	}
+
+	positions := []struct {
+		note string
+		expr string
+		op   string
+	}{
+		{note: "lhs of and", expr: "%s and z", op: "and"},
+		{note: "rhs of and", expr: "z and %s", op: "and"},
+		{note: "lhs of or", expr: "%s or z", op: "or"},
+		{note: "rhs of or", expr: "z or %s", op: "or"},
+		{note: "both operands of and", expr: "%s and %s", op: "and"},
+		{note: "both operands of or", expr: "%s or %s", op: "or"},
+		{note: "middle of an and chain", expr: "y and %s and z", op: "and"},
+		{note: "middle of an or chain", expr: "y or %s or z", op: "or"},
+		// `and` binds tighter, so the operand belongs to it, not to the `or`.
+		{note: "and operand inside an or chain", expr: "y or z and %s", op: "and"},
+		// Parens group rather than delimit, so the operand is still the bare call.
+		{note: "parenthesized lhs of and", expr: "(%s) and z", op: "and"},
+		// Braces don't change the semantics: the operand still cannot fail.
+		{note: "explicit body operand, lhs of and", expr: "{%s} and z", op: "and"},
+		{note: "explicit body operand, rhs of or", expr: "z or {%s}", op: "or"},
+		{note: "explicit body of only void calls", expr: "{%s; %s} and z", op: "and"},
+	}
+
+	for _, tc := range operands {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, ptc := range positions {
+				t.Run(ptc.note, func(t *testing.T) {
+					input := strings.ReplaceAll(ptc.expr, "%s", tc.call)
+					expErr := fmt.Sprintf("operand of `%s` cannot consist only of calls to `%s` "+
+						"(hint: `%s` produces no value and always succeeds, so the operand can never "+
+						"fail; move it out of the operand, or add an expression that can fail)",
+						ptc.op, tc.name, tc.name)
+
+					assertParseErrorContains(t, ptc.note, input, expErr, opts)
+				})
+			}
+		})
+	}
+
+	allowed := []string{
+		`{print("x"); true} and z`,
+		`{some v in [1]; print(v)} and z`,
+		`not print("x") and z`,
+		`not {print("x")} and z`,
+		`x := [1 | print("x")] and z`,
+		`print(f(x)) ; z`,
+	}
+
+	for _, input := range allowed {
+		t.Run(input, func(t *testing.T) {
+			if _, err := ParseBodyWithOpts(input, opts); err != nil {
+				t.Fatalf("unexpected error for %q: %v", input, err)
+			}
 		})
 	}
 }

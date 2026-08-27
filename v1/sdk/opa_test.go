@@ -1963,6 +1963,54 @@ main = 7
 
 }
 
+func TestBundleRootWithSpace(t *testing.T) {
+	ctx := t.Context()
+
+	buf := archive.MustWriteTarGz([][2]string{
+		{"/.manifest", `{"revision": "abc", "roots": ["a/b/foo bar"]}`},
+		{"/a/b/foo bar/data.json", `{"hello": "world"}`},
+	})
+	bs := buf.Bytes()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/gzip")
+		_, _ = w.Write(bs)
+	}))
+
+	defer server.Close()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		}
+	}`, server.URL)
+
+	// sdk.New blocks until the bundle has been activated.
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	exp := map[string]any{"hello": "world"}
+
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/a/b/foo bar"}); err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(result.Result, exp) {
+		t.Fatalf("expected %v but got %v", exp, result.Result)
+	}
+}
+
 func TestDiscoveryBundleRegoV1(t *testing.T) {
 	tests := []struct {
 		note            string

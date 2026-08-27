@@ -4,7 +4,6 @@
 # *not* evaluated when the LHS already failed.
 cases:
   - note: "logic_op/and/short-circuit: lhs fails, rhs builtin not evaluated"
-    experimental_keywords: true
     strict_error: true
     query: data.test.p = x
     modules:
@@ -19,7 +18,6 @@ cases:
       x: 0
     want_result: []
   - note: "logic_op/and/short-circuit: lhs succeeds, rhs builtin error surfaces"
-    experimental_keywords: true
     strict_error: true
     query: data.test.p = x
     modules:
@@ -35,7 +33,6 @@ cases:
     want_error_code: eval_builtin_error
     want_error: to_number
   - note: "logic_op/and/short-circuit: guarded type access"
-    experimental_keywords: true
     strict_error: true
     query: data.test.p = x
     modules:

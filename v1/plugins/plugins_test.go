@@ -105,7 +105,7 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
-	defer m.Stop(context.Background())
+	defer m.Stop(t.Context())
 
 	// Register two listeners
 	var l1Status map[string]*Status
@@ -661,7 +661,7 @@ func (*testExternalSourcePlugin) Reconfigure(context.Context, any) {}
 // TestExternalSourceIntegration verifies external source behavior during plugin lifecycle
 func TestExternalSourceIntegration(t *testing.T) {
 	t.Run("sources wired after plugin start", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		m, err := New([]byte(`{}`), "test", inmem.New())
 		if err != nil {
 			t.Fatalf("Failed to create manager: %v", err)
@@ -742,7 +742,7 @@ test_rule := true`)
 	})
 
 	t.Run("no recompilation when no sources registered", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		m, err := New([]byte(`{}`), "test", inmem.New())
 		if err != nil {
 			t.Fatalf("Failed to create manager: %v", err)

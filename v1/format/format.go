@@ -206,9 +206,6 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 	}
 	o.allowKeywordsInRefs = capabilities.ContainsFeature(ast.FeatureKeywordsInRefs)
 
-	memberRef := ast.Member.Ref()
-	memberWithKeyRef := ast.MemberWithKey.Ref()
-
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.
 	ast.WalkNodes(x, func(x ast.Node) bool {
@@ -222,7 +219,8 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 
 		case *ast.Expr:
 			switch {
-			case n.IsCall() && memberRef.Equal(n.Operator()) || memberWithKeyRef.Equal(n.Operator()):
+			case n.IsCall() && ast.Interned.Refs.Member.Equal(n.Operator()) ||
+				ast.Interned.Refs.MemberWithKey.Equal(n.Operator()):
 				extraFutureKeywordImports["in"] = struct{}{}
 			case n.IsEvery():
 				extraFutureKeywordImports["every"] = struct{}{}
@@ -479,8 +477,26 @@ func (w *writer) writeModule(module *ast.Module) error {
 
 	comments = trimTrailingWhitespaceInComments(comments)
 
+	// Imports added by the formatter get an assigned line number, which can sort
+	// after a rule's. An import written after a rule has no effect.
+	var added []*ast.Import
+	if addedImportFollowsRule(others) {
+		others = slices.DeleteFunc(others, func(x any) bool {
+			imp, ok := x.(*ast.Import)
+			if !ok || !isAddedImport(imp) {
+				return false
+			}
+			added = append(added, imp)
+			return true
+		})
+	}
+
 	var err error
 	comments, err = w.writePackage(pkg, comments)
+	if err != nil {
+		return err
+	}
+	comments, err = w.writeImports(added, comments)
 	if err != nil {
 		return err
 	}
@@ -1272,6 +1288,12 @@ func notBodyNeedsParens(expr *ast.Expr) bool {
 
 	// `not` binds tighter than `and`/`or`.
 	if isLogicalExpr(expr) {
+		return true
+	}
+
+	// `not not x` doesn't parse: a nested negation must be parenthesized to be
+	// read back as a body.
+	if _, ok := expr.Terms.(*ast.Not); ok {
 		return true
 	}
 
@@ -2109,11 +2131,15 @@ func (w *writer) writeObjectComprehension(object *ast.ObjectComprehension, loc *
 	w.write("{")
 	defer w.write("}")
 
-	object.Value.Location = object.Key.Location // Ensure the value is not written on the next line.
-	if object.Key.Location.Row-loc.Row > 1 {
-		w.endLine()
-		w.startLine()
-	}
+	// Ensure the value is not written on the next line. writeComprehension
+	// breaks before the term whenever the term's row is below the row the
+	// comprehension opened on, so the value is given a location on that row
+	// rather than its own, which may already be a row further down. Copying
+	// the value's own location rather than the key's keeps Text intact, which
+	// writeComprehension reads to decide whether a call term was parenthesised.
+	valueLoc := *object.Value.Location
+	valueLoc.Row = loc.Row
+	object.Value.Location = &valueLoc
 
 	paren := isUnionCall(object.Key)
 	if paren {
@@ -2355,7 +2381,7 @@ func (w *writer) writeIterableLine(elements []any, comments []*ast.Comment, fn e
 // `x | y`, which is comprehension syntax at an operand brace.
 func isUnionExpr(expr *ast.Expr) bool {
 	terms, ok := expr.Terms.([]*ast.Term)
-	return ok && len(terms) == 3 && ast.Or.Ref().Equal(terms[0].Value)
+	return ok && len(terms) == 3 && ast.Interned.Refs.Or.Equal(terms[0].Value)
 }
 
 // markUnionLead parenthesizes the set union leading the rendering of expr, if
@@ -2453,7 +2479,7 @@ func termRendersBraceLead(t *ast.Term) bool {
 // literal or as a comprehension term, and must be parenthesized there.
 func isUnionCall(t *ast.Term) bool {
 	call, ok := t.Value.(ast.Call)
-	return ok && ast.Or.Ref().Equal(call[0].Value)
+	return ok && ast.Interned.Refs.Or.Equal(call[0].Value)
 }
 
 func (w *writer) objectWriter() entryWriter {
@@ -2939,6 +2965,32 @@ func nextImportLoc(imps []*ast.Import, node ast.Node) *ast.Location {
 func isFutureKeywordsImport(imp *ast.Import) bool {
 	path := imp.Path.Value.(ast.Ref)
 	return len(path) >= 2 && ast.FutureRootDocument.Equal(path[0])
+}
+
+func isAddedImport(imp *ast.Import) bool {
+	return imp.Loc() != nil && imp.Loc().File == defaultLocationFile
+}
+
+// addedImportFollowsRule reports whether an import added by the formatter would
+// be written at or after the first rule.
+func addedImportFollowsRule(others []any) bool {
+	firstRule := -1
+	for _, x := range others {
+		if r, ok := x.(*ast.Rule); ok && r.Loc() != nil {
+			if firstRule < 0 || r.Loc().Row < firstRule {
+				firstRule = r.Loc().Row
+			}
+		}
+	}
+	if firstRule < 0 {
+		return false
+	}
+	for _, x := range others {
+		if imp, ok := x.(*ast.Import); ok && isAddedImport(imp) && imp.Loc().Row >= firstRule {
+			return true
+		}
+	}
+	return false
 }
 
 func ensureRegoV1Import(imps []*ast.Import) []*ast.Import {

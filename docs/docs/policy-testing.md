@@ -599,9 +599,23 @@ indicates one of two things:
 - If the line refers to the head of a rule, the body of the rule was never true.
 - If the line refers to an expression in a rule, the expression was never evaluated.
 
-It is also possible that [rule indexing](./policy-performance/#use-indexed-statements)
-has determined some path unnecessary for evaluation, thereby affecting the lines
-reported as covered.
+It is also possible that an evaluation-time optimization determined some path
+unnecessary for evaluation, thereby affecting the lines reported as covered.
+This can happen when [rule indexing](./policy-performance/#use-indexed-statements)
+excludes a path, or when an early-exit optimization stops evaluating once a
+result is known.
+
+To help distinguish paths that were skipped by these optimizations from
+genuinely untested code, not-covered ranges in the JSON report may carry a
+`kinds` array that annotates why the range was skipped:
+
+- `index_excluded`: the rule indexer excluded the path without attempting it.
+- `early_exit`: an early-exit optimization skipped the path without attempting it.
+
+These annotations are produced by supplementary evaluation passes controlled
+by the `--coverage-runs` flag (available on both `opa test` and `opa eval`).
+Both kinds run by default. Passing an empty list disables the extra passes and
+the `kinds` annotations.
 
 If the coverage report is run on the original **example.rego** file without
 `test_get_user_allowed` from **example_test**.rego the report will indicate

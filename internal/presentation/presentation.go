@@ -100,11 +100,7 @@ func (o DepAnalysisOutput) Pretty(w io.Writer) error {
 		}
 	}
 
-	if err := table.Render(); err != nil {
-		return err
-	}
-
-	return nil
+	return table.Render()
 }
 
 func (o DepAnalysisOutput) sort() {

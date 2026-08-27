@@ -60,6 +60,13 @@ const (
 // PlanFormats contains the list of plan output formats supported by the compiler.
 var PlanFormats = []string{PlanFormatJSON, PlanFormatProto}
 
+// PlanAddonUnplannedRules is a plan addon that also includes a list of locations for
+// unplanned rules for coverage reporting.
+const PlanAddonUnplannedRules = "unplanned_rules"
+
+// PlanAddons contains the list of plan addons supported by the compiler.
+var PlanAddons = []string{PlanAddonUnplannedRules}
+
 // Targets contains the list of targets supported by the compiler.
 var Targets = []string{
 	TargetRego,
@@ -100,6 +107,7 @@ type Compiler struct {
 	regoVersion                  ast.RegoVersion
 	followSymlinks               bool      // optionally follow symlinks in the bundle directory when building the bundle
 	externalRefs                 []ast.Ref // external entrypoints provided dynamically
+	planAddons                   []string  // optional extra contents to include in the plan (e.g. unplanned_rules)
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -290,6 +298,13 @@ func (c *Compiler) WithRegoVersion(v ast.RegoVersion) *Compiler {
 	return c
 }
 
+// WithPlanAddons sets optional extra data to include in the generated plan.
+// The only supported value is "unplanned_rules".
+func (c *Compiler) WithPlanAddons(contents []string) *Compiler {
+	c.planAddons = contents
+	return c
+}
+
 func addEntrypointsFromAnnotations(c *Compiler, arefs []*ast.AnnotationsRef) error {
 	for _, aref := range arefs {
 		var entrypoint ast.Ref
@@ -338,6 +353,15 @@ func (c *Compiler) Build(ctx context.Context) error {
 	}
 	if c.planFormat != PlanFormatJSON && c.target != TargetPlan {
 		return fmt.Errorf("plan format %q is only valid with target %q", c.planFormat, TargetPlan)
+	}
+
+	for _, addon := range c.planAddons {
+		if !slices.Contains(PlanAddons, addon) {
+			return fmt.Errorf("unsupported plan addon %q (want one of %v)", addon, PlanAddons)
+		}
+	}
+	if len(c.planAddons) > 0 && c.target != TargetPlan {
+		return fmt.Errorf("plan addons are only valid with target %q", TargetPlan)
 	}
 
 	if err := c.init(); err != nil {
@@ -711,7 +735,8 @@ func (c *Compiler) compilePlan(context.Context) error {
 		WithQueries(queries).
 		WithModules(modules).
 		WithBuiltinDecls(builtins).
-		WithDebug(c.debug.Writer())
+		WithDebug(c.debug.Writer()).
+		WithUnplannedRules(slices.Contains(c.planAddons, PlanAddonUnplannedRules))
 	policy, err := p.Plan()
 	if err != nil {
 		return err

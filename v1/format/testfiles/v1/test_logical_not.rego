@@ -29,3 +29,14 @@ negated_multi_expr_body_lhs_operand if (not {input.a; input.b}) or input.c
 
 # a `with` on a bare operand of `not` binds to the whole `not` expression
 negated_with_operand if not (input.a with input.x as 1)
+
+# a nested negation keeps its parens: `not not x` doesn't parse
+double_negation if not (not input.a)
+
+double_negation_group if not (not (input.a or input.b))
+
+double_negation_body if not (not {input.a; input.b})
+
+double_negation_lhs_operand if not (not input.a) and input.b
+
+double_negation_rhs_operand if input.a or not (not input.b)

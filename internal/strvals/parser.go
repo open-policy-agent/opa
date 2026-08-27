@@ -245,8 +245,7 @@ func setIndex(list []any, index int, val any) (l2 []any, err error) {
 
 func (t *parser) keyIndex() (int, error) {
 	// First, get the key.
-	stop := runeSet([]rune{']'})
-	v, _, err := runesUntil(t.sc, stop)
+	v, _, err := runesUntil(t.sc, runeSet([]rune{']'}))
 	if err != nil {
 		return 0, err
 	}

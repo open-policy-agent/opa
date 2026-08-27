@@ -1,6 +1,6 @@
 ---
 sidebar_label: if
-title: 'Rego Keyword Examples: if'
+title: 'Rego Keyword: if'
 ---
 
 The `if` keyword is used when defining rules in Rego. `if` separates the

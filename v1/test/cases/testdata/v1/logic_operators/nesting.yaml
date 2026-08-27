@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/nesting: explicit {a or b} and {c or d}, all true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -20,7 +19,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/nesting: explicit {a or b} and {c or d}, one branch fails"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -38,7 +36,6 @@ cases:
       d: true
     want_result: []
   - note: "logic_op/nesting: a or {b and {c or d}}, three-deep"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -57,7 +54,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/nesting: a or {b and {c or d}}, top-level lhs short-circuits"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -76,7 +72,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/nesting: x and {y or {z and w}}, mixed"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

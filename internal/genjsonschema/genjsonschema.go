@@ -181,8 +181,7 @@ func (b *Builder) collectFields(t reflect.Type, properties *OrderedMap, required
 	}
 	var fields []pendingField
 
-	for i := range t.NumField() {
-		f := t.Field(i)
+	for f := range t.Fields() {
 		if !f.IsExported() {
 			continue
 		}

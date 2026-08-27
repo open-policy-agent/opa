@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -152,7 +153,7 @@ q = true`)
 
 // The oracle parses the stdin buffer itself, so keywords that are gated behind
 // capabilities must reach it through the --capabilities flag.
-func TestOracleFindDefinitionExperimentalKeywords(t *testing.T) {
+func TestOracleFindDefinitionCapabilities(t *testing.T) {
 	module := `package test
 
 import future.keywords.or
@@ -165,7 +166,12 @@ q := 1
 
 r := 2`
 
-	capabilities, err := json.Marshal(ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)))
+	restricted := ast.CapabilitiesForThisVersion()
+	restricted.FutureKeywords = slices.DeleteFunc(restricted.FutureKeywords, func(kw string) bool {
+		return kw == "or"
+	})
+
+	capabilities, err := json.Marshal(restricted)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,9 +197,11 @@ r := 2`
 	stdout := bytes.NewBuffer(nil)
 
 	err = dofindDefinition(params, bytes.NewBufferString(module), stdout, []string{arg})
-	if err == nil || !strings.Contains(err.Error(), "rego_parse_error") {
-		t.Fatal("expected parse error without capabilities but got:", err, "result:", stdout.String())
-	}
+	expectJSON(t, err, stdout, fmt.Sprintf(`{"result": {
+		"file": %q,
+		"row": 9,
+		"col": 1
+	}}`, path.Join(rootDir, "test.rego")))
 
 	if err := params.capabilities.Set(path.Join(rootDir, "capabilities.json")); err != nil {
 		t.Fatal(err)
@@ -202,11 +210,9 @@ r := 2`
 	stdout.Reset()
 
 	err = dofindDefinition(params, bytes.NewBufferString(module), stdout, []string{arg})
-	expectJSON(t, err, stdout, fmt.Sprintf(`{"result": {
-		"file": %q,
-		"row": 9,
-		"col": 1
-	}}`, path.Join(rootDir, "test.rego")))
+	if err == nil || !strings.Contains(err.Error(), "rego_parse_error") {
+		t.Fatal("expected parse error with restricted capabilities but got:", err, "result:", stdout.String())
+	}
 }
 
 // The rego-version must be left undefined unless explicitly asked for, so that the

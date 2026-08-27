@@ -428,3 +428,76 @@ cases:
         - e/f/g
     want_error: "test-0.rego:4: eval_type_error: strings.any_suffix_match: operand 2 must be one of {string, set, array} but got number"
     strict_error: true
+  - note: strings/any_suffix_match/empty_string_in_strings_nomatch
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_suffix_match(input.strings, input.suffixes)
+        }
+    input:
+      suffixes:
+        - /z
+      strings:
+        - a/b/c
+        - ""
+        - e/f/g
+    want_result: []
+  - note: strings/any_suffix_match/empty_string_in_strings_match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_suffix_match(input.strings, input.suffixes)
+        }
+    input:
+      suffixes:
+        - /z
+        - f/g
+      strings:
+        - a/b/c
+        - ""
+        - e/f/g
+    want_result:
+      - x: true
+  - note: strings/any_suffix_match/empty_suffix_match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_suffix_match(input.strings, input.suffixes)
+        }
+    input:
+      suffixes:
+        - /z
+        - ""
+      strings:
+        - a/b/c
+        - a/b/d
+        - e/f/g
+    want_result:
+      - x: true
+  - note: strings/any_suffix_match/empty_string_and_empty_suffix_match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	strings.any_suffix_match(input.strings, input.suffixes)
+        }
+    input:
+      suffixes:
+        - /z
+        - ""
+      strings:
+        - ""
+        - a/b/c
+    want_result:
+      - x: true

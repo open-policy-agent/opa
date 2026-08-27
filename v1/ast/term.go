@@ -857,9 +857,6 @@ func (str String) Equal(other Value) bool {
 // Compare compares str to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (str String) Compare(other Value) int {
-	// Optimize for the common case of one string being compared to another by
-	// using a direct comparison of values. This avoids the allocation performed
-	// when calling Compare and its any argument conversion.
 	if otherStr, ok := other.(String); ok {
 		if str == otherStr {
 			return 0
@@ -1816,9 +1813,11 @@ func (s *set) Find(path Ref) (Value, error) {
 }
 
 // Diff returns elements in s that are not in other.
+// A returned empty set will be an interned representation that
+// should not be modified without copying.
 func (s *set) Diff(other Set) Set {
 	if s.Compare(other) == 0 {
-		return NewSet()
+		return InternedEmptySetValue.(Set)
 	}
 
 	result := newset(len(s.keys))
@@ -1913,13 +1912,9 @@ func (s *set) Map(f func(*Term) (*Term, error)) (Set, error) {
 // argument to f is the reduced value (starting with i) and the second argument
 // to f is the element in s.
 func (s *set) Reduce(i *Term, f func(*Term, *Term) (*Term, error)) (*Term, error) {
-	err := s.Iter(func(x *Term) error {
-		var err error
+	err := s.Iter(func(x *Term) (err error) {
 		i, err = f(i, x)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	return i, err
 }
@@ -2023,10 +2018,44 @@ type Object interface {
 
 // NewObject creates a new Object with t.
 func NewObject(t ...[2]*Term) Object {
-	obj := newobject(len(t))
-	for i := range t {
-		obj.insert(t[i][0], t[i][1], false)
+	var keys []*objectElem
+	n := len(t)
+	if n > 0 {
+		keys = make([]*objectElem, n)
 	}
+	obj := &object{
+		elems:     make(map[int]*objectElem, n),
+		keys:      keys,
+		sortGuard: sync.Once{},
+	}
+
+	// NOTE(anders): The code below is convoluted, but necessary
+	// since creating objects is something we do a lot and often
+	// on hot paths, this avoids allocating one objectElem per
+	// key-value pair, in favor of a single contiguous block of
+	// memory. The same technique is used in (*object).Copy(),
+	// for the same reasons.
+	elems := make([]objectElem, n)
+	for i, kv := range t {
+		key, val := kv[0], kv[1]
+		elems[i] = objectElem{key: key, value: val}
+		obj.keys[i] = &elems[i]
+
+		keyHash := key.Hash()
+		if head, ok := obj.elems[keyHash]; ok {
+			elems[i].next = head
+		}
+		obj.hash += keyHash + val.Hash()
+
+		if key.IsGround() {
+			obj.ground++
+		}
+		if val.IsGround() {
+			obj.ground++
+		}
+		obj.elems[keyHash] = &elems[i]
+	}
+
 	return obj
 }
 
@@ -2166,11 +2195,10 @@ func (lob *lazyObj) Keys() []*Term {
 	}
 	ret := make([]*Term, 0, len(lob.native))
 	for k := range lob.native {
-		ret = append(ret, StringTerm(k))
+		ret = append(ret, InternedTerm(k))
 	}
-	slices.SortFunc(ret, TermValueCompare)
 
-	return ret
+	return util.SortedFunc(ret, TermValueCompare)
 }
 
 func (lob *lazyObj) KeysIterator() ObjectKeysIterator {

@@ -317,3 +317,33 @@ cases:
     want_result:
       - x:
           q: true
+  - note: "negation/not-body: explicit body, future.keywords wildcard import"
+    query: data.negation = x
+    modules:
+      - |
+        package negation
+
+        import future.keywords
+
+        p if {
+          not {
+            input.a
+            input.b
+          }
+        }
+
+        q if {
+          not {
+            input.a and input.b
+          }
+        }
+
+        r if {
+          not (input.a or input.b)
+        }
+    input:
+      a: true
+    want_result:
+      - x:
+          p: true
+          q: true

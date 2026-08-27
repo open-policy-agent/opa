@@ -105,8 +105,15 @@ func ByteSliceToString(bs []byte) string {
 }
 
 // Allocation free conversion from ~string to []byte (unsafe)
-// Note that the byte slice must not be modified after conversion
+// Note that the byte slice must not be modified after conversion, and that it
+// aliases the string's memory: it is a view of s, not a copy like []byte(s).
 func StringToByteSlice[T ~string](s T) []byte {
+	if len(s) == 0 {
+		// unsafe.StringData's return value is unspecified for the empty string,
+		// so don't build a slice on top of it. Doing so currently yields a nil
+		// slice, which callers may treat differently from an empty one.
+		return []byte{}
+	}
 	return unsafe.Slice(unsafe.StringData(string(s)), len(s))
 }
 
@@ -305,6 +312,12 @@ func (sp *SlicePool[T]) Put(s *[]T) {
 // SortedFunc is simply a shorthand for [slices.SortFunc] which also returns the sorted slice.
 func SortedFunc[T any, S ~[]T](s S, cmp func(a, b T) int) S {
 	slices.SortFunc(s, cmp)
+	return s
+}
+
+// SortedStableFunc is simply a shorthand for [slices.SortStableFunc] which also returns the sorted slice.
+func SortedStableFunc[T any, S ~[]T](s S, cmp func(a, b T) int) S {
+	slices.SortStableFunc(s, cmp)
 	return s
 }
 

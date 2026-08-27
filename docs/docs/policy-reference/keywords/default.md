@@ -1,6 +1,6 @@
 ---
 sidebar_label: default
-title: 'Rego Keyword Examples: default'
+title: 'Rego Keyword: default'
 ---
 
 The `default` keyword is used to provide a default value for rules and

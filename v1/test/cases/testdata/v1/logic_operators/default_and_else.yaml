@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/default: default returns when or body fails"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -17,7 +16,6 @@ cases:
     want_result:
       - x: false
   - note: "logic_op/default: default skipped when or body succeeds"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -33,7 +31,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/default: default returns when and body fails"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -49,7 +46,6 @@ cases:
     want_result:
       - x: "fallback"
   - note: "logic_op/else: else fires when and body fails"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -64,7 +60,6 @@ cases:
     want_result:
       - x: "fallback"
   - note: "logic_op/else: else skipped when or body succeeds"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -79,7 +74,6 @@ cases:
     want_result:
       - x: "ok"
   - note: "logic_op/else: chained else with or in primary branch"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

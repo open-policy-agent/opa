@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"regexp"
 	"runtime"
@@ -24,12 +25,14 @@ import (
 	wasm_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/cover"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/storage"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
@@ -321,6 +324,10 @@ type Runner struct {
 	compiler              *ast.Compiler
 	store                 storage.Store
 	cover                 topdown.QueryTracer
+	coverNoIndex          *cover.Cover
+	coverNoEarlyExit      *cover.Cover
+	coverageRuns          []cover.Kind
+	coverRunsRegistered   bool
 	trace                 bool
 	enablePrintStatements bool
 	raiseBuiltinErrors    bool
@@ -334,6 +341,9 @@ type Runner struct {
 	customBuiltins        []*Builtin
 	defaultRegoVersion    ast.RegoVersion
 	parallel              int
+	// seed, when set, seeds non-deterministic builtins via rego.EvalSeed
+	// across all coverage passes, making their results reproducible.
+	seed io.Reader
 }
 
 // NewRunner returns a new runner.
@@ -342,6 +352,7 @@ func NewRunner() *Runner {
 		timeout:            5 * time.Second,
 		defaultRegoVersion: ast.DefaultRegoVersion,
 		parallel:           runtime.NumCPU(),
+		coverageRuns:       []cover.Kind{cover.KindIndexExcluded, cover.KindEarlyExit},
 	}
 }
 
@@ -400,19 +411,31 @@ func (r *Runner) SetCoverageTracer(tracer topdown.Tracer) *Runner {
 		return r
 	}
 	if qt, ok := tracer.(topdown.QueryTracer); ok {
-		r.cover = qt
-	} else {
-		r.cover = topdown.WrapLegacyTracer(tracer)
+		return r.SetCoverageQueryTracer(qt)
 	}
-	return r
+	return r.SetCoverageQueryTracer(topdown.WrapLegacyTracer(tracer))
 }
 
-// SetCoverageQueryTracer sets the tracer to use to compute coverage.
+// SetCoverageQueryTracer sets the tracer to use to compute coverage. If
+// tracer is a *cover.Cover, the runner also evaluates each test with rule
+// indexing and early exit disabled, tagging any extra coverage they reveal.
+// Which of those supplementary passes run is controlled by SetCoverageRuns.
 func (r *Runner) SetCoverageQueryTracer(tracer topdown.QueryTracer) *Runner {
 	if tracer == nil {
 		return r
 	}
 	r.cover = tracer
+	r.coverRunsRegistered = false
+	return r
+}
+
+// SetCoverageRuns sets which supplementary coverage passes run when the
+// coverage tracer is a *cover.Cover. Each pass re-evaluates tests with an
+// optimization disabled (rule indexing for KindIndexExcluded, early exit for
+// KindEarlyExit) to tag the extra not-covered ranges it reveals. A subset, or
+// an empty slice, skips the unwanted passes and their cost.
+func (r *Runner) SetCoverageRuns(kinds []cover.Kind) *Runner {
+	r.coverageRuns = kinds
 	return r
 }
 
@@ -429,6 +452,9 @@ func (r *Runner) EnableTracing(yes bool) *Runner {
 	r.trace = yes
 	if r.trace {
 		r.cover = nil
+		r.coverNoIndex = nil
+		r.coverNoEarlyExit = nil
+		r.coverRunsRegistered = false
 	}
 	return r
 }
@@ -592,6 +618,23 @@ func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enab
 }
 
 func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, runFunc run, parallel int) (chan *Result, error) {
+	// Register the supplementary coverage passes on the baseline *cover.Cover,
+	// honoring the kinds set by SetCoverageRuns. Doing it here (rather than in
+	// the setters) keeps SetCoverageQueryTracer and SetCoverageRuns
+	// order-independent; the guard stops repeated runs (RunBenchmarks or a
+	// --count loop reusing the runner) from registering the passes twice.
+	if cc, ok := r.cover.(*cover.Cover); ok && !r.coverRunsRegistered {
+		if slices.Contains(r.coverageRuns, cover.KindIndexExcluded) {
+			r.coverNoIndex = cover.New()
+			cc.AddRun(cover.KindIndexExcluded, r.coverNoIndex)
+		}
+		if slices.Contains(r.coverageRuns, cover.KindEarlyExit) {
+			r.coverNoEarlyExit = cover.New()
+			cc.AddRun(cover.KindEarlyExit, r.coverNoEarlyExit)
+		}
+		r.coverRunsRegistered = true
+	}
+
 	testRegex, err := r.setupTestRun(ctx, txn, enablePrintStatements)
 	if err != nil {
 		return nil, err
@@ -718,8 +761,6 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 	return nil
 }
 
-var testCaseFuncRef = ast.InternalTestCase.Ref()
-
 // injectTestCaseFunc will inject a call to the 'internal.test_case' function into partial-object test rules.
 // We attempt to find the earliest point in the rule body where we can inject the call, to ensure that the test-case
 // function is called as early as possible so that we capture as many failed test cases as possible.
@@ -769,7 +810,7 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 			// Only apply to rules that doesn't have manual use of the test-case function
 			manualCall := false
 			ast.WalkExprs(rule.Body, func(expr *ast.Expr) bool {
-				if expr.IsCall() && expr.Operator().Equal(testCaseFuncRef) {
+				if expr.IsCall() && expr.Operator().Equal(ast.Interned.Refs.InternalTestCase) {
 					manualCall = true
 					return true
 				}
@@ -890,7 +931,8 @@ func injectTestCaseFunc(compiler *ast.Compiler) *ast.Error {
 			})
 
 			testCaseFuncExpr := ast.NewExpr([]*ast.Term{
-				ast.NewTerm(ast.InternalTestCase.Ref()),
+				// Copied, as later compiler stages rewrite this body in place.
+				ast.NewTerm(ast.Interned.Refs.InternalTestCase.Copy()),
 				ast.NewTerm(args),
 			})
 
@@ -984,10 +1026,6 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		bufferTracer = &t.BufferTracer
 	}
 
-	if r.cover != nil {
-		tracers = append(tracers, r.cover)
-	}
-
 	printbuf := bytes.NewBuffer(nil)
 	var builtinErrors []topdown.Error
 	queryPath := rule.Module.Package.Path.Extend(ruleRef)
@@ -1003,10 +1041,6 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.BuiltinErrorList(&builtinErrors),
 	}
 
-	for _, t := range tracers {
-		opts = append(opts, rego.QueryTracer(t))
-	}
-
 	rg := rego.New(opts...)
 
 	// Register custom builtins on rego instance
@@ -1017,7 +1051,51 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	ctx = ast.WithCompiler(ctx, r.compiler)
 
 	t0 := time.Now()
-	rs, err := rg.Eval(ctx)
+
+	// Tracers are passed as EvalOptions below, so only the baseline pass
+	// feeds bufferTracer/TestQueryTracer/r.cover; the supplementary passes
+	// use their own tracer and options.
+	var rs rego.ResultSet
+	pq, err := rg.PrepareForEval(ctx)
+	if err == nil {
+		evalOpts := make([]rego.EvalOption, 0, len(tracers)+4)
+		evalOpts = append(evalOpts, rego.EvalTransaction(txn))
+		if r.seed != nil {
+			evalOpts = append(evalOpts, rego.EvalSeed(r.seed))
+		}
+		for _, t := range tracers {
+			evalOpts = append(evalOpts, rego.EvalQueryTracer(t))
+		}
+		var ndbc builtins.NDBCache
+		if r.cover != nil {
+			evalOpts = append(evalOpts, rego.EvalQueryTracer(r.cover))
+			// Share one non-deterministic builtin cache across all three passes so they take the same path.
+			ndbc = builtins.NDBCache{}
+			evalOpts = append(evalOpts, rego.EvalNDBuiltinCache(ndbc))
+		}
+		rs, err = pq.Eval(ctx, evalOpts...)
+		if err == nil {
+			// Results and errors here are discarded. A supplementary
+			// run is only used for coverage data. We might consider tracking
+			// errors in future if needed.
+			supplementaryBase := []rego.EvalOption{rego.EvalTransaction(txn)}
+			if r.seed != nil {
+				supplementaryBase = append(supplementaryBase, rego.EvalSeed(r.seed))
+			}
+			if r.coverNoIndex != nil {
+				_, _ = pq.Eval(
+					ctx,
+					append(supplementaryBase, cover.NoIndexingEvalOptions(r.coverNoIndex, ndbc)...)...,
+				)
+			}
+			if r.coverNoEarlyExit != nil {
+				_, _ = pq.Eval(
+					ctx,
+					append(supplementaryBase, cover.NoEarlyExitEvalOptions(r.coverNoEarlyExit, ndbc)...)...,
+				)
+			}
+		}
+	}
 	dt := time.Since(t0)
 
 	var trace []*topdown.Event

@@ -336,15 +336,15 @@ func (h *SlogHandler) Handle(ctx context.Context, record slog.Record) error {
 	msg := record.Message
 	switch record.Level {
 	case slog.LevelDebug:
-		logger.Debug(msg)
+		logger.Debug("%s", msg)
 	case slog.LevelInfo:
-		logger.Info(msg)
+		logger.Info("%s", msg)
 	case slog.LevelWarn:
-		logger.Warn(msg)
+		logger.Warn("%s", msg)
 	case slog.LevelError:
-		logger.Error(msg)
+		logger.Error("%s", msg)
 	default:
-		logger.Info(msg)
+		logger.Info("%s", msg)
 	}
 	return nil
 }

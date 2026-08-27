@@ -5,7 +5,6 @@
 package config
 
 import (
-	"context"
 	"reflect"
 	"slices"
 	"strings"
@@ -90,8 +89,8 @@ func TestParseConfigNonStringDecisionErrors(t *testing.T) {
 func TestCoreValidationRootSpecMatchesConfigStruct(t *testing.T) {
 	structKeys := map[string]struct{}{}
 	objType := reflect.TypeFor[Config]()
-	for i := range objType.NumField() {
-		name, _, _ := strings.Cut(objType.Field(i).Tag.Get("json"), ",")
+	for field := range objType.Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name == "" || name == "-" {
 			continue
 		}
@@ -117,7 +116,7 @@ func TestCoreValidationRootSpecMatchesConfigStruct(t *testing.T) {
 func rootSpecKeys(t *testing.T) map[string]struct{} {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	compiler, err := compileValidationPolicy()
 	if err != nil {
 		t.Fatalf("compile: %v", err)

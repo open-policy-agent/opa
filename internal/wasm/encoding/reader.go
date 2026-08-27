@@ -651,11 +651,8 @@ func readExport(r io.Reader, exp *module.Export) error {
 	}
 
 	exp.Descriptor.Index, err = leb128.ReadVarUint32(r)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func readElementSegment(r io.Reader, seg *module.ElementSegment) error {

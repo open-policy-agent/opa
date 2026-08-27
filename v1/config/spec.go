@@ -58,9 +58,7 @@ func collectStructSpec(specs *[]ConfigSpec, pattern []string, t reflect.Type) {
 // flattening anonymous embedded structs.
 func structKeys(specs *[]ConfigSpec, pattern []string, t reflect.Type) []string {
 	var keys []string
-	for i := range t.NumField() {
-		field := t.Field(i)
-
+	for field := range t.Fields() {
 		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name == "-" {
 			continue

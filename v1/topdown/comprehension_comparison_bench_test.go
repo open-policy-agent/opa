@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -88,7 +87,6 @@ result := [sum |
 			}
 
 			store := inmem.New()
-			ctx := context.Background()
 
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -98,7 +96,7 @@ result := [sum |
 					WithCompiler(compiler).
 					WithStore(store)
 
-				_, err := q.Run(ctx)
+				_, err := q.Run(b.Context())
 				if err != nil {
 					b.Fatalf("Query failed: %v", err)
 				}
@@ -161,7 +159,6 @@ file_stats := {file.name: len |
 	}
 
 	store := inmem.NewFromObject(inputData)
-	ctx := context.Background()
 
 	testCases := []struct {
 		name  string
@@ -183,8 +180,7 @@ file_stats := {file.name: len |
 					WithStore(store).
 					WithInput(ast.NewTerm(ast.MustInterfaceToValue(inputData)))
 
-				_, err := q.Run(ctx)
-				if err != nil {
+				if _, err := q.Run(b.Context()); err != nil {
 					b.Fatalf("Query failed: %v", err)
 				}
 			}

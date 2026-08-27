@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -89,7 +88,7 @@ func TestCheckOPAUpdateBadURL(t *testing.T) {
 	t.Setenv("OPA_VERSION_CHECK_SERVICE_URL", url)
 
 	var stdout bytes.Buffer
-	err := checkOPAUpdate(context.Background(), &stdout)
+	err := checkOPAUpdate(t.Context(), &stdout)
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}

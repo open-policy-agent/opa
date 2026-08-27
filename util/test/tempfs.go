@@ -13,7 +13,7 @@ import (
 // WithTempFS creates a temporary directory structure and invokes f with the
 // root directory path.
 func WithTempFS(files map[string]string, f func(string)) {
-	v1.WithTempFS(files, f) //nolint // ignore deprecation warning
+	v1.WithTempFS(files, f)
 }
 
 // MakeTempFS creates a temporary directory structure for test purposes rooted at root.

@@ -55,10 +55,14 @@ var RootDocumentNames = NewSet(
 // All refs to data in the policy engine's storage layer are prefixed with this ref.
 var DefaultRootRef = Ref{DefaultRootDocument}
 
+var DefaultRootRefTerm = NewTerm(DefaultRootRef)
+
 // InputRootRef is a reference to the root of the input document.
 //
 // All refs to query arguments are prefixed with this ref.
 var InputRootRef = Ref{InputRootDocument}
+
+var InputRootRefTerm = NewTerm(InputRootRef)
 
 // SchemaRootRef is a reference to the root of the schema document.
 //
@@ -69,10 +73,7 @@ var SchemaRootRef = Ref{SchemaRootDocument}
 
 // RootDocumentRefs contains the prefixes of top-level documents that all
 // non-local references start with.
-var RootDocumentRefs = NewSet(
-	NewTerm(DefaultRootRef),
-	NewTerm(InputRootRef),
-)
+var RootDocumentRefs = NewSet(DefaultRootRefTerm, InputRootRefTerm)
 
 // SystemDocumentKey is the name of the top-level key that identifies the system
 // document.
@@ -1298,7 +1299,11 @@ func (expr *Expr) Operator() Ref {
 	if op == nil {
 		return nil
 	}
-	return op.Value.(Ref)
+	ref, ok := op.Value.(Ref)
+	if !ok {
+		return nil
+	}
+	return ref
 }
 
 // OperatorTerm returns the name of the function or built-in this expression
@@ -1653,6 +1658,10 @@ func notBodyNeedsParens(b Body) bool {
 	case *LogicalOr, *LogicalAnd:
 		// `not` binds tighter than `and`/`or`
 		return true
+	case *Not:
+		// `not not x` doesn't parse: the operand of a `not` must be parenthesized
+		// for the inner negation to be read back as a body.
+		return true
 	case *Term:
 		return rendersWithLeadingBrace(t.Value)
 	}
@@ -1848,11 +1857,7 @@ func (rs RuleSet) Merge(other RuleSet) RuleSet {
 }
 
 func (rs RuleSet) String() string {
-	buf := make([]string, 0, len(rs))
-	for _, rule := range rs {
-		buf = append(buf, rule.String())
-	}
-	return "{" + strings.Join(buf, ", ") + "}"
+	return "{" + strings.Join(util.Map(rs, (*Rule).String), ", ") + "}"
 }
 
 // Returns true if the equality or assignment expression referred to by expr

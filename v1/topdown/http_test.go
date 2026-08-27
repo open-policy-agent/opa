@@ -2,7 +2,6 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint: goconst // string duplication is for test readability.
 package topdown
 
 import (
@@ -3046,7 +3045,7 @@ func TestCertSelectionLogic(t *testing.T) {
 		{
 			note:     "tls_use_system_certs set to true",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(true)},
-			expected: systemCertsPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
+			expected: systemCertsPool.Subjects(), // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 			msg:      "Expected TLS config to use system certs",
 		},
 		{
@@ -3064,19 +3063,19 @@ func TestCertSelectionLogic(t *testing.T) {
 		{
 			note:     "CA cert provided directly",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_ca_cert"): ast.StringTerm(string(ca))},
-			expected: caPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
+			expected: caPool.Subjects(),
 			msg:      "Expected TLS config to use provided CA certs",
 		},
 		{
 			note:     "CA cert file path provided",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_ca_cert_file"): ast.StringTerm(localCaFile)},
-			expected: caPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
+			expected: caPool.Subjects(),
 			msg:      "Expected TLS config to use provided CA certs in file",
 		},
 		{
 			note:     "CA cert provided in env variable",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_ca_cert_env_variable"): ast.StringTerm("CLIENT_CA_ENV")},
-			expected: caPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
+			expected: caPool.Subjects(),
 			msg:      "Expected TLS config to use provided CA certs in env variable",
 		},
 		{
@@ -3085,7 +3084,7 @@ func TestCertSelectionLogic(t *testing.T) {
 				ast.StringTerm("tls_ca_cert"):          ast.StringTerm(string(ca)),
 				ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(false),
 			},
-			expected: caPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
+			expected: caPool.Subjects(),
 			msg:      "Expected TLS config to use provided CA certs only",
 		},
 		{
@@ -3094,7 +3093,7 @@ func TestCertSelectionLogic(t *testing.T) {
 				ast.StringTerm("tls_ca_cert"):          ast.StringTerm(string(ca)),
 				ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(true),
 			},
-			expected: systemCertsAndCaPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
+			expected: systemCertsAndCaPool.Subjects(),
 			msg:      "Expected TLS config to use provided CA certs and system certs",
 		},
 	}
@@ -3111,7 +3110,6 @@ func TestCertSelectionLogic(t *testing.T) {
 					t.Fatal(tc.msg)
 				}
 			} else {
-				// nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 				if !reflect.DeepEqual(tlsConfig.RootCAs.Subjects(), tc.expected) {
 					t.Fatal(tc.msg)
 				}
@@ -3463,8 +3461,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 		// Execute query and verify http.send latency shows up in metrics registry.
 		m := metrics.New()
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
-		_, err := q.Run(t.Context())
-		if err != nil {
+		if _, err := q.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3483,13 +3480,11 @@ func TestHTTPSendMetrics(t *testing.T) {
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "cache": true})`, ts.URL))).
 			WithInterQueryBuiltinCache(interQueryCache).
 			WithMetrics(m)
-		_, err := q.Run(t.Context())
-		if err != nil {
+		if _, err := q.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 		// cache hit
-		_, err = q.Run(t.Context())
-		if err != nil {
+		if _, err := q.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3504,8 +3499,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 
 		// Test 1: Single request - verify counter increments
 		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
-		_, err := q.Run(context.Background())
-		if err != nil {
+		if _, err := q.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3515,8 +3509,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 
 		// Test 2: Another request to different URL
 		q2 := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL+"/other"))).WithMetrics(m)
-		_, err = q2.Run(context.Background())
-		if err != nil {
+		if _, err := q2.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3527,8 +3520,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 		// Test 3: Request with error should still increment counter
 		badURL := "http://localhost:1" // Port 1 should fail quickly
 		q3 := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "raise_error": false})`, badURL))).WithMetrics(m)
-		_, err = q3.Run(context.Background())
-		if err != nil {
+		if _, err := q3.Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 

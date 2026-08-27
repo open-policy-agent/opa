@@ -2,7 +2,6 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint: goconst // string duplication is for test readability.
 package bundle
 
 import (
@@ -85,13 +84,13 @@ func TestManifestEqual(t *testing.T) {
 
 	// rego-version
 
-	n.RegoVersion = pointTo(1)
+	n.RegoVersion = new(1)
 	assertNotEqual()
 
-	m.RegoVersion = pointTo(0)
+	m.RegoVersion = new(0)
 	assertNotEqual()
 
-	m.RegoVersion = pointTo(1)
+	m.RegoVersion = new(1)
 	assertEqual()
 
 	n.FileRegoVersions = map[string]int{
@@ -2428,8 +2427,4 @@ func TestMerge(t *testing.T) {
 			}
 		})
 	}
-}
-
-func pointTo[T any](x T) *T {
-	return &x
 }

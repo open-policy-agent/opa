@@ -130,6 +130,14 @@ func (p Path) String() string {
 	return sb.String()
 }
 
+// PolicyID returns the ID identifying the module stored at p, for use with the
+// [Policy] interface: segments are joined verbatim, without the leading '/' and
+// percent-encoding [Path.String] applies, so that IDs match the raw, unescaped
+// bundle manifest roots they're compared against.
+func (p Path) PolicyID() string {
+	return strings.Join(p, "/")
+}
+
 // MustParsePath returns a new Path for s. If s cannot be parsed, this function
 // will panic. This is mostly for test purposes.
 func MustParsePath(s string) Path {

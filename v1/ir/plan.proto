@@ -14,6 +14,26 @@ message Policy {
   Static static = 1;
   Plans plans = 2;
   Funcs funcs = 3;
+  repeated UnplannedRule unplanned_rules = 4;
+}
+
+// UnplannedRule mirrors `ir.UnplannedRule` in v1/ir/ir.go.
+message UnplannedRule {
+  string path = 1;
+  Location location = 2;
+}
+
+// Location mirrors `ir.Location` in v1/ir/ir.go. Note: Stmt inlines these
+// same fields directly on its envelope (see the `Stmt` message below)
+// rather than nesting a Location message, since every Stmt body embeds
+// ir.Location anonymously; UnplannedRule references it as a named field
+// instead, so it gets its own message here.
+message Location {
+  int32 file = 1;
+  int32 col = 2;
+  int32 row = 3;
+  int32 end_col = 4;
+  int32 end_row = 5;
 }
 
 // Static mirrors `ir.Static` in v1/ir/ir.go.
