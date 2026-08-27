@@ -3470,6 +3470,21 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{""}, // unconditional true
 		},
+		{
+			// $ref is dereferenced at evaluation time, so folding this during PE
+			// would bake a remote answer into the residual. The URL is the local
+			// test server so a regression fails here instead of hitting the network.
+			note:     "nondeterministic builtin json.match_schema saved during PE",
+			query:    "data.test.p",
+			unknowns: []string{"input.x"},
+			modules: []string{fmt.Sprintf(`package test
+			p if {
+				input.x == 1
+				json.match_schema({"user": "jsmith"}, {"$ref": "%s"})
+			}`, testserver.URL),
+			},
+			wantQueries: []string{fmt.Sprintf(`input.x = 1; json.match_schema({"user": "jsmith"}, {"$ref": "%s"})`, testserver.URL)},
+		},
 
 		{
 			note:  "default function, result not collected (non-false default value)",
