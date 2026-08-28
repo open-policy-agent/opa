@@ -1,0 +1,30 @@
+{
+  "//": "Curated benchmark set for the nightly benchlab experiment. Each target is measured at three commits in one benchlab invocation, so the cost of adding a target is roughly three times its plain benchmark time -- see build/bench-nightly/main.go. The full published set is ~1118 cases, far too many to measure this way nightly; these targets cover the evaluation hot paths, and the noisier blanket coverage is left to the per-push gobenchdata run. Case counts in the comments are as published on the benchmarks branch, and are a rough sizing guide rather than a promise.",
+
+  "targets": [
+    {
+      "shard": "topdown",
+      "pkg": "./v1/topdown",
+      "//": "~106 of 492 cases: rule evaluation, comprehensions, bindings, partial eval, base-document access and iteration. Deliberately excludes the JSONPatch*, Tokens and Builtin* families, which are builtin micro-benchmarks rather than evaluation hot paths.",
+      "bench": "^Benchmark(VirtualDocs|VirtualCache|ComplexRules|RuleBindings|RuleWithComprehensions|Comprehension|Bindings|Biunify|PartialEval|Concurrency|InliningFullScan|Enumerate|ArrayIteration|ObjectIteration|SetIteration|ObjectGet|MemberWithKeyFromBaseDoc|LargeJSON)"
+    },
+    {
+      "shard": "ast",
+      "pkg": "./v1/ast",
+      "//": "~101 of 336 cases: parsing, object/set construction and lookup, and term rewriting. Excludes the NoASTTypeAllocates*/NoNodeTypeAllocates* families, which are allocation assertions rather than trend material.",
+      "bench": "^Benchmark(Parse|ObjectGet|ObjectFind|ObjectConstruction|ObjectCreationAndLookup|SetCreationAndLookup|RewriteDynamics|RefString)"
+    },
+    {
+      "shard": "rego",
+      "pkg": "./v1/rego",
+      "//": "All ~53 cases: the public evaluation API, the closest thing here to end-to-end user-visible performance.",
+      "bench": "."
+    },
+    {
+      "shard": "inmem",
+      "pkg": "./v1/storage/inmem",
+      "//": "All ~48 cases: the store read/write hot path.",
+      "bench": "."
+    }
+  ]
+}
