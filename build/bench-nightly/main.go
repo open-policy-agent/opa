@@ -31,6 +31,7 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -39,7 +40,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -330,7 +330,7 @@ func runBenchlab(t target, n night, tags string, commits []string) (string, erro
 	case 1:
 		return added[0], nil
 	case 0:
-		return "", fmt.Errorf("benchlab wrote no new raw output file")
+		return "", errors.New("benchlab wrote no new raw output file")
 	default:
 		return "", fmt.Errorf("benchlab wrote %d new raw output files: %v", len(added), added)
 	}
@@ -392,7 +392,9 @@ func (t *csvTable) column(name string) (csvColumn, bool) {
 	return csvColumn{}, false
 }
 
-func (t *csvTable) cell(row []string, idx int) string {
+// cell reads one field of a benchstat CSV row, tolerating a column index the row
+// does not reach: benchstat omits trailing empty cells.
+func cell(row []string, idx int) string {
 	if idx < 0 || idx >= len(row) {
 		return ""
 	}
@@ -513,7 +515,7 @@ func assemble(t target, n night, vsBase, vsPrev map[string]*csvTable) ([]result,
 	for m := range vsBase {
 		measures = append(measures, m)
 	}
-	sort.Strings(measures)
+	slices.Sort(measures)
 
 	for _, measure := range measures {
 		table := vsBase[measure]
@@ -532,13 +534,13 @@ func assemble(t target, n night, vsBase, vsPrev map[string]*csvTable) ([]result,
 		for name := range table.rows {
 			names = append(names, name)
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 
 		for _, name := range names {
 			row := table.rows[name]
 
-			baseVal, okB := parseFloat(table.cell(row, baseCol.valueIdx))
-			headVal, okH := parseFloat(table.cell(row, headCol.valueIdx))
+			baseVal, okB := parseFloat(cell(row, baseCol.valueIdx))
+			headVal, okH := parseFloat(cell(row, headCol.valueIdx))
 			if !okB || !okH {
 				continue
 			}
@@ -554,16 +556,16 @@ func assemble(t target, n night, vsBase, vsPrev map[string]*csvTable) ([]result,
 				Measure:       measure,
 				BaselineValue: baseVal,
 				HeadValue:     headVal,
-				BaselineCIPct: parsePct(table.cell(row, baseCol.ciIdx)),
-				HeadCIPct:     parsePct(table.cell(row, headCol.ciIdx)),
+				BaselineCIPct: parsePct(cell(row, baseCol.ciIdx)),
+				HeadCIPct:     parsePct(cell(row, headCol.ciIdx)),
 				VsBaseline: newDelta(baseVal, headVal,
-					table.cell(row, headCol.deltaIdx), table.cell(row, headCol.pIdx)),
+					cell(row, headCol.deltaIdx), cell(row, headCol.pIdx)),
 			}
 
 			if hasPrev {
-				if prevVal, ok := parseFloat(table.cell(row, prevCol.valueIdx)); ok {
+				if prevVal, ok := parseFloat(cell(row, prevCol.valueIdx)); ok {
 					r.PrevVsBaseline = newDelta(baseVal, toMeasureUnits(table.unit, prevVal),
-						table.cell(row, prevCol.deltaIdx), table.cell(row, prevCol.pIdx))
+						cell(row, prevCol.deltaIdx), cell(row, prevCol.pIdx))
 				}
 			}
 
@@ -587,13 +589,13 @@ func deltaFromTable(t *csvTable, from, to, name string) *delta {
 	if !ok1 || !ok2 {
 		return nil
 	}
-	fromVal, okF := parseFloat(t.cell(row, fromCol.valueIdx))
-	toVal, okT := parseFloat(t.cell(row, toCol.valueIdx))
+	fromVal, okF := parseFloat(cell(row, fromCol.valueIdx))
+	toVal, okT := parseFloat(cell(row, toCol.valueIdx))
 	if !okF || !okT {
 		return nil
 	}
 	return newDelta(toMeasureUnits(t.unit, fromVal), toMeasureUnits(t.unit, toVal),
-		t.cell(row, toCol.deltaIdx), t.cell(row, toCol.pIdx))
+		cell(row, toCol.deltaIdx), cell(row, toCol.pIdx))
 }
 
 // newDelta builds a comparison from two group medians plus benchstat's verdict.
@@ -612,7 +614,7 @@ func newDelta(from, to float64, deltaCell, pCell string) *delta {
 	if from != 0 {
 		d.Pct = round4((to/from - 1) * 100)
 	}
-	for _, field := range strings.Fields(pCell) {
+	for field := range strings.FieldsSeq(pCell) {
 		if v, ok := strings.CutPrefix(field, "p="); ok {
 			if f, err := strconv.ParseFloat(v, 64); err == nil {
 				d.P = round4(f)
@@ -759,7 +761,7 @@ func calibrate(last, tonight night) *calibration {
 	if len(drifts) == 0 {
 		return nil
 	}
-	sort.Float64s(drifts)
+	slices.Sort(drifts)
 
 	return &calibration{
 		ComparedTo:   last.Head,
