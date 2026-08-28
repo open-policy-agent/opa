@@ -5,6 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.20.1
+
+This release includes a bug fix for a regression introduced in v1.20.0 in
+[comparing a number to some float values](https://github.com/open-policy-agent/opa/issues/9098).
+Thanks @kmadan for reporting the issue and submitting a fix!
+
 ## 1.20.0
 
 This release contains a mix of new features and bug fixes. Notably:
