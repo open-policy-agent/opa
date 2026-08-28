@@ -30,29 +30,36 @@
 (defn- commit-url [sha]
   (str "https://github.com/open-policy-agent/opa/commit/" sha))
 
-(defn- missing-gaps
-  "Runs of commits with no data for a benchmark, sitting strictly between two
-   commits that do have data. Gaps before the first or after the last known
-   data point are ignored, since those just mean the benchmark hadn't been
-   added yet / hasn't been run yet, not that data went missing."
+(defn- interval-commits
+  "Runs of commits carrying no measurement for a benchmark, sitting strictly
+   between two commits that do carry one. Runs before the first or after the
+   last data point are ignored, since those just mean the benchmark hadn't been
+   added yet / hasn't been sampled yet.
+
+   Read this as \"which commits landed between these two samples\" rather than
+   \"which commits are missing data\". The latter only holds when every commit is
+   benchmarked; once benchmarks are sampled on a schedule, most commits carry no
+   measurement by design and the useful question becomes which changes a jump
+   between two samples could be attributed to."
   [commits-ordered bench-commit-set]
-  (loop [shas commits-ordered gaps [] current-run [] last-known nil]
+  (loop [shas commits-ordered intervals [] current-run [] last-known nil]
     (if (empty? shas)
-      gaps
+      intervals
       (let [sha (first shas)]
         (if (contains? bench-commit-set sha)
           (recur (rest shas)
                  (if (and last-known (seq current-run))
-                   (conj gaps {:after last-known :before sha :commits current-run})
-                   gaps)
+                   (conj intervals {:after last-known :before sha :commits current-run})
+                   intervals)
                  []
                  sha)
-          (recur (rest shas) gaps (conj current-run sha) last-known))))))
+          (recur (rest shas) intervals (conj current-run sha) last-known))))))
 
-(defn- gaps-by-before
-  "Maps the sha right after a gap to {:after sha :commits [{:sha :message :url} ...]},
-   so the UI can look up 'what's missing right before this hovered commit'."
-  [gaps]
+(defn- intervals-by-commit
+  "Maps the sha of the sample ending an interval to
+   {:after sha :commits [{:sha :message :url} ...]}, so the UI can look up
+   'what landed between the previous sample and this hovered one'."
+  [intervals]
   (into {}
         (map (fn [{:keys [after before commits]}]
                [before {:after after
@@ -61,7 +68,7 @@
                                           :message (:message (data/commit-info sha))
                                           :url     (commit-url sha)})
                                        commits)}]))
-        gaps))
+        intervals))
 
 (defn benchmark-chart [pkg bench-name]
   (let [bench-rows (->> data/rows
@@ -71,9 +78,9 @@
         by-measure (group-by :measure bench-rows)
         tag-xs     (into #{} (keep :tag) bench-rows)
         bench-commits (into #{} (map :commit) bench-rows)
-        gaps-by-before* (-> data/commits-ordered
-                            (missing-gaps bench-commits)
-                            gaps-by-before)
+        intervals* (-> data/commits-ordered
+                       (interval-commits bench-commits)
+                       intervals-by-commit)
         traces     (for [[measure rows] by-measure
                          :when (some #(pos? (:value %)) rows)]
                      (let [basis-val (get data/basis [pkg bench-name measure] 1)
@@ -132,15 +139,15 @@
        [:pre {:id "commit-info"
               :style "margin-top:12px;padding:10px;min-height:80px;font-size:13px;white-space:pre-wrap"}
         "Hover over a point to see commit details. Click to open on GitHub."]
-       [:div {:id "gap-info" :class "gap-box" :style "display:none"}]
+       [:div {:id "interval-info" :class "interval-box" :style "display:none"}]
        [:script {:type "text/javascript"}
         (format "
 (function() {
   var el = document.getElementById('chart');
   var info = document.getElementById('commit-info');
-  var gapInfo = document.getElementById('gap-info');
+  var intervalInfo = document.getElementById('interval-info');
   var commitByX = %s;
-  var gapsByBefore = %s;
+  var intervalsByCommit = %s;
   var traces = %s;
   var baseLayout = %s;
 
@@ -160,21 +167,21 @@
 
   Plotly.newPlot(el, traces, layout, {responsive: true});
 
-  function renderGap(gap) {
-    if (!gap) {
-      gapInfo.style.display = 'none';
-      gapInfo.innerHTML = '';
+  function renderInterval(interval) {
+    if (!interval) {
+      intervalInfo.style.display = 'none';
+      intervalInfo.innerHTML = '';
       return;
     }
-    gapInfo.style.display = '';
-    gapInfo.innerHTML = '';
+    intervalInfo.style.display = '';
+    intervalInfo.innerHTML = '';
     var header = document.createElement('div');
-    header.className = 'gap-box-header';
-    header.textContent = gap.commits.length + ' commit' + (gap.commits.length === 1 ? '' : 's') +
-      ' with no data since ' + gap.after.slice(0, 7);
-    gapInfo.appendChild(header);
+    header.className = 'interval-box-header';
+    header.textContent = interval.commits.length + ' commit' + (interval.commits.length === 1 ? '' : 's') +
+      ' landed since the previous sample at ' + interval.after.slice(0, 7);
+    intervalInfo.appendChild(header);
     var ul = document.createElement('ul');
-    gap.commits.forEach(function(c) {
+    interval.commits.forEach(function(c) {
       var li = document.createElement('li');
       var a = document.createElement('a');
       a.href = c.url;
@@ -184,7 +191,7 @@
       li.appendChild(document.createTextNode(' ' + c.message));
       ul.appendChild(li);
     });
-    gapInfo.appendChild(ul);
+    intervalInfo.appendChild(ul);
   }
 
   el.on('plotly_hover', function(d) {
@@ -196,7 +203,7 @@
                          'Date:   ' + cd.date + '\\n\\n' +
                          cd.message;
     }
-    renderGap(cd && gapsByBefore[cd.sha]);
+    renderInterval(cd && intervalsByCommit[cd.sha]);
   });
 
   el.on('plotly_click', function(d) {
@@ -207,7 +214,7 @@
 })();
 "
                 (json/write-str commit-by-x)
-                (json/write-str gaps-by-before*)
+                (json/write-str intervals*)
                 (json/write-str (vec traces))
                 (json/write-str layout))]])))
 
