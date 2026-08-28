@@ -120,39 +120,80 @@
 (def benchmarks-with-data
   (into #{} (map (juxt :pkg :name)) rows))
 
-(def latest-tag
-  (->> all-rows
-       (filter :tag)
-       (sort-by :date >)
-       first
-       :tag))
+(def commit-order
+  "commit sha -> position in main's history, oldest first."
+  (into {} (map-indexed (fn [i sha] [sha i])) commits-ordered))
+
+(def basis-commit
+  "The commit every chart is anchored to: the newest tagged commit on main.
+
+   Derived from main's history rather than from the runs. Picking the newest tag
+   that happens to have a run would leave the charts anchored to the previous
+   release for as long as the new release's commit went unbenchmarked -- and
+   since the nightly experiment resolves its own baseline from git, the two would
+   disagree and every night's results would be discarded as mis-anchored.
+
+   Tags cut on a release branch are absent from main's history and so are
+   correctly ignored."
+  (->> commits-ordered (filter tag-map) last))
+
+(def latest-tag (tag-map basis-commit))
+
+(def basis-measured?
+  "Whether basis-commit was itself benchmarked, or the anchor is approximated."
+  (contains? (into #{} (map :commit) all-rows) basis-commit))
+
+(defn- basis-row
+  "The measurement to divide by: the one taken nearest the anchor in main's
+   history, preferring one at or after it.
+
+   A release can be tagged without its commit ever being benchmarked -- a run may
+   have been skipped, or the tag may simply be newer than every stored run -- and
+   the charts still need something to anchor to. Searching forward alone is not
+   enough: when the tag postdates the whole history, that finds nothing, basis
+   comes out empty, and since page generation is gated on it the site renders no
+   pages at all. Rows whose commit is not in main's fetched history are skipped,
+   since they cannot be ordered against the anchor."
+  [rows]
+  (when-let [anchor (get commit-order basis-commit)]
+    (let [ordered (->> rows
+                       (keep (fn [r] (when-let [p (commit-order (:commit r))] [p r])))
+                       (sort-by first))]
+      (or (second (first (filter #(>= (first %) anchor) ordered)))
+          (second (last (filter #(< (first %) anchor) ordered)))))))
 
 (def basis
   (into {}
-        (comp (filter #(= (:tag %) latest-tag))
-              (map (fn [{:keys [pkg name measure value]}]
-                     [[pkg name measure] value])))
-        all-rows))
+        (keep (fn [[k rows]]
+                (when-let [r (basis-row rows)]
+                  [k (:value r)])))
+        (group-by (juxt :pkg :name :measure) all-rows)))
+
+(when-not basis-measured?
+  (println (format "note: %s (%s) has no benchmark run of its own; anchoring to the nearest run instead"
+                   latest-tag (subs (or basis-commit "?") 0 (min 7 (count (or basis-commit "?")))))))
 
 (def ratios
-  (let [grouped (->> all-rows
-                     (sort-by :date >)
-                     (group-by (juxt :pkg :name :measure)))]
-    (->> grouped
-         (keep (fn [[[pkg name measure] vs]]
-                 (let [latest-val (:value (first vs))
-                       tag-val    (:value (first (filter :tag vs)))]
-                   (when (and tag-val (pos? tag-val))
-                     {:pkg pkg :name name :measure measure
-                      :ratio (/ latest-val tag-val)}))))
-         (group-by (juxt :pkg :name))
-         (keep (fn [[[pkg name] ms]]
-                 (let [m (into {} (map (fn [{:keys [measure ratio]}]
-                                         [measure ratio]))
-                               ms)]
-                   (when (seq m)
-                     (merge {:pkg pkg :name name} m)))))
-         (sort-by #(get % "NsPerOp" 0)))))
+  (->> all-rows
+       (sort-by :date >)
+       (group-by (juxt :pkg :name :measure))
+       (keep (fn [[[pkg name measure] vs]]
+               ;; Divide by the shared basis rather than by whichever tagged row
+               ;; this benchmark happens to have, so the index table and the
+               ;; charts report the same number.
+               (let [latest-val (:value (first vs))
+                     base       (get basis [pkg name measure])]
+                 (when (and base (pos? base))
+                   {:pkg pkg :name name :measure measure
+                    :ratio (/ latest-val base)}))))
+       (group-by (juxt :pkg :name))
+       (keep (fn [[[pkg name] ms]]
+               (let [m (into {} (map (fn [{:keys [measure ratio]}]
+                                       [measure ratio]))
+                             ms)]
+                 (when (seq m)
+                   (merge {:pkg pkg :name name} m)))))
+       (sort-by #(get % "NsPerOp" 0))))
 
 (defn benchmark-id [pkg name]
   (clojure.string/replace (str pkg "_" name) #"[^a-zA-Z0-9]" "-"))
