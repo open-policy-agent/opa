@@ -58,7 +58,7 @@
                [before {:after after
                         :commits (mapv (fn [sha]
                                          {:sha     sha
-                                          :message (or (:message (data/commits sha)) "")
+                                          :message (:message (data/commit-info sha))
                                           :url     (commit-url sha)})
                                        commits)}]))
         gaps))
@@ -83,11 +83,11 @@
                         :text (mapv #(format-value measure (:value %)) rows)
                         :customdata
                         (mapv (fn [r]
-                                (let [c (data/commits (:commit r))]
+                                (let [c (data/commit-info (:commit r))]
                                   {:sha     (:commit r)
                                    :author  (:author c)
                                    :date    (:date c)
-                                   :message (or (:message c) "")
+                                   :message (:message c)
                                    :url     (commit-url (:commit r))}))
                               rows)
                         :name (measure-labels measure measure)
@@ -103,11 +103,11 @@
         commit-by-x (into {}
                           (map (fn [r]
                                  (let [x (or (:tag r) (subs (:commit r) 0 7))
-                                       c (data/commits (:commit r))]
+                                       c (data/commit-info (:commit r))]
                                    [x {:sha     (:commit r)
                                        :author  (:author c)
                                        :date    (:date c)
-                                       :message (or (:message c) "")
+                                       :message (:message c)
                                        :url     (commit-url (:commit r))}])))
                           bench-rows)
         tick-vals  (filterv some? (mapv :tag bench-rows))
