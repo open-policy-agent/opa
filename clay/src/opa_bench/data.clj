@@ -14,8 +14,45 @@
 (def benchmarks-raw
   (json/read-str (slurp (io/file "../benchmarks.json")) :key-fn keyword))
 
+(def data-commits
+  "Every commit benchmarks.json holds results for."
+  (into #{} (map :Version) benchmarks-raw))
+
+(def ^:private max-commit-pages
+  "Safety bound on pagination: 20 pages of 100 is 2000 commits of main."
+  20)
+
+(defn- fetch-commits-covering
+  "Commit metadata paged back far enough to cover every commit in `wanted`.
+
+   Fetching a fixed slice of main instead would make the charts' extent depend
+   on the repo's commit velocity rather than on how many runs benchmarks.json
+   keeps: as soon as benchmarks are sampled on a schedule rather than run per
+   push, benchmarked commits are a sparse subset of main and a fixed slice
+   holds only a fraction of the available runs.
+
+   Stops at max-commit-pages so that a commit which is no longer reachable from
+   main (rebased away, force-pushed) can't cause unbounded paging. Anything
+   still unresolved is reported and simply plots without commit details."
+  [wanted]
+  (loop [page 1 acc []]
+    (let [batch (github-fetch (str "commits?per_page=100&page=" page))
+          acc   (into acc batch)
+          seen  (into #{} (map :sha) acc)
+          missing (remove seen wanted)]
+      (cond
+        (empty? missing) acc
+        (empty? batch)   (do (println (format "warning: %d benchmarked commit(s) are not reachable from main; their points will plot without commit details"
+                                              (count missing)))
+                             acc)
+        (>= page max-commit-pages)
+        (do (println (format "warning: %d benchmarked commit(s) not found in the last %d commits of main; their points will plot without commit details"
+                             (count missing) (* 100 max-commit-pages)))
+            acc)
+        :else (recur (inc page) acc)))))
+
 (def commits-raw
-  (github-fetch "commits?per_page=100"))
+  (fetch-commits-covering data-commits))
 
 (def commits
   (into {}
@@ -24,6 +61,18 @@
                      :author  (:login author)
                      :date    (get-in commit [:author :date])}]))
         commits-raw))
+
+(defn commit-info
+  "Metadata for `sha`, falling back to a placeholder rather than nil.
+
+   A point whose commit metadata could not be fetched should still appear on the
+   chart with a thinner hover panel; dropping it instead loses a real
+   measurement to an unrelated API shortfall."
+  [sha]
+  (or (commits sha)
+      {:message "(commit details unavailable)"
+       :author  "unknown"
+       :date    nil}))
 
 (def commits-ordered
   "All known commits on main, oldest first. The GitHub API returns newest-first."
@@ -58,9 +107,17 @@
 (def all-rows (flatten-benchmarks benchmarks-raw))
 
 (def rows
-  (filter #(contains? commits (:commit %)) all-rows))
+  "Every measurement in benchmarks.json.
 
-(def benchmarks-in-window
+   Deliberately unfiltered. This used to drop rows whose commit fell outside the
+   fetched commit-metadata slice, which silently discarded measurements the
+   charts had every right to draw -- and would have discarded most of them once
+   benchmarks stopped being run per push. commit-info supplies a fallback for
+   missing metadata instead, so the plotted extent is governed by the run
+   history benchmarks.json keeps (INPUT_PRUNE_COUNT) and nothing else."
+  all-rows)
+
+(def benchmarks-with-data
   (into #{} (map (juxt :pkg :name)) rows))
 
 (def latest-tag
@@ -110,6 +167,6 @@
 
 (def benchmarks-with-ids
   (->> ratios
-       (filter #(contains? benchmarks-in-window [(:pkg %) (:name %)]))
+       (filter #(contains? benchmarks-with-data [(:pkg %) (:name %)]))
        (mapv #(assoc % :id (benchmark-id (:pkg %) (:name %))
                         :spark (get sparklines [(:pkg %) (:name %)])))))
