@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/cover"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/util/channel"
 )
 
 // Reporter defines the interface for reporting test results.
@@ -46,7 +47,6 @@ func (r PrettyReporter) println(a ...any) {
 // printed immediately, and the FAILURES detail section and summary are
 // printed after all results have been received.
 func (r PrettyReporter) Report(ch chan *Result) error {
-
 	dirty := false
 	var pass, fail, skip, errs int
 	var failures []*Result
@@ -267,23 +267,15 @@ type JSONReporter struct {
 
 // Report prints the test report to the reporter's output.
 func (r JSONReporter) Report(ch chan *Result) error {
-	report := make([]*Result, 0, len(ch))
-	for tr := range ch {
-		report = append(report, tr)
-	}
-
-	switch r.Sort {
-	case formats.SortDuration:
-		slices.SortFunc(report, func(i, j *Result) int {
-			return cmp.Compare(j.Duration, i.Duration)
-		})
+	report := channel.Collect(ch)
+	if r.Sort == formats.SortDuration {
+		slices.SortFunc(report, byDuration)
 	}
 
 	bs, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = r.Output.Write(append(bs, '\n'))
 	}
-	_, err = fmt.Fprintln(r.Output, string(bs))
 	return err
 }
 
@@ -385,4 +377,8 @@ func (w indentingWriter) Write(bs []byte) (int, error) {
 		indent = b == '\n'
 	}
 	return written, nil
+}
+
+func byDuration(a, b *Result) int {
+	return cmp.Compare(b.Duration, a.Duration)
 }

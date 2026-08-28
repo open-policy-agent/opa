@@ -14,7 +14,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/plugins"
 	"github.com/open-policy-agent/opa/v1/plugins/rest"
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/channel"
 	"golang.org/x/time/rate"
 )
 
@@ -167,7 +167,7 @@ func (b *eventBuffer) push(event *bufferItem) {
 		return
 	}
 
-	util.PushFIFO(b.buffer, event, b.metrics, logBufferEventDropCounterName)
+	channel.PushFIFO(b.buffer, event, b.metrics, logBufferEventDropCounterName)
 }
 
 func (b *eventBuffer) processBufferItem(item *bufferItem) [][]byte {

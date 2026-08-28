@@ -34,6 +34,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/channel"
 )
 
 // TestPrefix declares the prefix for all test rules.
@@ -58,11 +59,7 @@ func RunWithFilter(ctx context.Context, _ loader.Filter, paths ...string) ([]*Re
 	if err != nil {
 		return nil, err
 	}
-	result := []*Result{}
-	for r := range ch {
-		result = append(result, r)
-	}
-	return result, nil
+	return channel.Collect(ch), nil
 }
 
 type SubResult struct {
@@ -75,9 +72,10 @@ type SubResult struct {
 type SubResultMap map[string]*SubResult
 
 func (srm SubResultMap) Update(path ast.Array, trace []*topdown.Event) bool {
+	buf := new(bytes.Buffer)
 	strPath := make([]string, path.Len())
 	for i := range path.Len() {
-		strPath[i] = termToString(path.Elem(i))
+		strPath[i] = termToString(buf, path.Elem(i))
 	}
 	return srm.update(strPath, 0, trace)
 }
@@ -104,7 +102,6 @@ func (srm SubResultMap) update(path []string, i int, trace []*topdown.Event) boo
 	}
 
 	fail := entry.SubResults.update(path, i+1, trace)
-
 	if fail {
 		entry.Fail = true
 	}
@@ -132,22 +129,17 @@ func (pm prefixMatchers) AnyPrefixMatcher(prefix ast.Ref) bool {
 	})
 }
 
-func termToString(t *ast.Term) string {
-	ti, err := ast.ValueToInterface(t.Value, unknownResolver{})
-	if err != nil {
-		return "INVALID"
-	}
-	var str string
-	var ok bool
-	if str, ok = ti.(string); !ok {
-		var buf bytes.Buffer
-		if err := json.NewEncoder(&buf).Encode(ti); err != nil {
-			return "INVALID"
+func termToString(buf *bytes.Buffer, t *ast.Term) string {
+	if ti, err := ast.ValueToInterface(t.Value, unknownResolver{}); err == nil {
+		if str, ok := ti.(string); ok {
+			return str
 		}
-		str = strings.TrimSpace(buf.String())
+		buf.Reset()
+		if err := json.NewEncoder(buf).Encode(ti); err == nil {
+			return strings.TrimSpace(buf.String())
+		}
 	}
-
-	return str
+	return "INVALID"
 }
 
 // Result represents a single test case result.
@@ -349,10 +341,11 @@ type Runner struct {
 // NewRunner returns a new runner.
 func NewRunner() *Runner {
 	return &Runner{
-		timeout:            5 * time.Second,
-		defaultRegoVersion: ast.DefaultRegoVersion,
-		parallel:           runtime.NumCPU(),
-		coverageRuns:       []cover.Kind{cover.KindIndexExcluded, cover.KindEarlyExit},
+		enablePrintStatements: true,
+		timeout:               5 * time.Second,
+		defaultRegoVersion:    ast.DefaultRegoVersion,
+		parallel:              runtime.NumCPU(),
+		coverageRuns:          []cover.Kind{cover.KindIndexExcluded, cover.KindEarlyExit},
 	}
 }
 
@@ -440,7 +433,8 @@ func (r *Runner) SetCoverageRuns(kinds []cover.Kind) *Runner {
 }
 
 // CapturePrintOutput captures print() call outputs during evaluation and
-// includes the output in test results.
+// includes the output in test results. If not set, defaults to true. Print
+// output is always disabled in benchmarks.
 func (r *Runner) CapturePrintOutput(yes bool) *Runner {
 	r.enablePrintStatements = yes
 	return r
@@ -522,7 +516,7 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (chan 
 // RunTests executes tests found in either modules or bundles loaded on the runner.
 // Test results are sent as they complete and may arrive in any order.
 func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (chan *Result, error) {
-	return r.runTests(ctx, txn, true, r.runTest, r.parallel)
+	return r.runTests(ctx, txn, r.enablePrintStatements, r.runTest, r.parallel)
 }
 
 // RunBenchmarks executes tests similar to tester.Runner#RunTests but will repeat
@@ -585,7 +579,7 @@ func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enab
 
 		// Activate the bundle(s) to get their info and policies into the store
 		// the actual compiled policies will be overwritten later.
-		opts := &bundle.ActivateOpts{
+		err := bundle.Activate(&bundle.ActivateOpts{
 			Ctx:           ctx,
 			Store:         r.store,
 			Txn:           txn,
@@ -593,8 +587,7 @@ func (r *Runner) setupTestRun(ctx context.Context, txn storage.Transaction, enab
 			Metrics:       metrics.New(),
 			Bundles:       r.bundles,
 			ParserOptions: ast.ParserOptions{RegoVersion: r.defaultRegoVersion},
-		}
-		err := bundle.Activate(opts)
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1219,11 +1212,13 @@ func subResult(n string, v any) *SubResult {
 }
 
 func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule, options BenchmarkOptions) (*Result, bool) {
-	_, rf := ruleName(rule.Head)
+	ruleName, rf := ruleName(rule.Head)
+
 	tr := &Result{
 		Location: rule.Loc(),
 		Package:  mod.Package.Path.String(),
 		Name:     rf.String(), // TODO(sr): test
+		Skip:     strings.HasPrefix(ruleName, SkipTestPrefix),
 	}
 
 	var stop bool

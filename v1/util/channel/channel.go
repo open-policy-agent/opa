@@ -1,4 +1,4 @@
-package util
+package channel
 
 import (
 	"github.com/open-policy-agent/opa/v1/metrics"
@@ -11,7 +11,6 @@ const maxEventRetry = 1000
 // PushFIFO pushes data into a buffered channel without blocking when full, making room by dropping the oldest data.
 // An optional metric can be recorded when data is dropped.
 func PushFIFO[T any](buffer chan T, data T, metrics metrics.Metrics, metricName string) {
-
 	for range maxEventRetry {
 		// non-blocking send to the buffer, to prevent blocking if buffer is full so room can be made.
 		select {
@@ -29,4 +28,13 @@ func PushFIFO[T any](buffer chan T, data T, metrics metrics.Metrics, metricName 
 		default:
 		}
 	}
+}
+
+// CollectChan reads all values from a channel and returns them as a slice.
+func Collect[T any](ch <-chan T) []T {
+	out := make([]T, 0, len(ch))
+	for v := range ch {
+		out = append(out, v)
+	}
+	return out
 }
