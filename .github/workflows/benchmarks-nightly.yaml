@@ -1,0 +1,203 @@
+name: Benchmarks (nightly)
+
+# The nightly benchlab experiment: a curated benchmark set measured at a fixed
+# baseline, the previous night's commit, and HEAD, with all arms in one benchlab
+# invocation per package so they are interleaved on a single machine.
+#
+# Why nightly and curated rather than per-push and complete: three arms over the
+# full published set is on the order of a day of measurement, and only arms
+# measured together on one machine are comparable. Blanket coverage stays with
+# the (noisier, cross-machine) gobenchdata run that publishes to the benchmarks
+# branch; this workflow buys precision on the evaluation hot paths instead of
+# breadth.
+#
+# See build/bench-nightly/main.go for the reasoning behind the three arms, and
+# build/bench-nightly/set.json for the set itself.
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # 02:00 UTC, off the hour to avoid coinciding with the other benchmark
+    # publishers' schedules.
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  # Resolve the experiment once, so that every shard measures the same three
+  # commits. bench-nightly refuses to merge shards that disagree, and that check
+  # is only meaningful if the values come from a single place.
+  plan:
+    name: Plan the experiment
+    runs-on: ubuntu-24.04
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      baseline_sha: ${{ steps.plan.outputs.baseline_sha }}
+      baseline_tag: ${{ steps.plan.outputs.baseline_tag }}
+      prev_sha: ${{ steps.plan.outputs.prev_sha }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out previous results
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: benchmarks
+          path: results
+          sparse-checkout: benchlab.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Resolve shards, baseline and previous night
+        id: plan
+        run: |
+          set -euo pipefail
+
+          shards=$(jq -c '[.targets[].shard] | unique' build/bench-nightly/set.json)
+          echo "shards=${shards}" >> $GITHUB_OUTPUT
+
+          # The newest v* tag reachable from HEAD. Reachability matters twice:
+          # benchlab has to be able to build it, and the notebook anchors its
+          # charts to a tag it found in the data, which is also a main commit.
+          # Patch tags cut on a release branch are correctly ignored here.
+          baseline_tag=$(git describe --tags --abbrev=0 --match 'v*')
+          baseline_sha=$(git rev-parse "${baseline_tag}^{commit}")
+          echo "baseline_tag=${baseline_tag}" >> $GITHUB_OUTPUT
+          echo "baseline_sha=${baseline_sha}" >> $GITHUB_OUTPUT
+
+          # Last night's HEAD. Empty on the first ever run, which drops the prev
+          # arm and with it that night's calibration.
+          prev_sha=""
+          if [ -f results/benchlab.json ]; then
+            prev_sha=$(jq -r '.[-1].head // ""' results/benchlab.json)
+          fi
+          echo "prev_sha=${prev_sha}" >> $GITHUB_OUTPUT
+
+          echo "shards:       ${shards}"
+          echo "baseline:     ${baseline_sha} (${baseline_tag})"
+          echo "previous:     ${prev_sha:-<none>}"
+          echo "head:         $(git rev-parse HEAD)"
+
+  measure:
+    name: Measure ${{ matrix.shard }}
+    needs: plan
+    runs-on: ubuntu-24.04
+    # Three arms over a shard runs for hours; the hosted-runner ceiling is six.
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # benchlab builds each commit in its own worktree, so it needs the
+          # baseline and previous commits present locally.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .go-version
+          cache-dependency-path: go.sum
+
+      - name: Install tools
+        run: cd build/tools && go install tool
+
+      - name: Run benchlab
+        env:
+          BASELINE_SHA: ${{ needs.plan.outputs.baseline_sha }}
+          PREV_SHA: ${{ needs.plan.outputs.prev_sha }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          go run ./build/bench-nightly \
+            -shard "$SHARD" \
+            -baseline "$BASELINE_SHA" \
+            -prev "$PREV_SHA" \
+            -out "benchlab.${SHARD}.json"
+
+      - name: Upload results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: benchlab-${{ matrix.shard }}
+          path: benchlab.${{ matrix.shard }}.json
+          if-no-files-found: error
+
+      - name: Upload raw benchmark output
+        # The raw files are the canonical Go benchmark format and are what makes
+        # a night re-analysable later (different alpha, different confidence)
+        # without re-measuring. Cheap to keep, impossible to recover.
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
+        with:
+          name: benchlab-raw-${{ matrix.shard }}
+          path: .benchlab/bench.*.txt
+          if-no-files-found: warn
+
+  publish:
+    name: Publish results
+    needs: [plan, measure]
+    # A shard that fails should cost its own benchmarks, not the whole night.
+    # The merged record lists the shards it actually contains.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # we'll push to the `benchmarks` branch
+    # Only this job writes to the `benchmarks` branch, so only this job belongs
+    # in the group. Holding it for the hours the measurement takes would block
+    # the branch's other writers for no reason.
+    concurrency:
+      group: benchmarks
+      cancel-in-progress: false
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: opa
+          persist-credentials: false
+
+      - name: Check out results branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: benchmarks
+          path: results
+          persist-credentials: true
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: opa/.go-version
+          cache-dependency-path: opa/go.sum
+
+      - name: Download shard results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: benchlab-*
+          path: shards
+          merge-multiple: true
+
+      - name: Merge shards into benchlab.json
+        working-directory: opa
+        run: |
+          go run ./build/bench-nightly \
+            -merge ../shards \
+            -history ../results/benchlab.json \
+            -keep 120
+
+      - name: Commit if changed
+        working-directory: results
+        run: |
+          set -euo pipefail
+          if git diff-index --quiet HEAD -- benchlab.json; then
+            echo "no changes, no commit"
+            exit 0
+          fi
+          git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git config --local user.name "${GITHUB_ACTOR}"
+          git add benchlab.json
+          git commit -m "benchmarks: nightly benchlab results for ${GITHUB_SHA}"
+          git push origin benchmarks
