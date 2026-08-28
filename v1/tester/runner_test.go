@@ -26,6 +26,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/types"
 	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/util/channel"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
 
@@ -158,26 +159,21 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 		}},
 	}
 
-	var modules map[string]*ast.Module
-	test.WithTempFS(files, func(d string) {
-		var rs []*tester.Result
-		rs, modules = doTestRunWithTmpDir(t, d, conf)
-		validateTestResults(t, tests, rs, conf)
-	})
+	rs, modules := doTestRunWithTmpDir(t, test.TempDir(t, files), conf)
+	validateTestResults(t, tests, rs, conf)
+
 	return modules
 }
 
 func doTestRunWithTmpDir(t *testing.T, dir string, conf testRunConfig) ([]*tester.Result, map[string]*ast.Module) {
 	t.Helper()
 
-	ctx := t.Context()
-
-	paths := []string{dir}
-	modules, store, err := tester.Load(paths, nil)
+	modules, store, err := tester.Load([]string{dir}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
@@ -198,12 +194,8 @@ func doTestRunWithTmpDir(t *testing.T, dir string, conf testRunConfig) ([]*teste
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
-	var rs []*tester.Result
-	for r := range ch {
-		rs = append(rs, r)
-	}
 
-	return rs, modules
+	return channel.Collect(ch), modules
 }
 
 func validateTestResults(t *testing.T, tests expectedTestResults, rs []*tester.Result, conf testRunConfig) {
@@ -216,6 +208,8 @@ func validateTestResults(t *testing.T, tests expectedTestResults, rs []*tester.R
 		if !ok {
 			t.Errorf("Unexpected result for %v", k)
 			continue
+		} else if exp.wantSkip != r.Skip {
+			t.Errorf("Expected %+v for %v but got: %v", exp, k, r)
 		} else if exp.wantErr != (r.Error != nil) || exp.wantFail != r.Fail {
 			t.Errorf("Expected %+v for %v but got: %v", exp, k, r)
 		} else {
@@ -361,16 +355,47 @@ func TestRunWithPrefixMatchers(t *testing.T) {
 		},
 	}
 
-	test.WithTempFS(files, func(d string) {
-		for _, tc := range cases {
-			t.Run(tc.note, func(t *testing.T) {
+	d := test.TempDir(t, files)
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			conf := testRunConfig{prefixMatchers: tc.prefixes}
+			rs, _ := doTestRunWithTmpDir(t, d, conf)
+			validateTestResults(t, tc.tests, rs, conf)
+		})
+	}
 
-				conf := testRunConfig{prefixMatchers: tc.prefixes}
-				rs, _ := doTestRunWithTmpDir(t, d, conf)
-				validateTestResults(t, tc.tests, rs, conf)
-			})
+}
+
+func TestRunTestWithAndWithoutPrintCapture(t *testing.T) {
+	paths := []string{test.TempDirOf(t, "/a_test.rego", `package print_test
+		test_print if {
+			x := 2 + 2
+			print(x)
+			x == 4
+		}`),
+	}
+	modules, store, err := tester.Load(paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txn := storage.NewTransactionOrDie(t.Context(), store)
+	defer store.Abort(t.Context(), txn)
+
+	for capture, expected := range map[bool]string{true: "4\n", false: ""} {
+		ch, err := tester.NewRunner().
+			SetStore(store).
+			SetModules(modules).
+			CapturePrintOutput(capture).
+			RunTests(t.Context(), txn)
+
+		if err != nil {
+			t.Fatal(err)
 		}
-	})
+		if result := <-ch; string(result.Output) != expected {
+			t.Fatalf("Expected print output to be %q, got: %q", expected, result.Output)
+		}
+	}
 }
 
 func TestRunWithFilterRegex(t *testing.T) {
@@ -541,15 +566,14 @@ func TestRunWithFilterRegex(t *testing.T) {
 		},
 	}
 
-	test.WithTempFS(files, func(d string) {
-		for _, tc := range cases {
-			t.Run(tc.note, func(t *testing.T) {
-				conf := testRunConfig{filter: tc.regex}
-				rs, _ := doTestRunWithTmpDir(t, d, conf)
-				validateTestResults(t, tc.tests, rs, conf)
-			})
-		}
-	})
+	d := test.TempDir(t, files)
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			conf := testRunConfig{filter: tc.regex}
+			rs, _ := doTestRunWithTmpDir(t, d, conf)
+			validateTestResults(t, tc.tests, rs, conf)
+		})
+	}
 }
 
 func TestRunnerCancel(t *testing.T) {
@@ -561,7 +585,6 @@ func TestRunnerCancelBenchmark(t *testing.T) {
 }
 
 func testCancel(t *testing.T, bench bool) {
-
 	registerSleepBuiltin()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -572,41 +595,32 @@ func testCancel(t *testing.T, bench bool) {
 	test_1 if { test.sleep("100ms") }
 	test_2 if { true }`
 
-	files := map[string]string{
-		"/a_test.rego": module,
+	paths := []string{test.TempDirOf(t, "/a_test.rego", module)}
+	modules, store, err := tester.Load(paths, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	test.WithTempFS(files, func(d string) {
-		paths := []string{d}
-		modules, store, err := tester.Load(paths, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+	txn := storage.NewTransactionOrDie(ctx, store)
+	runner := tester.NewRunner().SetStore(store).SetModules(modules)
 
-		txn := storage.NewTransactionOrDie(ctx, store)
-		runner := tester.NewRunner().SetStore(store).SetModules(modules)
+	// Everything below uses a canceled context..
+	cancel()
 
-		// Everything below uses a canceled context..
-		cancel()
+	var ch chan *tester.Result
+	if bench {
+		ch, err = runner.RunBenchmarks(ctx, txn, tester.BenchmarkOptions{})
+	} else {
+		ch, err = runner.RunTests(ctx, txn)
+	}
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
-		var ch chan *tester.Result
-		if bench {
-			ch, err = runner.RunBenchmarks(ctx, txn, tester.BenchmarkOptions{})
-		} else {
-			ch, err = runner.RunTests(ctx, txn)
-		}
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-		var results []*tester.Result
-		for r := range ch {
-			results = append(results, r)
-		}
-
-		if len(results) != 0 {
-			t.Fatalf("Expected no tests to be run but, got: %d", len(results))
-		}
-	})
+	results := channel.Collect(ch)
+	if len(results) != 0 {
+		t.Fatalf("Expected no tests to be run but, got: %d", len(results))
+	}
 }
 
 func TestRunnerTimeout(t *testing.T) {
@@ -621,8 +635,6 @@ func TestRunnerTimeoutBenchmark(t *testing.T) {
 func testTimeout(t *testing.T, bench bool) {
 	registerSleepBuiltin()
 
-	ctx := t.Context()
-
 	files := map[string]string{
 		"/a_test.rego": `package foo
 		import rego.v1
@@ -634,48 +646,43 @@ func testTimeout(t *testing.T, bench bool) {
 		test_2 if { test.sleep("1ms") }`,
 	}
 
-	test.WithTempFS(files, func(d string) {
-		paths := []string{d}
-		modules, store, err := tester.Load(paths, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		duration, err := time.ParseDuration("15ms")
-		if err != nil {
-			t.Fatal(err)
-		}
+	paths := []string{test.TempDir(t, files)}
+	modules, store, err := tester.Load(paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	duration, err := time.ParseDuration("15ms")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		txn := storage.NewTransactionOrDie(ctx, store)
-		runner := tester.NewRunner().SetTimeout(duration).SetStore(store).SetModules(modules)
+	ctx := t.Context()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	runner := tester.NewRunner().SetTimeout(duration).SetStore(store).SetModules(modules)
 
-		var ch chan *tester.Result
-		if bench {
-			ch, err = runner.RunBenchmarks(ctx, txn, tester.BenchmarkOptions{})
-		} else {
-			ch, err = runner.RunTests(ctx, txn)
-		}
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-		var results []*tester.Result
-		for r := range ch {
-			results = append(results, r)
-		}
+	var ch chan *tester.Result
+	if bench {
+		ch, err = runner.RunBenchmarks(ctx, txn, tester.BenchmarkOptions{})
+	} else {
+		ch, err = runner.RunTests(ctx, txn)
+	}
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
-		if bench {
-			if !topdown.IsCancel(results[1].Error) {
-				t.Fatalf("Expected cancel error for second test but got: %v", results[1].Error)
-			}
-		} else {
-			if !topdown.IsCancel(results[1].Error) {
-				t.Fatalf("Expected test to have timed out")
-			}
+	results := channel.Collect(ch)
+	if bench {
+		if !topdown.IsCancel(results[1].Error) {
+			t.Fatalf("Expected cancel error for second test but got: %v", results[1].Error)
 		}
-	})
+	} else {
+		if !topdown.IsCancel(results[1].Error) {
+			t.Fatalf("Expected test to have timed out")
+		}
+	}
 }
 
 func TestRunnerPrintOutput(t *testing.T) {
-
 	files := map[string]string{
 		"/test.rego": `package test
 		import rego.v1
@@ -700,62 +707,58 @@ func TestRunnerPrintOutput(t *testing.T) {
 		p.q.r.test_k if { print("K") }`,
 	}
 
+	modules, store, err := tester.Load([]string{test.TempDir(t, files)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ctx := t.Context()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	runner := tester.NewRunner().SetStore(store).SetModules(modules).CapturePrintOutput(true)
+	ch, err := runner.RunTests(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	test.WithTempFS(files, func(d string) {
-		paths := []string{d}
-		modules, store, err := tester.Load(paths, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+	exp := map[string]map[string]string{
+		"test.rego": {
+			"test_a":       "A\n",
+			"test_b":       "",
+			"test_c":       "C\n",
+			"p.q.r.test_d": "D\n",
+		},
+		"test2.rego": {
+			"test_d":       "D\n",
+			"test_e":       "",
+			"test_f":       "F\n",
+			"p.q.r.test_g": "G\n",
+		},
+		"test3.rego": {
+			"test_h":       "H\n",
+			"test_i":       "",
+			"test_j":       "J\n",
+			"p.q.r.test_k": "K\n",
+		},
+	}
 
-		txn := storage.NewTransactionOrDie(ctx, store)
-		runner := tester.NewRunner().SetStore(store).SetModules(modules).CapturePrintOutput(true)
-		ch, err := runner.RunTests(ctx, txn)
-		if err != nil {
-			t.Fatal(err)
+	got := map[string]map[string]string{}
+	for r := range ch {
+		file := filepath.Base(r.Location.File)
+		if got[file] == nil {
+			got[file] = map[string]string{}
 		}
+		got[file][r.Name] = string(r.Output)
+	}
 
-		exp := map[string]map[string]string{
-			"test.rego": {
-				"test_a":       "A\n",
-				"test_b":       "",
-				"test_c":       "C\n",
-				"p.q.r.test_d": "D\n",
-			},
-			"test2.rego": {
-				"test_d":       "D\n",
-				"test_e":       "",
-				"test_f":       "F\n",
-				"p.q.r.test_g": "G\n",
-			},
-			"test3.rego": {
-				"test_h":       "H\n",
-				"test_i":       "",
-				"test_j":       "J\n",
-				"p.q.r.test_k": "K\n",
-			},
-		}
-
-		got := map[string]map[string]string{}
-		for r := range ch {
-			file := filepath.Base(r.Location.File)
-			if got[file] == nil {
-				got[file] = map[string]string{}
-			}
-			got[file][r.Name] = string(r.Output)
-		}
-
-		if !maps.Equal(exp["test.rego"], got["test.rego"]) {
-			t.Fatal("test.rego expected:", exp["test.rego"], "got:", got["test.rego"])
-		}
-		if !maps.Equal(exp["test2.rego"], got["test2.rego"]) {
-			t.Fatal("test2.rego expected:", exp["test2.rego"], "got:", got["test2.rego"])
-		}
-		if !maps.Equal(exp["test3.rego"], got["test3.rego"]) {
-			t.Fatal("test3.rego expected:", exp["test3.rego"], "got:", got["test3.rego"])
-		}
-	})
+	if !maps.Equal(exp["test.rego"], got["test.rego"]) {
+		t.Fatal("test.rego expected:", exp["test.rego"], "got:", got["test.rego"])
+	}
+	if !maps.Equal(exp["test2.rego"], got["test2.rego"]) {
+		t.Fatal("test2.rego expected:", exp["test2.rego"], "got:", got["test2.rego"])
+	}
+	if !maps.Equal(exp["test3.rego"], got["test3.rego"]) {
+		t.Fatal("test3.rego expected:", exp["test3.rego"], "got:", got["test3.rego"])
+	}
 }
 
 // TestRunnerPrintOutputWithCoverage guards against a regression where the
@@ -768,54 +771,35 @@ func TestRunnerPrintOutputWithCoverage(t *testing.T) {
 		test_a if { print("A") }`,
 	}
 
+	modules, store, err := tester.Load([]string{test.TempDir(t, files)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ctx := t.Context()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	runner := tester.NewRunner().
+		SetStore(store).
+		SetModules(modules).
+		CapturePrintOutput(true).
+		SetCoverageQueryTracer(cover.New())
 
-	test.WithTempFS(files, func(d string) {
-		modules, store, err := tester.Load([]string{d}, nil)
-		if err != nil {
-			t.Fatal(err)
+	ch, err := runner.RunTests(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for r := range ch {
+		if r.Name != "test_a" {
+			continue
 		}
-
-		txn := storage.NewTransactionOrDie(ctx, store)
-		runner := tester.NewRunner().
-			SetStore(store).
-			SetModules(modules).
-			CapturePrintOutput(true).
-			SetCoverageQueryTracer(cover.New())
-		ch, err := runner.RunTests(ctx, txn)
-		if err != nil {
-			t.Fatal(err)
+		if got := string(r.Output); got != "A\n" {
+			t.Fatalf("expected print output %q, got %q (supplementary coverage passes may be duplicating it)", "A\n", got)
 		}
-
-		for r := range ch {
-			if r.Name != "test_a" {
-				continue
-			}
-			if got := string(r.Output); got != "A\n" {
-				t.Fatalf("expected print output %q, got %q (supplementary coverage passes may be duplicating it)", "A\n", got)
-			}
-		}
-	})
-}
-
-func registerSleepBuiltin() {
-	ast.RegisterBuiltin(&ast.Builtin{
-		Name: "test.sleep",
-		Decl: types.NewFunction(
-			types.Args(types.S),
-			types.Nl,
-		),
-	})
-
-	topdown.RegisterBuiltinFunc("test.sleep", func(_ topdown.BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-		d, _ := time.ParseDuration(string(operands[0].Value.(ast.String)))
-		time.Sleep(d)
-		return iter(ast.NullTerm())
-	})
+	}
 }
 
 func TestRunnerWithCustomBuiltin(t *testing.T) {
-
 	var myBuiltinDecl = &ast.Builtin{
 		Name: "my_sum",
 		Decl: types.NewFunction(
@@ -856,43 +840,34 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 		test_c if { my_sum(4,1.0) == 5 }`,
 	}
 
+	modules, store, err := tester.Load([]string{test.TempDir(t, files)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ctx := t.Context()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	runner := tester.NewRunner().SetStore(store).SetModules(modules).AddCustomBuiltins([]*tester.Builtin{myBuiltin})
+	ch, err := runner.RunTests(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	test.WithTempFS(files, func(d string) {
-		paths := []string{d}
-		modules, store, err := tester.Load(paths, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		txn := storage.NewTransactionOrDie(ctx, store)
-		runner := tester.NewRunner().SetStore(store).SetModules(modules).AddCustomBuiltins([]*tester.Builtin{myBuiltin})
-		ch, err := runner.RunTests(ctx, txn)
-		if err != nil {
-			t.Fatal(err)
-		}
+	exp := map[string]bool{
+		"test_a": true,
+		"test_b": false,
+		"test_c": false,
+	}
 
-		results := make([]*tester.Result, 0, 10)
+	got := map[string]bool{}
 
-		for r := range ch {
-			results = append(results, r)
-		}
+	for tr := range ch {
+		got[tr.Name] = tr.Pass()
+	}
 
-		exp := map[string]bool{
-			"test_a": true,
-			"test_b": false,
-			"test_c": false,
-		}
-
-		got := map[string]bool{}
-
-		for _, tr := range results {
-			got[tr.Name] = tr.Pass()
-		}
-
-		if !maps.Equal(exp, got) {
-			t.Fatal("expected:", exp, "got:", got)
-		}
-	})
+	if !maps.Equal(exp, got) {
+		t.Fatal("expected:", exp, "got:", got)
+	}
 }
 
 func TestRunnerWithBuiltinErrors(t *testing.T) {
@@ -927,37 +902,32 @@ func TestRunnerWithBuiltinErrors(t *testing.T) {
 		},
 	}
 
-	ctx := t.Context()
-
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			files := map[string]string{
-				"builtin_error_test.rego": fmt.Sprintf(ruleTemplate, tc.json),
+			d := test.TempDirOf(t, "builtin_error_test.rego", fmt.Sprintf(ruleTemplate, tc.json))
+			paths := []string{d}
+			modules, store, err := tester.Load(paths, nil)
+			if err != nil {
+				t.Fatal(err)
 			}
 
-			test.WithTempFS(files, func(d string) {
-				paths := []string{d}
-				modules, store, err := tester.Load(paths, nil)
-				if err != nil {
-					t.Fatal(err)
-				}
-				txn := storage.NewTransactionOrDie(ctx, store)
-				runner := tester.
-					NewRunner().
-					SetStore(store).
-					SetModules(modules).
-					RaiseBuiltinErrors(tc.builtinErrors)
+			ctx := t.Context()
+			txn := storage.NewTransactionOrDie(ctx, store)
+			runner := tester.
+				NewRunner().
+				SetStore(store).
+				SetModules(modules).
+				RaiseBuiltinErrors(tc.builtinErrors)
 
-				ch, err := runner.RunTests(ctx, txn)
-				if err != nil {
-					t.Fatal(err)
+			ch, err := runner.RunTests(ctx, txn)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for result := range ch {
+				if gotErr := result.Error != nil; gotErr != tc.wantErr {
+					t.Errorf("wantErr = %v, gotErr = %v", tc.wantErr, gotErr)
 				}
-				for result := range ch {
-					if gotErr := result.Error != nil; gotErr != tc.wantErr {
-						t.Errorf("wantErr = %v, gotErr = %v", tc.wantErr, gotErr)
-					}
-				}
-			})
+			}
 		})
 	}
 }
@@ -1014,36 +984,28 @@ test_p if {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			files := map[string]string{
-				"test.rego": tc.module,
-			}
+			root := test.TempDirOf(t, "test.rego", tc.module)
+			modules, store, err := tester.Load([]string{root}, nil)
+			if len(tc.expErrs) > 0 {
+				if err == nil {
+					t.Fatalf("Expected error but got nil")
+				}
 
-			test.WithTempFS(files, func(root string) {
-				modules, store, err := tester.Load([]string{root}, nil)
-				if len(tc.expErrs) > 0 {
-					if err == nil {
-						t.Fatalf("Expected error but got nil")
-					}
-
-					for _, expErr := range tc.expErrs {
-						if !strings.Contains(err.Error(), expErr) {
-							t.Fatalf("Expected error to contain:\n\n%q\n\nbut got:\n\n%v", expErr, err)
-						}
-					}
-				} else {
-					if err != nil {
-						t.Fatalf("Unexpected error: %v", err)
-					}
-
-					if modules == nil {
-						t.Fatalf("Expected modules to be non-nil")
-					}
-
-					if store == nil {
-						t.Fatalf("Expected store to be non-nil")
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(err.Error(), expErr) {
+						t.Fatalf("Expected error to contain:\n\n%q\n\nbut got:\n\n%v", expErr, err)
 					}
 				}
-			})
+			} else {
+				switch {
+				case err != nil:
+					t.Fatalf("Unexpected error: %v", err)
+				case modules == nil:
+					t.Fatalf("Expected modules to be non-nil")
+				case store == nil:
+					t.Fatalf("Expected store to be non-nil")
+				}
+			}
 		})
 	}
 }
@@ -1085,23 +1047,17 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := t.Context()
-
-			modules := map[string]*ast.Module{
-				"test": &tc.module,
-			}
-
 			store := inmem.New()
+			ctx := t.Context()
 			txn := storage.NewTransactionOrDie(ctx, store)
 			defer store.Abort(ctx, txn)
 
 			runner := tester.NewRunner().
 				SetStore(store).
-				SetModules(modules).
+				SetModules(map[string]*ast.Module{"test": &tc.module}).
 				SetTimeout(10 * time.Second)
 
 			ch, err := runner.RunTests(ctx, txn)
-
 			if len(tc.expErrs) > 0 {
 				if err == nil {
 					t.Fatalf("Expected error but got nil")
@@ -1115,18 +1071,9 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Fatalf("Unexpected error: %v", err)
-				}
-
-				var rs []*tester.Result
-				for r := range ch {
-					rs = append(rs, r)
-				}
-
-				if len(rs) != 1 {
+				} else if rs := channel.Collect(ch); len(rs) != 1 {
 					t.Fatalf("Expected exactly one result but got: %v", rs)
-				}
-
-				if rs[0].Fail {
+				} else if rs[0].Fail {
 					t.Fatalf("Expected test to pass but it failed")
 				}
 			}
@@ -1207,34 +1154,25 @@ func TestReporterFormatsWithExplicitParallel(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			ctx := t.Context()
+			paths := []string{test.TempDir(t, files)}
+			modules, store, err := tester.Load(paths, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-			test.WithTempFS(files, func(d string) {
-				paths := []string{d}
-				modules, store, err := tester.Load(paths, nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+			txn := storage.NewTransactionOrDie(t.Context(), store)
+			runner := tester.NewRunner().SetStore(store).SetModules(modules).CapturePrintOutput(true)
+			ch, err := runner.RunTests(t.Context(), txn)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				txn := storage.NewTransactionOrDie(ctx, store)
-				runner := tester.NewRunner().SetStore(store).SetModules(modules).CapturePrintOutput(true)
-				ch, err := runner.RunTests(ctx, txn)
-				if err != nil {
-					t.Fatal(err)
-				}
+			buf := new(bytes.Buffer)
+			if err := tc.r(buf).Report(ch); err != nil {
+				t.Fatal(err)
+			}
 
-				var buf bytes.Buffer
-
-				r := tc.r(&buf)
-
-				if err := r.Report(ch); err != nil {
-					t.Fatal(err)
-				}
-
-				str := buf.String()
-
-				tc.exp(str)
-			})
+			tc.exp(buf.String())
 		})
 	}
 }
@@ -1325,16 +1263,14 @@ func TestResultUnmarshalJSONEvalError(t *testing.T) {
 }
 
 func TestRunTestsDoesNotMutateInternedTestCaseRef(t *testing.T) {
-	ctx := t.Context()
-
 	before := ast.Interned.Refs.InternalTestCase[0]
-
 	modules := map[string]*ast.Module{
 		"test.rego": ast.MustParseModule(`package test
 			test_cases[x] if { some x in ["foo", "bar"] }`),
 	}
 
 	store := inmem.New()
+	ctx := t.Context()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
@@ -1351,4 +1287,20 @@ func TestRunTestsDoesNotMutateInternedTestCaseRef(t *testing.T) {
 	if act := ast.Interned.Refs.InternalTestCase[0]; act != before {
 		t.Errorf("ast.Interned.Refs.InternalTestCase was mutated: %p -> %p", before, act)
 	}
+}
+
+func registerSleepBuiltin() {
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: "test.sleep",
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.Nl,
+		),
+	})
+
+	topdown.RegisterBuiltinFunc("test.sleep", func(_ topdown.BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+		d, _ := time.ParseDuration(string(operands[0].Value.(ast.String)))
+		time.Sleep(d)
+		return iter(ast.NullTerm())
+	})
 }
