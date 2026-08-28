@@ -6883,7 +6883,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some i, x in [[0]][i]
 				}
 			`,
-			wantErr: errors.New("test.rego:4: rego_compile_error: var i used in some domain"),
+			wantErr: errors.New("test.rego:4: rego_compile_error: var i assigned before"),
 		},
 		{
 			note: "some/in key used in domain after some",
@@ -6894,7 +6894,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some i, x in [[0]][i]
 				}
 			`,
-			wantErr: errors.New("test.rego:5: rego_compile_error: var i used in some domain"),
+			wantErr: errors.New("test.rego:5: rego_compile_error: var i assigned before"),
 		},
 		{
 			note: "some/in key used in domain after assignment",
@@ -6905,7 +6905,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some i, x in [[0]][i]
 				}
 			`,
-			wantErr: errors.New("test.rego:5: rego_compile_error: var i used in some domain"),
+			wantErr: errors.New("test.rego:5: rego_compile_error: var i assigned before"),
 		},
 		{
 			note: "some/in value used in domain",
@@ -6915,7 +6915,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					some x in [[0]][x]
 				}
 			`,
-			wantErr: errors.New("test.rego:4: rego_compile_error: var x used in some domain"),
+			wantErr: errors.New("test.rego:4: rego_compile_error: var x assigned before"),
 		},
 		{
 			note: "declare unused err",

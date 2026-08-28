@@ -6929,15 +6929,16 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 			if val != nil {
 				bound.Update(val.Vars())
 			}
-			domainVis := NewVarVisitor().WithParams(VarVisitorParams{SkipClosures: true})
+			domainVis := varVisitorPool.Get().WithParams(VarVisitorParams{SkipClosures: true})
 			domainVis.Walk(container)
 			nerrs := len(errs)
 			for _, v0 := range bound.Intersect(domainVis.Vars()).Sorted() {
 				if v0.IsWildcard() {
 					continue
 				}
-				errs = append(errs, NewError(CompileErr, decl.Loc(), "var %v used in some domain", v0))
+				errs = append(errs, NewError(CompileErr, decl.Loc(), "var %v assigned before", v0))
 			}
+			varVisitorPool.Put(domainVis)
 			if len(errs) > nerrs {
 				return nil, errs
 			}
