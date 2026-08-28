@@ -9,6 +9,9 @@ import BuiltinCompatCells, {
 } from "../BuiltinCompat";
 import styles from "./styles.module.css";
 
+// Every "only" filter in the search bar is the same toggle: grey when off, green when on.
+const toggleClass = (on) => `${styles.filterToggle} ${on ? styles.filterToggleOn : ""}`;
+
 export default function BuiltinSearch({ entryLimit, alwaysShow, elementId }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -89,15 +92,16 @@ export default function BuiltinSearch({ entryLimit, alwaysShow, elementId }) {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <span className={isWasm ? styles.wasm_1 : styles.wasm_0} onClick={(e) => setIsWasm(!isWasm)}>
+        <span
+          className={toggleClass(isWasm)}
+          onClick={(e) => setIsWasm(!isWasm)}
+        >
           {isWasm ? "✓" : "✗"} Wasm Only
         </span>
         {implementations.map((impl) => (
           <span
             key={impl.id}
-            className={selectedImplementations.includes(impl.id)
-              ? styles.implementation_1
-              : styles.implementation_0}
+            className={toggleClass(selectedImplementations.includes(impl.id))}
             onClick={() => toggleImplementation(impl.id)}
           >
             {selectedImplementations.includes(impl.id) ? "✓" : "✗"} {impl.label} Only
