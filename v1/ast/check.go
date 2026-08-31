@@ -395,11 +395,70 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 		}
 	}
 
-	if operator == "eq" {
+	switch operator {
+	case "eq":
 		return checkExprEq(env, expr)
+	case Member.Name, MemberWithKey.Name:
+		if err := checkExprMember(env, expr, operator == MemberWithKey.Name); err != nil {
+			return err
+		}
 	}
 
 	return tc.checkExprBuiltin(env, expr)
+}
+
+// checkExprMember type checks the `in` operator, whose operands are declared as
+// any: what may be found in a collection depends on the collection's own type,
+// which a function declaration can't express.
+func checkExprMember(env *TypeEnv, expr *Expr, withKey bool) *Error {
+	arity := Member.Decl.Arity()
+	if withKey {
+		arity = MemberWithKey.Decl.Arity()
+	}
+
+	args := expr.Operands()
+	if len(args) < arity {
+		return nil // too few arguments; reported by checkExprBuiltin
+	}
+
+	collection := env.GetByValue(args[arity-1].Value)
+
+	// `in` yields false rather than erroring for operands it can't enumerate.
+	values := types.Values(collection)
+	if values == nil {
+		return nil
+	}
+
+	if withKey {
+		if err := checkExprMemberOperand(env, expr, args[0], types.Keys(collection)); err != nil {
+			return err
+		}
+	}
+
+	return checkExprMemberOperand(env, expr, args[arity-2], values)
+}
+
+// checkExprMemberOperand checks that term can occur in the collection being
+// searched, inferring the type of untyped terms (e.g. `some x in xs`) as it goes.
+func checkExprMemberOperand(env *TypeEnv, expr *Expr, term *Term, tpe types.Type) *Error {
+	if tpe == nil || types.Nil(tpe) {
+		return nil
+	}
+
+	have := env.GetByValue(term.Value)
+
+	// unifies rejects already-typed terms; unify1 infers types for untyped vars
+	// and checks the resolved parts of partially typed composites.
+	if (!types.Nil(have) && !unifies(have, tpe)) || !unify1(env, term, tpe, false) {
+		err := NewError(TypeErr, expr.Location, "match error")
+		err.Details = &UnificationErrDetail{
+			Left:  have,
+			Right: tpe,
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
