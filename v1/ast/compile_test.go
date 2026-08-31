@@ -2242,9 +2242,42 @@ func TestCompilerCheckTypesMemberOperator(t *testing.T) {
 			expErr: "match error\n\tleft  : string\n\tright : number",
 		},
 		{
+			note: "number key of object of strings, literal",
+			module: `p if {
+	1, "foo" in input.names
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "number value of object of strings, literal",
+			module: `p if {
+	"first", 1 in input.names
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "string index of array of numbers, literal",
+			module: `p if {
+	"first", 1 in input.numbers
+}`,
+			expErr: "match error\n\tleft  : string\n\tright : number",
+		},
+		{
 			note: "number in array of numbers",
 			module: `p if {
 	1 in input.numbers
+}`,
+		},
+		{
+			note: "string key and value of object of strings, literal",
+			module: `p if {
+	"first", "foo" in input.names
+}`,
+		},
+		{
+			note: "number index and value of array of numbers, literal",
+			module: `p if {
+	0, 1 in input.numbers
 }`,
 		},
 		{
