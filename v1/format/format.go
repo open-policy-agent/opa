@@ -707,7 +707,13 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 				var err error
 				comments, err = w.writeExpr(rule.Body[0], comments)
 				if err != nil {
-					return nil, err
+					// An unexpected comment isn't fatal: the expression was
+					// written as-is, and the comments returned still need
+					// writing. Dropping them would lose every comment after
+					// this rule.
+					if _, ok := errors.AsType[unexpectedCommentError](err); !ok {
+						return nil, err
+					}
 				}
 				w.endLine()
 				if rule.Else != nil {
