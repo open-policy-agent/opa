@@ -7,16 +7,16 @@ sidebar_position: 3
 Rego supports a wide range of built-in functions for different policy use cases. Built-ins available in this version of OPA are listed below.
 
 Each built-in is listed with a column per place it can be used. **OPA** gives the release that
-introduced it, **Wasm** whether it is available in policies compiled to Wasm (a cross means it must
-be provided by the host SDK), and the remaining columns are other Rego implementations such as
-[swift-opa](https://github.com/open-policy-agent/swift-opa) and
+introduced it, **Wasm** whether it is compiled into policies built for Wasm (`SDK` means it is not,
+and the host SDK has to provide it), and the remaining columns are other Rego implementations such
+as [swift-opa](https://github.com/open-policy-agent/swift-opa) and
 [java-opa-sdk](https://github.com/open-policy-agent/java-opa-sdk), showing the version support
 began in.
 
 Implementation columns are read from the capabilities each project publishes, so they describe its
-released versions rather than its current development state. A cross may therefore mean a built-in
-is implemented but not yet released there. Use the filters below to narrow the list to the
-built-ins one implementation supports.
+released versions rather than its current development state. A cross means the built-in cannot be
+called there at all, and may mean it is implemented but not yet released. Use the filters below to
+narrow the list to the built-ins one implementation supports.
 
 import BuiltinSearch from "@site/src/components/BuiltinSearch";
 

@@ -14,7 +14,8 @@
 }
 
 .supported,
-.unsupported {
+.unsupported,
+.hostProvided {
   text-align: center;
   font-size: 0.75rem;
   white-space: nowrap;
@@ -31,4 +32,10 @@
 
 .unsupported {
   background-color: rgb(from var(--ifm-color-danger) r g b / 12%);
+}
+
+/* Left out of the Wasm module but still callable when the host SDK provides it: neither the green
+   of full support nor the red of none. */
+.hostProvided {
+  background-color: rgb(from var(--ifm-color-warning) r g b / 18%);
 }

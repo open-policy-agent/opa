@@ -46,7 +46,10 @@ export function BuiltinCompatHeadings() {
 }
 
 // support describes how one target covers one builtin: the version support began in where that is
-// known, a tick where it is supported without a version, or a cross where it is not.
+// known, a tick where it is supported without a version, or a cross where it is not. A builtin
+// left out of the Wasm module is not unavailable in the way a cross elsewhere is — the policy
+// still evaluates if the host SDK answers the callback — so that case gets its own "SDK" state
+// rather than reusing the cross for two different meanings.
 function support(target, fn) {
   if (target.key === "opa") {
     const introduced = fn.introduced;
@@ -54,7 +57,7 @@ function support(target, fn) {
     // this old" rather than a release to link to.
     const linkable = introduced && introduced !== "edge" && introduced !== "v0.17.0";
     return {
-      supported: true,
+      state: "yes",
       text: introduced,
       href: linkable ? `https://github.com/open-policy-agent/opa/releases/${introduced}` : null,
       title: `Available in OPA ${introduced}`,
@@ -62,19 +65,24 @@ function support(target, fn) {
   }
 
   if (target.key === "wasm") {
+    if (!fn.wasm) {
+      return {
+        state: "host",
+        text: "SDK",
+        title: "Not compiled into Wasm; must be provided by the host SDK",
+      };
+    }
     return {
-      supported: !!fn.wasm,
-      text: fn.wasm ? "✓" : "✗",
-      title: fn.wasm
-        ? "Available in policies compiled to Wasm"
-        : "Not compiled into Wasm; must be provided by the host SDK",
+      state: "yes",
+      text: "✓",
+      title: "Available in policies compiled to Wasm",
     };
   }
 
   const availability = fn.implementations || {};
   if (!(target.key in availability)) {
     return {
-      supported: false,
+      state: "no",
       text: "✗",
       title: `Not available in ${target.name} ${target.version}`,
     };
@@ -82,13 +90,19 @@ function support(target, fn) {
 
   const since = availability[target.key];
   return {
-    supported: true,
+    state: "yes",
     text: since || "✓",
     title: since
       ? `Available in ${target.name} since ${since}`
       : `Available in ${target.name} ${target.version}`,
   };
 }
+
+const cellStyles = {
+  yes: styles.supported,
+  no: styles.unsupported,
+  host: styles.hostProvided,
+};
 
 // Body cells for the compatibility columns of one builtin.
 export default function BuiltinCompatCells({ fn }) {
@@ -99,7 +113,7 @@ export default function BuiltinCompatCells({ fn }) {
         return (
           <td
             key={target.key}
-            className={cell.supported ? styles.supported : styles.unsupported}
+            className={cellStyles[cell.state]}
             title={cell.title}
           >
             {cell.href
