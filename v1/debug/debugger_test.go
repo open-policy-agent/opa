@@ -270,6 +270,35 @@ p if {
 			brHits: 4, // every "header" is composed of multiple expressions that will all cause a breakpoint hit.
 			expRow: 6,
 		},
+		// FIXME: step-in should enter and/or bodies
+		{
+			note: "and operand body is not stepped into",
+			module: `package test
+import future.keywords.and
+
+p if {
+	true and {  # breakpoint, and where step-in stays
+		true
+	}
+}
+`,
+			brRow:  5,
+			expRow: 5,
+		},
+		{
+			note: "or operand body is not stepped into",
+			module: `package test
+import future.keywords.or
+
+p if {
+	false or {  # breakpoint, and where step-in stays
+		true
+	}
+}
+`,
+			brRow:  5,
+			expRow: 5,
+		},
 		{
 			note: "comprehension",
 			module: `package test
