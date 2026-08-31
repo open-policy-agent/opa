@@ -1172,10 +1172,48 @@ type ArgErrDetail struct {
 
 // Lines returns the string representation of the detail.
 func (d *ArgErrDetail) Lines() []string {
-	lines := make([]string, 2)
-	lines[0] = "have: " + formatArgs(d.Have)
-	lines[1] = "want: " + d.Want.String()
-	return lines
+	have := "have: " + formatArgs(d.Have)
+	want := "want: " + d.Want.String()
+
+	if !tooWideForTypeErr(have, want) {
+		return []string{have, want}
+	}
+
+	// Positions that only exist on one side, as is the case for arity errors,
+	// have nothing to be compared against, and are collapsed to their outermost
+	// type constructor.
+	haveArgs := make([]string, len(d.Have))
+	for i := range d.Have {
+		haveArgs[i] = elideType(d.Have[i])
+	}
+	wantArgs := make([]string, len(d.Want.Args))
+	for i := range d.Want.Args {
+		wantArgs[i] = elideType(d.Want.Args[i])
+	}
+
+	for i := range min(len(haveArgs), len(wantArgs)) {
+		haveArgs[i], wantArgs[i] = diffArg(d.Have[i], d.Want.Args[i])
+	}
+
+	if d.Want.Variadic != nil {
+		wantArgs = append(wantArgs, elideType(d.Want.Variadic)+"...")
+	}
+
+	return []string{
+		"have: (" + strings.Join(haveArgs, ", ") + ")",
+		"want: (" + strings.Join(wantArgs, ", ") + ")",
+	}
+}
+
+// diffArg renders an actual and an expected argument type side by side. The two
+// are only diffed if they are actually in conflict: an argument that the
+// function would have accepted is not what the error is about, and expanding it
+// is what makes these messages unreadable in the first place.
+func diffArg(have, want types.Type) (string, string) {
+	if have != nil && want != nil && unifies(unwrapNamedType(have), unwrapNamedType(want)) {
+		return elideType(have), elideType(want)
+	}
+	return sprintDiff(have, want)
 }
 
 func (d *ArgErrDetail) nilType() bool {
@@ -1195,10 +1233,15 @@ func (a *UnificationErrDetail) nilType() bool {
 
 // Lines returns the string representation of the detail.
 func (a *UnificationErrDetail) Lines() []string {
-	lines := make([]string, 2)
-	lines[0] = fmt.Sprint("left  : ", types.Sprint(a.Left))
-	lines[1] = fmt.Sprint("right : ", types.Sprint(a.Right))
-	return lines
+	leftLine := "left  : " + types.Sprint(a.Left)
+	rightLine := "right : " + types.Sprint(a.Right)
+
+	if !tooWideForTypeErr(leftLine, rightLine) {
+		return []string{leftLine, rightLine}
+	}
+
+	left, right := sprintDiff(a.Left, a.Right)
+	return []string{"left  : " + left, "right : " + right}
 }
 
 // RefErrUnsupportedDetail describes an undefined reference error where the
