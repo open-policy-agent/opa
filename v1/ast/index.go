@@ -133,52 +133,63 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int, rule *Rule) {
 	node := i.root
 
-	if len(path) > 0 {
-		for _, ref := range sorted {
-			var values []*refindex
-			for _, ri := range path {
-				if ri.Ref.Equal(ref) {
-					values = append(values, ri)
-				}
-			}
+	// The path stops at the last level it constrains. A rule that constrains
+	// nothing below has nothing to test there, so walking on would only pad the
+	// path with an "absent" node per remaining level -- a copy of the whole tail
+	// that no other rule shares, which is what made a trie of n levels cost n^2
+	// nodes to build and to walk. The multiple-scalar case below has always
+	// attached mid-trie for the same reason.
+	remaining := len(path)
 
-			// A var value records "this ref can be anything", which a concrete value
-			// for the same ref supersedes: everything on one path has to hold, so the
-			// concrete value is the stronger of the two constraints. A chain of
-			// assignments, `x := input.a; y := x`, leaves one var entry per local
-			// behind, and only the first of them is replaced when the concrete value
-			// is inserted. Keeping the rest would index the rule under anyValue below
-			// and give up all the discrimination the concrete value buys us.
-			if len(values) > 1 {
-				if concrete := slices.DeleteFunc(slices.Clone(values), (*refindex).isVar); len(concrete) > 0 {
-					values = concrete
-				}
-			}
+	for _, ref := range sorted {
+		if remaining == 0 {
+			break
+		}
 
-			if len(values) == 0 {
-				node = node.Insert(ref, nil, nil)
-			} else if len(values) == 1 {
-				node = node.Insert(ref, values[0].Value, values[0].Mapper)
+		var values []*refindex
+		for _, ri := range path {
+			if ri.Ref.Equal(ref) {
+				values = append(values, ri)
+			}
+		}
+		remaining -= len(values)
+
+		// A var value records "this ref can be anything", which a concrete value
+		// for the same ref supersedes: everything on one path has to hold, so the
+		// concrete value is the stronger of the two constraints. A chain of
+		// assignments, `x := input.a; y := x`, leaves one var entry per local
+		// behind, and only the first of them is replaced when the concrete value
+		// is inserted. Keeping the rest would index the rule under anyValue below
+		// and give up all the discrimination the concrete value buys us.
+		if len(values) > 1 {
+			if concrete := slices.DeleteFunc(slices.Clone(values), (*refindex).isVar); len(concrete) > 0 {
+				values = concrete
+			}
+		}
+
+		if len(values) == 0 {
+			node = node.Insert(ref, nil, nil)
+		} else if len(values) == 1 {
+			node = node.Insert(ref, values[0].Value, values[0].Mapper)
+		} else {
+			if slices.ContainsFunc(values, (*refindex).isVar) {
+				child := node.Insert(ref, anyValue, values[0].Mapper)
+				for i := range values {
+					if values[i].Mapper != nil {
+						node.next.addMapper(values[i].Mapper)
+					}
+				}
+				node = child
 			} else {
-				if slices.ContainsFunc(values, (*refindex).isVar) {
-					child := node.Insert(ref, anyValue, values[0].Mapper)
-					for i := range values {
-						if values[i].Mapper != nil {
-							node.next.addMapper(values[i].Mapper)
-						}
-					}
-					node = child
-				} else {
-					// When a rule has multiple scalar values (e.g., internal.member_2 with a set),
-					// each value should have its own child node, and the rule is appended to each.
-					// This creates separate paths for each value so different rules with overlapping
-					// values don't interfere with each other.
-					for _, val := range values {
-						child := node.Insert(ref, val.Value, val.Mapper)
-						child.append(prio, rule)
-					}
-					return
+				// When a rule has multiple scalar values (e.g., internal.member_2 with a set),
+				// each value should have its own child node, and the rule is appended to each.
+				// This creates separate paths for each value so different rules with overlapping
+				// values don't interfere with each other.
+				for _, val := range values {
+					child := node.Insert(ref, val.Value, val.Mapper)
+					child.append(prio, rule)
 				}
+				return
 			}
 		}
 	}
