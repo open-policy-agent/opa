@@ -46,7 +46,7 @@ a:hover { text-decoration: underline; }
 p, code { font-family: 'Go Mono', monospace !important; font-size: 13px; }
 code { background: var(--blue); padding: 1px 4px; }
 
-#commit-info {
+.commit-panel {
   font-family: 'Go Mono', monospace !important;
   font-size: 12px;
   background: var(--blue) !important;
