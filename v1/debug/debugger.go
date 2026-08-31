@@ -346,11 +346,10 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, o
 		defer func() { _ = tracer.Close() }()
 		rs, evalErr := pq.Eval(s.ctx, evalArgs...)
 		if evalErr != nil {
-			var topdownErr *topdown.Error
-			if errors.As(evalErr, &topdownErr) && topdownErr.Code == topdown.CancelErr {
-				return
+			topdownErr, ok := errors.AsType[*topdown.Error](evalErr)
+			if !ok || topdownErr.Code != topdown.CancelErr {
+				d.logger.Error("Evaluation failed: %v", evalErr)
 			}
-			d.logger.Error("Evaluation failed: %v", evalErr)
 			return
 		}
 

@@ -2532,12 +2532,12 @@ type deferredEarlyExitContainer struct {
 }
 
 func (dc *deferredEarlyExitContainer) handleErr(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if dc.deferred == nil && errors.As(err, &dc.deferred) && dc.deferred != nil {
-		return nil
+	if err != nil && dc.deferred == nil {
+		var ok bool
+		dc.deferred, ok = errors.AsType[*deferredEarlyExitError](err)
+		if ok && dc.deferred != nil {
+			return nil
+		}
 	}
 
 	return err

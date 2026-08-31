@@ -690,7 +690,7 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 
 	go func(ctx context.Context, done chan bool) {
 		for ctx.Err() == nil {
-			if err := p.b.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
+			if err := p.b.Upload(ctx); err != nil && !util.ErrorIs[*bufferEmpty](err) {
 				p.logger.Error("Error flushing decisions: %s", err)
 				// Wait some before retrying, but skip incrementing interval since we are shutting down
 				time.Sleep(1 * time.Second)
@@ -972,13 +972,12 @@ func (*uploadCancelled) Error() string {
 	return "cancelled upload"
 }
 
-func (p *Plugin) doOneShot(ctx context.Context) error {
-	err := p.b.Upload(ctx)
-	if err != nil {
-		if errors.Is(err, &bufferEmpty{}) {
+func (p *Plugin) doOneShot(ctx context.Context) (err error) {
+	if err = p.b.Upload(ctx); err != nil {
+		if util.ErrorIs[*bufferEmpty](err) {
 			p.logger.Debug("Log upload queue was empty.")
 			err = nil
-		} else if errors.Is(err, &uploadCancelled{}) {
+		} else if util.ErrorIs[*uploadCancelled](err) {
 			err = nil
 		} else {
 			p.logger.Error("%v.", err)
@@ -1006,7 +1005,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 	p.config = *newConfig
 
 	// upload all events in the current buffer type
-	if err := p.b.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
+	if err := p.b.Upload(ctx); err != nil && !util.ErrorIs[*bufferEmpty](err) {
 		p.setStatus(err)
 	}
 	p.b.Stop(ctx)

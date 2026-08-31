@@ -2979,11 +2979,9 @@ func iteration(x any) bool {
 			}
 		case ast.Ref:
 			if !stopped {
-				if bi := ast.BuiltinMap[x.String()]; bi != nil {
-					if bi.Relation {
-						stopped = true
-						return stopped
-					}
+				if bi := ast.BuiltinMap[x.String()]; bi != nil && bi.Relation {
+					stopped = true
+					return stopped
 				}
 				for i := 1; i < len(x); i++ {
 					if _, ok := x[i].Value.(ast.Var); ok {

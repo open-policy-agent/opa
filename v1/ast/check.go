@@ -1211,12 +1211,11 @@ type RefErrUnsupportedDetail struct {
 
 // Lines returns the string representation of the detail.
 func (r *RefErrUnsupportedDetail) Lines() []string {
-	lines := []string{
+	return []string{
 		r.Ref.String(),
 		strings.Repeat("^", len(r.Ref[:r.Pos+1].String())),
 		fmt.Sprintf("have: %v", r.Have),
 	}
-	return lines
 }
 
 // RefErrInvalidDetail describes an undefined reference error where the referenced

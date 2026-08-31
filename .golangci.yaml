@@ -36,6 +36,8 @@ linters:
         - (*encoding/json/jsontext.Encoder).WriteValue
     forbidigo:
       forbid:
+        - pattern: '^errors\.As$'
+          message: "Prefer to use errors.AsType instead"
         - pattern: '^sort\.[A-Z][a-zA-Z]+$'
           message: "Prefer the more performant sort/search functions in the slices package"
     gocritic:

@@ -95,6 +95,14 @@ func (a *Annotations) String() string {
 	return string(bs)
 }
 
+func (a *Annotations) AppendText(buf []byte) ([]byte, error) {
+	bs, err := a.MarshalJSON()
+	if err == nil {
+		buf = append(buf, bs...)
+	}
+	return buf, err
+}
+
 // Loc returns the location of this annotation.
 func (a *Annotations) Loc() *Location {
 	return a.Location

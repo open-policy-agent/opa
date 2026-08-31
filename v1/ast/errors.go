@@ -67,10 +67,8 @@ const (
 
 // IsError returns true if err is an AST error with code.
 func IsError(code string, err error) bool {
-	if err, ok := err.(*Error); ok {
-		return err.Code == code
-	}
-	return false
+	e, ok := err.(*Error)
+	return ok && e.Code == code
 }
 
 // ErrorDetails defines the interface for detailed error messages.
@@ -90,7 +88,6 @@ func (e *Error) Error() string {
 	var prefix string
 
 	if e.Location != nil {
-
 		if len(e.Location.File) > 0 {
 			prefix += e.Location.File + ":" + strconv.Itoa(e.Location.Row)
 		} else {

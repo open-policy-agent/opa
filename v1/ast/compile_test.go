@@ -441,13 +441,7 @@ func refMapEqual(a, b *util.HasherMap[Ref, []Ref]) bool {
 	}
 	return !a.Iter(func(k Ref, v []Ref) bool {
 		v2, ok := b.Get(k)
-		if !ok {
-			return true
-		}
-		if !refSliceEqual(v, v2) {
-			return true
-		}
-		return false
+		return !ok || !slices.EqualFunc(v, v2, RefEqual)
 	})
 }
 
@@ -2055,9 +2049,7 @@ r[x] := y if {
 				t.Fatal("expected error")
 			}
 
-			var errs Errors
-			errors.As(err, &errs)
-
+			errs, _ := errors.AsType[Errors](err)
 			if len(errs) != len(tc.expectedErrs) {
 				t.Fatalf("expected %d errors, got %d", len(tc.expectedErrs), len(errs))
 			}
@@ -12070,8 +12062,8 @@ func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
 				qc = tc.opts(qc)
 			}
 			_, err := qc.Compile(MustParseBody(tc.query))
-			var errs Errors
-			if !errors.As(err, &errs) {
+			errs, ok := errors.AsType[Errors](err)
+			if !ok {
 				t.Fatalf("expected error type %T, got %v %[2]T", errs, err)
 			}
 			if exp, act := 1, len(errs); exp != act {
