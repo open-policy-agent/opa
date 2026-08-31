@@ -198,6 +198,68 @@
 (defn benchmark-id [pkg name]
   (clojure.string/replace (str pkg "_" name) #"[^a-zA-Z0-9]" "-"))
 
+;; --- benchlab -----------------------------------------------------------
+;;
+;; benchmarks.json holds absolute measurements taken on whatever machine the
+;; runner happened to be, so the relative-to-latest-tag ratios computed from it
+;; carry all of the between-machine variance. benchlab.json holds the nightly
+;; experiment instead, where the baseline and HEAD are measured side by side on
+;; one machine, so its ratio for the same benchmark is the same quantity
+;; measured far more precisely. Both are charted in the same y-space.
+
+(def benchlab-raw
+  (let [f (io/file "../benchlab.json")]
+    (if (.exists f)
+      (json/read-str (slurp f) :key-fn keyword)
+      [])))
+
+(def benchlab-nights
+  "Nights anchored to the same tag the charts are, oldest first.
+
+   A night measured against a different baseline reports percentages relative to
+   another commit, so plotting it on this axis would be quietly wrong by however
+   much the two baselines differ. Such nights are dropped rather than rescaled,
+   because that offset is not knowable from this data -- it takes a run that
+   measures both baselines together. Expect the benchlab trace to shorten to
+   nothing right after a release and grow back over the following nights."
+  (let [usable  (filter #(= (:baseline_tag %) latest-tag) benchlab-raw)
+        dropped (- (count benchlab-raw) (count usable))]
+    (when (pos? dropped)
+      (println (format "note: ignoring %d benchlab night(s) not anchored to %s"
+                       dropped latest-tag)))
+    (vec (sort-by :date usable))))
+
+(def benchlab-series
+  "[pkg name measure] -> points, oldest first.
+
+   :ci-pct is the confidence interval benchstat reports for the HEAD arm alone,
+   not an interval on the delta -- benchstat does not expose the latter. It is
+   drawn as an error bar because it is the best available indication of spread,
+   but :significant is the trustworthy verdict on whether anything moved.
+
+   Only :vs_baseline is read here. bench-nightly strips the other two
+   comparisons from every night but the newest, since they exist for alerting and
+   for computing that night's calibration, both of which have already happened by
+   the time a night reaches this file."
+  (->> (for [night (reverse benchlab-nights)
+             r     (:results night)]
+         [[(:pkg r) (:name r) (:measure r)]
+          {:date        (:date night)
+           :commit      (:head night)
+           :ratio       (+ 1 (/ (double (get-in r [:vs_baseline :pct] 0)) 100))
+           :ci-pct      (double (or (:head_ci_pct r) 0))
+           :significant (boolean (get-in r [:vs_baseline :significant]))
+           :calibration (:calibration night)}])
+       ;; Nights are walked newest first and each point conj'd onto the front of
+       ;; its benchmark's list, so every list comes out oldest first.
+       (reduce (fn [acc [k point]] (update acc k conj point)) {})))
+
+(def benchlab-latest-ratios
+  "[pkg name measure] -> the most recent night's ratio."
+  (into {}
+        (map (fn [[k points]] [k (:ratio (last points))]))
+        benchlab-series))
+
 (def sparklines
   (->> rows
        (filter #(= (:measure %) "NsPerOp"))
@@ -210,4 +272,6 @@
   (->> ratios
        (filter #(contains? benchmarks-with-data [(:pkg %) (:name %)]))
        (mapv #(assoc % :id (benchmark-id (:pkg %) (:name %))
-                        :spark (get sparklines [(:pkg %) (:name %)])))))
+                        :spark (get sparklines [(:pkg %) (:name %)])
+                        :benchlab (get benchlab-latest-ratios
+                                       [(:pkg %) (:name %) "NsPerOp"])))))
