@@ -62,6 +62,9 @@ type (
 		// group by priority; see trieTraversalResult and gather.
 		rules  []*Rule
 		groups []int32
+		// required holds, per rule id, the refs it needs defined that are not
+		// trie levels. See refindices.partition.
+		required map[int32][]Ref
 	}
 )
 
@@ -113,7 +116,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	}
 
 	// build trie out of indices.
-	levels := indices.Sorted()
+	levels, unvalued := indices.partition(indices.Sorted())
 
 	for idx := range rules {
 		WalkRules(rules[idx], func(rule *Rule) bool {
@@ -135,12 +138,16 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			// Each set of indices the rule can be reached through gets its own
 			// path. They share an id, so a lookup arriving at the rule down
 			// several of them still reports it once (see trieTraversalResult.Add).
-			if len(indices.disjunctions[rule]) == 0 {
+			paths := indices.disjunctions[rule]
+			if len(paths) == 0 {
 				i.insertPath(indices.table, levels, indices.rules[rule], id, rule)
+				i.require(indices.table, id, unvalued, alternatives{indices.rules[rule]})
 			} else {
-				for _, path := range indices.paths(rule) {
+				alts := indices.paths(rule)
+				for _, path := range alts {
 					i.insertPath(indices.table, levels, path, id, rule)
 				}
+				i.require(indices.table, id, unvalued, alts)
 			}
 			return false
 		})
@@ -149,6 +156,33 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	i.root.compact()
 
 	return true
+}
+
+// require records the refs rule needs defined, of those partition kept out of the
+// trie. Only a ref every path to the rule reads is recorded: one an `or` reads on
+// a single alternative does not have to hold for the rule to match, and a lookup
+// that dropped the rule over it would lose an answer rather than a shortcut.
+func (i *baseDocEqIndex) require(table *refTable, id int32, unvalued []refID, paths alternatives) {
+	if len(unvalued) == 0 || len(paths) == 0 {
+		return
+	}
+
+	var required []Ref
+	for _, ref := range unvalued {
+		reads := func(path []*refindex) bool {
+			return slices.ContainsFunc(path, func(ri *refindex) bool { return ri.ref == ref })
+		}
+		if !slices.ContainsFunc(paths, func(path []*refindex) bool { return !reads(path) }) {
+			required = append(required, table.ref(ref))
+		}
+	}
+
+	if len(required) > 0 {
+		if i.required == nil {
+			i.required = make(map[int32][]Ref, len(unvalued))
+		}
+		i.required[id] = required
+	}
 }
 
 func (i *baseDocEqIndex) insertPath(table *refTable, levels []refID, path []*refindex, id int32, rule *Rule) {
@@ -241,12 +275,10 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	}()
 
 	tr.grow(len(i.rules))
-
 	err := i.root.Traverse(resolver, tr)
 	if err != nil {
 		return nil, err
 	}
-
 	result := IndexResultPool.Get()
 
 	result.Kind = i.kind
@@ -257,36 +289,73 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 
 	clear(result.Else)
 
-	i.gather(tr, result)
-
-	if !tr.multiple {
-		// even when the indexer hasn't seen multiple values, the rule itself could be one
-		// where early exit shouldn't be applied.
-		var lastValue Value
-		for i := range result.Rules {
-			if result.Rules[i].Head.DocKind() != CompleteDoc {
-				tr.multiple = true
-				break
-			}
-			if result.Rules[i].Head.Value != nil {
-				if lastValue != nil && !ValueEqual(lastValue, result.Rules[i].Head.Value.Value) {
-					tr.multiple = true
-					break
-				}
-				lastValue = result.Rules[i].Head.Value.Value
-			}
-		}
+	if err := i.gather(tr, resolver, result); err != nil {
+		IndexResultPool.Put(result)
+		return nil, err
 	}
+
+	// Decided over the candidates rather than over what traversal saw, which is
+	// finer -- and has to be, now that the refs partition keeps out of the trie no
+	// longer separate the definitions into nodes of their own: of `p := 1 if
+	// input.foo`, `p := 2 if input.bar` and `p := 1 if input.baz`, the two agreeing
+	// on 1 are all a lookup returns when input has no bar.
+	tr.multiple = !resultMayEarlyExit(result)
 
 	result.EarlyExit = !tr.multiple
 
 	return result, nil
 }
 
+// resultMayEarlyExit reports whether a caller could stop at the first candidate
+// that holds, the else branches included: they are values it could stop at too.
+func resultMayEarlyExit(result *IndexResult) bool {
+	var value Value
+	if !agreeOnValue(result.Rules, &value) {
+		return false
+	}
+	for _, branches := range result.Else {
+		if !agreeOnValue(branches, &value) {
+			return false
+		}
+	}
+	return true
+}
+
+// agreeOnValue reports whether rules are complete documents agreeing on value,
+// which it carries in so that several sets of rules can be asked as one.
+func agreeOnValue(rules []*Rule, value *Value) bool {
+	for _, rule := range rules {
+		if rule.Head.DocKind() != CompleteDoc {
+			return false
+		}
+		if rule.Head.Value == nil {
+			continue
+		}
+		// A value that is not ground is a different one per binding, so there is
+		// no first answer to stop at.
+		v := rule.Head.Value.Value
+		if !v.IsGround() {
+			return false
+		}
+		if *value != nil && !ValueEqual(*value, v) {
+			return false
+		}
+		*value = v
+	}
+	return true
+}
+
 // gather reads the rules a traversal reached into result. Ids ascend with
 // priority, so a run of them sharing a group is that ruleset's definitions in
 // order, the first being the one to evaluate.
-func (i *baseDocEqIndex) gather(tr *trieTraversalResult, result *IndexResult) {
+//
+// The refs partition kept out of the trie are checked here rather than as
+// traversal reaches a rule: a bit set for a rule that turns out undefined costs
+// nothing to leave set, and asking here means the resolver's error is the return
+// value of something rather than a field to be picked up afterwards. A nil
+// resolver asks nothing, which is what AllRules wants.
+func (i *baseDocEqIndex) gather(tr *trieTraversalResult, resolver ValueResolver, result *IndexResult) error {
+	var cache resolveCache
 	var root *Rule
 	group := int32(-1)
 
@@ -304,6 +373,17 @@ func (i *baseDocEqIndex) gather(tr *trieTraversalResult, result *IndexResult) {
 	for _, w := range tr.touched {
 		for word := tr.hits[w]; word != 0; word &= word - 1 {
 			id := w<<6 | int32(bits.TrailingZeros64(word))
+
+			if resolver != nil && len(i.required) > 0 {
+				defined, err := i.defined(resolver, id, &cache)
+				if err != nil {
+					return err
+				}
+				if !defined {
+					continue
+				}
+			}
+
 			rule := i.rules[id]
 
 			if g := i.groups[id]; g != group {
@@ -318,6 +398,8 @@ func (i *baseDocEqIndex) gather(tr *trieTraversalResult, result *IndexResult) {
 			result.Else[root] = append(result.Else[root], rule)
 		}
 	}
+
+	return nil
 }
 
 func (i *baseDocEqIndex) AllRules(ValueResolver) (*IndexResult, error) {
@@ -331,7 +413,10 @@ func (i *baseDocEqIndex) AllRules(ValueResolver) (*IndexResult, error) {
 	result := NewIndexResult(i.kind)
 	result.Default = i.defaultRule
 	result.OnlyGroundRefs = i.onlyGroundRefs
-	i.gather(tr, result)
+
+	// Every rule the trie holds, so nothing is asked of the resolver and
+	// nothing can fail; see gather.
+	_ = i.gather(tr, nil, result)
 
 	result.EarlyExit = !tr.multiple
 
@@ -812,6 +897,66 @@ func (i *refindices) Sorted() []refID {
 	return i.sorted
 }
 
+// partition splits sorted into the refs that become trie levels and the refs that
+// do not, which is those no rule constrains to a value.
+//
+// A ref every rule records only as "holds something" -- which is what
+// RewriteDynamicTerms leaves behind when it hoists a term into a local,
+// `__local1__ = data.groups.g0.members` -- gives the trie a level whose only
+// children are "anything" and "absent". It cannot narrow a lookup by value. What
+// it can do is exclude the rules that read the ref when the ref is absent, since
+// traversal stops at a level that resolves to nothing, and for a naked reference
+// -- `allow if input.x` -- that is the whole of the indexing.
+//
+// Keeping it as a level is an expensive way to ask that question. Both children
+// carry their own copy of the levels below, so the levels multiply out, and each
+// lookup resolves a ref per copy. One such level per rule makes traversal
+// quadratic:
+//
+//	allow if { input.subject in data.groups.g0.members; input.resource.foo == "A" }
+//	allow if { input.subject in data.groups.g1.members; input.resource.foo == "A" }
+//	...
+//
+// 500 of those resolve 125k refs on every lookup -- N(N+1)/2 -- to exclude nothing,
+// because input.resource.foo is what discriminates. The index costs more than it
+// saves there: the same policy evaluates 6.5x faster with indexing disabled, and
+// 8.8x at a thousand rules.
+//
+// So the question moves out of the trie: Lookup checks these refs against the
+// candidates traversal produced, which asks it once per surviving rule instead of
+// once per copy of the level. The candidates are the same either way.
+func (i *refindices) partition(sorted []refID) (levels, unvalued []refID) {
+	// An `or` records its operands' indices on disjunctions rather than through
+	// insert, so collect from both rather than counting as they arrive.
+	valued := make([]bool, len(i.stats))
+	note := func(path []*refindex) {
+		for _, ri := range path {
+			if !ri.isVar() {
+				valued[ri.ref] = true
+			}
+		}
+	}
+	for _, path := range i.rules {
+		note(path)
+	}
+	for _, alts := range i.disjunctions {
+		for _, alt := range alts {
+			for _, path := range alt {
+				note(path)
+			}
+		}
+	}
+
+	for _, ref := range sorted {
+		if valued[ref] {
+			levels = append(levels, ref)
+		} else {
+			unvalued = append(unvalued, ref)
+		}
+	}
+	return levels, unvalued
+}
+
 func (i *refindices) updateEq(rule *Rule, a, b Value, constants map[Var]Value) {
 	args := rule.Head.Args
 	if !i.eqOperandsToRefAndValue(rule, args, a, b, constants) {
@@ -1228,6 +1373,64 @@ type trieTraversalResult struct {
 	touched  []int32
 	exist    *Term
 	multiple bool
+}
+
+// defined reports whether every ref the rule needs resolves to something. A ref
+// that is unknown rather than absent cannot exclude it, the same way traversal
+// keeps everything below a level it cannot resolve (see traverseUnknown).
+func (i *baseDocEqIndex) defined(resolver ValueResolver, id int32, cache *resolveCache) (bool, error) {
+	for _, ref := range i.required[id] {
+		defined, err := cache.defined(resolver, ref)
+		if err != nil {
+			return false, err
+		}
+		if !defined {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// resolveCache memoizes, for the length of one lookup, what the resolver answered.
+// The refs kept out of the trie are the same few over and over -- one per level
+// partition dropped, not one per rule.
+//
+// Where topdown's baseCache holds what the store gave, making a resolve cheap, this
+// skips making the call.
+type resolveCache struct {
+	refs []resolvedRef
+}
+
+type resolvedRef struct {
+	// key identifies the reference by the slice it is: interning gives every
+	// distinct one a backing array of its own, and the length tells it from a
+	// prefix sharing that array.
+	key     **Term
+	n       int
+	defined bool
+}
+
+func (c *resolveCache) defined(resolver ValueResolver, ref Ref) (bool, error) {
+	key, n := &ref[0], len(ref)
+	for i := range c.refs {
+		if c.refs[i].key == key && c.refs[i].n == n {
+			return c.refs[i].defined, nil
+		}
+	}
+
+	v, err := resolver.Resolve(ref)
+	if err != nil {
+		if !IsUnknownValueErr(err) {
+			return false, err
+		}
+		// Unknown rather than absent cannot exclude the rule, the same way
+		// traversal keeps everything below a level it cannot resolve.
+		v = Boolean(true)
+	}
+
+	c.refs = append(c.refs, resolvedRef{key: key, n: n, defined: v != nil})
+	return v != nil, nil
 }
 
 var ttrPool = &sync.Pool{
