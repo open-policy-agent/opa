@@ -2118,18 +2118,6 @@ func (c *Compiler) getExports() *util.HasherMap[Ref, []Ref] {
 	return rules
 }
 
-func refSliceEqual(a, b []Ref) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !a[i].Equal(b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
 func hashMapAdd(rules *util.HasherMap[Ref, []Ref], pkg, rule Ref) {
 	prev, ok := rules.Get(pkg)
 	if !ok {
@@ -5428,6 +5416,13 @@ func outputVarsForExprEq(expr *Expr, safe VarSet, output VarSet) VarSet {
 		return safe
 	}
 
+	// Clear the shared buffer before use. Callers of outputVarsForExpr reuse the
+	// same VarSet across candidate expressions in a single reorderBodyForSafety
+	// pass. Without this, leftover bindings from an earlier (not-yet-schedulable)
+	// call expression can leak into Unify() via the safe basis and incorrectly
+	// mark an equality as grounded. See issue #8302.
+	clear(output)
+
 	output = outputVarsForTerms(expr, safe, output)
 	output.Update(safe)
 	if expr.fromAssignment {
@@ -5677,17 +5672,15 @@ func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
 			return true
 
 		case *Term:
-			if _, ok := x.Value.(Ref); ok {
-				if RootDocumentRefs.Contains(x) {
-					// We could support args named input, data, etc. however
-					// this would require rewriting terms in the head and body.
-					// Preventing root document shadowing is simpler, and
-					// arguably, will prevent confusing names from being used.
-					// NOTE: this check is also performed as part of strict-mode in
-					// checkRootDocumentOverrides.
-					err = fmt.Errorf("args must not shadow %v (use a different variable name)", x)
-					return true
-				}
+			if TermValueIs[Ref](x) && RootDocumentRefs.Contains(x) {
+				// We could support args named input, data, etc. however
+				// this would require rewriting terms in the head and body.
+				// Preventing root document shadowing is simpler, and
+				// arguably, will prevent confusing names from being used.
+				// NOTE: this check is also performed as part of strict-mode in
+				// checkRootDocumentOverrides.
+				err = fmt.Errorf("args must not shadow %v (use a different variable name)", x)
+				return true
 			}
 		}
 		return false
@@ -7437,12 +7430,30 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var, scope string) (r
 		return
 	}
 
-	for _, pair := range unsafe.Vars() {
+	assignmentLHS := assignmentLHSVars(unsafe, rewritten)
+
+	pairs := unsafe.Vars()
+	hasNonAssignmentLHS := false
+	for _, pair := range pairs {
+		v := pair.Var
+		if w, ok := rewritten[v]; ok {
+			v = w
+		}
+		if !v.IsGenerated() && !assignmentLHS.Contains(v) && !assignmentLHS.Contains(pair.Var) {
+			hasNonAssignmentLHS = true
+			break
+		}
+	}
+
+	for _, pair := range pairs {
 		v := pair.Var
 		if w, ok := rewritten[v]; ok {
 			v = w
 		}
 		if !v.IsGenerated() {
+			if hasNonAssignmentLHS && (assignmentLHS.Contains(v) || assignmentLHS.Contains(pair.Var)) {
+				continue
+			}
 			if _, ok := allFutureKeywords[string(v)]; ok {
 				result = append(result, NewError(UnsafeVarErr, pair.Loc,
 					"var %[1]v is unsafe%[2]v (hint: `import future.keywords.%[1]v` to import a future keyword)", v, scope))
@@ -7459,14 +7470,14 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var, scope string) (r
 	// If the expression contains unsafe generated variables, report which
 	// expressions are unsafe instead of the variables that are unsafe (since
 	// the latter are not meaningful to the user.)
-	pairs := util.SortedFunc(unsafe.Slice(), func(a, b unsafePair) int {
+	exprPairs := util.SortedFunc(unsafe.Slice(), func(a, b unsafePair) int {
 		return a.Expr.Location.Compare(b.Expr.Location)
 	})
 
 	// Report at most one error per generated variable.
 	seen := NewVarSet()
 
-	for _, expr := range pairs {
+	for _, expr := range exprPairs {
 		before := len(seen)
 		for v := range expr.Vars {
 			if v.IsGenerated() {
@@ -7479,6 +7490,23 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var, scope string) (r
 	}
 
 	return
+}
+
+func assignmentLHSVars(unsafe unsafeVars, rewritten map[Var]Var) VarSet {
+	lhs := NewVarSet()
+	for expr := range unsafe {
+		if !expr.fromAssignment || !validEqAssignArgCount(expr) {
+			continue
+		}
+		WalkVars(expr.Operand(0), func(v Var) bool {
+			lhs.Add(v)
+			if w, ok := rewritten[v]; ok {
+				lhs.Add(w)
+			}
+			return false
+		})
+	}
+	return lhs
 }
 
 // ruleScopes resolves the "in rule ..." label appended to safety errors for the

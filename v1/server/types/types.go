@@ -617,12 +617,12 @@ type BadRequestErr string
 // BadPatchOperationErr returns BadRequestErr indicating the patch operation was
 // invalid.
 func BadPatchOperationErr(op string) error {
-	return BadRequestErr(fmt.Sprintf("bad patch operation: %v", op))
+	return BadRequestErr("bad patch operation: " + op)
 }
 
 // BadPatchPathErr returns BadRequestErr indicating the patch path was invalid.
 func BadPatchPathErr(path string) error {
-	return BadRequestErr(fmt.Sprintf("bad patch path: %v", path))
+	return BadRequestErr("bad patch path: " + path)
 }
 
 func (err BadRequestErr) Error() string {

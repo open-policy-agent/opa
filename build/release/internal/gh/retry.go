@@ -147,12 +147,9 @@ func isRetryableErr(err error) bool {
 	if err == nil {
 		return false
 	}
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return true
-	}
+	_, isNetErr := errors.AsType[net.Error](err)
 	// A reset or EOF mid-response arrives wrapped in *url.Error, not as net.Error.
-	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed)
+	return isNetErr || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed)
 }
 
 // retryAfter retries 5xx, 429, and 403-with-exhausted-rate-limit (GitHub's

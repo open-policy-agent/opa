@@ -13,7 +13,8 @@ func TestErrorWrapping(t *testing.T) {
 	t.Parallel()
 
 	isHalt := func(err error) bool {
-		return errors.As(err, &topdown.Halt{})
+		_, ok := errors.AsType[topdown.Halt](err)
+		return ok
 	}
 
 	builtinErr := errors.New("builtin error")

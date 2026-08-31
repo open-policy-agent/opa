@@ -1718,8 +1718,8 @@ func TestEvalBuiltinUnevaluatedOperand(t *testing.T) {
 				t.Fatalf("expected error but got results: %v", qrs)
 			}
 
-			var topdownErr *Error
-			if !errors.As(err, &topdownErr) {
+			topdownErr, ok := errors.AsType[*Error](err)
+			if !ok {
 				t.Fatalf("expected *topdown.Error but got %#v", err)
 			}
 
@@ -1799,8 +1799,8 @@ func TestEvalBuiltinUnevaluatedVariadicOperand(t *testing.T) {
 
 	_, err := query.Run(t.Context())
 
-	var topdownErr *Error
-	if !errors.As(err, &topdownErr) {
+	topdownErr, ok := errors.AsType[*Error](err)
+	if !ok {
 		t.Fatalf("expected *topdown.Error but got %#v", err)
 	}
 

@@ -441,13 +441,7 @@ func refMapEqual(a, b *util.HasherMap[Ref, []Ref]) bool {
 	}
 	return !a.Iter(func(k Ref, v []Ref) bool {
 		v2, ok := b.Get(k)
-		if !ok {
-			return true
-		}
-		if !refSliceEqual(v, v2) {
-			return true
-		}
-		return false
+		return !ok || !slices.EqualFunc(v, v2, RefEqual)
 	})
 }
 
@@ -1885,6 +1879,121 @@ p if { true } q if { true }`)
 	}
 }
 
+// Compile-level probes around issue #8302: safe bodies that must still compile,
+// the #8302 shape itself, and genuinely unsafe bodies that must still be rejected.
+func TestCompilerCheckSafetyIssue8302(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		wantErr bool
+		errSub  string
+	}{
+		{
+			note: "safe/simple equality",
+			module: `package t
+p if { x = 1; y = x }`,
+		},
+		{
+			note: "safe/ordered comprehension",
+			module: `package t
+f(x) := x
+p := z if { x = 2; y = f([v | v = x][0]); z = f(y) }`,
+		},
+		{
+			note: "safe/issue-8302 shape must compile",
+			module: `package t
+f(x) := x
+p := z if { y = f([v | v = x][0]); z = f(y); x = 2 }`,
+		},
+		{
+			note: "safe/double indirection through comprehension",
+			module: `package t
+f(x) := x
+p := w if {
+	y = f([v | v = x][0])
+	z = f([v | v = y][0])
+	w = f(z)
+	x = 2
+}`,
+		},
+		{
+			note: "safe/with modifier",
+			module: `package t
+f(x) := x
+p := z if { y = f([v | v = x][0]) with input as {}; z = f(y); x = 2 }`,
+		},
+		{
+			note: "safe/every after grounding",
+			module: `package t
+p if { xs = [1]; every y in xs { y == 1 } }`,
+		},
+		{
+			note: "safe/issue-8302 with +1 function",
+			module: `package t
+f(x) := x + 1
+p := z if { y = f([v | v = x][0]); z = f(y); x = 2 }`,
+		},
+		{
+			note: "unsafe/unbound var",
+			module: `package t
+p if { y = x }`,
+			wantErr: true,
+			errSub:  "unsafe",
+		},
+		{
+			note: "unsafe/circular unify",
+			module: `package t
+p if { x = y; y = x }`,
+			wantErr: true,
+			errSub:  "unsafe",
+		},
+		{
+			note: "unsafe/unbound comprehension var",
+			module: `package t
+p if { xs = [v | v = x] }`,
+			wantErr: true,
+			errSub:  "unsafe",
+		},
+		{
+			note: "unsafe/negation of unbound",
+			module: `package t
+p if { not x }`,
+			wantErr: true,
+			errSub:  "unsafe",
+		},
+		{
+			note: "unsafe/:= cannot reorder through comprehension (directional)",
+			module: `package t
+f(x) := x
+p := z if { y := f([v | v = x][0]); z := f(y); x := 2 }`,
+			wantErr: true,
+			errSub:  "unsafe",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(true)
+			c.Compile(map[string]*Module{
+				"t": MustParseModule(tc.module),
+			})
+			failed := c.Failed()
+			if tc.wantErr && !failed {
+				t.Fatalf("expected compile error, got success")
+			}
+			if !tc.wantErr && failed {
+				t.Fatalf("unexpected compile errors: %v", c.Errors)
+			}
+			if tc.wantErr && tc.errSub != "" {
+				joined := c.Errors.Error()
+				if !strings.Contains(joined, tc.errSub) {
+					t.Fatalf("expected error containing %q, got %v", tc.errSub, c.Errors)
+				}
+			}
+		})
+	}
+}
+
 // TestSharedRuleRows verifies which source lines the enclosing rule is reported
 // for: those holding rules of more than one name.
 func TestSharedRuleRows(t *testing.T) {
@@ -2055,9 +2164,7 @@ r[x] := y if {
 				t.Fatal("expected error")
 			}
 
-			var errs Errors
-			errors.As(err, &errs)
-
+			errs, _ := errors.AsType[Errors](err)
 			if len(errs) != len(tc.expectedErrs) {
 				t.Fatalf("expected %d errors, got %d", len(tc.expectedErrs), len(errs))
 			}
@@ -2174,6 +2281,167 @@ p := {"a": 1}[count([1, 2])]`,
 			c.Modules = map[string]*Module{"test": MustParseModule(tc.module)}
 			compileStages(c, StageCheckTypes)
 			assertCompilerErrorStrings(t, c, []string{"rego_type_error: " + tc.expErr})
+		})
+	}
+}
+
+func TestCompilerCheckTypesMemberOperator(t *testing.T) {
+	schema := `{
+		"type": "object",
+		"properties": {
+			"numbers": {
+				"type": "array",
+				"items": {"type": "number"}
+			},
+			"names": {
+				"type": "object",
+				"properties": {
+					"first": {"type": "string"},
+					"last": {"type": "string"}
+				},
+				"additionalProperties": false
+			}
+		},
+		"additionalProperties": false
+	}`
+
+	tests := []struct {
+		note   string
+		module string
+		expErr string
+	}{
+		{
+			note: "string in array of numbers",
+			module: `p if {
+	"admin" in input.numbers
+}`,
+			expErr: "match error\n\tleft  : string\n\tright : number",
+		},
+		{
+			note: "declared var in array of numbers used as string",
+			module: `p if {
+	some x in input.numbers
+	x == "admin"
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "string index of array of numbers",
+			module: `p if {
+	some i, _ in input.numbers
+	i == "admin"
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "number in object of strings",
+			module: `p if {
+	1 in input.names
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "number key of object of strings",
+			module: `p if {
+	some k, _ in input.names
+	k == 1
+}`,
+			expErr: "match error\n\tleft  : string\n\tright : number",
+		},
+		{
+			note: "number key of object of strings, literal",
+			module: `p if {
+	1, "foo" in input.names
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "number value of object of strings, literal",
+			module: `p if {
+	"first", 1 in input.names
+}`,
+			expErr: "match error\n\tleft  : number\n\tright : string",
+		},
+		{
+			note: "string index of array of numbers, literal",
+			module: `p if {
+	"first", 1 in input.numbers
+}`,
+			expErr: "match error\n\tleft  : string\n\tright : number",
+		},
+		{
+			note: "number in array of numbers",
+			module: `p if {
+	1 in input.numbers
+}`,
+		},
+		{
+			note: "string key and value of object of strings, literal",
+			module: `p if {
+	"first", "foo" in input.names
+}`,
+		},
+		{
+			note: "number index and value of array of numbers, literal",
+			module: `p if {
+	0, 1 in input.numbers
+}`,
+		},
+		{
+			note: "declared var in array of numbers used as number",
+			module: `p if {
+	some x in input.numbers
+	x > 1
+}`,
+		},
+		{
+			note: "string in object of strings",
+			module: `p if {
+	"admin" in input.names
+}`,
+		},
+		{
+			note: "string in string",
+			module: `p if {
+	"a" in input.names.first
+}`,
+		},
+		{
+			note: "unknown collection type",
+			module: `p if {
+	xs := json.unmarshal("[1]")
+	"a" in xs
+}`,
+		},
+	}
+
+	var ischema any
+	if err := json.Unmarshal([]byte(schema), &ischema); err != nil {
+		t.Fatal(err)
+	}
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(MustParseRef("schema.input"), ischema)
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module := `# METADATA
+# schemas:
+#   - input: schema.input
+package test
+
+` + tc.module
+
+			c := NewCompiler().WithSchemas(schemaSet).WithUseTypeCheckAnnotations(true)
+			c.Modules = map[string]*Module{"test": MustParseModuleWithOpts(module, ParserOptions{
+				ProcessAnnotation: true,
+			})}
+			compileStages(c, StageCheckTypes)
+
+			if tc.expErr == "" {
+				assertNotFailed(t, c)
+			} else {
+				assertCompilerErrorStrings(t, c, []string{"rego_type_error: " + tc.expErr})
+			}
 		})
 	}
 }
@@ -9185,9 +9453,9 @@ func TestCompilerRewriteTemplateStrings(t *testing.T) {
 			}`,
 		exp: `package test
 			p := __local0__ if { 
-				__local0__ = __local1__
-				x = 42; 
+				x = 42
 				internal.template_string([{x}], __local1__)
+				__local0__ = __local1__
 			}`,
 	}, {
 		note: "refs to known defined rules are not wrapped in comprehensions",
@@ -12070,8 +12338,8 @@ func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
 				qc = tc.opts(qc)
 			}
 			_, err := qc.Compile(MustParseBody(tc.query))
-			var errs Errors
-			if !errors.As(err, &errs) {
+			errs, ok := errors.AsType[Errors](err)
+			if !ok {
 				t.Fatalf("expected error type %T, got %v %[2]T", errs, err)
 			}
 			if exp, act := 1, len(errs); exp != act {

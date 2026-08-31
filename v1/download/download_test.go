@@ -793,8 +793,8 @@ func TestFailureUnexpected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	var hErr HTTPError
-	if !errors.As(err, &hErr) {
+	hErr, ok := errors.AsType[HTTPError](err)
+	if !ok {
 		t.Fatal("expected HTTPError")
 	}
 	if hErr.StatusCode != 500 {
@@ -825,8 +825,8 @@ func TestFailureUnexpectedWithResponseBody(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	var hErr HTTPError
-	if !errors.As(err, &hErr) {
+	hErr, ok := errors.AsType[HTTPError](err)
+	if !ok {
 		t.Fatal("expected HTTPError")
 	}
 	if hErr.StatusCode != 500 {

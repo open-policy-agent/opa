@@ -511,10 +511,8 @@ func IsValidImportPath(v Value) (err error) {
 		if err := IsValidImportPath(v[0].Value); err != nil {
 			return fmt.Errorf("invalid path %v: path must begin with input or data", v)
 		}
-		for _, e := range v[1:] {
-			if _, ok := e.Value.(String); !ok {
-				return fmt.Errorf("invalid path %v: path elements must be strings", v)
-			}
+		if !util.Every(v[1:], TermValueIs[String]) {
+			return fmt.Errorf("invalid path %v: path elements must be strings", v)
 		}
 	default:
 		return fmt.Errorf("invalid path %v: path must be ref or var", v)
@@ -1343,10 +1341,8 @@ func (expr *Expr) Operands() []*Term {
 func (expr *Expr) IsGround() bool {
 	switch ts := expr.Terms.(type) {
 	case []*Term:
-		for _, t := range ts[1:] {
-			if !t.IsGround() {
-				return false
-			}
+		if !util.Every(ts[1:], (*Term).IsGround) {
+			return false
 		}
 	case *Term:
 		return ts.IsGround()

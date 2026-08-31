@@ -1285,8 +1285,8 @@ func TestResultUnmarshalJSONEvalError(t *testing.T) {
 		t.Fatal("Expected error, got nil")
 	}
 
-	var tdErr *topdown.Error
-	if !errors.As(result.Error, &tdErr) {
+	tdErr, ok := errors.AsType[*topdown.Error](result.Error)
+	if !ok {
 		t.Fatalf("Expected *topdown.Error, got %T", result.Error)
 	}
 
