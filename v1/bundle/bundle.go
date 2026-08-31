@@ -165,7 +165,7 @@ type Manifest struct {
 }
 
 type fileRegoVersion struct {
-	path    glob.Glob
+	path    *glob.Pattern
 	version int
 }
 
