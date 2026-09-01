@@ -16,7 +16,7 @@ const globInterQueryValueCacheHits = "rego_builtin_glob_interquery_value_cache_h
 var noDelimiters = []rune{}
 var dotDelimiters = []rune{'.'}
 var globCacheLock = sync.RWMutex{}
-var globCache = map[string]glob.Glob{}
+var globCache = map[string]*glob.Pattern{}
 
 func builtinGlobMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	pattern, err := builtins.StringOperand(operands[0].Value, 1)
@@ -66,7 +66,7 @@ func globCompileAndMatch(bctx BuiltinContext, id, pattern, match string, delimit
 		// TODO: Use named cache
 		val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.String(id))
 		if ok {
-			pat, valid := val.(glob.Glob)
+			pat, valid := val.(*glob.Pattern)
 			if !valid {
 				// The cache key may exist for a different value type (eg. regex).
 				// In this case, we calculate the glob and return the result w/o updating the cache.

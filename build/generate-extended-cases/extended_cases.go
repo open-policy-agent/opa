@@ -29,7 +29,7 @@ var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to
 
 var (
 	exceptions     map[string]string
-	exceptionGlobs []glob.Glob
+	exceptionGlobs []*glob.Pattern
 )
 
 func setup() {
