@@ -57,7 +57,6 @@ func NewOCI(config Config, client rest.Client, path, storePath string) *OCIDownl
 		localStorePath:   storePath,
 		localStoreIsTemp: localStoreIsTemp,
 		client:           client,
-		trigger:          make(chan chan struct{}),
 		stop:             make(chan chan struct{}),
 		logger:           client.Logger(),
 		store:            localstore,
@@ -303,12 +302,25 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 	tee := io.TeeReader(r, &buf)
 
 	loader := bundle.NewTarballLoaderWithBaseURL(tee, d.localStorePath)
+
+	// Setting the size limit on the loader allows early exit in the case
+	// of any file exceeding the limit, without the file getting loaded
+	if d.sizeLimitBytes != nil {
+		loader = loader.WithSizeLimitBytes(*d.sizeLimitBytes)
+	}
+
 	reader := bundle.NewCustomReader(loader).
 		WithMetrics(m).
 		WithBundleVerificationConfig(d.bvc).
 		WithBundleEtag(etag).
 		WithRegoVersion(d.bundleParserOpts.RegoVersion).
-		WithProcessAnnotations(d.bundleParserOpts.ProcessAnnotation)
+		WithProcessAnnotations(d.bundleParserOpts.ProcessAnnotation).
+		WithBundlePersistence(d.persist)
+
+	if d.sizeLimitBytes != nil {
+		reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
+	}
+
 	bundleInfo, err := reader.Read()
 	if err != nil {
 		return &downloaderResponse{}, fmt.Errorf("unexpected error %w", err)

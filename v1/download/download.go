@@ -53,7 +53,6 @@ type Downloader struct {
 	config             Config                              // downloader configuration for tuning polling and other downloader behaviour
 	client             rest.Client                         // HTTP client to use for bundle downloading
 	path               string                              // path to use in bundle download request
-	trigger            chan chan struct{}                  // channel to signal downloads when manual triggering is enabled
 	stop               chan chan struct{}                  // used to signal plugin to stop running
 	f                  func(context.Context, Update) error // callback function invoked when download updates occur
 	etag               string                              // HTTP Etag for caching purposes
@@ -62,7 +61,6 @@ type Downloader struct {
 	respHdrTimeoutSec  int64
 	wg                 sync.WaitGroup
 	logger             logging.Logger
-	stopped            bool
 	stopOnce           sync.Once
 	persist            bool
 	longPollingEnabled bool
@@ -85,7 +83,6 @@ func New(config Config, client rest.Client, path string) *Downloader {
 		config:             config,
 		client:             client,
 		path:               path,
-		trigger:            make(chan chan struct{}),
 		stop:               make(chan chan struct{}),
 		logger:             client.Logger(),
 		longPollingEnabled: config.Polling.LongPollingTimeoutSeconds != nil,
@@ -195,7 +192,6 @@ func (d *Downloader) doStart(context.Context) {
 	done := <-d.stop // blocks until there's something to read
 	cancel()
 	d.wg.Wait()
-	d.stopped = true
 	close(done)
 }
 
