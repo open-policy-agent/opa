@@ -1498,14 +1498,25 @@ func TestDebuggerStepOut(t *testing.T) {
 }
 
 func TestDebuggerStackTrace(t *testing.T) {
+	mod := ast.MustParseModule(`package test
+
+p if q
+
+q if true
+`)
+	pRule, qRule := mod.Rules[0], mod.Rules[1]
+
 	tests := []struct {
-		note     string
-		events   []*topdown.Event
-		expTrace []*stackFrame
+		note          string
+		events        []*topdown.Event
+		skipOps       []topdown.Op
+		expQueryTrace []*stackFrame
+		expEventTrace []*stackFrame
 	}{
 		{
-			note:     "empty stack",
-			expTrace: []*stackFrame{},
+			note:          "empty stack",
+			expQueryTrace: []*stackFrame{},
+			expEventTrace: []*stackFrame{},
 		},
 		{
 			note: "single stack frame, no event node",
@@ -1519,7 +1530,18 @@ func TestDebuggerStackTrace(t *testing.T) {
 					},
 				},
 			},
-			expTrace: []*stackFrame{
+			expQueryTrace: []*stackFrame{
+				{
+					id:     1,
+					name:   "1",
+					thread: 1,
+					location: &location.Location{
+						File: "test.rego",
+						Row:  42,
+					},
+				},
+			},
+			expEventTrace: []*stackFrame{
 				{
 					id:     1,
 					name:   "#1: 1 Eval, test.rego:42",
@@ -1544,7 +1566,18 @@ func TestDebuggerStackTrace(t *testing.T) {
 					},
 				},
 			},
-			expTrace: []*stackFrame{
+			expQueryTrace: []*stackFrame{
+				{
+					id:     1,
+					name:   "1",
+					thread: 1,
+					location: &location.Location{
+						File: "test.rego",
+						Row:  42,
+					},
+				},
+			},
+			expEventTrace: []*stackFrame{
 				{
 					id:     1,
 					name:   "#1: 1 | Eval data.test.p[x]",
@@ -1557,7 +1590,7 @@ func TestDebuggerStackTrace(t *testing.T) {
 			},
 		},
 		{
-			note: "multiple stack frames",
+			note: "multiple events, single query",
 			events: []*topdown.Event{
 				{
 					Op:      topdown.EvalOp,
@@ -1578,8 +1611,20 @@ func TestDebuggerStackTrace(t *testing.T) {
 					},
 				},
 			},
+			// One frame for the query, anchored on its most recent event.
+			expQueryTrace: []*stackFrame{
+				{
+					id:     1,
+					name:   "5",
+					thread: 1,
+					location: &location.Location{
+						File: "test.rego",
+						Row:  3,
+					},
+				},
+			},
 			// Reversed order
-			expTrace: []*stackFrame{
+			expEventTrace: []*stackFrame{
 				{
 					id:     2,
 					name:   "#2: 5 | Unify y = 1",
@@ -1600,47 +1645,446 @@ func TestDebuggerStackTrace(t *testing.T) {
 				},
 			},
 		},
+		{
+			note: "nested queries",
+			events: []*topdown.Event{
+				{
+					Op:       topdown.EnterOp,
+					Node:     ast.MustParseBody("data.test.p = x"),
+					QueryID:  0,
+					ParentID: 0,
+					Location: &location.Location{Row: 1},
+				},
+				{
+					Op:       topdown.EvalOp,
+					Node:     ast.MustParseExpr("data.test.p = x"),
+					QueryID:  0,
+					ParentID: 0,
+					Location: &location.Location{Row: 1},
+				},
+				{
+					Op:       topdown.EnterOp,
+					Node:     pRule,
+					QueryID:  1,
+					ParentID: 0,
+					Location: &location.Location{File: "test.rego", Row: 3},
+				},
+				{
+					Op:       topdown.EvalOp,
+					Node:     ast.MustParseExpr("data.test.q"),
+					QueryID:  1,
+					ParentID: 0,
+					Location: &location.Location{File: "test.rego", Row: 3},
+				},
+				{
+					Op:       topdown.EnterOp,
+					Node:     qRule,
+					QueryID:  2,
+					ParentID: 1,
+					Location: &location.Location{File: "test.rego", Row: 5},
+				},
+				{
+					Op:       topdown.EvalOp,
+					Node:     ast.MustParseExpr("true"),
+					QueryID:  2,
+					ParentID: 1,
+					Location: &location.Location{File: "test.rego", Row: 5},
+				},
+			},
+			expQueryTrace: []*stackFrame{
+				{
+					id:       1,
+					name:     "2: data.test.q",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 5},
+				},
+				{
+					id:       2,
+					name:     "1: data.test.p",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 3},
+				},
+				{
+					id:       3,
+					name:     "0: data.test.p = x",
+					thread:   1,
+					location: &location.Location{Row: 1},
+				},
+			},
+			expEventTrace: []*stackFrame{
+				{
+					id:       6,
+					name:     "#6: 2 | Eval true",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 5},
+				},
+				{
+					id:       5,
+					name:     "#5: 2 Enter data.test.q",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 5},
+				},
+				{
+					id:       4,
+					name:     "#4: 1 | Eval data.test.q",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 3},
+				},
+				{
+					id:       3,
+					name:     "#3: 1 Enter data.test.p",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 3},
+				},
+				{
+					id:       2,
+					name:     "#2: 0 | Eval data.test.p = x",
+					thread:   1,
+					location: &location.Location{Row: 1},
+				},
+				{
+					id:       1,
+					name:     "#1: 0 Enter data.test.p = x",
+					thread:   1,
+					location: &location.Location{Row: 1},
+				},
+			},
+		},
+		{
+			note:    "ancestor query anchored past skipped events",
+			skipOps: []topdown.Op{topdown.UnifyOp},
+			events: []*topdown.Event{
+				{
+					Op:       topdown.EnterOp,
+					Node:     pRule,
+					QueryID:  1,
+					ParentID: 0,
+					Location: &location.Location{File: "test.rego", Row: 3},
+				},
+				{
+					Op:       topdown.EvalOp,
+					Node:     ast.MustParseExpr("data.test.q"),
+					QueryID:  1,
+					ParentID: 0,
+					Location: &location.Location{File: "test.rego", Row: 3},
+				},
+				{
+					Op:       topdown.UnifyOp,
+					Node:     ast.MustParseExpr("x = 1"),
+					QueryID:  1,
+					ParentID: 0,
+					Location: &location.Location{File: "test.rego", Row: 4},
+				},
+				{
+					Op:       topdown.EnterOp,
+					Node:     qRule,
+					QueryID:  2,
+					ParentID: 1,
+					Location: &location.Location{File: "test.rego", Row: 5},
+				},
+			},
+			// The ancestor frame skips the Unify event on row 4.
+			expQueryTrace: []*stackFrame{
+				{
+					id:       1,
+					name:     "2: data.test.q",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 5},
+				},
+				{
+					id:       2,
+					name:     "1: data.test.p",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 3},
+				},
+			},
+			expEventTrace: []*stackFrame{
+				{
+					id:       4,
+					name:     "#4: 2 Enter data.test.q",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 5},
+				},
+				{
+					id:       3,
+					name:     "#3: 1 | Unify x = 1",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 4},
+				},
+				{
+					id:       2,
+					name:     "#2: 1 | Eval data.test.q",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 3},
+				},
+				{
+					id:       1,
+					name:     "#1: 1 Enter data.test.p",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 3},
+				},
+			},
+		},
+		{
+			note:    "top frame anchored on skipped event",
+			skipOps: []topdown.Op{topdown.UnifyOp},
+			events: []*topdown.Event{
+				{
+					Op:       topdown.EnterOp,
+					Node:     pRule,
+					QueryID:  1,
+					ParentID: 0,
+					Location: &location.Location{File: "test.rego", Row: 3},
+				},
+				{
+					Op:       topdown.UnifyOp,
+					Node:     ast.MustParseExpr("x = 1"),
+					QueryID:  1,
+					ParentID: 0,
+					Location: &location.Location{File: "test.rego", Row: 4},
+				},
+			},
+			// The top frame always tracks the most recent event, skipped or not.
+			expQueryTrace: []*stackFrame{
+				{
+					id:       1,
+					name:     "1: data.test.p",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 4},
+				},
+			},
+			expEventTrace: []*stackFrame{
+				{
+					id:       2,
+					name:     "#2: 1 | Unify x = 1",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 4},
+				},
+				{
+					id:       1,
+					name:     "#1: 1 Enter data.test.p",
+					thread:   1,
+					location: &location.Location{File: "test.rego", Row: 3},
+				},
+			},
+		},
+	}
+
+	modes := []struct {
+		name string
+		mode StackTraceMode
+	}{
+		{name: "default", mode: StackTraceModeDefault},
+		{name: "query", mode: StackTraceModeQuery},
+		{name: "event", mode: StackTraceModeEvent},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(5*time.Second))
+		for _, m := range modes {
+			t.Run(tc.note+" ("+m.name+" mode)", func(t *testing.T) {
+				ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(5*time.Second))
+				defer cancel()
+
+				expTrace := tc.expQueryTrace
+				if m.mode == StackTraceModeEvent {
+					expTrace = tc.expEventTrace
+				}
+
+				props := LaunchProperties{
+					SkipOps:        tc.skipOps,
+					StackTraceMode: m.mode,
+				}
+
+				stk := newTestStack(tc.events...)
+				eh := newTestEventHandler()
+				_, s, thr := setupDebuggerSession(ctx, stk, props, eh.HandleEvent, nil, nil, nil)
+
+				if err := s.start(); err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				if err := s.ResumeAll(); err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				if e := eh.WaitFor(ctx, TerminatedEventType); e == nil {
+					t.Fatal("Run never terminated")
+				}
+
+				trace, err := s.StackTrace(thr.id)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				if len(trace) != len(expTrace) {
+					t.Fatalf("Expected %d stack frames, got %d:\n\n%v", len(expTrace), len(trace), trace)
+				}
+
+				for i := range trace {
+					if !trace[i].Equal(expTrace[i]) {
+						t.Errorf("Expected stack frame (%d):\n\n%v\n\ngot:\n\n%v", i, expTrace[i], trace[i])
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestDebuggerStackTraceModesOnEval(t *testing.T) {
+	modName := "policy.rego"
+	files := map[string]string{
+		modName: `package example
+
+allow if {
+	x := f(input.n)
+	x > 1
+	every y in input.l {
+		y < 10          # breakpoint
+	}
+}
+
+f(n) := n + 1
+`,
+	}
+	brRow := 7
+
+	expQueryFrames := []struct {
+		name string
+		row  int
+	}{
+		{name: "4: lt(__local2__, 10)", row: 7},
+		{name: "3: every __local1__, __local2__ in __local5__ { lt(__local2__, 10) }", row: 6},
+		{name: "1: data.example.allow", row: 6},
+		{name: "0: data.example.allow = x", row: 1},
+	}
+
+	for _, m := range []struct {
+		name string
+		mode StackTraceMode
+	}{
+		{name: "default", mode: StackTraceModeDefault},
+		{name: "query", mode: StackTraceModeQuery},
+		{name: "event", mode: StackTraceModeEvent},
+	} {
+		t.Run(m.name+" mode", func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
 
-			stk := newTestStack(tc.events...)
-			eh := newTestEventHandler()
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
+			rootDir := test.TempDir(t, files)
 
-			if err := s.start(); err != nil {
+			eh := newTestEventHandler()
+			d := NewDebugger(SetEventHandler(eh.HandleEvent))
+
+			launchProps := LaunchEvalProperties{
+				LaunchProperties: LaunchProperties{
+					DataPaths:      []string{path.Join(rootDir, modName)},
+					StackTraceMode: m.mode,
+				},
+				Query: "data.example.allow = x",
+				Input: map[string]any{"n": 5, "l": []any{1, 2}},
+			}
+
+			s, err := d.LaunchEval(ctx, launchProps)
+			if err != nil {
+				t.Fatalf("Unexpected error launching debug session: %v", err)
+			}
+
+			if _, err := s.AddBreakpoint(location.Location{File: path.Join(rootDir, modName), Row: brRow}); err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 
 			if err := s.ResumeAll(); err != nil {
-				t.Fatalf("Unexpected error: %v", err)
+				t.Fatalf("Unexpected error resuming threads: %v", err)
 			}
 
-			if e := eh.WaitFor(ctx, TerminatedEventType); e == nil {
-				t.Fatal("Run never terminated")
+			if e := eh.WaitFor(ctx, StoppedEventType); e == nil {
+				t.Fatal("Expected stopped event")
+			} else if e.stackEvent.Location.Row != brRow {
+				t.Fatalf("Expected to stop on row %d, got %d", brRow, e.stackEvent.Location.Row)
 			}
 
-			trace, err := s.StackTrace(thr.id)
+			eh.IgnoreAll(ctx)
+
+			trace, err := s.StackTrace(ThreadID(1))
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 
-			if len(trace) != len(tc.expTrace) {
-				t.Fatalf("Expected %d stack frames, got %d", len(tc.expTrace), len(trace))
+			if m.mode == StackTraceModeEvent {
+				// Every consumed trace event gets a frame, including those skipped by SkipOps.
+				if exp := s.(*session).threads[0].consumed; len(trace) != exp {
+					t.Errorf("Expected %d stack frames, got %d", exp, len(trace))
+				}
+				if trace[0].Location().Row != brRow {
+					t.Errorf("Expected top frame on row %d, got %d", brRow, trace[0].Location().Row)
+				}
+				return
 			}
 
-			if len(trace) != len(tc.expTrace) {
-				t.Errorf("Expected stack trace:\n\n%v\n\ngot:\n\n%v", tc.expTrace, trace)
+			if len(trace) != len(expQueryFrames) {
+				t.Fatalf("Expected %d stack frames, got %d:\n\n%v", len(expQueryFrames), len(trace), trace)
 			}
-			for i := range trace {
-				if !trace[i].Equal(tc.expTrace[i]) {
-					t.Errorf("Expected stack frame (%d):\n\n%v\n\ngot:\n\n%v", i, tc.expTrace[i], trace[i])
+
+			for i, exp := range expQueryFrames {
+				if trace[i].Name() != exp.name {
+					t.Errorf("Expected frame %d name %q, got %q", i, exp.name, trace[i].Name())
+				}
+				if trace[i].Location().Row != exp.row {
+					t.Errorf("Expected frame %d on row %d, got %d", i, exp.row, trace[i].Location().Row)
 				}
 			}
 		})
+	}
+}
+
+func TestLaunchPropertiesStackTraceModeValidation(t *testing.T) {
+	tests := []struct {
+		note   string
+		mode   StackTraceMode
+		expErr string
+	}{
+		{note: "default (unset)", mode: StackTraceModeDefault},
+		{note: "query", mode: StackTraceModeQuery},
+		{note: "event", mode: StackTraceModeEvent},
+		{note: "unknown", mode: "events", expErr: `unsupported stack trace mode: "events"`},
+		{note: "wrong case", mode: "Query", expErr: `unsupported stack trace mode: "Query"`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			err := LaunchProperties{StackTraceMode: tc.mode}.validate()
+
+			if tc.expErr == "" {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("Expected error %q, got nil", tc.expErr)
+			}
+			if err.Error() != tc.expErr {
+				t.Errorf("Expected error %q, got %q", tc.expErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestDebuggerLaunchEvalInvalidStackTraceMode(t *testing.T) {
+	d := NewDebugger()
+
+	_, err := d.LaunchEval(t.Context(), LaunchEvalProperties{
+		LaunchProperties: LaunchProperties{StackTraceMode: "events"},
+		Query:            "1 == 1",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error")
+	}
+
+	if exp := `unsupported stack trace mode: "events"`; err.Error() != exp {
+		t.Errorf("Expected error %q, got %q", exp, err.Error())
 	}
 }
 
