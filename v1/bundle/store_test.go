@@ -4381,6 +4381,179 @@ func TestActivate_DefaultRegoVersion(t *testing.T) {
 	}
 }
 
+// TestActivate_LogicalKeywords asserts that modules using the `and`/`or`
+// keywords survive activation, including the re-parse of a module already in
+// the store that activation erases.
+func TestActivate_LogicalKeywords(t *testing.T) {
+	v1Module := `package test
+		import future.keywords.and
+		import future.keywords.or
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	v0Module := `package test
+		import future.keywords.and
+		import future.keywords.or
+
+		allow {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	tests := []struct {
+		note              string
+		storedModule      string
+		customRegoVersion ast.RegoVersion
+		capabilities      *ast.Capabilities
+		expErrs           []string
+	}{
+		{
+			note:         "per-keyword imports",
+			storedModule: v1Module,
+		},
+		{
+			note: "wildcard future.keywords import",
+			storedModule: `package test
+				import future.keywords
+
+				allow if {
+					input.user == "alice" or (input.role == "admin" and input.verified)
+				}`,
+		},
+		{
+			note: "no import",
+			storedModule: `package test
+				allow if {
+					input.user == "alice" or input.role == "admin"
+				}`,
+			expErrs: []string{"rego_parse_error: unexpected identifier token"},
+		},
+		{
+			note:              "v0 module, v0 custom rego-version",
+			storedModule:      v0Module,
+			customRegoVersion: ast.RegoV0,
+		},
+		{
+			note:         "capabilities without and/or",
+			storedModule: v1Module,
+			capabilities: capabilitiesWithoutFutureKeywords(t, "and", "or"),
+			expErrs:      []string{"rego_parse_error: unexpected keyword, must be one of [contains every if in not]"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			store := mock.New()
+			txn := storage.NewTransactionOrDie(t.Context(), store, storage.WriteParams)
+
+			modulePath := "test/policy.rego"
+
+			// Activation erases and re-parses the module already in the store.
+			err := store.UpsertPolicy(t.Context(), txn, modulePathWithPrefix("bundle1", modulePath), []byte(tc.storedModule))
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			bundles := map[string]*Bundle{"bundle1": {
+				Manifest: Manifest{Roots: &[]string{"test"}},
+				Modules:  []ModuleFile{moduleFile(modulePath, "package test")},
+			}}
+
+			compiler := ast.NewCompiler()
+			opts := ActivateOpts{
+				Ctx:      t.Context(),
+				Txn:      txn,
+				Store:    store,
+				Compiler: compiler,
+				Metrics:  metrics.NoOp(),
+				Bundles:  bundles,
+			}
+
+			if tc.customRegoVersion != ast.RegoUndefined {
+				opts.ParserOptions.RegoVersion = tc.customRegoVersion
+			}
+			if tc.capabilities != nil {
+				opts.ParserOptions.Capabilities = tc.capabilities
+			}
+
+			err = Activate(&opts)
+
+			if len(tc.expErrs) > 0 {
+				if err == nil {
+					t.Fatalf("Expected error(s):\n\n%v\n\nbut got nil", tc.expErrs)
+				}
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(err.Error(), expErr) {
+						t.Fatalf("Expected error:\n\n%s\n\nbut got:\n\n%s", expErr, err)
+					}
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			verifyBundleModulesCompiled(t, compiler, bundles)
+		})
+	}
+}
+
+// TestDeltaBundleActivate_LogicalKeywords asserts that activating a delta
+// bundle leaves the `and`/`or` modules of the snapshot bundle it patches
+// intact.
+func TestDeltaBundleActivate_LogicalKeywords(t *testing.T) {
+	logicalModule := `package a
+		import future.keywords.and
+		import future.keywords.or
+		
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	store := mock.New()
+	compiler := ast.NewCompiler()
+
+	bundles := map[string]*Bundle{"bundle1": {
+		Manifest: Manifest{Roots: &[]string{"a"}},
+		Data:     unpack(map[string]any{"a.b": "foo"}),
+		Modules:  []ModuleFile{moduleFile("a/policy.rego", logicalModule)},
+		Etag:     "foo",
+	}}
+
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	verifyBundleModulesCompiled(t, compiler, bundles)
+
+	deltaCompiler := ast.NewCompiler()
+	deltaBundles := map[string]*Bundle{"bundle1": {
+		Manifest: Manifest{Revision: "delta", Roots: &[]string{"a"}},
+		Patch:    Patch{Data: []PatchOperation{{Op: "upsert", Path: "/a/c", Value: "bar"}}},
+		Etag:     "bar",
+	}}
+
+	mustActivate(t, store, &ActivateOpts{Compiler: deltaCompiler, Bundles: deltaBundles})
+
+	// The delta bundle carries no modules, so the snapshot bundle's module has
+	// to be re-read from the store and re-parsed.
+	verifyBundleModulesCompiled(t, deltaCompiler, bundles)
+
+	var ands, ors int
+	ast.WalkExprs(deltaCompiler.Modules["bundle1/a/policy.rego"], func(e *ast.Expr) bool {
+		switch {
+		case e.IsAnd():
+			ands++
+		case e.IsOr():
+			ors++
+		}
+		return false
+	})
+	if ands != 1 || ors != 1 {
+		t.Fatalf("expected 1 and-expression and 1 or-expression after delta activation, got %d and %d", ands, ors)
+	}
+
+	store.AssertValid(t)
+}
+
 // Regression test for https://github.com/open-policy-agent/opa/issues/8797.
 func TestActivate_PreservesPerModuleRegoVersionWithLeadingSlashID(t *testing.T) {
 	ctx := t.Context()

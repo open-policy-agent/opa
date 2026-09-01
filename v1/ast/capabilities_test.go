@@ -415,9 +415,10 @@ func TestCapabilitiesAddBuiltinSorted(t *testing.T) {
 func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 
 	tests := []struct {
-		note    string
-		module  string
-		version string
+		note        string
+		module      string
+		regoVersion RegoVersion
+		version     string
 	}{
 		{
 			note: "builtins",
@@ -470,13 +471,62 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 				import rego.v1`,
 			version: "0.59.0",
 		},
+		{
+			note: "keywords (not)",
+			module: `
+				package x
+				import future.keywords.not
+			`,
+			version: "1.17.0",
+		},
+		{
+			note: "keywords (and)",
+			module: `
+				package x
+				import future.keywords.and
+			`,
+			version: "1.20.0",
+		},
+		{
+			note: "keywords (or)",
+			module: `
+				package x
+				import future.keywords.or
+			`,
+			version: "1.20.0",
+		},
+		{
+			// The wildcard import requires every keyword the module's
+			// rego-version allows, so the newest of them decides the version.
+			note:        "keywords (wildcard import, v0 module)",
+			regoVersion: RegoV0,
+			module: `
+				package x
+				import future.keywords
+			`,
+			version: "1.20.0",
+		},
+		{
+			note:        "keywords (wildcard import, v1 module)",
+			regoVersion: RegoV1,
+			module: `
+				package x
+				import future.keywords
+			`,
+			version: "1.20.0",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
+			regoVersion := RegoV0
+			if tc.regoVersion != RegoUndefined {
+				regoVersion = tc.regoVersion
+			}
+
 			c := MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, CompileOpts{
 				ParserOptions: ParserOptions{
-					RegoVersion: RegoV0,
+					RegoVersion: regoVersion,
 				},
 			})
 			minVersion, found := c.Required.MinimumCompatibleVersion()

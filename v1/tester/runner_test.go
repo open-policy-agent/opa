@@ -258,6 +258,43 @@ func validateSubTestResults(t *testing.T, tests map[string]expectedTestResult, s
 	}
 }
 
+func TestRunWithLogicalKeywords(t *testing.T) {
+	files := map[string]string{
+		"/policy.rego": `package logic
+			import future.keywords.and
+			import future.keywords.or
+
+			allow if {
+				input.user == "alice" or (input.role == "admin" and input.verified)
+			}`,
+		"/policy_test.rego": `package logic
+
+			test_or_lhs if { allow with input as {"user": "alice"} }
+			test_and if { allow with input as {"role": "admin", "verified": true} }
+			test_and_rhs_false if { not allow with input as {"role": "admin", "verified": false} }
+			test_fail if { allow with input as {"user": "bob"} }`,
+		"/policy_test2.rego": `package logic
+			import future.keywords.and
+			import future.keywords.or
+
+			test_keywords_in_test_body if { 
+				true and true or false 
+			}`,
+	}
+
+	tests := expectedTestResults{
+		{"data.logic", "test_or_lhs"}:                {false, false, false, nil},
+		{"data.logic", "test_and"}:                   {false, false, false, nil},
+		{"data.logic", "test_and_rhs_false"}:         {false, false, false, nil},
+		{"data.logic", "test_fail"}:                  {false, true, false, nil},
+		{"data.logic", "test_keywords_in_test_body"}: {false, false, false, nil},
+	}
+
+	conf := testRunConfig{}
+	rs, _ := doTestRunWithTmpDir(t, test.TempDir(t, files), conf)
+	validateTestResults(t, tests, rs, conf)
+}
+
 func TestRunWithPrefixMatchers(t *testing.T) {
 	files := map[string]string{
 		"/a_b_c_test.rego": `package a.b.c_test

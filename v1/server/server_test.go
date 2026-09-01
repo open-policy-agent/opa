@@ -1276,6 +1276,128 @@ func TestCompileV1UnsafeBuiltin(t *testing.T) {
 	}
 }
 
+// TestServerLogicalKeywords covers the `and`/`or` keywords across the APIs that
+// take Rego from a client: policy upload, data evaluation, ad-hoc queries and
+// the compile API.
+func TestServerLogicalKeywords(t *testing.T) {
+	t.Parallel()
+
+	v1Module := `package test
+		import future.keywords.and
+		import future.keywords.or
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	v0Module := `package test
+		import future.keywords.and
+		import future.keywords.or
+
+		allow {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	expQuery := func(s string) string {
+		body := ast.MustParseBodyWithOpts(s, ast.ParserOptions{FutureKeywords: []string{"and", "or"}})
+		return fmt.Sprintf(`{"result": {"queries": [%v]}}`, string(util.MustMarshalJSON(body)))
+	}
+
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		trs         []tr
+	}{
+		{
+			note: "put policy, evaluate data",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v1Module, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": true}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": false}}`, 200, `{}`},
+			},
+		},
+		{
+			note:        "put policy, evaluate data (v0 rego-version)",
+			regoVersion: ast.RegoV0,
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v0Module, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": false}}`, 200, `{}`},
+			},
+		},
+		{
+			note: "put policy, wildcard future.keywords import",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", `package test
+					import future.keywords
+					
+					allow if {
+						input.user == "alice" or (input.role == "admin" and input.verified)
+					}`, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+			},
+		},
+		{
+			note: "put policy without import is rejected",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", `package test
+					allow if {
+						input.user == "alice" or input.role == "admin"
+					}`, 400, ""},
+			},
+		},
+		{
+			note: "compile policy",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v1Module, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input"],
+					"query": "data.test.allow = true"
+				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+			},
+		},
+		{
+			// PE saves logical expressions whole, so the residual query
+			// still refers to input paths that were not declared unknown.
+			// Clients of the compile API need to expect that.
+			note: "compile does not narrow operands using known input",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v1Module, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input.role"],
+					"input": {"user": "bob", "verified": true},
+					"query": "data.test.allow = true"
+				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+			},
+		},
+		{
+			// The keywords are import-gated, and neither the query nor the
+			// compile API accepts imports, so there is no way to enable them
+			// for an ad-hoc query. Pinned so a future imports field shows up
+			// here as a deliberate change.
+			note: "keywords are unavailable in ad-hoc queries",
+			trs: []tr{
+				{http.MethodPost, "/query", `{"query": "input.a or input.b"}`, 400, ""},
+				{http.MethodPost, "/compile", `{"query": "input.a or input.b"}`, 400, ""},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			if tc.regoVersion != ast.RegoUndefined {
+				executeRequests(t, tc.trs, variant{
+					name: tc.regoVersion.String(),
+					opts: []any{plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.regoVersion})},
+				})
+			} else {
+				executeRequests(t, tc.trs)
+			}
+		})
+	}
+}
+
 func TestDataV1Redirection(t *testing.T) {
 	t.Parallel()
 

@@ -1,0 +1,70 @@
+# Verify that a bundle whose policy uses the `and`, `or` and `not` keywords is
+# downloaded, activated and evaluated correctly in server mode. The keywords are
+# import-gated, so this exercises the parser options travelling all the way
+# through the bundle plugin into activation.
+
+exec $OPA build -o bundles/bundle.tar.gz --bundle policy/
+
+http_server bundles
+
+exec $OPA run --server --config-file config.yaml --addr unix://opa.sock --log-format json &opa&
+retry curl -sf --unix-socket opa.sock 'http://localhost/health?bundles'
+
+# `or` short-circuits on the first operand
+exec curl -sf --unix-socket opa.sock -d '{"input": {"user": "alice", "verified": true}}' http://localhost/v1/data/example
+jq stdout '.result.allow == true'
+jq stdout '.result.deny == false'
+
+# `and` with both operands true
+exec curl -sf --unix-socket opa.sock -d '{"input": {"role": "admin", "verified": true}}' http://localhost/v1/data/example
+jq stdout '.result.allow == true'
+
+# `and` with a false right-hand operand, and neither `or` branch holding
+exec curl -sf --unix-socket opa.sock -d '{"input": {"role": "admin", "verified": false}}' http://localhost/v1/data/example
+jq stdout '.result.allow == false'
+
+# empty input: `not` body succeeds
+exec curl -sf --unix-socket opa.sock -d '{"input": {}}' http://localhost/v1/data/example
+jq stdout '.result.allow == false'
+jq stdout '.result.deny == true'
+
+kill -INT opa
+wait opa
+
+jq -s stderr '[.[] | select(.msg == "Bundle loaded and activated successfully." and .plugin == "bundle" and .name == "test")] | length == 1'
+
+-- config.yaml --
+services:
+  bundle-server:
+    url: "http://${HTTP_ADDR}"
+bundles:
+  test:
+    service: bundle-server
+    resource: bundle.tar.gz
+    polling:
+      min_delay_seconds: 300
+      max_delay_seconds: 300
+
+-- policy/example.rego --
+package example
+
+import future.keywords.and
+import future.keywords.not
+import future.keywords.or
+
+default allow := false
+
+allow if {
+	input.user == "alice" or (input.role == "admin" and input.verified)
+}
+
+default deny := false
+
+deny if {
+	not {
+		input.user == "alice"
+		input.verified
+	}
+}
+
+-- bundles/.gitkeep --
