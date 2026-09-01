@@ -159,6 +159,86 @@ func TestBundleRegoVersion(t *testing.T) {
 	}
 }
 
+// TestManifestNumericRegoVersionForFileGlobSemantics pins how the
+// file_rego_versions patterns are matched against module paths. The patterns
+// are compiled without separators, so '*' crosses '/' -- but a wildcard still
+// never stands in for a literal of the pattern, so a pattern with a '/*/'
+// segment requires both slashes to be present in the path.
+func TestManifestNumericRegoVersionForFileGlobSemantics(t *testing.T) {
+	tests := []struct {
+		note    string
+		pattern string
+		path    string
+		want    bool
+	}{
+		{
+			note:    "wildcard crosses the separator",
+			pattern: "/example/*.rego",
+			path:    "/example/authz/policy.rego",
+			want:    true,
+		},
+		{
+			note:    "wildcard does not stand in for a literal of the pattern",
+			pattern: "/example/*/policy.rego",
+			path:    "/example/policy.rego",
+			want:    false,
+		},
+		{
+			note:    "wildcard between literals",
+			pattern: "/example/*/policy.rego",
+			path:    "/example/authz/policy.rego",
+			want:    true,
+		},
+		{
+			note:    "super wildcard does not stand in for a literal either",
+			pattern: "/example/**/policy.rego",
+			path:    "/example/policy.rego",
+			want:    false,
+		},
+		{
+			note:    "leading wildcard matches the empty string",
+			pattern: "*/policy.rego",
+			path:    "/policy.rego",
+			want:    true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			m := Manifest{FileRegoVersions: map[string]int{tc.pattern: 0}}
+
+			got, err := m.numericRegoVersionForFile(tc.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// A nil version means no pattern matched: RegoVersion is unset, so
+			// the resolver has nothing to fall back to.
+			if matched := got != nil; matched != tc.want {
+				t.Errorf("pattern %q against %q: expected match=%v, got %v",
+					tc.pattern, tc.path, tc.want, matched)
+			}
+		})
+	}
+}
+
+// TestManifestNumericRegoVersionForFileInvalidPattern ensures a malformed
+// pattern is reported rather than silently ignored. Note that gobwas/glob
+// v0.2.3 accepted "{a,b" and "a\\"; v1.0.0 rejects both.
+func TestManifestNumericRegoVersionForFileInvalidPattern(t *testing.T) {
+	for _, pattern := range []string{"{a,b", `a\`, "[]"} {
+		t.Run(pattern, func(t *testing.T) {
+			m := Manifest{FileRegoVersions: map[string]int{pattern: 0}}
+
+			if _, err := m.numericRegoVersionForFile("/example/policy.rego"); err == nil {
+				t.Fatalf("expected error for pattern %q", pattern)
+			} else if exp := "failed to compile glob pattern " + pattern; !strings.HasPrefix(err.Error(), exp) {
+				t.Errorf("expected error starting with %q, got %q", exp, err.Error())
+			}
+		})
+	}
+}
+
 // TestManifestNumericRegoVersionForFileDeterministic is a regression test
 // that ensures that resolving a file's rego-version is stable across
 // invocations when multiple patterns match the same path.
