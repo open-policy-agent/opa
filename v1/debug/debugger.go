@@ -7,14 +7,12 @@
 package debug
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"slices"
-	"strings"
 	"sync"
 
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
@@ -218,6 +216,24 @@ type LaunchTestProperties struct {
 	Run string
 }
 
+// StackTraceMode determines how the events of a trace are grouped into the frames
+// of a StackTrace.
+type StackTraceMode string
+
+const (
+	// StackTraceModeDefault is the zero value of StackTraceMode, and is equivalent to
+	// StackTraceModeQuery.
+	StackTraceModeDefault StackTraceMode = ""
+
+	// StackTraceModeQuery frames the stack trace by query, where each frame represents
+	// a query scope. This is the default.
+	StackTraceModeQuery StackTraceMode = "query"
+
+	// StackTraceModeEvent frames the stack trace by trace event, where each frame
+	// represents a single event consumed by the debugger.
+	StackTraceModeEvent StackTraceMode = "event"
+)
+
 type LaunchProperties struct {
 	BundlePaths         []string
 	DataPaths           []string
@@ -228,6 +244,15 @@ type LaunchProperties struct {
 	SkipOps             []topdown.Op
 	StrictBuiltinErrors bool
 	RuleIndexing        bool
+	StackTraceMode      StackTraceMode
+}
+
+func (lp LaunchProperties) validate() error {
+	switch lp.StackTraceMode {
+	case StackTraceModeDefault, StackTraceModeQuery, StackTraceModeEvent:
+		return nil
+	}
+	return fmt.Errorf("unsupported stack trace mode: %q", lp.StackTraceMode)
 }
 
 type LaunchOption func(options *launchOptions)
@@ -262,6 +287,10 @@ func (lp LaunchProperties) String() string {
 }
 
 func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, opts ...LaunchOption) (Session, error) {
+	if err := props.validate(); err != nil {
+		return nil, err
+	}
+
 	options := newLaunchOptions(opts)
 
 	store := inmem.New()
@@ -384,34 +413,33 @@ func readInput(path string) (any, error) {
 }
 
 type session struct {
-	d              *debugger
-	properties     LaunchProperties
-	threads        []*thread
-	frames         []*stackFrame
-	framesByThread map[ThreadID][]*stackFrame
-	breakpoints    *breakpointCollection
-	ctx            context.Context
-	cancel         context.CancelFunc
-	varManager     *variableManager
-	mtx            sync.Mutex
+	d           *debugger
+	properties  LaunchProperties
+	threads     []*thread
+	frames      *frameStore
+	breakpoints *breakpointCollection
+	ctx         context.Context
+	cancel      context.CancelFunc
+	varManager  *variableManager
+	mtx         sync.Mutex
 }
 
 func newSession(ctx context.Context, debugger *debugger, varManager *variableManager, props LaunchProperties, threads []*thread) *session {
 	ctx, cancel := context.WithCancel(ctx)
 	s := &session{
-		d:              debugger,
-		varManager:     varManager,
-		properties:     props,
-		threads:        threads,
-		frames:         []*stackFrame{},
-		framesByThread: map[ThreadID][]*stackFrame{},
-		breakpoints:    newBreakpointCollection(),
-		ctx:            ctx,
-		cancel:         cancel,
+		d:           debugger,
+		varManager:  varManager,
+		properties:  props,
+		threads:     threads,
+		frames:      newFrameStore(),
+		breakpoints: newBreakpointCollection(),
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 
 	for _, t := range threads {
 		t.eventHandler = s.handleEvent
+		t.framer = newFramer(props, s.frames)
 	}
 
 	return s
@@ -738,63 +766,7 @@ func (s *session) StackTrace(threadID ThreadID) (StackTrace, error) {
 		return nil, err
 	}
 
-	threadFrames := s.framesByThread[t.id]
-	if threadFrames == nil {
-		threadFrames = []*stackFrame{}
-	}
-
-	stackIndex := 0
-	if len(threadFrames) > 0 {
-		stackIndex = threadFrames[len(threadFrames)-1].stackIndex + 1
-	}
-	newEvents := t.stackEvents(stackIndex)
-	for _, e := range newEvents {
-		info := s.newStackFrame(e, t, stackIndex)
-		stackIndex++
-		threadFrames = append(threadFrames, info)
-	}
-	s.framesByThread[t.id] = threadFrames
-
-	frames := make([]StackFrame, 0, len(threadFrames))
-	for _, f := range threadFrames {
-		frames = append(frames, f)
-	}
-	slices.Reverse(frames)
-
-	return frames, nil
-}
-
-func (s *session) newStackFrame(e *topdown.Event, t *thread, stackIndex int) *stackFrame {
-	id := len(s.frames) + 1 // frames are 1-indexed
-
-	var expl string
-	if e.Node != nil {
-		pretty := new(bytes.Buffer)
-		topdown.PrettyTrace(pretty, []*topdown.Event{e})
-		expl = strings.Trim(pretty.String(), "\n")
-	} else {
-		expl = fmt.Sprintf("%s, %s", e.Op, e.Location)
-	}
-
-	frame := &stackFrame{
-		id:         FrameID(id),
-		name:       fmt.Sprintf("#%d: %d %s", id, e.QueryID, expl),
-		location:   e.Location,
-		thread:     t.id,
-		stackIndex: stackIndex,
-		e:          e,
-	}
-
-	s.frames = append(s.frames, frame)
-	return frame
-}
-
-func (s *session) frame(id FrameID) (*stackFrame, error) {
-	index := int(id) - 1
-	if index < 0 || index >= len(s.frames) {
-		return nil, fmt.Errorf("invalid frame id: %d", id)
-	}
-	return s.frames[index], nil
+	return t.stackTrace(), nil
 }
 
 func (s *session) Scopes(frameID FrameID) ([]Scope, error) {
@@ -805,7 +777,7 @@ func (s *session) Scopes(frameID FrameID) ([]Scope, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	f, err := s.frame(frameID)
+	f, err := s.frames.get(frameID)
 	if err != nil {
 		return nil, err
 	}
