@@ -19,6 +19,11 @@
    "AllocsPerOp" "#d33682"
    "BytesPerOp"  "#859900"})
 
+(def push-window
+  "How many of the most recent per-push runs a benchmark's push-panel shows.
+   benchmarks.json keeps up to 250; plotting all of them is illegible."
+  60)
+
 (def ^:private plotly-cdn
   "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.20.0/plotly.min.js")
 
@@ -222,12 +227,21 @@
    :font {:family "Go Mono, monospace" :size 11}
    :showlegend true})
 
+(defn- recent-runs
+  "The last push-window commits' worth of rows, oldest first. bench-rows
+   carries up to one row per measure per commit, so windowing by commit rather
+   than by row count keeps every measure's trace covering the same commits."
+  [bench-rows]
+  (let [commits (into #{} (take-last push-window (distinct (map :commit bench-rows))))]
+    (filterv #(contains? commits (:commit %)) bench-rows)))
+
 (defn- push-panel
   "The per-push series: absolute measurements divided by the value at the
    anchoring tag. Every point comes from a different runner, so most of the
    spread between neighbours is between-machine variance rather than change."
   [pkg bench-name bench-rows]
-  (let [by-measure (group-by :measure bench-rows)
+  (let [bench-rows (recent-runs bench-rows)
+        by-measure (group-by :measure bench-rows)
         tag-xs     (into #{} (keep :tag) bench-rows)
         labelled   (mapv (fn [r] {:x (x-label (:commit r) (:tag r))
                                   :date (:date r) :commit (:commit r)})
@@ -255,7 +269,8 @@
                    (when-not data/basis-measured?
                      " (which has no run of its own, so the nearest run stands in)")
                    ". Each point is a separate CI run on a different machine, so much of the "
-                   "spread between neighbouring points is measurement noise.")
+                   "spread between neighbouring points is measurement noise. Showing the most "
+                   "recent " push-window " runs.")
      :traces traces
      :commit-by-x (commit-index labelled)
      :intervals (-> data/commits-ordered
