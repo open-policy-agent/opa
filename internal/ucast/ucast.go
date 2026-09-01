@@ -221,17 +221,13 @@ func (u *UCASTNode) asSQL(cond *sqlbuilder.Cond, dialect string) (string, error)
 // text in an identifier position. Segments that are already bare identifiers are
 // left alone: quoting them would make them case-sensitive on Postgres and would
 // change the output of every existing filter.
+// sqlbuilder.Flavor.Quote doubles any embedded quote character itself, so
+// segments are handed to it verbatim.
 func quoteField(flavor sqlbuilder.Flavor, field string) string {
-	// The quote character has to match what sqlbuilder.Flavor.Quote emits for
-	// the flavors dialectToFlavor returns.
-	quote := `"`
-	if flavor == sqlbuilder.MySQL {
-		quote = "`"
-	}
 	segments := strings.Split(field, ".")
 	for i, seg := range segments {
 		if !isBareIdent(seg) {
-			segments[i] = flavor.Quote(strings.ReplaceAll(seg, quote, quote+quote))
+			segments[i] = flavor.Quote(seg)
 		}
 	}
 	return strings.Join(segments, ".")
