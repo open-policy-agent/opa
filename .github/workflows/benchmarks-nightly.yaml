@@ -192,12 +192,16 @@ jobs:
         working-directory: results
         run: |
           set -euo pipefail
-          if git diff-index --quiet HEAD -- benchlab.json; then
+          # git diff-index only reports on paths already tracked at HEAD, so on
+          # the first-ever run (benchlab.json untracked) it stays quiet even
+          # though there's a real file to commit. Stage first and diff the
+          # index instead, which sees untracked-but-staged additions too.
+          git add benchlab.json
+          if git diff --cached --quiet -- benchlab.json; then
             echo "no changes, no commit"
             exit 0
           fi
           git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git config --local user.name "${GITHUB_ACTOR}"
-          git add benchlab.json
           git commit -m "benchmarks: nightly benchlab results for ${GITHUB_SHA}"
           git push origin benchmarks
