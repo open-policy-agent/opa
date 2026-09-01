@@ -19,7 +19,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/josephspurrier/goversioninfo v1.7.0 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
-	github.com/rogpeppe/go-internal v1.15.0 // indirect
+	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/vbauerster/mpb/v8 v8.12.1 // indirect
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/perf v0.0.0-20260512194132-3cf34090a3db // indirect
@@ -28,7 +28,7 @@ require (
 	golang.org/x/telemetry v0.0.0-20260421165255-392afab6f40e // indirect
 	golang.org/x/tools v0.44.0 // indirect
 	golang.org/x/vuln v1.3.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 	rsc.io/cmd/benchlab v0.0.0-20260520161042-9fc40f0f0431 // indirect
 )
 
