@@ -309,7 +309,7 @@ func (t *TestRuntime) WaitForServer() error {
 	retries := 100 // 10 seconds before we give up
 	for range retries {
 		// First make sure it has started listening and we have an address
-		if t.URL() != "" {
+		if t.URL() != "" && t.diagnosticAddrsReady() {
 			// Then make sure it has started serving
 			err := t.HealthCheck(t.URL())
 			if err == nil {
@@ -320,6 +320,16 @@ func (t *TestRuntime) WaitForServer() error {
 		time.Sleep(delay)
 	}
 	return errors.New("API Server not ready in time")
+}
+
+// diagnosticAddrsReady reports whether every configured diagnostic address has
+// been bound. Listeners bind on their own goroutines, so the diagnostic one can
+// still be unbound once the main one is serving.
+func (t *TestRuntime) diagnosticAddrsReady() bool {
+	if t.Params.DiagnosticAddrs == nil {
+		return true
+	}
+	return len(t.Runtime.DiagnosticAddrs()) >= len(*t.Params.DiagnosticAddrs)
 }
 
 func (t *TestRuntime) WaitForServerStatus(status runtime.ServerStatus) error {

@@ -854,7 +854,10 @@ func (rt *Runtime) Addrs() []string {
 // listening on (when in server mode). Returns an empty list if it hasn't
 // started listening.
 func (rt *Runtime) DiagnosticAddrs() []string {
-	if rt.server == nil {
+	rt.serverInitMtx.RLock()
+	defer rt.serverInitMtx.RUnlock()
+
+	if rt.serverStatus < ServerInitialized {
 		return nil
 	}
 
