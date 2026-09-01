@@ -5,8 +5,10 @@
 package main
 
 import (
+	"maps"
 	"math"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -79,8 +81,9 @@ func TestParseBenchstatCSV(t *testing.T) {
 
 func TestAssemble(t *testing.T) {
 	n := night{BaselineSHA: baseSHA, Prev: prevSHA, Head: headSHA}
+	identity := map[string]string{baseSHA: baseSHA, prevSHA: prevSHA, headSHA: headSHA}
 	results, err := assemble(
-		target{Pkg: "./v1/topdown"}, n,
+		target{Pkg: "./v1/topdown"}, n, identity,
 		loadTable(t, "testdata/vsbase.csv"),
 		loadTable(t, "testdata/vsprev.csv"),
 	)
@@ -144,6 +147,31 @@ func TestAssemble(t *testing.T) {
 			t.Error("vs baseline: significant, want not significant")
 		}
 	})
+}
+
+func TestCommitLabels(t *testing.T) {
+	raw := filepath.Join(t.TempDir(), "bench.txt")
+	// Mirrors what benchlab actually writes: one "commit:" line per -commit
+	// argument, in order, each truncated to its own short form, followed by
+	// host lines and then benchmark data.
+	content := "commit: " + baseSHA[:4] + "\ncommit: " + prevSHA[:4] + "\ncommit: " + headSHA[:4] +
+		"\nhost: local\n\n# ...\n"
+	if err := os.WriteFile(raw, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	labels, err := commitLabels(raw, []string{baseSHA, prevSHA, headSHA})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{baseSHA: baseSHA[:4], prevSHA: prevSHA[:4], headSHA: headSHA[:4]}
+	if !maps.Equal(labels, want) {
+		t.Errorf("got %v, want %v", labels, want)
+	}
+
+	if _, err := commitLabels(raw, []string{baseSHA, headSHA}); err == nil {
+		t.Error("expected an error when the commit count does not match the file's preamble")
+	}
 }
 
 // A "~" verdict means "not distinguishable from noise", not "no measurement".
