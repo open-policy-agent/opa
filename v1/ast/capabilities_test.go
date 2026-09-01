@@ -141,7 +141,7 @@ func TestParserCapabilitiesWithWildcardOptInAndOlderOPA(t *testing.T) {
 		t.Fatal("expected error")
 	} else if errs, ok := err.(Errors); !ok || len(errs) != 1 {
 		t.Fatal("expected exactly one error but got:", err)
-	} else if errs[0].Code != ParseErr || errs[0].Location.Row != 7 || errs[0].Message != "unexpected identifier token: expected \\n or ; or }" {
+	} else if errs[0].Code != ParseErr || errs[0].Location.Row != 7 || errs[0].Message != "unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)" {
 		t.Fatal("unexpected error:", err)
 	}
 }

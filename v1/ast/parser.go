@@ -1191,6 +1191,7 @@ func (p *Parser) parseQuery(requireSemi bool, end tokens.Token) Body {
 		if !p.s.skippedNL {
 			// If there was already an error then don't pile this one on
 			if len(p.s.errors) == 0 {
+				p.hintMissingInfixKeyword()
 				p.illegal(`expected \n or %s or %s`, tokens.Semicolon, end)
 			}
 			return nil
@@ -1469,6 +1470,60 @@ func (p *Parser) attachWith(e *Expr) *Expr {
 		}
 	}
 	return e
+}
+
+// infixFutureKeywords are the future keywords usable as infix operators in a
+// rule body, mapped to an example of the expression each enables.
+var infixFutureKeywords = map[string]string{
+	"in":  "x in xs",
+	"and": "x and y",
+	"or":  "x or y",
+}
+
+// hintMissingInfixKeyword hints at the import for a body expression trailed by
+// a plain `in`/`and`/`or` identifier, or by the comma of `k, v in xs`. Only
+// call it when an error is about to be reported: an unconsumed hint would end
+// up attached to a later, unrelated error.
+func (p *Parser) hintMissingInfixKeyword() {
+	// Something more specific, like `some x in xs`, already hinted.
+	if len(p.s.hints) > 0 {
+		return
+	}
+
+	kw := "in"
+
+	switch p.s.tok {
+	case tokens.Ident:
+		// An active keyword scans as its own token, so an Ident means it's
+		// the import that's missing.
+		kw = p.s.lit
+		if _, ok := infixFutureKeywords[kw]; !ok {
+			return
+		}
+	case tokens.Comma:
+		// Only hint on `k, v in xs`, so require a membership expr after the comma.
+		s := p.save()
+		p.scan()
+		term := p.futureParser().parseTermInfixCall()
+		p.restore(s)
+
+		if term == nil {
+			return
+		}
+		call, ok := term.Value.(Call)
+		if !ok || len(call) == 0 {
+			return
+		}
+		switch call[0].String() {
+		case Member.Name, MemberWithKey.Name:
+		default:
+			return
+		}
+	default:
+		return
+	}
+
+	p.hint(fmt.Sprintf("`import future.keywords.%s` for `%s` expressions", kw, infixFutureKeywords[kw]))
 }
 
 func (p *Parser) errWithOnOperand(loc *Location, kw string) {
