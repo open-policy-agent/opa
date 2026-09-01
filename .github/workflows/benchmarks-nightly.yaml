@@ -138,6 +138,9 @@ jobs:
           name: benchlab-raw-${{ matrix.shard }}
           path: .benchlab/bench.*.txt
           if-no-files-found: warn
+          # .benchlab is dot-prefixed, and upload-artifact excludes anything
+          # under a hidden directory unless told otherwise.
+          include-hidden-files: true
 
   publish:
     name: Publish results
