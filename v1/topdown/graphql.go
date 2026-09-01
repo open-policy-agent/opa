@@ -47,7 +47,7 @@ func parseQuery(query string) (*gqlast.QueryDocument, error) {
 }
 
 // Validates a GraphQL query against a schema, and returns an error.
-// In this case, we get a wrappered error list type, and pluck out
+// In this case, we get a wrapped error list type, and pluck out
 // just the first error message in the list.
 func validateQuery(schema *gqlast.Schema, query *gqlast.QueryDocument) error {
 	// Validate the query against the schema, erroring if there's an issue.

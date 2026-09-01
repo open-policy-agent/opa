@@ -788,7 +788,7 @@ func (i *refindices) resolveRefHead(rule *Rule, args []*Term, ref Ref) Ref {
 //	__local2__ = <something>
 //
 // This what builtin calls involving refs are rewritten to, so it is used
-// for var -> ref lookup when buiding the RI for glob.match or `v in col`.
+// for var -> ref lookup when building the RI for glob.match or `v in col`.
 //
 // For convenience, we also resolve function arg vars here.
 //

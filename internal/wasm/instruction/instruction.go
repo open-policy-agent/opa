@@ -14,7 +14,7 @@ import (
 type NoImmediateArgs struct {
 }
 
-// ImmediateArgs returns the immedate arguments of an instruction.
+// ImmediateArgs returns the immediate arguments of an instruction.
 func (NoImmediateArgs) ImmediateArgs() []any {
 	return nil
 }

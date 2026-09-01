@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-// TLSBased extracts the CN of the client's TLS ceritificate
+// TLSBased extracts the CN of the client's TLS certificate
 type TLSBased struct {
 	inner http.Handler
 }

@@ -30,7 +30,7 @@ func TransformVars(x any, f func(Var) (Value, error)) (any, error) {
 	return v1.TransformVars(x, f)
 }
 
-// TransformComprehensions calls the functio nf on all comprehensions under x.
+// TransformComprehensions calls the function nf on all comprehensions under x.
 func TransformComprehensions(x any, f func(any) (Value, error)) (any, error) {
 	return v1.TransformComprehensions(x, f)
 }

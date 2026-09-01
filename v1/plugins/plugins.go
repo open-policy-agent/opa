@@ -1001,7 +1001,7 @@ func (m *Manager) Reconfigure(newCfg *config.Config) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	// don't overwrite existing labels, only allow additions - always based on the boostrap config
+	// don't overwrite existing labels, only allow additions - always based on the bootstrap config
 	if config.Labels == nil {
 		config.Labels = m.bootstrapConfigLabels
 	} else {

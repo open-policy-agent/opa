@@ -8,7 +8,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/opcode"
 )
 
-// Drop reprsents a WASM drop instruction.
+// Drop represents a WASM drop instruction.
 type Drop struct {
 	NoImmediateArgs
 }
@@ -18,7 +18,7 @@ func (Drop) Op() opcode.Opcode {
 	return opcode.Drop
 }
 
-// Select reprsents a WASM select instruction.
+// Select represents a WASM select instruction.
 type Select struct {
 	NoImmediateArgs
 }
