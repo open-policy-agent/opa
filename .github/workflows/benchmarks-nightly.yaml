@@ -192,10 +192,7 @@ jobs:
         working-directory: results
         run: |
           set -euo pipefail
-          # git diff-index only reports on paths already tracked at HEAD, so on
-          # the first-ever run (benchlab.json untracked) it stays quiet even
-          # though there's a real file to commit. Stage first and diff the
-          # index instead, which sees untracked-but-staged additions too.
+          # diff-index misses untracked files, so stage first and diff the index.
           git add benchlab.json
           if git diff --cached --quiet -- benchlab.json; then
             echo "no changes, no commit"

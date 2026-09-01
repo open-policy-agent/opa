@@ -29,6 +29,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -271,22 +272,36 @@ func measure(t target, n night, tags string) ([]result, error) {
 		return nil, err
 	}
 
+	// benchlab resolves each -commit argument to a short hash before using it
+	// as the raw file's "commit:" label, so the labels benchstat groups by
+	// are not the full SHAs above. Recover the mapping from the raw file's
+	// own preamble -- written in -commit order -- rather than guessing
+	// benchlab's truncation length.
+	labels, err := commitLabels(raw, commits)
+	if err != nil {
+		return nil, err
+	}
+	labeled := make([]string, len(commits))
+	for i, c := range commits {
+		labeled[i] = labels[c]
+	}
+
 	// One invocation covering (baseline, prev, head) already yields both
 	// deltas against the baseline, because benchstat compares every column
 	// with the first one. Only head-vs-prev needs a second pass, and it is
 	// pure re-analysis of the same file rather than more measurement.
-	vsBase, err := benchstatTables(raw, commits, n)
+	vsBase, err := benchstatTables(raw, labeled, n)
 	if err != nil {
 		return nil, err
 	}
 	var vsPrev map[string]*csvTable
 	if n.Prev != "" {
-		if vsPrev, err = benchstatTables(raw, []string{n.Prev, n.Head}, n); err != nil {
+		if vsPrev, err = benchstatTables(raw, []string{labels[n.Prev], labels[n.Head]}, n); err != nil {
 			return nil, err
 		}
 	}
 
-	return assemble(t, n, vsBase, vsPrev)
+	return assemble(t, n, labels, vsBase, vsPrev)
 }
 
 // runBenchlab runs benchlab for one target and returns the raw output file it
@@ -340,6 +355,39 @@ func benchFiles() []string {
 	files, _ := filepath.Glob(".benchlab/bench.*.txt")
 	slices.Sort(files)
 	return files
+}
+
+// commitLabels maps each of commits to the label benchlab actually recorded
+// for it in raw's preamble, by position: benchlab writes one "commit: <label>"
+// line per -commit argument, in the order given, before any benchmark data.
+func commitLabels(raw string, commits []string) (map[string]string, error) {
+	f, err := os.Open(raw)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var labels []string
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		label, ok := strings.CutPrefix(sc.Text(), "commit: ")
+		if !ok {
+			break
+		}
+		labels = append(labels, label)
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	if len(labels) != len(commits) {
+		return nil, fmt.Errorf("%s: found %d commit labels, want %d", raw, len(labels), len(commits))
+	}
+
+	m := make(map[string]string, len(commits))
+	for i, c := range commits {
+		m[c] = labels[i]
+	}
+	return m, nil
 }
 
 // benchstatTables re-analyses a benchlab raw output file, splitting it into one
@@ -507,8 +555,10 @@ func parseTableBlock(block []string, pkg string) (*csvTable, error) {
 	return table, nil
 }
 
-// assemble turns the parsed benchstat tables into results.
-func assemble(t target, n night, vsBase, vsPrev map[string]*csvTable) ([]result, error) {
+// assemble turns the parsed benchstat tables into results. labels maps n's
+// full commit SHAs to the (possibly shortened) identifiers benchstat's
+// columns are actually keyed by; see commitLabels.
+func assemble(t target, n night, labels map[string]string, vsBase, vsPrev map[string]*csvTable) ([]result, error) {
 	var out []result
 
 	measures := make([]string, 0, len(vsBase))
@@ -517,18 +567,20 @@ func assemble(t target, n night, vsBase, vsPrev map[string]*csvTable) ([]result,
 	}
 	slices.Sort(measures)
 
+	baseLabel, headLabel, prevLabel := labels[n.BaselineSHA], labels[n.Head], labels[n.Prev]
+
 	for _, measure := range measures {
 		table := vsBase[measure]
 
-		baseCol, ok := table.column(n.BaselineSHA)
+		baseCol, ok := table.column(baseLabel)
 		if !ok {
 			return nil, fmt.Errorf("%s: no benchstat column for baseline %s", measure, short(n.BaselineSHA))
 		}
-		headCol, ok := table.column(n.Head)
+		headCol, ok := table.column(headLabel)
 		if !ok {
 			return nil, fmt.Errorf("%s: no benchstat column for head %s", measure, short(n.Head))
 		}
-		prevCol, hasPrev := table.column(n.Prev)
+		prevCol, hasPrev := table.column(prevLabel)
 
 		names := make([]string, 0, len(table.rows))
 		for name := range table.rows {
@@ -570,7 +622,7 @@ func assemble(t target, n night, vsBase, vsPrev map[string]*csvTable) ([]result,
 			}
 
 			if pt := vsPrev[measure]; pt != nil {
-				r.VsPrev = deltaFromTable(pt, n.Prev, n.Head, name)
+				r.VsPrev = deltaFromTable(pt, prevLabel, headLabel, name)
 			}
 
 			out = append(out, r)
