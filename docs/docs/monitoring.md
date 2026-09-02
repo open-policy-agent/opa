@@ -11,6 +11,10 @@ Each [REST API](./rest-api/) request sent to the server will start a span.
 If processing the request involves policy evaluation, and that in turn uses
 [`http.send`](./policy-reference/builtins/http), those HTTP clients will emit descendant spans.
 
+Endpoints that are polled often enough to drown out the interesting traces, such
+as the health check, can be left out via
+[`distributed_tracing.exclude_paths`](./configuration/#excluding-endpoints-from-tracing).
+
 Furthermore, spans exported for policy evaluation requests will contain an
 attribute `opa.decision_id` of the evaluation's decision ID _if_ the server
 has decision logging enabled.

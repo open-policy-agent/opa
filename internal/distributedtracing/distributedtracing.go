@@ -8,10 +8,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/gobwas/glob"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -25,6 +28,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/tlsutil"
 	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/logging"
+	"github.com/open-policy-agent/opa/v1/tracing"
 	"github.com/open-policy-agent/opa/v1/util"
 
 	// The import registers opentelemetry with the top-level `tracing` package,
@@ -91,38 +95,47 @@ type distributedTracingConfig struct {
 	TLSCertFile               string                   `json:"tls_cert_file,omitempty"`
 	TLSCertPrivateKeyFile     string                   `json:"tls_private_key_file,omitempty"`
 	TLSCACertFile             string                   `json:"tls_ca_cert_file,omitempty"`
+	ExcludePaths              []string                 `json:"exclude_paths,omitempty"`
 	Resource                  resourceConfig           `json:"resource"`
 	BatchSpanProcessorOptions batchSpanProcessorConfig `json:"batch_span_processor_options"`
+
+	// compiled form of ExcludePaths, populated by validateAndInjectDefaults
+	excludePaths []*glob.Pattern
 }
 
-func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *trace.TracerProvider, *resource.Resource, error) {
+// Init returns the OpenTelemetry components built from the distributed_tracing
+// section of the given configuration. The returned tracing.Options are only
+// applicable to OPA's HTTP server: they carry request filters that are matched
+// against the path of an *incoming* request, and are meaningless for the
+// outbound requests made by plugins or by http.send during evaluation.
+func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *trace.TracerProvider, *resource.Resource, tracing.Options, error) {
 	parsedConfig, err := config.ParseConfig(raw, id)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	distributedTracingConfig, err := parseDistributedTracingConfig(parsedConfig.DistributedTracing)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	if !strings.EqualFold(distributedTracingConfig.Type, "grpc") && !strings.EqualFold(distributedTracingConfig.Type, "http") {
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 
 	certificate, err := tlsutil.LoadCertificate(distributedTracingConfig.TLSCertFile, distributedTracingConfig.TLSCertPrivateKeyFile)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	certPool, err := tlsutil.LoadCertPool(distributedTracingConfig.TLSCACertFile)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	tlsConfig, err := tlsutil.BuildTLSConfig(distributedTracingConfig.EncryptionScheme, *distributedTracingConfig.EncryptionSkipVerify, certificate, certPool)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	var traceExporter *otlptrace.Exporter
@@ -162,7 +175,7 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 		resource.WithAttributes(resourceAttributes...),
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	var batchSpanProcessorOptions []trace.BatchSpanProcessorOption
@@ -188,7 +201,25 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(traceExporter, batchSpanProcessorOptions...)),
 	)
 
-	return traceExporter, traceProvider, res, nil
+	var serverOptions tracing.Options
+	if len(distributedTracingConfig.excludePaths) > 0 {
+		serverOptions = tracing.NewOptions(otelhttp.WithFilter(excludePathsFilter(distributedTracingConfig.excludePaths)))
+	}
+
+	return traceExporter, traceProvider, res, serverOptions, nil
+}
+
+// excludePathsFilter returns a filter reporting whether a request should be
+// traced. Requests whose URL path matches one of the given patterns are not.
+func excludePathsFilter(patterns []*glob.Pattern) otelhttp.Filter {
+	return func(r *http.Request) bool {
+		for _, p := range patterns {
+			if p.Match(r.URL.Path) {
+				return false
+			}
+		}
+		return true
+	}
 }
 
 func SetupLogging(logger logging.Logger) {
@@ -289,6 +320,18 @@ func (c *distributedTracingConfig) validateAndInjectDefaults() error {
 
 	if !isSupportedSampleRatePercentage(*c.SampleRatePercentage) {
 		return fmt.Errorf("unsupported distributed_tracing.sample_percentage '%v'", *c.SampleRatePercentage)
+	}
+
+	// '/' is used as the separator so that a single '*' stays within one path
+	// segment, and '**' is needed to span segments -- e.g. "/health**" excludes
+	// both "/health" and "/health/live".
+	c.excludePaths = make([]*glob.Pattern, 0, len(c.ExcludePaths))
+	for _, p := range c.ExcludePaths {
+		compiled, err := glob.Compile(p, '/')
+		if err != nil {
+			return fmt.Errorf("invalid distributed_tracing.exclude_paths pattern '%s': %w", p, err)
+		}
+		c.excludePaths = append(c.excludePaths, compiled)
 	}
 
 	return nil
