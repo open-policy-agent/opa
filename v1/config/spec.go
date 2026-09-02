@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // ConfigSpec lists the recognized option keys of one config subtree, used to
@@ -56,9 +58,7 @@ func collectStructSpec(specs *[]ConfigSpec, pattern []string, t reflect.Type) {
 // flattening anonymous embedded structs.
 func structKeys(specs *[]ConfigSpec, pattern []string, t reflect.Type) []string {
 	var keys []string
-	for i := range t.NumField() {
-		field := t.Field(i)
-
+	for field := range t.Fields() {
 		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name == "-" {
 			continue
@@ -114,17 +114,9 @@ func registeredConfigSpecs() []any {
 	out := make([]any, 0, len(registeredSpecs))
 	for _, s := range registeredSpecs {
 		out = append(out, map[string]any{
-			"pattern": toAnySlice(s.Pattern),
-			"keys":    toAnySlice(s.Keys),
+			"pattern": util.ToSliceOfAny(s.Pattern),
+			"keys":    util.ToSliceOfAny(s.Keys),
 		})
-	}
-	return out
-}
-
-func toAnySlice(in []string) []any {
-	out := make([]any, len(in))
-	for i, s := range in {
-		out[i] = s
 	}
 	return out
 }

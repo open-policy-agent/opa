@@ -378,9 +378,7 @@ func builtinJSONPatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 }
 
 func init() {
-	for _, key := range []string{"op", "path", "from", "value", "add", "remove", "replace", "move", "copy", "test"} {
-		ast.InternStringTerm(key)
-	}
+	ast.InternStringTerm("op", "path", "from", "value", "add", "remove", "replace", "move", "copy", "test")
 
 	RegisterBuiltinFunc(ast.JSONFilter.Name, builtinJSONFilter)
 	RegisterBuiltinFunc(ast.JSONRemove.Name, builtinJSONRemove)

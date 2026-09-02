@@ -28,6 +28,7 @@ package gojsonschema
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,39 +39,40 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/xeipuuv/gojsonreference"
 )
 
-// NOTE(sr): We need to control from which hosts remote references are
-// allowed to be resolved via HTTP requests. It's quite cumbersome to
-// add extra parameters to all calls and interfaces involved, so we're
-// using a global variable instead:
-var allowNet map[string]struct{}
-var netMut sync.RWMutex
+// maxRemoteRefRedirects bounds the redirect chain a single remote reference
+// fetch may follow. net/http applies its own limit only when CheckRedirect is
+// nil, so policing the allowlist there means reimposing it here; the value
+// matches the stdlib default.
+const maxRemoteRefRedirects = 10
 
-func SetAllowNet(hosts []string) {
-	netMut.Lock()
-	defer netMut.Unlock()
+// remoteRefLimits bounds the outbound requests a loader may make while
+// resolving remote references. The zero value is unrestricted.
+type remoteRefLimits struct {
+	// A nil set permits any host; an empty set permits none.
+	allowNet map[string]struct{}
+
+	// LoadJSON takes no arguments, so the context rides on the loader instead.
+	// Loaders are built per Compile call, so its scope is that one compilation.
+	// A nil ctx means context.Background().
+	ctx context.Context
+}
+
+// newAllowNetSet turns a list of permitted hosts into a set. A nil list
+// yields a nil set, which permits every host; a non-nil empty list yields
+// an empty set, which permits none.
+func newAllowNetSet(hosts []string) map[string]struct{} {
 	if hosts == nil {
-		allowNet = nil // resetting the global
-		return
+		return nil
 	}
-	allowNet = make(map[string]struct{}, len(hosts))
+	allowNet := make(map[string]struct{}, len(hosts))
 	for _, host := range hosts {
 		allowNet[host] = struct{}{}
 	}
-}
-
-func isAllowed(ref *url.URL) bool {
-	netMut.RLock()
-	defer netMut.RUnlock()
-	if allowNet == nil {
-		return true
-	}
-	_, ok := allowNet[ref.Hostname()]
-	return ok
+	return allowNet
 }
 
 var osFS = osFileSystem(os.Open)
@@ -87,15 +89,20 @@ type JSONLoader interface {
 type JSONLoaderFactory interface {
 	// New creates a new JSON loader for the given source
 	New(source string) JSONLoader
+	// withRemoteRefLimits returns a copy of the factory whose loaders resolve
+	// remote references subject to the given limits.
+	withRemoteRefLimits(limits remoteRefLimits) JSONLoaderFactory
 }
 
 // DefaultJSONLoaderFactory is the default JSON loader factory
 type DefaultJSONLoaderFactory struct {
+	limits remoteRefLimits
 }
 
 // FileSystemJSONLoaderFactory is a JSON loader factory that uses http.FileSystem
 type FileSystemJSONLoaderFactory struct {
-	fs http.FileSystem
+	fs     http.FileSystem
+	limits remoteRefLimits
 }
 
 // New creates a new JSON loader for the given source
@@ -103,6 +110,7 @@ func (d DefaultJSONLoaderFactory) New(source string) JSONLoader {
 	return &jsonReferenceLoader{
 		fs:     osFS,
 		source: source,
+		limits: d.limits,
 	}
 }
 
@@ -111,7 +119,18 @@ func (f FileSystemJSONLoaderFactory) New(source string) JSONLoader {
 	return &jsonReferenceLoader{
 		fs:     f.fs,
 		source: source,
+		limits: f.limits,
 	}
+}
+
+func (d DefaultJSONLoaderFactory) withRemoteRefLimits(limits remoteRefLimits) JSONLoaderFactory {
+	d.limits = limits
+	return d
+}
+
+func (f FileSystemJSONLoaderFactory) withRemoteRefLimits(limits remoteRefLimits) JSONLoaderFactory {
+	f.limits = limits
+	return f
 }
 
 // osFileSystem is a functional wrapper for os.Open that implements http.FileSystem.
@@ -128,6 +147,22 @@ func (o osFileSystem) Open(name string) (http.File, error) {
 type jsonReferenceLoader struct {
 	fs     http.FileSystem
 	source string
+	limits remoteRefLimits
+}
+
+func (l *jsonReferenceLoader) isAllowed(ref *url.URL) bool {
+	if l.limits.allowNet == nil {
+		return true
+	}
+	_, ok := l.limits.allowNet[ref.Hostname()]
+	return ok
+}
+
+func (l *jsonReferenceLoader) context() context.Context {
+	if l.limits.ctx == nil {
+		return context.Background()
+	}
+	return l.limits.ctx
 }
 
 func (l *jsonReferenceLoader) JSONSource() any {
@@ -140,7 +175,8 @@ func (l *jsonReferenceLoader) JSONReference() (gojsonreference.JsonReference, er
 
 func (l *jsonReferenceLoader) LoaderFactory() JSONLoaderFactory {
 	return &FileSystemJSONLoaderFactory{
-		fs: l.fs,
+		fs:     l.fs,
+		limits: l.limits,
 	}
 }
 
@@ -200,7 +236,7 @@ func (l *jsonReferenceLoader) LoadJSON() (any, error) {
 		return decodeJSONUsingNumber(strings.NewReader(metaSchema))
 	}
 
-	if isAllowed(refToURL.GetUrl()) {
+	if l.isAllowed(refToURL.GetUrl()) {
 		return l.loadFromHTTP(refToURL.String())
 	}
 
@@ -209,10 +245,30 @@ func (l *jsonReferenceLoader) LoadJSON() (any, error) {
 
 func (l *jsonReferenceLoader) loadFromHTTP(address string) (any, error) {
 
-	resp, err := http.Get(address)
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= maxRemoteRefRedirects {
+				return fmt.Errorf("stopped after %d redirects", maxRemoteRefRedirects)
+			}
+			// Checking every hop, not just the first, stops a permitted host
+			// from bouncing the request onward to one that isn't allowed.
+			if !l.isAllowed(req.URL) {
+				return fmt.Errorf("remote reference loading disabled: %s", req.URL.String())
+			}
+			return nil
+		},
+	}
+
+	req, err := http.NewRequestWithContext(l.context(), http.MethodGet, address, nil)
 	if err != nil {
 		return nil, err
 	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
 	// must return HTTP Status 200 OK
 	if resp.StatusCode != http.StatusOK {

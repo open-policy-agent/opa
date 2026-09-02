@@ -36,7 +36,7 @@ var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to
 var exceptions map[string]string
 
 type exceptionPattern struct {
-	g glob.Glob
+	g *glob.Pattern
 	r string
 }
 

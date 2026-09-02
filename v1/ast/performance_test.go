@@ -16,6 +16,50 @@ func TestFromBuiltinNames(t *testing.T) {
 	}
 }
 
+// TestFromBuiltinNamesAll checks every built-in name that can be written as a ref
+// against the candidate bucketing in BuiltinNameFromRef, so that a name landing in
+// the wrong bucket can't go unnoticed.
+func TestFromBuiltinNamesAll(t *testing.T) {
+	for name := range ast.BuiltinMap {
+		// BuiltinMap also holds infix operators ("+", "/", ...), which aren't refs.
+		ref, err := ast.ParseRef(name)
+		if err != nil {
+			continue
+		}
+		if s, ok := ast.BuiltinNameFromRef(ref); !ok {
+			t.Errorf("Expected to find match for %v", name)
+		} else if s != name {
+			t.Errorf("Expected %v but got: %v", name, s)
+		}
+	}
+}
+
+// TestFromBuiltinNamesNearMisses checks that names sharing a bucket with a real
+// built-in — same number of parts and same total length — are still rejected.
+func TestFromBuiltinNamesNearMisses(t *testing.T) {
+	for name := range ast.BuiltinMap {
+		// Bump the last character, preserving length and part count.
+		bs := []byte(name)
+		if bs[len(bs)-1] == 'z' {
+			bs[len(bs)-1] = 'y'
+		} else {
+			bs[len(bs)-1]++
+		}
+
+		mutated := string(bs)
+		if _, ok := ast.BuiltinMap[mutated]; ok {
+			continue // bumping produced another real built-in name
+		}
+		ref, err := ast.ParseRef(mutated)
+		if err != nil {
+			continue
+		}
+		if s, ok := ast.BuiltinNameFromRef(ref); ok {
+			t.Errorf("Expected no match for %v but got: %v", mutated, s)
+		}
+	}
+}
+
 func BenchmarkFromBuiltinNames(b *testing.B) {
 	tests := []struct {
 		name string

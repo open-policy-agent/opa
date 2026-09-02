@@ -4,14 +4,17 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -75,14 +78,13 @@ q = true`,
 
 			test.WithTempFS(files, func(rootDir string) {
 
-				params := findDefinitionParams{
-					bundlePaths: repeatedStringFlag{
-						v:     []string{rootDir},
-						isSet: true,
-					},
-					stdinBuffer:  true,
-					v0Compatible: tc.v0Compatible,
+				params := newFindDefinitionParams()
+				params.bundlePaths = repeatedStringFlag{
+					v:     []string{rootDir},
+					isSet: true,
 				}
+				params.stdinBuffer = true
+				params.v0Compatible = tc.v0Compatible
 
 				stdout := bytes.NewBuffer(nil)
 
@@ -123,13 +125,12 @@ q = true`)
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		params := findDefinitionParams{
-			bundlePaths: repeatedStringFlag{
-				v:     []string{rootDir},
-				isSet: true,
-			},
-			stdinBuffer: true,
+		params := newFindDefinitionParams()
+		params.bundlePaths = repeatedStringFlag{
+			v:     []string{rootDir},
+			isSet: true,
 		}
+		params.stdinBuffer = true
 
 		stdout := bytes.NewBuffer(nil)
 
@@ -148,6 +149,99 @@ q = true`)
 			t.Errorf("unexpected result (-want, +got):\n%s", diff)
 		}
 	})
+}
+
+// The oracle parses the stdin buffer itself, so keywords that are gated behind
+// capabilities must reach it through the --capabilities flag.
+func TestOracleFindDefinitionCapabilities(t *testing.T) {
+	module := `package test
+
+import future.keywords.or
+
+p if {
+	q or r
+}
+
+q := 1
+
+r := 2`
+
+	restricted := ast.CapabilitiesForThisVersion()
+	restricted.FutureKeywords = slices.DeleteFunc(restricted.FutureKeywords, func(kw string) bool {
+		return kw == "or"
+	})
+
+	capabilities, err := json.Marshal(restricted)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	files := map[string]string{
+		"test.rego":         module,
+		"capabilities.json": string(capabilities),
+	}
+
+	// offset of 'q' in the 'q or r' expression
+	pos := strings.Index(module, "q or r")
+
+	rootDir := test.TempDir(t, files)
+
+	params := newFindDefinitionParams()
+	params.bundlePaths = repeatedStringFlag{
+		v:     []string{rootDir},
+		isSet: true,
+	}
+	params.stdinBuffer = true
+
+	arg := fmt.Sprintf("%s:%d", path.Join(rootDir, "test.rego"), pos)
+	stdout := bytes.NewBuffer(nil)
+
+	err = dofindDefinition(params, bytes.NewBufferString(module), stdout, []string{arg})
+	expectJSON(t, err, stdout, fmt.Sprintf(`{"result": {
+		"file": %q,
+		"row": 9,
+		"col": 1
+	}}`, path.Join(rootDir, "test.rego")))
+
+	if err := params.capabilities.Set(path.Join(rootDir, "capabilities.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout.Reset()
+
+	err = dofindDefinition(params, bytes.NewBufferString(module), stdout, []string{arg})
+	if err == nil || !strings.Contains(err.Error(), "rego_parse_error") {
+		t.Fatal("expected parse error with restricted capabilities but got:", err, "result:", stdout.String())
+	}
+}
+
+// The rego-version must be left undefined unless explicitly asked for, so that the
+// buffer inherits it from the file it shadows, e.g. one parsed as v0 because of a
+// bundle manifest.
+func TestFindDefinitionParamsParserOptions(t *testing.T) {
+	tests := []struct {
+		note         string
+		v0Compatible bool
+		v1Compatible bool
+		exp          ast.RegoVersion
+	}{
+		{note: "no flags", exp: ast.RegoUndefined},
+		{note: "v0", v0Compatible: true, exp: ast.RegoV0},
+		{note: "v1", v1Compatible: true, exp: ast.RegoV1},
+		{note: "v0 takes precedence over v1", v0Compatible: true, v1Compatible: true, exp: ast.RegoV0},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			params := newFindDefinitionParams()
+			params.v0Compatible = tc.v0Compatible
+			params.v1Compatible = tc.v1Compatible
+
+			if act := params.parserOptions().RegoVersion; act != tc.exp {
+				t.Fatalf("expected rego-version %v but got %v", tc.exp, act)
+			}
+		})
+	}
 }
 
 func expectJSON(t *testing.T, err error, buffer *bytes.Buffer, exp string) {

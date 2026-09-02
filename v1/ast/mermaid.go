@@ -280,9 +280,9 @@ func mermaidFormatWith(w *With, b *mermaidBuilder) string {
 
 // --- Not ---
 
-func (not *Not) mermaidFormat(b *mermaidBuilder) string {
+func (n *Not) mermaidFormat(b *mermaidBuilder) string {
 	id := b.node("stadium", "not")
-	for i, expr := range not.Body {
+	for i, expr := range n.Body {
 		exprID := mermaidFormatExpr(expr, b)
 		b.edgeLabeled(id, exprID, strconv.Itoa(i))
 	}

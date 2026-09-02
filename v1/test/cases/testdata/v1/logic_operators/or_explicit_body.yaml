@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/or/explicit-body: explicit lhs, implicit rhs"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -16,7 +15,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/explicit-body: implicit lhs, explicit rhs"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -31,7 +29,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/explicit-body: both explicit, lhs succeeds"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -44,7 +41,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/explicit-body: both explicit, rhs succeeds"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -57,7 +53,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/explicit-body: both explicit, both fail"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -69,7 +64,6 @@ cases:
         }
     want_result: []
   - note: "logic_op/or/explicit-body: multi-expr operand body"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -82,7 +76,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/explicit-body: some-binding inside operand body"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

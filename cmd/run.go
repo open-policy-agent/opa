@@ -130,6 +130,14 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 
     $ ` + executable + ` run file:///c:/path/to/data.json
 
+On Windows, a path beginning with a drive letter is read as a path rather than a
+destination, so "C:\path\to\data.json" loads at the root of the data document. A
+single-character destination must therefore be followed by a qualified path:
+
+    $ ` + executable + ` run c:C:\path\to\data.json
+
+Which will load the "data.json" file at path "data.c".
+
 URL paths to remote public bundles (http or https) will be parsed as shorthand
 configuration equivalent of using repeated --set flags to accomplish the same:
 

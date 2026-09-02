@@ -1,6 +1,6 @@
 ---
 sidebar_label: some
-title: 'Rego Keyword Examples: some'
+title: 'Rego Keyword: some'
 ---
 
 The `some` keyword is used to define a local variable for use later in a rule.

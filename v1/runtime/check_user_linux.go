@@ -17,7 +17,6 @@ func checkUserPrivileges(logger logging.Logger) {
 	if err != nil {
 		logger.Debug("Failed to determine uid/gid of process owner")
 	} else if usr.Uid == "0" || usr.Gid == "0" {
-		message := "OPA running with uid or gid 0. Running OPA with root privileges is not recommended."
-		logger.Warn(message)
+		logger.Warn("OPA running with uid or gid 0. Running OPA with root privileges is not recommended.")
 	}
 }

@@ -113,6 +113,8 @@ func TestPlanProtoConsistency(t *testing.T) {
 		{Name: "Block", GoType: reflect.TypeOf(ir.Block{})},
 		{Name: "StringConst", GoType: reflect.TypeOf(ir.StringConst{})},
 		{Name: "Operand", GoType: reflect.TypeOf(ir.Operand{})},
+		{Name: "UnplannedRule", GoType: reflect.TypeOf(ir.UnplannedRule{})},
+		{Name: "Location", GoType: locationT},
 		// Stmt envelope: file/col/row come from ir.Location; oneof
 		// validated via the OneofSpec below.
 		{Name: "Stmt", GoType: locationT},
@@ -264,6 +266,7 @@ func TestPlanProtoRoundTripYAMLSuite(t *testing.T) {
 func roundTripCmpOpts() []cmp.Option {
 	return []cmp.Option{
 		cmpopts.IgnoreUnexported(ir.Location{}),
+		cmpopts.IgnoreFields(ir.Location{}, "Text"),
 		cmpopts.IgnoreFields(ir.BuiltinFunc{}, "Decl"),
 		cmpopts.EquateEmpty(),
 	}

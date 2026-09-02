@@ -15,15 +15,17 @@ package ir
 import (
 	"fmt"
 
+	"github.com/open-policy-agent/opa/v1/ast/location"
 	"github.com/open-policy-agent/opa/v1/types"
 )
 
 type (
 	// Policy represents a planned policy query.
 	Policy struct {
-		Static *Static `json:"static,omitempty"`
-		Plans  *Plans  `json:"plans,omitempty"`
-		Funcs  *Funcs  `json:"funcs,omitempty"`
+		Static         *Static          `json:"static,omitempty"`
+		Plans          *Plans           `json:"plans,omitempty"`
+		Funcs          *Funcs           `json:"funcs,omitempty"`
+		UnplannedRules []*UnplannedRule `json:"unplanned_rules,omitempty"`
 	}
 
 	// Static represents a static data segment that is indexed into by the policy.
@@ -84,7 +86,7 @@ type (
 	}
 
 	locationStmt interface {
-		SetLocation(index, row, col int, file, text string)
+		SetLocation(index, row, col int, file string, text []byte)
 		GetLocation() *Location
 	}
 
@@ -96,6 +98,15 @@ type (
 	// StringConst represents a string value.
 	StringConst struct {
 		Value string `json:"value"`
+	}
+
+	// UnplannedRule represents a rule that was parsed but not included in the
+	// plan because it is not reachable from the entrypoint.
+	// This is used for coverage reporting, to distinguish rules that were never
+	// planned from rules that were planned but never executed.
+	UnplannedRule struct {
+		Path     string    `json:"path"`
+		Location *Location `json:"location"`
 	}
 )
 
@@ -467,21 +478,45 @@ type ResultSetAddStmt struct {
 // Location records the filen index, and the row and column inside that file
 // that a statement can be connected to.
 type Location struct {
-	File       int    `json:"file"` // filename string constant index
-	Col        int    `json:"col"`
-	Row        int    `json:"row"`
-	file, text string // only used for debugging
+	File   int `json:"file"` // filename string constant index
+	Col    int `json:"col"`
+	Row    int `json:"row"`
+	EndCol int `json:"end_col"`
+	EndRow int `json:"end_row"`
+
+	// Text is only used for location ranges and debug prints.
+	// A named type is used so that its String method is called during printing.
+	// String cannot be set on Location since it is embedded and impacts parent
+	// structs if registered here.
+	Text locationText `json:"-"`
+
+	file string // only used for debugging
+}
+
+type locationText []byte
+
+func (d locationText) String() string {
+	return string(d)
 }
 
 // SetLocation sets the Location for a given Stmt.
-func (l *Location) SetLocation(index, row, col int, file, text string) {
+func (l *Location) SetLocation(index, row, col int, file string, text []byte) {
 	*l = Location{
 		File: index,
 		Row:  row,
 		Col:  col,
+		Text: text,
+
 		file: file,
-		text: text,
 	}
+
+	l.EndRow, l.EndCol = location.EndOf(row, col, l.Text)
+}
+
+// End returns the end row and col of the location range, expected to be called
+// after SetLocation or unmarshalling.
+func (l *Location) End() (row, col int) {
+	return l.EndRow, l.EndCol
 }
 
 // GetLocation returns a Stmt's Location.

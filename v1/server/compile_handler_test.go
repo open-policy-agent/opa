@@ -41,7 +41,7 @@ type Response struct {
 var ignoreMetrics = cmpopts.IgnoreMapEntries(func(k string, _ any) bool { return k == "metrics" })
 
 func setup(t testing.TB, rego string, data any) *fixture {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	if err := store.UpsertPolicy(ctx, txn, "filters.rego", []byte(rego)); err != nil {

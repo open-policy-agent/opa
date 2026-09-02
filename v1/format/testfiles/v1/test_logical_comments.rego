@@ -1,0 +1,37 @@
+package test
+
+import future.keywords.and
+import future.keywords.or
+
+between_operands if {
+	input.a and
+	# only admins
+	input.b
+}
+
+after_operator if {
+	input.a and # first
+	input.b
+}
+
+around_chain if {
+	# before
+	input.a or
+	# between
+	input.b or
+	# also
+	input.c
+	# after
+}
+
+explicit_body_operand if { # open
+# leading
+	input.a # trailing
+# before close
+} and input.b
+
+explicit_body_operand_rhs if input.a and { # open
+# leading
+	input.b # trailing
+# before close
+}

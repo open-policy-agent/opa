@@ -10,9 +10,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 
@@ -188,8 +188,8 @@ func CapabilitiesForThisVersion(opts ...CapabilitiesOption) *Capabilities {
 		copy(f.Features, Features)
 	}
 
-	sort.Strings(f.FutureKeywords)
-	sort.Strings(f.Features)
+	slices.Sort(f.FutureKeywords)
+	slices.Sort(f.Features)
 
 	return f
 }
@@ -239,14 +239,7 @@ func LoadCapabilitiesVersions() ([]string, error) {
 		return nil, err
 	}
 
-	capabilitiesVersions := make([]string, 0, len(ents))
-	for _, ent := range ents {
-		capabilitiesVersions = append(capabilitiesVersions, strings.Replace(ent.Name(), ".json", "", 1))
-	}
-
-	slices.SortStableFunc(capabilitiesVersions, semver.Compare)
-
-	return capabilitiesVersions, nil
+	return util.SortedStableFunc(util.Map(ents, removeJsonSuffix), semver.Compare), nil
 }
 
 // MinimumCompatibleVersion returns the minimum compatible OPA version based on
@@ -306,14 +299,18 @@ func (c *Capabilities) ContainsFutureKeyword(kw string) bool {
 // addBuiltinSorted inserts a built-in into c in sorted order. An existing built-in with the same name
 // will be overwritten.
 func (c *Capabilities) addBuiltinSorted(bi *Builtin) {
-	i := sort.Search(len(c.Builtins), func(x int) bool {
-		return c.Builtins[x].Name >= bi.Name
-	})
-	if i < len(c.Builtins) && bi.Name == c.Builtins[i].Name {
-		c.Builtins[i] = bi
-		return
+	i, found := slices.BinarySearchFunc(c.Builtins, bi, cmpBuiltinName)
+	if !found {
+		c.Builtins = append(c.Builtins, nil)
+		copy(c.Builtins[i+1:], c.Builtins[i:])
 	}
-	c.Builtins = append(c.Builtins, nil)
-	copy(c.Builtins[i+1:], c.Builtins[i:])
 	c.Builtins[i] = bi
+}
+
+func cmpBuiltinName(a, b *Builtin) int {
+	return strings.Compare(a.Name, b.Name)
+}
+
+func removeJsonSuffix(ent fs.DirEntry) string {
+	return strings.Replace(ent.Name(), ".json", "", 1)
 }

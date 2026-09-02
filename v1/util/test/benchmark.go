@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"text/template"
 )
 
@@ -44,7 +45,6 @@ func PartialObjectBenchmarkCrossModule(n int) []string {
 	ruleBuilder := ""
 
 	for idx := 1; idx <= n; idx++ {
-		//nolint:perfsprint
 		barMod += fmt.Sprintf(`
 		bench_test_%[1]d := result if {
             input.bench_test_collector_mambo_number_%[3]d
@@ -118,13 +118,6 @@ func GenerateLargeJSONBenchmarkData() map[string]any {
 
 // GenerateJSONBenchmarkData returns a map of `k` keys and `v` key/value pairs.
 func GenerateJSONBenchmarkData(k, v int) map[string]any {
-
-	// create array of null values that can be iterated over
-	keys := make([]any, k)
-	for i := range keys {
-		keys[i] = nil
-	}
-
 	// create large JSON object value (100,000 entries is about 2MB on disk)
 	values := map[string]any{}
 	for i := range v {
@@ -132,7 +125,7 @@ func GenerateJSONBenchmarkData(k, v int) map[string]any {
 	}
 
 	return map[string]any{
-		"keys":   keys,
+		"keys":   slices.Repeat([]any{nil}, k),
 		"values": values,
 	}
 }

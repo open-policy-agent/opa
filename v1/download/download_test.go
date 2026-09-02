@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -152,17 +153,39 @@ func TestStopWithMultipleCalls(t *testing.T) {
 		t.Fatal("expected bundle with at least one module but got:", u1)
 	}
 
-	done := make(chan struct{})
-	go func() {
-		d.Stop(ctx)
-		close(done)
-	}()
+	// Stop must be safe to call concurrently and more than once: the first
+	// call shuts the downloader down and any later call is a no-op, rather
+	// than blocking forever on the stop channel.
+	stopReturns := func(n int) bool {
+		var wg sync.WaitGroup
+		wg.Add(n)
+		for range n {
+			go func() {
+				defer wg.Done()
+				d.Stop(ctx)
+			}()
+		}
 
-	d.Stop(ctx)
-	<-done
+		returned := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(returned)
+		}()
 
-	if !d.stopped {
-		t.Fatal("expected downloader to be stopped")
+		select {
+		case <-returned:
+			return true
+		case <-time.After(10 * time.Second):
+			return false
+		}
+	}
+
+	if !stopReturns(2) {
+		t.Fatal("expected concurrent Stop calls to return, but they blocked")
+	}
+
+	if !stopReturns(1) {
+		t.Fatal("expected Stop on an already-stopped downloader to return, but it blocked")
 	}
 }
 
@@ -793,8 +816,8 @@ func TestFailureUnexpected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	var hErr HTTPError
-	if !errors.As(err, &hErr) {
+	hErr, ok := errors.AsType[HTTPError](err)
+	if !ok {
 		t.Fatal("expected HTTPError")
 	}
 	if hErr.StatusCode != 500 {
@@ -825,8 +848,8 @@ func TestFailureUnexpectedWithResponseBody(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	var hErr HTTPError
-	if !errors.As(err, &hErr) {
+	hErr, ok := errors.AsType[HTTPError](err)
+	if !ok {
 		t.Fatal("expected HTTPError")
 	}
 	if hErr.StatusCode != 500 {

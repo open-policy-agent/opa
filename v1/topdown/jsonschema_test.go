@@ -5,6 +5,12 @@
 package topdown
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/topdown/cache"
@@ -507,5 +513,124 @@ func TestBuiltinJSONMatchSchemaCache(t *testing.T) {
 
 	if _, found := valueCache.Get(schema); !found {
 		t.Fatalf("Expected document to be cached")
+	}
+}
+
+func TestBuiltinJSONSchemaAllowNet(t *testing.T) {
+	t.Parallel()
+
+	var requests atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		fmt.Fprint(w, `{"required": ["pwned"]}`)
+	}))
+	defer srv.Close()
+
+	srvURL, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	remoteSchema := ast.String(fmt.Sprintf(`{"$ref": %q}`, srv.URL+"/schema.json"))
+
+	cases := []struct {
+		note         string
+		capabilities *ast.Capabilities
+		wantDenied   bool
+	}{
+		{
+			note:         "no capabilities permits any host",
+			capabilities: nil,
+		},
+		{
+			note:         "unset allow_net permits any host",
+			capabilities: &ast.Capabilities{},
+		},
+		{
+			note:         "empty allow_net permits no host",
+			capabilities: &ast.Capabilities{AllowNet: []string{}},
+			wantDenied:   true,
+		},
+		{
+			note:         "listed host is permitted",
+			capabilities: &ast.Capabilities{AllowNet: []string{srvURL.Hostname()}},
+		},
+		{
+			note:         "unlisted host is denied",
+			capabilities: &ast.Capabilities{AllowNet: []string{"example.com"}},
+			wantDenied:   true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run("json.match_schema/"+tc.note, func(t *testing.T) {
+			before := requests.Load()
+			err := builtinJSONMatchSchema(
+				BuiltinContext{Capabilities: tc.capabilities},
+				[]*ast.Term{ast.NewTerm(ast.String(`{"id": 5}`)), ast.NewTerm(remoteSchema)},
+				func(*ast.Term) error { return nil },
+			)
+
+			fetched := requests.Load() > before
+			if tc.wantDenied {
+				if err == nil {
+					t.Fatal("expected remote reference to be denied, got no error")
+				}
+				if !strings.Contains(err.Error(), "remote reference loading disabled") {
+					t.Fatalf("expected remote reference loading to be disabled, got %v", err)
+				}
+				if fetched {
+					t.Fatal("expected no request to reach the server")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected remote reference to be permitted, got %v", err)
+			}
+			if !fetched {
+				t.Fatal("expected a request to reach the server")
+			}
+		})
+
+		t.Run("json.verify_schema/"+tc.note, func(t *testing.T) {
+			before := requests.Load()
+			var result ast.Value
+			err := builtinJSONSchemaVerify(
+				BuiltinContext{Capabilities: tc.capabilities},
+				[]*ast.Term{ast.NewTerm(remoteSchema)},
+				func(term *ast.Term) error {
+					result = term.Value
+					return nil
+				},
+			)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			arr, ok := result.(*ast.Array)
+			if !ok {
+				t.Fatalf("Unexpected result type, expected array, got %T", result)
+			}
+			valid := arr.Elem(0).Value.Compare(ast.Boolean(true)) == 0
+
+			fetched := requests.Load() > before
+			if tc.wantDenied {
+				if valid {
+					t.Fatalf("expected schema verification to fail, got %s", arr)
+				}
+				if !strings.Contains(arr.Elem(1).String(), "remote reference loading disabled") {
+					t.Fatalf("expected remote reference loading to be disabled, got %s", arr)
+				}
+				if fetched {
+					t.Fatal("expected no request to reach the server")
+				}
+				return
+			}
+			if !valid {
+				t.Fatalf("expected schema verification to succeed, got %s", arr)
+			}
+			if !fetched {
+				t.Fatal("expected a request to reach the server")
+			}
+		})
 	}
 }

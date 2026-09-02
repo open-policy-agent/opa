@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/grouping: a and (b or c) short-circuits when a is false"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -18,7 +17,6 @@ cases:
       c: true
     want_result: []
   - note: "logic_op/grouping: no parens, a and b or c"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -36,7 +34,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/grouping: a and (b or c)"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -55,7 +52,6 @@ cases:
       - x: true
 
   - note: "logic_op/grouping: (a or b) and c"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -73,7 +69,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/grouping: (a or b) and c, short-circuit"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -91,7 +86,6 @@ cases:
     want_result: []
 
   - note: "logic_op/grouping: (a or b) and (c or d) parity with braces"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -110,7 +104,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/grouping: { a or b } and { c or d } parity with parens"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -130,7 +123,6 @@ cases:
       - x: true
 
   - note: "logic_op/grouping: (a and (b or c)) and d"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -150,7 +142,6 @@ cases:
       - x: true
 
   - note: "logic_op/grouping: redundant parens (((a or b)))"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -167,7 +158,6 @@ cases:
       - x: true
 
   - note: "logic_op/grouping: not (a or b), neither true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -184,7 +174,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/grouping: not (a or b), one true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -201,7 +190,6 @@ cases:
     want_result: []
 
   - note: "logic_op/grouping: (a with ...) and b, with scoped to operand"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -217,7 +205,6 @@ cases:
       - x: true
 
   - note: "logic_op/grouping: (a or b with ...) binds with to whole group"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

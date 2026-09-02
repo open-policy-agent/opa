@@ -71,7 +71,7 @@ func BenchmarkParseStatementNestedObjects(b *testing.B) {
 	sizes := [][]int{{1, 1}, {5, 1}, {10, 1}, {1, 5}, {1, 10}, {5, 5}} // Note: 10x10 will essentially hang while parsing
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(b *testing.B) {
-			stmt := generateObjectStatement(size[0], size[1])
+			stmt := string(util.MustMarshalJSON(generateObject(size[0], size[1])))
 			runParseStatementBenchmark(b, stmt)
 		})
 	}
@@ -119,18 +119,35 @@ func BenchmarkParseStatementNestedObjectsOrSets(b *testing.B) {
 	for _, size := range sizes {
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			stmt := generateObjectOrSetStatement(size)
-			runParseStatementBenchmarkWithError(b, stmt)
+			for b.Loop() {
+				if _, err := ParseStatement(stmt); err == nil {
+					b.Fatalf("Expected error: %s", err)
+				}
+			}
 		})
 	}
 }
 
-// 7471 ns/op	    8024 B/op	      56 allocs/op
+// 7391 ns/op	    8136 B/op	      68 allocs/op // default, before
+// 7085 ns/op	    7117 B/op	      58 allocs/op // default, now
+// 1990 ns/op	    5129 B/op	      53 allocs/op // with caps, notice the big ns/op difference!
 func BenchmarkParseVars(b *testing.B) {
-	for b.Loop() {
-		if _, err := ParseExpr(`data[i][_][j]`); err != nil {
-			b.Fatal(err)
+	b.Run("with default options", func(b *testing.B) {
+		for b.Loop() {
+			if _, err := ParseExpr(`data[i][_][j]`); err != nil {
+				b.Fatal(err)
+			}
 		}
-	}
+	})
+
+	b.Run("with capabilities provided", func(b *testing.B) {
+		opts := ParserOptions{RegoVersion: RegoV1, SkipRules: true, Capabilities: CapabilitiesForThisVersion()}
+		for b.Loop() {
+			if _, err := ParseExprWithOpts(`data[i][_][j]`, opts); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
 
 func BenchmarkParseBasicABACModule(b *testing.B) {
@@ -192,28 +209,16 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 }
 
 func runParseModuleBenchmark(b *testing.B, mod string) {
+	opts := ParserOptions{Capabilities: CapabilitiesForThisVersion()}
 	for b.Loop() {
-		_, err := ParseModuleWithOpts("", mod, ParserOptions{AllFutureKeywords: true})
-		if err != nil {
-			b.Fatalf("Unexpected error: %s", err)
-		}
+		MustParseModuleWithOpts(mod, opts)
 	}
 }
 
 func runParseStatementBenchmark(b *testing.B, stmt string) {
 	for b.Loop() {
-		_, err := ParseStatement(stmt)
-		if err != nil {
+		if _, err := ParseStatement(stmt); err != nil {
 			b.Fatalf("Unexpected error: %s", err)
-		}
-	}
-}
-
-func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
-	for b.Loop() {
-		_, err := ParseStatement(stmt)
-		if err == nil {
-			b.Fatalf("Expected error: %s", err)
 		}
 	}
 }
@@ -241,11 +246,6 @@ func generateArrayStatement(size int) string {
 	return string(util.MustMarshalJSON(a))
 }
 
-func generateObjectStatement(width, depth int) string {
-	o := generateObject(width, depth)
-	return string(util.MustMarshalJSON(o))
-}
-
 func generateObject(width, depth int) map[string]any {
 	o := map[string]any{}
 	for i := range width {
@@ -260,17 +260,32 @@ func generateObject(width, depth int) map[string]any {
 }
 
 func generateObjectOrSetStatement(depth int) string {
-	s := strings.Builder{}
+	buf := make([]byte, 0, depth*11)
 	for i := range depth {
-		fmt.Fprintf(&s, `{a%d:a%d|`, i, i)
+		buf = append(buf, '{', 'a')
+		buf = util.AppendInt(buf, i)
+		buf = append(buf, ':', 'a')
+		buf = util.AppendInt(buf, i)
+		buf = append(buf, '|')
 	}
-	return s.String()
+	return util.ByteSliceToString(buf)
+}
+
+// 112270 ns/op	  191153 B/op	    5056 allocs/op
+// 87285 ns/op	  179144 B/op	    4056 allocs/op // With text reused from location
+func BenchmarkParseComments(b *testing.B) {
+	policy := strings.Repeat("# comment\n", 1000) + "package p\n"
+	for b.Loop() {
+		MustParseModule(policy)
+	}
 }
 
 // _7136 ns/op     5744 B/op       40 allocs/op // parsing only "package p"
 // 34255 ns/op    40760 B/op      506 allocs/op // with annotations
 // 33261 ns/op    38841 B/op      499 allocs/op // pre-alloc location text buffer
 // 32817 ns/op    37319 B/op      487 allocs/op // use single metadataParser instance with reset
+// 31932 ns/op	  35730 B/op	  457 allocs/op // cheaper comment parsing
+// 26720 ns/op	  33742 B/op	  452 allocs/op // cheaper comment parsing + caps provided
 func BenchmarkParseAnnotations(b *testing.B) {
 	policy := `
 # METADATA
@@ -294,22 +309,8 @@ func BenchmarkParseAnnotations(b *testing.B) {
 #   - input: {"type": "object", "properties": {"user": {"type": "string"}}}
 package p
 `
+	opts := ParserOptions{ProcessAnnotation: true, Capabilities: CapabilitiesForThisVersion()}
 	for b.Loop() {
-		MustParseModuleWithOpts(policy, ParserOptions{ProcessAnnotation: true})
-	}
-}
-
-// 296108 ns/op	  882355 B/op	    7230 allocs/op
-// 279484 ns/op	  842892 B/op	    6315 allocs/op // pre-alloc location text buffer and reuse metadataParser
-func BenchmarkParseManyAnnotations(b *testing.B) {
-	sb := &strings.Builder{}
-	sb.WriteString("package p\n\n")
-	for i := range 100 {
-		fmt.Fprintf(sb, "# METADATA\n# title: annotation %d\n\n", i)
-	}
-	policy := strings.TrimSpace(sb.String()) + "\nrule if true\n"
-
-	for b.Loop() {
-		MustParseModuleWithOpts(policy, ParserOptions{ProcessAnnotation: true})
+		MustParseModuleWithOpts(policy, opts)
 	}
 }

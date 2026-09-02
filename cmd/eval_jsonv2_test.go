@@ -4,7 +4,6 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint: goconst // string duplication is for test readability.
 package cmd
 
 import (
@@ -108,6 +107,79 @@ func TestEvalExitCode(t *testing.T) {
 				t.Fatal("wanted success but got error:", err)
 			} else if (tc.wantDefined && !defined) || (!tc.wantDefined && defined) {
 				t.Fatalf("wanted defined %v but got defined %v", tc.wantDefined, defined)
+			}
+		})
+	}
+}
+
+func TestEvalWithLogicalKeywordImports(t *testing.T) {
+	tests := []struct {
+		note        string
+		imports     []string
+		query       string
+		wantDefined bool
+		wantErr     bool
+	}{
+		{
+			note:    "and, no import",
+			query:   "true and true",
+			wantErr: true,
+		},
+		{
+			note:        "and",
+			imports:     []string{"future.keywords.and"},
+			query:       "true and true",
+			wantDefined: true,
+		},
+		{
+			note:    "and, undefined",
+			imports: []string{"future.keywords.and"},
+			query:   "true and false",
+		},
+		{
+			note:        "or",
+			imports:     []string{"future.keywords.or"},
+			query:       "true or false",
+			wantDefined: true,
+		},
+		{
+			note:    "or, only and imported",
+			imports: []string{"future.keywords.and"},
+			query:   "true or false",
+			wantErr: true,
+		},
+		{
+			note:        "wildcard import covers both",
+			imports:     []string{"future.keywords"},
+			query:       "false and true or true",
+			wantDefined: true,
+		},
+	}
+
+	var b bytes.Buffer
+	writer := bufio.NewWriter(&b)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			params := newEvalCommandParams()
+			params.fail = true
+			for _, imp := range tc.imports {
+				if err := params.imports.Set(imp); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			defined, err := eval([]string{tc.query}, params, writer, nil)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("wanted error but got success")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal("wanted success but got error:", err)
+			}
+			if defined != tc.wantDefined {
+				t.Fatalf("wanted defined %v but got %v", tc.wantDefined, defined)
 			}
 		})
 	}

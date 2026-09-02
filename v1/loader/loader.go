@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -28,6 +29,9 @@ import (
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+// goos is overridden in tests to exercise Windows path handling on other platforms.
+var goos = runtime.GOOS
 
 // Result represents the result of successfully loading zero or more files.
 type Result struct {
@@ -592,11 +596,35 @@ func SplitPrefix(path string) ([]string, string) {
 	if strings.Index(path, "://") == strings.Index(path, ":") {
 		return nil, path
 	}
+	// On Windows, a leading colon can belong to the path itself, separating the
+	// volume name from the rest of the path, rather than to a data prefix.
+	if hasWindowsVolumeName(path) {
+		return nil, path
+	}
 	parts := strings.SplitN(path, ":", 2)
 	if len(parts) == 2 && len(parts[0]) > 0 {
 		return strings.Split(parts[0], "."), parts[1]
 	}
 	return nil, path
+}
+
+// hasWindowsVolumeName returns true on Windows if path begins with a volume
+// name, i.e. a drive letter followed by a colon and a separator (c:/foo) or a
+// UNC/device prefix (\\?\c:\foo), but not a drive-relative path (c:foo), which
+// is read as a single-character data prefix instead.
+func hasWindowsVolumeName(path string) bool {
+	if goos != "windows" || len(path) < 3 {
+		return false
+	}
+	// UNC and device paths, e.g. \\server\share or \\?\c:\foo. These aren't all
+	// loadable -- UNC reads are rejected outright -- but they're never prefixes,
+	// and splitting them would hide the path from that check.
+	if isSlash(path[0]) && isSlash(path[1]) {
+		return true
+	}
+	// Drive-rooted paths, e.g. c:/foo.
+	c := path[0]
+	return ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') && path[1] == ':' && isSlash(path[2])
 }
 
 func (l *Result) merge(path string, result any) error {

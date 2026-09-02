@@ -5,7 +5,6 @@
 // Package repl implements a Read-Eval-Print-Loop (REPL) for interacting with the policy engine.
 //
 // The REPL is typically used from the command line, however, it can also be used as a library.
-// nolint: goconst // String reuse here doesn't make sense to deduplicate.
 package repl
 
 import (
@@ -612,7 +611,7 @@ func (r *REPL) cmdShow(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprint(r.output, string(bs))
+		r.output.Write(bs)
 		return nil
 	} else if args[0] == "debug" {
 		debug := replDebugState{
@@ -731,7 +730,7 @@ func (r *REPL) cmdUnknown(s []string) error {
 
 func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 	if len(args) != 1 {
-		return newBadArgsErr("unset <var>: expects exactly one argument")
+		return newBadArgsErr("unset <ref>: expects exactly one argument")
 	}
 
 	term, err := ast.ParseTerm(args[0])
@@ -739,17 +738,12 @@ func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 		return newBadArgsErr("argument must identify a rule")
 	}
 
-	v, ok := term.Value.(ast.Var)
-
+	ref, ok := ruleRefFromTerm(term)
 	if !ok {
-		ref, ok := term.Value.(ast.Ref)
-		if !ok || !ast.RootDocumentNames.Contains(ref[0]) {
-			return newBadArgsErr("arguments must identify a rule")
-		}
-		v = ref[0].Value.(ast.Var)
+		return newBadArgsErr("arguments must identify a rule")
 	}
 
-	unset, err := r.unsetRule(ctx, v)
+	unset, err := r.unsetRule(ctx, ref)
 	if err != nil {
 		return err
 	} else if !unset {
@@ -779,7 +773,7 @@ func (r *REPL) cmdUnsetPackage(ctx context.Context, args []string) error {
 	return nil
 }
 
-func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
+func (r *REPL) unsetRule(ctx context.Context, ref ast.Ref) (bool, error) {
 	if r.currentModuleID == "" {
 		return false, nil
 	}
@@ -787,9 +781,9 @@ func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
 	mod := r.modules[r.currentModuleID]
 	rules := []*ast.Rule{}
 
-	for _, r := range mod.Rules {
-		if r.Head.Name != name {
-			rules = append(rules, r)
+	for _, rule := range mod.Rules {
+		if !refsOverlap(rule.Head.Ref(), ref) {
+			rules = append(rules, rule)
 		}
 	}
 
@@ -805,6 +799,45 @@ func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// ruleRefFromTerm returns the rule head ref identified by term: the terms "p",
+// "p.q.r" and `p["q"]` identify the rule head refs p, p.q.r and p.q. Refs
+// rooted at a root document are only identified by their first term, e.g.
+// "input" identifies the rule defined by `input = {...}`.
+func ruleRefFromTerm(term *ast.Term) (ast.Ref, bool) {
+	switch v := term.Value.(type) {
+	case ast.Var:
+		return ast.Ref{term}, true
+	case ast.Ref:
+		if _, ok := v[0].Value.(ast.Var); !ok {
+			return nil, false
+		}
+		if ast.RootDocumentNames.Contains(v[0]) {
+			return v[:1], true
+		}
+		// Ref.IsGround ignores the leading var, so this only rejects refs with
+		// non-ground terms after the head, e.g. "a[x]".
+		if !v.IsGround() {
+			return nil, false
+		}
+		return v, true
+	}
+	return nil, false
+}
+
+// refsOverlap returns true if one of the refs is a prefix of, or equal to, the
+// other. Rule head refs that overlap in this way define (parts of) the same
+// document: "user" overlaps "user.role", so unsetting "user" removes
+// `user.role := "admin"`, while defining `user.role := "admin"` only replaces
+// previous definitions of user.role, leaving user.email in place.
+func refsOverlap(a, b ast.Ref) bool {
+	for i := range min(len(a), len(b)) {
+		if a[i].Value.Compare(b[i].Value) != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *REPL) unsetPackage(_ context.Context, pkg *ast.Package) (bool, error) {
@@ -895,7 +928,7 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 
 	if rule.Head.Assign {
 		var err error
-		unset, err = r.unsetRule(ctx, rule.Head.Name)
+		unset, err = r.unsetRule(ctx, rule.Head.Ref())
 		if err != nil {
 			return err
 		}
@@ -1021,21 +1054,29 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 }
 
 func (r *REPL) parserOptions() (ast.ParserOptions, error) {
-	if r.regoVersion == ast.RegoV1 {
-		return ast.ParserOptions{RegoVersion: ast.RegoV1}, nil
+	if r.currentModuleID == "" {
+		return ast.ParserOptions{RegoVersion: r.regoVersion}, nil
 	}
-	if r.currentModuleID != "" {
-		opts, err := future.ParserOptionsFromFutureImports(r.modules[r.currentModuleID].Imports)
-		if err == nil {
-			for _, i := range r.modules[r.currentModuleID].Imports {
-				if ast.RegoV1CompatibleRef.Equal(i.Path.Value) {
-					opts.RegoVersion = ast.RegoV1
-				}
-			}
-		}
+
+	imports := r.modules[r.currentModuleID].Imports
+
+	opts, err := future.ParserOptionsFromFutureImports(imports)
+	if err != nil {
 		return opts, err
 	}
-	return ast.ParserOptions{RegoVersion: r.regoVersion}, nil
+
+	if r.regoVersion == ast.RegoV1 {
+		opts.RegoVersion = ast.RegoV1
+		return opts, nil
+	}
+
+	for _, i := range imports {
+		if ast.RegoV1CompatibleRef.Equal(i.Path.Value) {
+			opts.RegoVersion = ast.RegoV1
+		}
+	}
+
+	return opts, nil
 }
 
 func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
@@ -1110,7 +1151,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt any) error {
 		}
 
 		if len(r.unknowns) > 0 {
-			err = r.evalPartial(ctx, compiler, input, compiledBody)
+			err = r.evalPartial(ctx, compiler, input, stmt)
 		} else {
 			err = r.evalBody(ctx, compiler, input, stmt)
 			if r.types {
@@ -1191,7 +1232,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, r.stderr, output)
+		return pr.Pretty(r.output, r.stderrWriter(), output)
 	}
 }
 
@@ -1244,7 +1285,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	case "json":
 		return pr.JSON(r.output, output)
 	default:
-		return pr.Pretty(r.output, r.stderr, output)
+		return pr.Pretty(r.output, r.stderrWriter(), output)
 	}
 }
 
@@ -1295,6 +1336,12 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 //	 > a
 //	 1
 //
+// The left hand side may be a ref, defining part of a document:
+//
+//		> user["role"] := "admin"
+//	 > user
+//	 {"role": "admin"}
+//
 // If the expression is a = statement, then an additional check on the left
 // hand side occurs. For example:
 //
@@ -1324,8 +1371,11 @@ func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body
 	if rule == nil || err != nil {
 		return false, err
 	}
-	// TODO(sr): support interactive ref head rule definitions
-	if len(rule.Head.Ref()) > 1 {
+
+	// Statements about a root document are queries, never rule definitions:
+	// "data.foo.bar = 1" asks if data.foo.bar is 1. The single-term case is
+	// excluded so that `input = {...}` keeps defining a rule.
+	if ref := rule.Head.Ref(); len(ref) > 1 && ast.RootDocumentNames.Contains(ref[0]) {
 		return false, nil
 	}
 
@@ -1600,7 +1650,7 @@ var extra = [...]commandDesc{
 var builtin = [...]commandDesc{
 	{"show", []string{""}, "show active module definition"},
 	{"show debug", []string{""}, "show REPL settings"},
-	{"unset", []string{"<var>"}, "unset rules in currently active module"},
+	{"unset", []string{"<ref>"}, "unset rules in currently active module"},
 	{"unset-package", []string{"<var>"}, "unset packages in currently active module"},
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
@@ -1662,17 +1712,26 @@ func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transacti
 	return e.Encode(data)
 }
 
+// isGlobalInModule returns true if term refers to an import, or to a document
+// that the module already defines rules for. Statements about such documents
+// are evaluated as queries rather than interpreted as rule definitions.
 func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term) bool {
 
-	var name ast.Var
+	var ref ast.Ref
 
-	if ast.RootDocumentRefs.Contains(term) {
-		name = term.Value.(ast.Ref)[0].Value.(ast.Var)
-	} else if v, ok := term.Value.(ast.Var); ok {
-		name = v
-	} else {
+	switch v := term.Value.(type) {
+	case ast.Var:
+		ref = ast.Ref{term}
+	case ast.Ref:
+		if _, ok := v[0].Value.(ast.Var); !ok {
+			return false
+		}
+		ref = v
+	default:
 		return false
 	}
+
+	name := ref[0].Value.(ast.Var)
 
 	for _, imp := range module.Imports {
 		if imp.Name().Compare(name) == 0 {
@@ -1680,17 +1739,37 @@ func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term
 		}
 	}
 
-	path := module.Package.Path.Copy().Append(ast.StringTerm(string(name)))
+	// Only the ground prefix of the ref can be looked up in the rule tree, e.g.
+	// "a[i]" is looked up as "a". The rule tree keys the leading var of the ref
+	// as a string.
+	prefix := ref.GroundPrefix()
+	path := make(ast.Ref, 0, len(prefix))
+	path = append(path, ast.StringTerm(string(name)))
+	path = append(path, prefix[1:]...)
+
 	node := compiler.RuleTree
 
-	for _, elem := range path {
+	for _, elem := range module.Package.Path {
 		node = node.Child(elem.Value)
 		if node == nil {
 			return false
 		}
 	}
 
-	return len(node.Values) > 0
+	for _, elem := range path {
+		node = node.Child(elem.Value)
+		if node == nil {
+			return false
+		}
+		if len(node.Values) > 0 {
+			return true
+		}
+	}
+
+	// The whole prefix resolved to a node without rules of its own: the ref
+	// refers to an existing document only if the dropped suffix can be
+	// satisfied by rules below that node, e.g. "a[i]" when a[0] is defined.
+	return len(prefix) < len(ref)
 }
 
 func printHelp(output io.Writer, initPrompt string, report [][2]string) {
@@ -1823,12 +1902,12 @@ For example:
 	> import input.params
 
 	# Import a future keyword.
-	> import future.keywords.in
-	> 1 in [0, 2, 1]
+	> import future.keywords.or
+	> 1 == 2 or 1 == 1
 	true
 
 	# Define rule that refers to "params".
-	> is_post { params.method = "POST" }
+	> is_post if { params.method = "POST" }
 
 	# Test evaluation.
 	> is_post

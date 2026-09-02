@@ -89,9 +89,9 @@ func copyEntry(sourceRoot string, sourceRegoVersion ast.RegoVersion, e os.DirEnt
 		}
 
 		// Format test modules
-		for _, testCase := range testCases.Cases { //nolint:gocritic
-			for i, module := range testCase.Modules {
-				bs, err := format.SourceWithOpts(fmt.Sprintf("mod%d.rego", i), []byte(module),
+		for i := range testCases.Cases {
+			for j, module := range testCases.Cases[i].Modules {
+				bs, err := format.SourceWithOpts(fmt.Sprintf("mod%d.rego", j), []byte(module),
 					format.Opts{
 						ParserOptions: &ast.ParserOptions{
 							RegoVersion: sourceRegoVersion,
@@ -99,9 +99,9 @@ func copyEntry(sourceRoot string, sourceRegoVersion ast.RegoVersion, e os.DirEnt
 						RegoVersion: targetRegoVersion,
 					})
 				if err != nil {
-					fmt.Printf("Error formatting module %s %s:%d: %v\n", path, testCase.Note, i, err)
+					fmt.Printf("Error formatting module %s %s:%d: %v\n", path, testCases.Cases[i].Note, j, err)
 				} else {
-					testCase.Modules[i] = string(bs)
+					testCases.Cases[i].Modules[j] = string(bs)
 				}
 			}
 		}

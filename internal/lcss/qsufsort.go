@@ -24,7 +24,10 @@
 
 package lcss
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // qsufsort constructs the suffix array for a given string.
 func qsufsort(data []byte) []int {
@@ -55,7 +58,7 @@ func qsufsort(data []byte) []int {
 				}
 				pk := inv[s] + 1 // pk-1 is last position of unsorted group
 				sufSortable.sa = sa[pi:pk]
-				sort.Sort(sufSortable)
+				sort.Sort(sufSortable) //nolint:forbidigo
 				sufSortable.updateGroups(pi)
 				pi = pk // next group
 			}
@@ -98,15 +101,15 @@ func initGroups(sa []int, data []byte) []int {
 	inv := make([]int, len(data))
 	prevGroup := len(sa) - 1
 	groupByte := data[sa[prevGroup]]
-	for i := len(sa) - 1; i >= 0; i-- {
-		if b := data[sa[i]]; b < groupByte {
+	for i, s := range slices.Backward(sa) {
+		if b := data[s]; b < groupByte {
 			if prevGroup == i+1 {
 				sa[i+1] = -1
 			}
 			groupByte = b
 			prevGroup = i
 		}
-		inv[sa[i]] = prevGroup
+		inv[s] = prevGroup
 		if prevGroup == 0 {
 			sa[0] = -1
 		}

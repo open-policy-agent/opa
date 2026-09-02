@@ -1346,6 +1346,79 @@ foo["if"]["else"] := true
 	}
 }
 
+func TestFmtFormatLogicalKeywords(t *testing.T) {
+	unformatted := `package test
+
+import future.keywords.and
+import future.keywords.or
+
+p if { input.a   and   input.b or input.c }
+`
+
+	formatted := `package test
+
+import future.keywords.and
+import future.keywords.or
+
+p if input.a and input.b or input.c
+`
+
+	cases := []struct {
+		note     string
+		params   fmtCommandParams
+		expected string
+	}{
+		{
+			note:     "default capabilities",
+			params:   *newFmtCommandParams(),
+			expected: formatted,
+		},
+		{
+			note: "default capabilities, --check-result",
+			params: func() fmtCommandParams {
+				params := newFmtCommandParams()
+				params.checkResult = true
+				return *params
+			}(),
+			expected: formatted,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run("file, "+tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			files := map[string]string{"policy.rego": unformatted}
+
+			test.WithTempFS(files, func(path string) {
+				policyFile := filepath.Join(path, "policy.rego")
+				info, err := os.Stat(policyFile)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				if err := formatFile(&tc.params, &stdout, policyFile, info, err); err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if actual := stdout.String(); actual != tc.expected {
+					t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.expected, actual)
+				}
+			})
+		})
+
+		t.Run("stdin, "+tc.note, func(t *testing.T) {
+			var stdout bytes.Buffer
+
+			if err := formatStdin(&tc.params, bytes.NewReader([]byte(unformatted)), &stdout); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			if actual := stdout.String(); actual != tc.expected {
+				t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.expected, actual)
+			}
+		})
+	}
+}
+
 func TestFmtFormatFile_KeywordsInRefs(t *testing.T) {
 	cases := []struct {
 		note        string

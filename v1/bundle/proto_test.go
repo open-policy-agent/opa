@@ -151,7 +151,7 @@ func TestManifestFromProtoMalformedRef(t *testing.T) {
 	pm := &pb.Manifest{
 		Wasm: []*pb.WasmResolver{{
 			Annotations: []*pb.Annotations{{
-				Compile: &pb.CompileAnnotation{MaskRule: proto.String("not a ref!!!")},
+				Compile: &pb.CompileAnnotation{MaskRule: new("not a ref!!!")},
 			}},
 		}},
 	}

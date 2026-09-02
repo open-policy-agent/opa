@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"path"
 	"slices"
-	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -163,7 +162,9 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureTemplateStrings,
 			},
 			expFutureKeywords: []string{
+				"and",
 				"not",
+				"or",
 			},
 		},
 		{
@@ -177,11 +178,13 @@ func TestCapabilitiesCurrent(t *testing.T) {
 				ast.FeatureKeywordsInRefs,
 			},
 			expFutureKeywords: []string{
+				"and",
 				"in",
 				"every",
 				"contains",
 				"if",
 				"not",
+				"or",
 			},
 		},
 	}
@@ -189,8 +192,8 @@ func TestCapabilitiesCurrent(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			// These are sorted in the output
-			sort.Strings(tc.expFutureKeywords)
-			sort.Strings(tc.expFeatures)
+			slices.Sort(tc.expFutureKeywords)
+			slices.Sort(tc.expFeatures)
 
 			params := capabilitiesParams{
 				showCurrent:  true,

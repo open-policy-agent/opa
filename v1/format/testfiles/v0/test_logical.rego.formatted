@@ -1,0 +1,48 @@
+package test
+
+import future.keywords.and
+import future.keywords.not
+import future.keywords.or
+
+# in v0 a rule body keeps its braces, so an and/or expression is never inlined
+p {
+	input.a and input.b
+}
+
+q = 1 {
+	input.a or input.b
+}
+
+r[x] {
+	x = input.a
+	input.b or input.c
+}
+
+explicit_body_operand {
+	{ input.a } and input.b
+}
+
+parens {
+	input.a and (input.b or input.c)
+}
+
+set_operand {
+	({input.a}) or input.b
+}
+
+negated {
+	not (input.a or input.b)
+}
+
+multiline {
+	input.a and
+		input.b
+
+	input.c or
+		input.d or
+		input.e
+}
+
+with_modifier {
+	input.a and input.b with input.x as 1
+}

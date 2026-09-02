@@ -1,0 +1,19 @@
+package test
+
+import future.keywords.and
+import future.keywords.or
+
+p = {1} | {2}
+
+q = {1, 2} & {2, 3}
+
+r {
+	{1} | {2} == {1, 2}
+}
+
+s = x {
+	x = input.a & input.b
+	x == input.c | input.d
+}
+
+t = count(input.a) | 1

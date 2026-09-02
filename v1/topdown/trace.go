@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/topdown/builtins"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 const (
@@ -292,7 +294,7 @@ func (t *traceTable) write(w io.Writer, padding int) {
 			if i < len(row)-1 {
 				_, _ = fmt.Fprintf(w, "%-*s ", width, cell)
 			} else {
-				_, _ = fmt.Fprintf(w, "%s", cell)
+				_, _ = w.Write(util.StringToByteSlice(cell))
 			}
 		}
 		_, _ = fmt.Fprintln(w)
@@ -306,14 +308,14 @@ func PrettyTraceWithOpts(w io.Writer, trace []*Event, opts PrettyTraceOptions) {
 	filePathAliases, _ := getShortenedFileNames(trace)
 
 	table := traceTable{}
+	buf := new(bytes.Buffer)
 
 	for _, event := range trace {
 		depth := depths.GetOrSet(event.QueryID, event.ParentID)
 		row := traceRow{}
 
 		if opts.Locations {
-			location := formatLocation(event, filePathAliases)
-			row.add(location)
+			row.add(formatLocation(event, filePathAliases))
 		}
 
 		row.add(formatEvent(event, depth))
@@ -322,31 +324,47 @@ func PrettyTraceWithOpts(w io.Writer, trace []*Event, opts PrettyTraceOptions) {
 			vars := exprLocalVars(event)
 			keys := sortedKeys(vars)
 
-			buf := new(bytes.Buffer)
-			buf.WriteString("{")
-			for i, k := range keys {
-				if i > 0 {
+			buf.Reset()
+			buf.WriteByte('{')
+
+			if len(keys) > 0 {
+				k := keys[0]
+				buf.WriteString(k.String())
+				buf.WriteString(": ")
+				buf.WriteString(iStrs.Truncate(vars.Get(k).String(), maxExprVarWidth))
+
+				for _, k := range keys[1:] {
 					buf.WriteString(", ")
+					buf.WriteString(k.String())
+					buf.WriteString(": ")
+					buf.WriteString(iStrs.Truncate(vars.Get(k).String(), maxExprVarWidth))
 				}
-				_, _ = fmt.Fprintf(buf, "%v: %s", k, iStrs.Truncate(vars.Get(k).String(), maxExprVarWidth))
 			}
-			buf.WriteString("}")
+
+			buf.WriteByte('}')
 			row.add(buf.String())
 		}
 
 		if opts.LocalVariables {
-			if locals := event.Locals; locals != nil {
+			if locals := event.Locals; locals.Len() > 0 {
 				keys := sortedKeys(locals)
 
-				buf := new(bytes.Buffer)
-				buf.WriteString("{")
-				for i, k := range keys {
-					if i > 0 {
-						buf.WriteString(", ")
-					}
-					_, _ = fmt.Fprintf(buf, "%v: %s", k, iStrs.Truncate(locals.Get(k).String(), maxExprVarWidth))
+				buf.Reset()
+				buf.WriteByte('{')
+
+				k := keys[0]
+				buf.WriteString(k.String())
+				buf.WriteString(": ")
+				buf.WriteString(iStrs.Truncate(locals.Get(k).String(), maxExprVarWidth))
+
+				for _, k := range keys[1:] {
+					buf.WriteString(", ")
+					buf.WriteString(k.String())
+					buf.WriteString(": ")
+					buf.WriteString(iStrs.Truncate(locals.Get(k).String(), maxExprVarWidth))
 				}
-				buf.WriteString("}")
+
+				buf.WriteByte('}')
 				row.add(buf.String())
 			} else {
 				row.add("{}")
@@ -365,21 +383,18 @@ func sortedKeys(vm *ast.ValueMap) []ast.Value {
 		keys = append(keys, k)
 		return false
 	})
-	slices.SortFunc(keys, func(a, b ast.Value) int {
+	return util.SortedFunc(keys, func(a, b ast.Value) int {
 		return strings.Compare(a.String(), b.String())
 	})
-	return keys
 }
 
 func exprLocalVars(e *Event) *ast.ValueMap {
 	vars := ast.NewValueMap()
 
-	findVars := func(term *ast.Term) bool {
-		if name, ok := term.Value.(ast.Var); ok {
-			if meta, ok := e.LocalMetadata[name]; ok {
-				if val := e.Locals.Get(name); val != nil {
-					vars.Put(meta.Name, val)
-				}
+	findVars := func(name ast.Var) bool {
+		if meta, ok := e.LocalMetadata[name]; ok {
+			if val := e.Locals.Get(name); val != nil {
+				vars.Put(meta.Name, val)
 			}
 		}
 		return false
@@ -387,7 +402,7 @@ func exprLocalVars(e *Event) *ast.ValueMap {
 
 	if r, ok := e.Node.(*ast.Rule); ok {
 		// We're only interested in vars in the head, not the body
-		ast.WalkTerms(r.Head, findVars)
+		ast.WalkVars(r.Head, findVars)
 		return vars
 	}
 
@@ -398,43 +413,47 @@ func exprLocalVars(e *Event) *ast.ValueMap {
 		return false
 	})
 
-	ast.WalkTerms(e.Node, findVars)
+	ast.WalkVars(e.Node, findVars)
 
 	return vars
 }
 
 func formatEvent(event *Event, depth int) string {
-	padding := formatEventPadding(event, depth)
+	buf := new(bytes.Buffer)
+	formatEventPaddingAppend(buf, event, depth)
+	buf.WriteString(string(event.Op))
+	buf.WriteByte(' ')
+
 	if event.Op == NoteOp {
-		return fmt.Sprintf("%v%v %q", padding, event.Op, event.Message)
+		buf.WriteByte('"')
+		buf.WriteString(event.Message)
+		buf.WriteByte('"')
+
+		return buf.String()
 	}
 
-	var details any
 	if node, ok := event.Node.(*ast.Rule); ok {
-		details = ast.RulePath(node)
+		bs, _ := node.Ref().ConstantPrefix().AppendText(buf.AvailableBuffer())
+		buf.Write(bs)
 	} else if event.Ref != nil {
-		details = event.Ref
+		bs, _ := event.Ref.AppendText(buf.AvailableBuffer())
+		buf.Write(bs)
 	} else {
-		details = rewrite(event).Node
+		fmt.Fprint(buf, rewrite(event).Node)
 	}
-
-	template := "%v%v %v"
-	opts := []any{padding, event.Op, details}
 
 	if event.Message != "" {
-		template += " %v"
-		opts = append(opts, event.Message)
+		buf.WriteByte(' ')
+		buf.WriteString(event.Message)
 	}
 
-	return fmt.Sprintf(template, opts...)
+	return buf.String()
 }
 
-func formatEventPadding(event *Event, depth int) string {
-	spaces := formatEventSpaces(event, depth)
-	if spaces > 1 {
-		return strings.Repeat("| ", spaces-1)
+func formatEventPaddingAppend(buf *bytes.Buffer, event *Event, depth int) {
+	for range formatEventSpaces(event, depth) - 1 {
+		buf.WriteString("| ")
 	}
-	return ""
 }
 
 func formatEventSpaces(event *Event, depth int) int {
@@ -461,11 +480,7 @@ func getShortenedFileNames(trace []*Event) (map[string]string, int) {
 		if event.Location != nil {
 			if event.Location.File != "" {
 				// length of "<name>:<row>"
-				curLen := len(event.Location.File) + numDigits10(event.Location.Row) + 1
-				if curLen > longestLocation {
-					longestLocation = curLen
-				}
-
+				longestLocation = max(longestLocation, event.Location.StringLength())
 				if _, ok := fpAliases[event.Location.File]; ok {
 					continue
 				}
@@ -476,10 +491,7 @@ func getShortenedFileNames(trace []*Event) (map[string]string, int) {
 				fpAliases[event.Location.File] = event.Location.File
 			} else {
 				// length of "<min width>:<row>"
-				curLen := minLocationWidth + numDigits10(event.Location.Row) + 1
-				if curLen > longestLocation {
-					longestLocation = curLen
-				}
+				longestLocation = max(longestLocation, minLocationWidth+util.NumDigitsInt(event.Location.Row)+1)
 			}
 		}
 	}
@@ -491,25 +503,16 @@ func getShortenedFileNames(trace []*Event) (map[string]string, int) {
 	return fpAliases, longestLocation
 }
 
-func numDigits10(n int) int {
-	if n < 10 {
-		return 1
-	}
-	return numDigits10(n/10) + 1
-}
-
 func formatLocation(event *Event, fileAliases map[string]string) string {
-
-	location := event.Location
-	if location == nil {
+	if event.Location == nil {
 		return ""
 	}
 
-	if location.File == "" {
-		return fmt.Sprintf("query:%v", location.Row)
+	if event.Location.File == "" {
+		return fmt.Sprintf("query:%v", event.Location.Row)
 	}
 
-	return fmt.Sprintf("%v:%v", fileAliases[location.File], location.Row)
+	return fmt.Sprintf("%v:%v", fileAliases[event.Location.File], event.Location.Row)
 }
 
 // depths is a helper for computing the depth of an event. Events within the
@@ -528,7 +531,6 @@ func (ds depths) GetOrSet(qid uint64, pqid uint64) int {
 }
 
 func builtinTrace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	str, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return handleBuiltinErr(ast.Trace.Name, bctx.Location, err)
@@ -839,7 +841,7 @@ func PrettyEvent(w io.Writer, e *Event, opts PrettyEventOpts) error {
 	}
 
 	printPrettyVars(buf, exprVars)
-	_, _ = fmt.Fprint(w, buf.String())
+	w.Write(buf.Bytes())
 	return nil
 }
 
@@ -856,15 +858,9 @@ func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 	if containsTabs && len(varRows) > 1 {
 		// We can't (currently) reliably point to var locations when they are on different rows that contain tabs.
 		// So we'll just print them in alphabetical order instead.
-		byName := make([]varInfo, 0, len(exprVars))
-		for _, info := range exprVars {
-			byName = append(byName, info)
-		}
-		slices.SortStableFunc(byName, func(a, b varInfo) int {
-			return strings.Compare(a.Title(), b.Title())
-		})
-
 		w.WriteString("\n\nWhere:\n")
+
+		byName := slices.SortedStableFunc(maps.Values(exprVars), cmpVarInfoTitle)
 		for _, info := range byName {
 			fmt.Fprintf(w, "\n%s: %s", info.Title(), iStrs.Truncate(info.Value(), maxPrettyExprVarWidth))
 		}
@@ -893,10 +889,14 @@ func printPrettyVars(w *bytes.Buffer, exprVars map[string]varInfo) {
 
 	w.WriteByte('\n')
 	printArrows(w, byCol, -1)
-	for i := len(byCol) - 1; i >= 0; i-- {
+	for i := range slices.Backward(byCol) {
 		w.WriteByte('\n')
 		printArrows(w, byCol, i)
 	}
+}
+
+func cmpVarInfoTitle(a, b varInfo) int {
+	return strings.Compare(a.Title(), b.Title())
 }
 
 func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
@@ -923,21 +923,20 @@ func printArrows(w *bytes.Buffer, l []varInfo, printValueAt int) {
 		}
 
 		for j := range spaces {
-			tab := false
+			var space byte = ' '
 			if slices.Contains(info.exprLoc.Tabs, j+prevCol+1) {
-				w.WriteByte('\t')
-				tab = true
+				space = '\t'
 			}
-			if !tab {
-				w.WriteByte(' ')
-			}
+			w.WriteByte(space)
 		}
 
 		if isLast && printValueAt >= 0 {
 			valueStr := iStrs.Truncate(info.Value(), maxPrettyExprVarWidth)
 			if (i > 0 && col == l[i-1].col) || (i < len(l)-1 && col == l[i+1].col) {
 				// There is another var on this column, so we need to include the name to differentiate them.
-				fmt.Fprintf(w, "%s: %s", info.Title(), valueStr)
+				w.WriteString(info.Title())
+				w.WriteString(": ")
+				w.WriteString(valueStr)
 			} else {
 				w.WriteString(valueStr)
 			}

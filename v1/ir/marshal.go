@@ -113,6 +113,8 @@ func (m *MakeNumberRefStmt) MarshalJSON() ([]byte, error) {
 		File        int   `json:"file"`
 		Col         int   `json:"col"`
 		Row         int   `json:"row"`
+		EndCol      int   `json:"end_col"`
+		EndRow      int   `json:"end_row"`
 		Index       int   `json:"index"`
 		IndexLegacy int   `json:"Index"` // deprecated; remove in next major
 		Target      Local `json:"target"`
@@ -120,6 +122,8 @@ func (m *MakeNumberRefStmt) MarshalJSON() ([]byte, error) {
 		File:        m.File,
 		Col:         m.Col,
 		Row:         m.Row,
+		EndCol:      m.EndCol,
+		EndRow:      m.EndRow,
 		Index:       m.Index,
 		IndexLegacy: m.Index,
 		Target:      m.Target,
@@ -133,6 +137,8 @@ func (m *MakeNumberRefStmt) UnmarshalJSON(bs []byte) error {
 		File        int   `json:"file"`
 		Col         int   `json:"col"`
 		Row         int   `json:"row"`
+		EndCol      int   `json:"end_col"`
+		EndRow      int   `json:"end_row"`
 		Index       *int  `json:"index"`
 		IndexLegacy *int  `json:"Index"`
 		Target      Local `json:"target"`
@@ -140,7 +146,7 @@ func (m *MakeNumberRefStmt) UnmarshalJSON(bs []byte) error {
 	if err := json.Unmarshal(bs, &raw); err != nil {
 		return err
 	}
-	m.File, m.Col, m.Row, m.Target = raw.File, raw.Col, raw.Row, raw.Target
+	m.File, m.Col, m.Row, m.EndCol, m.EndRow, m.Target = raw.File, raw.Col, raw.Row, raw.EndCol, raw.EndRow, raw.Target
 	switch {
 	case raw.Index != nil:
 		m.Index = *raw.Index

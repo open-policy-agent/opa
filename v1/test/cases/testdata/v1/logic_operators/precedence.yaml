@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/precedence: `not x or y` parses as `(not x) or y`"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -20,7 +19,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/precedence: `x or y and z` parses as `x or (y and z)`"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -41,7 +39,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/precedence: `x and y or z and w` parses as `(x and y) or (z and w)`"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -63,7 +60,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/precedence: `not x and not y or z` parses as `((not x) and (not y)) or z`"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

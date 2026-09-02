@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -805,13 +805,13 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 		if err != nil {
 			return nil, nil, err
 		}
-		path, err := module.Package.Path.Ptr()
+		path, err := storage.NewPathForRef(module.Package.Path)
 		if err != nil {
 			return nil, nil, err
 		}
 		deleted := false
 		for root := range roots {
-			if RootPathsContain([]string{root}, path) {
+			if rootPathsContainSegments([]string{root}, path) {
 				if err := store.DeletePolicy(ctx, txn, id); err != nil {
 					return nil, nil, err
 				}
@@ -833,25 +833,16 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 func writeManifestToStore(opts *ActivateOpts, name string, manifest Manifest) error {
 	// Always write manifests to the named location. If the plugin is in the older style config
 	// then also write to the old legacy unnamed location.
-	if err := WriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, name, manifest); err != nil {
-		return err
+	err := WriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, name, manifest)
+	if err == nil && opts.legacy {
+		err = LegacyWriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, manifest)
 	}
 
-	if opts.legacy {
-		if err := LegacyWriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, manifest); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return err
 }
 
 func writeEtagToStore(opts *ActivateOpts, name, etag string) error {
-	if err := WriteEtagToStore(opts.Ctx, opts.Store, opts.Txn, name, etag); err != nil {
-		return err
-	}
-
-	return nil
+	return WriteEtagToStore(opts.Ctx, opts.Store, opts.Txn, name, etag)
 }
 
 func writeModuleRegoVersionToStore(ctx context.Context, store storage.Store, txn storage.Transaction, b *Bundle,
@@ -927,7 +918,7 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 					if m := f.module; m != nil {
 						// 'f.module.Path' contains the module's path as it relates to the bundle root, and can be used for looking up the rego-version.
 						// 'f.Path' can differ, based on how the bundle reader was initialized.
-						if err := writeModuleRegoVersionToStore(ctx, store, txn, b, *m, p.String(), runtimeRegoVersion); err != nil {
+						if err := writeModuleRegoVersionToStore(ctx, store, txn, b, *m, p.PolicyID(), runtimeRegoVersion); err != nil {
 							return err
 						}
 					}
@@ -1163,11 +1154,11 @@ func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Trans
 	}
 
 	// Sort the bundle roots list.
-	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].canonical != entries[j].canonical {
-			return entries[i].canonical < entries[j].canonical
+	slices.SortFunc(entries, func(a, b rootEntry) int {
+		if c := strings.Compare(a.canonical, b.canonical); c != 0 {
+			return c
 		}
-		return entries[i].bundle < entries[j].bundle
+		return strings.Compare(a.bundle, b.bundle)
 	})
 
 	collidingBundles := map[string]bool{}
@@ -1226,8 +1217,7 @@ func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Trans
 			// is allowed to declare overlapping roots in its own manifest.
 			if sawCrossBundleConflict {
 				collidingBundles[entries[d].bundle] = true
-				paths := []string{groupDisplay, entries[d].displayRoot()}
-				sort.Strings(paths)
+				paths := util.Sorted([]string{groupDisplay, entries[d].displayRoot()})
 				conflictSet[fmt.Sprintf("%s overlaps %s", paths[0], paths[1])] = true
 			}
 		}
@@ -1314,11 +1304,7 @@ func LegacyWriteManifestToStore(ctx context.Context, store storage.Store, txn st
 //
 // Deprecated: Use WriteManifestToStore and named bundles instead.
 func LegacyEraseManifestFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) error {
-	err := store.Write(ctx, txn, storage.RemoveOp, legacyManifestStoragePath, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return store.Write(ctx, txn, storage.RemoveOp, legacyManifestStoragePath, nil)
 }
 
 // LegacyReadRevisionFromStore will read the bundle manifest revision from the older single (unnamed) bundle manifest location.

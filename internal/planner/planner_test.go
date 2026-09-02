@@ -19,6 +19,40 @@ import (
 	"github.com/open-policy-agent/opa/v1/ir"
 )
 
+func TestPlannerUnplannedRules(t *testing.T) {
+	module := `
+package example
+
+allow if { true }
+unused if { true }
+`
+	m, err := ast.ParseModuleWithOpts("example.rego", module, ast.ParserOptions{AllFutureKeywords: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	queries := []ast.Body{ast.MustParseBody("data.example.allow")}
+
+	policy, err := New().WithQueries([]QuerySet{
+		{Name: "test", Queries: queries},
+	}).WithModules([]*ast.Module{m}).WithBuiltinDecls(ast.BuiltinMap).WithUnplannedRules(true).Plan()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(policy.UnplannedRules) != 1 {
+		t.Fatalf("expected 1 unplanned rule, got %d: %v", len(policy.UnplannedRules), policy.UnplannedRules)
+	}
+
+	if policy.UnplannedRules[0].Path != "data.example.unused" {
+		t.Errorf("expected unplanned rule path %q, got %q", "data.example.unused", policy.UnplannedRules[0].Path)
+	}
+
+	if policy.UnplannedRules[0].Location == nil || policy.UnplannedRules[0].Location.Row != 5 {
+		t.Errorf("expected unplanned rule location on row 5, got %v", policy.UnplannedRules[0].Location)
+	}
+}
+
 func TestPlannerHelloWorld(t *testing.T) {
 	// NOTE(tsandall): These tests are not meant to give comprehensive coverage
 	// of the planner. Currently we have a suite of end-to-end tests in the
@@ -474,9 +508,8 @@ func getLocation(x any) string {
 	v := reflect.ValueOf(x).Elem().FieldByName("Location")
 	li := v.Interface()
 	file := v.FieldByName("file").String()
-	text := v.FieldByName("text").String()
 	if loc, ok := li.(ir.Location); ok {
-		return fmt.Sprintf("%s:%d:%d: %s", file, loc.Row, loc.Col, text)
+		return fmt.Sprintf("%s:%d:%d: %s", file, loc.Row, loc.Col, loc.Text)
 	}
 	return "unknown"
 }
@@ -894,7 +927,6 @@ func TestPlannerLogicalOps(t *testing.T) {
 	}
 
 	parserOpts := ast.ParserOptions{
-		Capabilities:   ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
 		FutureKeywords: []string{"and", "or", "not"},
 	}
 

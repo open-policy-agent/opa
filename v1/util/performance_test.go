@@ -104,6 +104,7 @@ func TestAtoi64(t *testing.T) {
 		{"no", false, 0},
 		{"02", true, 2},
 		{"0", true, 0},
+		{"+0.0", true, 0},
 		{"-0", true, 0},
 		{"123", true, 123},
 		{"-123", true, -123},
@@ -114,12 +115,22 @@ func TestAtoi64(t *testing.T) {
 		{"9223372036854775808", false, 0},                    // max int64 + 1
 		{"-9223372036854775808", true, -9223372036854775808}, // min int64
 		{"-9223372036854775809", false, 0},                   // min int64 - 1
+		{"1.0", true, 1},
+		{"-123.00000000", true, -123},
+		{"1.001", false, 0},
+		{"1.1.1", false, 0},
 	}
 
 	for _, test := range tests {
 		res, ok := Atoi64(test.input)
 		if ok != test.expOK || res != test.expInt {
 			t.Errorf("Atoi64(%q) = (%d, %v); expected (%d, %v)", test.input, res, ok, test.expInt, test.expOK)
+		}
+		if strings.Contains(test.input, ".") {
+			if res != test.expInt {
+				t.Fatalf("Atoi64(%q) = (%d, %v); expected (%d, %v)", test.input, res, ok, test.expInt, test.expOK)
+			}
+			continue
 		}
 
 		strconvRes, err := strconv.Atoi(test.input)
@@ -164,7 +175,7 @@ func BenchmarkAtoi64(b *testing.B) {
 		b.Run(test, func(b *testing.B) {
 			for b.Loop() {
 				// replace with strconv.Atoi for comparison
-				_, _ = strconv.Atoi(test)
+				_, _ = Atoi(test)
 			}
 		})
 	}
@@ -173,4 +184,18 @@ func BenchmarkAtoi64(b *testing.B) {
 func mustAtoi(s string) int {
 	v, _ := Atoi(s)
 	return v
+}
+
+func TestStringToByteSlice(t *testing.T) {
+	for _, s := range []string{"", "a", "foo/bar"} {
+		bs := StringToByteSlice(s)
+
+		// must be equivalent to []byte(s), including being non-nil for ""
+		if bs == nil {
+			t.Errorf("StringToByteSlice(%q): expected non-nil slice", s)
+		}
+		if string(bs) != s {
+			t.Errorf("StringToByteSlice(%q): got %q", s, string(bs))
+		}
+	}
 }

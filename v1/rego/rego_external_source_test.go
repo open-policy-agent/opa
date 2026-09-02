@@ -317,8 +317,8 @@ allow if data.external.authz.foo("bar")`
 		if err == nil {
 			t.Fatal("Expected error when calling external function with argument, but got none")
 		}
-		var errs ast.Errors
-		if !errors.As(err, &errs) {
+		errs, ok := errors.AsType[ast.Errors](err)
+		if !ok {
 			t.Fatalf("Expected ast.Errors, got: %T: %v", err, err)
 		}
 		if !slices.ContainsFunc(errs, func(e *ast.Error) bool { return e.Code == ast.TypeErr }) {

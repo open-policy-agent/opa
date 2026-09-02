@@ -2,7 +2,7 @@ package planner
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -242,10 +242,7 @@ func (t *ruletrie) Children() []ast.Value {
 			sorted = append(sorted, key)
 		}
 	}
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Compare(sorted[j]) < 0
-	})
-	return sorted
+	return util.SortedFunc(sorted, ast.Value.Compare)
 }
 
 func (t *ruletrie) Get(k ast.Value) *ruletrie {
@@ -326,8 +323,8 @@ func (s *functionMocksStack) PopFrame() {
 
 func (s *functionMocksStack) Lookup(f string) *ast.Term {
 	current := s.stack.PeekGroup()
-	for i := len(current) - 1; i >= 0; i-- {
-		if t, ok := current[i][f]; ok {
+	for _, c := range slices.Backward(current) {
+		if t, ok := c[f]; ok {
 			return t
 		}
 	}

@@ -1,0 +1,25 @@
+---
+# When a var is unsafe, every var that depends on it is unsafe too, so one
+# mistake can produce a diagnostic per dependent var. How many of those an
+# implementation reports is not pinned -- see issue #6393, which proposes
+# reporting the root cause alone -- so this case is not exhaustive: the root
+# cause must be reported, the rest may be.
+cases:
+  - note: safety/unsafe-var-cascade-reports-root-cause
+    modules:
+      - |
+        package policy
+
+        allow if {
+        	first_user := users[0]
+        	title := first_user.title
+        	title_upper := upper(title)
+
+        	title_upper == "CEO"
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var users is unsafe
+    exhaustive: false

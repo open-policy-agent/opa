@@ -229,8 +229,8 @@ func (s *refStack) Pop() {
 func (s *refStack) Prefixed(ref ast.Ref) bool {
 	if s != nil {
 		sl := s.sl.Slice()
-		for i := len(sl) - 1; i >= 0; i-- {
-			if slices.ContainsFunc(sl[i].refs, ref.HasPrefix) {
+		for _, s := range slices.Backward(sl) {
+			if slices.ContainsFunc(s.refs, ref.HasPrefix) {
 				return true
 			}
 		}
@@ -330,7 +330,7 @@ func (s *functionMocksStack) PopPairs() {
 }
 
 func (s *functionMocksStack) PutPairs(mocks [][2]*ast.Term) {
-	el := frame{}
+	el := make(frame, len(mocks))
 	for i := range mocks {
 		el[mocks[i][0].Value.String()] = mocks[i][1]
 	}
@@ -347,8 +347,8 @@ func (s *functionMocksStack) Get(f ast.Ref) (*ast.Term, bool) {
 	}
 
 	current := s.stack.PeekGroup()
-	for i := len(current) - 1; i >= 0; i-- {
-		if r, ok := current[i][f.String()]; ok {
+	for _, c := range slices.Backward(current) {
+		if r, ok := c[f.String()]; ok {
 			return r, true
 		}
 	}

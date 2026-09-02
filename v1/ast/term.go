@@ -75,7 +75,7 @@ func InterfaceToValue(x any) (Value, error) {
 	case nil:
 		return NullValue, nil
 	case bool:
-		return InternedValue(x), nil
+		return internedBooleanValue(x), nil
 	case json.Number:
 		if interned := InternedIntNumberTermFromString(string(x)); interned != nil {
 			return interned.Value, nil
@@ -90,7 +90,7 @@ func InterfaceToValue(x any) (Value, error) {
 	case float64:
 		return floatNumber(x), nil
 	case string:
-		return String(x), nil
+		return internedStringValue(x), nil
 	case []any:
 		r := util.NewPtrSlice[Term](len(x))
 		for i, e := range x {
@@ -104,14 +104,14 @@ func InterfaceToValue(x any) (Value, error) {
 	case []string:
 		r := util.NewPtrSlice[Term](len(x))
 		for i, e := range x {
-			r[i].Value = String(e)
+			r[i].Value = internedStringValue(e)
 		}
 		return NewArray(r...), nil
 	case map[string]any:
 		kvs := util.NewPtrSlice[Term](len(x) * 2)
 		idx := 0
 		for k, v := range x {
-			kvs[idx].Value = String(k)
+			kvs[idx].Value = internedStringValue(k)
 			v, err := InterfaceToValue(v)
 			if err != nil {
 				return nil, err
@@ -125,11 +125,7 @@ func InterfaceToValue(x any) (Value, error) {
 		}
 		return NewObject(tuples...), nil
 	case map[string]string:
-		r := newobject(len(x))
-		for k, v := range x {
-			r.Insert(StringTerm(k), StringTerm(v))
-		}
-		return r, nil
+		return MapToObject(x, nil, InternedTerm), nil
 	default:
 		ptr := util.Reference(x)
 		if err := util.RoundTrip(ptr); err != nil {
@@ -150,7 +146,12 @@ func ValueFromReader(r io.Reader) (Value, error) {
 
 // As converts v into a Go native type referred to by x.
 func As(v Value, x any) error {
-	return util.NewJSONDecoder(strings.NewReader(v.String())).Decode(x)
+	sr := StringReaderPool.Get()
+	defer StringReaderPool.Put(sr)
+
+	sr.Reset(v.String())
+
+	return util.NewJSONDecoder(sr).Decode(x)
 }
 
 // Resolver defines the interface for resolving references to native Go values.
@@ -201,7 +202,7 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (any, error) {
 	case String:
 		return string(v), nil
 	case *Array:
-		buf := []any{}
+		buf := make([]any, 0, v.Len())
 		for i := range v.Len() {
 			x1, err := valueToInterface(v.Elem(i).Value, resolver, opt)
 			if err != nil {
@@ -388,14 +389,7 @@ func CopyValue(v Value) Value {
 // Equal returns true if this term equals the other term. Equality is
 // defined for each kind of term, and does not compare the Location.
 func (term *Term) Equal(other *Term) bool {
-	if term == other {
-		return true
-	}
-	if term == nil || other == nil {
-		return false
-	}
-
-	return ValueEqual(term.Value, other.Value)
+	return term == other || (term != nil && other != nil && ValueEqual(term.Value, other.Value))
 }
 
 // Get returns a value referred to by name from the term.
@@ -437,6 +431,14 @@ func (term *Term) Vars() VarSet {
 	vis := NewVarVisitor()
 	vis.Walk(term)
 	return vis.vars
+}
+
+// TermValueIs is a functional predicate to check if the term's Value is of type T.
+func TermValueIs[T Value](term *Term) (ok bool) {
+	if ok = term != nil; ok {
+		_, ok = term.Value.(T)
+	}
+	return ok
 }
 
 // IsConstant returns true if the AST value is constant.
@@ -633,12 +635,8 @@ func NullTerm() *Term {
 
 // Equal returns true if the other term Value is also Null.
 func (Null) Equal(other Value) bool {
-	switch other.(type) {
-	case Null:
-		return true
-	default:
-		return false
-	}
+	_, ok := other.(Null)
+	return ok
 }
 
 // Compare compares null to other, return <0, 0, or >0 if it is less than, equal to,
@@ -682,12 +680,8 @@ func BooleanTerm(b bool) *Term {
 
 // Equal returns true if the other Value is a Boolean and is equal.
 func (bol Boolean) Equal(other Value) bool {
-	switch other := other.(type) {
-	case Boolean:
-		return bol == other
-	default:
-		return false
-	}
+	_, ok := other.(Boolean)
+	return ok && bol == other
 }
 
 // Compare compares bol to other, return <0, 0, or >0 if it is less than, equal to,
@@ -863,9 +857,6 @@ func (str String) Equal(other Value) bool {
 // Compare compares str to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (str String) Compare(other Value) int {
-	// Optimize for the common case of one string being compared to another by
-	// using a direct comparison of values. This avoids the allocation performed
-	// when calling Compare and its any argument conversion.
 	if otherStr, ok := other.(String); ok {
 		if str == otherStr {
 			return 0
@@ -1244,20 +1235,8 @@ func (ref Ref) CopyNonGround() Ref {
 
 // Equal returns true if ref is equal to other.
 func (ref Ref) Equal(other Value) bool {
-	switch o := other.(type) {
-	case Ref:
-		if len(ref) == len(o) {
-			for i := range ref {
-				if !ref[i].Equal(o[i]) {
-					return false
-				}
-			}
-
-			return true
-		}
-	}
-
-	return false
+	o, ok := other.(Ref)
+	return ok && slices.EqualFunc(ref, o, (*Term).Equal)
 }
 
 // Compare compares ref to other, return <0, 0, or >0 if it is less than, equal to,
@@ -1341,20 +1320,12 @@ func (ref Ref) DynamicSuffix() Ref {
 
 // IsGround returns true if all of the parts of the Ref are ground.
 func (ref Ref) IsGround() bool {
-	if len(ref) < 2 {
-		return true
-	}
-	return termSliceIsGround(ref[1:])
+	return len(ref) < 2 || util.Every(ref[1:], (*Term).IsGround)
 }
 
 // IsNested returns true if this ref contains other Refs.
 func (ref Ref) IsNested() bool {
-	for _, x := range ref {
-		if _, ok := x.Value.(Ref); ok {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(ref, TermValueIs[Ref])
 }
 
 // Ptr returns a slash-separated path string for this ref. If the ref
@@ -1476,7 +1447,7 @@ func NewArray(a ...*Term) *Array {
 	for i, e := range a {
 		hs[i] = e.Value.Hash()
 	}
-	arr := &Array{elems: a, hashs: hs, ground: termSliceIsGround(a)}
+	arr := &Array{elems: a, hashs: hs, ground: util.Every(a, (*Term).IsGround)}
 	arr.rehash()
 	return arr
 }
@@ -1652,7 +1623,7 @@ func (arr *Array) Slice(i, j int) *Array {
 	}
 	// If arr is ground, the slice is, too.
 	// If it's not, the slice could still be.
-	gr := arr.ground || termSliceIsGround(elems)
+	gr := arr.ground || util.Every(elems, (*Term).IsGround)
 
 	s := &Array{elems: elems, hashs: hashs, ground: gr}
 	s.rehash()
@@ -1830,9 +1801,11 @@ func (s *set) Find(path Ref) (Value, error) {
 }
 
 // Diff returns elements in s that are not in other.
+// A returned empty set will be an interned representation that
+// should not be modified without copying.
 func (s *set) Diff(other Set) Set {
 	if s.Compare(other) == 0 {
-		return NewSet()
+		return InternedEmptySetValue.(Set)
 	}
 
 	result := newset(len(s.keys))
@@ -1927,13 +1900,9 @@ func (s *set) Map(f func(*Term) (*Term, error)) (Set, error) {
 // argument to f is the reduced value (starting with i) and the second argument
 // to f is the element in s.
 func (s *set) Reduce(i *Term, f func(*Term, *Term) (*Term, error)) (*Term, error) {
-	err := s.Iter(func(x *Term) error {
-		var err error
+	err := s.Iter(func(x *Term) (err error) {
 		i, err = f(i, x)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	return i, err
 }
@@ -2037,10 +2006,44 @@ type Object interface {
 
 // NewObject creates a new Object with t.
 func NewObject(t ...[2]*Term) Object {
-	obj := newobject(len(t))
-	for i := range t {
-		obj.insert(t[i][0], t[i][1], false)
+	var keys []*objectElem
+	n := len(t)
+	if n > 0 {
+		keys = make([]*objectElem, n)
 	}
+	obj := &object{
+		elems:     make(map[int]*objectElem, n),
+		keys:      keys,
+		sortGuard: sync.Once{},
+	}
+
+	// NOTE(anders): The code below is convoluted, but necessary
+	// since creating objects is something we do a lot and often
+	// on hot paths, this avoids allocating one objectElem per
+	// key-value pair, in favor of a single contiguous block of
+	// memory. The same technique is used in (*object).Copy(),
+	// for the same reasons.
+	elems := make([]objectElem, n)
+	for i, kv := range t {
+		key, val := kv[0], kv[1]
+		elems[i] = objectElem{key: key, value: val}
+		obj.keys[i] = &elems[i]
+
+		keyHash := key.Hash()
+		if head, ok := obj.elems[keyHash]; ok {
+			elems[i].next = head
+		}
+		obj.hash += keyHash + val.Hash()
+
+		if key.IsGround() {
+			obj.ground++
+		}
+		if val.IsGround() {
+			obj.ground++
+		}
+		obj.elems[keyHash] = &elems[i]
+	}
+
 	return obj
 }
 
@@ -2064,72 +2067,72 @@ type lazyObj struct {
 	native map[string]any
 }
 
-func (l *lazyObj) force() Object {
-	if l.strict == nil {
-		l.strict = MustInterfaceToValue(l.native).(Object)
+func (lob *lazyObj) force() Object {
+	if lob.strict == nil {
+		lob.strict = MustInterfaceToValue(lob.native).(Object)
 		// NOTE(jf): a possible performance improvement here would be to check how many
 		// entries have been realized to AST in the cache, and if some threshold compared to the
 		// total number of keys is exceeded, realize the remaining entries and set l.strict to l.cache.
-		l.cache = map[string]Value{} // We don't need the cache anymore; drop it to free up memory.
+		lob.cache = map[string]Value{} // We don't need the cache anymore; drop it to free up memory.
 	}
-	return l.strict
+	return lob.strict
 }
 
-func (l *lazyObj) Compare(other Value) int {
-	if c := valueTypeCompare(l, other); c != 0 {
+func (lob *lazyObj) Compare(other Value) int {
+	if c := valueTypeCompare(lob, other); c != 0 {
 		return c
 	}
-	return l.force().Compare(other)
+	return lob.force().Compare(other)
 }
 
-func (l *lazyObj) Copy() Object {
-	return l
+func (lob *lazyObj) Copy() Object {
+	return lob
 }
 
-func (l *lazyObj) Diff(other Object) Object {
-	return l.force().Diff(other)
+func (lob *lazyObj) Diff(other Object) Object {
+	return lob.force().Diff(other)
 }
 
-func (l *lazyObj) Intersect(other Object) [][3]*Term {
-	return l.force().Intersect(other)
+func (lob *lazyObj) Intersect(other Object) [][3]*Term {
+	return lob.force().Intersect(other)
 }
 
-func (l *lazyObj) Iter(f func(*Term, *Term) error) error {
-	return l.force().Iter(f)
+func (lob *lazyObj) Iter(f func(*Term, *Term) error) error {
+	return lob.force().Iter(f)
 }
 
-func (l *lazyObj) Until(f func(*Term, *Term) bool) bool {
+func (lob *lazyObj) Until(f func(*Term, *Term) bool) bool {
 	// NOTE(sr): there could be benefits in not forcing here -- if we abort because
 	// `f` returns true, we could save us from converting the rest of the object.
-	return l.force().Until(f)
+	return lob.force().Until(f)
 }
 
-func (l *lazyObj) Foreach(f func(*Term, *Term)) {
-	l.force().Foreach(f)
+func (lob *lazyObj) Foreach(f func(*Term, *Term)) {
+	lob.force().Foreach(f)
 }
 
-func (l *lazyObj) Filter(filter Object) (Object, error) {
-	return l.force().Filter(filter)
+func (lob *lazyObj) Filter(filter Object) (Object, error) {
+	return lob.force().Filter(filter)
 }
 
-func (l *lazyObj) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error) {
-	return l.force().Map(f)
+func (lob *lazyObj) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error) {
+	return lob.force().Map(f)
 }
 
-func (l *lazyObj) Merge(other Object) (Object, bool) {
-	return l.force().Merge(other)
+func (lob *lazyObj) Merge(other Object) (Object, bool) {
+	return lob.force().Merge(other)
 }
 
-func (l *lazyObj) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
-	return l.force().MergeWith(other, conflictResolver)
+func (lob *lazyObj) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
+	return lob.force().MergeWith(other, conflictResolver)
 }
 
-func (l *lazyObj) Len() int {
-	return len(l.native)
+func (lob *lazyObj) Len() int {
+	return len(lob.native)
 }
 
-func (l *lazyObj) String() string {
-	return l.force().String()
+func (lob *lazyObj) String() string {
+	return lob.force().String()
 }
 
 // get is merely there to implement the Object interface -- `get` there serves the
@@ -2138,16 +2141,16 @@ func (*lazyObj) get(*Term) *objectElem {
 	return nil
 }
 
-func (l *lazyObj) Get(k *Term) *Term {
-	if l.strict != nil {
-		return l.strict.Get(k)
+func (lob *lazyObj) Get(k *Term) *Term {
+	if lob.strict != nil {
+		return lob.strict.Get(k)
 	}
 	if s, ok := k.Value.(String); ok {
-		if v, ok := l.cache[string(s)]; ok {
+		if v, ok := lob.cache[string(s)]; ok {
 			return NewTerm(v)
 		}
 
-		if val, ok := l.native[string(s)]; ok {
+		if val, ok := lob.native[string(s)]; ok {
 			var converted Value
 			switch val := val.(type) {
 			case map[string]any:
@@ -2155,40 +2158,39 @@ func (l *lazyObj) Get(k *Term) *Term {
 			default:
 				converted = MustInterfaceToValue(val)
 			}
-			l.cache[string(s)] = converted
+			lob.cache[string(s)] = converted
 			return NewTerm(converted)
 		}
 	}
 	return nil
 }
 
-func (l *lazyObj) Insert(k, v *Term) {
-	l.force().Insert(k, v)
+func (lob *lazyObj) Insert(k, v *Term) {
+	lob.force().Insert(k, v)
 }
 
 func (*lazyObj) IsGround() bool {
 	return true
 }
 
-func (l *lazyObj) Hash() int {
-	return l.force().Hash()
+func (lob *lazyObj) Hash() int {
+	return lob.force().Hash()
 }
 
-func (l *lazyObj) Keys() []*Term {
-	if l.strict != nil {
-		return l.strict.Keys()
+func (lob *lazyObj) Keys() []*Term {
+	if lob.strict != nil {
+		return lob.strict.Keys()
 	}
-	ret := make([]*Term, 0, len(l.native))
-	for k := range l.native {
-		ret = append(ret, StringTerm(k))
+	ret := make([]*Term, 0, len(lob.native))
+	for k := range lob.native {
+		ret = append(ret, InternedTerm(k))
 	}
-	slices.SortFunc(ret, TermValueCompare)
 
-	return ret
+	return util.SortedFunc(ret, TermValueCompare)
 }
 
-func (l *lazyObj) KeysIterator() ObjectKeysIterator {
-	return &lazyObjKeysIterator{keys: l.Keys()}
+func (lob *lazyObj) KeysIterator() ObjectKeysIterator {
+	return &lazyObjKeysIterator{keys: lob.Keys()}
 }
 
 type lazyObjKeysIterator struct {
@@ -2204,19 +2206,19 @@ func (ki *lazyObjKeysIterator) Next() (*Term, bool) {
 	return ki.keys[ki.current-1], true
 }
 
-func (l *lazyObj) Find(path Ref) (Value, error) {
-	if l.strict != nil {
-		return l.strict.Find(path)
+func (lob *lazyObj) Find(path Ref) (Value, error) {
+	if lob.strict != nil {
+		return lob.strict.Find(path)
 	}
 	if len(path) == 0 {
-		return l, nil
+		return lob, nil
 	}
 	if p0, ok := path[0].Value.(String); ok {
-		if v, ok := l.cache[string(p0)]; ok {
+		if v, ok := lob.cache[string(p0)]; ok {
 			return v.Find(path[1:])
 		}
 
-		if v, ok := l.native[string(p0)]; ok {
+		if v, ok := lob.native[string(p0)]; ok {
 			var converted Value
 			switch v := v.(type) {
 			case map[string]any:
@@ -2224,7 +2226,7 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 			default:
 				converted = MustInterfaceToValue(v)
 			}
-			l.cache[string(p0)] = converted
+			lob.cache[string(p0)] = converted
 			return converted.Find(path[1:])
 		}
 	}
@@ -2299,6 +2301,38 @@ func (obj *object) Compare(other Value) int {
 		}
 	}
 	return len(akeys) - len(bkeys)
+}
+
+func (obj *object) Equal(other Value) bool {
+	var ob2 *object
+	switch v := other.(type) {
+	case *object:
+		ob2 = v
+	case *lazyObj:
+		return obj.Equal(v.force())
+	}
+
+	if obj == ob2 {
+		return true
+	}
+	if obj == nil || ob2 == nil || len(obj.keys) != len(ob2.keys) {
+		return false
+	}
+	elems1, elems2 := obj.sortedKeys(), ob2.sortedKeys()
+	// Note(anderseknert):
+	// Go can't (easily) know that the above calls don't modify the length
+	// checked before. Doing it once more here is cheap and ensures that the
+	// loop is evaluated without additional nil and bounds checks
+	if len(elems1) != len(elems2) {
+		return false
+	}
+
+	for i, elem := range elems1 {
+		if !elem.key.Equal(elems2[i].key) || !elem.value.Equal(elems2[i].value) {
+			return false
+		}
+	}
+	return true
 }
 
 // Find returns the value at the key or undefined.
@@ -2380,11 +2414,13 @@ func (obj *object) Copy() Object {
 		return cpy
 	}
 
-	// Batch-allocate all objectElems, keys, and values in contiguous blocks
-	// (3 allocations instead of 3N).
+	// Batch-allocate all objectElems and keys/value pairs in contiguous blocks
+	// (2 allocations instead of 3N).
 	elems := make([]objectElem, n)
-	keys := make([]Term, n)
-	vals := make([]Term, n)
+	pairs := make([]Term, n*2)
+	keys := pairs[:n]
+	vals := pairs[n:]
+
 	cpy.keys = make([]*objectElem, n)
 
 	for i, srcElem := range obj.keys {
@@ -2951,7 +2987,7 @@ func (c Call) Hash() int {
 
 // IsGround returns true if the Value is ground.
 func (c Call) IsGround() bool {
-	return termSliceIsGround(c)
+	return util.Every(c, (*Term).IsGround)
 }
 
 // MakeExpr returns a new Expr from this call.
@@ -3042,15 +3078,6 @@ func termSliceHash(a []*Term) int {
 		hash += v.Value.Hash()
 	}
 	return hash
-}
-
-func termSliceIsGround(a []*Term) bool {
-	for _, v := range a {
-		if !v.IsGround() {
-			return false
-		}
-	}
-	return true
 }
 
 // Detect when String() need to use expensive JSON‐escaped form

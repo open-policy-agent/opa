@@ -5,13 +5,20 @@
 package cover
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/topdown/builtins"
 )
 
 func TestCover(t *testing.T) {
@@ -143,6 +150,9 @@ func TestCoverRangeCases(t *testing.T) {
 	cases := map[string]struct {
 		module     string
 		query      string
+		input      any
+		reportKey  string  // defaults to "test.rego" if empty
+		seeds      []int64 // when set, seeds rand.* via one shared reader (one int64 drawn per rand evaluation)
 		covered    []Range
 		notCovered []Range
 	}{
@@ -156,10 +166,12 @@ allow if { true }
 `,
 			query: "data.test.allow",
 			covered: []Range{
-				{Start: Position{Row: 6, Col: 1}, End: Position{Row: 6, Col: 6}}, // allow head
+				{Start: Position{Row: 6, Col: 1}, End: Position{Row: 6, Col: 6}},   // allow head
+				{Start: Position{Row: 6, Col: 12}, End: Position{Row: 6, Col: 16}}, // true
 			},
 			notCovered: []Range{
 				{Start: Position{Row: 4, Col: 1}, End: Position{Row: 4, Col: 9}}, // foo := 1 head
+				{Start: Position{Row: 4, Col: 8}, End: Position{Row: 4, Col: 9}}, // its generated value expr
 			},
 		},
 		"inline rule head not covered": {
@@ -174,9 +186,219 @@ test_foo if {
 			query: "data.test.test_foo",
 			covered: []Range{
 				{Start: Position{Row: 3, Col: 8}, End: Position{Row: 3, Col: 13}}, // false expr
+				{Start: Position{Row: 5, Col: 1}, End: Position{Row: 5, Col: 9}},  // test_foo head
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 9}},  // not foo
 			},
 			notCovered: []Range{
 				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}}, // foo head
+			},
+		},
+		"index-excluded rule body is not covered": {
+			module: `package test
+
+allow if {
+	input.action == "read"
+}
+
+allow if {
+	input.action in {"delete", "update"}
+}
+`,
+			query: "data.test.allow",
+			input: map[string]any{"action": "write"},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kinds: []Kind{KindIndexExcluded}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kinds: []Kind{KindIndexExcluded}},
+			},
+		},
+		"index exclusions inside a with scope": {
+			// with pushes a new eval frame and exclusions there must still be reported
+			module: `package test
+
+allow if {
+	input.action == "read"
+}
+
+allow if {
+	input.action in {"delete", "update"}
+}
+
+test_allow_write if {
+	allow with input as {"action": "write"}
+}
+`,
+			query: "data.test.test_allow_write",
+			covered: []Range{
+				{Start: Position{Row: 12, Col: 2}, End: Position{Row: 12, Col: 41}}, // the with expr
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kinds: []Kind{KindIndexExcluded}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kinds: []Kind{KindIndexExcluded}},
+				// both allow bodies were excluded, so the test rule never exits
+				{Start: Position{Row: 11, Col: 1}, End: Position{Row: 11, Col: 17}},
+			},
+		},
+		"index-excluded rule body is not covered, bundle key mismatch": {
+			// Lookup must key on loc.File, not the modules map key, since bundle
+			// modules key differently from their parse-time Location.File.
+			module: `package test
+
+allow if {
+	input.action == "read"
+}
+
+allow if {
+	input.action in {"delete", "update"}
+}
+`,
+			query:     "data.test.allow",
+			input:     map[string]any{"action": "write"},
+			reportKey: "bundle/test.rego",
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kinds: []Kind{KindIndexExcluded}},
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 38}, Kinds: []Kind{KindIndexExcluded}},
+			},
+		},
+		"index-excluded root rule: else branch also excluded": {
+			module: `package test
+
+allow if {
+	input.action == "read"
+} else if {
+	input.action == "admin"
+}
+
+allow if {
+	input.action in {"delete", "update"}
+}
+`,
+			query: "data.test.allow",
+			input: map[string]any{"action": "write"},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},                                      // allow head (root)
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 24}, Kinds: []Kind{KindIndexExcluded}},   // input.action == "read"
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},                                      // else head
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 25}, Kinds: []Kind{KindIndexExcluded}},   // input.action == "admin"
+				{Start: Position{Row: 9, Col: 1}, End: Position{Row: 9, Col: 6}},                                      // allow head (second)
+				{Start: Position{Row: 10, Col: 2}, End: Position{Row: 10, Col: 38}, Kinds: []Kind{KindIndexExcluded}}, // input.action in ...
+			},
+		},
+		"else rule promoted to root by indexer: short-circuited else body is not falsely index-excluded": {
+			// Lookup can promote the else-rule into the "root" slot; input.foo is
+			// merely short-circuited by 1 == 2, not index-excluded.
+			module: `package test
+
+allow if {
+	input.undef
+} else if {
+	1 == 2
+	input.foo
+}
+`,
+			query: "data.test.allow",
+			input: map[string]any{"foo": true},
+			covered: []Range{
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 8}}, // 1 == 2
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 13}, Kinds: []Kind{KindIndexExcluded}}, // input.undef
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},                                    // else head: reached, just never exits
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 11}},                                   // input.foo: short-circuited, NOT index-excluded
+			},
+		},
+		"else body included in index but short-circuited by earlier branch": {
+			module: `package test
+
+allow if {        # covered
+	input.foo     # covered
+} else if {       # not_covered
+	input.foo     # not_covered: root branch already succeeded
+	not input.bar # not_covered
+}
+`,
+			query: "data.test.allow",
+			input: map[string]any{"foo": true},
+			covered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 11}},
+			},
+			// None of the else rows carry a Kind: the whole chain was selected
+			// by the index, the else body just never ran.
+			notCovered: []Range{
+				{Start: Position{Row: 5, Col: 3}, End: Position{Row: 5, Col: 7}},
+				{Start: Position{Row: 6, Col: 2}, End: Position{Row: 6, Col: 11}},
+				{Start: Position{Row: 7, Col: 2}, End: Position{Row: 7, Col: 15}},
+			},
+		},
+		"early-exit skips the second matching rule and its dependency": {
+			// allow's two rules both yield the same (implicit) value, so the
+			// engine can stop after the first match; the second rule and
+			// the helper it alone calls never run under the default config.
+			module: `package test
+
+allow if { true }
+allow if { extra }
+
+extra if { true }
+`,
+			query: "data.test.allow",
+			covered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 3, Col: 12}, End: Position{Row: 3, Col: 16}},
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 4, Col: 1}, End: Position{Row: 4, Col: 6}, Kinds: []Kind{KindEarlyExit}},
+				{Start: Position{Row: 4, Col: 12}, End: Position{Row: 4, Col: 17}, Kinds: []Kind{KindEarlyExit}},
+				{Start: Position{Row: 6, Col: 1}, End: Position{Row: 6, Col: 6}, Kinds: []Kind{KindEarlyExit}},
+				{Start: Position{Row: 6, Col: 12}, End: Position{Row: 6, Col: 16}, Kinds: []Kind{KindEarlyExit}},
+			},
+		},
+		"multi-line expression is one range spanning its rows": {
+			// Ranges are per AST node, so a head is always separate from its
+			// body exprs, but an expr written over several rows is one range.
+			module: `package test
+
+allow if {
+	input.action in {
+		"delete",
+		"update",
+	}
+}
+`,
+			query: "data.test.allow",
+			input: map[string]any{"action": "delete"},
+			covered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},  // allow head, single row
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 14}}, // `input.action`, single row
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 7, Col: 3}},  // whole `in` expr, rows 4-7
+			},
+		},
+		"negated expression rule is not covered without indexer exclusion": {
+			module: `package test
+
+allow if {
+	not input.blocked
+}
+
+other if {
+	true
+}
+`,
+			query: "data.test.other",
+			covered: []Range{
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 6}},
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 6}},
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 6}},
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 19}},
 			},
 		},
 		"semicolon-separated expressions short-circuit": {
@@ -196,9 +418,99 @@ test_foo if {
 				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 6}},   // true
 				{Start: Position{Row: 4, Col: 8}, End: Position{Row: 4, Col: 12}},  // true
 				{Start: Position{Row: 4, Col: 14}, End: Position{Row: 4, Col: 19}}, // false (caused failure)
+				{Start: Position{Row: 7, Col: 1}, End: Position{Row: 7, Col: 9}},   // test_foo head
+				{Start: Position{Row: 8, Col: 2}, End: Position{Row: 8, Col: 9}},   // not foo
 			},
 			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 4}},   // foo head
 				{Start: Position{Row: 4, Col: 21}, End: Position{Row: 4, Col: 26}}, // false (never evaluated)
+			},
+		},
+		"nondeterministic value gating an early-exit skip is pinned in supplementary passes": {
+			// A rand.intn value gates whether q is reached. q has two definitions
+			// yielding the same value, so early exit skips the second. The shared
+			// non-deterministic builtin cache pins sel == 0 for every pass, so q
+			// is reached and the early_exit kinds are stable; without it the
+			// no-early-exit pass would draw sel == 1, never reach q, and drop the
+			// kinds.
+			module: `package test
+
+p if {
+	sel == 0
+	q
+}
+
+q if {
+	true
+}
+
+q if {
+	true
+}
+
+sel := rand.intn("k", 2)
+`,
+			query: "data.test.p",
+			input: map[string]any{"x": "a"},
+			// The baseline draws the first seed (0 -> rand.intn(_,2) == 0). The
+			// shared cache makes the other passes replay it, so the later seeds
+			// (-> 1) are only drawn if a pass recomputes rand - the divergence
+			// this guards against.
+			seeds: []int64{0, 1, 1},
+			covered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 2}},    // p head
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 10}},   // sel == 0
+				{Start: Position{Row: 5, Col: 2}, End: Position{Row: 5, Col: 3}},    // q
+				{Start: Position{Row: 8, Col: 1}, End: Position{Row: 8, Col: 2}},    // q (first) head
+				{Start: Position{Row: 9, Col: 2}, End: Position{Row: 9, Col: 6}},    // true
+				{Start: Position{Row: 16, Col: 1}, End: Position{Row: 16, Col: 25}}, // sel := rand.intn("k", 2)
+				{Start: Position{Row: 16, Col: 8}, End: Position{Row: 16, Col: 25}}, // rand.intn("k", 2)
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 12, Col: 1}, End: Position{Row: 12, Col: 2}, Kinds: []Kind{KindEarlyExit}}, // q (second) head
+				{Start: Position{Row: 13, Col: 2}, End: Position{Row: 13, Col: 6}, Kinds: []Kind{KindEarlyExit}}, // true
+			},
+		},
+		"nondeterministic value gating an index-excluded rule is pinned in supplementary passes": {
+			// A rand.intn value gates whether q (whose definitions the index
+			// excludes for this input) is reached. The shared non-deterministic
+			// builtin cache pins sel == 0 for every pass, so q is reached and its
+			// index_excluded kinds are stable; without it the no-index pass would
+			// draw sel == 1, never reach q, and drop the kinds.
+			module: `package test
+
+p if {
+	sel == 0
+	q
+}
+
+q if {
+	input.x == "read"
+}
+
+sel := rand.intn("k", 2)
+`,
+			query: "data.test.p",
+			input: map[string]any{"x": "a"},
+			// The baseline draws the first seed (0 -> rand.intn(_,2) == 0). The
+			// shared cache makes the other passes replay it, so the later seeds
+			// (-> 1) are only drawn if a pass recomputes rand - the divergence
+			// this guards against.
+			seeds: []int64{0, 1, 1},
+			// sel is pinned to 0, so p enters its body and reaches the q
+			// reference on line 5 (covered). q's own body is then index-excluded
+			// (see notCovered) - had sel been 1, p would stop at sel == 0, q
+			// would never be reached, and there would be no exclusion to report.
+			covered: []Range{
+				{Start: Position{Row: 4, Col: 2}, End: Position{Row: 4, Col: 10}},   // sel == 0
+				{Start: Position{Row: 5, Col: 2}, End: Position{Row: 5, Col: 3}},    // q
+				{Start: Position{Row: 12, Col: 1}, End: Position{Row: 12, Col: 25}}, // sel := rand.intn("k", 2)
+				{Start: Position{Row: 12, Col: 8}, End: Position{Row: 12, Col: 25}}, // rand.intn("k", 2)
+			},
+			notCovered: []Range{
+				{Start: Position{Row: 3, Col: 1}, End: Position{Row: 3, Col: 2}},                                    // p head
+				{Start: Position{Row: 8, Col: 1}, End: Position{Row: 8, Col: 2}},                                    // q head
+				{Start: Position{Row: 9, Col: 2}, End: Position{Row: 9, Col: 19}, Kinds: []Kind{KindIndexExcluded}}, // input.x == "read"
 			},
 		},
 	}
@@ -207,38 +519,168 @@ test_foo if {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			cover := New()
+			baseline := New()
+			noIndex := New()
+			noEarlyExit := New()
+			baseline.AddRun(KindIndexExcluded, noIndex)
+			baseline.AddRun(KindEarlyExit, noEarlyExit)
 
 			parsedModule, err := ast.ParseModule("test.rego", tc.module)
 			if err != nil {
 				t.Fatalf("failed to parse module: %v", err)
 			}
 
-			eval := rego.New(
+			args := []func(*rego.Rego){
 				rego.ParsedModule(parsedModule),
 				rego.Query(tc.query),
-				rego.QueryTracer(cover),
-			)
-			_, err = eval.Eval(t.Context())
+			}
+			if tc.input != nil {
+				args = append(args, rego.Input(tc.input))
+			}
+
+			ctx := t.Context()
+			pq, err := rego.New(args...).PrepareForEval(ctx)
 			if err != nil {
+				t.Fatalf("failed to prepare: %v", err)
+			}
+
+			ndbc := builtins.NDBCache{}
+			baselineOpts := []rego.EvalOption{rego.EvalQueryTracer(baseline), rego.EvalNDBuiltinCache(ndbc)}
+			// One shared seed reader across all passes. The shared ndbc makes
+			// the supplementary passes replay the baseline's cached value, so
+			// they never draw from the reader and every pass takes the same
+			// path. Without the ndbc each pass would spend the reader, draw a
+			// different seed, and diverge.
+			var seedReader io.Reader
+			if tc.seeds != nil {
+				seedReader = bytes.NewReader(seedBytes(tc.seeds...))
+				baselineOpts = append(baselineOpts, rego.EvalSeed(seedReader))
+			}
+			if _, err := pq.Eval(ctx, baselineOpts...); err != nil {
 				t.Fatalf("failed to evaluate: %v", err)
 			}
-
-			report := cover.Report(map[string]*ast.Module{"test.rego": parsedModule})
-			fr, ok := report.Files["test.rego"]
-			if !ok {
-				t.Fatal("expected file report for test.rego")
+			noIndexOpts := NoIndexingEvalOptions(noIndex, ndbc)
+			noEarlyExitOpts := NoEarlyExitEvalOptions(noEarlyExit, ndbc)
+			if seedReader != nil {
+				noIndexOpts = append(noIndexOpts, rego.EvalSeed(seedReader))
+				noEarlyExitOpts = append(noEarlyExitOpts, rego.EvalSeed(seedReader))
+			}
+			if _, err := pq.Eval(ctx, noIndexOpts...); err != nil {
+				t.Fatalf("failed to evaluate (no indexing): %v", err)
+			}
+			if _, err := pq.Eval(ctx, noEarlyExitOpts...); err != nil {
+				t.Fatalf("failed to evaluate (no early exit): %v", err)
 			}
 
-			for _, r := range tc.covered {
-				if !fr.isRangeCovered(r) {
-					t.Errorf("expected range %v to be covered", r)
+			reportKey := tc.reportKey
+			if reportKey == "" {
+				reportKey = "test.rego"
+			}
+
+			report := baseline.Report(map[string]*ast.Module{reportKey: parsedModule})
+			fr, ok := report.Files[reportKey]
+			if !ok {
+				t.Fatalf("expected file report for %q", reportKey)
+			}
+
+			assertRanges(t, "covered", tc.covered, fr.Covered)
+			assertRanges(t, "not_covered", tc.notCovered, fr.NotCovered)
+		})
+	}
+}
+
+// assertRanges compares an expected range list against the full list reported
+// for a file, so both extents and membership are pinned.
+func assertRanges(t *testing.T, label string, expected, actual []Range) {
+	t.Helper()
+	less := func(a, b Range) bool { return a.Compare(b) < 0 }
+	if diff := cmp.Diff(expected, actual, cmpopts.SortSlices(less), cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("%s ranges mismatch (-expected +actual):\n%s", label, diff)
+	}
+}
+
+func seedBytes(seeds ...int64) []byte {
+	buf := make([]byte, 8*len(seeds))
+	for i, s := range seeds {
+		binary.BigEndian.PutUint64(buf[i*8:], uint64(s))
+	}
+	return buf
+}
+
+func TestCoverLogicalKeywords(t *testing.T) {
+	// The `or`/`and` expressions span two lines each, so
+	// the report has to attribute the operand lines as well as the line the
+	// operator starts on.
+	module := `package test
+
+import future.keywords.and
+import future.keywords.or
+
+p if {
+	input.a == 1 or  # 7
+		input.b == 2 # 8
+}
+
+s if {
+	input.a == 1 and # 12
+		input.c == 3 # 13
+}
+`
+
+	tests := []struct {
+		note          string
+		query         string
+		expCovered    []int
+		expNotCovered []int
+	}{
+		{
+			note:          "or, right operand short-circuited",
+			query:         "data.test.p",
+			expCovered:    []int{6, 7, 8},
+			expNotCovered: []int{11, 12, 13},
+		},
+		{
+			note:          "and, both operands evaluated",
+			query:         "data.test.s",
+			expCovered:    []int{11, 12, 13},
+			expNotCovered: []int{6, 7, 8},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsedModule, err := ast.ParseModuleWithOpts("test.rego", module, ast.ParserOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			cover := New()
+			rs, err := rego.New(
+				rego.ParsedModule(parsedModule),
+				rego.Query(tc.query),
+				rego.Input(map[string]any{"a": 1, "c": 3}),
+				rego.QueryTracer(cover),
+			).Eval(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(rs) == 0 {
+				t.Fatalf("expected %s to be defined", tc.query)
+			}
+
+			fr, ok := cover.Report(map[string]*ast.Module{"test.rego": parsedModule}).Files["test.rego"]
+			if !ok {
+				t.Fatal("Expected file report for test.rego")
+			}
+
+			for _, row := range tc.expCovered {
+				if !fr.IsCovered(row) {
+					t.Errorf("Expected row %d to be covered", row)
 				}
 			}
-
-			for _, r := range tc.notCovered {
-				if !fr.isRangeNotCovered(r) {
-					t.Errorf("expected range %v to be not covered", r)
+			for _, row := range tc.expNotCovered {
+				if !fr.IsNotCovered(row) {
+					t.Errorf("Expected row %d to NOT be covered", row)
 				}
 			}
 		})
@@ -248,9 +690,11 @@ test_foo if {
 func TestCoverQueryTracerInterface(t *testing.T) {
 	ct := topdown.QueryTracer(New())
 	conf := ct.Config()
-	expected := topdown.TraceConfig{PlugLocalVars: false}
+	expected := topdown.TraceConfig{
+		PlugLocalVars: false,
+	}
 
-	if expected != conf {
-		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
+	if diff := cmp.Diff(expected, conf); diff != "" {
+		t.Fatalf("Expected config: (-expected +actual)\n%s", diff)
 	}
 }

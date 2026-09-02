@@ -69,7 +69,7 @@ func buildIndexWithOrder(rules []*Rule, orderFn func(*refindices) []Ref) *baseDo
 				return false
 			}
 			node := idx.root
-			if indices.Indexed(rule) {
+			if len(indices.rules[rule]) > 0 {
 				for _, ref := range order {
 					var vals []*refindex
 					for _, ri := range indices.rules[rule] {

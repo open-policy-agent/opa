@@ -70,6 +70,9 @@ var (
 
 	registeredStorageBackend    StorageBackendBuilder
 	registeredStorageBackendMux sync.Mutex
+
+	registeredHooks    []hooks.Hook
+	registeredHooksMux sync.Mutex
 )
 
 const (
@@ -102,6 +105,20 @@ func RegisterStorageBackend(builder StorageBackendBuilder) {
 	registeredStorageBackendMux.Lock()
 	defer registeredStorageBackendMux.Unlock()
 	registeredStorageBackend = builder
+}
+
+// RegisterHook registers a hook with the runtime package. When the runtime is
+// created, registered hooks are appended to those passed via Params.Hooks.
+//
+// This exists for embedders that build their own OPA binary on top of this
+// package's CLI commands, and so never construct Params themselves: registering
+// from an init function, or from main before the runtime is created, is the only
+// opportunity they get. Hooks registered after NewRuntime has been called are
+// not picked up by that runtime.
+func RegisterHook(h hooks.Hook) {
+	registeredHooksMux.Lock()
+	defer registeredHooksMux.Unlock()
+	registeredHooks = append(registeredHooks, h)
 }
 
 // Params stores the configuration for an OPA instance.
@@ -400,6 +417,15 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		logger = bufferedLogger
 	}
 
+	// Hooks registered with this package apply on top of whatever the caller
+	// passed in, so that embedders building on the CLI commands -- who never get
+	// to construct Params -- can contribute hooks too.
+	registeredHooksMux.Lock()
+	for _, h := range registeredHooks {
+		params.Hooks.Append(h)
+	}
+	registeredHooksMux.Unlock()
+
 	if err := params.Hooks.Validate(); err != nil {
 		return nil, err
 	}
@@ -453,9 +479,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		consoleLogger = l
 	}
 
-	if params.Router == nil {
-		params.Router = http.NewServeMux()
-	}
+	params.Router = util.Or(params.Router, http.NewServeMux)
 
 	metricsConfig, parseConfigErr := extractMetricsConfig(ctx, config, params)
 	if parseConfigErr != nil {
@@ -539,7 +563,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	// Surface non-fatal config warnings (e.g. unrecognized options).
 	for _, w := range manager.Config.Warnings {
-		logger.Warn(w)
+		logger.Warn("%s", w)
 	}
 
 	if err := manager.Init(ctx); err != nil {
@@ -558,11 +582,12 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	opts := make([]func(*discovery.Discovery), 0, len(params.ExtraDiscoveryOpts)+3)
+	opts := make([]func(*discovery.Discovery), 0, len(params.ExtraDiscoveryOpts)+4)
 	opts = append(opts,
 		discovery.Factories(registeredPlugins),
 		discovery.Metrics(metrics),
 		discovery.BootConfig(bootConfig),
+		discovery.Hooks(params.Hooks),
 	)
 	opts = append(opts, params.ExtraDiscoveryOpts...)
 	disco, err := discovery.New(manager, opts...)
@@ -650,7 +675,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 	rt.logger.WithFields(map[string]any{
 		"addrs":            *rt.Params.Addrs,
 		"diagnostic-addrs": *rt.Params.DiagnosticAddrs,
-	}).Info(serverInitializingMessage)
+	}).Info("%s", serverInitializingMessage)
 
 	if rt.Params.Authorization == server.AuthorizationOff && rt.Params.Authentication == server.AuthenticationToken {
 		rt.logger.Error("Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information.")
@@ -807,7 +832,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 			return rt.gracefulServerShutdown(rt.server)
 		case err := <-errc:
 			rt.logger.WithFields(map[string]any{"err": err}).Error("Listener failed.")
-			os.Exit(1) //nolint:gocritic
+			os.Exit(1)
 		}
 	}
 }
@@ -829,7 +854,10 @@ func (rt *Runtime) Addrs() []string {
 // listening on (when in server mode). Returns an empty list if it hasn't
 // started listening.
 func (rt *Runtime) DiagnosticAddrs() []string {
-	if rt.server == nil {
+	rt.serverInitMtx.RLock()
+	defer rt.serverInitMtx.RUnlock()
+
+	if rt.serverStatus < ServerInitialized {
 		return nil
 	}
 

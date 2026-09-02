@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -35,13 +34,7 @@ func (n *TreeNode) dumpRecursive(sb *strings.Builder, prefix, childPrefix string
 		return
 	}
 
-	keys := make([]Value, 0, len(n.Children))
-	for k := range n.Children {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		return Compare(keys[i], keys[j]) < 0
-	})
+	keys := util.SortedFunc(util.Keys(n.Children), Value.Compare)
 
 	for i, key := range keys {
 		child := n.Children[key]

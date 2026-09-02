@@ -14,6 +14,26 @@ message Policy {
   Static static = 1;
   Plans plans = 2;
   Funcs funcs = 3;
+  repeated UnplannedRule unplanned_rules = 4;
+}
+
+// UnplannedRule mirrors `ir.UnplannedRule` in v1/ir/ir.go.
+message UnplannedRule {
+  string path = 1;
+  Location location = 2;
+}
+
+// Location mirrors `ir.Location` in v1/ir/ir.go. Note: Stmt inlines these
+// same fields directly on its envelope (see the `Stmt` message below)
+// rather than nesting a Location message, since every Stmt body embeds
+// ir.Location anonymously; UnplannedRule references it as a named field
+// instead, so it gets its own message here.
+message Location {
+  int32 file = 1;
+  int32 col = 2;
+  int32 row = 3;
+  int32 end_col = 4;
+  int32 end_row = 5;
 }
 
 // Static mirrors `ir.Static` in v1/ir/ir.go.
@@ -99,23 +119,26 @@ message Val {
 }
 
 // Stmt mirrors the `ir.Stmt` interface in v1/ir/ir.go. Every Stmt carries
-// the source-location triple (file, col, row) on this envelope; the body
-// messages below describe only the kind-specific payload.
+// the source-location quintuple (file, col, row, end_col, end_row) on this
+// envelope; the body messages below describe only the kind-specific
+// payload.
 //
 // On the Go side, `ir.Location` is embedded into every concrete Stmt
-// implementation, so `encoding/json` flattens File/Col/Row into the
-// emitted JSON body. The proto promotes those fields to the envelope
-// because that's both more idiomatic protobuf and lets every body
+// implementation, so `encoding/json` flattens File/Col/Row/EndCol/EndRow
+// into the emitted JSON body. The proto promotes those fields to the
+// envelope because that's both more idiomatic protobuf and lets every body
 // message start its own field numbering at 1.
 //
 // Case-number assignments (4–37) are a stability commitment. Field
-// numbers 1–3 are reserved for the location triple. New cases must be
-// added with the next unused number; existing numbers must never be
-// repurposed.
+// numbers 1–3 and 38–39 are reserved for the location fields. New cases
+// must be added with the next unused number; existing numbers must never
+// be repurposed.
 message Stmt {
   int32 file = 1;
   int32 col = 2;
   int32 row = 3;
+  int32 end_col = 38;
+  int32 end_row = 39;
   oneof kind {
     ArrayAppendStmt array_append_stmt = 4;
     AssignIntStmt assign_int_stmt = 5;

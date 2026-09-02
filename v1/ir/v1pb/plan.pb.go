@@ -668,24 +668,27 @@ func (*Val_Local) isVal_Kind() {}
 func (*Val_StringIndex) isVal_Kind() {}
 
 // Stmt mirrors the `ir.Stmt` interface in v1/ir/ir.go. Every Stmt carries
-// the source-location triple (file, col, row) on this envelope; the body
-// messages below describe only the kind-specific payload.
+// the source-location quintuple (file, col, row, end_col, end_row) on this
+// envelope; the body messages below describe only the kind-specific
+// payload.
 //
 // On the Go side, `ir.Location` is embedded into every concrete Stmt
-// implementation, so `encoding/json` flattens File/Col/Row into the
-// emitted JSON body. The proto promotes those fields to the envelope
-// because that's both more idiomatic protobuf and lets every body
+// implementation, so `encoding/json` flattens File/Col/Row/EndCol/EndRow
+// into the emitted JSON body. The proto promotes those fields to the
+// envelope because that's both more idiomatic protobuf and lets every body
 // message start its own field numbering at 1.
 //
 // Case-number assignments (4–37) are a stability commitment. Field
-// numbers 1–3 are reserved for the location triple. New cases must be
-// added with the next unused number; existing numbers must never be
-// repurposed.
+// numbers 1–3 and 38–39 are reserved for the location fields. New cases
+// must be added with the next unused number; existing numbers must never
+// be repurposed.
 type Stmt struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	File  *int32                 `protobuf:"varint,1,opt,name=file" json:"file,omitempty"`
-	Col   *int32                 `protobuf:"varint,2,opt,name=col" json:"col,omitempty"`
-	Row   *int32                 `protobuf:"varint,3,opt,name=row" json:"row,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	File   *int32                 `protobuf:"varint,1,opt,name=file" json:"file,omitempty"`
+	Col    *int32                 `protobuf:"varint,2,opt,name=col" json:"col,omitempty"`
+	Row    *int32                 `protobuf:"varint,3,opt,name=row" json:"row,omitempty"`
+	EndCol *int32                 `protobuf:"varint,38,opt,name=end_col,json=endCol" json:"end_col,omitempty"`
+	EndRow *int32                 `protobuf:"varint,39,opt,name=end_row,json=endRow" json:"end_row,omitempty"`
 	// Types that are valid to be assigned to Kind:
 	//
 	//	*Stmt_ArrayAppendStmt
@@ -774,6 +777,20 @@ func (x *Stmt) GetCol() int32 {
 func (x *Stmt) GetRow() int32 {
 	if x != nil && x.Row != nil {
 		return *x.Row
+	}
+	return 0
+}
+
+func (x *Stmt) GetEndCol() int32 {
+	if x != nil && x.EndCol != nil {
+		return *x.EndCol
+	}
+	return 0
+}
+
+func (x *Stmt) GetEndRow() int32 {
+	if x != nil && x.EndRow != nil {
+		return *x.EndRow
 	}
 	return 0
 }
@@ -3100,11 +3117,13 @@ const file_v1_ir_plan_proto_rawDesc = "" +
 	"\x04bool\x18\x01 \x01(\bH\x00R\x04bool\x12\x16\n" +
 	"\x05local\x18\x02 \x01(\x05H\x00R\x05local\x12#\n" +
 	"\fstring_index\x18\x03 \x01(\x05H\x00R\vstringIndexB\x06\n" +
-	"\x04kind\"\xf5\x11\n" +
+	"\x04kind\"\xa7\x12\n" +
 	"\x04Stmt\x12\x12\n" +
 	"\x04file\x18\x01 \x01(\x05R\x04file\x12\x10\n" +
 	"\x03col\x18\x02 \x01(\x05R\x03col\x12\x10\n" +
-	"\x03row\x18\x03 \x01(\x05R\x03row\x12H\n" +
+	"\x03row\x18\x03 \x01(\x05R\x03row\x12\x17\n" +
+	"\aend_col\x18& \x01(\x05R\x06endCol\x12\x17\n" +
+	"\aend_row\x18' \x01(\x05R\x06endRow\x12H\n" +
 	"\x11array_append_stmt\x18\x04 \x01(\v2\x1a.opa.ir.v1.ArrayAppendStmtH\x00R\x0farrayAppendStmt\x12B\n" +
 	"\x0fassign_int_stmt\x18\x05 \x01(\v2\x18.opa.ir.v1.AssignIntStmtH\x00R\rassignIntStmt\x12O\n" +
 	"\x14assign_var_once_stmt\x18\x06 \x01(\v2\x1c.opa.ir.v1.AssignVarOnceStmtH\x00R\x11assignVarOnceStmt\x12B\n" +

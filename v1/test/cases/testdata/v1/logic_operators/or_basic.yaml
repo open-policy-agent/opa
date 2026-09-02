@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/or/basic: lhs true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -14,7 +13,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/basic: rhs true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -27,7 +25,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/basic: both true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -40,7 +37,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/basic: both false"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -52,7 +48,6 @@ cases:
         }
     want_result: []
   - note: "logic_op/or/basic: lhs succeeds via input"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -67,7 +62,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/basic: rhs succeeds via input"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -82,7 +76,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/basic: neither side succeeds via input"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -96,7 +89,6 @@ cases:
       role: "guest"
     want_result: []
   - note: "logic_op/or/basic: lhs undefined ref, rhs true"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -109,7 +101,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/basic: virtual rule refs, lhs succeeds"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -128,7 +119,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/basic: virtual rule refs, rhs succeeds"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -147,7 +137,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/basic: virtual rule refs, neither succeeds"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -165,7 +154,6 @@ cases:
       "y": 0
     want_result: []
   - note: "logic_op/or/basic: dotted data refs, only one defined"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -181,7 +169,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/or/basic: indexed data refs"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

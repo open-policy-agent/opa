@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1676,6 +1677,130 @@ func TestBundleLifecycle_ModuleRegoVersions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBundleLifecycleRootWithSpace(t *testing.T) {
+	// A v0 module, so that a rego-version is recorded under /system/modules.
+	files := [][2]string{
+		{"/.manifest", `{"revision": "rev-1", "roots": ["a/b/foo bar"], "rego_version": 0}`},
+		{"/a/b/foo bar/data.json", `{"x": 1}`},
+		{"/a/b/foo bar/policy.rego", `package a.b["foo bar"]
+
+			p[42] { true }
+		`},
+	}
+
+	// The replacement bundle drops the policy, which must therefore be erased.
+	files2 := [][2]string{
+		{"/.manifest", `{"revision": "rev-2", "roots": ["a/b/foo bar"], "rego_version": 1}`},
+		{"/a/b/foo bar/data.json", `{"y": 2}`},
+	}
+
+	newStores := map[string]func(testing.TB) storage.Store{
+		"inmem": func(testing.TB) storage.Store { return mock.New() },
+		"disk": func(tb testing.TB) storage.Store {
+			return must(disk.New(tb.Context(), logging.NewNoOpLogger(), nil, disk.Options{Dir: tb.TempDir()}))(tb)
+		},
+	}
+
+	for _, lazy := range []bool{false, true} {
+		for _, name := range util.Sorted(util.Keys(newStores)) {
+			t.Run(fmt.Sprintf("lazy=%v/%s", lazy, name), func(t *testing.T) {
+				store := newStores[name](t)
+				compiler := ast.NewCompiler()
+
+				read := func(files [][2]string) map[string]*Bundle {
+					b := must(NewCustomReader(NewTarballLoaderWithBaseURL(archive.MustWriteTarGz(files), "")).
+						WithLazyLoadingMode(lazy).
+						WithBundleName("bundle1").
+						Read())(t)
+					return map[string]*Bundle{"bundle1": &b}
+				}
+
+				bundles := read(files)
+				mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+
+				verifyReadBundleNames(t, store, nil, util.Keys(bundles)...)
+				verifyBundleModulesCompiled(t, compiler, bundles)
+
+				// The policy ID has a bundle prefix in non-lazy mode.
+				// When round tripped via storage.Policy, IDs must remain
+				// unescaped to preserve paths with spaces.
+				id := getStoredPolicyID(t, store)
+
+				verifyResultRead(t, store, fmt.Sprintf(`{
+					"a": {"b": {"foo bar": {"x": 1}}},
+					"system": {
+						"bundles": {
+							"bundle1": {
+								"manifest": {
+									"revision": "rev-1",
+									"roots": ["a/b/foo bar"],
+									"rego_version": 0
+								},
+								"etag": ""
+							}
+						},
+						"modules": {%q: {"rego_version": 0}}
+					}
+				}`, id))
+
+				// Activating a bundle that no longer contains the policy must
+				// erase both the policy and its rego-version bookkeeping. The
+				// disk store drops the emptied /system/modules object entirely,
+				// the in-memory store leaves it behind empty.
+				mustActivate(t, store, &ActivateOpts{Compiler: ast.NewCompiler(), Bundles: read(files2)})
+
+				modules := `, "modules": {}`
+				if name == "disk" {
+					modules = ""
+				}
+
+				verifyResultRead(t, store, fmt.Sprintf(`{
+					"a": {"b": {"foo bar": {"y": 2}}},
+					"system": {
+						"bundles": {
+							"bundle1": {
+								"manifest": {
+									"revision": "rev-2",
+									"roots": ["a/b/foo bar"],
+									"rego_version": 1
+								},
+								"etag": ""
+							}
+						}%s
+					}
+				}`, modules))
+
+				txn := storage.NewTransactionOrDie(t.Context(), store)
+				defer store.Abort(t.Context(), txn)
+
+				if ids := must(store.ListPolicies(t.Context(), txn))(t); len(ids) != 0 {
+					t.Errorf("expected policy %q to have been erased, store still has %v", id, ids)
+				}
+			})
+		}
+	}
+}
+
+// getStoredPolicyID returns the ID of the single policy in the store, checking
+// that it can be read back under that ID.
+func getStoredPolicyID(tb testing.TB, store storage.Store) string {
+	tb.Helper()
+
+	txn := storage.NewTransactionOrDie(tb.Context(), store)
+	defer store.Abort(tb.Context(), txn)
+
+	ids := must(store.ListPolicies(tb.Context(), txn))(tb)
+	if len(ids) != 1 {
+		tb.Fatalf("expected exactly one policy in store, got %v", ids)
+	}
+
+	if _, err := store.GetPolicy(tb.Context(), txn, ids[0]); err != nil {
+		tb.Errorf("unexpected error reading policy %q: %s", ids[0], err)
+	}
+
+	return ids[0]
 }
 
 func TestBundleLazyModeLifecycleRaw(t *testing.T) {
@@ -4254,6 +4379,179 @@ func TestActivate_DefaultRegoVersion(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestActivate_LogicalKeywords asserts that modules using the `and`/`or`
+// keywords survive activation, including the re-parse of a module already in
+// the store that activation erases.
+func TestActivate_LogicalKeywords(t *testing.T) {
+	v1Module := `package test
+		import future.keywords.and
+		import future.keywords.or
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	v0Module := `package test
+		import future.keywords.and
+		import future.keywords.or
+
+		allow {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	tests := []struct {
+		note              string
+		storedModule      string
+		customRegoVersion ast.RegoVersion
+		capabilities      *ast.Capabilities
+		expErrs           []string
+	}{
+		{
+			note:         "per-keyword imports",
+			storedModule: v1Module,
+		},
+		{
+			note: "wildcard future.keywords import",
+			storedModule: `package test
+				import future.keywords
+
+				allow if {
+					input.user == "alice" or (input.role == "admin" and input.verified)
+				}`,
+		},
+		{
+			note: "no import",
+			storedModule: `package test
+				allow if {
+					input.user == "alice" or input.role == "admin"
+				}`,
+			expErrs: []string{"rego_parse_error: unexpected identifier token"},
+		},
+		{
+			note:              "v0 module, v0 custom rego-version",
+			storedModule:      v0Module,
+			customRegoVersion: ast.RegoV0,
+		},
+		{
+			note:         "capabilities without and/or",
+			storedModule: v1Module,
+			capabilities: capabilitiesWithoutFutureKeywords(t, "and", "or"),
+			expErrs:      []string{"rego_parse_error: unexpected keyword, must be one of [contains every if in not]"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			store := mock.New()
+			txn := storage.NewTransactionOrDie(t.Context(), store, storage.WriteParams)
+
+			modulePath := "test/policy.rego"
+
+			// Activation erases and re-parses the module already in the store.
+			err := store.UpsertPolicy(t.Context(), txn, modulePathWithPrefix("bundle1", modulePath), []byte(tc.storedModule))
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			bundles := map[string]*Bundle{"bundle1": {
+				Manifest: Manifest{Roots: &[]string{"test"}},
+				Modules:  []ModuleFile{moduleFile(modulePath, "package test")},
+			}}
+
+			compiler := ast.NewCompiler()
+			opts := ActivateOpts{
+				Ctx:      t.Context(),
+				Txn:      txn,
+				Store:    store,
+				Compiler: compiler,
+				Metrics:  metrics.NoOp(),
+				Bundles:  bundles,
+			}
+
+			if tc.customRegoVersion != ast.RegoUndefined {
+				opts.ParserOptions.RegoVersion = tc.customRegoVersion
+			}
+			if tc.capabilities != nil {
+				opts.ParserOptions.Capabilities = tc.capabilities
+			}
+
+			err = Activate(&opts)
+
+			if len(tc.expErrs) > 0 {
+				if err == nil {
+					t.Fatalf("Expected error(s):\n\n%v\n\nbut got nil", tc.expErrs)
+				}
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(err.Error(), expErr) {
+						t.Fatalf("Expected error:\n\n%s\n\nbut got:\n\n%s", expErr, err)
+					}
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			verifyBundleModulesCompiled(t, compiler, bundles)
+		})
+	}
+}
+
+// TestDeltaBundleActivate_LogicalKeywords asserts that activating a delta
+// bundle leaves the `and`/`or` modules of the snapshot bundle it patches
+// intact.
+func TestDeltaBundleActivate_LogicalKeywords(t *testing.T) {
+	logicalModule := `package a
+		import future.keywords.and
+		import future.keywords.or
+		
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	store := mock.New()
+	compiler := ast.NewCompiler()
+
+	bundles := map[string]*Bundle{"bundle1": {
+		Manifest: Manifest{Roots: &[]string{"a"}},
+		Data:     unpack(map[string]any{"a.b": "foo"}),
+		Modules:  []ModuleFile{moduleFile("a/policy.rego", logicalModule)},
+		Etag:     "foo",
+	}}
+
+	mustActivate(t, store, &ActivateOpts{Compiler: compiler, Bundles: bundles})
+	verifyBundleModulesCompiled(t, compiler, bundles)
+
+	deltaCompiler := ast.NewCompiler()
+	deltaBundles := map[string]*Bundle{"bundle1": {
+		Manifest: Manifest{Revision: "delta", Roots: &[]string{"a"}},
+		Patch:    Patch{Data: []PatchOperation{{Op: "upsert", Path: "/a/c", Value: "bar"}}},
+		Etag:     "bar",
+	}}
+
+	mustActivate(t, store, &ActivateOpts{Compiler: deltaCompiler, Bundles: deltaBundles})
+
+	// The delta bundle carries no modules, so the snapshot bundle's module has
+	// to be re-read from the store and re-parsed.
+	verifyBundleModulesCompiled(t, deltaCompiler, bundles)
+
+	var ands, ors int
+	ast.WalkExprs(deltaCompiler.Modules["bundle1/a/policy.rego"], func(e *ast.Expr) bool {
+		switch {
+		case e.IsAnd():
+			ands++
+		case e.IsOr():
+			ors++
+		}
+		return false
+	})
+	if ands != 1 || ors != 1 {
+		t.Fatalf("expected 1 and-expression and 1 or-expression after delta activation, got %d and %d", ands, ors)
+	}
+
+	store.AssertValid(t)
 }
 
 // Regression test for https://github.com/open-policy-agent/opa/issues/8797.

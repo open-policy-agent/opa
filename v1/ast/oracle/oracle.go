@@ -29,10 +29,11 @@ func New() *Oracle {
 
 // DefinitionQuery defines a Rego definition query.
 type DefinitionQuery struct {
-	Modules  map[string]*ast.Module // workspace modules; buffer may shadow a file inside the workspace
-	Filename string                 // name of file to search for position inside of
-	Buffer   []byte                 // buffer that overrides module with filename
-	Pos      int                    // position to search for
+	Modules       map[string]*ast.Module // workspace modules; buffer may shadow a file inside the workspace
+	Filename      string                 // name of file to search for position inside of
+	Buffer        []byte                 // buffer that overrides module with filename
+	Pos           int                    // position to search for
+	ParserOptions ast.ParserOptions      // options for parsing Buffer
 }
 
 var (
@@ -64,7 +65,7 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	// Ditto for caching across runs. Avoid repeating the same work.
 
 	// NOTE(sr): "SetRuleTree" because it's needed for compiler.GetRulesExact() below
-	compiler, parsed, err := o.compileUpto("SetRuleTree", q.Modules, q.Buffer, q.Filename)
+	compiler, parsed, err := o.compileUpto("SetRuleTree", q)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	return &DefinitionQueryResult{Result: location}, nil
 }
 
-func (o *Oracle) compileUpto(stage ast.StageID, modules map[string]*ast.Module, bs []byte, filename string) (*ast.Compiler, *ast.Module, error) {
+func (o *Oracle) compileUpto(stage ast.StageID, q DefinitionQuery) (*ast.Compiler, *ast.Module, error) {
 	var compiler *ast.Compiler
 	if o.compiler != nil {
 		compiler = o.compiler
@@ -104,6 +105,7 @@ func (o *Oracle) compileUpto(stage ast.StageID, modules map[string]*ast.Module, 
 		compiler = compiler.WithOnlyStagesUpTo(stage)
 	}
 
+	modules := q.Modules
 	if modules == nil {
 		modules = map[string]*ast.Module{}
 	}
@@ -111,14 +113,16 @@ func (o *Oracle) compileUpto(stage ast.StageID, modules map[string]*ast.Module, 
 	var module *ast.Module
 	var err error
 
-	if len(bs) > 0 {
-		module, err = ast.ParseModule(filename, util.ByteSliceToString(bs))
+	if len(q.Buffer) > 0 {
+		popts := parserOptions(q.ParserOptions, compiler, modules[q.Filename])
+
+		module, err = ast.ParseModuleWithOpts(q.Filename, util.ByteSliceToString(q.Buffer), popts)
 		if err != nil {
 			return nil, nil, err
 		}
-		modules[filename] = module
+		modules[q.Filename] = module
 	} else {
-		module = modules[filename]
+		module = modules[q.Filename]
 	}
 
 	compiler.Compile(modules)
@@ -127,4 +131,14 @@ func (o *Oracle) compileUpto(stage ast.StageID, modules map[string]*ast.Module, 
 	}
 
 	return compiler, module, nil
+}
+
+func parserOptions(popts ast.ParserOptions, compiler *ast.Compiler, shadowed *ast.Module) ast.ParserOptions {
+	popts.Capabilities = util.Or(popts.Capabilities, compiler.Capabilities)
+
+	if popts.RegoVersion == ast.RegoUndefined && shadowed != nil {
+		popts.RegoVersion = shadowed.RegoVersion()
+	}
+
+	return popts
 }

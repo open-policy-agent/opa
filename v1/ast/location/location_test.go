@@ -243,38 +243,67 @@ func TestLocationHasFile(t *testing.T) {
 	}
 }
 
+func TestEndOf(t *testing.T) {
+	tests := map[string]struct {
+		row, col int
+		text     []byte
+		expRow   int
+		expCol   int
+	}{
+		"single-line text": {
+			text: []byte("false"), row: 3, col: 10,
+			expRow: 3,
+			expCol: 15,
+		},
+		"multi-line text": {
+			text: []byte("a\nbc"), row: 5, col: 2,
+			expRow: 6,
+			expCol: 3,
+		},
+		"multi-byte runes count as one column each": {
+			// "café" is 5 bytes but 4 runes; the scanner advances Col
+			// per rune (see scanner.next), so EndOf must too.
+			text: []byte("café"), row: 1, col: 1,
+			expRow: 1,
+			expCol: 5,
+		},
+		"multi-byte runes across a newline": {
+			text: []byte("café\nñ"), row: 1, col: 1,
+			expRow: 2,
+			expCol: 2,
+		},
+		"single multi-byte rune": {
+			text: []byte("é"), row: 1, col: 1,
+			expRow: 1,
+			expCol: 2,
+		},
+		"empty text": {
+			text: nil, row: 4, col: 7,
+			expRow: 4,
+			expCol: 7,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			row, col := EndOf(tc.row, tc.col, tc.text)
+			if row != tc.expRow || col != tc.expCol {
+				t.Fatalf("Expected (%d, %d) but got (%d, %d)", tc.expRow, tc.expCol, row, col)
+			}
+		})
+	}
+}
+
 func TestLocationEnd(t *testing.T) {
 	tests := map[string]struct {
 		loc    *Location
 		expRow int
 		expCol int
 	}{
-		"single-line text": {
-			loc:    &Location{Text: []byte("false"), Row: 3, Col: 10},
-			expRow: 3,
-			expCol: 15,
-		},
-		"multi-line text": {
+		"delegates to EndOf": {
 			loc:    &Location{Text: []byte("a\nbc"), Row: 5, Col: 2},
 			expRow: 6,
 			expCol: 3,
-		},
-		"multi-byte runes count as one column each": {
-			// "café" is 5 bytes but 4 runes; the scanner advances Col
-			// per rune (see scanner.next), so End must too.
-			loc:    &Location{Text: []byte("café"), Row: 1, Col: 1},
-			expRow: 1,
-			expCol: 5,
-		},
-		"multi-byte runes across a newline": {
-			loc:    &Location{Text: []byte("café\nñ"), Row: 1, Col: 1},
-			expRow: 2,
-			expCol: 2,
-		},
-		"single multi-byte rune": {
-			loc:    &Location{Text: []byte("é"), Row: 1, Col: 1},
-			expRow: 1,
-			expCol: 2,
 		},
 		"nil receiver": {
 			loc:    nil,

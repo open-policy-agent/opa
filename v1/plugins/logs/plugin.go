@@ -690,7 +690,7 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 
 	go func(ctx context.Context, done chan bool) {
 		for ctx.Err() == nil {
-			if err := p.b.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
+			if err := p.b.Upload(ctx); err != nil && !util.ErrorIs[*bufferEmpty](err) {
 				p.logger.Error("Error flushing decisions: %s", err)
 				// Wait some before retrying, but skip incrementing interval since we are shutting down
 				time.Sleep(1 * time.Second)
@@ -972,13 +972,12 @@ func (*uploadCancelled) Error() string {
 	return "cancelled upload"
 }
 
-func (p *Plugin) doOneShot(ctx context.Context) error {
-	err := p.b.Upload(ctx)
-	if err != nil {
-		if errors.Is(err, &bufferEmpty{}) {
+func (p *Plugin) doOneShot(ctx context.Context) (err error) {
+	if err = p.b.Upload(ctx); err != nil {
+		if util.ErrorIs[*bufferEmpty](err) {
 			p.logger.Debug("Log upload queue was empty.")
 			err = nil
-		} else if errors.Is(err, &uploadCancelled{}) {
+		} else if util.ErrorIs[*uploadCancelled](err) {
 			err = nil
 		} else {
 			p.logger.Error("%v.", err)
@@ -1006,7 +1005,7 @@ func (p *Plugin) reconfigure(ctx context.Context, config any) {
 	p.config = *newConfig
 
 	// upload all events in the current buffer type
-	if err := p.b.Upload(ctx); err != nil && !errors.Is(err, &bufferEmpty{}) {
+	if err := p.b.Upload(ctx); err != nil && !util.ErrorIs[*bufferEmpty](err) {
 		p.setStatus(err)
 	}
 	p.b.Stop(ctx)
@@ -1261,27 +1260,15 @@ func addIfSliceNotEmpty[T any](fields map[string]any, key string, value []T) {
 // ensuring that struct types are converted to map[string]any etc.
 // Unlike util.RoundTrip, this always unmarshals into a nil any target,
 // which prevents json.Decoder from reusing the existing concrete type.
-func roundTripAny(x any) (any, error) {
+func roundTripAny(x any) (v any, err error) {
 	if !util.NeedsRoundTrip(x) {
 		return x, nil
 	}
-	bs, err := json.Marshal(x)
-	if err != nil {
-		return nil, err
+	var bs []byte
+	if bs, err = json.Marshal(x); err == nil {
+		err = util.UnmarshalJSON(bs, &v)
 	}
-	var v any
-	if err := util.UnmarshalJSON(bs, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-func stringsToAny(ss []string) []any {
-	result := make([]any, len(ss))
-	for i, s := range ss {
-		result[i] = s
-	}
-	return result
+	return v, err
 }
 
 func stringsMapToAny(m map[string]string) map[string]any {
@@ -1333,8 +1320,8 @@ func eventToFields(event EventV1) map[string]any {
 			fields["nd_builtin_cache"] = v
 		}
 	}
-	addIfSliceNotEmpty(fields, "erased", stringsToAny(event.Erased))
-	addIfSliceNotEmpty(fields, "masked", stringsToAny(event.Masked))
+	addIfSliceNotEmpty(fields, "erased", util.ToSliceOfAny(event.Erased))
+	addIfSliceNotEmpty(fields, "masked", util.ToSliceOfAny(event.Masked))
 
 	if event.Error != nil {
 		fields["error"] = event.Error.Error()

@@ -196,9 +196,8 @@ func (d *builtinDispatcher) dispatch(ctx context.Context, id int32, argAddrs ...
 		return nil
 	})
 	if err != nil {
-		if errors.As(err, &topdown.Halt{}) {
-			var e *topdown.Error
-			if errors.As(err, &e) && e.Code == topdown.CancelErr {
+		if _, ok := errors.AsType[topdown.Halt](err); ok {
+			if e, ok := errors.AsType[*topdown.Error](err); ok && e.Code == topdown.CancelErr {
 				panic(cancelledError{message: e.Message})
 			}
 			panic(builtinError{err: err})

@@ -4,6 +4,8 @@
 package oracle
 
 import (
+	"slices"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 )
 
@@ -13,10 +15,11 @@ func findContainingNodeStack(module *ast.Module, pos int) []ast.Node {
 	ast.WalkNodes(module, func(x ast.Node) bool {
 		minLoc, maxLoc := getLocMinMax(x)
 
-		// ast.Every nodes have no location but should still be traversed
-		// to reach children
+		// Nodes carrying bodies may have no location but should still be
+		// traversed to reach children
 		if minLoc == -1 && maxLoc == -1 {
-			if _, ok := x.(*ast.Every); ok {
+			switch x.(type) {
+			case *ast.Every, *ast.Not, *ast.LogicalAnd, *ast.LogicalOr:
 				return false
 			}
 
@@ -102,9 +105,9 @@ func getLocMinMax(x ast.Node) (int, int) {
 // has rewritten the rule bodies slightly. By ignoring appended generated body expressions,
 // we can still use the "circling in on the variable" logic based on node locations.
 func findLastExpr(body ast.Body) *ast.Expr {
-	for i := len(body) - 1; i >= 0; i-- {
-		if !body[i].Generated {
-			return body[i]
+	for _, b := range slices.Backward(body) {
+		if !b.Generated {
+			return b
 		}
 	}
 	// NOTE(sr): I believe this shouldn't happen -- we only ever start circling in on a node

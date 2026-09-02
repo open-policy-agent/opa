@@ -46,8 +46,8 @@ func TestUnwrap(t *testing.T) {
 	errs := Errors{serverHTTPError, clientHTTPError, NewBundleError("ast", astErrors)}
 
 	// unwrap first bundle.Error
-	var bundleError Error
-	if !errors.As(errs, &bundleError) {
+	bundleError, ok := errors.AsType[Error](errs)
+	if !ok {
 		t.Fatal("failed to unwrap Error")
 	}
 	if bundleError.Error() != serverHTTPError.Error() {
@@ -55,8 +55,8 @@ func TestUnwrap(t *testing.T) {
 	}
 
 	// unwrap first HTTPError
-	var httpError download.HTTPError
-	if !errors.As(errs, &httpError) {
+	httpError, ok := errors.AsType[download.HTTPError](errs)
+	if !ok {
 		t.Fatal("failed to unwrap Error")
 	}
 	if httpError.Error() != serverHTTPError.Err.Error() {
@@ -64,15 +64,16 @@ func TestUnwrap(t *testing.T) {
 	}
 
 	// unwrap HTTPError from bundle.Error
-	if !errors.As(bundleError, &httpError) {
+	httpError, ok = errors.AsType[download.HTTPError](bundleError)
+	if !ok {
 		t.Fatal("failed to unwrap HTTPError")
 	}
 	if httpError.Error() != serverHTTPError.Err.Error() {
 		t.Fatalf("expected: %v \nbgot: %v", serverHTTPError.Err, httpError)
 	}
 
-	var unwrappedAstErrors ast.Errors
-	if !errors.As(errs, &unwrappedAstErrors) {
+	unwrappedAstErrors, ok := errors.AsType[ast.Errors](errs)
+	if !ok {
 		t.Fatal("failed to unwrap ast.Errors")
 	}
 	if unwrappedAstErrors.Error() != astErrors.Error() {

@@ -1,0 +1,65 @@
+---
+# print() operands are captured in comprehensions so that an undefined operand
+# does not stop the print from being reached. That rewrite runs after local vars
+# have been renamed to generated ones, so a diagnostic about an operand has to
+# map the name back to the one the author wrote. See issue #5624.
+#
+# These cases need print_statements: with print erased, there is no operand left
+# to diagnose and the modules compile.
+cases:
+  - note: print/undeclared-var-declared-by-some
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        p if {
+        	some x
+        	print(x)
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 8
+        message: var x is undeclared
+    exhaustive: true
+  - note: print/undeclared-var-declared-by-some-reports-each-operand
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        p if {
+        	some x, y
+        	print(x, y)
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 8
+        message: var x is undeclared
+      - code: rego_compile_error
+        row: 5
+        col: 11
+        message: var y is undeclared
+    exhaustive: true
+  - note: print/undeclared-var-in-every-body-does-not-implicate-key-var
+    # `z` is bound by the every, so only `q` is undeclared. Reporting is per
+    # print operand, and the body is walked once: a var that is safe inside the
+    # nested body must not be reported, and `q` must not be reported twice.
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        p if {
+        	every z in [1] {
+        		print(q, z)
+        	}
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 9
+        message: var q is undeclared
+    exhaustive: true

@@ -26,7 +26,6 @@ import (
 )
 
 func TestCheckRespectsCapabilities(t *testing.T) {
-	//nolint:prealloc // test slice is extended dynamically, initial values are clearer as slice literal
 	tests := []struct {
 		note       string
 		caps       string

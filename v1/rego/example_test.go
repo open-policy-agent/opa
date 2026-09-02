@@ -2,16 +2,16 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint // example code
 package rego_test
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/logging"
@@ -505,15 +505,13 @@ q = {1, 2, 3} if { true }`,
 		))
 
 	_, err := r.Eval(ctx)
-
-	switch err := err.(type) {
-	case ast.Errors:
+	if err, ok := errors.AsType[ast.Errors](err); ok {
 		for _, e := range err {
 			fmt.Println("code:", e.Code)
 			fmt.Println("row:", e.Location.Row)
 			fmt.Println("filename:", e.Location.File)
 		}
-	default:
+	} else {
 		// Some other error occurred.
 	}
 
@@ -814,7 +812,7 @@ func makeStable(bodies []ast.Body) {
 			return false // go on
 		})
 	}
-	sort.Slice(bodies, func(i, j int) bool { return bodies[i].Compare(bodies[j]) < 0 })
+	slices.SortFunc(bodies, ast.Body.Compare)
 }
 
 func ExampleRego_PrepareForPartial() {

@@ -2,7 +2,6 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint: goconst // string duplication is for test readability.
 package rego
 
 import (
@@ -498,6 +497,64 @@ func TestRegoEvalExpressionValue(t *testing.T) {
 				Module("", module),
 			)
 			assertEval(t, r, tc.expected)
+		})
+	}
+}
+
+// TestRegoEvalIssue8302 checks the evaluation-level symptom of #8302: a body
+// with an indirect dependency through a comprehension compiles cleanly but
+// used to evaluate to an empty result set because reorderBodyForSafety
+// scheduled expressions before their inputs were genuinely grounded.
+//
+// Policy shape taken from https://github.com/open-policy-agent/opa/issues/8302.
+func TestRegoEvalIssue8302(t *testing.T) {
+	module := `package test
+
+f(x) := x + 1
+
+a := z if {
+	y = f(x)
+	z = f(y)
+	x = 2
+}
+
+b := z if {
+	y = f([v | v = x][0])
+	z = f(y)
+	x = 2
+}
+
+c := z if {
+	x = 2
+	y = f([v | v = x][0])
+	z = f(y)
+}
+`
+
+	tests := []struct {
+		name string
+		q    string
+		want string
+	}{
+		{"a", "data.test.a", "4"},
+		{"b", "data.test.b", "4"},
+		{"c", "data.test.c", "4"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := New(Query(tc.q), Module("test.rego", module))
+			rs, err := r.Eval(t.Context())
+			if err != nil {
+				t.Fatalf("eval: %v", err)
+			}
+			if len(rs) == 0 {
+				t.Fatalf("expected a result, got empty ResultSet (issue #8302 silent-drop symptom)")
+			}
+			got := fmt.Sprint(rs[0].Expressions[0].Value)
+			if got != tc.want {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
 		})
 	}
 }

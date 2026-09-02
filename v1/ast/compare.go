@@ -8,7 +8,10 @@ import (
 	"cmp"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // Compare returns an integer indicating whether two AST values are less than,
@@ -244,38 +247,6 @@ func sortOrder(x any) int {
 	panic(fmt.Sprintf("illegal value: %T", x))
 }
 
-func importsCompare(a, b []*Import) int {
-	minLen := min(len(b), len(a))
-	for i := range minLen {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-	if len(a) < len(b) {
-		return -1
-	}
-	if len(b) < len(a) {
-		return 1
-	}
-	return 0
-}
-
-func annotationsCompare(a, b []*Annotations) int {
-	minLen := min(len(b), len(a))
-	for i := range minLen {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-	if len(a) < len(b) {
-		return -1
-	}
-	if len(b) < len(a) {
-		return 1
-	}
-	return 0
-}
-
 func rulesCompare(a, b []*Rule) int {
 	minLen := min(len(b), len(a))
 	for i := range minLen {
@@ -346,6 +317,8 @@ func ValueEqual(a, b Value) bool {
 		return v.Equal(b)
 	case *Array:
 		return v.Equal(b)
+	case *object:
+		return v.Equal(b)
 	case *Not:
 		return v.Equal(b)
 	case *TemplateString:
@@ -360,39 +333,44 @@ func RefCompare(a, b Ref) int {
 }
 
 func RefEqual(a, b Ref) bool {
-	return termSliceEqual(a, b)
+	return slices.EqualFunc(a, b, (*Term).Equal)
 }
 
 func NumberCompare(x, y Number) int {
 	xs, ys := string(x), string(y)
-
-	var xIsF, yIsF bool
-
-	// Treat "1" and "1.0", "1.00", etc as "1"
-	if strings.Contains(xs, ".") {
-		if tx := strings.TrimRight(xs, ".0"); tx != xs {
-			// Still a float after trimming?
-			xIsF = strings.Contains(tx, ".")
-			xs = tx
-		}
-	}
-	if strings.Contains(ys, ".") {
-		if ty := strings.TrimRight(ys, ".0"); ty != ys {
-			yIsF = strings.Contains(ty, ".")
-			ys = ty
-		}
-	}
 	if xs == ys {
 		return 0
 	}
 
 	var xi, yi int64
-	var xf, yf float64
 	var xiOK, yiOK, xfOK, yfOK bool
 
-	if xi, xiOK = x.Int64(); xiOK {
-		if yi, yiOK = y.Int64(); yiOK {
+	if xi, xiOK = util.Atoi64(xs); xiOK {
+		if yi, yiOK = util.Atoi64(ys); yiOK {
 			return cmp.Compare(xi, yi)
+		}
+	}
+
+	var xf, yf float64
+	var xIsF, yIsF bool
+
+	// Treat "1" and "1.0", "1.00", etc as "1" for the purpose of deciding
+	// whether each side is a non-integral value.
+	//
+	// The trimmed forms must not be assigned back over xs and ys. TrimRight
+	// takes a cutset rather than a suffix, so ".0" strips every trailing '.'
+	// and '0' character: "0.0" trims to the empty string and "-0.0" to "-".
+	// Those are then handed to big.Float.SetString below, which fails, and the
+	// failure path is a panic.
+	if strings.IndexByte(xs, '.') != -1 {
+		if tx := strings.TrimRight(xs, ".0"); tx != xs {
+			// Still a float after trimming?
+			xIsF = strings.IndexByte(tx, '.') != -1
+		}
+	}
+	if strings.IndexByte(ys, '.') != -1 {
+		if ty := strings.TrimRight(ys, ".0"); ty != ys {
+			yIsF = strings.IndexByte(ty, '.') != -1
 		}
 	}
 
@@ -408,7 +386,7 @@ func NumberCompare(x, y Number) int {
 	}
 
 	var a *big.Rat
-	fa, ok := new(big.Float).SetString(string(x))
+	fa, ok := new(big.Float).SetString(xs)
 	if !ok {
 		panic("illegal value")
 	}
@@ -418,14 +396,14 @@ func NumberCompare(x, y Number) int {
 		}
 	}
 	if a == nil {
-		a, ok = new(big.Rat).SetString(string(x))
+		a, ok = new(big.Rat).SetString(xs)
 		if !ok {
 			panic("illegal value")
 		}
 	}
 
 	var b *big.Rat
-	fb, ok := new(big.Float).SetString(string(y))
+	fb, ok := new(big.Float).SetString(ys)
 	if !ok {
 		panic("illegal value")
 	}
@@ -435,7 +413,7 @@ func NumberCompare(x, y Number) int {
 		}
 	}
 	if b == nil {
-		b, ok = new(big.Rat).SetString(string(y))
+		b, ok = new(big.Rat).SetString(ys)
 		if !ok {
 			panic("illegal value")
 		}

@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -13,15 +14,8 @@ import (
 )
 
 var (
-	equalityRef         = Equality.Ref()
-	equalRef            = Equal.Ref()
-	globMatchRef        = GlobMatch.Ref()
-	internalPrintRef    = InternalPrint.Ref()
-	internalTestCaseRef = InternalTestCase.Ref()
-	internalMemberRef   = Member.Ref()
-
 	globwildcard = VarTerm("$globwildcard")
-	skipIndexing = NewSet(NewTerm(internalPrintRef), NewTerm(internalTestCaseRef))
+	skipIndexing = NewSet(NewTerm(Interned.Refs.InternalPrint), NewTerm(Interned.Refs.InternalTestCase))
 
 	// anyValue is a fake variable we used to put "naked ref" expressions
 	// into the rule index
@@ -100,7 +94,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			if i.onlyGroundRefs {
 				i.onlyGroundRefs = rule.Head.Reference.IsGround()
 			}
-			if !slices.ContainsFunc(rule.Body, skipIndexingOperator) {
+			if !bodySkipsIndexing(rule.Body) {
 				clear(values)
 				for i := range rule.Body {
 					indices.Update(rule, rule.Body[i], values)
@@ -111,58 +105,99 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	}
 
 	// build trie out of indices.
+	sorted := indices.Sorted()
+
 	for idx := range rules {
 		var prio int
 		WalkRules(rules[idx], func(rule *Rule) bool {
 			if rule.Default {
 				return false
 			}
-			node := i.root
-			if indices.Indexed(rule) {
-				for _, ref := range indices.Sorted() {
-					var values []*refindex
-					for _, ri := range indices.rules[rule] {
-						if ri.Ref.Equal(ref) {
-							values = append(values, ri)
-						}
-					}
-					if len(values) == 0 {
-						node = node.Insert(ref, nil, nil)
-					} else if len(values) == 1 {
-						node = node.Insert(ref, values[0].Value, values[0].Mapper)
-					} else {
-						if slices.ContainsFunc(values, (*refindex).isVar) {
-							child := node.Insert(ref, anyValue, values[0].Mapper)
-							for i := range values {
-								if values[i].Mapper != nil {
-									node.next.addMapper(values[i].Mapper)
-								}
-							}
-							node = child
-						} else {
-							// When a rule has multiple scalar values (e.g., internal.member_2 with a set),
-							// each value should have its own child node, and the rule is appended to each.
-							// This creates separate paths for each value so different rules with overlapping
-							// values don't interfere with each other.
-							for _, val := range values {
-								child := node.Insert(ref, val.Value, val.Mapper)
-								child.append([...]int{idx, prio}, rule)
-							}
-							prio++
-							return false
-						}
-					}
+			// Each set of indices the rule can be reached through gets its own
+			// path. They share a priority, so a lookup arriving at the rule down
+			// several of them still reports it once (see trieTraversalResult.Add).
+			if len(indices.disjunctions[rule]) == 0 {
+				i.insertPath(sorted, indices.rules[rule], [...]int{idx, prio}, rule)
+			} else {
+				for _, path := range indices.paths(rule) {
+					i.insertPath(sorted, path, [...]int{idx, prio}, rule)
 				}
 			}
-			// Insert rule into trie with (insertion order, priority order)
-			// tuple. Retaining the insertion order allows us to return rules
-			// in the order they were passed to this function.
-			node.append([...]int{idx, prio}, rule)
 			prio++
 			return false
 		})
 	}
 	return true
+}
+
+func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int, rule *Rule) {
+	node := i.root
+
+	// The path stops at the last level it constrains. A rule that constrains
+	// nothing below has nothing to test there, so walking on would only pad the
+	// path with an "absent" node per remaining level -- a copy of the whole tail
+	// that no other rule shares, which is what made a trie of n levels cost n^2
+	// nodes to build and to walk. The multiple-scalar case below has always
+	// attached mid-trie for the same reason.
+	remaining := len(path)
+
+	for _, ref := range sorted {
+		if remaining == 0 {
+			break
+		}
+
+		var values []*refindex
+		for _, ri := range path {
+			if ri.Ref.Equal(ref) {
+				values = append(values, ri)
+			}
+		}
+		remaining -= len(values)
+
+		// A var value records "this ref can be anything", which a concrete value
+		// for the same ref supersedes: everything on one path has to hold, so the
+		// concrete value is the stronger of the two constraints. A chain of
+		// assignments, `x := input.a; y := x`, leaves one var entry per local
+		// behind, and only the first of them is replaced when the concrete value
+		// is inserted. Keeping the rest would index the rule under anyValue below
+		// and give up all the discrimination the concrete value buys us.
+		if len(values) > 1 {
+			if concrete := slices.DeleteFunc(slices.Clone(values), (*refindex).isVar); len(concrete) > 0 {
+				values = concrete
+			}
+		}
+
+		if len(values) == 0 {
+			node = node.Insert(ref, nil, nil)
+		} else if len(values) == 1 {
+			node = node.Insert(ref, values[0].Value, values[0].Mapper)
+		} else {
+			if slices.ContainsFunc(values, (*refindex).isVar) {
+				child := node.Insert(ref, anyValue, values[0].Mapper)
+				for i := range values {
+					if values[i].Mapper != nil {
+						node.next.addMapper(values[i].Mapper)
+					}
+				}
+				node = child
+			} else {
+				// When a rule has multiple scalar values (e.g., internal.member_2 with a set),
+				// each value should have its own child node, and the rule is appended to each.
+				// This creates separate paths for each value so different rules with overlapping
+				// values don't interfere with each other.
+				for _, val := range values {
+					child := node.Insert(ref, val.Value, val.Mapper)
+					child.append(prio, rule)
+				}
+				return
+			}
+		}
+	}
+
+	// Insert rule into trie with (insertion order, priority order)
+	// tuple. Retaining the insertion order allows us to return rules
+	// in the order they were passed to this function.
+	node.append(prio, rule)
 }
 
 func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
@@ -205,8 +240,8 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 		if len(tr.unordered[pos]) == 0 {
 			continue
 		}
-		slices.SortFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
-		nodes := tr.unordered[pos]
+
+		nodes := util.SortedFunc(tr.unordered[pos], (*ruleNode).prio1Cmp)
 		root := nodes[0].rule
 
 		result.Rules = append(result.Rules, root)
@@ -304,12 +339,26 @@ type refindex struct {
 	Mapper *valueMapper
 }
 
+// alternatives are sets of indices, any one of which is enough to reach a rule.
+type alternatives = [][]*refindex
+
 type refindices struct {
 	isVirtual func(Ref) bool
 	rules     map[*Rule][]*refindex
+	// disjunctions holds the alternatives contributed by each `or` in the rule;
+	// every combination of them is a way to reach it.
+	disjunctions map[*Rule][]alternatives
+	// outer holds the enclosing scope's indices when this is the scratch for an
+	// operand body: resolvable from inside, but not the operand's own.
+	outer     []*refindex
 	frequency *util.HasherMap[Ref, int]
 	sorted    []Ref
 }
+
+// maxIndexPaths caps the ways a single rule may be reached: `or` expressions
+// multiply out (`{a or b} and {c or d}` is four), and at some point the trie
+// nodes cost more than evaluating the rule.
+const maxIndexPaths = 32
 
 func newrefindices(isVirtual func(Ref) bool) *refindices {
 	return &refindices{
@@ -340,6 +389,15 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 		return
 	}
 
+	switch terms := expr.Terms.(type) {
+	case *LogicalAnd:
+		i.updateLogicalAnd(rule, terms, values)
+		return
+	case *LogicalOr:
+		i.updateLogicalOr(rule, terms, values)
+		return
+	}
+
 	op := expr.Operator()
 	if op == nil {
 		if ts, ok := expr.Terms.(*Term); ok {
@@ -353,12 +411,12 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 		}
 	}
 
-	equalish := op.Equal(equalityRef) || // unification, no 3-operands version exists
+	equalish := op.Equal(Interned.Refs.Equality) || // unification, no 3-operands version exists
 		// NOTE(tsandall): if equal() is called with more than two arguments the
 		// output value is being captured in which case the indexer cannot
 		// exclude the rule if the equal() call would return false (because the
 		// false value must still be produced.)
-		(op.Equal(equalRef) && len(expr.Operands()) == 2)
+		(op.Equal(Interned.Refs.Equal) && len(expr.Operands()) == 2)
 
 	a, b := expr.Operand(0), expr.Operand(1)
 	switch {
@@ -367,14 +425,138 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 			i.updateEq(rule, a.Value, b.Value, values)
 		}
 
-	case op.Equal(globMatchRef) && len(expr.Operands()) == 3:
+	case op.Equal(Interned.Refs.GlobMatch) && len(expr.Operands()) == 3:
 		// NOTE(sr): Same as with equal() above -- 4 operands means the output
 		// of `glob.match` is captured and the rule can thus not be excluded.
 		i.updateGlobMatch(rule, expr)
 
-	case op.Equal(internalMemberRef) && len(expr.Operands()) == 2:
+	case op.Equal(Interned.Refs.Member) && len(expr.Operands()) == 2:
 		// NOTE(sr): Again, 3 operands means captured output (like above).
 		i.updateMember(rule, expr, values)
+	}
+}
+
+// updateLogicalAnd folds both operands of a conjunction into the rule's
+// indices: `lhs and rhs` only succeeds if both operands do, so whatever either
+// operand requires of the input, the rule requires.
+//
+// Each operand is indexed against the indices the rule has so far, not against
+// what its sibling contributes: operand bodies are separate scopes, so the same
+// var in each is a different var, and resolveVarToRef must not connect them.
+func (i *refindices) updateLogicalAnd(rule *Rule, and *LogicalAnd, values map[Var]Value) {
+	lhs := i.operandAlternatives(rule, and.Lhs, values)
+	rhs := i.operandAlternatives(rule, and.Rhs, values)
+
+	i.require(rule, lhs)
+	i.require(rule, rhs)
+}
+
+// require records that the rule is only defined if one of the alternatives
+// holds. A lone alternative is unconditional, so its indices join the rule's
+// own; several are kept apart for Build to turn into separate paths.
+func (i *refindices) require(rule *Rule, alts alternatives) {
+	switch len(alts) {
+	case 0:
+		return
+	case 1:
+		for _, ri := range alts[0] {
+			i.insert(rule, ri)
+		}
+	default:
+		for _, alt := range alts {
+			for _, ri := range alt {
+				i.count(ri.Ref)
+			}
+		}
+		if i.disjunctions == nil {
+			i.disjunctions = map[*Rule][]alternatives{}
+		}
+		i.disjunctions[rule] = append(i.disjunctions[rule], alts)
+	}
+}
+
+// updateLogicalOr records the operands of a disjunction as alternative ways to
+// reach the rule, `lhs or rhs` holding if either operand does. An operand
+// nothing can be indexed on could be satisfied by any input at all, which
+// leaves the disjunction saying nothing about the rule.
+func (i *refindices) updateLogicalOr(rule *Rule, or *LogicalOr, values map[Var]Value) {
+	lhs := i.operandAlternatives(rule, or.Lhs, values)
+	if len(lhs) == 0 {
+		return
+	}
+
+	rhs := i.operandAlternatives(rule, or.Rhs, values)
+	if len(rhs) == 0 {
+		return
+	}
+
+	i.require(rule, slices.Concat(lhs, rhs))
+}
+
+// operandAlternatives returns the ways the body of an `and`/`or` operand can be
+// satisfied; an operand with an `or` of its own has one per branch, and none at
+// all means nothing about it could be indexed. It is indexed into a scratch, so
+// that what it requires reaches the rule only through require().
+func (i *refindices) operandAlternatives(rule *Rule, body Body, values map[Var]Value) alternatives {
+	scratch := newrefindices(i.isVirtual)
+	scratch.outer = append(slices.Clone(i.rules[rule]), i.outer...)
+	scratch.updateOperand(rule, body, values)
+
+	alts := scratch.paths(rule)
+	if len(alts) == 1 && len(alts[0]) == 0 {
+		return nil
+	}
+
+	for _, alt := range alts {
+		for pos, ri := range alt {
+			// The var is scoped to the operand body and must not become
+			// resolvable from the outside (see resolveVarToRef); that the ref
+			// has to be defined still holds.
+			if ri.isVar() {
+				alt[pos] = &refindex{Ref: ri.Ref, Value: anyValue, Mapper: ri.Mapper}
+			}
+		}
+	}
+
+	return alts
+}
+
+// paths returns every set of indices that can lead to the rule: the ones that
+// always hold, combined with one branch from each disjunction. Past
+// maxIndexPaths the disjunctions are dropped -- fewer constraints only widen
+// what the index admits, so the result stays correct.
+func (i *refindices) paths(rule *Rule) alternatives {
+	unconditional := i.rules[rule]
+	paths := alternatives{unconditional}
+
+	for _, alts := range i.disjunctions[rule] {
+		if len(paths)*len(alts) > maxIndexPaths {
+			return alternatives{unconditional}
+		}
+
+		combined := make(alternatives, 0, len(paths)*len(alts))
+		for _, path := range paths {
+			for _, alt := range alts {
+				combined = append(combined, append(slices.Clone(path), alt...))
+			}
+		}
+		paths = combined
+	}
+
+	return paths
+}
+
+// updateOperand folds the expressions of an `and`/`or` operand body into the
+// rule's indices. An operand body is a closed scope -- bindings made inside it
+// reach neither the enclosing body nor the sibling operand (see
+// evalLogicalOperand in topdown) -- so its constants are copied in and dropped
+// on return.
+func (i *refindices) updateOperand(rule *Rule, body Body, values map[Var]Value) {
+	scoped := make(map[Var]Value, len(values))
+	maps.Copy(scoped, values)
+
+	for _, expr := range body {
+		i.Update(rule, expr, scoped)
 	}
 }
 
@@ -403,10 +585,6 @@ func (i *refindices) Sorted() []Ref {
 		})
 	}
 	return i.sorted
-}
-
-func (i *refindices) Indexed(rule *Rule) bool {
-	return len(i.rules[rule]) > 0
 }
 
 func (i *refindices) Value(rule *Rule, ref Ref) Value {
@@ -438,6 +616,11 @@ func (i *refindices) updateEqWildcardRef(rule *Rule, a, b Value, constants map[V
 func (i *refindices) tryIndexWildcardRef(rule *Rule, a, b Value, constants map[Var]Value) bool {
 	ref, ok := a.(Ref)
 	if !ok {
+		return false
+	}
+
+	ref = i.resolveRefHead(rule, rule.Head.Args, ref)
+	if ref == nil {
 		return false
 	}
 
@@ -479,7 +662,7 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 		// variable earlier in the query OR a function argument variable.
 		match := expr.Operand(2)
 		if v, ok := match.Value.(Var); ok {
-			if ref := resolveVarToRef(i.rules[rule], args, v); ref != nil {
+			if ref := resolveVarToRef(i.resolvable(rule), args, v); ref != nil {
 				i.insert(rule, &refindex{
 					Ref:   ref,
 					Value: arr.Value,
@@ -502,7 +685,7 @@ func (i *refindices) updateMember(rule *Rule, expr *Expr, constants map[Var]Valu
 	lhs, rhs := expr.Operand(0), expr.Operand(1)
 	lvar, ok := lhs.Value.(Var)
 	if ok {
-		lref := resolveVarToRef(i.rules[rule], rule.Head.Args, lvar)
+		lref := resolveVarToRef(i.resolvable(rule), rule.Head.Args, lvar)
 		if lref != nil {
 			i.updateMemberRefInValue(rule, lref, rhs, constants) // `ref in value`
 			return
@@ -562,7 +745,7 @@ func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term)
 	case Ref:
 		ref = v
 	case Var:
-		ref = resolveVarToRef(i.rules[rule], args, v)
+		ref = resolveVarToRef(i.resolvable(rule), args, v)
 	default:
 		return nil
 	}
@@ -572,6 +755,28 @@ func (i *refindices) resolveAndValidateRef(rule *Rule, args []*Term, term *Term)
 	}
 
 	return ref
+}
+
+// resolveRefHead resolves a ref rooted at a local variable -- what
+//
+//	x := input
+//	x.foo == "bar"
+//
+// gets compiled to -- into the ref that local aliases, splicing the remainder of
+// the ref onto it: `input.foo`. Refs that are already rooted at a root document
+// are returned unchanged; a head that does not resolve yields nil.
+func (i *refindices) resolveRefHead(rule *Rule, args []*Term, ref Ref) Ref {
+	head, isVar := ref[0].Value.(Var)
+	if !isVar || RootDocumentNames.Contains(ref[0]) {
+		return ref
+	}
+
+	resolved := resolveVarToRef(i.resolvable(rule), args, head)
+	if resolved == nil {
+		return nil
+	}
+
+	return resolved.Concat(ref[1:])
 }
 
 // resolveVarToRef checks the previously prepared `*refindex` slice for
@@ -610,9 +815,24 @@ func resolveVarToRef(ri []*refindex, args []*Term, v Var) Ref {
 	return nil
 }
 
+// resolvable returns the indices a var here can be resolved against: the rule's
+// own, plus those of any scope enclosing an operand body.
+func (i *refindices) resolvable(rule *Rule) []*refindex {
+	if len(i.outer) == 0 {
+		return i.rules[rule]
+	}
+	return append(slices.Clone(i.rules[rule]), i.outer...)
+}
+
+// count records that ref took part in indexing a rule, which is what orders the
+// trie levels (see Sorted).
+func (i *refindices) count(ref Ref) {
+	count, _ := i.frequency.Get(ref)
+	i.frequency.Put(ref, count+1)
+}
+
 func (i *refindices) insert(rule *Rule, index *refindex) {
-	count, _ := i.frequency.Get(index.Ref)
-	i.frequency.Put(index.Ref, count+1)
+	i.count(index.Ref)
 
 	_, indexValueIsVar := index.Value.(Var)
 
@@ -1003,13 +1223,16 @@ func (i *refindices) eqOperandsToRefAndValue(rule *Rule, args []*Term, a, b Valu
 		if !ok {
 			return false
 		}
-		if ref := resolveVarToRef(i.rules[rule], args, v); ref != nil {
+		if ref := resolveVarToRef(i.resolvable(rule), args, v); ref != nil {
 			i.insert(rule, &refindex{Ref: ref, Value: bval})
 			return true
 		}
 
 	case Ref:
-		if !i.isValidIndexRef(v) {
+		// A ref rooted at a local -- `x := input; x.foo == "bar"` -- indexes the
+		// same as the ref that local aliases, so long as the local resolves.
+		v = i.resolveRefHead(rule, args, v)
+		if v == nil || !i.isValidIndexRef(v) {
 			return false
 		}
 
@@ -1153,4 +1376,42 @@ func stringSliceToArray(s []string) *Array {
 func skipIndexingOperator(expr *Expr) bool {
 	op := expr.OperatorTerm()
 	return op != nil && skipIndexing.Contains(op)
+}
+
+// bodySkipsIndexing reports whether body contains an expression that must not
+// be indexed away, either at the top level or inside a nested body. The nested
+// bodies matter: a rule holding a `print` call inside an `and`, `or`, `not` or
+// `every` body is still a rule whose side effects are lost if the indexer
+// excludes it from evaluation.
+func bodySkipsIndexing(body Body) bool {
+	if slices.ContainsFunc(body, skipIndexingOperator) {
+		return true
+	}
+	for _, expr := range body {
+		if !exprHasNestedBody(expr) {
+			continue
+		}
+		found := false
+		WalkBodies(expr, func(b Body) bool {
+			if !found && slices.ContainsFunc(b, skipIndexingOperator) {
+				found = true
+			}
+			return found
+		})
+		if found {
+			return true
+		}
+	}
+	return false
+}
+
+// exprHasNestedBody is a cheap pre-check for bodySkipsIndexing: only these
+// expression shapes hold a body directly, so only these are worth the cost of
+// a full walk.
+func exprHasNestedBody(expr *Expr) bool {
+	switch expr.Terms.(type) {
+	case *Every, *Not, *LogicalAnd, *LogicalOr:
+		return true
+	}
+	return false
 }

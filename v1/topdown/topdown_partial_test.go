@@ -41,7 +41,7 @@ func TestTopDownPartialEval(t *testing.T) {
 		wantSupport              []string
 		wantSupportASTs          []*ast.Module
 		ignoreOrder              bool
-		experimentalKeywords     bool // opt in to experimental and/or keywords
+		logicalKeywords          bool // opt in to the and/or keywords
 	}{
 		{
 			note:        "empty",
@@ -1487,6 +1487,28 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note: "save: enumerate unknown base doc via dynamic ref operand (#5471)",
+			// The ref operand plugs to an unknown base document, so the save set
+			// cannot match it as written. Enumeration must still save the ref
+			// instead of failing with "unknown value".
+			query: "data.test.p",
+			input: `{"type": "project", "name": "jared"}`,
+			modules: []string{
+				`package test
+				p if {
+					some i
+					role := data[input.type].user_roles[i]
+					role.user_name == input.name
+				}`,
+			},
+			wantQueries: []string{
+				`"jared" = data.project.user_roles[__local0__1].user_name`,
+			},
+			unknowns: []string{
+				"data.project.user_roles",
+			},
+		},
+		{
 			note:  "automatic shallow inlining: full extent: partial set",
 			query: "data.test.p = x",
 			modules: []string{
@@ -2103,11 +2125,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueryASTs: []ast.Body{
 				ast.NewBody(
 					ast.NewExpr(
-						ast.CallTerm(
-							ast.NewTerm(ast.Equal.Ref()),
-							ast.NewTerm(ast.InputRootRef),
-							ast.InternedTerm(1),
-						),
+						ast.Equal.Call(ast.NewTerm(ast.InputRootRef.Copy()), ast.InternedTerm(1)),
 					),
 				),
 			},
@@ -2257,11 +2275,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueryASTs: []ast.Body{
 				ast.NewBody(
 					ast.NewExpr(
-						ast.CallTerm(
-							ast.NewTerm(ast.Equal.Ref()),
-							ast.NewTerm(ast.InputRootRef),
-							ast.IntNumberTerm(1),
-						),
+						ast.Equal.Call(ast.NewTerm(ast.InputRootRef.Copy()), ast.InternedTerm(1)),
 					),
 				),
 			},
@@ -4339,9 +4353,9 @@ q if { input.x = 7 }`},
 		// and/or baseline (no unknowns: truth-table)
 
 		{
-			note:                 "and: no unknowns, both true",
-			experimentalKeywords: true,
-			query:                "data.test.p",
+			note:            "and: no unknowns, both true",
+			logicalKeywords: true,
+			query:           "data.test.p",
 			modules: []string{`package test
 				p if {
 					true and true
@@ -4349,9 +4363,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{""}, // unconditionally true
 		},
 		{
-			note:                 "and: no unknowns, lhs false",
-			experimentalKeywords: true,
-			query:                "data.test.p",
+			note:            "and: no unknowns, lhs false",
+			logicalKeywords: true,
+			query:           "data.test.p",
 			modules: []string{`package test
 				p if {
 					false and true
@@ -4359,9 +4373,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{}, // unconditionally false
 		},
 		{
-			note:                 "and: no unknowns, rhs false",
-			experimentalKeywords: true,
-			query:                "data.test.p",
+			note:            "and: no unknowns, rhs false",
+			logicalKeywords: true,
+			query:           "data.test.p",
 			modules: []string{`package test
 				p if {
 					true and false
@@ -4369,9 +4383,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{}, // unconditionally false
 		},
 		{
-			note:                 "or: no unknowns, lhs true",
-			experimentalKeywords: true,
-			query:                "data.test.p",
+			note:            "or: no unknowns, lhs true",
+			logicalKeywords: true,
+			query:           "data.test.p",
 			modules: []string{`package test
 				p if {
 					true or false
@@ -4379,9 +4393,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{""}, // unconditionally true
 		},
 		{
-			note:                 "or: no unknowns, rhs true",
-			experimentalKeywords: true,
-			query:                "data.test.p",
+			note:            "or: no unknowns, rhs true",
+			logicalKeywords: true,
+			query:           "data.test.p",
 			modules: []string{`package test
 				p if {
 					false or true
@@ -4389,9 +4403,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{""}, // unconditionally true
 		},
 		{
-			note:                 "or: no unknowns, both true (single result)",
-			experimentalKeywords: true,
-			query:                "data.test.p",
+			note:            "or: no unknowns, both true (single result)",
+			logicalKeywords: true,
+			query:           "data.test.p",
 			modules: []string{`package test
 				p if {
 					true or true
@@ -4399,9 +4413,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{""}, // unconditionally true
 		},
 		{
-			note:                 "or: no unknowns, both false",
-			experimentalKeywords: true,
-			query:                "data.test.p",
+			note:            "or: no unknowns, both false",
+			logicalKeywords: true,
+			query:           "data.test.p",
 			modules: []string{`package test
 				p if {
 					false or false
@@ -4413,9 +4427,9 @@ q if { input.x = 7 }`},
 		// TODO: PE optimization in #8680
 
 		{
-			note:                 "and: unknown lhs only",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and: unknown lhs only",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.x > 0 and true
@@ -4423,9 +4437,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and true`},
 		},
 		{
-			note:                 "and: unknown rhs only",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and: unknown rhs only",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					true and input.y > 0
@@ -4433,9 +4447,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{`true and {__local0__1 = input.y; gt(__local0__1, 0)}`},
 		},
 		{
-			note:                 "and: unknowns in both",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and: unknowns in both",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.x > 0 and input.y > 0
@@ -4443,9 +4457,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} and {__local1__1 = input.y; gt(__local1__1, 0)}`},
 		},
 		{
-			note:                 "or: unknown lhs only",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "or: unknown lhs only",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.x > 0 or false
@@ -4453,9 +4467,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or false`},
 		},
 		{
-			note:                 "or: unknown rhs only",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "or: unknown rhs only",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					false or input.y > 0
@@ -4463,9 +4477,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{`false or {__local0__1 = input.y; gt(__local0__1, 0)}`},
 		},
 		{
-			note:                 "or: unknowns in both",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "or: unknowns in both",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.x > 0 or input.y > 0
@@ -4474,9 +4488,9 @@ q if { input.x = 7 }`},
 		},
 		// Baseline does NOT simplify even when one operand is statically true
 		{
-			note:                 "or: unknown lhs, rhs known-true (no simplification at this layer)",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "or: unknown lhs, rhs known-true (no simplification at this layer)",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.x > 0 or true
@@ -4484,9 +4498,9 @@ q if { input.x = 7 }`},
 			wantQueries: []string{`{__local0__1 = input.x; gt(__local0__1, 0)} or true`},
 		},
 		{
-			note:                 "and: unknown lhs, rhs known-true (no simplification at this layer)",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and: unknown lhs, rhs known-true (no simplification at this layer)",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.x > 0 and true
@@ -4496,9 +4510,9 @@ q if { input.x = 7 }`},
 
 		// nested chains, data-ref unknowns, multi-expr explicit bodies
 		{
-			note:                 "and: nested left-leaning, all unknown",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and: nested left-leaning, all unknown",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.a > 0 and input.b > 0 and input.c > 0
@@ -4515,9 +4529,9 @@ q if { input.x = 7 }`},
 				}`},
 		},
 		{
-			note:                 "or: nested left-leaning, all unknown",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "or: nested left-leaning, all unknown",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					input.a > 0 or input.b > 0 or input.c > 0
@@ -4534,10 +4548,10 @@ q if { input.x = 7 }`},
 				}`},
 		},
 		{
-			note:                 "and: mixed data and input unknowns",
-			experimentalKeywords: true,
-			unknowns:             []string{"input", "data.foo"},
-			query:                "data.test.p = true",
+			note:            "and: mixed data and input unknowns",
+			logicalKeywords: true,
+			unknowns:        []string{"input", "data.foo"},
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					data.foo.x > 0 and input.y > 0
@@ -4551,9 +4565,9 @@ q if { input.x = 7 }`},
 				}`},
 		},
 		{
-			note:                 "and: explicit body multi-expr, unknowns inside",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and: explicit body multi-expr, unknowns inside",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					{ input.x > 0; input.x < 10 } and true
@@ -4562,9 +4576,9 @@ q if { input.x = 7 }`},
 		},
 
 		{
-			note:                 "and (every): unknown inside",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and (every): unknown inside",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					{ x := input.x; every i in x { i in x; i < input.y } } and true 
@@ -4580,9 +4594,9 @@ q if { input.x = 7 }`},
 				} and true`},
 		},
 		{
-			note:                 "or (every): unknown inside",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "or (every): unknown inside",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					{ x := input.x; every i in x { i in x; i < input.y } } or true 
@@ -4600,9 +4614,9 @@ q if { input.x = 7 }`},
 
 		// comprehensions inside and/or operand bodies
 		{
-			note:                 "and: rhs set comp, cross-scope vars",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and: rhs set comp, cross-scope vars",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					x := input.x
@@ -4619,9 +4633,9 @@ q if { input.x = 7 }`},
 				__local0__1 = input.x`},
 		},
 		{
-			note:                 "and: lhs set comp, cross-scope vars",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and: lhs set comp, cross-scope vars",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					x := input.x
@@ -4638,9 +4652,9 @@ q if { input.x = 7 }`},
 				__local0__1 = input.x`},
 		},
 		{
-			note:                 "or: rhs set comp, cross-scope vars",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "or: rhs set comp, cross-scope vars",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					x := input.x
@@ -4657,9 +4671,9 @@ q if { input.x = 7 }`},
 				__local0__1 = input.x`},
 		},
 		{
-			note:                 "or: lhs set comp, cross-scope vars",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "or: lhs set comp, cross-scope vars",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					x := input.x
@@ -4676,9 +4690,9 @@ q if { input.x = 7 }`},
 				__local0__1 = input.x`},
 		},
 		{
-			note:                 "and: rhs array comp, cross-scope vars",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "and: rhs array comp, cross-scope vars",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					x := input.x
@@ -4695,9 +4709,9 @@ q if { input.x = 7 }`},
 				__local0__1 = input.x`},
 		},
 		{
-			note:                 "or: lhs object comp, cross-scope vars",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "or: lhs object comp, cross-scope vars",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					x := input.x
@@ -4716,9 +4730,9 @@ q if { input.x = 7 }`},
 
 		// and/or nested inside other outer constructs
 		{
-			note:                 "every: body contains and with unknowns",
-			experimentalKeywords: true,
-			query:                "data.test.p = true",
+			note:            "every: body contains and with unknowns",
+			logicalKeywords: true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					every x in [1, 2, 3] { x > 0 and x > input }
@@ -4728,25 +4742,25 @@ q if { input.x = 7 }`},
 				}`},
 		},
 		{
-			note:                 "array comprehension: body contains or with unknowns",
-			experimentalKeywords: true,
-			query:                "data.test.p = x",
+			note:            "array comprehension: body contains or with unknowns",
+			logicalKeywords: true,
+			query:           "data.test.p = x",
 			modules: []string{`package test
 				p := [n | n = input.xs[i]; n > 0 or n < 0]`},
 			wantQueries: []string{`x = [n1 | n1 = input.xs[i1]; gt(n1, 0) or lt(n1, 0)]`},
 		},
 		{
-			note:                 "set comprehension: body contains or with unknowns",
-			experimentalKeywords: true,
-			query:                "data.test.p = x",
+			note:            "set comprehension: body contains or with unknowns",
+			logicalKeywords: true,
+			query:           "data.test.p = x",
 			modules: []string{`package test
 				p := {n | n = input.xs[i]; n > 0 or n < 0}`},
 			wantQueries: []string{`x = {n1 | n1 = input.xs[i1]; gt(n1, 0) or lt(n1, 0)}`},
 		},
 		{
-			note:                 "object comprehension: body contains and with unknowns",
-			experimentalKeywords: true,
-			query:                "data.test.p = x",
+			note:            "object comprehension: body contains and with unknowns",
+			logicalKeywords: true,
+			query:           "data.test.p = x",
 			modules: []string{`package test
 				p := {k: v | v := input[k]; v > 0 and v < 10}`},
 			wantQueries: []string{`x = {k1: __local0__1 | __local0__1 = input[k1]; gt(__local0__1, 0) and lt(__local0__1, 10)}`},
@@ -4754,9 +4768,9 @@ q if { input.x = 7 }`},
 
 		// copy-propagation
 		{
-			note:                 "copy propagation: and safety needs extra expr",
-			experimentalKeywords: true,
-			query:                `data.test.p = true`,
+			note:            "copy propagation: and safety needs extra expr",
+			logicalKeywords: true,
+			query:           `data.test.p = true`,
 			modules: []string{
 				`package test
 
@@ -4772,9 +4786,9 @@ q if { input.x = 7 }`},
 			},
 		},
 		{
-			note:                 "copy propagation: or safety needs extra expr",
-			experimentalKeywords: true,
-			query:                `data.test.p = true`,
+			note:            "copy propagation: or safety needs extra expr",
+			logicalKeywords: true,
+			query:           `data.test.p = true`,
 			modules: []string{
 				`package test
 
@@ -4793,9 +4807,9 @@ q if { input.x = 7 }`},
 			},
 		},
 		{
-			note:                 "copy propagation: and safety needs extra expr - no live var overlap",
-			experimentalKeywords: true,
-			query:                `data.test.p = true`,
+			note:            "copy propagation: and safety needs extra expr - no live var overlap",
+			logicalKeywords: true,
+			query:           `data.test.p = true`,
 			modules: []string{
 				`package test
 
@@ -4816,8 +4830,7 @@ q if { input.x = 7 }`},
 
 	for _, tc := range tests {
 		popts := ast.ParserOptions{}
-		if tc.experimentalKeywords {
-			popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+		if tc.logicalKeywords {
 			popts.FutureKeywords = []string{"and", "or"}
 		}
 
@@ -4914,6 +4927,56 @@ q if { input.x = 7 }`},
 	}
 }
 
+func TestTopDownPartialEvalEnumerateBaseAndVirtualDocKeyOnce(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	params := fixtureParams{
+		note:  "enumerate base doc key shadowed by rule tree node once (#4787)",
+		query: "data.test.p = x",
+		data:  `{"x": {"a": {"n": 1}, "b": {"n": 2}}}`,
+		modules: []string{
+			`package test
+			p contains k if { data.x[k] = input.y }`,
+			`package x.a
+			unrelated := 1`,
+		},
+	}
+
+	prepareTest(ctx, t, params, func(ctx context.Context, t *testing.T, f fixture) {
+		query := NewQuery(f.query).
+			WithCompiler(f.compiler).
+			WithStore(f.store).
+			WithTransaction(f.txn).
+			WithUnknowns([]*ast.Term{ast.MustParseTerm("input")})
+
+		_, support, err := query.PartialRun(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(support) != 1 {
+			t.Fatalf("expected 1 support module, got %d: %v", len(support), support)
+		}
+
+		exp := ast.MustParseModule(`package partial.test
+
+		p contains "a" if input.y = {"n": 1, "unrelated": 1}
+		p contains "b" if input.y = {"n": 2}`)
+
+		if len(support[0].Rules) != len(exp.Rules) {
+			t.Fatalf("expected %d support rules, got %d:\n%v", len(exp.Rules), len(support[0].Rules), support[0])
+		}
+
+		for i := range exp.Rules {
+			if !exp.Rules[i].Equal(support[0].Rules[i]) {
+				t.Fatalf("expected support module:\n%v\n\ngot:\n%v", exp, support[0])
+			}
+		}
+	})
+}
+
 func TestTopDownPartialEvalNegation(t *testing.T) {
 	t.Parallel()
 
@@ -4935,7 +4998,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		wantSupportASTs          []*ast.Module
 		ignoreOrder              bool
 		notBodyOnly              bool
-		experimentalKeywords     bool // opt in to experimental and/or keywords
+		logicalKeywords          bool // opt in to the and/or keywords
 	}{
 		{
 			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
@@ -6487,8 +6550,8 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 							Negated: true,
 							Terms: []*ast.Term{
 								{Value: ast.Equality.Ref()},
-								ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("x")),
-								ast.NumberTerm("1"),
+								ast.NewTerm(ast.InputRootRef.Append(ast.InternedTerm("x"))),
+								ast.InternedTerm(1),
 							},
 						},
 					),
@@ -6541,15 +6604,15 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				ast.NewBody(
 					ast.NotExpr(
 						ast.Equality.Expr(
-							ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("x")),
-							ast.NumberTerm("1"),
+							ast.RefTerm(ast.InputRootDocument, ast.InternedTerm("x")),
+							ast.InternedTerm(1),
 						),
 						&ast.Expr{ // legacy negation (equivalent to implicit not-body when serialized to Rego).
 							Negated: true,
 							Terms: []*ast.Term{
 								{Value: ast.Equality.Ref()},
-								ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("y")),
-								ast.NumberTerm("2"),
+								ast.RefTerm(ast.InputRootDocument, ast.InternedTerm("y")),
+								ast.InternedTerm(2),
 							},
 						},
 					),
@@ -6653,10 +6716,10 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 		// TODO: PE optimization in #8680
 
 		{
-			note:                 "not (and): unknown inside",
-			experimentalKeywords: true,
-			notBodyOnly:          true,
-			query:                "data.test.p = true",
+			note:            "not (and): unknown inside",
+			logicalKeywords: true,
+			notBodyOnly:     true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					not { input.x > 0 and true }
@@ -6666,10 +6729,10 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				}`},
 		},
 		{
-			note:                 "not (or): unknowns in both operands",
-			experimentalKeywords: true,
-			notBodyOnly:          true,
-			query:                "data.test.p = true",
+			note:            "not (or): unknowns in both operands",
+			logicalKeywords: true,
+			notBodyOnly:     true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					not { input.x > 0 or input.y > 0 }
@@ -6679,10 +6742,10 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				}`},
 		},
 		{
-			note:                 "not (and): unknown lhs, rhs static false ",
-			experimentalKeywords: true,
-			notBodyOnly:          true,
-			query:                "data.test.p = true",
+			note:            "not (and): unknown lhs, rhs static false ",
+			logicalKeywords: true,
+			notBodyOnly:     true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					not { input.x > 0 and false }
@@ -6692,10 +6755,10 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				}`},
 		},
 		{
-			note:                 "not (or): unknown rhs, lhs static true",
-			experimentalKeywords: true,
-			notBodyOnly:          true,
-			query:                "data.test.p = true",
+			note:            "not (or): unknown rhs, lhs static true",
+			logicalKeywords: true,
+			notBodyOnly:     true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					not {true or input.y > 0}
@@ -6705,10 +6768,10 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				}`},
 		},
 		{
-			note:                 "and (not): unknown inside",
-			experimentalKeywords: true,
-			notBodyOnly:          true,
-			query:                "data.test.p = true",
+			note:            "and (not): unknown inside",
+			logicalKeywords: true,
+			notBodyOnly:     true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					{ x := input.x; not x > 0 } and true 
@@ -6716,10 +6779,10 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 			wantQueries: []string{`{ __local0__1 = input.x; not gt(__local0__1, 0) } and true`},
 		},
 		{
-			note:                 "or (not): unknown inside",
-			experimentalKeywords: true,
-			notBodyOnly:          true,
-			query:                "data.test.p = true",
+			note:            "or (not): unknown inside",
+			logicalKeywords: true,
+			notBodyOnly:     true,
+			query:           "data.test.p = true",
 			modules: []string{`package test
 				p if {
 					{ x := input.x; not x > 0 } or true 
@@ -6747,8 +6810,7 @@ func TestTopDownPartialEvalNegation(t *testing.T) {
 				}
 
 				casePopts := popts
-				if tc.experimentalKeywords {
-					casePopts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+				if tc.logicalKeywords {
 					casePopts.FutureKeywords = append(append([]string{}, popts.FutureKeywords...), "and", "or")
 				}
 
@@ -6858,7 +6920,6 @@ func TestTopDownPartialEvalLogicalRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	popts := ast.ParserOptions{
-		Capabilities:   ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true)),
 		FutureKeywords: []string{"and", "or"},
 	}
 
@@ -7012,7 +7073,9 @@ func residualModuleFor(t *testing.T, ctx context.Context, module string, popts a
 	for _, body := range partials {
 		sb.WriteString("p if {\n")
 		for _, expr := range body {
-			sb.WriteString("\t" + expr.String() + "\n")
+			sb.WriteByte('\t')
+			sb.WriteString(expr.String())
+			sb.WriteByte('\n')
 		}
 		sb.WriteString("}\n")
 	}
@@ -7057,9 +7120,11 @@ func pIsDefined(t *testing.T, ctx context.Context, module, pkg, inputJSON string
 	return len(rs) > 0
 }
 
+// Transformed on copies, as ast.Transform rewrites refs in place.
+
 func replaceWildcardsInBodySet(s bodySet) {
 	for i := range s {
-		x, _ := ast.TransformVars(s[i], func(v ast.Var) (ast.Value, error) {
+		x, _ := ast.TransformVars(s[i].Copy(), func(v ast.Var) (ast.Value, error) {
 			if v.IsWildcard() {
 				return ast.WildcardValue, nil
 			}
@@ -7071,7 +7136,7 @@ func replaceWildcardsInBodySet(s bodySet) {
 
 func replaceWildcardsInModuleSet(s moduleSet) {
 	for i := range s {
-		x, _ := ast.TransformVars(s[i], func(v ast.Var) (ast.Value, error) {
+		x, _ := ast.TransformVars(s[i].Copy(), func(v ast.Var) (ast.Value, error) {
 			if v.IsWildcard() {
 				return ast.WildcardValue, nil
 			}

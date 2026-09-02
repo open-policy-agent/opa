@@ -9,7 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
+	"strings"
 
 	"github.com/open-policy-agent/opa/v1/util"
 )
@@ -25,10 +26,8 @@ type Set struct {
 
 // Sorted returns a sorted copy of s.
 func (s Set) Sorted() Set {
-	cpy := make([]TestCase, len(s.Cases))
-	copy(cpy, s.Cases)
-	sort.Slice(cpy, func(i, j int) bool {
-		return cpy[i].Note < cpy[j].Note
+	cpy := util.SortedFunc(slices.Clone(s.Cases), func(a, b TestCase) int {
+		return strings.Compare(a.Note, b.Note)
 	})
 	return Set{Cases: cpy}
 }

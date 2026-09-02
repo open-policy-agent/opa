@@ -6,13 +6,16 @@
 package profiler
 
 import (
-	"sort"
+	"cmp"
 	"time"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/metrics"
 	"github.com/open-policy-agent/opa/v1/topdown"
+	"github.com/open-policy-agent/opa/v1/util"
 )
+
+var unknownLocation = ast.NewLocation([]byte("???"), "", 0, 0)
 
 // Profiler computes and reports on the time spent on expressions.
 type Profiler struct {
@@ -54,7 +57,7 @@ func (*Profiler) Config() topdown.TraceConfig {
 func (p *Profiler) ReportByFile() Report {
 	p.processLastExpr()
 
-	report := Report{Files: map[string]*FileReport{}}
+	report := Report{Files: make(map[string]*FileReport, len(p.hits))}
 
 	for file, hits := range p.hits {
 		stats := make([]ExprStats, 0, len(hits))
@@ -65,13 +68,12 @@ func (p *Profiler) ReportByFile() Report {
 			stats = append(stats, stat)
 		}
 
-		sortStatsByRow(stats)
 		fr, ok := report.Files[file]
 		if !ok {
 			fr = &FileReport{}
 			report.Files[file] = fr
 		}
-		fr.Result = stats
+		fr.Result = util.SortedFunc(stats, cmpLineAsc)
 	}
 
 	return report
@@ -82,8 +84,12 @@ func (p *Profiler) ReportByFile() Report {
 func (p *Profiler) ReportTopNResults(numResults int, criteria []string) []ExprStats {
 	p.processLastExpr()
 
-	stats := []ExprStats{}
+	n := 0
+	for _, hits := range p.hits {
+		n += len(hits)
+	}
 
+	stats := make(exprStatsSlice, 0, n)
 	for file, hits := range p.hits {
 		for row, stat := range hits {
 			if entry, ok := p.hitsByExprIndex[file][row]; ok {
@@ -93,50 +99,7 @@ func (p *Profiler) ReportTopNResults(numResults int, criteria []string) []ExprSt
 		}
 	}
 
-	// allowed criteria for sorting results
-	allowedCriteria := map[string]lessFunc{}
-	allowedCriteria["total_time_ns"] = func(stat1, stat2 *ExprStats) bool {
-		return stat1.ExprTimeNs > stat2.ExprTimeNs
-	}
-	allowedCriteria["num_eval"] = func(stat1, stat2 *ExprStats) bool {
-		return stat1.NumEval > stat2.NumEval
-	}
-	allowedCriteria["num_redo"] = func(stat1, stat2 *ExprStats) bool {
-		return stat1.NumRedo > stat2.NumRedo
-	}
-	allowedCriteria["num_gen_expr"] = func(stat1, stat2 *ExprStats) bool {
-		return stat1.NumGenExpr > stat2.NumGenExpr
-	}
-	allowedCriteria["file"] = func(stat1, stat2 *ExprStats) bool {
-		return stat1.Location.File > stat2.Location.File
-	}
-	allowedCriteria["line"] = func(stat1, stat2 *ExprStats) bool {
-		return stat1.Location.Row > stat2.Location.Row
-	}
-
-	sortFuncs := []lessFunc{}
-
-	for _, cr := range criteria {
-		if fn, ok := allowedCriteria[cr]; ok {
-			sortFuncs = append(sortFuncs, fn)
-		}
-	}
-
-	// if no criteria return all the stats
-	if len(sortFuncs) == 0 {
-		return stats
-	}
-
-	orderedBy(sortFuncs).Sort(stats)
-
-	// if desired number of results to be returned is less than or
-	// equal to 0 or exceed total available results,
-	// return all the stats
-	if numResults <= 0 || numResults > len(stats) {
-		return stats
-	}
-	return stats[:numResults]
-
+	return stats.orderedBy(criteria...).limit(numResults)
 }
 
 // Trace updates the profiler state.
@@ -149,11 +112,7 @@ func (p *Profiler) Trace(event *topdown.Event) {
 // TraceEvent updates the coverage state.
 func (p *Profiler) TraceEvent(event topdown.Event) {
 	switch event.Op {
-	case topdown.EvalOp:
-		if expr, ok := event.Node.(*ast.Expr); ok && expr != nil {
-			p.processExpr(expr, event.Op)
-		}
-	case topdown.RedoOp:
+	case topdown.EvalOp, topdown.RedoOp:
 		if expr, ok := event.Node.(*ast.Expr); ok && expr != nil {
 			p.processExpr(expr, event.Op)
 		}
@@ -163,7 +122,7 @@ func (p *Profiler) TraceEvent(event topdown.Event) {
 func (p *Profiler) processExpr(expr *ast.Expr, eventType topdown.Op) {
 	if expr.Location == nil {
 		// add fake location to group expressions without a location
-		expr.Location = ast.NewLocation([]byte("???"), "", 0, 0)
+		expr.Location = unknownLocation
 	}
 
 	// set the active timer on the first expression
@@ -223,12 +182,12 @@ func (p *Profiler) processLastExpr() {
 
 func (p *Profiler) calculateHitsByExprIndex() {
 	file := p.prevExpr.location.File
-	hitsUnique, ok := p.hitsByExprIndex[file]
 
+	hitsUnique, ok := p.hitsByExprIndex[file]
 	if !ok {
-		hitsUnique = map[int]map[int]ExprStats{}
-		hitsUnique[p.prevExpr.location.Row] = map[int]ExprStats{p.prevExpr.index: getProfilerStats(p.prevExpr, p.activeTimer)}
-		p.hitsByExprIndex[file] = hitsUnique
+		p.hitsByExprIndex[file] = map[int]map[int]ExprStats{
+			p.prevExpr.location.Row: {p.prevExpr.index: getProfilerStats(p.prevExpr, p.activeTimer)},
+		}
 	} else {
 		row := p.prevExpr.location.Row
 		idx := p.prevExpr.index
@@ -257,9 +216,10 @@ func (p *Profiler) calculateHitsByExprIndex() {
 }
 
 func getProfilerStats(expr exprInfo, timer time.Time) ExprStats {
-	profilerStats := ExprStats{}
-	profilerStats.ExprTimeNs = time.Since(timer).Nanoseconds()
-	profilerStats.Location = expr.location
+	profilerStats := ExprStats{
+		ExprTimeNs: time.Since(timer).Nanoseconds(),
+		Location:   expr.location,
+	}
 
 	switch expr.op {
 	case topdown.EvalOp:
@@ -279,6 +239,8 @@ type ExprStats struct {
 	Location   *ast.Location `json:"location"`
 }
 
+type exprStatsSlice []ExprStats
+
 // ExprStatsAggregated represents the result of profiling an expression
 // by aggregating `n` profiles.
 type ExprStatsAggregated struct {
@@ -293,39 +255,31 @@ func aggregate(stats ...ExprStats) ExprStatsAggregated {
 	if len(stats) == 0 {
 		return ExprStatsAggregated{}
 	}
-	res := ExprStatsAggregated{
-		NumEval:    stats[0].NumEval,
-		NumRedo:    stats[0].NumRedo,
-		NumGenExpr: stats[0].NumGenExpr,
-		Location:   stats[0].Location,
-	}
 	timeNs := make([]int64, 0, len(stats))
 	for _, s := range stats {
 		timeNs = append(timeNs, s.ExprTimeNs)
 	}
-	res.ExprTimeNsStats = metrics.Statistics(timeNs...)
-	return res
+	return ExprStatsAggregated{
+		NumEval:         stats[0].NumEval,
+		NumRedo:         stats[0].NumRedo,
+		NumGenExpr:      stats[0].NumGenExpr,
+		Location:        stats[0].Location,
+		ExprTimeNsStats: metrics.Statistics(timeNs...),
+	}
 }
 
-func AggregateProfiles(profiles ...[]ExprStats) []ExprStatsAggregated {
-	if len(profiles) == 0 {
-		return []ExprStatsAggregated{}
-	}
-	res := make([]ExprStatsAggregated, len(profiles[0]))
-	for j := range len(profiles[0]) {
-		var s []ExprStats
-		for _, p := range profiles {
-			s = append(s, p[j])
+func AggregateProfiles(profiles ...[]ExprStats) (res []ExprStatsAggregated) {
+	if len(profiles) > 0 {
+		res = make([]ExprStatsAggregated, len(profiles[0]))
+		for j := range profiles[0] {
+			s := make(exprStatsSlice, 0, len(profiles))
+			for _, p := range profiles {
+				s = append(s, p[j])
+			}
+			res[j] = aggregate(s...)
 		}
-		res[j] = aggregate(s...)
 	}
 	return res
-}
-
-func sortStatsByRow(ps []ExprStats) {
-	sort.Slice(ps, func(i, j int) bool {
-		return ps[i].Location.Row < ps[j].Location.Row
-	})
 }
 
 // Report represents the profiler report for a set of files.
@@ -338,59 +292,68 @@ type FileReport struct {
 	Result []ExprStats `json:"result"`
 }
 
-// Helper interfaces and methods for sorting a slice of ExprStats structs
-// based on multiple fields.
-
-type lessFunc func(p1, p2 *ExprStats) bool
-
-// multiSorter implements the Sort interface, sorting the changes within.
-type multiSorter struct {
-	stats []ExprStats
-	less  []lessFunc
-}
-
-// Sort sorts the argument slice according to the less functions passed to OrderedBy.
-func (ms *multiSorter) Sort(stats []ExprStats) {
-	ms.stats = stats
-	sort.Sort(ms)
-}
-
-// orderedBy returns a Sorter that sorts using the less functions, in order.
-func orderedBy(less []lessFunc) *multiSorter {
-	return &multiSorter{
-		less: less,
+func (e exprStatsSlice) orderedBy(criteria ...string) exprStatsSlice {
+	if len(criteria) == 0 {
+		return e
 	}
-}
 
-// Len is part of sort.Interface.
-func (ms *multiSorter) Len() int {
-	return len(ms.stats)
-}
+	allComparers := map[string]func(p1, p2 ExprStats) int{
+		"total_time_ns": cmpTotalTimeNs,
+		"num_eval":      cmpNumEval,
+		"num_redo":      cmpNumRedo,
+		"num_gen_expr":  cmpNumGenExpr,
+		"file":          cmpFile,
+		"line":          cmpLineDsc,
+	}
 
-// Swap is part of sort.Interface.
-func (ms *multiSorter) Swap(i, j int) {
-	ms.stats[i], ms.stats[j] = ms.stats[j], ms.stats[i]
-}
-
-// Less is part of sort.Interface. It is implemented by looping along the
-// less functions until it finds a comparison that discriminates between
-// the two items.
-func (ms *multiSorter) Less(i, j int) bool {
-	p, q := &ms.stats[i], &ms.stats[j]
-	// Try all but the last comparison.
-	var k int
-	// changing this here changes the semantics, likely because
-	// k outlives the range.. seems like a bug in the intrange linter
-	//nolint:intrange
-	for k = 0; k < len(ms.less)-1; k++ {
-		less := ms.less[k]
-		switch {
-		case less(p, q):
-			return true
-		case less(q, p):
-			return false
+	criteriaComparers := make([]func(ExprStats, ExprStats) int, 0, len(criteria))
+	for _, c := range criteria {
+		if fn, ok := allComparers[c]; ok {
+			criteriaComparers = append(criteriaComparers, fn)
 		}
-		// p == q; try the next comparison.
 	}
-	return ms.less[k](p, q)
+
+	return util.SortedFunc(e, func(a, b ExprStats) int {
+		for _, comparer := range criteriaComparers {
+			if res := comparer(a, b); res != 0 {
+				return res
+			}
+		}
+		return 0
+	})
+}
+
+func (e exprStatsSlice) limit(n int) exprStatsSlice {
+	if n <= 0 {
+		return e
+	}
+	return e[:min(n, len(e))]
+}
+
+func cmpTotalTimeNs(stat1, stat2 ExprStats) int {
+	return int(stat2.ExprTimeNs - stat1.ExprTimeNs)
+}
+
+func cmpNumEval(stat1, stat2 ExprStats) int {
+	return stat2.NumEval - stat1.NumEval
+}
+
+func cmpNumRedo(stat1, stat2 ExprStats) int {
+	return stat2.NumRedo - stat1.NumRedo
+}
+
+func cmpNumGenExpr(stat1, stat2 ExprStats) int {
+	return stat2.NumGenExpr - stat1.NumGenExpr
+}
+
+func cmpFile(stat1, stat2 ExprStats) int {
+	return cmp.Compare(stat2.Location.File, stat1.Location.File)
+}
+
+func cmpLineDsc(stat1, stat2 ExprStats) int {
+	return cmp.Compare(stat2.Location.Row, stat1.Location.Row)
+}
+
+func cmpLineAsc(stat1, stat2 ExprStats) int {
+	return cmp.Compare(stat1.Location.Row, stat2.Location.Row)
 }

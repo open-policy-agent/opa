@@ -2,7 +2,6 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint: goconst // string duplication is for test readability.
 package server
 
 import (
@@ -68,7 +67,7 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 )
 
-func init() {
+func TestMain(m *testing.M) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.set_outgoing",
 		Decl: astTypes.NewFunction(nil, astTypes.B),
@@ -83,6 +82,8 @@ func init() {
 			return iter(ast.BooleanTerm(true))
 		},
 	)
+
+	os.Exit(m.Run())
 }
 
 type tr struct {
@@ -1272,6 +1273,128 @@ func TestCompileV1UnsafeBuiltin(t *testing.T) {
 
 	if err := f.v1(http.MethodPost, `/compile`, query, 400, expResp); err != nil {
 		t.Fatalf("Expected bad request but got %v", f.recorder)
+	}
+}
+
+// TestServerLogicalKeywords covers the `and`/`or` keywords across the APIs that
+// take Rego from a client: policy upload, data evaluation, ad-hoc queries and
+// the compile API.
+func TestServerLogicalKeywords(t *testing.T) {
+	t.Parallel()
+
+	v1Module := `package test
+		import future.keywords.and
+		import future.keywords.or
+
+		allow if {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	v0Module := `package test
+		import future.keywords.and
+		import future.keywords.or
+
+		allow {
+			input.user == "alice" or (input.role == "admin" and input.verified)
+		}`
+
+	expQuery := func(s string) string {
+		body := ast.MustParseBodyWithOpts(s, ast.ParserOptions{FutureKeywords: []string{"and", "or"}})
+		return fmt.Sprintf(`{"result": {"queries": [%v]}}`, string(util.MustMarshalJSON(body)))
+	}
+
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		trs         []tr
+	}{
+		{
+			note: "put policy, evaluate data",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v1Module, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": true}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": false}}`, 200, `{}`},
+			},
+		},
+		{
+			note:        "put policy, evaluate data (v0 rego-version)",
+			regoVersion: ast.RegoV0,
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v0Module, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+				{http.MethodPost, "/data/test/allow", `{"input": {"role": "admin", "verified": false}}`, 200, `{}`},
+			},
+		},
+		{
+			note: "put policy, wildcard future.keywords import",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", `package test
+					import future.keywords
+					
+					allow if {
+						input.user == "alice" or (input.role == "admin" and input.verified)
+					}`, 200, ""},
+				{http.MethodPost, "/data/test/allow", `{"input": {"user": "alice"}}`, 200, `{"result": true}`},
+			},
+		},
+		{
+			note: "put policy without import is rejected",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", `package test
+					allow if {
+						input.user == "alice" or input.role == "admin"
+					}`, 400, ""},
+			},
+		},
+		{
+			note: "compile policy",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v1Module, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input"],
+					"query": "data.test.allow = true"
+				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+			},
+		},
+		{
+			// PE saves logical expressions whole, so the residual query
+			// still refers to input paths that were not declared unknown.
+			// Clients of the compile API need to expect that.
+			note: "compile does not narrow operands using known input",
+			trs: []tr{
+				{http.MethodPut, "/policies/logical", v1Module, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input.role"],
+					"input": {"user": "bob", "verified": true},
+					"query": "data.test.allow = true"
+				}`, 200, expQuery(`input.user = "alice" or input.role = "admin" and input.verified`)},
+			},
+		},
+		{
+			// The keywords are import-gated, and neither the query nor the
+			// compile API accepts imports, so there is no way to enable them
+			// for an ad-hoc query. Pinned so a future imports field shows up
+			// here as a deliberate change.
+			note: "keywords are unavailable in ad-hoc queries",
+			trs: []tr{
+				{http.MethodPost, "/query", `{"query": "input.a or input.b"}`, 400, ""},
+				{http.MethodPost, "/compile", `{"query": "input.a or input.b"}`, 400, ""},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			if tc.regoVersion != ast.RegoUndefined {
+				executeRequests(t, tc.trs, variant{
+					name: tc.regoVersion.String(),
+					opts: []any{plugins.WithParserOptions(ast.ParserOptions{RegoVersion: tc.regoVersion})},
+				})
+			} else {
+				executeRequests(t, tc.trs)
+			}
+		})
 	}
 }
 
@@ -2646,7 +2769,7 @@ func TestBundleScope(t *testing.T) {
 
 			if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
 				Revision: "AAAAA",
-				Roots:    &[]string{"a/b/c", "x/y", "foobar"},
+				Roots:    &[]string{"a/b/c", "x/y", "foobar", "q/foo bar"},
 			}); err != nil {
 				t.Fatal(err)
 			}
@@ -2738,6 +2861,49 @@ func TestBundleScope(t *testing.T) {
 					body:   `{"a": "b"}`,
 					code:   http.StatusBadRequest,
 					resp:   `{"code": "invalid_parameter", "message": "can't write to document root with bundle roots configured"}`,
+				},
+				// A root segment that needs escaping must still be recognized as
+				// owned; the request path arrives percent-encoded.
+				{
+					method: "PUT",
+					path:   "/data/q/foo%20bar",
+					body:   "1",
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path q/foo bar is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/data/q/foo%20bar/x",
+					body:   "1",
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path q/foo bar/x is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PATCH",
+					path:   "/data/q",
+					body:   `[{"path": "/foo bar", "op": "add", "value": 1}]`,
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path q/foo bar is owned by bundle \"test-bundle\""}`,
+				},
+				{
+					method: "PUT",
+					path:   "/policies/test2",
+					body:   `package q["foo bar"]`,
+					code:   http.StatusBadRequest,
+					resp:   `{"code": "invalid_parameter", "message": "path q/foo bar is owned by bundle \"test-bundle\""}`,
+				},
+				// ...but a sibling that merely shares a prefix is not owned.
+				{
+					method: "PUT",
+					path:   "/data/q/foo",
+					body:   "1",
+					code:   http.StatusNoContent,
+				},
+				{
+					method: "PUT",
+					path:   "/policies/test3",
+					body:   `package q.foo`,
+					code:   http.StatusOK,
 				},
 			}
 
@@ -4372,6 +4538,46 @@ func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
 
 	if !reflect.DeepEqual(decisions[0].HTTPRequestContext, exp) {
 		t.Fatalf("Expected HTTP request context %v but got: %v", exp, decisions[0].HTTPRequestContext)
+	}
+}
+
+// TestDecisionLoggingWithCancelledRequestContext ensures a cancelled/expired request
+// context doesn't reach the decision logger, since that can race a mask/drop policy
+// eval inside the logger and cause the decision event to be dropped.
+func TestDecisionLoggingWithCancelledRequestContext(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+
+	var loggedCtxErr error
+	var loggedCalls int
+
+	f.server = f.server.WithDecisionLoggerWithErr(func(ctx context.Context, _ *Info) error {
+		loggedCalls++
+		loggedCtxErr = ctx.Err()
+		return nil
+	})
+
+	req := newReqV1("GET", "/data/undefined", "")
+
+	ctx, cancel := context.WithCancel(req.Context())
+	cancel() // simulate a client disconnect / request timeout before the decision is logged
+	req = req.WithContext(ctx)
+
+	// The request context is already cancelled before the handler even runs, so the
+	// eval itself may race the cancellation and return either a successful result or
+	// an eval_cancel_error; that outcome isn't what's under test here. What matters is
+	// that the decision logger still runs exactly once, with a context that isn't
+	// cancelled.
+	f.recorder = httptest.NewRecorder()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if loggedCalls != 1 {
+		t.Fatalf("Expected exactly 1 decision log call but got: %d", loggedCalls)
+	}
+
+	if loggedCtxErr != nil {
+		t.Fatalf("Expected the decision logger's context to not be cancelled, got: %v", loggedCtxErr)
 	}
 }
 

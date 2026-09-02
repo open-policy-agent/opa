@@ -6,7 +6,6 @@ package copypropagation
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -374,11 +373,10 @@ func (p *CopyPropagator) placeholderRef(b *binding) *ast.Expr {
 	if !ok || !p.placeholders.Contains(k) {
 		return nil
 	}
-	ref, ok := b.v.(ast.Ref)
-	if !ok {
+	if _, ok = b.v.(ast.Ref); !ok {
 		return nil
 	}
-	return ast.NewExpr(ast.NewTerm(ref))
+	return ast.NewExpr(ast.NewTerm(b.v))
 }
 
 func (p *CopyPropagator) updateBindingsEq(a, b *ast.Term) (ast.Var, ast.Value, bool) {
@@ -475,10 +473,9 @@ func sortbindings(bindings *ast.ValueMap) []*binding {
 		sorted = append(sorted, &binding{k, v})
 		return false
 	})
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].k.Compare(sorted[j].k) > 0
+	return util.SortedFunc(sorted, func(a, b *binding) int {
+		return b.k.Compare(a.k)
 	})
-	return sorted
 }
 
 // makeDisjointSets builds the union-find structure for the query. The structure
@@ -497,24 +494,22 @@ func makeDisjointSets(livevars ast.VarSet, query ast.Body) (*unionFind, bool) {
 	for _, expr := range query {
 		if expr.IsEquality() && !expr.Negated && len(expr.With) == 0 {
 			a, b := expr.Operand(0), expr.Operand(1)
-			varA, ok1 := a.Value.(ast.Var)
-			varB, ok2 := b.Value.(ast.Var)
+			_, aIsVar := a.Value.(ast.Var)
+			_, bIsVar := b.Value.(ast.Var)
 
 			switch {
-			case ok1 && ok2:
-				if _, ok := uf.Merge(varA, varB); !ok {
+			case aIsVar && bIsVar:
+				if _, ok := uf.Merge(a.Value, b.Value); !ok {
 					return nil, false
 				}
-
-			case ok1 && ast.IsConstant(b.Value):
-				root := uf.MakeSet(varA)
+			case aIsVar && ast.IsConstant(b.Value):
+				root := uf.MakeSet(a.Value)
 				if root.constant != nil && !root.constant.Equal(b) {
 					return nil, false
 				}
 				root.constant = b
-
-			case ok2 && ast.IsConstant(a.Value):
-				root := uf.MakeSet(varB)
+			case bIsVar && ast.IsConstant(a.Value):
+				root := uf.MakeSet(b.Value)
 				if root.constant != nil && !root.constant.Equal(a) {
 					return nil, false
 				}
@@ -527,11 +522,10 @@ func makeDisjointSets(livevars ast.VarSet, query ast.Body) (*unionFind, bool) {
 }
 
 func isNoop(expr *ast.Expr) bool {
-
 	switch t := expr.Terms.(type) {
 	case []*ast.Term:
 		// A==A can be ignored
-		if expr.Operator().Equal(ast.Equal.Ref()) {
+		if expr.Operator().Equal(ast.Interned.Refs.Equal) {
 			return expr.Operand(0).Equal(expr.Operand(1))
 		}
 		return false

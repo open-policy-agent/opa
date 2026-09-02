@@ -221,9 +221,9 @@ func getABIVersion(mod api.Module) (int32, int32, error) {
 }
 
 // close releases the wazero Runtime and all resources associated with this VM.
-func (v *VM) close() {
-	if v.runtime != nil {
-		v.runtime.Close(context.Background())
+func (i *VM) close() {
+	if i.runtime != nil {
+		i.runtime.Close(context.Background())
 	}
 }
 
@@ -670,11 +670,8 @@ func (i *VM) cloneDataSegment() (int32, []byte) {
 
 func call(ctx context.Context, vm *VM, name string, args ...int32) (int32, error) {
 	res, err := callOrCancel(ctx, vm, name, args...)
-	if err != nil {
+	if err != nil || res == nil {
 		return 0, err
-	}
-	if res == nil {
-		return 0, nil
 	}
 	return res.(int32), nil
 }
@@ -697,22 +694,18 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (any,
 
 	res, err := f.Call(ctx, ul...)
 	if err != nil {
-		var abort abortError
-		if errors.As(err, &abort) {
+		if abort, ok := errors.AsType[abortError](err); ok {
 			return 0, sdk_errors.New(sdk_errors.InternalErr, abort.message)
 		}
-		var cancelled cancelledError
-		if errors.As(err, &cancelled) {
+		if cancelled, ok := errors.AsType[cancelledError](err); ok {
 			return 0, sdk_errors.New(sdk_errors.CancelledErr, cancelled.message)
 		}
-		var be builtinError
-		if errors.As(err, &be) {
+		if be, ok := errors.AsType[builtinError](err); ok {
 			return 0, sdk_errors.New(sdk_errors.InternalErr, be.err.Error())
 		}
 		// WithCloseOnContextDone: wazero closes the module and returns sys.ExitError
 		// when ctx is cancelled or times out mid-execution (tight wasm loops included).
-		var exitErr *sys.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*sys.ExitError](err); ok {
 			c := exitErr.ExitCode()
 			if c == sys.ExitCodeContextCanceled || c == sys.ExitCodeDeadlineExceeded {
 				vm.dead = true

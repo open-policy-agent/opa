@@ -42,7 +42,7 @@ type Manifest struct {
 	// Free-form metadata object. Modeled as `Struct` because the Go field
 	// is `map[string]any`.
 	Metadata *structpb.Struct `protobuf:"bytes,6,opt,name=metadata" json:"metadata,omitempty"`
-	// True iff `bundle.Manifest.Roots` was non-nil. `repeated string` can't
+	// True if `bundle.Manifest.Roots` was non-nil. `repeated string` can't
 	// distinguish nil (default to [""]) from explicit-empty (owns no paths).
 	RootsSet      *bool `protobuf:"varint,7,opt,name=roots_set,json=rootsSet" json:"roots_set,omitempty"`
 	unknownFields protoimpl.UnknownFields

@@ -98,22 +98,22 @@ if err := session.StepOver(threads[0].ID); err != nil {
 ```
 allow if {
   x := f(input) >-+
-  x == 1          |
-}                 |
-                  |
-f(x) := y if {  <-+
+  x == 1        <-+
+}
+
+f(x) := y if {
   y := x + 1
 }
 ```
 
-### Example 2
+#### Example 2
 
 ```
 allow if {
   every x in l { >-+
-    x < 10       <-+
-  }
-  input.x == 1
+    x < 10         |
+  }                |
+  input.x == 1   <-+
 ```
 
 ### Step In
@@ -127,7 +127,7 @@ if err := session.StepIn(threads[0].ID); err != nil {
 }
 ```
 
-### Example 1
+#### Example 1
 
 ```
 allow if {
@@ -140,7 +140,7 @@ f(x) := y if {  <-+
 }
 ```
 
-### Example 2
+#### Example 2
 
 ```
 allow if {
@@ -174,7 +174,7 @@ f(x) := y if {    |
 }
 ```
 
-### Example 2
+#### Example 2
 
 ```
 allow if {
@@ -184,6 +184,71 @@ allow if {
   input.x == 1   <-+
 }
 ```
+
+## Stack Traces
+
+`StackTrace()` returns the frames of a thread, ordered from the most recent frame to the least recent.
+How trace events are grouped into frames is controlled by `LaunchProperties.StackTraceMode`, which accepts
+three values:
+
+| Value     | Constant                | Mode                                    |
+| --------- | ----------------------- | --------------------------------------- |
+| `""`      | `StackTraceModeDefault` | same as `query`; the zero value default |
+| `"query"` | `StackTraceModeQuery`   | one frame per query scope               |
+| `"event"` | `StackTraceModeEvent`   | one frame per consumed trace event      |
+
+```go
+launchProps := debug.LaunchProperties{
+    StackTraceMode: debug.StackTraceModeQuery, // the default
+}
+```
+
+### Query Mode
+
+`StackTraceModeQuery` (the default) creates one frame per query scope: the base query, a rule or
+function body, a comprehension, or an `every` expression and its body. Frames are pushed and popped as
+evaluation descends into, and returns from, referenced rules, called functions, comprehensions, and every
+expressions.
+
+A frame is named for the query it represents, prefixed with the ID of that query to allow correlating
+frames with the query IDs reported in OPA's traces. A frame is located on the expression that query is
+currently evaluating. For a frame below the top of the stack, that is the expression from which the query
+above it was entered. Expressions filtered out by `LaunchProperties.SkipOps` are not considered.
+
+Stopped on a breakpoint on row 7 of:
+
+```rego
+package example         # 1
+                        # 2
+allow if {              # 3
+	x := f(input.n)     # 4
+	x > 1               # 5
+	every y in input.l { # 6
+		y < 10          # 7 <- breakpoint
+	}                   # 8
+}                       # 9
+                        # 10
+f(n) := n + 1           # 11
+```
+
+the stack trace has four frames:
+
+```
+4: lt(__local2__, 10)                                          policy.rego:7
+3: every __local1__, __local2__ in __local5__ { lt(...) }      policy.rego:6
+1: data.example.allow                                          policy.rego:6
+0: data.example.allow = x                                      query:1
+```
+
+Note that frame names are rendered from the compiled policy, so rewritten local variables appear in their
+generated form.
+
+### Event Mode
+
+`StackTraceModeEvent` creates one frame per trace event consumed by the debugger, named after the
+event's pretty-printed trace line. Events filtered out by `LaunchProperties.SkipOps` also get a frame, and
+the number of frames grows with the number of events consumed rather than with query nesting; the same
+stop as above produces 29 frames.
 
 ## Fetching Variable Values
 

@@ -3,6 +3,7 @@ package ast
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -54,6 +55,45 @@ deny contains msg if {
 				c := NewCompiler()
 				if c.Compile(modules); c.Failed() {
 					b.Fatal(c.Errors)
+				}
+			}
+		})
+	}
+}
+
+// Cost of naming the enclosing rule in safety errors, at 5000 unsafe rules:
+//
+//	 99454653 ns/op // before
+//	158294986 ns/op // shared lines looked up per reported error
+//	100755675 ns/op // shared lines indexed once per module
+func BenchmarkCompileUnsafeRules(b *testing.B) {
+	// The safety stages keep checking rules after the error limit is reached, so
+	// a module in which every rule is unsafe reports (and discards) an error per
+	// rule. That is what the per-module index of shared source lines has to stay
+	// off the critical path of -- looking lines up per error is quadratic in the
+	// number of rules.
+	sizes := []int{100, 1000, 5000}
+
+	for _, size := range sizes {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
+			var sb strings.Builder
+			sb.WriteString("package bench\n\n")
+			for i := range size {
+				// x is never bound, so every rule fails the safety check.
+				fmt.Fprintf(&sb, "p%d if {\n\tx == %d\n}\n\n", i, i)
+			}
+			base := MustParseModule(sb.String())
+
+			for b.Loop() {
+				// Compile rewrites modules in place, so every iteration needs
+				// its own copy. Copying is not what we're measuring.
+				b.StopTimer()
+				module := base.Copy()
+				b.StartTimer()
+
+				c := NewCompiler()
+				if c.Compile(map[string]*Module{"mod.rego": module}); !c.Failed() {
+					b.Fatal("expected safety errors")
 				}
 			}
 		})

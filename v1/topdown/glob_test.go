@@ -73,6 +73,78 @@ func TestGlobBuiltinCache(t *testing.T) {
 	}
 }
 
+// TestGlobMatchCompileError pins the patterns glob.match rejects, and the
+// message it rejects them with: both are visible to policy authors, and both
+// have changed with a gobwas/glob upgrade before. Note that a malformed
+// pattern is not cached, so this test does not disturb the cache assertions
+// above.
+func TestGlobMatchCompileError(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		note    string
+		pattern string
+		wantErr string
+	}{
+		{
+			note:    "unclosed pattern-alternatives list",
+			pattern: "{a,b",
+			wantErr: "glob: syntax error at 4: unclosed `{`",
+		},
+		{
+			note:    "trailing backslash",
+			pattern: `a\`,
+			wantErr: "glob: syntax error at 2: trailing backslash",
+		},
+		{
+			note:    "lone backslash",
+			pattern: `\`,
+			wantErr: "glob: syntax error at 1: trailing backslash",
+		},
+		{
+			note:    "empty character-list",
+			pattern: "[]",
+			wantErr: "glob: syntax error at 2: could not parse range",
+		},
+		{
+			note:    "unclosed character-list",
+			pattern: "[abc",
+			wantErr: "glob: syntax error at 4: unexpected end of input",
+		},
+		{
+			note:    "reversed character-range",
+			pattern: "[c-a]",
+			wantErr: "glob: syntax error at 5: range hi character is less than lo",
+		},
+		{
+			note:    "invalid UTF-8",
+			pattern: "a\xffb",
+			wantErr: "glob: syntax error at 1: invalid UTF-8 sequence",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			operands := []*ast.Term{
+				ast.NewTerm(ast.String(tc.pattern)),
+				ast.NullTerm(),
+				ast.NewTerm(ast.String("abc")),
+			}
+
+			err := builtinGlobMatch(BuiltinContext{}, operands, func(*ast.Term) error { return nil })
+			if err == nil {
+				t.Fatalf("Expected error for pattern %q", tc.pattern)
+			}
+
+			if err.Error() != tc.wantErr {
+				t.Errorf("Expected error %q but got %q", tc.wantErr, err.Error())
+			}
+		})
+	}
+}
+
 func TestGlobBuiltinInterQueryValueCache(t *testing.T) {
 	t.Parallel()
 

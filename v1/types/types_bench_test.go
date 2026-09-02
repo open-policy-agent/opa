@@ -12,24 +12,34 @@ import (
 )
 
 func BenchmarkSelect(b *testing.B) {
-	sizes := []int{1000, 10000, 100000}
+	sizes := []int{1000}
 	for _, size := range sizes {
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			tpe := generateType(size)
-			runSelectBenchmark(b, tpe, json.Number(strconv.Itoa(size-1)))
+			var num any = json.Number(strconv.Itoa(size - 1))
+			for b.Loop() {
+				if result := Select(tpe, num); result != nil {
+					if Compare(result, N) != 0 {
+						b.Fatal("expected number type")
+					}
+				}
+			}
 		})
 	}
 }
 
-func runSelectBenchmark(b *testing.B, tpe Type, key any) {
-
-	for b.Loop() {
-		if result := Select(tpe, key); result != nil {
-			if Compare(result, N) != 0 {
-				b.Fatal("expected number type")
-			}
+func generateTypes(n int, prefix ...string) Any {
+	types := make([]Type, 0, n)
+	if len(prefix) > 0 {
+		for i := range n {
+			types = append(types, generateTypeWithPrefix(i, prefix[0]))
+		}
+	} else {
+		for i := range n {
+			types = append(types, generateType(i))
 		}
 	}
+	return types
 }
 
 func generateType(n int) Type {
@@ -51,11 +61,7 @@ func generateTypeWithPrefix(n int, prefix string) Type {
 func BenchmarkAnyMergeOne(b *testing.B) {
 	sizes := []int{100, 500, 1000, 5000, 10000}
 	for _, size := range sizes {
-		anyA := Any(make([]Type, 0, size))
-		for i := range size {
-			tpe := generateType(i)
-			anyA = append(anyA, tpe)
-		}
+		anyA := generateTypes(size)
 		tpeB := N
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			for b.Loop() {
@@ -73,16 +79,8 @@ func BenchmarkAnyUnionAllUniqueTypes(b *testing.B) {
 	sizes := []int{100, 250, 500, 1000, 2500}
 	for _, sizeA := range sizes {
 		for _, sizeB := range sizes {
-			anyA := Any(make([]Type, 0, sizeA))
-			for i := range sizeA {
-				tpe := generateType(i)
-				anyA = append(anyA, tpe)
-			}
-			anyB := Any(make([]Type, 0, sizeB))
-			for i := range sizeB {
-				tpe := generateTypeWithPrefix(i, "B-")
-				anyB = append(anyB, tpe)
-			}
+			anyA := generateTypes(sizeA)
+			anyB := generateTypes(sizeB, "B-")
 			b.Run(fmt.Sprintf("%dx%d", sizeA, sizeB), func(b *testing.B) {
 				for b.Loop() {
 					resultA2B := anyA.Union(anyB)

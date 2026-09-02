@@ -5,6 +5,7 @@
 package rego
 
 import (
+	"os"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -12,7 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/types"
 )
 
-func init() {
+func TestMain(m *testing.M) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.transform_metadata",
 		Decl: types.NewFunction(nil, types.B),
@@ -30,6 +31,8 @@ func init() {
 			return iter(ast.BooleanTerm(true))
 		},
 	)
+
+	os.Exit(m.Run())
 }
 
 func TestEvalMetadataTransformViaBuiltin(t *testing.T) {

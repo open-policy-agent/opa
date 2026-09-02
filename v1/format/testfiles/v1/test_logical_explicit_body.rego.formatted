@@ -1,0 +1,46 @@
+package test
+
+import future.keywords.and
+import future.keywords.or
+
+# An explicit `{...}` operand is a body of its own, and is never collapsed
+lhs_body if { input.a } and input.b
+
+rhs_body if input.a or { input.b }
+
+both_bodies if { input.a } and { input.b }
+
+multi_expr_body if {
+	x := input.a
+	x > 0
+} and input.b
+
+multi_line_body if {
+	x := input.a
+	x > 0
+} and input.b
+
+body_on_operator_line if input.a and {
+	input.b or input.c
+}
+
+nested_bodies if { input.a; input.b } and {
+	input.c
+	input.d
+}
+
+close_brace_shares_operator_line if {
+	input.a
+} and {
+	input.b
+}
+
+set_operand_keeps_parens if ({input.a}) and input.b
+
+set_operand_keeps_parens_rhs if input.a and ({input.b})
+
+# a variable bound in an operand body does not escape it, so it is used there
+body_with_comprehension if {
+	xs := [x | input.a[x]]
+	count(xs) > 0
+} and input.b

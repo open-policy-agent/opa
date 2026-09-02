@@ -38,6 +38,21 @@ func TestCompare(t *testing.T) {
 		{"1.10", "1.11", -1},
 		{"0", "1.5", -1},
 		{"1.5", "0", 1},
+
+		// A zero written with a decimal point, compared against a non-integral
+		// value. These panicked with "illegal value": the float detection above
+		// trims with a cutset rather than a suffix, so "0.0" becomes "" and
+		// "-0.0" becomes "-", and the trimmed form was then handed to
+		// big.Float.SetString.
+		{"0.0", "0.7", -1},
+		{"0.7", "0.0", 1},
+		{"0.0", "-0.7", 1},
+		{"-0.7", "0.0", -1},
+		{"0.00", "1.5", -1},
+		{"-0.0", "0.5", -1},
+		{"0.0e0", "0.5", -1},
+		{"0.0", "0.0", 0},
+		{"0.0", "-0.0", 0},
 		{"100000", "100", 1},
 		{"123456789123456789123", "123456789123456789123", 0},
 		{"123456789123456789123", "123456789123456789122", 1},

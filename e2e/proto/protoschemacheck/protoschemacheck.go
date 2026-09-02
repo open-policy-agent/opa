@@ -14,12 +14,12 @@ import (
 	"maps"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/bufbuild/protocompile"
+	"github.com/open-policy-agent/opa/v1/util"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -476,8 +476,7 @@ func checkOneof(t *testing.T, declared map[string]protoreflect.MessageDescriptor
 			orphanCases = append(orphanCases, caseName)
 		}
 	}
-	sort.Strings(orphanCases)
-	for _, caseName := range orphanCases {
+	for _, caseName := range util.Sorted(orphanCases) {
 		f := caseFields[caseName]
 		t.Errorf("%s.%s: proto case %q (number %d) has no corresponding discriminator in DiscriminatorToCase; either remove it (and `reserved %d` the number) or extend the spec", o.MessageName, o.OneofName, caseName, f.Number(), f.Number())
 	}

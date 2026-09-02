@@ -11,6 +11,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -27,6 +33,8 @@
       "required": [
         "array",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "value"
@@ -37,6 +45,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -54,6 +68,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "target",
@@ -67,6 +83,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -82,6 +104,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "source",
@@ -95,6 +119,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -110,6 +140,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "source",
@@ -138,6 +170,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -157,6 +195,8 @@
       "required": [
         "blocks",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row"
       ],
@@ -166,6 +206,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -180,6 +226,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "index",
         "row"
@@ -210,6 +258,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -243,6 +297,8 @@
       "required": [
         "args",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "path",
         "result",
@@ -254,6 +310,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -281,6 +343,8 @@
       "required": [
         "args",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "func",
         "result",
@@ -292,6 +356,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -312,6 +382,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "key",
         "row",
@@ -324,6 +396,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -343,6 +421,8 @@
         "a",
         "b",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row"
       ],
@@ -414,6 +494,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -426,6 +512,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "source"
@@ -438,6 +526,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -450,6 +544,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "source"
@@ -462,6 +558,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -474,6 +576,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "source"
@@ -486,6 +590,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -498,6 +608,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "source"
@@ -508,6 +620,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -522,6 +640,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "source"
@@ -532,6 +652,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -549,6 +675,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "source",
@@ -556,10 +684,44 @@
       ],
       "additionalProperties": false
     },
+    "Location": {
+      "type": "object",
+      "properties": {
+        "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
+        "file": {
+          "type": "integer"
+        },
+        "row": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "end_col",
+        "end_row",
+        "file",
+        "row"
+      ],
+      "additionalProperties": false
+    },
     "MakeArrayStmt": {
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -578,6 +740,8 @@
       "required": [
         "capacity",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "target"
@@ -588,6 +752,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -602,6 +772,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "target"
@@ -612,6 +784,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -629,6 +807,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "target",
@@ -648,6 +828,12 @@
         "row": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "index": {
           "type": "integer"
         },
@@ -662,6 +848,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "index",
         "row",
@@ -675,6 +863,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -687,6 +881,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "target"
@@ -699,6 +895,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -711,6 +913,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "target"
@@ -723,6 +927,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -732,6 +942,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row"
       ],
@@ -741,6 +953,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -760,6 +978,8 @@
         "a",
         "b",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row"
       ],
@@ -769,6 +989,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -791,6 +1017,8 @@
       "required": [
         "block",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row"
       ],
@@ -800,6 +1028,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -820,6 +1054,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "key",
         "object",
@@ -834,6 +1070,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -852,6 +1094,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "key",
         "object",
@@ -864,6 +1108,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -886,6 +1136,8 @@
         "a",
         "b",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "target"
@@ -946,6 +1198,12 @@
         },
         "static": {
           "$ref": "#/$defs/Static"
+        },
+        "unplanned_rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UnplannedRule"
+          }
         }
       },
       "additionalProperties": false
@@ -954,6 +1212,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -968,6 +1232,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "target"
@@ -978,6 +1244,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -992,6 +1264,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "value"
@@ -1002,6 +1276,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -1016,6 +1296,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "source"
@@ -1026,6 +1308,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -1057,6 +1345,8 @@
       "required": [
         "block",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "key",
         "row",
@@ -1069,6 +1359,12 @@
       "type": "object",
       "properties": {
         "col": {
+          "type": "integer"
+        },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
           "type": "integer"
         },
         "file": {
@@ -1086,6 +1382,8 @@
       },
       "required": [
         "col",
+        "end_col",
+        "end_row",
         "file",
         "row",
         "set",
@@ -1677,6 +1975,29 @@
       ],
       "additionalProperties": false
     },
+    "UnplannedRule": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Location"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "location",
+        "path"
+      ],
+      "additionalProperties": false
+    },
     "Val": {
       "oneOf": [
         {
@@ -1735,6 +2056,12 @@
         "col": {
           "type": "integer"
         },
+        "end_col": {
+          "type": "integer"
+        },
+        "end_row": {
+          "type": "integer"
+        },
         "file": {
           "type": "integer"
         },
@@ -1770,6 +2097,8 @@
       "required": [
         "block",
         "col",
+        "end_col",
+        "end_row",
         "file",
         "local",
         "path",

@@ -678,6 +678,12 @@ that goes into much more detail on this topic showing different methods to
 express OR in idiomatic Rego for different use cases.
 :::
 
+:::tip
+Multiple rules, as above, is the idiom when the disjunction contributes a value.
+A disjunction used purely as a check _inside_ one rule body can also be written with the
+[`or` keyword](./docs/policy-reference/keywords/logical#or), which requires an import.
+:::
+
 <!---TBD: explain conflicts --->
 
 ### Complete Example

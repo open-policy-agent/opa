@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"math"
 
-	"google.golang.org/protobuf/proto"
-
 	pb "github.com/open-policy-agent/opa/v1/ir/v1pb"
 )
 
@@ -58,14 +56,14 @@ func stringConstToProto(s *StringConst) *pb.StringConst {
 	if s == nil {
 		return nil
 	}
-	return &pb.StringConst{Value: proto.String(s.Value)}
+	return &pb.StringConst{Value: new(s.Value)}
 }
 
 func builtinFuncToProto(b *BuiltinFunc) *pb.BuiltinFunc {
 	if b == nil {
 		return nil
 	}
-	return &pb.BuiltinFunc{Name: proto.String(b.Name)}
+	return &pb.BuiltinFunc{Name: new(b.Name)}
 }
 
 func plansToProto(p *Plans) *pb.Plans {
@@ -83,7 +81,7 @@ func planToProto(p *Plan) *pb.Plan {
 	if p == nil {
 		return nil
 	}
-	out := &pb.Plan{Name: proto.String(p.Name), Blocks: make([]*pb.Block, len(p.Blocks))}
+	out := &pb.Plan{Name: new(p.Name), Blocks: make([]*pb.Block, len(p.Blocks))}
 	for i, b := range p.Blocks {
 		out.Blocks[i] = blockToProto(b)
 	}
@@ -106,9 +104,9 @@ func funcToProto(f *Func) *pb.Func {
 		return nil
 	}
 	out := &pb.Func{
-		Name:   proto.String(f.Name),
+		Name:   new(f.Name),
 		Params: localsToInt32s(f.Params),
-		Result: proto.Int32(toInt32(f.Return)),
+		Result: new(toInt32(f.Return)),
 		Blocks: make([]*pb.Block, len(f.Blocks)),
 		Path:   f.Path,
 	}
@@ -189,30 +187,32 @@ func stmtToProto(s Stmt) *pb.Stmt {
 	}
 	loc := s.GetLocation()
 	out := &pb.Stmt{
-		File: proto.Int32(toInt32(loc.File)),
-		Col:  proto.Int32(toInt32(loc.Col)),
-		Row:  proto.Int32(toInt32(loc.Row)),
+		File:   new(toInt32(loc.File)),
+		Col:    new(toInt32(loc.Col)),
+		Row:    new(toInt32(loc.Row)),
+		EndCol: new(toInt32(loc.EndCol)),
+		EndRow: new(toInt32(loc.EndRow)),
 	}
 	switch x := s.(type) {
 	case *ArrayAppendStmt:
 		out.Kind = &pb.Stmt_ArrayAppendStmt{ArrayAppendStmt: &pb.ArrayAppendStmt{
 			Value: operandToProto(x.Value),
-			Array: proto.Int32(toInt32(x.Array)),
+			Array: new(toInt32(x.Array)),
 		}}
 	case *AssignIntStmt:
 		out.Kind = &pb.Stmt_AssignIntStmt{AssignIntStmt: &pb.AssignIntStmt{
-			Value:  proto.Int64(x.Value),
-			Target: proto.Int32(toInt32(x.Target)),
+			Value:  new(x.Value),
+			Target: new(toInt32(x.Target)),
 		}}
 	case *AssignVarOnceStmt:
 		out.Kind = &pb.Stmt_AssignVarOnceStmt{AssignVarOnceStmt: &pb.AssignVarOnceStmt{
 			Source: operandToProto(x.Source),
-			Target: proto.Int32(toInt32(x.Target)),
+			Target: new(toInt32(x.Target)),
 		}}
 	case *AssignVarStmt:
 		out.Kind = &pb.Stmt_AssignVarStmt{AssignVarStmt: &pb.AssignVarStmt{
 			Source: operandToProto(x.Source),
-			Target: proto.Int32(toInt32(x.Target)),
+			Target: new(toInt32(x.Target)),
 		}}
 	case *BlockStmt:
 		body := &pb.BlockStmt{Blocks: make([]*pb.Block, len(x.Blocks))}
@@ -221,24 +221,24 @@ func stmtToProto(s Stmt) *pb.Stmt {
 		}
 		out.Kind = &pb.Stmt_BlockStmt{BlockStmt: body}
 	case *BreakStmt:
-		out.Kind = &pb.Stmt_BreakStmt{BreakStmt: &pb.BreakStmt{Index: proto.Uint32(x.Index)}}
+		out.Kind = &pb.Stmt_BreakStmt{BreakStmt: &pb.BreakStmt{Index: new(x.Index)}}
 	case *CallDynamicStmt:
 		out.Kind = &pb.Stmt_CallDynamicStmt{CallDynamicStmt: &pb.CallDynamicStmt{
 			Args:   localsToInt32s(x.Args),
-			Result: proto.Int32(toInt32(x.Result)),
+			Result: new(toInt32(x.Result)),
 			Path:   operandsToProto(x.Path),
 		}}
 	case *CallStmt:
 		out.Kind = &pb.Stmt_CallStmt{CallStmt: &pb.CallStmt{
-			Function: proto.String(x.Func),
+			Function: new(x.Func),
 			Args:     operandsToProto(x.Args),
-			Result:   proto.Int32(toInt32(x.Result)),
+			Result:   new(toInt32(x.Result)),
 		}}
 	case *DotStmt:
 		out.Kind = &pb.Stmt_DotStmt{DotStmt: &pb.DotStmt{
 			Source: operandToProto(x.Source),
 			Key:    operandToProto(x.Key),
-			Target: proto.Int32(toInt32(x.Target)),
+			Target: new(toInt32(x.Target)),
 		}}
 	case *EqualStmt:
 		out.Kind = &pb.Stmt_EqualStmt{EqualStmt: &pb.EqualStmt{
@@ -248,39 +248,39 @@ func stmtToProto(s Stmt) *pb.Stmt {
 	case *IsArrayStmt:
 		out.Kind = &pb.Stmt_IsArrayStmt{IsArrayStmt: &pb.IsArrayStmt{Source: operandToProto(x.Source)}}
 	case *IsDefinedStmt:
-		out.Kind = &pb.Stmt_IsDefinedStmt{IsDefinedStmt: &pb.IsDefinedStmt{Source: proto.Int32(toInt32(x.Source))}}
+		out.Kind = &pb.Stmt_IsDefinedStmt{IsDefinedStmt: &pb.IsDefinedStmt{Source: new(toInt32(x.Source))}}
 	case *IsObjectStmt:
 		out.Kind = &pb.Stmt_IsObjectStmt{IsObjectStmt: &pb.IsObjectStmt{Source: operandToProto(x.Source)}}
 	case *IsSetStmt:
 		out.Kind = &pb.Stmt_IsSetStmt{IsSetStmt: &pb.IsSetStmt{Source: operandToProto(x.Source)}}
 	case *IsUndefinedStmt:
-		out.Kind = &pb.Stmt_IsUndefinedStmt{IsUndefinedStmt: &pb.IsUndefinedStmt{Source: proto.Int32(toInt32(x.Source))}}
+		out.Kind = &pb.Stmt_IsUndefinedStmt{IsUndefinedStmt: &pb.IsUndefinedStmt{Source: new(toInt32(x.Source))}}
 	case *LenStmt:
 		out.Kind = &pb.Stmt_LenStmt{LenStmt: &pb.LenStmt{
 			Source: operandToProto(x.Source),
-			Target: proto.Int32(toInt32(x.Target)),
+			Target: new(toInt32(x.Target)),
 		}}
 	case *MakeArrayStmt:
 		out.Kind = &pb.Stmt_MakeArrayStmt{MakeArrayStmt: &pb.MakeArrayStmt{
-			Capacity: proto.Int32(x.Capacity),
-			Target:   proto.Int32(toInt32(x.Target)),
+			Capacity: new(x.Capacity),
+			Target:   new(toInt32(x.Target)),
 		}}
 	case *MakeNullStmt:
-		out.Kind = &pb.Stmt_MakeNullStmt{MakeNullStmt: &pb.MakeNullStmt{Target: proto.Int32(toInt32(x.Target))}}
+		out.Kind = &pb.Stmt_MakeNullStmt{MakeNullStmt: &pb.MakeNullStmt{Target: new(toInt32(x.Target))}}
 	case *MakeNumberIntStmt:
 		out.Kind = &pb.Stmt_MakeNumberIntStmt{MakeNumberIntStmt: &pb.MakeNumberIntStmt{
-			Value:  proto.Int64(x.Value),
-			Target: proto.Int32(toInt32(x.Target)),
+			Value:  new(x.Value),
+			Target: new(toInt32(x.Target)),
 		}}
 	case *MakeNumberRefStmt:
 		out.Kind = &pb.Stmt_MakeNumberRefStmt{MakeNumberRefStmt: &pb.MakeNumberRefStmt{
-			Index:  proto.Int32(toInt32(x.Index)),
-			Target: proto.Int32(toInt32(x.Target)),
+			Index:  new(toInt32(x.Index)),
+			Target: new(toInt32(x.Target)),
 		}}
 	case *MakeObjectStmt:
-		out.Kind = &pb.Stmt_MakeObjectStmt{MakeObjectStmt: &pb.MakeObjectStmt{Target: proto.Int32(toInt32(x.Target))}}
+		out.Kind = &pb.Stmt_MakeObjectStmt{MakeObjectStmt: &pb.MakeObjectStmt{Target: new(toInt32(x.Target))}}
 	case *MakeSetStmt:
-		out.Kind = &pb.Stmt_MakeSetStmt{MakeSetStmt: &pb.MakeSetStmt{Target: proto.Int32(toInt32(x.Target))}}
+		out.Kind = &pb.Stmt_MakeSetStmt{MakeSetStmt: &pb.MakeSetStmt{Target: new(toInt32(x.Target))}}
 	case *NopStmt:
 		out.Kind = &pb.Stmt_NopStmt{NopStmt: &pb.NopStmt{}}
 	case *NotEqualStmt:
@@ -294,41 +294,41 @@ func stmtToProto(s Stmt) *pb.Stmt {
 		out.Kind = &pb.Stmt_ObjectInsertOnceStmt{ObjectInsertOnceStmt: &pb.ObjectInsertOnceStmt{
 			Key:    operandToProto(x.Key),
 			Value:  operandToProto(x.Value),
-			Object: proto.Int32(toInt32(x.Object)),
+			Object: new(toInt32(x.Object)),
 		}}
 	case *ObjectInsertStmt:
 		out.Kind = &pb.Stmt_ObjectInsertStmt{ObjectInsertStmt: &pb.ObjectInsertStmt{
 			Key:    operandToProto(x.Key),
 			Value:  operandToProto(x.Value),
-			Object: proto.Int32(toInt32(x.Object)),
+			Object: new(toInt32(x.Object)),
 		}}
 	case *ObjectMergeStmt:
 		out.Kind = &pb.Stmt_ObjectMergeStmt{ObjectMergeStmt: &pb.ObjectMergeStmt{
-			A:      proto.Int32(toInt32(x.A)),
-			B:      proto.Int32(toInt32(x.B)),
-			Target: proto.Int32(toInt32(x.Target)),
+			A:      new(toInt32(x.A)),
+			B:      new(toInt32(x.B)),
+			Target: new(toInt32(x.Target)),
 		}}
 	case *ResetLocalStmt:
-		out.Kind = &pb.Stmt_ResetLocalStmt{ResetLocalStmt: &pb.ResetLocalStmt{Target: proto.Int32(toInt32(x.Target))}}
+		out.Kind = &pb.Stmt_ResetLocalStmt{ResetLocalStmt: &pb.ResetLocalStmt{Target: new(toInt32(x.Target))}}
 	case *ResultSetAddStmt:
-		out.Kind = &pb.Stmt_ResultSetAddStmt{ResultSetAddStmt: &pb.ResultSetAddStmt{Value: proto.Int32(toInt32(x.Value))}}
+		out.Kind = &pb.Stmt_ResultSetAddStmt{ResultSetAddStmt: &pb.ResultSetAddStmt{Value: new(toInt32(x.Value))}}
 	case *ReturnLocalStmt:
-		out.Kind = &pb.Stmt_ReturnLocalStmt{ReturnLocalStmt: &pb.ReturnLocalStmt{Source: proto.Int32(toInt32(x.Source))}}
+		out.Kind = &pb.Stmt_ReturnLocalStmt{ReturnLocalStmt: &pb.ReturnLocalStmt{Source: new(toInt32(x.Source))}}
 	case *ScanStmt:
 		out.Kind = &pb.Stmt_ScanStmt{ScanStmt: &pb.ScanStmt{
-			Source: proto.Int32(toInt32(x.Source)),
-			Key:    proto.Int32(toInt32(x.Key)),
-			Value:  proto.Int32(toInt32(x.Value)),
+			Source: new(toInt32(x.Source)),
+			Key:    new(toInt32(x.Key)),
+			Value:  new(toInt32(x.Value)),
 			Block:  blockToProto(x.Block),
 		}}
 	case *SetAddStmt:
 		out.Kind = &pb.Stmt_SetAddStmt{SetAddStmt: &pb.SetAddStmt{
 			Value: operandToProto(x.Value),
-			Set:   proto.Int32(toInt32(x.Set)),
+			Set:   new(toInt32(x.Set)),
 		}}
 	case *WithStmt:
 		out.Kind = &pb.Stmt_WithStmt{WithStmt: &pb.WithStmt{
-			Local: proto.Int32(toInt32(x.Local)),
+			Local: new(toInt32(x.Local)),
 			Path:  intsToInt32s(x.Path),
 			Value: operandToProto(x.Value),
 			Block: blockToProto(x.Block),

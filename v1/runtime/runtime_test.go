@@ -2195,3 +2195,145 @@ allow if {
 		t.Errorf("got %s, want %s", act, exp)
 	}
 }
+
+// registryConfigHook records the configs it is handed and stamps a label, so
+// tests can tell which of the two hook points fired.
+type registryConfigHook struct {
+	label      string
+	onConfig   *config.Config
+	onDiscover *config.Config
+}
+
+func (h *registryConfigHook) OnConfig(_ context.Context, c *config.Config) (*config.Config, error) {
+	c.Labels[h.label] = "on-config"
+	h.onConfig = c
+	return c, nil
+}
+
+func (h *registryConfigHook) OnConfigDiscovery(_ context.Context, c *config.Config) (*config.Config, error) {
+	c.Labels[h.label] = "on-config-discovery"
+	h.onDiscover = c
+	return c, nil
+}
+
+func TestRegisterHook(t *testing.T) {
+	// Not parallel, and not t.Cleanup-restorable in a way that would survive
+	// concurrent tests: RegisterHook mutates package-level state.
+	h := &registryConfigHook{label: "test-register-hook"}
+	RegisterHook(h)
+	t.Cleanup(func() {
+		registeredHooksMux.Lock()
+		defer registeredHooksMux.Unlock()
+		registeredHooks = slices.DeleteFunc(registeredHooks, func(x hooks.Hook) bool { return x == hooks.Hook(h) })
+	})
+
+	params := NewParams()
+	if _, err := NewRuntime(t.Context(), params); err != nil {
+		t.Fatal(err)
+	}
+
+	// A hook registered with the package must be honoured even though nothing
+	// was passed via Params.Hooks.
+	if h.onConfig == nil {
+		t.Fatal("expected OnConfig to have been called")
+	}
+	if exp, act := "on-config", h.onConfig.Labels[h.label]; exp != act {
+		t.Errorf("expected label %q, got %q", exp, act)
+	}
+}
+
+func TestRegisterHookDoesNotDropParamsHooks(t *testing.T) {
+	registered := &registryConfigHook{label: "test-registered"}
+	viaParams := &registryConfigHook{label: "test-via-params"}
+
+	RegisterHook(registered)
+	t.Cleanup(func() {
+		registeredHooksMux.Lock()
+		defer registeredHooksMux.Unlock()
+		registeredHooks = slices.DeleteFunc(registeredHooks, func(x hooks.Hook) bool { return x == hooks.Hook(registered) })
+	})
+
+	params := NewParams()
+	params.Hooks = hooks.New(viaParams)
+
+	if _, err := NewRuntime(t.Context(), params); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, h := range []*registryConfigHook{registered, viaParams} {
+		if h.onConfig == nil {
+			t.Errorf("expected OnConfig to have been called for %q", h.label)
+		}
+	}
+}
+
+func TestRegisterHookConfigDiscovery(t *testing.T) {
+	ctx := t.Context()
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/discovery.tar.gz", map[string]string{
+			"main.rego": `
+package config
+
+decision_logs.console := true
+`,
+		}),
+	)
+	defer server.Stop()
+
+	cfgContent := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"discovery": {
+			"decision": "config",
+			"resource": "/bundles/discovery.tar.gz"
+		}
+	}`, server.URL())
+	cfg := filepath.Join(t.TempDir(), "opa.json")
+	if err := os.WriteFile(cfg, []byte(cfgContent), 0o644); err != nil {
+		t.Fatalf("write config %s: %v", cfg, err)
+	}
+
+	h := &registryConfigHook{label: "test-register-hook-discovery"}
+	RegisterHook(h)
+	t.Cleanup(func() {
+		registeredHooksMux.Lock()
+		defer registeredHooksMux.Unlock()
+		registeredHooks = slices.DeleteFunc(registeredHooks, func(x hooks.Hook) bool { return x == hooks.Hook(h) })
+	})
+
+	params := NewParams()
+	params.ConfigFile = cfg
+	params.Output = io.Discard
+	params.Addrs = &[]string{"localhost:0"}
+	params.GracefulShutdownPeriod = 1
+	testLogger := testLog.New()
+	params.Logger = testLogger
+
+	// Note that Params.Hooks is deliberately left unset: the hook reaches
+	// discovery purely by virtue of having been registered with the package.
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	disco := discovery.Lookup(rt.Manager)
+	if err := disco.Trigger(ctx); err != nil {
+		t.Errorf("trigger discovery: %v", err)
+	}
+
+	if !test.Eventually(t, 5*time.Second, func() bool {
+		return h.onDiscover != nil
+	}) {
+		t.Fatal("expected OnConfigDiscovery to have been called")
+	}
+
+	// The hook sees the merged, post-discovery config, so decision_logs from the
+	// discovery bundle is visible to it -- that is what makes it a usable place to
+	// amend discovered plugin config.
+	if h.onDiscover.DecisionLogs == nil {
+		t.Error("expected discovered decision_logs config to be visible to the hook")
+	}
+}

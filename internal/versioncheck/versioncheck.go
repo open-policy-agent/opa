@@ -153,11 +153,11 @@ func createReleaseInfo(ghResp GitHubRelease) (*DataResponse, error) {
 		ghResp.TagName, runtime.GOOS, runtime.GOARCH)
 
 	if runtime.GOARCH == "arm64" {
-		downloadLink = fmt.Sprintf("%v_static", downloadLink)
+		downloadLink += "_static"
 	}
 
 	if strings.HasPrefix(runtime.GOOS, "win") {
-		downloadLink = fmt.Sprintf("%v.exe", downloadLink)
+		downloadLink += ".exe"
 	}
 
 	return &DataResponse{
@@ -181,7 +181,6 @@ func (dr *DataResponse) IsSet() bool {
 
 // Slice returns the dr as a slice of key-value string pairs. If dr is nil, this function returns an empty slice.
 func (dr *DataResponse) Slice() [][2]string {
-
 	if !dr.IsSet() {
 		return nil
 	}

@@ -24,7 +24,7 @@ func builtinLookupIPAddr(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 	}
 	name := string(a)
 
-	err = verifyHost(bctx, name)
+	err = verifyHost(bctx.Capabilities, name)
 	if err != nil {
 		return err
 	}

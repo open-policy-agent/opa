@@ -55,10 +55,14 @@ var RootDocumentNames = NewSet(
 // All refs to data in the policy engine's storage layer are prefixed with this ref.
 var DefaultRootRef = Ref{DefaultRootDocument}
 
+var DefaultRootRefTerm = NewTerm(DefaultRootRef)
+
 // InputRootRef is a reference to the root of the input document.
 //
 // All refs to query arguments are prefixed with this ref.
 var InputRootRef = Ref{InputRootDocument}
+
+var InputRootRefTerm = NewTerm(InputRootRef)
 
 // SchemaRootRef is a reference to the root of the schema document.
 //
@@ -69,10 +73,7 @@ var SchemaRootRef = Ref{SchemaRootDocument}
 
 // RootDocumentRefs contains the prefixes of top-level documents that all
 // non-local references start with.
-var RootDocumentRefs = NewSet(
-	NewTerm(DefaultRootRef),
-	NewTerm(InputRootRef),
-)
+var RootDocumentRefs = NewSet(DefaultRootRefTerm, InputRootRefTerm)
 
 // SystemDocumentKey is the name of the top-level key that identifies the system
 // document.
@@ -338,10 +339,10 @@ func (mod *Module) Compare(other *Module) int {
 	if cmp := mod.Package.Compare(other.Package); cmp != 0 {
 		return cmp
 	}
-	if cmp := importsCompare(mod.Imports, other.Imports); cmp != 0 {
+	if cmp := slices.CompareFunc(mod.Imports, other.Imports, (*Import).Compare); cmp != 0 {
 		return cmp
 	}
-	if cmp := annotationsCompare(mod.Annotations, other.Annotations); cmp != 0 {
+	if cmp := slices.CompareFunc(mod.Annotations, other.Annotations, (*Annotations).Compare); cmp != 0 {
 		return cmp
 	}
 	return rulesCompare(mod.Rules, other.Rules)
@@ -389,7 +390,7 @@ func (mod *Module) Copy() *Module {
 
 // Equal returns true if mod equals other.
 func (mod *Module) Equal(other *Module) bool {
-	return mod.Compare(other) == 0
+	return mod == other || mod.Compare(other) == 0
 }
 
 func (mod *Module) String() string {
@@ -459,7 +460,7 @@ func (c *Comment) Copy() *Comment {
 // Unlike other equality checks on AST nodes, comment equality
 // depends on location.
 func (c *Comment) Equal(other *Comment) bool {
-	return c.Location.Equal(other.Location) && bytes.Equal(c.Text, other.Text)
+	return c == other || (c.Location.Equal(other.Location) && bytes.Equal(c.Text, other.Text))
 }
 
 // Compare returns an integer indicating whether pkg is less than, equal to,
@@ -477,7 +478,7 @@ func (pkg *Package) Copy() *Package {
 
 // Equal returns true if pkg is equal to other.
 func (pkg *Package) Equal(other *Package) bool {
-	return pkg.Compare(other) == 0
+	return pkg == other || pkg.Compare(other) == 0
 }
 
 // Loc returns the location of the Package in the definition.
@@ -510,10 +511,8 @@ func IsValidImportPath(v Value) (err error) {
 		if err := IsValidImportPath(v[0].Value); err != nil {
 			return fmt.Errorf("invalid path %v: path must begin with input or data", v)
 		}
-		for _, e := range v[1:] {
-			if _, ok := e.Value.(String); !ok {
-				return fmt.Errorf("invalid path %v: path elements must be strings", v)
-			}
+		if !util.Every(v[1:], TermValueIs[String]) {
+			return fmt.Errorf("invalid path %v: path elements must be strings", v)
 		}
 	default:
 		return fmt.Errorf("invalid path %v: path must be ref or var", v)
@@ -548,7 +547,7 @@ func (imp *Import) Copy() *Import {
 
 // Equal returns true if imp is equal to other.
 func (imp *Import) Equal(other *Import) bool {
-	return imp.Compare(other) == 0
+	return imp == other || imp.Compare(other) == 0
 }
 
 // Loc returns the location of the Import in the definition.
@@ -612,7 +611,7 @@ func (rule *Rule) Compare(other *Rule) int {
 		return cmp
 	}
 
-	if cmp := annotationsCompare(rule.Annotations, other.Annotations); cmp != 0 {
+	if cmp := slices.CompareFunc(rule.Annotations, other.Annotations, (*Annotations).Compare); cmp != 0 {
 		return cmp
 	}
 
@@ -640,7 +639,7 @@ func (rule *Rule) Copy() *Rule {
 
 // Equal returns true if rule is equal to other.
 func (rule *Rule) Equal(other *Rule) bool {
-	return rule.Compare(other) == 0
+	return rule == other || rule.Compare(other) == 0
 }
 
 // Loc returns the location of the Rule in the definition.
@@ -851,7 +850,7 @@ func (head *Head) Copy() *Head {
 
 // Equal returns true if this head equals other.
 func (head *Head) Equal(other *Head) bool {
-	return head.Compare(other) == 0
+	return head == other || head.Compare(other) == 0
 }
 
 func (head *Head) String() string {
@@ -965,11 +964,7 @@ func (body Body) Compare(other Body) int {
 
 // Copy returns a deep copy of body.
 func (body Body) Copy() Body {
-	cpy := make(Body, len(body))
-	for i := range body {
-		cpy[i] = body[i].Copy()
-	}
-	return cpy
+	return util.Map(body, (*Expr).Copy)
 }
 
 // Contains returns true if this body contains the given expression.
@@ -979,7 +974,7 @@ func (body Body) Contains(x *Expr) bool {
 
 // Equal returns true if this Body is equal to the other Body.
 func (body Body) Equal(other Body) bool {
-	return body.Compare(other) == 0
+	return slices.EqualFunc(body, other, (*Expr).Equal)
 }
 
 // Hash returns the hash code for the Body.
@@ -993,12 +988,7 @@ func (body Body) Hash() int {
 
 // IsGround returns true if all of the expressions in the Body are ground.
 func (body Body) IsGround() bool {
-	for _, e := range body {
-		if !e.IsGround() {
-			return false
-		}
-	}
-	return true
+	return util.Every(body, (*Expr).IsGround)
 }
 
 // Loc returns the location of the Body in the definition.
@@ -1070,7 +1060,7 @@ func (expr *Expr) ComplementNoWith() *Expr {
 
 // Equal returns true if this Expr equals the other Expr.
 func (expr *Expr) Equal(other *Expr) bool {
-	return expr.Compare(other) == 0
+	return expr == other || expr.Compare(other) == 0
 }
 
 // Compare returns an integer indicating whether expr is less than, equal to,
@@ -1086,12 +1076,12 @@ func (expr *Expr) Equal(other *Expr) bool {
 // Otherwise, the expression terms are compared normally. If both expressions
 // have the same terms, the modifiers are compared.
 func (expr *Expr) Compare(other *Expr) int {
-	if expr == nil {
-		if other == nil {
-			return 0
-		}
+	switch {
+	case expr == other:
+		return 0
+	case expr == nil:
 		return -1
-	} else if other == nil {
+	case other == nil:
 		return 1
 	}
 
@@ -1187,7 +1177,6 @@ func (expr *Expr) CopyWithoutTerms() *Expr {
 
 // Copy returns a deep copy of expr.
 func (expr *Expr) Copy() *Expr {
-
 	cpy := expr.CopyWithoutTerms()
 
 	switch ts := expr.Terms.(type) {
@@ -1308,7 +1297,11 @@ func (expr *Expr) Operator() Ref {
 	if op == nil {
 		return nil
 	}
-	return op.Value.(Ref)
+	ref, ok := op.Value.(Ref)
+	if !ok {
+		return nil
+	}
+	return ref
 }
 
 // OperatorTerm returns the name of the function or built-in this expression
@@ -1348,10 +1341,8 @@ func (expr *Expr) Operands() []*Term {
 func (expr *Expr) IsGround() bool {
 	switch ts := expr.Terms.(type) {
 	case []*Term:
-		for _, t := range ts[1:] {
-			if !t.IsGround() {
-				return false
-			}
+		if !util.Every(ts[1:], (*Term).IsGround) {
+			return false
 		}
 	case *Term:
 		return ts.IsGround()
@@ -1663,6 +1654,10 @@ func notBodyNeedsParens(b Body) bool {
 	case *LogicalOr, *LogicalAnd:
 		// `not` binds tighter than `and`/`or`
 		return true
+	case *Not:
+		// `not not x` doesn't parse: the operand of a `not` must be parenthesized
+		// for the inner negation to be read back as a body.
+		return true
 	case *Term:
 		return rendersWithLeadingBrace(t.Value)
 	}
@@ -1694,7 +1689,7 @@ func (w *With) String() string {
 
 // Equal returns true if this With is equals the other With.
 func (w *With) Equal(other *With) bool {
-	return Compare(w, other) == 0
+	return w == other || w.Compare(other) == 0
 }
 
 // Compare returns an integer indicating whether w is less than, equal to, or
@@ -1708,10 +1703,10 @@ func (w *With) Compare(other *With) int {
 	} else if other == nil {
 		return 1
 	}
-	if cmp := Compare(w.Target, other.Target); cmp != 0 {
+	if cmp := w.Target.Value.Compare(other.Target.Value); cmp != 0 {
 		return cmp
 	}
-	return Compare(w.Value, other.Value)
+	return w.Value.Value.Compare(other.Value.Value)
 }
 
 // Copy returns a deep copy of w.
@@ -1858,11 +1853,7 @@ func (rs RuleSet) Merge(other RuleSet) RuleSet {
 }
 
 func (rs RuleSet) String() string {
-	buf := make([]string, 0, len(rs))
-	for _, rule := range rs {
-		buf = append(buf, rule.String())
-	}
-	return "{" + strings.Join(buf, ", ") + "}"
+	return "{" + strings.Join(util.Map(rs, (*Rule).String), ", ") + "}"
 }
 
 // Returns true if the equality or assignment expression referred to by expr

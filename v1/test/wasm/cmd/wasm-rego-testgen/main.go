@@ -41,10 +41,10 @@ type compiledTestCase struct {
 
 func compileTestCases(ctx context.Context, tests cases.Set) (*compiledTestCaseSet, error) {
 	result := make([]compiledTestCase, 0, len(tests.Cases))
-	for _, tc := range tests.Cases { //nolint:gocritic
-
+	for i := range tests.Cases {
 		var numExpects int
 
+		tc := tests.Cases[i]
 		if tc.WantDefined != nil {
 			numExpects++
 		}

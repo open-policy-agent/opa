@@ -3,17 +3,19 @@ package bundle
 import (
 	"archive/tar"
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/loader/filter"
+	"github.com/open-policy-agent/opa/v1/util"
 
 	"github.com/open-policy-agent/opa/v1/storage"
 )
@@ -193,10 +195,7 @@ func (d *dirLoader) WithFollowSymlinks(followSymlinks bool) DirectoryLoader {
 func formatPath(fileName string, root string, pathFormat PathFormat) string {
 	switch pathFormat {
 	case SlashRooted:
-		if !strings.HasPrefix(fileName, string(filepath.Separator)) {
-			return string(filepath.Separator) + fileName
-		}
-		return fileName
+		return util.WithPrefix(fileName, string(filepath.Separator))
 	case Chrooted:
 		// Trim off the root directory and return path as if chrooted
 		result := strings.TrimPrefix(fileName, filepath.FromSlash(root))
@@ -206,10 +205,7 @@ func formatPath(fileName string, root string, pathFormat PathFormat) string {
 		if root == "." && (filepath.Base(fileName) == ManifestExt || filepath.Base(fileName) == ManifestProtoExt) {
 			result = fileName
 		}
-		if !strings.HasPrefix(result, string(filepath.Separator)) {
-			result = string(filepath.Separator) + result
-		}
-		return result
+		return util.WithPrefix(result, string(filepath.Separator))
 	case Passthrough:
 		fallthrough
 	default:
@@ -444,13 +440,13 @@ func (it *iterator) Next() (*storage.Update, error) {
 			}
 
 			f.path = p
-
 			f.raw = item.Value
-
 			it.files = append(it.files, f)
 		}
 
-		sortFilePathAscend(it.files)
+		slices.SortFunc(it.files, func(a, b file) int {
+			return cmp.Compare(len(a.path), len(b.path))
+		})
 	}
 
 	// If done reading files then just return io.EOF
@@ -485,12 +481,6 @@ func NewIterator(raw []Raw) storage.Iterator {
 		raw: raw,
 	}
 	return &it
-}
-
-func sortFilePathAscend(files []file) {
-	sort.Slice(files, func(i, j int) bool {
-		return len(files[i].path) < len(files[j].path)
-	})
 }
 
 func getdepth(path string, isDir bool) int {

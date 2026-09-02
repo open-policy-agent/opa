@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // RootPath refers to the root document in storage.
@@ -102,11 +102,10 @@ func (p Path) Ref(head *ast.Term) (ref ast.Ref) {
 	ref = make(ast.Ref, len(p)+1)
 	ref[0] = head
 	for i := range p {
-		idx, err := strconv.ParseInt(p[i], 10, 64)
-		if err == nil {
-			ref[i+1] = ast.UIntNumberTerm(uint64(idx))
+		if idx, ok := util.Atoi(p[i]); ok && idx >= 0 {
+			ref[i+1] = ast.InternedTerm(idx)
 		} else {
-			ref[i+1] = ast.StringTerm(p[i])
+			ref[i+1] = ast.InternedTerm(p[i])
 		}
 	}
 	return ref
@@ -129,6 +128,14 @@ func (p Path) String() string {
 		sb.WriteString(url.PathEscape(p[i]))
 	}
 	return sb.String()
+}
+
+// PolicyID returns the ID identifying the module stored at p, for use with the
+// [Policy] interface: segments are joined verbatim, without the leading '/' and
+// percent-encoding [Path.String] applies, so that IDs match the raw, unescaped
+// bundle manifest roots they're compared against.
+func (p Path) PolicyID() string {
+	return strings.Join(p, "/")
 }
 
 // MustParsePath returns a new Path for s. If s cannot be parsed, this function

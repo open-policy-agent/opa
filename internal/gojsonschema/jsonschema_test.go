@@ -15,14 +15,20 @@
 package gojsonschema
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 type jsonSchemaTest struct {
@@ -133,8 +139,6 @@ func TestSuite(t *testing.T) {
 		}
 	}()
 
-	SetAllowNet(nil)
-
 	err = filepath.Walk(wd, func(path string, fileInfo os.FileInfo, _ error) error {
 		if fileInfo.IsDir() && path != wd && !testDirectories.MatchString(fileInfo.Name()) {
 			return filepath.SkipDir
@@ -150,6 +154,13 @@ func TestSuite(t *testing.T) {
 }
 
 func TestFormats(t *testing.T) {
+	// NOTE(sr): Go 1.26 tightened url.Parse to reject ambiguous (unbracketed)
+	// colons in the host of http(s) URLs by default (see the urlstrictcolons
+	// GODEBUG setting, https://go.dev/doc/go1.26#net-url). One of the upstream
+	// JSON-Schema-Test-Suite cases for the (lenient) "iri" format relies on the
+	// old, lenient parsing of a bracketless IPv6 host, so restore it here.
+	t.Setenv("GODEBUG", "urlstrictcolons=0")
+
 	wd, err := os.Getwd()
 	if err != nil {
 		panic(err.Error())
@@ -190,9 +201,219 @@ func TestFormats(t *testing.T) {
 	}
 }
 
-func Test_ConcurrentNetAccessModification(_ *testing.T) {
+func TestAllowNetIsPerSchemaLoader(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `{"type": "string"}`)
+	}))
+	defer srv.Close()
+
+	srvURL, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := fmt.Sprintf(`{"$ref": %q}`, srv.URL+"/schema.json")
+
+	compile := func(allowNet []string) error {
+		sl := NewSchemaLoader()
+		sl.AllowNet = allowNet
+		_, err := sl.Compile(NewStringLoader(schema))
+		return err
+	}
+
+	tests := []struct {
+		note       string
+		allowNet   []string
+		wantDenied bool
+	}{
+		{note: "nil list permits any host", allowNet: nil},
+		{note: "empty list permits no host", allowNet: []string{}, wantDenied: true},
+		{note: "listed host is permitted", allowNet: []string{srvURL.Hostname()}},
+		{note: "unlisted host is denied", allowNet: []string{"example.com"}, wantDenied: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			err := compile(tc.allowNet)
+			if tc.wantDenied {
+				if err == nil {
+					t.Fatal("expected remote reference to be denied, but compilation succeeded")
+				}
+				if !strings.Contains(err.Error(), "remote reference loading disabled") {
+					t.Fatalf("expected remote reference loading to be disabled, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected remote reference to be permitted, got %v", err)
+			}
+		})
+	}
+
+	// Loaders with conflicting allowlists, used concurrently, must each honour
+	// their own -- the permissive one must not open up the restrictive one.
+	t.Run("conflicting allowlists used concurrently", func(t *testing.T) {
+		var wg sync.WaitGroup
+		for range 20 {
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				if err := compile(nil); err != nil {
+					t.Errorf("permissive loader: expected success, got %v", err)
+				}
+			}()
+			go func() {
+				defer wg.Done()
+				if err := compile([]string{}); err == nil {
+					t.Error("restrictive loader: expected remote reference to be denied")
+				}
+			}()
+		}
+		wg.Wait()
+	})
+}
+
+func TestAllowNetIsCheckedOnRedirects(t *testing.T) {
+	var srv *httptest.Server
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/schema.json", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `{"type": "string"}`)
+	})
+	mux.HandleFunc("/leave", func(w http.ResponseWriter, r *http.Request) {
+		// The same address under a different host name, which is what the
+		// allowlist matches on.
+		viaLocalhost := strings.Replace(srv.URL, "127.0.0.1", "localhost", 1)
+		http.Redirect(w, r, viaLocalhost+"/schema.json", http.StatusFound)
+	})
+	mux.HandleFunc("/hop-then-leave", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, srv.URL+"/leave", http.StatusFound)
+	})
+	mux.HandleFunc("/hop-then-stay", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, srv.URL+"/schema.json", http.StatusFound)
+	})
+	srv = httptest.NewServer(mux)
+	defer srv.Close()
+
+	srvURL, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		note       string
+		entry      string
+		wantDenied bool
+	}{
+		{note: "first hop leaves the allowlist", entry: "/leave", wantDenied: true},
+		{note: "later hop leaves the allowlist", entry: "/hop-then-leave", wantDenied: true},
+		{note: "chain stays within the allowlist", entry: "/hop-then-stay"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			sl := NewSchemaLoader()
+			sl.AllowNet = []string{srvURL.Hostname()} // permits 127.0.0.1, not localhost
+			_, err := sl.Compile(NewStringLoader(fmt.Sprintf(`{"$ref": %q}`, srv.URL+tc.entry)))
+
+			if tc.wantDenied {
+				if err == nil {
+					t.Fatal("expected the redirect to a non-allowlisted host to be denied")
+				}
+				if !strings.Contains(err.Error(), "remote reference loading disabled") {
+					t.Fatalf("expected remote reference loading to be disabled, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("expected the redirect chain to be permitted, got %v", err)
+			}
+		})
+	}
+}
+
+// Setting CheckRedirect opts out of net/http's own hop limit, so the limit has
+// to be enforced by the loader instead. Nothing else bounds the exchange -- the
+// client applies no timeout -- so without the limit a host that redirects to
+// itself keeps a fetch going indefinitely.
+func TestRemoteRefRedirectsAreBounded(t *testing.T) {
+	var hops int
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hops++
+		http.Redirect(w, r, "/again", http.StatusFound)
+	}))
+	defer srv.Close()
+
+	// The hop limit fires in milliseconds against a local server; the deadline
+	// is only here so a regression fails the test instead of hanging it.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	sl := NewSchemaLoader()
+	sl.Context = ctx
+
+	_, err := sl.Compile(NewStringLoader(fmt.Sprintf(`{"$ref": %q}`, srv.URL+"/schema.json")))
+	if err == nil {
+		t.Fatal("expected the redirect loop to be stopped")
+	}
+	if !strings.Contains(err.Error(), fmt.Sprintf("stopped after %d redirects", maxRemoteRefRedirects)) {
+		t.Fatalf("expected the redirect loop to be stopped after %d redirects, got %v", maxRemoteRefRedirects, err)
+	}
+	if hops > maxRemoteRefRedirects+1 {
+		t.Fatalf("expected at most %d requests, got %d", maxRemoteRefRedirects+1, hops)
+	}
+}
+
+// A cancelled caller -- an aborted or timed-out query, say -- should not leave
+// a remote reference fetch running behind it.
+func TestRemoteRefFetchHonoursContext(t *testing.T) {
+	release := make(chan struct{})
+	defer close(release)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+		fmt.Fprint(w, `{"type": "string"}`)
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	sl := NewSchemaLoader()
+	sl.Context = ctx
+
+	done := make(chan error, 1)
 	go func() {
-		SetAllowNet([]string{"something"})
+		_, err := sl.Compile(NewStringLoader(fmt.Sprintf(`{"$ref": %q}`, srv.URL+"/schema.json")))
+		done <- err
 	}()
-	SetAllowNet(nil)
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected the cancelled fetch to fail")
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected a context cancellation error, got %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("fetch did not observe the cancelled context")
+	}
+}
+
+// The loaders reached by the compile-time type-checking path are built without
+// a context; they must still work rather than panicking on a nil one.
+func TestRemoteRefFetchWithoutContext(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `{"type": "string"}`)
+	}))
+	defer srv.Close()
+
+	sl := NewSchemaLoader() // Context left unset
+	if _, err := sl.Compile(NewStringLoader(fmt.Sprintf(`{"$ref": %q}`, srv.URL+"/schema.json"))); err != nil {
+		t.Fatalf("expected the fetch to succeed, got %v", err)
+	}
 }

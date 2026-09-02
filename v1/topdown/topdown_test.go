@@ -14,7 +14,6 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,6 +31,24 @@ import (
 	"github.com/open-policy-agent/opa/v1/types"
 	"github.com/open-policy-agent/opa/v1/util"
 )
+
+func TestMain(m *testing.M) {
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: "test.sleep",
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.Nl,
+		),
+	})
+
+	RegisterBuiltinFunc("test.sleep", func(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+		d, _ := time.ParseDuration(string(operands[0].Value.(ast.String)))
+		time.Sleep(d)
+		return iter(ast.NullTerm())
+	})
+
+	os.Exit(m.Run())
+}
 
 func TestTopDownQueryIDsUnique(t *testing.T) {
 	t.Parallel()
@@ -1559,8 +1576,8 @@ arr := [1, 2, 3, 4, 5]
 					exits[ev.Message]++
 				}
 			}
-			sort.Strings(notes)
-			sort.Strings(tc.notes)
+			slices.Sort(notes)
+			slices.Sort(tc.notes)
 			if !slices.Equal(notes, tc.notes) {
 				t.Errorf("unexpected note traces, expected %v, got %v", tc.notes, notes)
 			}
@@ -2130,10 +2147,8 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 
 	defer store.Abort(ctx, txn)
 
-	var lhs *ast.Term
-	if len(path) == 0 {
-		lhs = ast.NewTerm(ast.DefaultRootRef)
-	} else {
+	lhs := ast.DefaultRootRefTerm
+	if len(path) != 0 {
 		lhs = ast.MustParseTerm("data." + strings.Join(path, "."))
 	}
 
@@ -2223,9 +2238,9 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 			expected := util.MustUnmarshalJSON([]byte(e))
 
 			if requiresSort {
-				sort.Sort(resultSet(result.([]any)))
+				slices.SortFunc(result.([]any), util.Compare)
 				if sl, ok := expected.([]any); ok {
-					sort.Sort(resultSet(sl))
+					slices.SortFunc(sl, util.Compare)
 				}
 			}
 
@@ -2317,9 +2332,9 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 	}
 
 	if requiresSort {
-		sort.Sort(resultSet(result.([]any)))
+		slices.SortFunc(result.([]any), util.Compare)
 		if sl, ok := expected.([]any); ok {
-			sort.Sort(resultSet(sl))
+			slices.SortFunc(sl, util.Compare)
 		}
 	}
 
@@ -2328,22 +2343,7 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 	}
 }
 
-type resultSet []any
-
-func (rs resultSet) Less(i, j int) bool {
-	return util.Compare(rs[i], rs[j]) < 0
-}
-
-func (rs resultSet) Swap(i, j int) {
-	rs[i], rs[j] = rs[j], rs[i]
-}
-
-func (rs resultSet) Len() int {
-	return len(rs)
-}
-
 func init() {
-
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.sleep",
 		Decl: types.NewFunction(
@@ -2405,8 +2405,7 @@ func dump(note string, modules map[string]*ast.Module, data any, docpath []strin
 		if len(e) > 0 {
 			exp := util.MustUnmarshalJSON([]byte(e))
 			if requiresSort {
-				sl := exp.([]any)
-				sort.Sort(resultSet(sl))
+				slices.SortFunc(exp.([]any), util.Compare)
 			}
 			rs = append(rs, map[string]any{"x": exp})
 		}

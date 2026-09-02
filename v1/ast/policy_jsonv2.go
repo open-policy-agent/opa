@@ -66,13 +66,13 @@ func (a Args) MarshalJSONTo(e *jsontext.Encoder) error {
 // Rego source rather than as JSON. Module's own fields are fully described by
 // their struct tags, so the encoding is left to them, as it is pre-1.27. The
 // field types provide their own MarshalJSONTo where one is needed.
-func (m *Module) MarshalJSONTo(e *jsontext.Encoder) error {
+func (mod *Module) MarshalJSONTo(e *jsontext.Encoder) error {
 	// Declare a new type and use a type conversion to avoid recursively calling
 	// Module#MarshalJSONTo. It's the highest precedence marshaller, so there is
 	// nothing below it to fall to, and the new type has no methods of its own.
 	type module Module
 
-	return json.MarshalEncode(e, (*module)(m))
+	return json.MarshalEncode(e, (*module)(mod))
 }
 
 func (pkg *Package) MarshalJSONTo(e *jsontext.Encoder) error {
@@ -91,57 +91,57 @@ func (pkg *Package) MarshalJSONTo(e *jsontext.Encoder) error {
 	return e.WriteToken(jsontext.EndObject)
 }
 
-func (i *Import) MarshalJSONTo(e *jsontext.Encoder) error {
+func (imp *Import) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
-	if err := jsonv2.WriteField(e, "path", i.Path); err != nil {
+	if err := jsonv2.WriteField(e, "path", imp.Path); err != nil {
 		return err
 	}
 
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Import && i.Location != nil {
-		if err := jsonv2.WriteField(e, "location", i.Location); err != nil {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Import && imp.Location != nil {
+		if err := jsonv2.WriteField(e, "location", imp.Location); err != nil {
 			return err
 		}
 	}
 
-	if len(i.Alias) > 0 {
+	if len(imp.Alias) > 0 {
 		e.WriteToken(jsontext.String("alias"))
-		e.WriteToken(jsontext.String(string(i.Alias)))
+		e.WriteToken(jsontext.String(string(imp.Alias)))
 	}
 
 	return e.WriteToken(jsontext.EndObject)
 }
 
-func (r *Rule) MarshalJSONTo(e *jsontext.Encoder) error {
+func (rule *Rule) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
-	if r.Default {
+	if rule.Default {
 		e.WriteToken(jsontext.String("default"))
 		e.WriteToken(jsontext.True)
 	}
 
-	if r.Else != nil {
-		if err := jsonv2.WriteField(e, "else", r.Else); err != nil {
+	if rule.Else != nil {
+		if err := jsonv2.WriteField(e, "else", rule.Else); err != nil {
 			return err
 		}
 	}
 
-	if err := jsonv2.WriteField(e, "head", r.Head); err != nil {
+	if err := jsonv2.WriteField(e, "head", rule.Head); err != nil {
 		return err
 	}
 
-	if err := jsonv2.WriteField(e, "body", r.Body); err != nil {
+	if err := jsonv2.WriteField(e, "body", rule.Body); err != nil {
 		return err
 	}
 
-	if len(r.Annotations) > 0 {
-		if err := jsonv2.WriteFieldArray(e, "annotations", r.Annotations); err != nil {
+	if len(rule.Annotations) > 0 {
+		if err := jsonv2.WriteFieldArray(e, "annotations", rule.Annotations); err != nil {
 			return err
 		}
 	}
 
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Rule && r.Location != nil {
-		if err := jsonv2.WriteField(e, "location", r.Location); err != nil {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Rule && rule.Location != nil {
+		if err := jsonv2.WriteField(e, "location", rule.Location); err != nil {
 			return err
 		}
 	}
@@ -149,43 +149,43 @@ func (r *Rule) MarshalJSONTo(e *jsontext.Encoder) error {
 	return e.WriteToken(jsontext.EndObject)
 }
 
-func (h *Head) MarshalJSONTo(e *jsontext.Encoder) error {
+func (head *Head) MarshalJSONTo(e *jsontext.Encoder) error {
 	e.WriteToken(jsontext.BeginObject)
 
-	if h.Name != "" {
+	if head.Name != "" {
 		e.WriteToken(jsontext.String("name"))
-		e.WriteToken(jsontext.String(string(h.Name)))
+		e.WriteToken(jsontext.String(string(head.Name)))
 	}
 
-	if err := jsonv2.WriteField(e, "ref", h.Ref()); err != nil {
+	if err := jsonv2.WriteField(e, "ref", head.Ref()); err != nil {
 		return err
 	}
 
-	if len(h.Args) > 0 {
-		if err := jsonv2.WriteFieldArray(e, "args", h.Args); err != nil {
+	if len(head.Args) > 0 {
+		if err := jsonv2.WriteFieldArray(e, "args", head.Args); err != nil {
 			return err
 		}
 	}
 
-	if h.Key != nil {
-		if err := jsonv2.WriteField(e, "key", h.Key); err != nil {
+	if head.Key != nil {
+		if err := jsonv2.WriteField(e, "key", head.Key); err != nil {
 			return err
 		}
 	}
 
-	if h.Value != nil {
-		if err := jsonv2.WriteField(e, "value", h.Value); err != nil {
+	if head.Value != nil {
+		if err := jsonv2.WriteField(e, "value", head.Value); err != nil {
 			return err
 		}
 	}
 
-	if h.Assign {
+	if head.Assign {
 		e.WriteToken(jsontext.String("assign"))
 		e.WriteToken(jsontext.True)
 	}
 
-	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Head && h.Location != nil {
-		if err := jsonv2.WriteField(e, "location", h.Location); err != nil {
+	if astJSON.GetOptions().MarshalOptions.IncludeLocation.Head && head.Location != nil {
+		if err := jsonv2.WriteField(e, "location", head.Location); err != nil {
 			return err
 		}
 	}
@@ -258,8 +258,8 @@ func (q *Every) MarshalJSONTo(e *jsontext.Encoder) error {
 	return e.WriteToken(jsontext.EndObject)
 }
 
-func (b Body) MarshalJSONTo(e *jsontext.Encoder) error {
-	return jsonv2.WriteMarshalerToArray(e, b)
+func (body Body) MarshalJSONTo(e *jsontext.Encoder) error {
+	return jsonv2.WriteMarshalerToArray(e, body)
 }
 
 // MarshalJSON returns JSON encoded bytes representing body.
@@ -280,46 +280,46 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 	return unmarshalExpr(expr, v)
 }
 
-func (e *Expr) MarshalJSONTo(enc *jsontext.Encoder) error {
+func (expr *Expr) MarshalJSONTo(enc *jsontext.Encoder) error {
 	enc.WriteToken(jsontext.BeginObject)
 
 	enc.WriteToken(jsontext.String("index"))
-	enc.WriteToken(jsontext.Int(int64(e.Index)))
+	enc.WriteToken(jsontext.Int(int64(expr.Index)))
 
 	includeLocation := astJSON.GetOptions().MarshalOptions.IncludeLocation
-	if e.Location != nil && includeLocation.Expr {
-		if err := jsonv2.WriteField(enc, "location", e.Location); err != nil {
+	if expr.Location != nil && includeLocation.Expr {
+		if err := jsonv2.WriteField(enc, "location", expr.Location); err != nil {
 			return err
 		}
 	}
 
-	if e.Negated {
+	if expr.Negated {
 		enc.WriteToken(jsontext.String("negated"))
 		enc.WriteToken(jsontext.True)
 	}
 
-	if e.Generated {
+	if expr.Generated {
 		enc.WriteToken(jsontext.String("generated"))
 		enc.WriteToken(jsontext.True)
 	}
 
 	enc.WriteToken(jsontext.String("terms"))
 	var err error
-	switch t := e.Terms.(type) {
+	switch t := expr.Terms.(type) {
 	case []*Term:
 		err = jsonv2.WriteMarshalerToArrayOrNull(enc, t)
 	case json.MarshalerTo:
 		err = t.MarshalJSONTo(enc)
 	default:
-		return fmt.Errorf("unsupported expr terms type: %T", e.Terms)
+		return fmt.Errorf("unsupported expr terms type: %T", expr.Terms)
 	}
 
 	if err != nil {
 		return fmt.Errorf("failed to marshal expr terms: %w", err)
 	}
 
-	if len(e.With) > 0 {
-		if err := jsonv2.WriteFieldArray(enc, "with", e.With); err != nil {
+	if len(expr.With) > 0 {
+		if err := jsonv2.WriteFieldArray(enc, "with", expr.With); err != nil {
 			return err
 		}
 	}

@@ -1,7 +1,6 @@
 ---
 cases:
   - note: "logic_op/every: and inside every body, all succeed"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -18,7 +17,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/every: and inside every body, one fails"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -34,7 +32,6 @@ cases:
       xs: [1, 2, 100]
     want_result: []
   - note: "logic_op/every: or inside every body, all match at least one branch"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -51,7 +48,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/every: or inside every body, one matches neither branch"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -67,7 +63,6 @@ cases:
       xs: [-3, 0, 5]
     want_result: []
   - note: "logic_op/every: not (or) inside every body"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |
@@ -85,7 +80,6 @@ cases:
     want_result:
       - x: true
   - note: "logic_op/every: scoped local var inside operand body"
-    experimental_keywords: true
     query: data.test.p = x
     modules:
       - |

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -198,8 +197,7 @@ func populateManifest(out io.Writer, m *bundle.Manifest) error {
 				lines = append(lines, []string{"Roots", truncateFileName(roots[0])})
 			}
 		} else {
-			sort.Strings(roots)
-			for _, root := range roots {
+			for _, root := range util.Sorted(roots) {
 				lines = append(lines, []string{"Roots", truncateFileName(root)})
 			}
 		}
@@ -414,7 +412,7 @@ func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table 
 				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
 				Formatting: tw.CellFormatting{
 					AutoWrap:  tw.WrapNone,
-					MergeMode: tw.MergeBoth,
+					MergeMode: tw.MergeBoth, //nolint:staticcheck
 				},
 			},
 		}),
@@ -433,7 +431,7 @@ func truncateStr(s string, maxLen int) string {
 	if len(s) < maxLen {
 		return s
 	}
-	return fmt.Sprintf("%v...", s[:maxLen-3])
+	return s[:maxLen-3] + "..."
 }
 
 func removeNewLines(s string) string {
