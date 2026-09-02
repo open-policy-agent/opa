@@ -2183,6 +2183,46 @@ func TestParseLogical_BraceLedOperandScope(t *testing.T) {
 	}
 }
 
+func TestParseLogical_BraceLedOperandKeepsAbandonedErrorsOut(t *testing.T) {
+	opts := logicalParserOpts("in", "if", "contains", "every")
+
+	// A statement-leading `{` is speculatively read as an and/or operand body, where
+	// `|` is the set-union operator. When the body opens with a keyword that cannot
+	// start a term the union reading fails and records an error, and the statement is
+	// then re-read as a comprehension. That error belongs to the abandoned attempt and
+	// must not be reported against input that parses.
+	tests := []struct {
+		note  string
+		input string
+		exp   *Expr
+	}{
+		{
+			note:  "some ... in on its own line",
+			input: "{\ny |\n\tsome y in xs\n}",
+			exp: NewExpr(SetComprehensionTerm(VarTerm("y"), NewBody(&Expr{
+				Terms: &SomeDecl{
+					Symbols: []*Term{Member.Call(VarTerm("y"), VarTerm("xs"))},
+				},
+			}))),
+		},
+		{
+			note:  "every on its own line",
+			input: "{\ny |\n\tevery v in xs { v == 1 }\n}",
+			exp: NewExpr(SetComprehensionTerm(VarTerm("y"), NewBody(NewExpr(&Every{
+				Value:  VarTerm("v"),
+				Domain: VarTerm("xs"),
+				Body:   NewBody(Equal.Expr(VarTerm("v"), NumberTerm("1"))),
+			})))),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneExpr(t, tc.note, tc.input, tc.exp, opts)
+		})
+	}
+}
+
 func TestParseLogical_EmptyBraceOperand(t *testing.T) {
 	opts := logicalParserOpts("not")
 
