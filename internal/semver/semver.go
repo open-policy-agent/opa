@@ -32,11 +32,6 @@ import (
 // reMetaIdentifier matches pre-release and metadata identifiers against the spec requirements
 var reMetaIdentifier = regexp.MustCompile(`^[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$`)
 
-// reNumericID matches a numeric identifier - the major, minor and patch versions
-// as well as numeric pre-release identifiers. Per the SemVer 2.0.0 spec these are
-// either a single zero or a non-empty digit sequence with no leading zero.
-var reNumericID = regexp.MustCompile(`^(0|[1-9][0-9]*)$`)
-
 // Version represents a parsed SemVer
 type Version struct {
 	Major      int64
@@ -50,15 +45,17 @@ type Version struct {
 func Parse(version string) (v Version, err error) {
 	version = strings.TrimPrefix(version, "v")
 
-	var found bool
+	var foundMetadata bool
 
-	version, v.Metadata, found = strings.Cut(version, "+")
-	if found && !reMetaIdentifier.MatchString(v.Metadata) {
+	version, v.Metadata, foundMetadata = strings.Cut(version, "+")
+	if foundMetadata && !reMetaIdentifier.MatchString(v.Metadata) {
 		return v, fmt.Errorf("invalid metadata identifier: %s", v.Metadata)
 	}
 
-	version, v.PreRelease, found = strings.Cut(version, "-")
-	if found && (!reMetaIdentifier.MatchString(v.PreRelease) || !validPreRelease(v.PreRelease)) {
+	var foundPreRelease bool
+
+	version, v.PreRelease, foundPreRelease = strings.Cut(version, "-")
+	if foundPreRelease && (!reMetaIdentifier.MatchString(v.PreRelease) || !validPreRelease(v.PreRelease)) {
 		return v, fmt.Errorf("invalid pre-release identifier: %s", v.PreRelease)
 	}
 
@@ -87,7 +84,7 @@ func Parse(version string) (v Version, err error) {
 // string, a sign or a leading zero (all forbidden by SemVer 2.0.0) before
 // converting to int64.
 func parseNumeric(s string) (int64, error) {
-	if !reNumericID.MatchString(s) {
+	if s == "" || s[0] == '+' || s[0] == '-' || (len(s) > 1 && s[0] == '0') {
 		return 0, fmt.Errorf("%q is not a valid numeric identifier", s)
 	}
 	return strconv.ParseInt(s, 10, 64)
