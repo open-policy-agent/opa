@@ -414,11 +414,24 @@ func transformBody(t Transformer, body Body) (Body, error) {
 }
 
 func transformTerm(t Transformer, term *Term) (*Term, error) {
-	v, err := transformValue(t, term.Value)
+	tv, err := transformValue(t, term.Value)
 	if err != nil {
 		return nil, err
 	}
-	return &Term{Value: v, Location: term.Location}, nil
+
+	// If the term was interned, make sure to return a new one instead
+	// of replacing the value of the interned term, as that'll be used
+	// elsewhere, leading to data races
+	if s, ok := tv.(String); ok {
+		if it, ok := internedStringTerms[string(s)]; ok && term == it {
+			return &Term{Value: tv, Location: term.Location}, nil
+		}
+	}
+
+	// Not interned = modify the value in place
+	term.Value = tv
+
+	return term, err
 }
 
 func transformValue(t Transformer, v Value) (Value, error) {
