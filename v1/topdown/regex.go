@@ -157,6 +157,7 @@ func getRegexp(bctx BuiltinContext, pat string) (*regexp.Regexp, error) {
 func getRegexpTemplate(pat string, delimStart, delimEnd byte) (*regexp.Regexp, error) {
 	regexpCacheLock.RLock()
 	re, ok := regexpCache[pat]
+	numCached := len(regexpCache)
 	regexpCacheLock.RUnlock()
 	if !ok {
 		var err error
@@ -165,6 +166,13 @@ func getRegexpTemplate(pat string, delimStart, delimEnd byte) (*regexp.Regexp, e
 			return nil, err
 		}
 		regexpCacheLock.Lock()
+		if numCached >= regexCacheMaxSize {
+			// Delete a (semi-)random key to make room for the new one.
+			for k := range regexpCache {
+				delete(regexpCache, k)
+				break
+			}
+		}
 		regexpCache[pat] = re
 		regexpCacheLock.Unlock()
 	}
