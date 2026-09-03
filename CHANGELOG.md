@@ -5,6 +5,63 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 1.20.2
+
+This release includes a bug fix for a parser regression introduced in v1.20.0, and dependency
+updates.
+
+### Fix stale parse errors on statements starting with `{` ([#9140](https://github.com/open-policy-agent/opa/pull/9140))
+
+When the `and`/`or` keywords added in v1.20.0 are imported, a statement that starts with `{` is
+first read as an explicit operand body, and re-read as a term (a comprehension, for example) if no
+`and` or `or` follows. Errors recorded during the abandoned first attempt stayed in the parser's
+term cache and were reported against the successful re-read, rejecting policies that parse fine:
+
+```rego
+package example
+
+import future.keywords
+
+xs := [1, 2, 3]
+
+allow if {
+	{
+	y |
+		some y in xs # rego_parse_error: unexpected some keyword
+	} == {1, 2, 3}
+}
+```
+
+The term cache is now restored along with the rest of the parser state when the operand-body guess
+is abandoned. Only policies importing `and` or `or` — directly or via `import future.keywords` —
+were affected; policies that don't import them parse unchanged.
+
+Authored by @sspaink
+
+### Miscellaneous
+
+- build(go): Bump to 1.27.1 ([`3652eeb`](https://github.com/open-policy-agent/opa/commit/3652eeb404c7d1aead99e831a1c418cfbd362784)) authored by @srenatus
+- Dependency updates; notably:
+  - build(deps): Bump github.com/dgraph-io/badger/v4 from 4.9.5 to 4.9.6
+  - build(deps): Bump github.com/lestrrat-go/jwx/v3 from 3.1.1 to 3.2.0
+  - build(deps): Bump github.com/santhosh-tekuri/jsonschema/v6 from 6.0.2 to 6.0.3
+  - build(deps): Bump github.com/sirupsen/logrus from 1.9.4 to 1.10.2
+  - build(deps): Bump go.opentelemetry.io/contrib/bridges/prometheus from 0.69.0 to 0.71.0
+  - build(deps): Bump go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp from 0.69.0 to 0.71.0
+  - build(deps): Bump go.opentelemetry.io/otel from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/sdk/metric from 1.44.0 to 1.46.0
+  - build(deps): Bump go.opentelemetry.io/otel/trace from 1.44.0 to 1.46.0
+  - build(deps): Bump go.yaml.in/yaml/v3 from 3.0.4 to 3.0.5
+  - build(deps): Bump golang.org/x/text from 0.40.0 to 0.41.0
+  - build(deps): Bump google.golang.org/grpc from 1.82.1 to 1.83.2
+  - build(deps): Bump google.golang.org/protobuf from 1.36.11 to 1.36.12
+
 ## 1.20.1
 
 This release includes a bug fix for a regression introduced in v1.20.0 in
