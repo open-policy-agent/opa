@@ -54,7 +54,27 @@ type Opts struct {
 	// as some formatting operations may otherwise mutate the AST.
 	SkipDefensiveCopying bool
 
+	// FailFast instructs the formatter to stop at the first element whose formatted form differs from the
+	// source text, and return an [UnformattedError] instead of laying out the rest of the module.
+	// Only the Source* functions honour this option, as they alone have source text to compare against.
+	// Not returning an [UnformattedError] doesn't promise that the output matches the source: FailFast never
+	// reports a formatted module as unformatted, but it doesn't catch every difference either.
+	FailFast bool
+
 	Capabilities *ast.Capabilities
+}
+
+// UnformattedError is returned by the Source* functions when [Opts.FailFast] is set and the formatted output
+// differs from the source. Loc is the element being written when the difference was noticed.
+type UnformattedError struct {
+	Loc *ast.Location
+}
+
+func (e UnformattedError) Error() string {
+	if e.Loc == nil {
+		return "source is not formatted"
+	}
+	return fmt.Sprintf("%s:%d: source is not formatted", e.Loc.File, e.Loc.Row)
 }
 
 func (o Opts) effectiveRegoVersion() ast.RegoVersion {
@@ -107,8 +127,11 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 		}
 	}
 
-	formatted, err := AstWithOpts(module, opts)
+	formatted, err := astWithOpts(module, opts, src)
 	if err != nil {
+		if unformatted, ok := errors.AsType[UnformattedError](err); ok {
+			return nil, unformatted
+		}
 		return nil, fmt.Errorf("%s: %v", filename, err)
 	}
 
@@ -181,6 +204,13 @@ func (o fmtOpts) keywords() []string {
 }
 
 func AstWithOpts(x any, opts Opts) ([]byte, error) {
+	// No source text to compare against, so [Opts.FailFast] can't be honoured here.
+	return astWithOpts(x, opts, nil)
+}
+
+// astWithOpts formats x. src, when non-nil, is the source text x was parsed from,
+// and is only used to serve [Opts.FailFast].
+func astWithOpts(x any, opts Opts, src []byte) ([]byte, error) {
 	// The node has to be deep copied because it may be mutated below. Alternatively,
 	// we could avoid the copy by checking if mutation will occur first. For now,
 	// since format is not latency sensitive, just deep copy in all cases.
@@ -289,6 +319,10 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 		fmtOpts: o,
 	}
 
+	if opts.FailFast && src != nil {
+		w.check = &srcChecker{src: src}
+	}
+
 	switch x := x.(type) {
 	case *ast.Module:
 		regoV2Imported := slices.ContainsFunc(x.Imports, isRegoV2Compatible)
@@ -325,6 +359,9 @@ func AstWithOpts(x any, opts Opts) ([]byte, error) {
 
 		err := w.writeModule(x)
 		if err != nil {
+			if unformatted, ok := errors.AsType[UnformattedError](err); ok {
+				return nil, unformatted
+			}
 			w.errs = append(w.errs, ast.NewError(ast.FormatErr, &ast.Location{}, "%s", err.Error()))
 		}
 	case *ast.Package:
@@ -442,6 +479,10 @@ type writer struct {
 
 	buf bytes.Buffer
 
+	// check compares the output against the source as it's written, so that formatting can stop at the
+	// first element that differs. Nil unless [Opts.FailFast] was set.
+	check *srcChecker
+
 	indent                  string
 	level                   int
 	inline                  bool
@@ -450,6 +491,56 @@ type writer struct {
 	errs                    ast.Errors
 	fmtOpts                 fmtOpts
 	writeCommentOnFinalLine bool
+}
+
+// srcChecker compares the formatter's output against the source the module was parsed from, so that a caller
+// asking only "is this formatted?" doesn't pay to lay out a module whose first rule already answers it.
+type srcChecker struct {
+	src []byte
+
+	// matched is the number of leading bytes of src the output is known to reproduce, so that each check
+	// only compares what has been written since the last one.
+	matched int
+}
+
+// check reports an [UnformattedError] if out can't be a prefix of the source: the final output can only equal
+// the source if every prefix of it does. Trailing newlines are excluded, as elements are separated by blank
+// lines that are squashed at the end, so the newlines following the last element written aren't decided yet.
+func (c *srcChecker) check(out []byte, loc *ast.Location) error {
+	out = bytes.TrimRight(out, "\n")
+
+	if len(out) > len(c.src) {
+		return UnformattedError{Loc: loc}
+	}
+	if len(out) <= c.matched {
+		return nil
+	}
+	if !bytes.Equal(out[c.matched:], c.src[c.matched:len(out)]) {
+		return UnformattedError{Loc: loc}
+	}
+
+	c.matched = len(out)
+
+	return nil
+}
+
+// checkFormatted stops formatting if the output already differs from the source. A no-op unless
+// [Opts.FailFast] was set, and only safe to call between elements: writeTerm rewinds the buffer to re-write a
+// term as unformatted source when it meets an unexpected comment, so bytes written within an element may yet
+// be replaced, and a comment registered for the end of a line is written when the line ends, which can be
+// after the element that registered it.
+func (w *writer) checkFormatted(loc *ast.Location) error {
+	if w.check == nil || w.beforeEnd != nil {
+		return nil
+	}
+
+	// Elements the formatter added itself, such as a missing future keyword import, carry a synthetic location
+	// that points nowhere in the source.
+	if loc != nil && loc.File == defaultLocationFile {
+		loc = nil
+	}
+
+	return w.check.check(w.buf.Bytes(), loc)
 }
 
 func (w *writer) writeModule(module *ast.Module) error {
@@ -510,6 +601,9 @@ func (w *writer) writeModule(module *ast.Module) error {
 	if err != nil {
 		return err
 	}
+	if err := w.checkFormatted(pkg.Loc()); err != nil {
+		return err
+	}
 	comments, err = w.writeImports(added, comments)
 	if err != nil {
 		return err
@@ -523,7 +617,10 @@ func (w *writer) writeModule(module *ast.Module) error {
 			return err
 		}
 		rules, others = gatherRules(others)
-		comments = w.writeRules(rules, comments)
+		comments, err = w.writeRules(rules, comments)
+		if err != nil {
+			return err
+		}
 	}
 
 	for i, c := range comments {
@@ -604,7 +701,7 @@ func (w *writer) writeComments(comments []*ast.Comment) error {
 	return nil
 }
 
-func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) ([]*ast.Comment, error) {
 	for i, rule := range rules {
 		var err error
 		if comments, err = w.insertComments(comments, rule.Location); err != nil {
@@ -619,6 +716,10 @@ func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.C
 			}
 		}
 
+		if err := w.checkFormatted(rule.Loc()); err != nil {
+			return comments, err
+		}
+
 		if i < len(rules)-1 && w.groupableOneLiner(rule) {
 			next := rules[i+1]
 			if w.groupableOneLiner(next) && next.Location.Row == rule.Location.Row+1 {
@@ -629,7 +730,7 @@ func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.C
 		}
 		w.blankLine()
 	}
-	return comments
+	return comments, nil
 }
 
 // groupableOneLiner reports whether rule is written on a single line, and so may
@@ -2253,6 +2354,10 @@ func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) ([
 				w.write(" " + c.String())
 			}
 			w.endLine()
+
+			if err := w.checkFormatted(i.Loc()); err != nil {
+				return nil, err
+			}
 		}
 		w.blankLine()
 	}
