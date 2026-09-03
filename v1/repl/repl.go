@@ -833,7 +833,7 @@ func ruleRefFromTerm(term *ast.Term) (ast.Ref, bool) {
 // previous definitions of user.role, leaving user.email in place.
 func refsOverlap(a, b ast.Ref) bool {
 	for i := range min(len(a), len(b)) {
-		if a[i].Value.Compare(b[i].Value) != 0 {
+		if !a[i].Equal(b[i]) {
 			return false
 		}
 	}
@@ -1734,7 +1734,7 @@ func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term
 	name := ref[0].Value.(ast.Var)
 
 	for _, imp := range module.Imports {
-		if imp.Name().Compare(name) == 0 {
+		if imp.Name() == name {
 			return true
 		}
 	}
