@@ -14,6 +14,10 @@ import (
 // Opts lets you control the code formatting via `AstWithOpts()`.
 type Opts = v1.Opts
 
+// UnformattedError is returned by the Source* functions when [Opts.FailFast] is set and the formatted output
+// differs from the source. Loc is the element being written when the difference was noticed.
+type UnformattedError = v1.UnformattedError
+
 // Source formats a Rego source file. The bytes provided must describe a complete
 // Rego module. If they don't, Source will return an error resulting from the attempt
 // to parse the bytes.
