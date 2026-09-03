@@ -259,13 +259,13 @@
       "id": "swift",
       "label": "Swift",
       "repo": "open-policy-agent/swift-opa",
-      "version": "0.0.9"
+      "version": "0.0.10"
     },
     {
       "id": "java",
       "label": "Java",
       "repo": "open-policy-agent/java-opa-sdk",
-      "version": "0.3.0"
+      "version": "0.4.0"
     }
   ],
   "abs": {
@@ -5395,6 +5395,7 @@
     ],
     "description": "Returns a boolean representing the result of comparing two MACs for equality without leaking timing information.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.52.0",
@@ -5521,6 +5522,7 @@
     ],
     "description": "Returns a string representing the MD5 HMAC of the input message using the input key.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.36.0",
@@ -5647,6 +5649,7 @@
     ],
     "description": "Returns a string representing the SHA1 HMAC of the input message using the input key.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.36.0",
@@ -5773,6 +5776,7 @@
     ],
     "description": "Returns a string representing the SHA256 HMAC of the input message using the input key.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.36.0",
@@ -5899,6 +5903,7 @@
     ],
     "description": "Returns a string representing the SHA512 HMAC of the input message using the input key.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.36.0",
@@ -6070,6 +6075,7 @@
     ],
     "description": "Returns a string representing the input string hashed with the MD5 function",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.17.0",
@@ -6322,6 +6328,7 @@
     ],
     "description": "Returns a string representing the input string hashed with the SHA1 function",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.17.0",
@@ -6493,6 +6500,7 @@
     ],
     "description": "Returns a string representing the input string hashed with the SHA256 function",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.17.0",
@@ -8766,7 +8774,9 @@
       "edge"
     ],
     "description": "Computes the set of reachable nodes in the graph from a set of starting nodes.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.20.0",
     "result": {
       "description": "set of vertices reachable from the `initial` vertices in the directed `graph`",
@@ -8888,7 +8898,9 @@
       "edge"
     ],
     "description": "Computes the set of reachable paths in the graph from a set of starting nodes.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.37.0",
     "result": {
       "description": "paths reachable from the `initial` vertices in the directed `graph`",
@@ -12072,7 +12084,9 @@
       "edge"
     ],
     "description": "Verifies if an EdDSA JWT signature is valid.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v1.8.0",
     "result": {
       "description": "`true` if the signature is valid, `false` otherwise",
@@ -15490,7 +15504,10 @@
       "edge"
     ],
     "description": "Filters the object. For example: `json.filter({\"a\": {\"b\": \"x\", \"c\": \"y\"}}, [\"a/b\"])` will result in `{\"a\": {\"b\": \"x\"}}`). Paths are not filtered in-order and are deduplicated before being evaluated.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0",
+      "swift": "0.0.10"
+    },
     "introduced": "v0.17.0",
     "result": {
       "description": "remaining data from `object` with only keys specified in `paths`",
@@ -15638,6 +15655,7 @@
     ],
     "description": "Verifies the input string is a valid JSON document.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.25.0-rc1",
@@ -15809,6 +15827,7 @@
     ],
     "description": "Serializes the input term to JSON.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.17.0",
@@ -15886,6 +15905,7 @@
     ],
     "description": "Serializes the input term JSON, with additional formatting options via the `opts` parameter. `opts` accepts keys `pretty` (enable multi-line/formatted JSON), `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`).",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.6"
     },
     "introduced": "v0.64.0",
@@ -15981,7 +16001,9 @@
       "edge"
     ],
     "description": "Checks that the document matches the JSON schema. The `pattern` keyword is enforced using Go's RE2 regex dialect; schemas relying on ECMA-262 features that RE2 does not support (e.g. negative lookahead) will be rejected.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.50.0",
     "result": {
       "description": "`output` is of the form `[match, errors]`. If the document is valid given the schema, then `match` is `true`, and `errors` is an empty array. Otherwise, `match` is `false` and `errors` is an array of objects describing the error(s).",
@@ -16129,7 +16151,10 @@
       "edge"
     ],
     "description": "Patches an object according to RFC6902. For example: `json.patch({\"a\": {\"foo\": 1}}, [{\"op\": \"add\", \"path\": \"/a/bar\", \"value\": 2}])` results in `{\"a\": {\"foo\": 1, \"bar\": 2}`. The patches are applied atomically: if any of them fails, the result will be undefined. Additionally works on sets, where a value contained in the set is considered to be its path.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0",
+      "swift": "0.0.10"
+    },
     "introduced": "v0.25.0",
     "result": {
       "description": "result obtained after consecutively applying all patch operations in `patches`",
@@ -16299,7 +16324,10 @@
       "edge"
     ],
     "description": "Removes paths from an object. For example: `json.remove({\"a\": {\"b\": \"x\", \"c\": \"y\"}}, [\"a/b\"])` will result in `{\"a\": {\"c\": \"y\"}}`. Paths are not removed in-order and are deduplicated before being evaluated.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0",
+      "swift": "0.0.10"
+    },
     "introduced": "v0.18.0",
     "result": {
       "description": "result of removing all keys specified in `paths`",
@@ -16469,6 +16497,7 @@
     ],
     "description": "Deserializes the input string.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.17.0",
@@ -16559,7 +16588,9 @@
       "edge"
     ],
     "description": "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object. The `pattern` keyword, if present, is compiled using Go's RE2 regex dialect; schemas relying on ECMA-262 features that RE2 does not support (e.g. negative lookahead) will be rejected.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.50.0",
     "result": {
       "description": "`output` is of the form `[valid, error]`. If the schema is valid, then `valid` is `true`, and `error` is `null`. Otherwise, `valid` is `false` and `error` is a string describing the error.",
@@ -18126,7 +18157,9 @@
       "edge"
     ],
     "description": "Checks if a CIDR or IP is contained within another CIDR. `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and `false` otherwise. Supports both IPv4 and IPv6 notations.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.17.0",
     "result": {
       "description": "`true` if `cidr_or_ip` is contained within `cidr`",
@@ -18295,7 +18328,9 @@
       "edge"
     ],
     "description": "Checks if collections of cidrs or ips are contained within another collection of cidrs and returns matches. This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs).",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.19.0-rc1",
     "result": {
       "description": "tuples identifying matches where `cidrs_or_ips` are contained within `cidrs`",
@@ -18464,7 +18499,9 @@
       "edge"
     ],
     "description": "Expands CIDR to set of hosts  (e.g., `net.cidr_expand(\"192.168.0.0/30\")` generates 4 hosts: `{\"192.168.0.0\", \"192.168.0.1\", \"192.168.0.2\", \"192.168.0.3\"}`).",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.17.0",
     "result": {
       "description": "set of IP addresses the CIDR `cidr` expands to",
@@ -18638,7 +18675,9 @@
       "edge"
     ],
     "description": "Checks if a CIDR intersects with another CIDR (e.g. `192.168.0.0/16` overlaps with `192.168.1.0/24`). Supports both IPv4 and IPv6 notations.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.17.0",
     "result": {
       "description": "`true` if `cidr1` intersects with `cidr2`",
@@ -18740,7 +18779,9 @@
       "edge"
     ],
     "description": "Parses an IPv4/IPv6 CIDR and returns a boolean indicating if the provided CIDR is valid.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.46.0",
     "result": {
       "description": "`true` if `cidr` is a valid CIDR",
@@ -18888,7 +18929,9 @@
       "edge"
     ],
     "description": "Merges IP addresses and subnets into the smallest possible list of CIDRs (e.g., `net.cidr_merge([\"192.0.128.0/24\", \"192.0.129.0/24\"])` generates `{\"192.0.128.0/23\"}`.This function merges adjacent subnets where possible, those contained within others and also removes any duplicates.\nSupports both IPv4 and IPv6 notations. IPv6 inputs need a prefix length (e.g. \"/128\").",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.24.0",
     "result": {
       "description": "smallest possible set of CIDRs obtained after merging the provided list of IP addresses and subnets in `addrs`",
@@ -19176,7 +19219,9 @@
       "edge"
     ],
     "description": "Returns the set of IP addresses (both v4 and v6) that the passed-in `name` resolves to using the standard name resolution mechanisms available.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.35.0",
     "result": {
       "description": "IP addresses (v4 and v6) that `name` resolves to",
@@ -21383,7 +21428,9 @@
       "edge"
     ],
     "description": "Signs an HTTP request object for Amazon Web Services. Currently implements [AWS Signature Version 4 request signing](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html) by the `Authorization` header method.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.47.0",
     "result": {
       "description": "HTTP request object with `Authorization` header",
@@ -21867,6 +21914,7 @@
     ],
     "description": "Returns all successive matches of the expression.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.7"
     },
     "introduced": "v0.17.0",
@@ -22048,6 +22096,7 @@
     ],
     "description": "Returns the specified number of matches when matching the input against the pattern.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.7"
     },
     "introduced": "v0.17.0",
@@ -22223,7 +22272,9 @@
       "edge"
     ],
     "description": "Checks if the intersection of two glob-style regular expressions matches a non-empty set of non-empty strings.\nThe set of regex symbols is limited for this builtin: only `.`, `*`, `+`, `[`, `-`, `]` and `\\` are treated as special symbols.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v0.17.0",
     "result": {
       "description": "true if the intersection of `glob1` and `glob2` matches a non-empty set of non-empty strings",
@@ -22375,6 +22426,7 @@
     ],
     "description": "Checks if a string is a valid regular expression: the detailed syntax for patterns is defined by https://github.com/google/re2/wiki/Syntax.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.7"
     },
     "introduced": "v0.23.0",
@@ -22533,6 +22585,7 @@
     ],
     "description": "Matches a string against a regular expression.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.7"
     },
     "introduced": "v0.23.0",
@@ -22648,6 +22701,7 @@
     ],
     "description": "Find and replaces the text using the regular expression pattern.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.7"
     },
     "introduced": "v0.45.0",
@@ -22824,6 +22878,7 @@
     ],
     "description": "Splits the input string by the occurrences of the given pattern.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.7"
     },
     "introduced": "v0.17.0",
@@ -23010,6 +23065,7 @@
     ],
     "description": "Matches a string against a pattern, where the pattern may be glob-like",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.7"
     },
     "introduced": "v0.17.0",
@@ -24083,6 +24139,7 @@
     ],
     "description": "Compares valid SemVer formatted version strings.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.3"
     },
     "introduced": "v0.22.0",
@@ -24237,6 +24294,7 @@
     ],
     "description": "Validates that the input is a valid SemVer string.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.3"
     },
     "introduced": "v0.22.0",
@@ -30035,7 +30093,9 @@
       "edge"
     ],
     "description": "Returns true if the input can be parsed as a URI.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v1.16.0",
     "result": {
       "description": "true if `uri` is a valid URI, false otherwise",
@@ -30068,7 +30128,9 @@
       "edge"
     ],
     "description": "Parses a URI and returns an object containing its components according to RFC 3986. Empty components are omitted. In addition to the standard components, `raw_query` is returned for use with `urlquery` builtins, and `raw_path` is returned to allow detection of path-based exploits using percent-encoded characters.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0"
+    },
     "introduced": "v1.16.0",
     "result": {
       "description": "object containing URI components",
@@ -30811,6 +30873,7 @@
     ],
     "description": "Parses the string value as an UUID and returns an object with the well-defined fields of the UUID if valid.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.57.0",
@@ -30973,6 +31036,7 @@
     ],
     "description": "Returns a new UUIDv4.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.20.0",
@@ -31144,6 +31208,7 @@
     ],
     "description": "Generates `[path, value]` tuples for all nested documents of `x` (recursively).  Queries can use `walk` to traverse documents nested under `x`.",
     "implementations": {
+      "java": "0.4.0",
       "swift": "0.0.1"
     },
     "introduced": "v0.17.0",
@@ -31293,7 +31358,10 @@
       "edge"
     ],
     "description": "Verifies the input string is a valid YAML document.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0",
+      "swift": "0.0.10"
+    },
     "introduced": "v0.25.0-rc1",
     "result": {
       "description": "`true` if `x` is valid YAML, `false` otherwise",
@@ -31462,7 +31530,10 @@
       "edge"
     ],
     "description": "Serializes the input term to YAML.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0",
+      "swift": "0.0.10"
+    },
     "introduced": "v0.17.0",
     "result": {
       "description": "the YAML string representation of `x`",
@@ -31631,7 +31702,10 @@
       "edge"
     ],
     "description": "Deserializes the input string.",
-    "implementations": {},
+    "implementations": {
+      "java": "0.4.0",
+      "swift": "0.0.10"
+    },
     "introduced": "v0.17.0",
     "result": {
       "description": "the term deserialized from `x`",
