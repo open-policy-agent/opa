@@ -302,7 +302,7 @@ func TestModuleTree(t *testing.T) {
 	}
 }
 
-func TestCompilerGetExports(t *testing.T) {
+func TestCompilerGetExport(t *testing.T) {
 	tests := []struct {
 		note    string
 		modules []*Module
@@ -409,16 +409,14 @@ func TestCompilerGetExports(t *testing.T) {
 		// TODO(sr): add multi-val rule, and ref-with-var single-value rule.
 	}
 
-	hashMap := func(ms map[string][]string) *util.HasherMap[Ref, []Ref] {
-		rules := util.NewHasherMap[Ref, []Ref](RefEqual)
-		for r, rs := range ms {
-			refs := make([]Ref, len(rs))
-			for i := range rs {
-				refs[i] = toRef(rs[i])
-			}
-			rules.Put(MustParseRef(r), refs)
+	toRef := func(s string) Ref {
+		switch x := MustParseTerm(s).Value.(type) {
+		case Var:
+			return Ref{NewTerm(x)}
+		case Ref:
+			return x
 		}
-		return rules
+		panic("unreachable")
 	}
 
 	for _, tc := range tests {
@@ -428,31 +426,15 @@ func TestCompilerGetExports(t *testing.T) {
 				c.Modules[strconv.Itoa(i)] = m
 				c.sorted = append(c.sorted, strconv.Itoa(i))
 			}
-			if exp, act := hashMap(tc.exports), c.getExports(); !refMapEqual(exp, act) {
-				t.Errorf("expected %v, got %v", exp, act)
+			for path, exports := range tc.exports {
+				got := c.getExport(toRef(path))
+				exp := util.Map(exports, toRef)
+
+				if !slices.EqualFunc(exp, got, RefEqual) {
+					t.Errorf("expected %v, got %v", exp, got)
+				}
 			}
 		})
-	}
-}
-
-func refMapEqual(a, b *util.HasherMap[Ref, []Ref]) bool {
-	if a.Len() != b.Len() {
-		return false
-	}
-	return !a.Iter(func(k Ref, v []Ref) bool {
-		v2, ok := b.Get(k)
-		return !ok || !slices.EqualFunc(v, v2, RefEqual)
-	})
-}
-
-func toRef(s string) Ref {
-	switch t := MustParseTerm(s).Value.(type) {
-	case Var:
-		return Ref{NewTerm(t)}
-	case Ref:
-		return t
-	default:
-		panic("unreachable")
 	}
 }
 
