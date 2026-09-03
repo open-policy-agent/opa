@@ -2106,30 +2106,17 @@ func (c *Compiler) err(errs ...*Error) bool { // returns if we should continue
 	return !isLimitReachedInThisCall // Return false if the limit was reached, true otherwise.
 }
 
-func (c *Compiler) getExports() *util.HasherMap[Ref, []Ref] {
-	rules := util.NewHasherMap[Ref, []Ref](RefEqual)
-
+func (c *Compiler) getExport(pkg Ref) []Ref {
+	var refs []Ref
 	for _, name := range c.sorted {
-		for _, rule := range c.Modules[name].Rules {
-			hashMapAdd(rules, c.Modules[name].Package.Path, rule.Head.Ref().GroundPrefix())
+		if RefEqual(pkg, c.Modules[name].Package.Path) {
+			refs = slices.Grow(refs, len(c.Modules[name].Rules))
+			for _, rule := range c.Modules[name].Rules {
+				refs = append(refs, rule.Head.Ref().GroundPrefix())
+			}
 		}
 	}
-
-	return rules
-}
-
-func hashMapAdd(rules *util.HasherMap[Ref, []Ref], pkg, rule Ref) {
-	prev, ok := rules.Get(pkg)
-	if !ok {
-		rules.Put(pkg, []Ref{rule})
-		return
-	}
-	for _, p := range prev {
-		if p.Equal(rule) {
-			return
-		}
-	}
-	rules.Put(pkg, append(prev, rule))
+	return refs
 }
 
 func (c *Compiler) GetAnnotationSet() *AnnotationSet {
@@ -2215,15 +2202,9 @@ func (c *Compiler) moduleIsRegoV1Compatible(mod *Module) bool {
 //
 // The reference "c.d.e" would be resolved to "data.a.b.c.d.e".
 func (c *Compiler) resolveAllRefs() {
-	rules := c.getExports()
-
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		var ruleExports []Ref
-		if x, ok := rules.Get(mod.Package.Path); ok {
-			ruleExports = x
-		}
-
+		ruleExports := c.getExport(mod.Package.Path)
 		globals := getGlobals(mod.Package, ruleExports, mod.Imports)
 
 		WalkRules(mod, func(rule *Rule) bool {
@@ -3798,12 +3779,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 			pkg = emptyPackage
 		}
 		if pkg != nil {
-			var ruleExports []Ref
-			rules := qc.compiler.getExports()
-			if exist, ok := rules.Get(pkg.Path); ok {
-				ruleExports = exist
-			}
-
+			ruleExports := qc.compiler.getExport(pkg.Path)
 			globals = getGlobals(qctx.Package, ruleExports, qctx.Imports)
 			qctx.Imports = nil
 		}
