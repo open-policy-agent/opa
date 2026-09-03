@@ -77,7 +77,7 @@ func (e *Error) Is(target error) bool {
 	if t, ok := errors.AsType[*Error](target); ok {
 		return (t.Code == "" || e.Code == t.Code) &&
 			(t.Message == "" || e.Message == t.Message) &&
-			(t.Location == nil || t.Location.Compare(e.Location) == 0)
+			(t.Location == nil || t.Location.Equal(e.Location))
 	}
 	return false
 }

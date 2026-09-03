@@ -55,7 +55,7 @@ linters:
         # Reasonable rule, but not sure what to replace with in
         # many locations, so disabling for now
         - exitAfterDefer
-        # This is disabled from the perfomance tag  enabled further down.
+        # This is disabled from the perfomance tag enabled further down.
         - hugeParam
       enabled-tags:
         - performance

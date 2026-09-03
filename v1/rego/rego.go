@@ -2169,7 +2169,7 @@ func (r *Rego) parseQuery(queryImports []*ast.Import, m metrics.Metrics) (ast.Bo
 
 func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserOptions) (ast.ParserOptions, error) {
 	for _, imp := range imports {
-		if ast.RegoV1CompatibleRef.Compare(imp.Path.Value) == 0 {
+		if ast.RegoV1CompatibleRef.Equal(imp.Path.Value) {
 			popts.RegoVersion = ast.RegoV1
 			return popts, nil
 		}
