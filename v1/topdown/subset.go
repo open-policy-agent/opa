@@ -182,7 +182,7 @@ func arraySubset(super, sub *ast.Array) bool {
 		}
 
 		subElem := sub.Elem(subCursor)
-		if superElem.Value.Compare(subElem.Value) == 0 {
+		if superElem.Equal(subElem) {
 			subCursor++
 		} else {
 			superCursor++
