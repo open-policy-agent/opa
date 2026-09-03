@@ -2787,6 +2787,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 	// Use method value to avoid closure allocation.
 	// Create once and reuse for both doc and virtual doc enumeration.
 	en := enumerateNext{iter: iter, e: &e, key: nil}
+	call := en.call
 
 	if doc != nil {
 		switch doc := doc.(type) {
@@ -2794,7 +2795,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 			for i := range doc.Len() {
 				k := ast.InternedTerm(i)
 				en.key = k
-				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, en.call)
+				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, call)
 
 				if err := dc.handleErr(err); err != nil {
 					return err
@@ -2804,7 +2805,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 			ki := doc.KeysIterator()
 			for k, more := ki.Next(); more; k, more = ki.Next() {
 				en.key = k
-				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, en.call)
+				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, call)
 				if err := dc.handleErr(err); err != nil {
 					return err
 				}
@@ -2813,7 +2814,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 			// Use Slice() to avoid closure allocation in Iter()
 			for _, elem := range doc.Slice() {
 				en.key = elem
-				err := e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, en.call)
+				err := e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, call)
 				if err := dc.handleErr(err); err != nil {
 					return err
 				}
@@ -2840,7 +2841,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		}
 
 		en.key = key
-		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, en.call); err != nil {
+		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, call); err != nil {
 			return err
 		}
 	}
@@ -4093,6 +4094,20 @@ func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 	return cpy.eval(iter)
 }
 
+// evalTermNext is the evalTerm counterpart of enumerateNext: it lets the
+// object/set enumeration loops pass a method value to biunify instead of a
+// function literal, which would escape to the heap on every iteration.
+// evalTerm is held by value so call() doesn't chase a second pointer.
+type evalTermNext struct {
+	e    evalTerm
+	iter unifyIterator
+	key  *ast.Term
+}
+
+func (en *evalTermNext) call() error {
+	return en.e.next(en.iter, en.e.termbindings.Plug(en.key))
+}
+
 func (e evalTerm) enumerate(iter unifyIterator) error {
 	var deferredEe *deferredEarlyExitError
 	handleErr := func(err error) error {
@@ -4137,10 +4152,14 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 			}
 		}
 	case ast.Object:
-		for _, k := range v.Keys() {
-			err := e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, func() error {
-				return e.next(iter, e.termbindings.Plug(k))
-			})
+		// Bind the method value once, outside the loop: a func literal — or a method
+		// value materialized per iteration — escapes to the heap on every key.
+		en := evalTermNext{iter: iter, e: e}
+		call := en.call
+		ki := v.KeysIterator()
+		for k, more := ki.Next(); more; k, more = ki.Next() {
+			en.key = k
+			err := e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, call)
 			if err != nil {
 				if err := handleErr(err); err != nil {
 					return err
@@ -4148,10 +4167,11 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 			}
 		}
 	case ast.Set:
+		en := evalTermNext{iter: iter, e: e}
+		call := en.call
 		for _, elem := range v.Slice() {
-			err := e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
-				return e.next(iter, e.termbindings.Plug(elem))
-			})
+			en.key = elem
+			err := e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, call)
 			if err != nil {
 				if err := handleErr(err); err != nil {
 					return err
