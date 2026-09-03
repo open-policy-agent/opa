@@ -4064,12 +4064,7 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 		return nil
 	}
 
-	result := make([]*Term, 0, len(indexVars))
-	for v := range indexVars {
-		result = append(result, NewTerm(v))
-	}
-	slices.SortFunc(result, TermValueCompare)
-
+	result := util.SortedFunc(util.MapKeys(indexVars, ToTerm), TermValueCompare)
 	debugRes := make([]*Term, len(result))
 	for i, r := range result {
 		if o, ok := rwVars[r.Value.(Var)]; ok {

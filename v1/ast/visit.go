@@ -48,6 +48,7 @@ type (
 		SkipWithTarget      bool
 		SkipSets            bool
 		SkipTemplateStrings bool
+		SkipWildcardVars    bool
 		customVisit         func(vis *VarVisitor, v any) bool
 	}
 
@@ -910,6 +911,9 @@ func (vis *VarVisitor) visit(v any) bool {
 		}
 	}
 	if v, ok := v.(Var); ok {
+		if vis.params.SkipWildcardVars && v.IsWildcard() {
+			return true
+		}
 		vis.Add(v)
 		return true
 	}
