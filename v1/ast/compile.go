@@ -3590,7 +3590,7 @@ func (c *Compiler) rewriteWithModifiers() {
 	f := newEqualityFactory(c.localvargen)
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		t := NewGenericTransformer(func(x any) (any, error) {
+		t := GenericTransformer{f: func(x any) (any, error) {
 			body, ok := x.(Body)
 			if !ok {
 				return x, nil
@@ -3601,7 +3601,7 @@ func (c *Compiler) rewriteWithModifiers() {
 			}
 
 			return body, nil
-		})
+		}}
 		_, _ = Transform(t, mod) // ignore error
 	}
 }
@@ -6010,7 +6010,7 @@ func rewriteComprehensionTerms(f *equalityFactory, node any) (any, error) {
 func rewriteEquals(x any) (modified bool) {
 	// Note: can't use Interned.Refs.Equality here as this may be mutated
 	unifyOp := Equality.Ref()
-	t := NewGenericTransformer(func(x any) (any, error) {
+	t := GenericTransformer{f: func(x any) (any, error) {
 		if x, ok := x.(*Expr); ok && x.IsCall() {
 			operator := x.Operator()
 			if operator.Equal(Interned.Refs.Equal) && len(x.Operands()) == 2 {
@@ -6019,7 +6019,7 @@ func rewriteEquals(x any) (modified bool) {
 			}
 		}
 		return x, nil
-	})
+	}}
 	_, _ = Transform(t, x) // ignore error
 	return modified
 }
