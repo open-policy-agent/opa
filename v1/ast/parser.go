@@ -1222,6 +1222,7 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	// binary. Otherwise, restore and fall through to regular handling.
 	if p.s.tok == tokens.LBrace && p.logicalKeywordsActive() {
 		s := p.save()
+		cache := p.cache.m
 		braceOffset := p.s.loc.Offset
 		bodyLoc := p.s.Loc()
 		p.scan()
@@ -1243,6 +1244,7 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 			}
 		}
 		p.restore(s)
+		p.cache.m = cache
 	}
 
 	// LHS/whole parenthesized group at statement start: `(a or b)`,
