@@ -791,8 +791,7 @@ func (s *Server) initHandlerAuthn(handler http.Handler) http.Handler {
 }
 
 func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
-	switch s.authorization {
-	case AuthorizationBasic:
+	if s.authorization == AuthorizationBasic {
 		handler = authorizer.NewBasic(
 			handler,
 			s.getCompiler,
@@ -803,8 +802,8 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
 			authorizer.InterQueryCache(s.interQueryBuiltinCache),
 			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache),
-			authorizer.URLPathExpectsBodyFunc(s.manager.ExtraAuthorizerRoutes()))
-
+			authorizer.URLPathExpectsBodyFunc(s.manager.ExtraAuthorizerRoutes()),
+		)
 		if s.metrics != nil {
 			handler = s.instrumentHandler(handler.ServeHTTP, PromHandlerAPIAuthz)
 		}
@@ -2699,13 +2698,8 @@ func parseRefQuery(str string) (ast.Body, error) {
 	}
 
 	// assert the single statement is a lone ref
-	expr := query[0]
-	switch t := expr.Terms.(type) {
-	case *ast.Term:
-		switch t.Value.(type) {
-		case ast.Ref:
-			return query, nil
-		}
+	if t, ok := query[0].Terms.(*ast.Term); ok && ast.TermValueIs[ast.Ref](t) {
+		return query, nil
 	}
 
 	return nil, errors.New("complex query")

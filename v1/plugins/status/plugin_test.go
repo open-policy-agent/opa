@@ -313,8 +313,7 @@ func filterGauges(registerMock *prometheusRegisterMock) []prometheus.Gauge {
 	fltd := make([]prometheus.Gauge, 0)
 
 	for m := range registerMock.Collectors {
-		switch metric := m.(type) {
-		case prometheus.Gauge:
+		if metric, ok := m.(prometheus.Gauge); ok {
 			fltd = append(fltd, metric)
 		}
 	}

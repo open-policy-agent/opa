@@ -197,18 +197,11 @@ func (rs *dependencies) visited(rule *ast.Rule) bool {
 }
 
 func (rs *dependencies) toSlice() []ast.Ref {
-	result := make([]ast.Ref, 0, rs.refs.Len())
-	rs.refs.Iter(func(k, _ ast.Ref) bool {
-		result = append(result, k)
-		return false
-	})
-	return result
+	return rs.refs.Keys()
 }
 
 func dedup(refs []ast.Ref) []ast.Ref {
-	slices.SortFunc(refs, ast.RefCompare)
-
-	return slices.CompactFunc(refs, ast.RefEqual)
+	return slices.CompactFunc(util.SortedFunc(refs, ast.RefCompare), ast.RefEqual)
 }
 
 // filter removes all items from the list that cause pred to return true. It is
