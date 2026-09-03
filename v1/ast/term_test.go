@@ -178,7 +178,8 @@ func TestObjectSetOperations(t *testing.T) {
 	MustParseTerm(`["c", "d", "q"]`).Value.(*Array).Foreach(func(t *Term) {
 		expectedTerms = append(expectedTerms, t)
 	})
-	if len(r2) != 1 || !termSliceEqual(r2[0][:], expectedTerms) {
+
+	if len(r2) != 1 || !slices.EqualFunc(r2[0][:], expectedTerms, (*Term).Equal) {
 		t.Errorf(`Expected a.Intersect(b) to equal [["a", "d", "q"]] but got: %v`, r2)
 	}
 
@@ -1166,7 +1167,7 @@ func TestArrayOperations(t *testing.T) {
 			results = nil
 			tc.iterator(arr)
 
-			if !termSliceEqual(results, expected) {
+			if !slices.EqualFunc(results, expected, (*Term).Equal) {
 				t.Errorf("Expected iteration to return %v but got %v", expected, results)
 			}
 		})
@@ -1652,7 +1653,7 @@ func TestLazyObjectKeys(t *testing.T) {
 	})
 	act := x.Keys()
 	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
-	if !termSliceEqual(exp, act) {
+	if !slices.EqualFunc(exp, act, (*Term).Equal) {
 		t.Errorf("expected Keys() %v, got %v", exp, act)
 	}
 	assertForced(t, x, false)
@@ -1670,7 +1671,7 @@ func TestLazyObjectKeysIterator(t *testing.T) {
 		act = append(act, k)
 	}
 	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
-	if !termSliceEqual(exp, act) {
+	if !slices.EqualFunc(exp, act, (*Term).Equal) {
 		t.Errorf("expected Keys() %v, got %v", exp, act)
 	}
 	assertForced(t, x, false)

@@ -1243,7 +1243,7 @@ func (ref Ref) Equal(other Value) bool {
 // or greater than other.
 func (ref Ref) Compare(other Value) int {
 	if o, ok := other.(Ref); ok {
-		return termSliceCompare(ref, o)
+		return slices.CompareFunc(ref, o, TermValueCompare)
 	}
 	return valueTypeCompare(ref, other)
 }
@@ -1503,7 +1503,7 @@ func (arr *Array) Equal(other Value) bool {
 // or greater than other.
 func (arr *Array) Compare(other Value) int {
 	if b, ok := other.(*Array); ok {
-		return termSliceCompare(arr.elems, b.elems)
+		return slices.CompareFunc(arr.elems, b.elems, TermValueCompare)
 	}
 
 	return valueTypeCompare(arr, other)
@@ -1655,10 +1655,11 @@ func (arr *Array) Foreach(f func(*Term)) {
 
 // Append appends a term to arr, returning the appended array.
 func (arr *Array) Append(v *Term) *Array {
+	vhs := v.Value.Hash()
 	cpy := *arr
 	cpy.elems = append(arr.elems, v)
-	cpy.hashs = append(arr.hashs, v.Value.Hash())
-	cpy.hash = arr.hash + v.Value.Hash()
+	cpy.hashs = append(arr.hashs, vhs)
+	cpy.hash += vhs
 	cpy.ground = arr.ground && v.IsGround()
 	return &cpy
 }
@@ -2970,7 +2971,7 @@ func (c Call) Copy() Call {
 // or greater than other.
 func (c Call) Compare(other Value) int {
 	if oc, ok := other.(Call); ok {
-		return termSliceCompare(c, oc)
+		return slices.CompareFunc(c, oc, TermValueCompare)
 	}
 	return valueTypeCompare(c, other)
 }
@@ -3058,18 +3059,6 @@ func termSliceCopy(a []*Term) []*Term {
 		deepCopyTermValue(cpy[i]) // deep copy container Values in-place
 	}
 	return cpy
-}
-
-func termSliceEqual(a, b []*Term) bool {
-	if len(a) == len(b) {
-		for i := range a {
-			if !a[i].Equal(b[i]) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
 }
 
 func termSliceHash(a []*Term) int {
