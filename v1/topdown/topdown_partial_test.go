@@ -4824,6 +4824,212 @@ q if { input.x = 7 }`},
 				`x1 = input.y[c1]; x1.z = 1 and {__local0__1 = x1.z; neq(__local0__1, 2)}`,
 			},
 		},
+		{
+			note:     "unknown sub-path: enumerating input may hit the unknown key",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k] == 1
+				}
+				`,
+			},
+			wantQueries: []string{`input.x = 1`},
+		},
+		{
+			// Control for the case above: a known key already satisfies the body, so
+			// p holds whatever input.x is -- an empty (true) disjunct beside the saved one.
+			note:     "unknown sub-path: known key satisfies the body",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k] > 0
+				}
+				`,
+			},
+			wantQueries: []string{``, `input.x > 0`},
+		},
+		{
+			// The unknown key is present in the concrete input: its value must be
+			// ignored, and the branch saved once, not twice.
+			note:     "unknown sub-path: concrete input carries the unknown key",
+			query:    `data.test.p = true`,
+			input:    `{"x": 5, "y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k] == 5
+				}
+				`,
+			},
+			wantQueries: []string{`input.x = 5`},
+		},
+		{
+			// Two unknowns below the same key contribute "x" once, not twice.
+			note:     "unknown sub-path: two unknowns share a parent key",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x.a`, `input.x.b`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k].a == 1
+				}
+				`,
+			},
+			wantQueries: []string{`input.x.a = 1`},
+		},
+		{
+			note:     "unknown sub-path: ground key that misses the unknown is still evaluated",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if input.y == 2
+				`,
+			},
+			wantQueries: []string{``},
+		},
+		{
+			// A bound key is as good as a constant: k = "y" cannot hit input.x.
+			note:     "unknown sub-path: key bound to a constant that misses the unknown",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  k := "y"
+				  input[k] == 2
+				}
+				`,
+			},
+			wantQueries: []string{``},
+		},
+		{
+			// Wildcard at position 1 matches, but ground "b" and "a" at position 2 differ.
+			note:     "unknown sub-path: ground position past the wildcard rules out the overlap",
+			query:    `data.test.p = true`,
+			input:    `{"y": {"b": 2}}`,
+			unknowns: []string{`input.x.a`},
+			modules: []string{
+				`package test
+
+				p if input[k].b == 1
+				`,
+			},
+			wantQueries: []string{},
+		},
+		{
+			// Nested unknown, wildcard at the same depth as the unknown leaf.
+			note:     "unknown sub-path: nested, wildcard at the depth of the unknown leaf",
+			query:    `data.test.p = true`,
+			input:    `{"x": {"z": 3}}`,
+			unknowns: []string{`input.x.y`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input.x[k] == 1
+				}
+				`,
+			},
+			wantQueries: []string{`input.x.y = 1`},
+		},
+		{
+			// Wildcard above the unknown: the walk must continue past it to decide.
+			note:     "unknown sub-path: nested, wildcard above a matching ground position",
+			query:    `data.test.p = true`,
+			input:    `{"x": {"z": 3}}`,
+			unknowns: []string{`input.x.y`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  input[k].y == 1
+				}
+				`,
+			},
+			wantQueries: []string{`input.x.y = 1`},
+		},
+		{
+			// Ground sibling of the unknown leaf: input.x.z is fully known.
+			note:     "unknown sub-path: nested, ground sibling of the unknown leaf",
+			query:    `data.test.p = true`,
+			input:    `{"x": {"z": 3}}`,
+			unknowns: []string{`input.x.y`},
+			modules: []string{
+				`package test
+
+				p if input.x.z == 1
+				`,
+			},
+			wantQueries: []string{},
+		},
+		{
+			note:     "unknown sub-path: enumerating data may hit the unknown key",
+			query:    `data.test.p = true`,
+			data:     `{"foo": {"y": 2}}`,
+			unknowns: []string{`data.foo.x`},
+			modules: []string{
+				`package test
+
+				p if {
+				  some k
+				  data.foo[k] == 1
+				}
+				`,
+			},
+			wantQueries: []string{`data.foo[__local0__1] = 1`},
+		},
+		{
+			// The with value rebuilds input by iterating it, so it cannot be evaluated
+			// to a document here: input_copy becomes a support module instead.
+			note:     "unknown sub-path: with value reconstructed by enumeration",
+			query:    `data.test.p = true`,
+			input:    `{"y": 2}`,
+			unknowns: []string{`input.x`},
+			modules: []string{
+				`package test
+
+				input_copy[k] := v if some k, v in input
+
+				p if data.inner.q == true with input as input_copy
+				`,
+				`package inner
+
+				q if input.x == 1
+				`,
+			},
+			wantQueries: []string{`data.inner.q = true with input as data.partial.test.input_copy`},
+			wantSupport: []string{
+				`package partial.test.input_copy
+
+				x = __local1__2 if input.x = __local1__2
+
+				y = 2
+				`,
+			},
+		},
 	}
 
 	ctx := t.Context()
@@ -4907,6 +5113,9 @@ q if { input.x = 7 }`},
 				missing := queriesB.Diff(queriesA, tc.ignoreOrder)
 				extra := queriesA.Diff(queriesB, tc.ignoreOrder)
 				t.Errorf("Partial evaluation results differ. Expected %d queries but got %d queries:\nMissing:\n%v\nExtra:\n%v", len(queriesB), len(queriesA), missing, extra)
+			} else if len(partials) != len(expectedQueries) {
+				// Equal() compares as sets, so it cannot see a query emitted twice.
+				t.Errorf("Expected %d queries but got %d:\n%v", len(expectedQueries), len(partials), bodySet(partials))
 			}
 
 			var expectedSupport []*ast.Module
