@@ -260,14 +260,10 @@ func Transform(t Transformer, x any) (any, error) {
 			y.set(i, v)
 		}
 		return y, nil
-	case Set:
-		y, err = y.Map(func(term *Term) (*Term, error) {
+	case *set:
+		return y.Map(func(term *Term) (*Term, error) {
 			return transformTerm(t, term)
 		})
-		if err != nil {
-			return nil, err
-		}
-		return y, nil
 	case *ArrayComprehension:
 		if y.Term, err = transformTerm(t, y.Term); err != nil {
 			return nil, err
@@ -322,29 +318,29 @@ func Transform(t Transformer, x any) (any, error) {
 
 // TransformRefs calls the function f on all references under x.
 func TransformRefs(x any, f func(Ref) (Value, error)) (any, error) {
-	t := NewGenericTransformer(func(x any) (any, error) {
+	t := GenericTransformer{f: func(x any) (any, error) {
 		if r, ok := x.(Ref); ok {
 			return f(r)
 		}
 		return x, nil
-	})
+	}}
 	return Transform(t, x)
 }
 
 // TransformVars calls the function f on all vars under x.
 func TransformVars(x any, f func(Var) (Value, error)) (any, error) {
-	t := NewGenericTransformer(func(x any) (any, error) {
+	t := GenericTransformer{f: func(x any) (any, error) {
 		if v, ok := x.(Var); ok {
 			return f(v)
 		}
 		return x, nil
-	})
+	}}
 	return Transform(t, x)
 }
 
 // TransformComprehensions calls the function f on all comprehensions under x.
 func TransformComprehensions(x any, f func(any) (Value, error)) (any, error) {
-	t := NewGenericTransformer(func(x any) (any, error) {
+	t := GenericTransformer{f: func(x any) (any, error) {
 		switch x := x.(type) {
 		case *ArrayComprehension:
 			return f(x)
@@ -354,7 +350,7 @@ func TransformComprehensions(x any, f func(any) (Value, error)) (any, error) {
 			return f(x)
 		}
 		return x, nil
-	})
+	}}
 	return Transform(t, x)
 }
 
@@ -367,13 +363,11 @@ type GenericTransformer struct {
 // NewGenericTransformer returns a new GenericTransformer that will transform
 // AST nodes using the function f.
 func NewGenericTransformer(f func(x any) (any, error)) *GenericTransformer {
-	return &GenericTransformer{
-		f: f,
-	}
+	return &GenericTransformer{f: f}
 }
 
 // Transform calls the function f on the GenericTransformer.
-func (t *GenericTransformer) Transform(x any) (any, error) {
+func (t GenericTransformer) Transform(x any) (any, error) {
 	return t.f(x)
 }
 
