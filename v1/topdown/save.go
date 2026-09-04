@@ -91,6 +91,76 @@ func (ss *saveSet) containsrec(t *ast.Term, b *bindings) bool {
 	return found
 }
 
+// ContainsOverlapping is a conservative Contains: it also reports terms that
+// may refer to an unknown once resolved, like input[k] when input.x is unknown.
+// Callers saving whole expressions need it; evalTerm saves per branch instead.
+func (ss *saveSet) ContainsOverlapping(t *ast.Term, b *bindings) bool {
+	if ss == nil {
+		return false
+	}
+	ss.instr.startTimer(partialOpSaveSetContains)
+	defer ss.instr.stopTimer(partialOpSaveSetContains)
+
+	other, ok := t.Value.(ast.Ref)
+	if !ok {
+		return ss.contains(t, b)
+	}
+
+	for el := ss.l.Back(); el != nil; el = el.Prev() {
+		elem := el.Value.(*saveSetElem)
+		for _, ref := range elem.refs {
+			if refsMayOverlap(ref, other) {
+				return true
+			}
+		}
+		if elem.containsVar(other[0], b) {
+			return true
+		}
+	}
+	return false
+}
+
+// Covers reports whether an unknown sits at or above path, i.e. the whole
+// sub-document is unknown. Directional half of Contains: input.z.a being
+// unknown leaves input.z.b known, so a walk through input.z keeps descending.
+func (ss *saveSet) Covers(path ast.Ref) bool {
+	if ss == nil {
+		return false
+	}
+	for el := ss.l.Back(); el != nil; el = el.Prev() {
+		if slices.ContainsFunc(el.Value.(*saveSetElem).refs, path.HasPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// Keys returns the ground keys unknowns contribute directly below prefix. With
+// input.x unknown and input = {"y": 2}, iterating input[k] must still produce a
+// branch for k = "x". A non-ground prefix matches no unknown, hence no keys.
+func (ss *saveSet) Keys(prefix ast.Ref) []*ast.Term {
+	if ss == nil {
+		return nil
+	}
+
+	var keys []*ast.Term
+	for el := ss.l.Back(); el != nil; el = el.Prev() {
+		for _, ref := range el.Value.(*saveSetElem).refs {
+			if len(ref) <= len(prefix) || !ref.HasPrefix(prefix) {
+				continue
+			}
+			k := ref[len(prefix)]
+			if !k.IsGround() {
+				continue
+			}
+			if !slices.ContainsFunc(keys, k.Equal) {
+				keys = append(keys, k)
+			}
+		}
+	}
+	return keys
+}
+
 func (ss *saveSet) Vars(caller *bindings) ast.VarSet {
 	result := ast.NewVarSet()
 	for x := ss.l.Front(); x != nil; x = x.Next() {
@@ -156,6 +226,31 @@ func (sse *saveSetElem) Contains(t *ast.Term, b *bindings) bool {
 		return sse.containsVar(other[0], b)
 	}
 	return false
+}
+
+// refsMayOverlap returns true if ref (an unknown) and other could refer to the
+// same document. Non-ground positions act as wildcards: input[k] may hit
+// input.x. Heads are exempt -- ref[0] names a root doc, not an unbound position.
+func refsMayOverlap(ref, other ast.Ref) bool {
+	if len(ref) == 0 || len(other) == 0 {
+		return true
+	}
+
+	if !ref[0].Equal(other[0]) {
+		return false
+	}
+
+	for i, n := 1, min(len(ref), len(other)); i < n; i++ {
+		// Two ground positions that differ are the only thing ruling an overlap
+		// out; a non-ground position on either side acts as a wildcard. `other`
+		// is the side carrying variables, so test its groundness first.
+		x, y := ref[i], other[i]
+		if !x.Equal(y) && y.IsGround() && x.IsGround() {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (sse *saveSetElem) String() string {
@@ -378,7 +473,7 @@ func saveRequired(compilerTree *ast.TreeNode, extStack *externalTreeStack, ic *i
 					found = true
 				}
 			case ast.Ref:
-				if ss.Contains(node, b) {
+				if ss.ContainsOverlapping(node, b) {
 					found = true
 				} else if ic.Disabled(v.ConstantPrefix(), icIgnoreInternal) {
 					found = true

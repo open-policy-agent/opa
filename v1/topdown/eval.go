@@ -4072,6 +4072,15 @@ func (e evalTerm) eval(iter unifyIterator) error {
 
 func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 
+	// Key selects an unknown sub-document: save the reference instead of reading
+	// a concrete document that may lack the key, or hold a stand-in value. The
+	// partial() test is inline to keep the call off the non-partial hot path.
+	if e.e.partial() {
+		if ref, ok := e.unknownPath(plugged); ok {
+			return e.e.saveUnify(ast.NewTerm(ref), e.rterm, e.bindings, e.rbindings, iter)
+		}
+	}
+
 	term, bindings := e.get(plugged)
 	if term == nil {
 		return nil
@@ -4082,6 +4091,66 @@ func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 	cpy.termbindings = bindings
 	cpy.pos++
 	return cpy.eval(iter)
+}
+
+// pluggedPrefix returns e.ref[:e.pos] with variables resolved.
+func (e evalTerm) pluggedPrefix() ast.Ref {
+	prefix := make(ast.Ref, e.pos)
+	for i := range prefix {
+		prefix[i] = e.bindings.Plug(e.ref[i])
+	}
+	return prefix
+}
+
+// unknownPath reports whether descending into key lands on an unknown, and if
+// so returns the full plugged reference to save.
+func (e evalTerm) unknownPath(key *ast.Term) (ast.Ref, bool) {
+	ref := make(ast.Ref, len(e.ref))
+	for i := range ref {
+		if i == e.pos {
+			ref[i] = key
+		} else {
+			ref[i] = e.bindings.Plug(e.ref[i])
+		}
+	}
+
+	if !e.e.saveSet.Covers(ref[:e.pos+1]) {
+		return nil, false
+	}
+	return ref, true
+}
+
+// enumerateUnknownKeys branches on each key an unknown contributes below the
+// current prefix but the concrete document lacks. Without it, input[k] with
+// input.x unknown and input = {"y": 2} would only ever consider k = "y".
+func (e evalTerm) enumerateUnknownKeys(iter unifyIterator, handleErr func(error) error) error {
+	prefix := e.pluggedPrefix()
+
+	for _, k := range e.e.saveSet.Keys(prefix) {
+		if term, _ := e.get(k); term != nil {
+			continue // already covered by the concrete enumeration above
+		}
+		// Nothing concrete to descend into: save the whole remaining reference.
+		ref := make(ast.Ref, len(e.ref))
+		copy(ref, prefix)
+		ref[e.pos] = k
+		for i := e.pos + 1; i < len(ref); i++ {
+			ref[i] = e.bindings.Plug(e.ref[i])
+		}
+		// Positions below the key can still rule the branch out: with input.x.a
+		// unknown, input[k].b has nothing to match at k = "x".
+		if !e.e.saveSet.ContainsOverlapping(ast.NewTerm(ref), e.bindings) {
+			continue
+		}
+		err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
+			return e.e.saveUnify(ast.NewTerm(ref), e.rterm, e.bindings, e.rbindings, iter)
+		})
+		if err := handleErr(err); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // evalTermNext is the evalTerm counterpart of enumerateNext: it lets the
@@ -4167,6 +4236,12 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 					return err
 				}
 			}
+		}
+	}
+
+	if e.e.partial() {
+		if err := e.enumerateUnknownKeys(iter, handleErr); err != nil {
+			return err
 		}
 	}
 
