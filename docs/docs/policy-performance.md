@@ -155,7 +155,7 @@ For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern
 
 For `startswith(search, base)` and `strings.any_prefix_match(search, base)` statements to be indexed the search operand must be a non-nested reference that does not contain any variables, and every base string must be known at compile time — a literal, or a variable previously assigned one. `strings.any_prefix_match` holds if any base string matches, so each of its base strings is indexed as an alternative; a base collection holding anything other than strings is not indexed at all, since indexing only part of it would exclude rules the rest would have matched.
 
-The prefixes recorded for one reference are held in a radix trie, so a lookup walks the input value once no matter how many prefixes are indexed. A rule set with ten prefixes and one with ten thousand cost the same to look up.
+The prefixes recorded for one reference are held in a radix trie, so a lookup walks the input value once no matter how many prefixes are indexed. A rule set with ten prefixes and one with ten thousand cost the same to look up. Several base strings do make the search operand a reference the rule reaches by more than one value, which affects what else the rule is indexed on — see [Several values for one reference](#several-values-for-one-reference).
 
 Capturing the result (`allowed := startswith(input.path, "/api")`) is not indexed: a rule producing `false` still has to be evaluated.
 
@@ -213,6 +213,18 @@ Statements joined by the [`and` and `or` keywords](./policy-reference/keywords/l
 | `input.x == 1 or input.y == 2`         | yes     | both operands are indexed             |
 | `input.x == 1 or count(input.y) == 3`  | no      | `count(...)` is not indexable         |
 | `not (input.x == 1 and input.y == 2)`  | no      | negated expressions are never indexed |
+
+#### Several values for one reference
+
+Some statements leave a rule with more than one value for a single reference: `strings.any_prefix_match` with several base strings, or `in` over a literal collection. The rule is indexed under each of those values, and that reference is the last level of the index the rule appears on — whatever it constrains below is left to evaluation.
+
+The indexer orders such references after every other one, so a rule's single-valued constraints are indexed first and only the reference carrying the alternatives ends its path. A rule that has alternatives for one reference is therefore still indexed on everything else it constrains; a rule that has them for two is indexed on only one of the two.
+
+| Rule body                                                                   | Indexed on      |
+| --------------------------------------------------------------------------- | --------------- |
+| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.method == "GET"` | both references |
+| `input.x in {1, 2}; input.y == 3`                                           | both references |
+| `input.x in {1, 2}; input.y in {3, 4}`                                      | one of the two  |
 
 #### References rooted at a local variable
 
