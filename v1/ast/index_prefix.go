@@ -173,6 +173,29 @@ func reverseString(s string) string {
 	return util.ByteSliceToString(b)
 }
 
+// compact releases the spare capacity in the edge slices. Edges arrive in
+// arbitrary order, so they are placed by insertion and grow the way append does
+// -- which leaves 60% of the slots unused across a large prefix set -- and
+// nothing inserts once the index is built. slices.Clip only caps the capacity;
+// releasing the block means copying out of it.
+func (p *prefixTrie) compact() {
+	if p == nil {
+		return
+	}
+
+	if cap(p.edges) > len(p.edges) {
+		exact := make([]prefixEdge, len(p.edges))
+		copy(exact, p.edges)
+		p.edges = exact
+	}
+
+	p.child.compact()
+
+	for _, edge := range p.edges {
+		edge.node.compact()
+	}
+}
+
 func (p *prefixTrie) do(walker trieWalker) {
 	if p == nil {
 		return

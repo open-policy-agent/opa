@@ -127,6 +127,9 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			return false
 		})
 	}
+
+	i.root.compact()
+
 	return true
 }
 
@@ -1213,6 +1216,27 @@ func (node *trieNode) Do(walker trieWalker) {
 	node.suffixes().do(next)
 	node.array.Do(next)
 	node.next.Do(next)
+}
+
+// compact walks the trie once the index is built and releases what its slices
+// grew but do not use.
+func (node *trieNode) compact() {
+	if node == nil {
+		return
+	}
+
+	node.prefixes().compact()
+	node.suffixes().compact()
+
+	node.any.compact()
+	node.undefined.compact()
+	node.array.compact()
+	node.next.compact()
+
+	node.scalars.Iter(func(_ Value, child *trieNode) bool {
+		child.compact()
+		return false
+	})
 }
 
 func (node *trieNode) Insert(ref Ref, value Value, mapper *valueMapper) *trieNode {
