@@ -5,7 +5,6 @@
 package ast
 
 import (
-	"errors"
 	"slices"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -414,16 +413,11 @@ func (i *refindices) updateAnyAffixMatch(rule *Rule, expr *Expr, constants map[V
 }
 
 // insertAffixes records a whole base collection at once, for either end of the
-// value. insert() rescans the rule's indices on every call, which is fine for
-// the handful an ordinary rule contributes but quadratic for the thousands
-// strings.any_prefix_match exists to carry, so the scan happens once here
-// instead.
-//
-// insertMembers is the same function for `in`. They stay apart because a base
-// is always strings and can dedup in a plain map, where `in` holds arbitrary
-// values and needs a HasherMap; one shared copy costs this path 27% of its
-// build.
-func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []String, a affix) {
+// value. insert() rescans the rule's indices on every call, which is quadratic
+// over the thousands strings.any_prefix_match carries, so the scan happens once
+// here instead. insertMembers is the same for `in`; the two dedup on different
+// key types.
+func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []Value, a affix) {
 	i.countN(ref, len(bases))
 
 	// concrete counts the values this rule already reaches ref by that survive
@@ -445,16 +439,26 @@ func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []String, a affix)
 		}
 	}
 
-	indices := i.rules[rule]
+	// One refindex per base, laid down in a single block rather than allocated
+	// one at a time: a base collection runs to thousands of them. Duplicates
+	// leave slack at the end of the block, which the reslice below drops.
+	pos := len(i.rules[rule])
+	indices := util.GrowPtrSlice(i.rules[rule], len(bases))
+
 	for _, base := range bases {
-		if _, ok := seen[base]; ok {
+		// groundStrings has established that every base is a String, and hands
+		// the Term's own Value over so that refindex.Value costs no second box.
+		key := base.(String)
+		if _, ok := seen[key]; ok {
 			continue
 		}
-		seen[base] = struct{}{}
+		seen[key] = struct{}{}
 		concrete++
-		indices = append(indices, &refindex{Ref: ref, Value: base, Affix: a})
+
+		*indices[pos] = refindex{Ref: ref, Value: base, Affix: a}
+		pos++
 	}
-	i.rules[rule] = indices
+	i.rules[rule] = indices[:pos]
 
 	if concrete > 1 {
 		i.alternate(ref)
@@ -478,36 +482,39 @@ func constantString(term *Term, constants map[Var]Value) (String, bool) {
 }
 
 // groundStrings returns the members of an array or set literal, and reports
-// false unless every one of them is a string.
-func groundStrings(v Value) ([]String, bool) {
-	var iter func(func(*Term) error) error
+// false unless every one of them is a string. The member's own Value is what
+// comes back, not the String inside it: every caller puts it straight into a
+// refindex, and a Term is already holding it boxed.
+func groundStrings(v Value) ([]Value, bool) {
+	var (
+		until func(func(*Term) bool) bool
+		n     int
+	)
 
 	switch col := v.(type) {
 	case *Array:
-		iter = col.Iter
+		until, n = col.Until, col.Len()
 	case Set:
-		iter = col.Iter
+		until, n = col.Until, col.Len()
 	default:
 		return nil, false
 	}
 
-	var out []String
-	err := iter(func(t *Term) error {
-		s, ok := t.Value.(String)
-		if !ok {
-			return errNotAString
-		}
-		out = append(out, s)
-		return nil
-	})
+	// The base of a strings.any_prefix_match runs to thousands of strings, so
+	// the length is worth taking off the collection rather than growing into.
+	out := make([]Value, 0, n)
 
-	if err != nil {
+	// Until stops on the first member that is not a string, and reports having
+	// stopped -- which is the whole of "unless every one of them is a string".
+	if until(func(t *Term) bool {
+		_, ok := t.Value.(String)
+		if ok {
+			out = append(out, t.Value)
+		}
+		return !ok
+	}) {
 		return nil, false
 	}
 
 	return out, true
 }
-
-// errNotAString stops the iteration in groundStrings; it never reaches a
-// caller.
-var errNotAString = errors.New("not a string")

@@ -401,9 +401,13 @@ func newrefindices(isVirtual func(Ref) bool) *refindices {
 	}
 }
 
+func valueIsVar(v Value) bool {
+	_, ok := v.(Var)
+	return ok
+}
+
 func (i *refindex) isVar() bool {
-	_, isVar := i.Value.(Var)
-	return isVar
+	return valueIsVar(i.Value)
 }
 
 // Update attempts to update the refindices for the given expression in the
@@ -804,13 +808,9 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 	i.insertMembers(rule, ref, members)
 }
 
-// insertMembers records the members of the literal collection of an `in`
-// statement, each of which is a value the rule may reach ref by. It is
-// insertPrefixes again -- see there for why the scan is hoisted out of insert
-// -- and stays a copy of it because the two cannot share a dedup set: a base
-// string is always a String, so insertPrefixes gets a plain map, while an `in`
-// collection holds arbitrary values and needs a HasherMap. Sharing the code
-// meant sharing the HasherMap, which cost the prefix path 27% of its build.
+// insertMembers records the members of an `in` collection, each a value the
+// rule may reach ref by, hoisting insert's scan out of the loop. insertAffixes
+// is the same for base strings; the two dedup on different key types.
 func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 	if len(members) < 2 {
 		for _, member := range members {
@@ -824,7 +824,21 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 	// the rule's list is short at that point, so the scan it costs is cheap.
 	i.insert(rule, &refindex{Ref: ref, Value: members[0]})
 
-	concrete, counted := 0, 0
+	// insert is the only one that may put a value somewhere other than the end
+	// of the list, which is what a var needs, so those go in through it and are
+	// left out of the block below. A collection holding one is rare, and paying
+	// a copy for it keeps the common case a single pass.
+	rest := members[1:]
+	if slices.ContainsFunc(rest, valueIsVar) {
+		for _, member := range rest {
+			if valueIsVar(member) {
+				i.insert(rule, &refindex{Ref: ref, Value: member})
+			}
+		}
+		rest = slices.DeleteFunc(slices.Clone(rest), valueIsVar)
+	}
+
+	concrete := 0
 	seen := util.NewHasherMap[Value, struct{}](ValueEqual)
 
 	for _, other := range i.rules[rule] {
@@ -839,26 +853,25 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 		}
 	}
 
-	for _, member := range members[1:] {
-		if _, isVar := member.(Var); isVar {
-			// A var is the one value insert may have to put somewhere other
-			// than the end. It counts itself.
-			i.insert(rule, &refindex{Ref: ref, Value: member})
-			continue
-		}
+	// One refindex per member, laid down in a single block rather than
+	// allocated one at a time, as in insertAffixes. Duplicates leave slack at
+	// the end of the block, which the reslice drops.
+	pos := len(i.rules[rule])
+	indices := util.GrowPtrSlice(i.rules[rule], len(rest))
 
-		counted++
-
+	for _, member := range rest {
 		if _, ok := seen.Get(member); ok {
 			continue
 		}
 		seen.Put(member, struct{}{})
 		concrete++
 
-		i.rules[rule] = append(i.rules[rule], &refindex{Ref: ref, Value: member})
+		*indices[pos] = refindex{Ref: ref, Value: member}
+		pos++
 	}
+	i.rules[rule] = indices[:pos]
 
-	i.countN(ref, counted)
+	i.countN(ref, len(rest))
 
 	if concrete > 1 {
 		i.alternate(ref)
