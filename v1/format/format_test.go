@@ -6,6 +6,7 @@ package format
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1462,6 +1463,158 @@ x3 := {"foo": {
 	}
 }
 
+func TestFormatFailFastFormattedSource(t *testing.T) {
+	cases := []struct {
+		dir  string
+		opts Opts
+	}{
+		{
+			dir: "testfiles/v0",
+			opts: Opts{
+				RegoVersion:   ast.RegoV0,
+				ParserOptions: &ast.ParserOptions{RegoVersion: ast.RegoV0},
+				FailFast:      true,
+			},
+		},
+		{
+			dir: "testfiles/v1",
+			opts: Opts{
+				RegoVersion:   ast.RegoV1,
+				ParserOptions: &ast.ParserOptions{RegoVersion: ast.RegoV1},
+				FailFast:      true,
+			},
+		},
+		{
+			dir: "testfiles/v0_to_v1",
+			opts: Opts{
+				RegoVersion: ast.RegoV0CompatV1,
+				FailFast:    true,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		regoFiles, err := filepath.Glob(tc.dir + "/*.rego.formatted")
+		if err != nil {
+			panic(err)
+		}
+
+		if len(regoFiles) == 0 {
+			t.Fatalf("Found no formatted files in %s", tc.dir)
+		}
+
+		for _, rego := range regoFiles {
+			t.Run(rego, func(t *testing.T) {
+				contents, err := os.ReadFile(rego)
+				if err != nil {
+					t.Fatalf("Failed to read rego source: %v", err)
+				}
+
+				formatted, err := SourceWithOpts(rego, contents, tc.opts)
+				if err != nil {
+					t.Fatalf("Expected formatted source to format without error, got: %v", err)
+				}
+
+				if ln, at := differsAt(formatted, contents); ln != 0 {
+					t.Fatalf("Expected formatted bytes to equal source bytes but differed near line %d / byte %d:\n%s", ln, at, prefixWithLineNumbers(formatted))
+				}
+			})
+		}
+	}
+}
+
+func TestFormatFailFastLocation(t *testing.T) {
+	cases := []struct {
+		note   string
+		module string
+		expRow int
+	}{
+		{
+			note: "formatted",
+			module: `package p
+
+import data.foo
+
+allow if input.x
+
+deny if input.y
+`,
+		},
+		{
+			note: "unformatted package",
+			module: `package  p
+
+allow if input.x
+`,
+			expRow: 1,
+		},
+		{
+			note: "unformatted import",
+			module: `package p
+
+import  data.foo
+
+allow if input.x
+`,
+			expRow: 3,
+		},
+		{
+			note: "unformatted first rule",
+			module: `package p
+
+allow if  input.x
+
+deny if  input.y
+`,
+			expRow: 3,
+		},
+		{
+			note: "unformatted second rule",
+			module: `package p
+
+allow if input.x
+
+deny if  input.y
+`,
+			expRow: 5,
+		},
+	}
+
+	opts := Opts{
+		RegoVersion:   ast.RegoV1,
+		ParserOptions: &ast.ParserOptions{RegoVersion: ast.RegoV1},
+		FailFast:      true,
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			formatted, err := SourceWithOpts("test.rego", []byte(tc.module), opts)
+
+			if tc.expRow == 0 {
+				if err != nil {
+					t.Fatalf("Expected no error, got: %v", err)
+				}
+				if string(formatted) != tc.module {
+					t.Fatalf("Expected:\n%s\n\nGot:\n%s", tc.module, formatted)
+				}
+
+				return
+			}
+
+			unformatted, ok := errors.AsType[UnformattedError](err)
+			if !ok {
+				t.Fatalf("Expected UnformattedError, got: %v", err)
+			}
+			if unformatted.Loc.Row != tc.expRow {
+				t.Fatalf("Expected difference reported at row %d, got %d", tc.expRow, unformatted.Loc.Row)
+			}
+			if formatted != nil {
+				t.Fatalf("Expected no formatted bytes, got:\n%s", formatted)
+			}
+		})
+	}
+}
+
 // 3064960 ns/op	 4573131 B/op	   26266 allocs/op // no optimizations
 // 1737719 ns/op	 1972193 B/op	   14160 allocs/op // pre-allocate partitionComments
 // 1674343 ns/op	 1916700 B/op	   11556 allocs/op // static memberRef & memberWithKeyRef
@@ -1483,6 +1636,47 @@ func BenchmarkFormatLargePolicy(b *testing.B) {
 	for b.Loop() {
 		if _, err := AstWithOpts(module, opts); err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+// formatted/fail_fast=false  	3156799 ns/op	 2038109 B/op	   33208 allocs/op
+// formatted/fail_fast=true   	3183775 ns/op	 2038132 B/op	   33209 allocs/op // no overhead beyond noise
+// unformatted/fail_fast=false	3163590 ns/op	 2038238 B/op	   33209 allocs/op
+// unformatted/fail_fast=true 	2546876 ns/op	 1795916 B/op	   30340 allocs/op // stops at the package
+func BenchmarkFormatLargePolicySource(b *testing.B) {
+	contents, err := os.ReadFile("testdata/bench.rego")
+	if err != nil {
+		b.Fatalf("Failed to read rego source: %v", err)
+	}
+
+	cases := []struct {
+		note string
+		src  []byte
+	}{
+		{
+			note: "formatted",
+			src:  contents,
+		},
+		{
+			note: "unformatted",
+			src:  bytes.Replace(contents, []byte("package regal.ast"), []byte("package  regal.ast"), 1),
+		},
+	}
+
+	for _, tc := range cases {
+		for _, failFast := range []bool{false, true} {
+			opts := Opts{RegoVersion: ast.RegoV1, SkipDefensiveCopying: true, FailFast: failFast}
+
+			b.Run(fmt.Sprintf("%s/fail_fast=%v", tc.note, failFast), func(b *testing.B) {
+				for b.Loop() {
+					if _, err := SourceWithOpts("bench.rego", tc.src, opts); err != nil {
+						if _, ok := errors.AsType[UnformattedError](err); !ok {
+							b.Fatal(err)
+						}
+					}
+				}
+			})
 		}
 	}
 }

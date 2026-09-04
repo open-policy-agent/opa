@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -158,15 +159,21 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 		return newError("failed to open file: %v", err)
 	}
 
+	failOnChange := params.fail && !params.list && !params.diff
+
 	opts := format.Opts{
 		RegoVersion:   params.regoVersion(),
 		DropV0Imports: params.dropV0Imports,
 		Capabilities:  params.capabilities(),
 		ParserOptions: params.parserOptions(),
+		FailFast:      failOnChange,
 	}
 
 	formatted, err := format.SourceWithOpts(filename, contents, opts)
 	if err != nil {
+		if _, ok := errors.AsType[format.UnformattedError](err); ok {
+			return newError("unexpected diff")
+		}
 		return newError("failed to format Rego source file: %v", err)
 	}
 
@@ -183,7 +190,7 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 
 	changed := !bytes.Equal(contents, formatted)
 
-	if params.fail && !params.list && !params.diff {
+	if failOnChange {
 		if changed {
 			return newError("unexpected diff")
 		}
