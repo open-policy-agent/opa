@@ -1561,9 +1561,11 @@ func (arr *Array) Sorted() *Array {
 
 	slices.SortFunc(cpy, TermValueCompare)
 
-	a := NewArray(cpy...)
-	a.hashs = arr.hashs
-	return a
+	// NewArray has already hashed cpy in its own order. Taking arr.hashs over
+	// that would leave hashs[i] holding the hash of some other element, which
+	// Array.set relies on, and would share the slice with arr so that setting
+	// an element here corrupted arr.
+	return NewArray(cpy...)
 }
 
 // Hash returns the hash code for the Value.
@@ -1608,8 +1610,14 @@ func (arr *Array) rehash() {
 func (arr *Array) set(i int, v *Term) {
 	arr.ground = arr.ground && v.IsGround()
 	arr.elems[i] = v
-	arr.hashs[i] = v.Value.Hash()
-	arr.rehash()
+
+	// arr.hash is the sum of arr.hashs, so swapping one element's hash in is
+	// enough -- rehashing the whole array here makes building an array of n
+	// elements O(n^2), which is felt on the large arrays that appear in
+	// generated policies.
+	h := v.Value.Hash()
+	arr.hash += h - arr.hashs[i]
+	arr.hashs[i] = h
 }
 
 // Slice returns a slice of arr starting from i index to j. -1
