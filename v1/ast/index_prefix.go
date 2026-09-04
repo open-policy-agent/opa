@@ -120,7 +120,7 @@ func (p *prefixTrie) traverse(s string, resolver ValueResolver, tr *trieTraversa
 }
 
 // traverseSuffix is traverse over the end of s. A suffix trie holds its base
-// strings reversed (see trieNode.suffixes), so the walk consumes s from its
+// strings reversed (see affixTries), so the walk consumes s from its
 // last byte back -- which needs no reversed copy of s to be made per lookup.
 func (p *prefixTrie) traverseSuffix(s string, resolver ValueResolver, tr *trieTraversalResult) error {
 	for node := p; node != nil; {
@@ -259,11 +259,7 @@ func (node *trieNode) InsertPrefix(ref Ref, prefix Value) *trieNode {
 		panic("illegal prefix value")
 	}
 
-	if node.next.prefixes == nil {
-		node.next.prefixes = &prefixTrie{}
-	}
-
-	return node.next.prefixes.insert(string(s))
+	return node.next.affixTrie(affixPrefix).insert(string(s))
 }
 
 // InsertSuffix records that the rules below this node require the value at ref
@@ -279,11 +275,7 @@ func (node *trieNode) InsertSuffix(ref Ref, suffix Value) *trieNode {
 		panic("illegal suffix value")
 	}
 
-	if node.next.suffixes == nil {
-		node.next.suffixes = &prefixTrie{}
-	}
-
-	return node.next.suffixes.insert(reverseString(string(s)))
+	return node.next.affixTrie(affixSuffix).insert(reverseString(string(s)))
 }
 
 // traversePrefixes visits the rules whose prefix constraints value satisfies.
@@ -294,17 +286,18 @@ func (node *trieNode) InsertSuffix(ref Ref, suffix Value) *trieNode {
 // is matched against the members of a collection (see
 // traverseCollectionMembership).
 func (node *trieNode) traversePrefixes(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
-	if node.prefixes == nil {
+	prefixes := node.prefixes()
+	if prefixes == nil {
 		return nil
 	}
 
 	if s, ok := value.(String); ok {
-		return node.prefixes.traverse(string(s), resolver, tr)
+		return prefixes.traverse(string(s), resolver, tr)
 	}
 
 	checkMember := func(t *Term) error {
 		if s, ok := t.Value.(String); ok {
-			return node.prefixes.traverse(string(s), resolver, tr)
+			return prefixes.traverse(string(s), resolver, tr)
 		}
 		return nil
 	}
@@ -326,17 +319,18 @@ func (node *trieNode) traversePrefixes(resolver ValueResolver, tr *trieTraversal
 // traverseSuffixes visits the rules whose suffix constraints value satisfies.
 // A collection is tested element by element, as for prefixes.
 func (node *trieNode) traverseSuffixes(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
-	if node.suffixes == nil {
+	suffixes := node.suffixes()
+	if suffixes == nil {
 		return nil
 	}
 
 	if s, ok := value.(String); ok {
-		return node.suffixes.traverseSuffix(string(s), resolver, tr)
+		return suffixes.traverseSuffix(string(s), resolver, tr)
 	}
 
 	checkMember := func(t *Term) error {
 		if s, ok := t.Value.(String); ok {
-			return node.suffixes.traverseSuffix(string(s), resolver, tr)
+			return suffixes.traverseSuffix(string(s), resolver, tr)
 		}
 		return nil
 	}

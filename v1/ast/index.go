@@ -1084,16 +1084,13 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 
 type trieNode struct {
 	ref       Ref
-	mappers   []*valueMapper
 	next      *trieNode
 	any       *trieNode
 	undefined *trieNode
 	scalars   *util.HasherMap[Value, *trieNode]
-	prefixes  *prefixTrie
-	// suffixes holds the base strings reversed, so that requiring one at the
-	// end of a value is requiring it at the start of the value reversed and the
-	// same trie answers both (see traverseSuffix).
-	suffixes *prefixTrie
+	// detail is what only a level with an unusual constraint records; see
+	// levelDetail.
+	detail   *levelDetail
 	array    *trieNode
 	rules    []*ruleNode
 	value    *Term
@@ -1125,8 +1122,74 @@ func (a *ruleNode) prioEqual(b *ruleNode) bool {
 	return a.prio == b.prio
 }
 
+// levelDetail is what a level records beyond the exact values in its scalars
+// map: the mappers a glob attaches, and the tries for values constrained at one
+// end. The suffix trie holds its base strings reversed, so that requiring one at
+// the end of a value is requiring it at the start of the value reversed and the
+// same trie answers both (see traverseSuffix).
+//
+// It is held behind one pointer because a trieNode is allocated per indexed
+// value and almost none of them are levels -- half a million prefixes make one
+// level and half a million leaves. Inline, these three fields put trieNode in
+// Go's 144-byte size class; out of line it is 112, so every node in the index is
+// 32 bytes smaller.
+type levelDetail struct {
+	mappers  []*valueMapper
+	prefixes *prefixTrie
+	suffixes *prefixTrie
+}
+
 func newTrieNodeImpl() *trieNode {
 	return &trieNode{}
+}
+
+func (node *trieNode) prefixes() *prefixTrie {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.prefixes
+}
+
+func (node *trieNode) suffixes() *prefixTrie {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.suffixes
+}
+
+func (node *trieNode) mappers() []*valueMapper {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.mappers
+}
+
+func (node *trieNode) levelDetail() *levelDetail {
+	node.detail = util.Or(node.detail, newLevelDetail)
+	return node.detail
+}
+
+// affixTrie returns the trie for one end of the value, creating it and the
+// detail that holds it on first use.
+func (node *trieNode) affixTrie(a affix) *prefixTrie {
+	detail := node.levelDetail()
+
+	switch a {
+	case affixSuffix:
+		detail.suffixes = util.Or(detail.suffixes, newPrefixTrie)
+		return detail.suffixes
+	default:
+		detail.prefixes = util.Or(detail.prefixes, newPrefixTrie)
+		return detail.prefixes
+	}
+}
+
+func newLevelDetail() *levelDetail {
+	return &levelDetail{}
+}
+
+func newPrefixTrie() *prefixTrie {
+	return &prefixTrie{}
 }
 
 func (node *trieNode) Do(walker trieWalker) {
@@ -1146,8 +1209,8 @@ func (node *trieNode) Do(walker trieWalker) {
 		return false
 	})
 
-	node.prefixes.do(next)
-	node.suffixes.do(next)
+	node.prefixes().do(next)
+	node.suffixes().do(next)
 	node.array.Do(next)
 	node.next.Do(next)
 }
@@ -1176,12 +1239,13 @@ func (node *trieNode) Traverse(resolver ValueResolver, tr *trieTraversalResult) 
 }
 
 func (node *trieNode) addMapper(mapper *valueMapper) {
-	for i := range node.mappers {
-		if node.mappers[i].Key == mapper.Key {
+	detail := node.levelDetail()
+	for i := range detail.mappers {
+		if detail.mappers[i].Key == mapper.Key {
 			return
 		}
 	}
-	node.mappers = append(node.mappers, mapper)
+	detail.mappers = append(detail.mappers, mapper)
 }
 
 func (node *trieNode) insertValue(value Value) *trieNode {
@@ -1295,8 +1359,9 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
-	for i := range node.mappers {
-		mapped := node.mappers[i].MapValue(v)
+	mappers := node.mappers()
+	for i := range mappers {
+		mapped := mappers[i].MapValue(v)
 		if !ValueEqual(mapped, v) {
 			if err := node.traverseValue(resolver, tr, mapped); err != nil {
 				return err
@@ -1393,11 +1458,11 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 		return err
 	}
 
-	if err := node.prefixes.traverseUnknown(resolver, tr); err != nil {
+	if err := node.prefixes().traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.suffixes.traverseUnknown(resolver, tr); err != nil {
+	if err := node.suffixes().traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
