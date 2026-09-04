@@ -77,21 +77,20 @@ changes.proto if {
 
 changes.proto if _workflows_changed
 
-changes.bench contains "./v1/ast" if {
+changes.bench contains "./v1/ast" if _in_go_package("v1/ast/")
+changes.bench contains "./v1/topdown" if _compiler_related
+changes.bench contains "./v1/rego" if _compiler_related
+changes.bench contains "./v1/compile" if _compiler_related
+
+_compiler_related if {
 	some changed_file in input
-	startswith(changed_file.filename, "v1/ast/")
+	strings.any_prefix_match(changed_file.filename, {"v1/topdown/", "v1/rego/", "v1/ast/", "v1/compile/"})
 	endswith(changed_file.filename, ".go")
 }
 
-changes.bench contains "./v1/topdown" if {
+_in_go_package(p) if {
 	some changed_file in input
-	startswith(changed_file.filename, "v1/topdown/")
-	endswith(changed_file.filename, ".go")
-}
-
-changes.bench contains "./v1/rego" if {
-	some changed_file in input
-	startswith(changed_file.filename, "v1/rego/")
+	startswith(changed_file.filename, p)
 	endswith(changed_file.filename, ".go")
 }
 
