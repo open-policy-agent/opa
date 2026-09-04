@@ -2641,7 +2641,7 @@ func TestMerge(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			for i := range tc.bundles {
-				if err := tc.bundles[i].Manifest.validateAndInjectDefaults(*tc.bundles[i]); err != nil {
+				if err := tc.bundles[i].Manifest.validateAndInjectDefaults(tc.bundles[i]); err != nil {
 					panic(err)
 				}
 			}

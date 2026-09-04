@@ -502,12 +502,9 @@ func (s *Scanner) scanRawTemplateString() (string, tokens.Token) {
 			break
 		}
 
-		if ch == '\\' {
-			switch s.curr {
-			case '{':
-				escapes = append(escapes, s.offset-1)
-				s.next()
-			}
+		if ch == '\\' && s.curr == '{' {
+			escapes = append(escapes, s.offset-1)
+			s.next()
 		}
 	}
 

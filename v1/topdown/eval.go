@@ -1297,8 +1297,7 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 	// Sets must not contain unbound variables at this point as we cannot unify
 	// them. So simply plug both sides (to substitute any bound variables with
 	// values) and then check for equality.
-	switch a.Value.(type) {
-	case ast.Set:
+	if _, ok := a.Value.(ast.Set); ok {
 		a = b1.Plug(a)
 		b = b2.Plug(b)
 	}

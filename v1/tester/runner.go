@@ -1133,12 +1133,10 @@ func subResults(v any, trace []*topdown.Event) (bool, map[string]*SubResult) {
 	var fail bool
 	result := SubResultMap{}
 
-	switch x := v.(type) {
-	case map[string]any:
+	if x, ok := v.(map[string]any); ok {
 		for k, v := range x {
-			sr := subResult(k, v)
-			result[k] = sr
-			if sr.Fail {
+			result[k] = subResult(k, v)
+			if result[k].Fail {
 				fail = true
 			}
 		}

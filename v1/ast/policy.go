@@ -225,7 +225,6 @@ type (
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
-		Default     bool           `json:"default,omitempty"`
 		Head        *Head          `json:"head"`
 		Body        Body           `json:"body"`
 		Else        *Rule          `json:"else,omitempty"`
@@ -238,6 +237,7 @@ type (
 		// on the rule (e.g., printing, comparison, visiting, etc.)
 		Module *Module `json:"-"`
 
+		Default       bool `json:"default,omitempty"`
 		generatedBody bool
 	}
 

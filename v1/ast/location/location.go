@@ -129,7 +129,7 @@ func EndOf(row, col int, text []byte) (endRow, endCol int) {
 // column of the Location (but not on the text.) Nil locations are greater than
 // non-nil locations.
 func (loc *Location) Compare(other *Location) int {
-	if loc == other {
+	if loc == other { //nolint:gocritic // this is fine as an ifElseChain
 		return 0
 	} else if loc == nil {
 		return 1
