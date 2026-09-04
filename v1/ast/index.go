@@ -365,7 +365,12 @@ type refindices struct {
 	// operand body: resolvable from inside, but not the operand's own.
 	outer     []*refindex
 	frequency *util.HasherMap[Ref, int]
-	sorted    []Ref
+	// alternated holds the refs some rule reaches by more than one value, which
+	// insertPath ends that rule's path on. Sorted ranks them last. An `or` is
+	// not recorded: its alternatives are separate paths, and only meet a second
+	// value for one ref once paths() combines them, after Sorted has run.
+	alternated *util.HasherMap[Ref, struct{}]
+	sorted     []Ref
 }
 
 // maxIndexPaths caps the ways a single rule may be reached: `or` expressions
@@ -375,9 +380,10 @@ const maxIndexPaths = 32
 
 func newrefindices(isVirtual func(Ref) bool) *refindices {
 	return &refindices{
-		isVirtual: isVirtual,
-		rules:     map[*Rule][]*refindex{},
-		frequency: util.NewHasherMap[Ref, int](RefEqual),
+		isVirtual:  isVirtual,
+		rules:      map[*Rule][]*refindex{},
+		frequency:  util.NewHasherMap[Ref, int](RefEqual),
+		alternated: util.NewHasherMap[Ref, struct{}](RefEqual),
 	}
 }
 
@@ -595,6 +601,14 @@ func (i *refindices) isValidIndexRef(ref Ref) bool {
 func (i *refindices) Sorted() []Ref {
 	if i.sorted == nil {
 		i.sorted = util.SortedFunc(i.frequency.Keys(), func(a, b Ref) int {
+			// A ref that ends some rule's path is worth less as an early level,
+			// however often it was recorded, so it outranks frequency.
+			if altA, altB := i.isAlternated(a), i.isAlternated(b); altA != altB {
+				if altA {
+					return 1
+				}
+				return -1
+			}
 			countsA, _ := i.frequency.Get(a)
 			countsB, _ := i.frequency.Get(b)
 			if countsA < countsB { // descending, we want highest-freq first
@@ -856,17 +870,28 @@ func (i *refindices) countN(ref Ref, n int) {
 	i.frequency.Put(ref, count+n)
 }
 
+// alternate records that a rule reaches ref by more than one value. Only the
+// values surviving insertPath's var-stripping count.
+func (i *refindices) alternate(ref Ref) {
+	i.alternated.Put(ref, struct{}{})
+}
+
+func (i *refindices) isAlternated(ref Ref) bool {
+	_, ok := i.alternated.Get(ref)
+	return ok
+}
+
 func (i *refindices) insert(rule *Rule, index *refindex) {
 	i.count(index.Ref)
 
-	_, indexValueIsVar := index.Value.(Var)
+	indexValueIsVar := index.isVar()
 
 	for pos, other := range i.rules[rule] {
 		if other.Ref.Equal(index.Ref) {
 			if other.Prefix == index.Prefix && ValueEqual(other.Value, index.Value) {
 				return
 			}
-			_, otherValueIsVar := other.Value.(Var)
+			otherValueIsVar := other.isVar()
 			// A prefix constraint does not take the place of the "ref is
 			// anything" entry the way a concrete value does: that entry is what
 			// lets a later expression resolve the same local back to this ref
@@ -875,6 +900,9 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 			if !indexValueIsVar && !index.Prefix && otherValueIsVar {
 				i.rules[rule][pos] = index
 				return
+			}
+			if !indexValueIsVar && !otherValueIsVar {
+				i.alternate(index.Ref)
 			}
 		}
 	}

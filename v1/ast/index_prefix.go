@@ -311,9 +311,19 @@ func (i *refindices) updateAnyPrefixMatch(rule *Rule, expr *Expr, constants map[
 func (i *refindices) insertPrefixes(rule *Rule, ref Ref, prefixes []String) {
 	i.countN(ref, len(prefixes))
 
+	// concrete counts the values this rule already reaches ref by that survive
+	// insertPath's var-stripping, so that the alternatives the base adds can be
+	// weighed against them without a second scan (see refindices.alternate).
+	concrete := 0
 	seen := make(map[String]struct{}, len(prefixes))
 	for _, other := range i.rules[rule] {
-		if other.Prefix && other.Ref.Equal(ref) {
+		if !other.Ref.Equal(ref) {
+			continue
+		}
+		if !other.isVar() {
+			concrete++
+		}
+		if other.Prefix {
 			if s, ok := other.Value.(String); ok {
 				seen[s] = struct{}{}
 			}
@@ -326,9 +336,14 @@ func (i *refindices) insertPrefixes(rule *Rule, ref Ref, prefixes []String) {
 			continue
 		}
 		seen[prefix] = struct{}{}
+		concrete++
 		indices = append(indices, &refindex{Ref: ref, Value: prefix, Prefix: true})
 	}
 	i.rules[rule] = indices
+
+	if concrete > 1 {
+		i.alternate(ref)
+	}
 }
 
 // constantString resolves term to a string literal, following one level of
