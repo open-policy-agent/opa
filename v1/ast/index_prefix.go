@@ -275,7 +275,7 @@ func commonPrefixLen(a, b string) int {
 func (node *trieNode) InsertPrefix(ref Ref, prefix Value) *trieNode {
 	if node.next == nil {
 		node.next = newTrieNodeImpl()
-		node.next.ref = ref
+		node.next.levelDetail().ref = ref
 	}
 
 	s, ok := prefix.(String)
@@ -291,7 +291,7 @@ func (node *trieNode) InsertPrefix(ref Ref, prefix Value) *trieNode {
 func (node *trieNode) InsertSuffix(ref Ref, suffix Value) *trieNode {
 	if node.next == nil {
 		node.next = newTrieNodeImpl()
-		node.next.ref = ref
+		node.next.levelDetail().ref = ref
 	}
 
 	s, ok := suffix.(String)
