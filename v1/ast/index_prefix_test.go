@@ -403,7 +403,7 @@ func TestIndexPrefixTrieStaysCompressed(t *testing.T) {
 		t.Fatalf("expected a baseDocEqIndex, got %T", index)
 	}
 
-	prefixes := root.root.next.prefixes
+	prefixes := root.root.next.prefixes()
 	if prefixes == nil {
 		t.Fatal("expected the prefixes to be indexed")
 	}

@@ -99,7 +99,7 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		}
 	}
 
-	for _, p := range node.prefixes.walk() {
+	for _, p := range node.prefixes().walk() {
 		if childID, childExists := nodeIDs[p.node]; childExists {
 			fmt.Fprintf(sb, "  %s -->|\"%s*\"| %s\n", currentID, mermaidEscape(p.prefix), childID)
 		} else {
@@ -108,9 +108,9 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		}
 	}
 
-	// A suffix trie holds its bases reversed (see trieNode.suffixes), so what it
+	// A suffix trie holds its bases reversed (see affixTries), so what it
 	// walks back is what was written.
-	for _, p := range node.suffixes.walk() {
+	for _, p := range node.suffixes().walk() {
 		label := "*" + reverseString(p.prefix)
 		if childID, childExists := nodeIDs[p.node]; childExists {
 			fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", currentID, mermaidEscape(label), childID)
@@ -146,8 +146,8 @@ func (node *trieNode) mermaidLabel() string {
 		}
 	}
 
-	if len(node.mappers) > 0 {
-		parts = append(parts, fmt.Sprintf("%d mapper(s)", len(node.mappers)))
+	if len(node.mappers()) > 0 {
+		parts = append(parts, fmt.Sprintf("%d mapper(s)", len(node.mappers())))
 	}
 	if node.multiple {
 		parts = append(parts, "multiple")
@@ -186,9 +186,9 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		util.WriteInt(sb, len(node.rules))
 		sb.WriteString(" rule(s)]")
 	}
-	if len(node.mappers) > 0 {
+	if len(node.mappers()) > 0 {
 		sb.WriteString(" [")
-		util.WriteInt(sb, len(node.mappers))
+		util.WriteInt(sb, len(node.mappers()))
 		sb.WriteString(" mapper(s)]")
 	}
 	if node.value != nil {
@@ -241,7 +241,7 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		node.array.format(sb, depth+2)
 	}
 
-	for _, p := range node.prefixes.walk() {
+	for _, p := range node.prefixes().walk() {
 		sb.WriteString(indent)
 		sb.WriteString(`  prefix "`)
 		sb.WriteString(p.prefix)
@@ -249,7 +249,7 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		p.node.format(sb, depth+2)
 	}
 
-	for _, p := range node.suffixes.walk() {
+	for _, p := range node.suffixes().walk() {
 		sb.WriteString(indent)
 		sb.WriteString(`  suffix "`)
 		sb.WriteString(reverseString(p.prefix))
