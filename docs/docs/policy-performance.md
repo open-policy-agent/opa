@@ -151,9 +151,9 @@ For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern
 | `glob.match("foo:*/bar", [":", "/"], input.x)` | yes     | any delimiter separates    |
 | `glob.match("foo:*:bar", null, input.x)`       | no      | delimiter is `null`        |
 
-#### Prefix statements
+#### Prefix and suffix statements
 
-For `startswith(search, base)` and `strings.any_prefix_match(search, base)` statements to be indexed the search operand must be a non-nested reference that does not contain any variables, and every base string must be known at compile time — a literal, or a variable previously assigned one. `strings.any_prefix_match` holds if any base string matches, so each of its base strings is indexed as an alternative; a base collection holding anything other than strings is not indexed at all, since indexing only part of it would exclude rules the rest would have matched.
+For `startswith(search, base)` and `strings.any_prefix_match(search, base)` statements to be indexed the search operand must be a non-nested reference that does not contain any variables, and every base string must be known at compile time — a literal, or a variable previously assigned one. `strings.any_prefix_match` holds if any base string matches, so each of its base strings is indexed as an alternative; a base collection holding anything other than strings is not indexed at all, since indexing only part of it would exclude rules the rest would have matched. `endswith` and `strings.any_suffix_match` are indexed under the same conditions.
 
 The prefixes recorded for one reference are held in a radix trie, so a lookup walks the input value once no matter how many prefixes are indexed. A rule set with ten prefixes and one with ten thousand cost the same to look up. Several base strings do make the search operand a reference the rule reaches by more than one value, which affects what else the rule is indexed on — see [Several values for one reference](#several-values-for-one-reference).
 
@@ -173,7 +173,7 @@ Capturing the result (`allowed := startswith(input.path, "/api")`) is not indexe
 | `x := startswith(input.path, "/api"); x == true`        | no      | result is captured                        |
 
 :::info
-A prefix statement is indexed the way `glob.match` is, and shares its one rough edge: a rule whose search operand turns out not to be a string is excluded by the index, so the type error the call would have raised is not raised. This only shows with [strict built-in errors](./policy-language#errors) enabled, where the query would otherwise have failed rather than been undefined.
+A prefix or suffix statement is indexed the way `glob.match` is, and shares its one rough edge: a rule whose search operand turns out not to be a string is excluded by the index, so the type error the call would have raised is not raised. This only shows with [strict built-in errors](./policy-language#errors) enabled, where the query would otherwise have failed rather than been undefined.
 :::
 
 #### Membership (`in`) statements
@@ -230,7 +230,7 @@ The indexer orders such references after every other one, so a rule's single-val
 
 Building a reference on top of a local variable does not defeat the indexer. When the head of a reference is a variable that was assigned a reference earlier in the rule body, the indexer resolves that head and indexes the statement as if the whole reference had been spelled out: `x := input; x.foo == "a"` is indexed just like `input.foo == "a"`.
 
-The head must resolve to a reference rooted at `input` or `data`, and the resolved reference is then subject to exactly the same conditions as one written out by hand. A head that resolves to a document produced by another rule is not indexed, since the indexer only looks up base documents. `in`, `glob.match` and the prefix statements benefit from the same resolution: the compiler hoists their reference operand into a local variable of its own, which the indexer then resolves.
+The head must resolve to a reference rooted at `input` or `data`, and the resolved reference is then subject to exactly the same conditions as one written out by hand. A head that resolves to a document produced by another rule is not indexed, since the indexer only looks up base documents. `in`, `glob.match` and the prefix and suffix statements benefit from the same resolution: the compiler hoists their reference operand into a local variable of its own, which the indexer then resolves.
 
 The resolution also applies where a local stands in for a whole value rather than the head of a reference, chained assignments included, and inside the operands of an `and` or `or`, where a local assigned in the enclosing rule body still resolves.
 

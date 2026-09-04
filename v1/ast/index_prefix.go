@@ -7,6 +7,8 @@ package ast
 import (
 	"errors"
 	"slices"
+
+	"github.com/open-policy-agent/opa/v1/util"
 )
 
 // prefixTrie holds the string-prefix constraints recorded for one level of the
@@ -118,6 +120,60 @@ func (p *prefixTrie) traverse(s string, resolver ValueResolver, tr *trieTraversa
 	return nil
 }
 
+// traverseSuffix is traverse over the end of s. A suffix trie holds its base
+// strings reversed (see trieNode.suffixes), so the walk consumes s from its
+// last byte back -- which needs no reversed copy of s to be made per lookup.
+func (p *prefixTrie) traverseSuffix(s string, resolver ValueResolver, tr *trieTraversalResult) error {
+	for node := p; node != nil; {
+		if node.child != nil {
+			if err := node.child.Traverse(resolver, tr); err != nil {
+				return err
+			}
+		}
+
+		if s == "" {
+			return nil
+		}
+
+		pos, found := node.edge(s[len(s)-1])
+		if !found {
+			return nil
+		}
+
+		edge := node.edges[pos]
+		if len(edge.label) > len(s) || !equalReversed(s[len(s)-len(edge.label):], edge.label) {
+			return nil
+		}
+
+		s = s[:len(s)-len(edge.label)]
+		node = edge.node
+	}
+
+	return nil
+}
+
+// equalReversed reports whether tail read backwards is reversed.
+func equalReversed(tail, reversed string) bool {
+	for i := range reversed {
+		if reversed[i] != tail[len(tail)-1-i] {
+			return false
+		}
+	}
+	return true
+}
+
+// reverseString returns s with its bytes reversed. A base string is reversed
+// once, when it is recorded; `endswith` is a byte comparison, so reversing
+// bytes rather than runes is what makes a suffix of s a prefix of reversed s.
+func reverseString(s string) string {
+	b := []byte(s)
+	slices.Reverse(b)
+
+	// b was made here and is not written to again, so it can be handed over
+	// rather than copied a second time.
+	return util.ByteSliceToString(b)
+}
+
 func (p *prefixTrie) do(walker trieWalker) {
 	if p == nil {
 		return
@@ -211,6 +267,26 @@ func (node *trieNode) InsertPrefix(ref Ref, prefix Value) *trieNode {
 	return node.next.prefixes.insert(string(s))
 }
 
+// InsertSuffix records that the rules below this node require the value at ref
+// to be a string ending with suffix.
+func (node *trieNode) InsertSuffix(ref Ref, suffix Value) *trieNode {
+	if node.next == nil {
+		node.next = newTrieNodeImpl()
+		node.next.ref = ref
+	}
+
+	s, ok := suffix.(String)
+	if !ok {
+		panic("illegal suffix value")
+	}
+
+	if node.next.suffixes == nil {
+		node.next.suffixes = &prefixTrie{}
+	}
+
+	return node.next.suffixes.insert(reverseString(string(s)))
+}
+
 // traversePrefixes visits the rules whose prefix constraints value satisfies.
 //
 // strings.any_prefix_match takes a collection of search strings as readily as a
@@ -248,6 +324,38 @@ func (node *trieNode) traversePrefixes(resolver ValueResolver, tr *trieTraversal
 	return nil
 }
 
+// traverseSuffixes visits the rules whose suffix constraints value satisfies.
+// A collection is tested element by element, as for prefixes.
+func (node *trieNode) traverseSuffixes(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
+	if node.suffixes == nil {
+		return nil
+	}
+
+	if s, ok := value.(String); ok {
+		return node.suffixes.traverseSuffix(string(s), resolver, tr)
+	}
+
+	checkMember := func(t *Term) error {
+		if s, ok := t.Value.(String); ok {
+			return node.suffixes.traverseSuffix(string(s), resolver, tr)
+		}
+		return nil
+	}
+
+	switch col := value.(type) {
+	case *Array:
+		return col.Iter(checkMember)
+	case Set:
+		return col.Iter(checkMember)
+	case Object:
+		return col.Iter(func(_, v *Term) error {
+			return checkMember(v)
+		})
+	}
+
+	return nil
+}
+
 // updateStartsWith indexes `startswith(x, "base")`: x has to be a string
 // starting with base for the rule to hold.
 func (i *refindices) updateStartsWith(rule *Rule, expr *Expr, constants map[Var]Value) {
@@ -261,7 +369,7 @@ func (i *refindices) updateStartsWith(rule *Rule, expr *Expr, constants map[Var]
 		return
 	}
 
-	i.insert(rule, &refindex{Ref: ref, Value: prefix, Prefix: true})
+	i.insert(rule, &refindex{Ref: ref, Value: prefix, Affix: affixPrefix})
 }
 
 // updateAnyPrefixMatch indexes `strings.any_prefix_match(x, base)`, which is
@@ -288,7 +396,7 @@ func (i *refindices) updateAnyPrefixMatch(rule *Rule, expr *Expr, constants map[
 	}
 
 	if s, ok := base.(String); ok {
-		i.insert(rule, &refindex{Ref: ref, Value: s, Prefix: true})
+		i.insert(rule, &refindex{Ref: ref, Value: s, Affix: affixPrefix})
 		return
 	}
 
@@ -301,26 +409,27 @@ func (i *refindices) updateAnyPrefixMatch(rule *Rule, expr *Expr, constants map[
 		return
 	}
 
-	i.insertPrefixes(rule, ref, prefixes)
+	i.insertAffixes(rule, ref, prefixes, affixPrefix)
 }
 
-// insertPrefixes records a whole base collection at once. insert() rescans the
-// rule's indices on every call, which is fine for the handful an ordinary rule
-// contributes but quadratic for the thousands strings.any_prefix_match exists
-// to carry, so the scan happens once here instead.
+// insertAffixes records a whole base collection at once, for either end of the
+// value. insert() rescans the rule's indices on every call, which is fine for
+// the handful an ordinary rule contributes but quadratic for the thousands
+// strings.any_prefix_match exists to carry, so the scan happens once here
+// instead.
 //
-// insertMembers is the same function for `in`. They stay apart because the base
+// insertMembers is the same function for `in`. They stay apart because a base
 // is always strings and can dedup in a plain map, where `in` holds arbitrary
 // values and needs a HasherMap; one shared copy costs this path 27% of its
 // build.
-func (i *refindices) insertPrefixes(rule *Rule, ref Ref, prefixes []String) {
-	i.countN(ref, len(prefixes))
+func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []String, a affix) {
+	i.countN(ref, len(bases))
 
 	// concrete counts the values this rule already reaches ref by that survive
 	// insertPath's var-stripping, so that the alternatives the base adds can be
 	// weighed against them without a second scan (see refindices.alternate).
 	concrete := 0
-	seen := make(map[String]struct{}, len(prefixes))
+	seen := make(map[String]struct{}, len(bases))
 	for _, other := range i.rules[rule] {
 		if !other.Ref.Equal(ref) {
 			continue
@@ -328,7 +437,7 @@ func (i *refindices) insertPrefixes(rule *Rule, ref Ref, prefixes []String) {
 		if !other.isVar() {
 			concrete++
 		}
-		if other.Prefix {
+		if other.Affix == a {
 			if s, ok := other.Value.(String); ok {
 				seen[s] = struct{}{}
 			}
@@ -336,13 +445,13 @@ func (i *refindices) insertPrefixes(rule *Rule, ref Ref, prefixes []String) {
 	}
 
 	indices := i.rules[rule]
-	for _, prefix := range prefixes {
-		if _, ok := seen[prefix]; ok {
+	for _, base := range bases {
+		if _, ok := seen[base]; ok {
 			continue
 		}
-		seen[prefix] = struct{}{}
+		seen[base] = struct{}{}
 		concrete++
-		indices = append(indices, &refindex{Ref: ref, Value: prefix, Prefix: true})
+		indices = append(indices, &refindex{Ref: ref, Value: base, Affix: a})
 	}
 	i.rules[rule] = indices
 

@@ -19,6 +19,8 @@ type interned struct {
 
 type internedRefs struct {
 	AnyPrefixMatch    Ref
+	AnySuffixMatch    Ref
+	EndsWith          Ref
 	Equal             Ref
 	Equality          Ref
 	GlobMatch         Ref
@@ -42,6 +44,8 @@ var (
 	Interned = &interned{
 		Refs: &internedRefs{
 			AnyPrefixMatch:    AnyPrefixMatch.Ref(),
+			AnySuffixMatch:    AnySuffixMatch.Ref(),
+			EndsWith:          EndsWith.Ref(),
 			Equal:             Equal.Ref(),
 			Equality:          Equality.Ref(),
 			GlobMatch:         GlobMatch.Ref(),

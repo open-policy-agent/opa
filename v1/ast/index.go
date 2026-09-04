@@ -337,17 +337,31 @@ type refindex struct {
 	Ref    Ref
 	Value  Value
 	Mapper *valueMapper
-	// Prefix marks Value as a string the value at Ref has to start with, rather
-	// than one it has to equal -- what startswith and strings.any_prefix_match
-	// contribute. Several of them for one ref are alternatives, as for `in`.
-	Prefix bool
+	// Affix says whether Value is a string the value at Ref has to start or end
+	// with, rather than one it has to equal -- what startswith, endswith and
+	// their strings.any_*_match forms contribute. Several of them for one ref
+	// are alternatives, as for `in`.
+	Affix affix
 }
+
+// affix is which end of the value at a reference a refindex constrains, if it
+// constrains an end rather than the whole of it.
+type affix uint8
+
+const (
+	affixNone affix = iota
+	affixPrefix
+	affixSuffix
+)
 
 // insertInto adds the level this index constrains to the path being built,
 // returning the node the rest of the path continues from.
 func (i *refindex) insertInto(node *trieNode, ref Ref) *trieNode {
-	if i.Prefix {
+	switch i.Affix {
+	case affixPrefix:
 		return node.InsertPrefix(ref, i.Value)
+	case affixSuffix:
+		return node.InsertSuffix(ref, i.Value)
 	}
 	return node.Insert(ref, i.Value, i.Mapper)
 }
@@ -466,6 +480,12 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 
 	case op.Equal(Interned.Refs.AnyPrefixMatch) && len(expr.Operands()) == 2:
 		i.updateAnyPrefixMatch(rule, expr, values)
+
+	case op.Equal(Interned.Refs.EndsWith) && len(expr.Operands()) == 2:
+		i.updateEndsWith(rule, expr, values)
+
+	case op.Equal(Interned.Refs.AnySuffixMatch) && len(expr.Operands()) == 2:
+		i.updateAnySuffixMatch(rule, expr, values)
 	}
 }
 
@@ -821,7 +841,7 @@ func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
 		if !other.isVar() {
 			concrete++
 		}
-		if !other.Prefix {
+		if other.Affix == affixNone {
 			seen.Put(other.Value, struct{}{})
 		}
 	}
@@ -968,16 +988,16 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 
 	for pos, other := range i.rules[rule] {
 		if other.Ref.Equal(index.Ref) {
-			if other.Prefix == index.Prefix && ValueEqual(other.Value, index.Value) {
+			if other.Affix == index.Affix && ValueEqual(other.Value, index.Value) {
 				return
 			}
 			otherValueIsVar := other.isVar()
-			// A prefix constraint does not take the place of the "ref is
+			// An affix constraint does not take the place of the "ref is
 			// anything" entry the way a concrete value does: that entry is what
 			// lets a later expression resolve the same local back to this ref
 			// (see resolveVarToRef), and insertPath drops it anyway once the
 			// ref has a concrete value on the path.
-			if !indexValueIsVar && !index.Prefix && otherValueIsVar {
+			if !indexValueIsVar && index.Affix == affixNone && otherValueIsVar {
 				i.rules[rule][pos] = index
 				return
 			}
@@ -1053,10 +1073,14 @@ type trieNode struct {
 	undefined *trieNode
 	scalars   *util.HasherMap[Value, *trieNode]
 	prefixes  *prefixTrie
-	array     *trieNode
-	rules     []*ruleNode
-	value     *Term
-	multiple  bool
+	// suffixes holds the base strings reversed, so that requiring one at the
+	// end of a value is requiring it at the start of the value reversed and the
+	// same trie answers both (see traverseSuffix).
+	suffixes *prefixTrie
+	array    *trieNode
+	rules    []*ruleNode
+	value    *Term
+	multiple bool
 }
 
 func (node *trieNode) append(prio [2]int, rule *Rule) {
@@ -1106,6 +1130,7 @@ func (node *trieNode) Do(walker trieWalker) {
 	})
 
 	node.prefixes.do(next)
+	node.suffixes.do(next)
 	node.array.Do(next)
 	node.next.Do(next)
 }
@@ -1249,6 +1274,10 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
+	if err = node.traverseSuffixes(resolver, tr, v); err != nil {
+		return err
+	}
+
 	for i := range node.mappers {
 		mapped := node.mappers[i].MapValue(v)
 		if !ValueEqual(mapped, v) {
@@ -1348,6 +1377,10 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 	}
 
 	if err := node.prefixes.traverseUnknown(resolver, tr); err != nil {
+		return err
+	}
+
+	if err := node.suffixes.traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
