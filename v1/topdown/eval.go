@@ -938,17 +938,8 @@ func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, supportT
 		bodyVars.Update(q.Vars(ast.VarVisitorParams{}))
 	}
 
-	unknowns = unknowns.Intersect(bodyVars)
-
 	// Make rule args. Sort them to ensure order is deterministic.
-	args := make([]*ast.Term, 0, len(unknowns))
-
-	for v := range unknowns {
-		args = append(args, ast.NewTerm(v))
-	}
-
-	slices.SortFunc(args, ast.TermValueCompare)
-
+	args := util.SortedFunc(util.MapKeys(unknowns.Intersect(bodyVars), ast.ToTerm), ast.TermValueCompare)
 	if len(args) > 0 {
 		head.Args = args
 	}

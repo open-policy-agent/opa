@@ -441,6 +441,12 @@ func TermValueIs[T Value](term *Term) (ok bool) {
 	return ok
 }
 
+// ToTerm exists solely to be able to map concrete Value
+// implementations to *Term in util.Map, util.MapKeys, etc.
+func ToTerm[T Value](v T) *Term {
+	return NewTerm(v)
+}
+
 // IsConstant returns true if the AST value is constant.
 // Note that this is only a shallow check as we currently don't have a real
 // notion of constant "vars" in the AST implementation. Meaning that while we could
@@ -2182,12 +2188,7 @@ func (lob *lazyObj) Keys() []*Term {
 	if lob.strict != nil {
 		return lob.strict.Keys()
 	}
-	ret := make([]*Term, 0, len(lob.native))
-	for k := range lob.native {
-		ret = append(ret, InternedTerm(k))
-	}
-
-	return util.SortedFunc(ret, TermValueCompare)
+	return util.SortedFunc(util.MapKeys(lob.native, InternedTerm), TermValueCompare)
 }
 
 func (lob *lazyObj) KeysIterator() ObjectKeysIterator {
