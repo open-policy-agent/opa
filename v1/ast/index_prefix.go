@@ -308,6 +308,11 @@ func (i *refindices) updateAnyPrefixMatch(rule *Rule, expr *Expr, constants map[
 // rule's indices on every call, which is fine for the handful an ordinary rule
 // contributes but quadratic for the thousands strings.any_prefix_match exists
 // to carry, so the scan happens once here instead.
+//
+// insertMembers is the same function for `in`. They stay apart because the base
+// is always strings and can dedup in a plain map, where `in` holds arbitrary
+// values and needs a HasherMap; one shared copy costs this path 27% of its
+// build.
 func (i *refindices) insertPrefixes(rule *Rule, ref Ref, prefixes []String) {
 	i.countN(ref, len(prefixes))
 
