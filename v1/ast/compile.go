@@ -2119,6 +2119,24 @@ func (c *Compiler) getExport(pkg Ref) []Ref {
 	return refs
 }
 
+// getExports groups every module's exported rule refs by package path in one
+// pass. Use this instead of getExport per package, which is quadratic.
+func (c *Compiler) getExports() *util.HasherMap[Ref, []Ref] {
+	rules := util.NewHasherMap[Ref, []Ref](RefEqual)
+
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		refs, _ := rules.Get(mod.Package.Path)
+		refs = slices.Grow(refs, len(mod.Rules))
+		for _, rule := range mod.Rules {
+			refs = append(refs, rule.Head.Ref().GroundPrefix())
+		}
+		rules.Put(mod.Package.Path, refs)
+	}
+
+	return rules
+}
+
 func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 	return c.annotationSet
 }
@@ -2202,9 +2220,11 @@ func (c *Compiler) moduleIsRegoV1Compatible(mod *Module) bool {
 //
 // The reference "c.d.e" would be resolved to "data.a.b.c.d.e".
 func (c *Compiler) resolveAllRefs() {
+	exports := c.getExports()
+
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		ruleExports := c.getExport(mod.Package.Path)
+		ruleExports, _ := exports.Get(mod.Package.Path)
 		globals := getGlobals(mod.Package, ruleExports, mod.Imports)
 
 		WalkRules(mod, func(rule *Rule) bool {
