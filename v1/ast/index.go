@@ -365,7 +365,18 @@ type refindices struct {
 	// operand body: resolvable from inside, but not the operand's own.
 	outer     []*refindex
 	frequency *util.HasherMap[Ref, int]
-	sorted    []Ref
+	// alternated holds the refs that some rule constrains with more than one
+	// alternative. insertPath stops building that rule's path there -- it hangs
+	// the rule off every alternative and returns -- so whatever else the rule
+	// constrains is only indexed if it comes first. Sorted puts these refs last
+	// to make that so.
+	//
+	// The alternatives an `or` contributes (see require) are not recorded: they
+	// are separate paths, and only meet a second value for the same ref once
+	// paths() combines them, which is after Sorted has run. Missing one costs
+	// the ordering, never correctness.
+	alternated *util.HasherMap[Ref, struct{}]
+	sorted     []Ref
 }
 
 // maxIndexPaths caps the ways a single rule may be reached: `or` expressions
@@ -375,9 +386,10 @@ const maxIndexPaths = 32
 
 func newrefindices(isVirtual func(Ref) bool) *refindices {
 	return &refindices{
-		isVirtual: isVirtual,
-		rules:     map[*Rule][]*refindex{},
-		frequency: util.NewHasherMap[Ref, int](RefEqual),
+		isVirtual:  isVirtual,
+		rules:      map[*Rule][]*refindex{},
+		frequency:  util.NewHasherMap[Ref, int](RefEqual),
+		alternated: util.NewHasherMap[Ref, struct{}](RefEqual),
 	}
 }
 
@@ -595,6 +607,15 @@ func (i *refindices) isValidIndexRef(ref Ref) bool {
 func (i *refindices) Sorted() []Ref {
 	if i.sorted == nil {
 		i.sorted = util.SortedFunc(i.frequency.Keys(), func(a, b Ref) int {
+			// A ref that ends some rule's path is worth less as an early level
+			// than any ref that does not, however often it was recorded (see
+			// refindices.alternated), so it is ranked ahead of frequency.
+			if altA, altB := i.isAlternated(a), i.isAlternated(b); altA != altB {
+				if altA {
+					return 1
+				}
+				return -1
+			}
 			countsA, _ := i.frequency.Get(a)
 			countsB, _ := i.frequency.Get(b)
 			if countsA < countsB { // descending, we want highest-freq first
@@ -856,17 +877,30 @@ func (i *refindices) countN(ref Ref, n int) {
 	i.frequency.Put(ref, count+n)
 }
 
+// alternate records that a rule reaches ref by more than one value, which is
+// what insertPath ends the rule's path on (see refindices.alternated). Only the
+// values that survive insertPath's var-stripping count: a var entry alongside a
+// concrete one is dropped there, so it is not an alternative.
+func (i *refindices) alternate(ref Ref) {
+	i.alternated.Put(ref, struct{}{})
+}
+
+func (i *refindices) isAlternated(ref Ref) bool {
+	_, ok := i.alternated.Get(ref)
+	return ok
+}
+
 func (i *refindices) insert(rule *Rule, index *refindex) {
 	i.count(index.Ref)
 
-	_, indexValueIsVar := index.Value.(Var)
+	indexValueIsVar := index.isVar()
 
 	for pos, other := range i.rules[rule] {
 		if other.Ref.Equal(index.Ref) {
 			if other.Prefix == index.Prefix && ValueEqual(other.Value, index.Value) {
 				return
 			}
-			_, otherValueIsVar := other.Value.(Var)
+			otherValueIsVar := other.isVar()
 			// A prefix constraint does not take the place of the "ref is
 			// anything" entry the way a concrete value does: that entry is what
 			// lets a later expression resolve the same local back to this ref
@@ -875,6 +909,9 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 			if !indexValueIsVar && !index.Prefix && otherValueIsVar {
 				i.rules[rule][pos] = index
 				return
+			}
+			if !indexValueIsVar && !otherValueIsVar {
+				i.alternate(index.Ref)
 			}
 		}
 	}
