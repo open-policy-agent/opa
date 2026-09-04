@@ -246,7 +246,6 @@ func (tc *typeChecker) getSchemaType(schemaAnnot *SchemaAnnotation, rule *Rule) 
 }
 
 func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
-
 	env = env.wrap()
 
 	schemaAnnots := getRuleAnnotation(as, rule)
@@ -357,23 +356,17 @@ func nestedObject(env *TypeEnv, path Ref, tpe types.Type) (types.Type, error) {
 		return tpe, nil
 	}
 
-	k := path[0]
 	typeV, err := nestedObject(env, path[1:], tpe)
-	if err != nil {
+	if err != nil || typeV == nil {
 		return nil, err
 	}
-	if typeV == nil {
-		return nil, nil
-	}
 
-	var dynamicProperty *types.DynamicProperty
-	typeK := env.GetByValue(k.Value)
+	typeK := env.GetByValue(path[0].Value)
 	if typeK == nil {
 		return nil, nil
 	}
-	dynamicProperty = types.NewDynamicProperty(typeK, typeV)
 
-	return types.NewObject(nil, dynamicProperty), nil
+	return types.NewObject(nil, types.NewDynamicProperty(typeK, typeV)), nil
 }
 
 func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
@@ -396,7 +389,7 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 	}
 
 	switch operator {
-	case "eq":
+	case Equality.Name:
 		return checkExprEq(env, expr)
 	case Member.Name, MemberWithKey.Name:
 		if err := checkExprMember(env, expr, operator == MemberWithKey.Name); err != nil {
@@ -450,12 +443,15 @@ func checkExprMemberOperand(env *TypeEnv, expr *Expr, term *Term, tpe types.Type
 	// unifies rejects already-typed terms; unify1 infers types for untyped vars
 	// and checks the resolved parts of partially typed composites.
 	if (!types.Nil(have) && !unifies(have, tpe)) || !unify1(env, term, tpe, false) {
-		err := NewError(TypeErr, expr.Location, "match error")
-		err.Details = &UnificationErrDetail{
-			Left:  have,
-			Right: tpe,
+		return &Error{
+			Code:     TypeErr,
+			Location: expr.Location,
+			Message:  "match error",
+			Details: &UnificationErrDetail{
+				Left:  have,
+				Right: tpe,
+			},
 		}
-		return err
 	}
 
 	return nil
@@ -536,14 +532,16 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 }
 
 func checkExprEq(env *TypeEnv, expr *Expr) *Error {
+	ops := expr.Operands()
+	num := len(ops)
 
-	pre := getArgTypes(env, expr.Operands())
-
-	if len(pre) < Equality.Decl.Arity() {
+	if num < Equality.Decl.Arity() {
+		pre := getArgTypes(env, ops)
 		return newArgError(expr.Location, expr.Operator(), "too few arguments", pre, Equality.Decl.FuncArgs())
 	}
 
-	if Equality.Decl.Arity() < len(pre) {
+	if Equality.Decl.Arity() < num {
+		pre := getArgTypes(env, ops)
 		return newArgError(expr.Location, expr.Operator(), "too many arguments", pre, Equality.Decl.FuncArgs())
 	}
 
@@ -955,7 +953,6 @@ func (rc *refChecker) checkApply(curr *TypeEnv, ref Ref) *Error {
 }
 
 func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx int) *Error {
-
 	if idx == len(ref) {
 		return nil
 	}
@@ -1520,7 +1517,7 @@ func override(ref Ref, t types.Type, o types.Type, rule *Rule) (types.Type, *Err
 }
 
 func getKeys(ref Ref, rule *Rule) ([]any, *Error) {
-	keys := []any{}
+	keys := make([]any, 0, len(ref))
 	for _, refElem := range ref {
 		key, err := JSON(refElem.Value)
 		if err != nil {
@@ -1570,15 +1567,12 @@ func getRuleAnnotation(as *AnnotationSet, rule *Rule) (result []*SchemaAnnotatio
 }
 
 func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule, allowNet []string) (types.Type, *Error) {
-
 	var schema any
-
 	if annot.Schema != nil {
 		if ss == nil {
 			return nil, nil
 		}
-		schema = ss.Get(annot.Schema)
-		if schema == nil {
+		if schema = ss.Get(annot.Schema); schema == nil {
 			return nil, NewError(TypeErr, rule.Location, "undefined schema: %v", annot.Schema)
 		}
 	} else if annot.Definition != nil {
