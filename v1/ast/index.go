@@ -170,7 +170,7 @@ func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int,
 		if len(values) == 0 {
 			node = node.Insert(ref, nil, nil)
 		} else if len(values) == 1 {
-			node = node.Insert(ref, values[0].Value, values[0].Mapper)
+			node = values[0].insertInto(node, ref)
 		} else {
 			if slices.ContainsFunc(values, (*refindex).isVar) {
 				child := node.Insert(ref, anyValue, values[0].Mapper)
@@ -186,7 +186,7 @@ func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int,
 				// This creates separate paths for each value so different rules with overlapping
 				// values don't interfere with each other.
 				for _, val := range values {
-					child := node.Insert(ref, val.Value, val.Mapper)
+					child := val.insertInto(node, ref)
 					child.append(prio, rule)
 				}
 				return
@@ -337,6 +337,19 @@ type refindex struct {
 	Ref    Ref
 	Value  Value
 	Mapper *valueMapper
+	// Prefix marks Value as a string the value at Ref has to start with, rather
+	// than one it has to equal -- what startswith and strings.any_prefix_match
+	// contribute. Several of them for one ref are alternatives, as for `in`.
+	Prefix bool
+}
+
+// insertInto adds the level this index constrains to the path being built,
+// returning the node the rest of the path continues from.
+func (i *refindex) insertInto(node *trieNode, ref Ref) *trieNode {
+	if i.Prefix {
+		return node.InsertPrefix(ref, i.Value)
+	}
+	return node.Insert(ref, i.Value, i.Mapper)
 }
 
 // alternatives are sets of indices, any one of which is enough to reach a rule.
@@ -433,6 +446,14 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 	case op.Equal(Interned.Refs.Member) && len(expr.Operands()) == 2:
 		// NOTE(sr): Again, 3 operands means captured output (like above).
 		i.updateMember(rule, expr, values)
+
+	case op.Equal(Interned.Refs.StartsWith) && len(expr.Operands()) == 2:
+		// As with equal() above: a third operand captures the result, and a
+		// rule producing `false` still has to be evaluated.
+		i.updateStartsWith(rule, expr, values)
+
+	case op.Equal(Interned.Refs.AnyPrefixMatch) && len(expr.Operands()) == 2:
+		i.updateAnyPrefixMatch(rule, expr, values)
 	}
 }
 
@@ -827,8 +848,12 @@ func (i *refindices) resolvable(rule *Rule) []*refindex {
 // count records that ref took part in indexing a rule, which is what orders the
 // trie levels (see Sorted).
 func (i *refindices) count(ref Ref) {
+	i.countN(ref, 1)
+}
+
+func (i *refindices) countN(ref Ref, n int) {
 	count, _ := i.frequency.Get(ref)
-	i.frequency.Put(ref, count+1)
+	i.frequency.Put(ref, count+n)
 }
 
 func (i *refindices) insert(rule *Rule, index *refindex) {
@@ -838,11 +863,16 @@ func (i *refindices) insert(rule *Rule, index *refindex) {
 
 	for pos, other := range i.rules[rule] {
 		if other.Ref.Equal(index.Ref) {
-			if ValueEqual(other.Value, index.Value) {
+			if other.Prefix == index.Prefix && ValueEqual(other.Value, index.Value) {
 				return
 			}
 			_, otherValueIsVar := other.Value.(Var)
-			if !indexValueIsVar && otherValueIsVar {
+			// A prefix constraint does not take the place of the "ref is
+			// anything" entry the way a concrete value does: that entry is what
+			// lets a later expression resolve the same local back to this ref
+			// (see resolveVarToRef), and insertPath drops it anyway once the
+			// ref has a concrete value on the path.
+			if !indexValueIsVar && !index.Prefix && otherValueIsVar {
 				i.rules[rule][pos] = index
 				return
 			}
@@ -914,6 +944,7 @@ type trieNode struct {
 	any       *trieNode
 	undefined *trieNode
 	scalars   *util.HasherMap[Value, *trieNode]
+	prefixes  *prefixTrie
 	array     *trieNode
 	rules     []*ruleNode
 	value     *Term
@@ -966,6 +997,7 @@ func (node *trieNode) Do(walker trieWalker) {
 		return false
 	})
 
+	node.prefixes.do(next)
 	node.array.Do(next)
 	node.next.Do(next)
 }
@@ -1101,6 +1133,14 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
+	// Prefix constraints are tested against the value as it is, never against
+	// what a mapper makes of it: the glob mapper turns a string into the array
+	// of its segments, and matching prefixes against those segments would
+	// answer a question no rule asked.
+	if err = node.traversePrefixes(resolver, tr, v); err != nil {
+		return err
+	}
+
 	for i := range node.mappers {
 		mapped := node.mappers[i].MapValue(v)
 		if !ValueEqual(mapped, v) {
@@ -1196,6 +1236,10 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 	}
 
 	if err := node.array.traverseUnknown(resolver, tr); err != nil {
+		return err
+	}
+
+	if err := node.prefixes.traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 

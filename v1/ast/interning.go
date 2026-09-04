@@ -18,6 +18,7 @@ type interned struct {
 }
 
 type internedRefs struct {
+	AnyPrefixMatch    Ref
 	Equal             Ref
 	Equality          Ref
 	GlobMatch         Ref
@@ -29,6 +30,7 @@ type internedRefs struct {
 	Print             Ref
 	RegoMetadataChain Ref
 	RegoMetadataRule  Ref
+	StartsWith        Ref
 }
 
 // NOTE! Great care must be taken **not** to modify the terms returned
@@ -39,6 +41,7 @@ type internedRefs struct {
 var (
 	Interned = &interned{
 		Refs: &internedRefs{
+			AnyPrefixMatch:    AnyPrefixMatch.Ref(),
 			Equal:             Equal.Ref(),
 			Equality:          Equality.Ref(),
 			GlobMatch:         GlobMatch.Ref(),
@@ -50,6 +53,7 @@ var (
 			Print:             Print.Ref(),
 			RegoMetadataChain: RegoMetadataChain.Ref(),
 			RegoMetadataRule:  RegoMetadataRule.Ref(),
+			StartsWith:        StartsWith.Ref(),
 		},
 	}
 
