@@ -1624,6 +1624,11 @@ func (arr *Array) set(i int, v *Term) {
 // indicates the end of the array. The returned value array is not a
 // copy and any modifications to either of arrays may be reflected to
 // the other.
+//
+// Set on the returned slice writes through to arr's element and to its
+// hash, but not to arr's cached sum of those hashes, so arr.Hash() is
+// stale from then on and anything holding arr as a map key or set member
+// stops finding it. Copy the slice before writing to it.
 func (arr *Array) Slice(i, j int) *Array {
 	var elems []*Term
 	var hashs []int

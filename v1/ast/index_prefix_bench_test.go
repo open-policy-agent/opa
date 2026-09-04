@@ -40,9 +40,9 @@ var prefixGrids = []prefixGrid{
 // dimension.
 //
 //	                          any_prefix_match              startswith
-//	rules=1/prefixes=10000       2322533 ns    5.5 MB     5731426 ns    6.1 MB
-//	rules=10/prefixes=1000       2205267 ns    5.1 MB     5917098 ns    6.1 MB
-//	rules=250/prefixes=10000   577763666 ns   1387 MB  2344970750 ns   1531 MB
+//	rules=1/prefixes=10000       1779341 ns    4.2 MB     4988703 ns    5.6 MB
+//	rules=10/prefixes=1000       1777141 ns    4.2 MB     5087124 ns    5.6 MB
+//	rules=250/prefixes=10000   484128062 ns   1052 MB  2257324250 ns   1398 MB
 //
 // The first two rows hold 10000 prefixes each, split two ways, and cost the
 // same; the third holds 250 times as many and costs 250 times as much.
@@ -51,8 +51,9 @@ var prefixGrids = []prefixGrid{
 // single rule of 10000 prefixes -- because refindices.insert rescans the rule's
 // indices on every call. See insertPrefixes.
 //
-// The B/op column is close to what the trie costs to hold, since nothing it
-// allocates is released. At the top of the grid the startswith ruleset is 2.5M
+// The B/op column is everything the build allocates, which is more than the trie
+// holds: compacting the edge slices copies out of the blocks they grew into and
+// releases those (see prefixTrie.compact). At the top of the grid the startswith ruleset is 2.5M
 // rules and takes gigabytes; that ruleset is built once, outside the timer.
 func BenchmarkBuildPrefixIndex(b *testing.B) {
 	for _, tc := range prefixShapes {

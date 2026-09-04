@@ -127,6 +127,9 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			return false
 		})
 	}
+
+	i.root.compact()
+
 	return true
 }
 
@@ -337,17 +340,31 @@ type refindex struct {
 	Ref    Ref
 	Value  Value
 	Mapper *valueMapper
-	// Prefix marks Value as a string the value at Ref has to start with, rather
-	// than one it has to equal -- what startswith and strings.any_prefix_match
-	// contribute. Several of them for one ref are alternatives, as for `in`.
-	Prefix bool
+	// Affix says whether Value is a string the value at Ref has to start or end
+	// with, rather than one it has to equal -- what startswith, endswith and
+	// their strings.any_*_match forms contribute. Several of them for one ref
+	// are alternatives, as for `in`.
+	Affix affix
 }
+
+// affix is which end of the value at a reference a refindex constrains, if it
+// constrains an end rather than the whole of it.
+type affix uint8
+
+const (
+	affixNone affix = iota
+	affixPrefix
+	affixSuffix
+)
 
 // insertInto adds the level this index constrains to the path being built,
 // returning the node the rest of the path continues from.
 func (i *refindex) insertInto(node *trieNode, ref Ref) *trieNode {
-	if i.Prefix {
+	switch i.Affix {
+	case affixPrefix:
 		return node.InsertPrefix(ref, i.Value)
+	case affixSuffix:
+		return node.InsertSuffix(ref, i.Value)
 	}
 	return node.Insert(ref, i.Value, i.Mapper)
 }
@@ -365,7 +382,18 @@ type refindices struct {
 	// operand body: resolvable from inside, but not the operand's own.
 	outer     []*refindex
 	frequency *util.HasherMap[Ref, int]
-	sorted    []Ref
+	// alternated holds the refs that some rule constrains with more than one
+	// alternative. insertPath stops building that rule's path there -- it hangs
+	// the rule off every alternative and returns -- so whatever else the rule
+	// constrains is only indexed if it comes first. Sorted puts these refs last
+	// to make that so.
+	//
+	// The alternatives an `or` contributes (see require) are not recorded: they
+	// are separate paths, and only meet a second value for the same ref once
+	// paths() combines them, which is after Sorted has run. Missing one costs
+	// the ordering, never correctness.
+	alternated *util.HasherMap[Ref, struct{}]
+	sorted     []Ref
 }
 
 // maxIndexPaths caps the ways a single rule may be reached: `or` expressions
@@ -375,15 +403,20 @@ const maxIndexPaths = 32
 
 func newrefindices(isVirtual func(Ref) bool) *refindices {
 	return &refindices{
-		isVirtual: isVirtual,
-		rules:     map[*Rule][]*refindex{},
-		frequency: util.NewHasherMap[Ref, int](RefEqual),
+		isVirtual:  isVirtual,
+		rules:      map[*Rule][]*refindex{},
+		frequency:  util.NewHasherMap[Ref, int](RefEqual),
+		alternated: util.NewHasherMap[Ref, struct{}](RefEqual),
 	}
 }
 
+func valueIsVar(v Value) bool {
+	_, ok := v.(Var)
+	return ok
+}
+
 func (i *refindex) isVar() bool {
-	_, isVar := i.Value.(Var)
-	return isVar
+	return valueIsVar(i.Value)
 }
 
 // Update attempts to update the refindices for the given expression in the
@@ -454,6 +487,12 @@ func (i *refindices) Update(rule *Rule, expr *Expr, values map[Var]Value) {
 
 	case op.Equal(Interned.Refs.AnyPrefixMatch) && len(expr.Operands()) == 2:
 		i.updateAnyPrefixMatch(rule, expr, values)
+
+	case op.Equal(Interned.Refs.EndsWith) && len(expr.Operands()) == 2:
+		i.updateEndsWith(rule, expr, values)
+
+	case op.Equal(Interned.Refs.AnySuffixMatch) && len(expr.Operands()) == 2:
+		i.updateAnySuffixMatch(rule, expr, values)
 	}
 }
 
@@ -595,6 +634,15 @@ func (i *refindices) isValidIndexRef(ref Ref) bool {
 func (i *refindices) Sorted() []Ref {
 	if i.sorted == nil {
 		i.sorted = util.SortedFunc(i.frequency.Keys(), func(a, b Ref) int {
+			// A ref that ends some rule's path is worth less as an early level
+			// than any ref that does not, however often it was recorded (see
+			// refindices.alternated), so it is ranked ahead of frequency.
+			if altA, altB := i.isAlternated(a), i.isAlternated(b); altA != altB {
+				if altA {
+					return 1
+				}
+				return -1
+			}
 			countsA, _ := i.frequency.Get(a)
 			countsB, _ := i.frequency.Get(b)
 			if countsA < countsB { // descending, we want highest-freq first
@@ -743,20 +791,104 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 		}
 	}
 
-	addRef := func(t *Term) error {
-		i.insert(rule, &refindex{Ref: ref, Value: t.Value})
-		return nil
-	}
+	var (
+		forEach func(func(*Term))
+		n       int
+	)
 
 	switch rcol := rval.(type) {
 	case *Array:
-		_ = rcol.Iter(addRef)
+		forEach, n = rcol.Foreach, rcol.Len()
 	case Set:
-		_ = rcol.Iter(addRef)
+		forEach, n = rcol.Foreach, rcol.Len()
 	case Object:
-		_ = rcol.Iter(func(_, v *Term) error {
-			return addRef(v)
-		})
+		n = rcol.Len()
+		forEach = func(f func(*Term)) {
+			rcol.Foreach(func(_, v *Term) { f(v) })
+		}
+	default:
+		return
+	}
+
+	members := make([]Value, 0, n)
+	forEach(func(t *Term) {
+		members = append(members, t.Value)
+	})
+
+	i.insertMembers(rule, ref, members)
+}
+
+// insertMembers records the members of the literal collection of an `in`
+// statement, each of which is a value the rule may reach ref by. It is
+// insertPrefixes again -- see there for why the scan is hoisted out of insert
+// -- and stays a copy of it because the two cannot share a dedup set: a base
+// string is always a String, so insertPrefixes gets a plain map, while an `in`
+// collection holds arbitrary values and needs a HasherMap. Sharing the code
+// meant sharing the HasherMap, which cost the prefix path 27% of its build.
+func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
+	if len(members) < 2 {
+		for _, member := range members {
+			i.insert(rule, &refindex{Ref: ref, Value: member})
+		}
+		return
+	}
+
+	// Unlike a prefix, a concrete member takes the place of a "reference is
+	// anything" entry (see insert), so the first one goes the ordinary way --
+	// the rule's list is short at that point, so the scan it costs is cheap.
+	i.insert(rule, &refindex{Ref: ref, Value: members[0]})
+
+	// insert is the only one that may put a value somewhere other than the end
+	// of the list, which is what a var needs, so those go in through it and are
+	// left out of the block below. A collection holding one is rare, and paying
+	// a copy for it keeps the common case a single pass.
+	rest := members[1:]
+	if slices.ContainsFunc(rest, valueIsVar) {
+		for _, member := range rest {
+			if valueIsVar(member) {
+				i.insert(rule, &refindex{Ref: ref, Value: member})
+			}
+		}
+		rest = slices.DeleteFunc(slices.Clone(rest), valueIsVar)
+	}
+
+	concrete := 0
+	seen := util.NewHasherMap[Value, struct{}](ValueEqual)
+
+	for _, other := range i.rules[rule] {
+		if !other.Ref.Equal(ref) {
+			continue
+		}
+		if !other.isVar() {
+			concrete++
+		}
+		if other.Affix == affixNone {
+			seen.Put(other.Value, struct{}{})
+		}
+	}
+
+	// One refindex per member, laid down in a single block rather than
+	// allocated one at a time, as in insertAffixes. Duplicates leave slack at
+	// the end of the block, which the reslice drops.
+	pos := len(i.rules[rule])
+	indices := util.GrowPtrSlice(i.rules[rule], len(rest))
+
+	for _, member := range rest {
+		if _, ok := seen.Get(member); ok {
+			continue
+		}
+		seen.Put(member, struct{}{})
+		concrete++
+
+		*indices[pos] = refindex{Ref: ref, Value: member}
+		pos++
+	}
+	i.rules[rule] = indices[:pos]
+
+	i.countN(ref, len(rest))
+
+	if concrete > 1 {
+		i.alternate(ref)
 	}
 }
 
@@ -856,25 +988,41 @@ func (i *refindices) countN(ref Ref, n int) {
 	i.frequency.Put(ref, count+n)
 }
 
+// alternate records that a rule reaches ref by more than one value, which is
+// what insertPath ends the rule's path on (see refindices.alternated). Only the
+// values that survive insertPath's var-stripping count: a var entry alongside a
+// concrete one is dropped there, so it is not an alternative.
+func (i *refindices) alternate(ref Ref) {
+	i.alternated.Put(ref, struct{}{})
+}
+
+func (i *refindices) isAlternated(ref Ref) bool {
+	_, ok := i.alternated.Get(ref)
+	return ok
+}
+
 func (i *refindices) insert(rule *Rule, index *refindex) {
 	i.count(index.Ref)
 
-	_, indexValueIsVar := index.Value.(Var)
+	indexValueIsVar := index.isVar()
 
 	for pos, other := range i.rules[rule] {
 		if other.Ref.Equal(index.Ref) {
-			if other.Prefix == index.Prefix && ValueEqual(other.Value, index.Value) {
+			if other.Affix == index.Affix && ValueEqual(other.Value, index.Value) {
 				return
 			}
-			_, otherValueIsVar := other.Value.(Var)
-			// A prefix constraint does not take the place of the "ref is
+			otherValueIsVar := other.isVar()
+			// An affix constraint does not take the place of the "ref is
 			// anything" entry the way a concrete value does: that entry is what
 			// lets a later expression resolve the same local back to this ref
 			// (see resolveVarToRef), and insertPath drops it anyway once the
 			// ref has a concrete value on the path.
-			if !indexValueIsVar && !index.Prefix && otherValueIsVar {
+			if !indexValueIsVar && index.Affix == affixNone && otherValueIsVar {
 				i.rules[rule][pos] = index
 				return
+			}
+			if !indexValueIsVar && !otherValueIsVar {
+				i.alternate(index.Ref)
 			}
 		}
 	}
@@ -938,17 +1086,12 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 }
 
 type trieNode struct {
-	ref       Ref
-	mappers   []*valueMapper
-	next      *trieNode
-	any       *trieNode
-	undefined *trieNode
-	scalars   *util.HasherMap[Value, *trieNode]
-	prefixes  *prefixTrie
-	array     *trieNode
-	rules     []*ruleNode
-	value     *Term
-	multiple  bool
+	// detail is what only a level node has; see levelDetail.
+	detail   *levelDetail
+	next     *trieNode
+	rules    []*ruleNode
+	value    *Term
+	multiple bool
 }
 
 func (node *trieNode) append(prio [2]int, rule *Rule) {
@@ -976,8 +1119,123 @@ func (a *ruleNode) prioEqual(b *ruleNode) bool {
 	return a.prio == b.prio
 }
 
+// levelDetail is everything a trieNode has by virtue of being a *level* -- the
+// reference it resolves, the children it dispatches the resolved value to, and
+// the constraints that are not exact values. The suffix trie holds its base
+// strings reversed, so that requiring one at the end of a value is requiring it
+// at the start of the value reversed and the same trie answers both (see
+// traverseSuffix).
+//
+// It is held behind one pointer because a trieNode is allocated per indexed
+// value and almost none of them are levels: half a million prefixes make one
+// level and half a million nodes that only carry rules. Measured over such an
+// index, every field here is set on 0 or 1 of the 500002 nodes.
+//
+// Where the boundaries fall decides how much that is worth. Inline, these
+// fields put trieNode in Go's 144-byte size class; out of line it is 56 bytes,
+// which rounds to 64. Moving them out a few at a time buys nothing -- 136 and
+// 112 bytes both round up to a class the struct already occupied.
+type levelDetail struct {
+	ref       Ref
+	any       *trieNode
+	undefined *trieNode
+	array     *trieNode
+	scalars   *util.HasherMap[Value, *trieNode]
+	mappers   []*valueMapper
+	prefixes  *prefixTrie
+	suffixes  *prefixTrie
+}
+
 func newTrieNodeImpl() *trieNode {
 	return &trieNode{}
+}
+
+func (node *trieNode) ref() Ref {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.ref
+}
+
+func (node *trieNode) any() *trieNode {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.any
+}
+
+func (node *trieNode) undefined() *trieNode {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.undefined
+}
+
+func (node *trieNode) array() *trieNode {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.array
+}
+
+func (node *trieNode) scalars() *util.HasherMap[Value, *trieNode] {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.scalars
+}
+
+func (node *trieNode) prefixes() *prefixTrie {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.prefixes
+}
+
+func (node *trieNode) suffixes() *prefixTrie {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.suffixes
+}
+
+func (node *trieNode) mappers() []*valueMapper {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.mappers
+}
+
+func (node *trieNode) levelDetail() *levelDetail {
+	node.detail = util.Or(node.detail, newLevelDetail)
+	return node.detail
+}
+
+// affixTrie returns the trie for one end of the value, creating it and the
+// detail that holds it on first use.
+func (node *trieNode) affixTrie(a affix) *prefixTrie {
+	detail := node.levelDetail()
+
+	switch a {
+	case affixSuffix:
+		detail.suffixes = util.Or(detail.suffixes, newPrefixTrie)
+		return detail.suffixes
+	default:
+		detail.prefixes = util.Or(detail.prefixes, newPrefixTrie)
+		return detail.prefixes
+	}
+}
+
+func newLevelDetail() *levelDetail {
+	return &levelDetail{}
+}
+
+func newScalarChildren() *util.HasherMap[Value, *trieNode] {
+	return util.NewHasherMap[Value, *trieNode](ValueEqual)
+}
+
+func newPrefixTrie() *prefixTrie {
+	return &prefixTrie{}
 }
 
 func (node *trieNode) Do(walker trieWalker) {
@@ -989,23 +1247,45 @@ func (node *trieNode) Do(walker trieWalker) {
 		return
 	}
 
-	node.any.Do(next)
-	node.undefined.Do(next)
+	node.any().Do(next)
+	node.undefined().Do(next)
 
-	node.scalars.Iter(func(_ Value, child *trieNode) bool {
+	node.scalars().Iter(func(_ Value, child *trieNode) bool {
 		child.Do(next)
 		return false
 	})
 
-	node.prefixes.do(next)
-	node.array.Do(next)
+	node.prefixes().do(next)
+	node.suffixes().do(next)
+	node.array().Do(next)
 	node.next.Do(next)
+}
+
+// compact walks the trie once the index is built and releases what its slices
+// grew but do not use.
+func (node *trieNode) compact() {
+	if node == nil {
+		return
+	}
+
+	node.prefixes().compact()
+	node.suffixes().compact()
+
+	node.any().compact()
+	node.undefined().compact()
+	node.array().compact()
+	node.next.compact()
+
+	node.scalars().Iter(func(_ Value, child *trieNode) bool {
+		child.compact()
+		return false
+	})
 }
 
 func (node *trieNode) Insert(ref Ref, value Value, mapper *valueMapper) *trieNode {
 	if node.next == nil {
 		node.next = newTrieNodeImpl()
-		node.next.ref = ref
+		node.next.levelDetail().ref = ref
 	}
 
 	if mapper != nil {
@@ -1026,35 +1306,36 @@ func (node *trieNode) Traverse(resolver ValueResolver, tr *trieTraversalResult) 
 }
 
 func (node *trieNode) addMapper(mapper *valueMapper) {
-	for i := range node.mappers {
-		if node.mappers[i].Key == mapper.Key {
+	detail := node.levelDetail()
+	for i := range detail.mappers {
+		if detail.mappers[i].Key == mapper.Key {
 			return
 		}
 	}
-	node.mappers = append(node.mappers, mapper)
+	detail.mappers = append(detail.mappers, mapper)
 }
 
 func (node *trieNode) insertValue(value Value) *trieNode {
+	detail := node.levelDetail()
+
 	switch value := value.(type) {
 	case nil:
-		node.undefined = util.Or(node.undefined, newTrieNodeImpl)
-		return node.undefined
+		detail.undefined = util.Or(detail.undefined, newTrieNodeImpl)
+		return detail.undefined
 	case Var:
-		node.any = util.Or(node.any, newTrieNodeImpl)
-		return node.any
+		detail.any = util.Or(detail.any, newTrieNodeImpl)
+		return detail.any
 	case Null, Boolean, Number, String:
-		child, ok := node.scalars.Get(value)
+		child, ok := detail.scalars.Get(value)
 		if !ok {
 			child = newTrieNodeImpl()
-			if node.scalars == nil {
-				node.scalars = util.NewHasherMap[Value, *trieNode](ValueEqual)
-			}
-			node.scalars.Put(value, child)
+			detail.scalars = util.Or(detail.scalars, newScalarChildren)
+			detail.scalars.Put(value, child)
 		}
 		return child
 	case *Array:
-		node.array = util.Or(node.array, newTrieNodeImpl)
-		return node.array.insertArray(value)
+		detail.array = util.Or(detail.array, newTrieNodeImpl)
+		return detail.array.insertArray(value)
 
 	// `x in <collection>` (see updateMemberRefInValue) inserts each element of
 	// the literal collection as-is, without restricting it to scalars/arrays
@@ -1065,8 +1346,8 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 	// Call - can't actually reach here: the compiler rewrites them into
 	// separate statements, bound to a Var, before the index is built.)
 	case Object, Set:
-		node.any = util.Or(node.any, newTrieNodeImpl)
-		return node.any
+		detail.any = util.Or(detail.any, newTrieNodeImpl)
+		return detail.any
 	}
 
 	panic("illegal value")
@@ -1077,18 +1358,18 @@ func (node *trieNode) insertArray(arr *Array) *trieNode {
 		return node
 	}
 
+	detail := node.levelDetail()
+
 	switch head := arr.Elem(0).Value.(type) {
 	case Var:
-		node.any = util.Or(node.any, newTrieNodeImpl)
-		return node.any.insertArray(arr.Slice(1, -1))
+		detail.any = util.Or(detail.any, newTrieNodeImpl)
+		return detail.any.insertArray(arr.Slice(1, -1))
 	case Null, Boolean, Number, String:
-		child, ok := node.scalars.Get(head)
+		child, ok := detail.scalars.Get(head)
 		if !ok {
 			child = newTrieNodeImpl()
-			if node.scalars == nil {
-				node.scalars = util.NewHasherMap[Value, *trieNode](ValueEqual)
-			}
-			node.scalars.Put(head, child)
+			detail.scalars = util.Or(detail.scalars, newScalarChildren)
+			detail.scalars.Put(head, child)
 		}
 		return child.insertArray(arr.Slice(1, -1))
 
@@ -1097,8 +1378,8 @@ func (node *trieNode) insertArray(arr *Array) *trieNode {
 	// at this position, so fall back to "any" and keep indexing the
 	// remaining elements.
 	case *Array, Object, Set:
-		node.any = util.Or(node.any, newTrieNodeImpl)
-		return node.any.insertArray(arr.Slice(1, -1))
+		detail.any = util.Or(detail.any, newTrieNodeImpl)
+		return detail.any.insertArray(arr.Slice(1, -1))
 	}
 
 	panic("illegal value")
@@ -1109,7 +1390,7 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return nil
 	}
 
-	v, err := resolver.Resolve(node.ref)
+	v, err := resolver.Resolve(node.ref())
 	if err != nil {
 		if IsUnknownValueErr(err) {
 			return node.traverseUnknown(resolver, tr)
@@ -1117,7 +1398,7 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
-	if err = node.undefined.Traverse(resolver, tr); err != nil {
+	if err = node.undefined().Traverse(resolver, tr); err != nil {
 		return err
 	}
 
@@ -1125,7 +1406,7 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return nil
 	}
 
-	if err = node.any.Traverse(resolver, tr); err != nil {
+	if err = node.any().Traverse(resolver, tr); err != nil {
 		return err
 	}
 
@@ -1141,8 +1422,13 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
-	for i := range node.mappers {
-		mapped := node.mappers[i].MapValue(v)
+	if err = node.traverseSuffixes(resolver, tr, v); err != nil {
+		return err
+	}
+
+	mappers := node.mappers()
+	for i := range mappers {
+		mapped := mappers[i].MapValue(v)
 		if !ValueEqual(mapped, v) {
 			if err := node.traverseValue(resolver, tr, mapped); err != nil {
 				return err
@@ -1156,18 +1442,18 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
 	switch value := value.(type) {
 	case *Array, Set, Object:
-		if node.array != nil {
+		if node.array() != nil {
 			if arr, ok := value.(*Array); ok {
-				if err := node.array.traverseArray(resolver, tr, arr); err != nil {
+				if err := node.array().traverseArray(resolver, tr, arr); err != nil {
 					return err
 				}
 			}
 		}
-		if node.scalars.Len() > 0 {
+		if node.scalars().Len() > 0 {
 			return node.traverseCollectionMembership(resolver, tr, value)
 		}
 	case Null, Boolean, Number, String:
-		if child, ok := node.scalars.Get(value); ok {
+		if child, ok := node.scalars().Get(value); ok {
 			return child.Traverse(resolver, tr)
 		}
 	}
@@ -1178,7 +1464,7 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 func (node *trieNode) traverseCollectionMembership(resolver ValueResolver, tr *trieTraversalResult, collection Value) error {
 	checkMember := func(t *Term) error {
 		if IsScalar(t.Value) {
-			child, _ := node.scalars.Get(t.Value)
+			child, _ := node.scalars().Get(t.Value)
 			return child.Traverse(resolver, tr)
 		}
 		return nil
@@ -1207,10 +1493,10 @@ func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalRes
 		return node.Traverse(resolver, tr)
 	}
 
-	if err = node.any.traverseArray(resolver, tr, arr.Slice(1, -1)); err == nil {
+	if err = node.any().traverseArray(resolver, tr, arr.Slice(1, -1)); err == nil {
 		switch head := arr.Elem(0).Value.(type) {
 		case Null, Boolean, Number, String:
-			child, _ := node.scalars.Get(head)
+			child, _ := node.scalars().Get(head)
 			return child.traverseArray(resolver, tr, arr.Slice(1, -1))
 		}
 	}
@@ -1227,25 +1513,30 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 		return err
 	}
 
-	if err := node.undefined.traverseUnknown(resolver, tr); err != nil {
+	if err := node.undefined().traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.any.traverseUnknown(resolver, tr); err != nil {
+	if err := node.any().traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.array.traverseUnknown(resolver, tr); err != nil {
+	if err := node.array().traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.prefixes.traverseUnknown(resolver, tr); err != nil {
+	if err := node.prefixes().traverseUnknown(resolver, tr); err != nil {
+		return err
+	}
+
+	if err := node.suffixes().traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
 	var iterErr error
-	node.scalars.Iter(func(_ Value, child *trieNode) bool {
-		return child.traverseUnknown(resolver, tr) != nil
+	node.scalars().Iter(func(_ Value, child *trieNode) bool {
+		iterErr = child.traverseUnknown(resolver, tr)
+		return iterErr != nil
 	})
 
 	return iterErr
