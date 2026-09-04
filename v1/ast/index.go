@@ -764,20 +764,91 @@ func (i *refindices) updateMemberRefInValue(rule *Rule, ref Ref, rhs *Term, cons
 		}
 	}
 
-	addRef := func(t *Term) error {
-		i.insert(rule, &refindex{Ref: ref, Value: t.Value})
-		return nil
-	}
+	var (
+		forEach func(func(*Term))
+		n       int
+	)
 
 	switch rcol := rval.(type) {
 	case *Array:
-		_ = rcol.Iter(addRef)
+		forEach, n = rcol.Foreach, rcol.Len()
 	case Set:
-		_ = rcol.Iter(addRef)
+		forEach, n = rcol.Foreach, rcol.Len()
 	case Object:
-		_ = rcol.Iter(func(_, v *Term) error {
-			return addRef(v)
-		})
+		n = rcol.Len()
+		forEach = func(f func(*Term)) {
+			rcol.Foreach(func(_, v *Term) { f(v) })
+		}
+	default:
+		return
+	}
+
+	members := make([]Value, 0, n)
+	forEach(func(t *Term) {
+		members = append(members, t.Value)
+	})
+
+	i.insertMembers(rule, ref, members)
+}
+
+// insertMembers records the members of the literal collection of an `in`
+// statement, each of which is a value the rule may reach ref by. It is
+// insertPrefixes again -- see there for why the scan is hoisted out of insert
+// -- and stays a copy of it because the two cannot share a dedup set: a base
+// string is always a String, so insertPrefixes gets a plain map, while an `in`
+// collection holds arbitrary values and needs a HasherMap. Sharing the code
+// meant sharing the HasherMap, which cost the prefix path 27% of its build.
+func (i *refindices) insertMembers(rule *Rule, ref Ref, members []Value) {
+	if len(members) < 2 {
+		for _, member := range members {
+			i.insert(rule, &refindex{Ref: ref, Value: member})
+		}
+		return
+	}
+
+	// Unlike a prefix, a concrete member takes the place of a "reference is
+	// anything" entry (see insert), so the first one goes the ordinary way --
+	// the rule's list is short at that point, so the scan it costs is cheap.
+	i.insert(rule, &refindex{Ref: ref, Value: members[0]})
+
+	concrete, counted := 0, 0
+	seen := util.NewHasherMap[Value, struct{}](ValueEqual)
+
+	for _, other := range i.rules[rule] {
+		if !other.Ref.Equal(ref) {
+			continue
+		}
+		if !other.isVar() {
+			concrete++
+		}
+		if !other.Prefix {
+			seen.Put(other.Value, struct{}{})
+		}
+	}
+
+	for _, member := range members[1:] {
+		if _, isVar := member.(Var); isVar {
+			// A var is the one value insert may have to put somewhere other
+			// than the end. It counts itself.
+			i.insert(rule, &refindex{Ref: ref, Value: member})
+			continue
+		}
+
+		counted++
+
+		if _, ok := seen.Get(member); ok {
+			continue
+		}
+		seen.Put(member, struct{}{})
+		concrete++
+
+		i.rules[rule] = append(i.rules[rule], &refindex{Ref: ref, Value: member})
+	}
+
+	i.countN(ref, counted)
+
+	if concrete > 1 {
+		i.alternate(ref)
 	}
 }
 
