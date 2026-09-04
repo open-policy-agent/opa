@@ -5,7 +5,6 @@
 package ast
 
 import (
-	"errors"
 	"slices"
 
 	"github.com/open-policy-agent/opa/v1/util"
@@ -444,16 +443,23 @@ func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []String, a affix)
 		}
 	}
 
-	indices := i.rules[rule]
+	// One refindex per base, laid down in a single block rather than allocated
+	// one at a time: a base collection runs to thousands of them. Duplicates
+	// leave slack at the end of the block, which the reslice below drops.
+	pos := len(i.rules[rule])
+	indices := util.GrowPtrSlice(i.rules[rule], len(bases))
+
 	for _, base := range bases {
 		if _, ok := seen[base]; ok {
 			continue
 		}
 		seen[base] = struct{}{}
 		concrete++
-		indices = append(indices, &refindex{Ref: ref, Value: base, Affix: a})
+
+		*indices[pos] = refindex{Ref: ref, Value: base, Affix: a}
+		pos++
 	}
-	i.rules[rule] = indices
+	i.rules[rule] = indices[:pos]
 
 	if concrete > 1 {
 		i.alternate(ref)
@@ -480,15 +486,15 @@ func constantString(term *Term, constants map[Var]Value) (String, bool) {
 // false unless every one of them is a string.
 func groundStrings(v Value) ([]String, bool) {
 	var (
-		iter func(func(*Term) error) error
-		n    int
+		until func(func(*Term) bool) bool
+		n     int
 	)
 
 	switch col := v.(type) {
 	case *Array:
-		iter, n = col.Iter, col.Len()
+		until, n = col.Until, col.Len()
 	case Set:
-		iter, n = col.Iter, col.Len()
+		until, n = col.Until, col.Len()
 	default:
 		return nil, false
 	}
@@ -496,22 +502,18 @@ func groundStrings(v Value) ([]String, bool) {
 	// The base of a strings.any_prefix_match runs to thousands of strings, so
 	// the length is worth taking off the collection rather than growing into.
 	out := make([]String, 0, n)
-	err := iter(func(t *Term) error {
-		s, ok := t.Value.(String)
-		if !ok {
-			return errNotAString
-		}
-		out = append(out, s)
-		return nil
-	})
 
-	if err != nil {
+	// Until stops on the first member that is not a string, and reports having
+	// stopped -- which is the whole of "unless every one of them is a string".
+	if until(func(t *Term) bool {
+		s, ok := t.Value.(String)
+		if ok {
+			out = append(out, s)
+		}
+		return !ok
+	}) {
 		return nil, false
 	}
 
 	return out, true
 }
-
-// errNotAString stops the iteration in groundStrings; it never reaches a
-// caller.
-var errNotAString = errors.New("not a string")
