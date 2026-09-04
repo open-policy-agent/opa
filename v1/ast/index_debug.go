@@ -108,6 +108,18 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		}
 	}
 
+	// A suffix trie holds its bases reversed (see trieNode.suffixes), so what it
+	// walks back is what was written.
+	for _, p := range node.suffixes.walk() {
+		label := "*" + reverseString(p.prefix)
+		if childID, childExists := nodeIDs[p.node]; childExists {
+			fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", currentID, mermaidEscape(label), childID)
+		} else {
+			p.node.mermaidFormat(sb, counter, nodeIDs, "")
+			fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", currentID, mermaidEscape(label), nodeIDs[p.node])
+		}
+	}
+
 	if node.next != nil {
 		node.next.mermaidFormat(sb, counter, nodeIDs, currentID)
 	}
@@ -233,6 +245,14 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		sb.WriteString(indent)
 		sb.WriteString(`  prefix "`)
 		sb.WriteString(p.prefix)
+		sb.WriteString("\":\n")
+		p.node.format(sb, depth+2)
+	}
+
+	for _, p := range node.suffixes.walk() {
+		sb.WriteString(indent)
+		sb.WriteString(`  suffix "`)
+		sb.WriteString(reverseString(p.prefix))
 		sb.WriteString("\":\n")
 		p.node.format(sb, depth+2)
 	}
