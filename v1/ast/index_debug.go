@@ -39,31 +39,31 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		return
 	}
 
-	if node.undefined != nil {
-		if childID, childExists := nodeIDs[node.undefined]; childExists {
+	if node.undefined() != nil {
+		if childID, childExists := nodeIDs[node.undefined()]; childExists {
 			fmt.Fprintf(sb, "  %s -->|undefined| %s\n", currentID, childID)
 		} else {
-			node.undefined.mermaidFormat(sb, counter, nodeIDs, "")
-			fmt.Fprintf(sb, "  %s -->|undefined| %s\n", currentID, nodeIDs[node.undefined])
+			node.undefined().mermaidFormat(sb, counter, nodeIDs, "")
+			fmt.Fprintf(sb, "  %s -->|undefined| %s\n", currentID, nodeIDs[node.undefined()])
 		}
 	}
 
-	if node.any != nil {
-		if childID, childExists := nodeIDs[node.any]; childExists {
+	if node.any() != nil {
+		if childID, childExists := nodeIDs[node.any()]; childExists {
 			fmt.Fprintf(sb, "  %s -->|any| %s\n", currentID, childID)
 		} else {
-			node.any.mermaidFormat(sb, counter, nodeIDs, "")
-			fmt.Fprintf(sb, "  %s -->|any| %s\n", currentID, nodeIDs[node.any])
+			node.any().mermaidFormat(sb, counter, nodeIDs, "")
+			fmt.Fprintf(sb, "  %s -->|any| %s\n", currentID, nodeIDs[node.any()])
 		}
 	}
 
-	if node.scalars.Len() > 0 {
+	if node.scalars().Len() > 0 {
 		type scalarPair struct {
 			key  Value
 			node *trieNode
 		}
-		pairs := make([]scalarPair, 0, node.scalars.Len())
-		node.scalars.Iter(func(key Value, val *trieNode) bool {
+		pairs := make([]scalarPair, 0, node.scalars().Len())
+		node.scalars().Iter(func(key Value, val *trieNode) bool {
 			pairs = append(pairs, scalarPair{key, val})
 			return false
 		})
@@ -90,12 +90,12 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		}
 	}
 
-	if node.array != nil {
-		if childID, childExists := nodeIDs[node.array]; childExists {
+	if node.array() != nil {
+		if childID, childExists := nodeIDs[node.array()]; childExists {
 			fmt.Fprintf(sb, "  %s -->|array| %s\n", currentID, childID)
 		} else {
-			node.array.mermaidFormat(sb, counter, nodeIDs, "")
-			fmt.Fprintf(sb, "  %s -->|array| %s\n", currentID, nodeIDs[node.array])
+			node.array().mermaidFormat(sb, counter, nodeIDs, "")
+			fmt.Fprintf(sb, "  %s -->|array| %s\n", currentID, nodeIDs[node.array()])
 		}
 	}
 
@@ -128,8 +128,8 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 func (node *trieNode) mermaidLabel() string {
 	var parts []string
 
-	if len(node.ref) > 0 {
-		parts = append(parts, node.ref.String())
+	if len(node.ref()) > 0 {
+		parts = append(parts, node.ref().String())
 	}
 
 	if len(node.rules) > 0 {
@@ -174,9 +174,9 @@ func (node *trieNode) String() string {
 func (node *trieNode) format(sb *strings.Builder, depth int) {
 	indent := strings.Repeat("  ", depth)
 
-	if len(node.ref) > 0 {
+	if len(node.ref()) > 0 {
 		sb.WriteString(indent)
-		sb.WriteString(node.ref.String())
+		sb.WriteString(node.ref().String())
 	} else if depth == 0 {
 		sb.WriteString("root")
 	}
@@ -200,22 +200,22 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 	}
 	sb.WriteByte('\n')
 
-	if node.undefined != nil {
+	if node.undefined() != nil {
 		sb.WriteString(indent)
 		sb.WriteString("  undefined:\n")
-		node.undefined.format(sb, depth+2)
+		node.undefined().format(sb, depth+2)
 	}
 
-	if node.any != nil {
+	if node.any() != nil {
 		sb.WriteString(indent)
 		sb.WriteString("  any:\n")
-		node.any.format(sb, depth+2)
+		node.any().format(sb, depth+2)
 	}
 
-	if node.scalars.Len() > 0 {
-		scalars := make([]Value, 0, node.scalars.Len())
-		nodes := make([]*trieNode, 0, node.scalars.Len())
-		node.scalars.Iter(func(key Value, val *trieNode) bool {
+	if node.scalars().Len() > 0 {
+		scalars := make([]Value, 0, node.scalars().Len())
+		nodes := make([]*trieNode, 0, node.scalars().Len())
+		node.scalars().Iter(func(key Value, val *trieNode) bool {
 			scalars = append(scalars, key)
 			nodes = append(nodes, val)
 			return false
@@ -235,10 +235,10 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		}
 	}
 
-	if node.array != nil {
+	if node.array() != nil {
 		sb.WriteString(indent)
 		sb.WriteString("  array:\n")
-		node.array.format(sb, depth+2)
+		node.array().format(sb, depth+2)
 	}
 
 	for _, p := range node.prefixes().walk() {

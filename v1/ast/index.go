@@ -1086,15 +1086,9 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 }
 
 type trieNode struct {
-	ref       Ref
-	next      *trieNode
-	any       *trieNode
-	undefined *trieNode
-	scalars   *util.HasherMap[Value, *trieNode]
-	// detail is what only a level with an unusual constraint records; see
-	// levelDetail.
+	// detail is what only a level node has; see levelDetail.
 	detail   *levelDetail
-	array    *trieNode
+	next     *trieNode
 	rules    []*ruleNode
 	value    *Term
 	multiple bool
@@ -1125,25 +1119,70 @@ func (a *ruleNode) prioEqual(b *ruleNode) bool {
 	return a.prio == b.prio
 }
 
-// levelDetail is what a level records beyond the exact values in its scalars
-// map: the mappers a glob attaches, and the tries for values constrained at one
-// end. The suffix trie holds its base strings reversed, so that requiring one at
-// the end of a value is requiring it at the start of the value reversed and the
-// same trie answers both (see traverseSuffix).
+// levelDetail is everything a trieNode has by virtue of being a *level* -- the
+// reference it resolves, the children it dispatches the resolved value to, and
+// the constraints that are not exact values. The suffix trie holds its base
+// strings reversed, so that requiring one at the end of a value is requiring it
+// at the start of the value reversed and the same trie answers both (see
+// traverseSuffix).
 //
 // It is held behind one pointer because a trieNode is allocated per indexed
-// value and almost none of them are levels -- half a million prefixes make one
-// level and half a million leaves. Inline, these three fields put trieNode in
-// Go's 144-byte size class; out of line it is 112, so every node in the index is
-// 32 bytes smaller.
+// value and almost none of them are levels: half a million prefixes make one
+// level and half a million nodes that only carry rules. Measured over such an
+// index, every field here is set on 0 or 1 of the 500002 nodes.
+//
+// Where the boundaries fall decides how much that is worth. Inline, these
+// fields put trieNode in Go's 144-byte size class; out of line it is 56 bytes,
+// which rounds to 64. Moving them out a few at a time buys nothing -- 136 and
+// 112 bytes both round up to a class the struct already occupied.
 type levelDetail struct {
-	mappers  []*valueMapper
-	prefixes *prefixTrie
-	suffixes *prefixTrie
+	ref       Ref
+	any       *trieNode
+	undefined *trieNode
+	array     *trieNode
+	scalars   *util.HasherMap[Value, *trieNode]
+	mappers   []*valueMapper
+	prefixes  *prefixTrie
+	suffixes  *prefixTrie
 }
 
 func newTrieNodeImpl() *trieNode {
 	return &trieNode{}
+}
+
+func (node *trieNode) ref() Ref {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.ref
+}
+
+func (node *trieNode) any() *trieNode {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.any
+}
+
+func (node *trieNode) undefined() *trieNode {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.undefined
+}
+
+func (node *trieNode) array() *trieNode {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.array
+}
+
+func (node *trieNode) scalars() *util.HasherMap[Value, *trieNode] {
+	if node.detail == nil {
+		return nil
+	}
+	return node.detail.scalars
 }
 
 func (node *trieNode) prefixes() *prefixTrie {
@@ -1191,6 +1230,10 @@ func newLevelDetail() *levelDetail {
 	return &levelDetail{}
 }
 
+func newScalarChildren() *util.HasherMap[Value, *trieNode] {
+	return util.NewHasherMap[Value, *trieNode](ValueEqual)
+}
+
 func newPrefixTrie() *prefixTrie {
 	return &prefixTrie{}
 }
@@ -1204,17 +1247,17 @@ func (node *trieNode) Do(walker trieWalker) {
 		return
 	}
 
-	node.any.Do(next)
-	node.undefined.Do(next)
+	node.any().Do(next)
+	node.undefined().Do(next)
 
-	node.scalars.Iter(func(_ Value, child *trieNode) bool {
+	node.scalars().Iter(func(_ Value, child *trieNode) bool {
 		child.Do(next)
 		return false
 	})
 
 	node.prefixes().do(next)
 	node.suffixes().do(next)
-	node.array.Do(next)
+	node.array().Do(next)
 	node.next.Do(next)
 }
 
@@ -1228,12 +1271,12 @@ func (node *trieNode) compact() {
 	node.prefixes().compact()
 	node.suffixes().compact()
 
-	node.any.compact()
-	node.undefined.compact()
-	node.array.compact()
+	node.any().compact()
+	node.undefined().compact()
+	node.array().compact()
 	node.next.compact()
 
-	node.scalars.Iter(func(_ Value, child *trieNode) bool {
+	node.scalars().Iter(func(_ Value, child *trieNode) bool {
 		child.compact()
 		return false
 	})
@@ -1242,7 +1285,7 @@ func (node *trieNode) compact() {
 func (node *trieNode) Insert(ref Ref, value Value, mapper *valueMapper) *trieNode {
 	if node.next == nil {
 		node.next = newTrieNodeImpl()
-		node.next.ref = ref
+		node.next.levelDetail().ref = ref
 	}
 
 	if mapper != nil {
@@ -1273,26 +1316,26 @@ func (node *trieNode) addMapper(mapper *valueMapper) {
 }
 
 func (node *trieNode) insertValue(value Value) *trieNode {
+	detail := node.levelDetail()
+
 	switch value := value.(type) {
 	case nil:
-		node.undefined = util.Or(node.undefined, newTrieNodeImpl)
-		return node.undefined
+		detail.undefined = util.Or(detail.undefined, newTrieNodeImpl)
+		return detail.undefined
 	case Var:
-		node.any = util.Or(node.any, newTrieNodeImpl)
-		return node.any
+		detail.any = util.Or(detail.any, newTrieNodeImpl)
+		return detail.any
 	case Null, Boolean, Number, String:
-		child, ok := node.scalars.Get(value)
+		child, ok := detail.scalars.Get(value)
 		if !ok {
 			child = newTrieNodeImpl()
-			if node.scalars == nil {
-				node.scalars = util.NewHasherMap[Value, *trieNode](ValueEqual)
-			}
-			node.scalars.Put(value, child)
+			detail.scalars = util.Or(detail.scalars, newScalarChildren)
+			detail.scalars.Put(value, child)
 		}
 		return child
 	case *Array:
-		node.array = util.Or(node.array, newTrieNodeImpl)
-		return node.array.insertArray(value)
+		detail.array = util.Or(detail.array, newTrieNodeImpl)
+		return detail.array.insertArray(value)
 
 	// `x in <collection>` (see updateMemberRefInValue) inserts each element of
 	// the literal collection as-is, without restricting it to scalars/arrays
@@ -1303,8 +1346,8 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 	// Call - can't actually reach here: the compiler rewrites them into
 	// separate statements, bound to a Var, before the index is built.)
 	case Object, Set:
-		node.any = util.Or(node.any, newTrieNodeImpl)
-		return node.any
+		detail.any = util.Or(detail.any, newTrieNodeImpl)
+		return detail.any
 	}
 
 	panic("illegal value")
@@ -1315,18 +1358,18 @@ func (node *trieNode) insertArray(arr *Array) *trieNode {
 		return node
 	}
 
+	detail := node.levelDetail()
+
 	switch head := arr.Elem(0).Value.(type) {
 	case Var:
-		node.any = util.Or(node.any, newTrieNodeImpl)
-		return node.any.insertArray(arr.Slice(1, -1))
+		detail.any = util.Or(detail.any, newTrieNodeImpl)
+		return detail.any.insertArray(arr.Slice(1, -1))
 	case Null, Boolean, Number, String:
-		child, ok := node.scalars.Get(head)
+		child, ok := detail.scalars.Get(head)
 		if !ok {
 			child = newTrieNodeImpl()
-			if node.scalars == nil {
-				node.scalars = util.NewHasherMap[Value, *trieNode](ValueEqual)
-			}
-			node.scalars.Put(head, child)
+			detail.scalars = util.Or(detail.scalars, newScalarChildren)
+			detail.scalars.Put(head, child)
 		}
 		return child.insertArray(arr.Slice(1, -1))
 
@@ -1335,8 +1378,8 @@ func (node *trieNode) insertArray(arr *Array) *trieNode {
 	// at this position, so fall back to "any" and keep indexing the
 	// remaining elements.
 	case *Array, Object, Set:
-		node.any = util.Or(node.any, newTrieNodeImpl)
-		return node.any.insertArray(arr.Slice(1, -1))
+		detail.any = util.Or(detail.any, newTrieNodeImpl)
+		return detail.any.insertArray(arr.Slice(1, -1))
 	}
 
 	panic("illegal value")
@@ -1347,7 +1390,7 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return nil
 	}
 
-	v, err := resolver.Resolve(node.ref)
+	v, err := resolver.Resolve(node.ref())
 	if err != nil {
 		if IsUnknownValueErr(err) {
 			return node.traverseUnknown(resolver, tr)
@@ -1355,7 +1398,7 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return err
 	}
 
-	if err = node.undefined.Traverse(resolver, tr); err != nil {
+	if err = node.undefined().Traverse(resolver, tr); err != nil {
 		return err
 	}
 
@@ -1363,7 +1406,7 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return nil
 	}
 
-	if err = node.any.Traverse(resolver, tr); err != nil {
+	if err = node.any().Traverse(resolver, tr); err != nil {
 		return err
 	}
 
@@ -1399,18 +1442,18 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
 	switch value := value.(type) {
 	case *Array, Set, Object:
-		if node.array != nil {
+		if node.array() != nil {
 			if arr, ok := value.(*Array); ok {
-				if err := node.array.traverseArray(resolver, tr, arr); err != nil {
+				if err := node.array().traverseArray(resolver, tr, arr); err != nil {
 					return err
 				}
 			}
 		}
-		if node.scalars.Len() > 0 {
+		if node.scalars().Len() > 0 {
 			return node.traverseCollectionMembership(resolver, tr, value)
 		}
 	case Null, Boolean, Number, String:
-		if child, ok := node.scalars.Get(value); ok {
+		if child, ok := node.scalars().Get(value); ok {
 			return child.Traverse(resolver, tr)
 		}
 	}
@@ -1421,7 +1464,7 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 func (node *trieNode) traverseCollectionMembership(resolver ValueResolver, tr *trieTraversalResult, collection Value) error {
 	checkMember := func(t *Term) error {
 		if IsScalar(t.Value) {
-			child, _ := node.scalars.Get(t.Value)
+			child, _ := node.scalars().Get(t.Value)
 			return child.Traverse(resolver, tr)
 		}
 		return nil
@@ -1450,10 +1493,10 @@ func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalRes
 		return node.Traverse(resolver, tr)
 	}
 
-	if err = node.any.traverseArray(resolver, tr, arr.Slice(1, -1)); err == nil {
+	if err = node.any().traverseArray(resolver, tr, arr.Slice(1, -1)); err == nil {
 		switch head := arr.Elem(0).Value.(type) {
 		case Null, Boolean, Number, String:
-			child, _ := node.scalars.Get(head)
+			child, _ := node.scalars().Get(head)
 			return child.traverseArray(resolver, tr, arr.Slice(1, -1))
 		}
 	}
@@ -1470,15 +1513,15 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 		return err
 	}
 
-	if err := node.undefined.traverseUnknown(resolver, tr); err != nil {
+	if err := node.undefined().traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.any.traverseUnknown(resolver, tr); err != nil {
+	if err := node.any().traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.array.traverseUnknown(resolver, tr); err != nil {
+	if err := node.array().traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
@@ -1491,7 +1534,7 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 	}
 
 	var iterErr error
-	node.scalars.Iter(func(_ Value, child *trieNode) bool {
+	node.scalars().Iter(func(_ Value, child *trieNode) bool {
 		iterErr = child.traverseUnknown(resolver, tr)
 		return iterErr != nil
 	})

@@ -40,9 +40,9 @@ var prefixGrids = []prefixGrid{
 // dimension.
 //
 //	                          any_prefix_match              startswith
-//	rules=1/prefixes=10000       1911242 ns    4.7 MB     5189837 ns    6.0 MB
-//	rules=10/prefixes=1000       1858745 ns    4.7 MB     5440199 ns    6.0 MB
-//	rules=250/prefixes=10000   499855312 ns   1172 MB  2252453729 ns   1518 MB
+//	rules=1/prefixes=10000       1779341 ns    4.2 MB     4988703 ns    5.6 MB
+//	rules=10/prefixes=1000       1777141 ns    4.2 MB     5087124 ns    5.6 MB
+//	rules=250/prefixes=10000   484128062 ns   1052 MB  2257324250 ns   1398 MB
 //
 // The first two rows hold 10000 prefixes each, split two ways, and cost the
 // same; the third holds 250 times as many and costs 250 times as much.
