@@ -1245,7 +1245,8 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 
 	var iterErr error
 	node.scalars.Iter(func(_ Value, child *trieNode) bool {
-		return child.traverseUnknown(resolver, tr) != nil
+		iterErr = child.traverseUnknown(resolver, tr)
+		return iterErr != nil
 	})
 
 	return iterErr
