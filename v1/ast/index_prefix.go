@@ -350,18 +350,23 @@ func constantString(term *Term, constants map[Var]Value) (String, bool) {
 // groundStrings returns the members of an array or set literal, and reports
 // false unless every one of them is a string.
 func groundStrings(v Value) ([]String, bool) {
-	var iter func(func(*Term) error) error
+	var (
+		iter func(func(*Term) error) error
+		n    int
+	)
 
 	switch col := v.(type) {
 	case *Array:
-		iter = col.Iter
+		iter, n = col.Iter, col.Len()
 	case Set:
-		iter = col.Iter
+		iter, n = col.Iter, col.Len()
 	default:
 		return nil, false
 	}
 
-	var out []String
+	// The base of a strings.any_prefix_match runs to thousands of strings, so
+	// the length is worth taking off the collection rather than growing into.
+	out := make([]String, 0, n)
 	err := iter(func(t *Term) error {
 		s, ok := t.Value.(String)
 		if !ok {
