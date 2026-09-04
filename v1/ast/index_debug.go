@@ -99,6 +99,15 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		}
 	}
 
+	for _, p := range node.prefixes.walk() {
+		if childID, childExists := nodeIDs[p.node]; childExists {
+			fmt.Fprintf(sb, "  %s -->|\"%s*\"| %s\n", currentID, mermaidEscape(p.prefix), childID)
+		} else {
+			p.node.mermaidFormat(sb, counter, nodeIDs, "")
+			fmt.Fprintf(sb, "  %s -->|\"%s*\"| %s\n", currentID, mermaidEscape(p.prefix), nodeIDs[p.node])
+		}
+	}
+
 	if node.next != nil {
 		node.next.mermaidFormat(sb, counter, nodeIDs, currentID)
 	}
@@ -218,6 +227,14 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		sb.WriteString(indent)
 		sb.WriteString("  array:\n")
 		node.array.format(sb, depth+2)
+	}
+
+	for _, p := range node.prefixes.walk() {
+		sb.WriteString(indent)
+		sb.WriteString(`  prefix "`)
+		sb.WriteString(p.prefix)
+		sb.WriteString("\":\n")
+		p.node.format(sb, depth+2)
 	}
 
 	if node.next != nil {
