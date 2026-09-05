@@ -2590,7 +2590,7 @@ func dont() ([][]*ast.Rule, []ir.Operand, int, bool) {
 
 // optimizeLookup returns a set of rulesets and required statements planning
 // the locals (strings) needed with the used local variables, and the index
-// into ref's parth that is still to be planned; if the passed ref's vars
+// into ref's path that is still to be planned; if the passed ref's vars
 // allow for optimization using CallDynamicStmt.
 //
 // It's possible if all of these conditions hold:

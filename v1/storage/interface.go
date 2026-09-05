@@ -49,7 +49,7 @@ type MakeDirer interface {
 	MakeDir(context.Context, Transaction, Path) error
 }
 
-// NonEmptyer allows a store implemention to override NonEmpty())
+// NonEmptyer allows a store implementation to override NonEmpty())
 type NonEmptyer interface {
 	NonEmpty(context.Context, Transaction) func([]string) (bool, error)
 }

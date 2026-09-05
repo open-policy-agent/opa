@@ -366,7 +366,7 @@ func GetBundleDirectoryLoaderFS(fsys fs.FS, path string, filter Filter) (bundle.
 	return bundleLoader, fi.IsDir(), nil
 }
 
-// FilteredPaths is the same as FilterPathsFS using the current diretory file
+// FilteredPaths is the same as FilterPathsFS using the current directory file
 // system
 func FilteredPaths(paths []string, filter Filter) ([]string, error) {
 	return FilteredPathsFS(nil, paths, filter)

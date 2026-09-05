@@ -65,7 +65,7 @@ func (c *virtualCache) Pop() {
 }
 
 // Returns the resolved value of the AST term and a flag indicating if the value
-// should be interpretted as undefined:
+// should be interpreted as undefined:
 //
 //	nil, true indicates the ref is undefined
 //	ast.Term, false indicates the ref is defined

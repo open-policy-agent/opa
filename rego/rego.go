@@ -345,7 +345,7 @@ func ShallowInlining(yes bool) func(r *Rego) {
 	return v1.ShallowInlining(yes)
 }
 
-// SkipPartialNamespace disables namespacing of partial evalution results for support
+// SkipPartialNamespace disables namespacing of partial evaluation results for support
 // rules generated from policy. Synthetic support rules are still namespaced.
 func SkipPartialNamespace(yes bool) func(r *Rego) {
 	return v1.SkipPartialNamespace(yes)
