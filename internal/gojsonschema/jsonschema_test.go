@@ -28,6 +28,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/open-policy-agent/opa/v1/util/test"
 	"time"
 )
 
@@ -270,6 +272,61 @@ func TestAllowNetIsPerSchemaLoader(t *testing.T) {
 		}
 		wg.Wait()
 	})
+}
+
+func TestFileReferencesIgnoreAllowNet(t *testing.T) {
+	root := test.TempDirOf(t, "schema.json", `{"type": "string"}`)
+	filename := filepath.Join(root, "schema.json")
+	schema := fmt.Sprintf(`{"$ref": %q}`, "file://"+filepath.ToSlash(filename))
+
+	tests := []struct {
+		note     string
+		allowNet []string
+	}{
+		{note: "nil list", allowNet: nil},
+		{note: "empty list", allowNet: []string{}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			sl := NewSchemaLoader()
+			sl.AllowNet = tc.allowNet
+			sl.AllowFilesystem = true
+			_, err := sl.Compile(NewStringLoader(schema))
+			if err != nil {
+				t.Fatalf("expected file reference to be permitted, got %v", err)
+			}
+		})
+	}
+}
+
+func TestAllowFilesystemDefaultsToDenyFileReferences(t *testing.T) {
+	root := test.TempDirOf(t, "schema.json", `{"type": "string"}`)
+	filename := filepath.Join(root, "schema.json")
+	schema := fmt.Sprintf(`{"$ref": %q}`, "file://"+filepath.ToSlash(filename))
+
+	tests := []struct {
+		note     string
+		allowNet []string
+	}{
+		{note: "nil list", allowNet: nil},
+		{note: "empty list", allowNet: []string{}},
+		{note: "populated list", allowNet: []string{"example.com"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			sl := NewSchemaLoader()
+			sl.AllowNet = tc.allowNet
+			_, err := sl.Compile(NewStringLoader(schema))
+			if err == nil {
+				t.Fatal("expected file reference to be denied, but compilation succeeded")
+			}
+			if !strings.Contains(err.Error(), "file reference loading disabled") {
+				t.Fatalf("expected file reference loading to be disabled, got %v", err)
+			}
+		})
+	}
 }
 
 func TestAllowNetIsCheckedOnRedirects(t *testing.T) {
