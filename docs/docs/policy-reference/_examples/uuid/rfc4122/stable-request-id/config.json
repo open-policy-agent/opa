@@ -1,0 +1,7 @@
+{
+  "showInput": false,
+  "showData": false,
+  "showTitles": false,
+  "titleSize": 4,
+  "skip_output_reason": "uuid.rfc4122 is seeded-random; output values vary across evaluations"
+}

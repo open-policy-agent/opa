@@ -1,0 +1,5 @@
+{
+  "deny": [
+    "annotation \"public-egress\" must be a string value"
+  ]
+}
