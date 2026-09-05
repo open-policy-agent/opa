@@ -165,6 +165,13 @@ func getRegexpTemplate(pat string, delimStart, delimEnd byte) (*regexp.Regexp, e
 			return nil, err
 		}
 		regexpCacheLock.Lock()
+		if len(regexpCache) >= regexCacheMaxSize {
+			// Delete a (semi-)random key to make room for the new one.
+			for k := range regexpCache {
+				delete(regexpCache, k)
+				break
+			}
+		}
 		regexpCache[pat] = re
 		regexpCacheLock.Unlock()
 	}
