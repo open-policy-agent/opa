@@ -54,8 +54,9 @@ func regexpCacheGet(pat string) (*regexp.Regexp, error) {
 		}
 	}
 
-	regexpCacheLock.Unlock()
 	regexpCache[pat] = re
+
+	regexpCacheLock.Unlock()
 	return re, nil
 
 }
