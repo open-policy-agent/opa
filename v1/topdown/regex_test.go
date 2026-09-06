@@ -60,6 +60,20 @@ func TestRegexBuiltinCache(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
+	// Both builtins which interact with the cache should correctly evict
+	// cache items.
+	regex3 := "ba<[zx]>.*"
+	operands = []*ast.Term{
+		ast.NewTerm(ast.String(regex3)),
+		ast.NewTerm(ast.String("barbaz")),
+		ast.NewTerm(ast.String("<")),
+		ast.NewTerm(ast.String(">")),
+	}
+	err = builtinRegexMatchTemplate(ctx, operands, iter)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
 	if len(regexpCache) != regexCacheMaxSize {
 		t.Fatalf("Expected cache be capped at %d, was %d", regexCacheMaxSize, len(regexpCache))
 	}
