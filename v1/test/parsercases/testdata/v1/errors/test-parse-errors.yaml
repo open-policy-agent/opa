@@ -1,0 +1,59 @@
+---
+cases:
+  - note: errors/non-terminated-array
+    module: |
+      package test
+
+      p := [1, 2
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        message: 'unexpected eof token: expected "," or "]"'
+      - code: rego_parse_error
+        row: 4
+        message: 'unexpected eof token: expected rule value term (e.g., p := <VALUE> { ... })'
+    exhaustive: true
+  - note: errors/object-missing-separator
+    module: |
+      package test
+
+      p := {"a": 1 "b": 2}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 14
+        message: 'unexpected string token: non-terminated object'
+  - note: errors/rule-body-missing-if
+    module: |
+      package test
+
+      p[x] { x := 1 }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: '`if` keyword is required before rule body'
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: '`contains` keyword is required for partial set rules'
+    exhaustive: true
+  - note: errors/invalid-import-path
+    module: |
+      package test
+
+      import data.
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        message: expected path
+  - note: errors/illegal-token
+    module: |
+      package test
+
+      p := 墳
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal token

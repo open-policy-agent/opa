@@ -6,28 +6,22 @@
 package compilecases
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
-
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
 
-// Set represents a collection of test cases.
-type Set struct {
-	Cases []TestCase `json:"cases"`
-}
+// Error is one expected diagnostic.
+type Error = conformance.Error
 
-// Sorted returns a sorted copy of s.
-func (s Set) Sorted() Set {
-	cpy := make([]TestCase, len(s.Cases))
-	copy(cpy, s.Cases)
-	slices.SortFunc(cpy, func(a, b TestCase) int {
-		return strings.Compare(a.Note, b.Note)
-	})
-	return Set{Cases: cpy}
+// Set represents a collection of test cases.
+type Set = conformance.Set[TestCase]
+
+// DefaultModuleName is the name given to the first module of a case, and the
+// module errors are reported against unless stated otherwise.
+const DefaultModuleName = conformance.DefaultModuleName
+
+// ModuleName returns the name given to the i-th module of a case.
+func ModuleName(i int) string {
+	return conformance.ModuleName(i)
 }
 
 // TestCase represents a single test case: a set of modules that must fail to
@@ -44,85 +38,23 @@ type TestCase struct {
 	Exhaustive           bool     `json:"exhaustive,omitempty"             yaml:"exhaustive,omitempty"`            // require want_errors to be the complete set, not a subset
 }
 
-// Error is one expected diagnostic. Row and Col are 1-based positions in the
-// module named by Module; Message is the error sentence, without the position
-// and code an implementation may prefix it with when rendering.
-type Error struct {
-	Module  string `json:"module,omitempty"  yaml:"module,omitempty"` // module the error is reported against, defaults to test-0.rego
-	Code    string `json:"code"              yaml:"code"`
-	Row     int    `json:"row"               yaml:"row"`
-	Col     int    `json:"col,omitempty"     yaml:"col,omitempty"` // asserted when non-zero
-	Message string `json:"message"           yaml:"message"`
+// Name returns the globally unique note identifying the case.
+func (tc TestCase) Name() string {
+	return tc.Note
 }
 
-func (e Error) String() string {
-	return fmt.Sprintf("%s:%d:%d: %s: %s", e.ModuleOrDefault(), e.Row, e.Col, e.Code, e.Message)
-}
-
-// ModuleOrDefault returns the module the error is reported against.
-func (e Error) ModuleOrDefault() string {
-	if e.Module == "" {
-		return DefaultModuleName
-	}
-	return e.Module
-}
-
-// DefaultModuleName is the name given to the first module of a case, and the
-// module errors are reported against unless stated otherwise.
-const DefaultModuleName = "test-0.rego"
-
-// ModuleName returns the name given to the i-th module of a case.
-func ModuleName(i int) string {
-	return fmt.Sprintf("test-%d.rego", i)
+// WithFilename returns a copy of tc stamped with the file it was loaded from.
+func (tc TestCase) WithFilename(filename string) TestCase {
+	tc.Filename = filename
+	return tc
 }
 
 // Load returns the set of test cases under path.
 func Load(path string) (Set, error) {
-	return loadRecursive(path)
+	return conformance.Load[TestCase](path)
 }
 
 // MustLoad returns the set of test cases under path or panics if an error occurs.
 func MustLoad(path string) Set {
-	result, err := Load(path)
-	if err != nil {
-		panic(err)
-	}
-	return result
-}
-
-func loadRecursive(dirpath string) (Set, error) {
-	result := Set{}
-
-	err := filepath.Walk(dirpath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		if ext := filepath.Ext(path); ext != ".yaml" && ext != ".yml" {
-			return nil
-		}
-
-		bs, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("%s: %w", path, err)
-		}
-
-		var x Set
-		if err := util.Unmarshal(bs, &x); err != nil {
-			return fmt.Errorf("%s: %w", path, err)
-		}
-
-		for i := range x.Cases {
-			x.Cases[i].Filename = path
-		}
-
-		result.Cases = append(result.Cases, x.Cases...)
-		return nil
-	})
-
-	return result, err
+	return conformance.MustLoad[TestCase](path)
 }

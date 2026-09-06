@@ -1,0 +1,224 @@
+---
+cases:
+  - note: rules/membership-desugars-to-internal-member-2
+    module: |
+      package test
+
+      p if {
+      	1 in [1, 2]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "internal"
+                      },
+                      {
+                        "type": "string",
+                        "value": "member_2"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "array",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    want_equivalent: |
+      package test
+
+      p if {
+      	internal.member_2(1, [1, 2])
+      }
+  - note: rules/membership-with-key-desugars-to-internal-member-3
+    module: |
+      package test
+
+      p if {
+      	"a", 1 in {"a": 1}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "internal"
+                      },
+                      {
+                        "type": "string",
+                        "value": "member_3"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "value": "a"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "object",
+                    "value": [
+                      [
+                        {
+                          "type": "string",
+                          "value": "a"
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    want_equivalent: |
+      package test
+
+      p if {
+      	internal.member_3("a", 1, {"a": 1})
+      }
+  - note: rules/if-shorthand-is-a-one-expression-body
+    module: |
+      package test
+
+      p if true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    want_equivalent: |
+      package test
+
+      p if {
+      	true
+      }

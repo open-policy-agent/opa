@@ -1,0 +1,525 @@
+---
+cases:
+  - note: locations/rule-nodes
+    module: |
+      package test
+
+      import data.lib
+
+      p contains x if {
+      	some x in lib.xs
+      	not x == "skip"
+      }
+    locations: true
+    want_ast: |
+      {
+        "package": {
+          "location": {
+            "row": 1,
+            "col": 1
+          },
+          "path": [
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "location": {
+                "row": 3,
+                "col": 8
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 8
+                  },
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 13
+                  },
+                  "type": "string",
+                  "value": "lib"
+                }
+              ]
+            },
+            "location": {
+              "row": 3,
+              "col": 1
+            }
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "location": {
+                    "row": 5,
+                    "col": 1
+                  },
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "key": {
+                "location": {
+                  "row": 5,
+                  "col": 12
+                },
+                "type": "var",
+                "value": "x"
+              },
+              "location": {
+                "row": 5,
+                "col": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "location": {
+                  "row": 6,
+                  "col": 2
+                },
+                "terms": {
+                  "symbols": [
+                    {
+                      "location": {
+                        "row": 6,
+                        "col": 7
+                      },
+                      "type": "call",
+                      "value": [
+                        {
+                          "location": {
+                            "row": 6,
+                            "col": 9
+                          },
+                          "type": "ref",
+                          "value": [
+                            {
+                              "location": {
+                                "row": 6,
+                                "col": 9
+                              },
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "location": {
+                                "row": 6,
+                                "col": 9
+                              },
+                              "type": "string",
+                              "value": "member_2"
+                            }
+                          ]
+                        },
+                        {
+                          "location": {
+                            "row": 6,
+                            "col": 7
+                          },
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "location": {
+                            "row": 6,
+                            "col": 12
+                          },
+                          "type": "ref",
+                          "value": [
+                            {
+                              "location": {
+                                "row": 6,
+                                "col": 12
+                              },
+                              "type": "var",
+                              "value": "lib"
+                            },
+                            {
+                              "location": {
+                                "row": 6,
+                                "col": 16
+                              },
+                              "type": "string",
+                              "value": "xs"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "location": {
+                    "row": 6,
+                    "col": 2
+                  }
+                }
+              },
+              {
+                "index": 1,
+                "location": {
+                  "row": 7,
+                  "col": 2
+                },
+                "negated": true,
+                "terms": [
+                  {
+                    "location": {
+                      "row": 7,
+                      "col": 8
+                    },
+                    "type": "ref",
+                    "value": [
+                      {
+                        "location": {
+                          "row": 7,
+                          "col": 8
+                        },
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "location": {
+                      "row": 7,
+                      "col": 6
+                    },
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "location": {
+                      "row": 7,
+                      "col": 11
+                    },
+                    "type": "string",
+                    "value": "skip"
+                  }
+                ]
+              }
+            ],
+            "location": {
+              "row": 5,
+              "col": 1
+            }
+          }
+        ]
+      }
+  - note: locations/logical-operators
+    module: |
+      package test
+
+      p if {
+      	x := 1
+      	x == 1 and not x == 2 or x == 3
+      }
+    future_keywords:
+      - and
+      - or
+      - not
+    locations: true
+    want_ast: |
+      {
+        "package": {
+          "location": {
+            "row": 1,
+            "col": 1
+          },
+          "path": [
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 1
+                  },
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "location": {
+                "row": 3,
+                "col": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "location": {
+                  "row": 4,
+                  "col": 2
+                },
+                "terms": [
+                  {
+                    "location": {
+                      "row": 4,
+                      "col": 4
+                    },
+                    "type": "ref",
+                    "value": [
+                      {
+                        "location": {
+                          "row": 4,
+                          "col": 4
+                        },
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "location": {
+                      "row": 4,
+                      "col": 2
+                    },
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "location": {
+                      "row": 4,
+                      "col": 7
+                    },
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "location": {
+                  "row": 5,
+                  "col": 2
+                },
+                "terms": {
+                  "type": "or",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "location": {
+                        "row": 5,
+                        "col": 2
+                      },
+                      "terms": {
+                        "type": "and",
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "location": {
+                              "row": 5,
+                              "col": 2
+                            },
+                            "terms": [
+                              {
+                                "location": {
+                                  "row": 5,
+                                  "col": 4
+                                },
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "location": {
+                                      "row": 5,
+                                      "col": 4
+                                    },
+                                    "type": "var",
+                                    "value": "equal"
+                                  }
+                                ]
+                              },
+                              {
+                                "location": {
+                                  "row": 5,
+                                  "col": 2
+                                },
+                                "type": "var",
+                                "value": "x"
+                              },
+                              {
+                                "location": {
+                                  "row": 5,
+                                  "col": 7
+                                },
+                                "type": "number",
+                                "value": 1
+                              }
+                            ]
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "location": {
+                              "row": 5,
+                              "col": 13
+                            },
+                            "terms": {
+                              "type": "not",
+                              "body": [
+                                {
+                                  "index": 0,
+                                  "location": {
+                                    "row": 5,
+                                    "col": 17
+                                  },
+                                  "terms": [
+                                    {
+                                      "location": {
+                                        "row": 5,
+                                        "col": 19
+                                      },
+                                      "type": "ref",
+                                      "value": [
+                                        {
+                                          "location": {
+                                            "row": 5,
+                                            "col": 19
+                                          },
+                                          "type": "var",
+                                          "value": "equal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "location": {
+                                        "row": 5,
+                                        "col": 17
+                                      },
+                                      "type": "var",
+                                      "value": "x"
+                                    },
+                                    {
+                                      "location": {
+                                        "row": 5,
+                                        "col": 22
+                                      },
+                                      "type": "number",
+                                      "value": 2
+                                    }
+                                  ]
+                                }
+                              ],
+                              "explicit_body": false,
+                              "location": {
+                                "row": 5,
+                                "col": 13
+                              }
+                            }
+                          }
+                        ],
+                        "location": {
+                          "row": 5,
+                          "col": 2
+                        }
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "location": {
+                        "row": 5,
+                        "col": 27
+                      },
+                      "terms": [
+                        {
+                          "location": {
+                            "row": 5,
+                            "col": 29
+                          },
+                          "type": "ref",
+                          "value": [
+                            {
+                              "location": {
+                                "row": 5,
+                                "col": 29
+                              },
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "location": {
+                            "row": 5,
+                            "col": 27
+                          },
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "location": {
+                            "row": 5,
+                            "col": 32
+                          },
+                          "type": "number",
+                          "value": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "location": {
+                    "row": 5,
+                    "col": 2
+                  }
+                }
+              }
+            ],
+            "location": {
+              "row": 3,
+              "col": 1
+            }
+          }
+        ]
+      }
