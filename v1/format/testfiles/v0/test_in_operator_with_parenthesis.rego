@@ -13,6 +13,12 @@ z {
     { 1, (2 in [2, 2, 2]) }
     f(1, 2 in [2, 2])
     g((1, 2 in [2, 2]))
+    "foo", (2 in {"bar": 2}) in {"foo": true}
+    ("x" in ["x"]), 1 in {true: 1}
+    (1 in [1]) in [true]
+    (1 in [1]) == true
+    true == (1 in [1])
+    y = (1 in [1])
 }
 
 f(_, _) = true
