@@ -1,0 +1,52 @@
+---
+cases:
+  - note: errors/future-imports/future
+    module: |
+      package test
+
+      import future
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: invalid import, must be `future.keywords`
+  - note: errors/future-imports/future.a
+    module: |
+      package test
+
+      import future.a
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: invalid import, must be `future.keywords`
+  - note: errors/future-imports/unknown keyword
+    module: |
+      package test
+
+      import future.keywords.xyz
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: unexpected keyword, must be one of [and contains every if in not or]
+  - note: errors/future-imports/all keyword import + alias
+    module: |
+      package test
+
+      import future.keywords as xyz
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: '`future` imports cannot be aliased'
+  - note: errors/future-imports/keyword import + alias
+    module: |
+      package test
+
+      import future.keywords.in as xyz
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: '`future` imports cannot be aliased'

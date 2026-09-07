@@ -1,0 +1,45 @@
+---
+cases:
+  - note: errors/parse-logical-with-modifier/and, with on lhs implicit operand is an error
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	a with input as v and b
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 4
+        message: '`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)'
+  - note: errors/parse-logical-with-modifier/or, with on lhs implicit operand is an error
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	a with input as v or b
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 4
+        message: '`with` modifier is not allowed on operand of `or` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `or` expression to apply it to the whole expression)'
+  - note: errors/parse-logical-with-modifier/with mid-chain cannot be followed by another operator
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	a and b with input as v or c
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 7
+        col: 26
+        message: 'unexpected or keyword: expected \n or ; or }'

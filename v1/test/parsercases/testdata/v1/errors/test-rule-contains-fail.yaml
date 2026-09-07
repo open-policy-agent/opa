@@ -1,0 +1,22 @@
+---
+cases:
+  - note: errors/rule-contains-fail/contains used with a 1+ argument function
+    module: |
+      package test
+
+      p(a) contains x { x := a }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected contains keyword: the contains keyword can only be used with multi-value rule definitions (e.g., p contains <VALUE> { ... })'
+  - note: errors/rule-contains-fail/contains used with a 0 argument function
+    module: |
+      package test
+
+      p() contains x { x := 1 }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 5
+        message: 'unexpected contains keyword: the contains keyword can only be used with multi-value rule definitions (e.g., p contains <VALUE> { ... })'

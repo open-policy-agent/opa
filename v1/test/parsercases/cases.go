@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io/fs"
 	"slices"
+	"strings"
 
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
@@ -39,12 +40,21 @@ type TestCase struct {
 	Note     string `json:"note"    yaml:"note"`   // globally unique identifier for this test case
 	Module   string `json:"module"  yaml:"module"` // the policy to parse, named test-0.rego
 
-	RegoVersion          string   `json:"rego_version,omitempty"           yaml:"rego_version,omitempty"`          // rego version to parse the module as: v0, v1 (default), or v0-compat-v1
-	FutureKeywords       []string `json:"future_keywords,omitempty"        yaml:"future_keywords,omitempty"`       // future keywords to make available without importing them
-	AllFutureKeywords    bool     `json:"all_future_keywords,omitempty"    yaml:"all_future_keywords,omitempty"`   // make every future keyword available without importing it
-	ExperimentalKeywords bool     `json:"experimental_keywords,omitempty"  yaml:"experimental_keywords,omitempty"` // opt-in to experimental future keywords
-	Annotations          bool     `json:"annotations,omitempty"            yaml:"annotations,omitempty"`           // parse metadata comments into annotations
-	Locations            bool     `json:"locations,omitempty"              yaml:"locations,omitempty"`             // include row and col of every node in want_ast
+	RegoVersion string `json:"rego_version,omitempty"  yaml:"rego_version,omitempty"` // rego version to parse the module as: v0, v1 (default), or v0-compat-v1
+
+	// FutureKeywords and AllFutureKeywords activate future keywords through a
+	// parser option rather than through the module. Prefer an
+	// `import future.keywords.<kw>` in the module, or the `import future.keywords`
+	// wildcard: an import is part of the Rego, so any conforming parser honours it,
+	// where these two are out-of-band options a consumer has to expose to run the
+	// corpus at all. Reach for them only where the case cannot be expressed with
+	// an import.
+	FutureKeywords    []string `json:"future_keywords,omitempty"      yaml:"future_keywords,omitempty"`
+	AllFutureKeywords bool     `json:"all_future_keywords,omitempty"  yaml:"all_future_keywords,omitempty"`
+
+	ExperimentalKeywords bool `json:"experimental_keywords,omitempty"  yaml:"experimental_keywords,omitempty"` // opt-in to experimental future keywords, which have no import
+	Annotations          bool `json:"annotations,omitempty"            yaml:"annotations,omitempty"`           // parse metadata comments into annotations
+	Locations            bool `json:"locations,omitempty"              yaml:"locations,omitempty"`             // include row and col of every node in want_ast
 
 	WantAST        string  `json:"want_ast,omitempty"         yaml:"want_ast,omitempty"`        // the AST the parse must produce, as JSON; generated, not authored
 	WantEquivalent string  `json:"want_equivalent,omitempty"  yaml:"want_equivalent,omitempty"` // a second module that must parse to the same AST
@@ -86,6 +96,13 @@ func (tc TestCase) Validate() error {
 		return fmt.Errorf("unknown 'rego_version' %q, expected one of %v", tc.RegoVersion, RegoVersions)
 	}
 
+	if err := checkTrailingWhitespace("module", tc.Module); err != nil {
+		return err
+	}
+	if err := checkTrailingWhitespace("want_equivalent", tc.WantEquivalent); err != nil {
+		return err
+	}
+
 	if tc.Failure() {
 		switch {
 		case tc.WantAST != "":
@@ -100,7 +117,7 @@ func (tc TestCase) Validate() error {
 
 	switch {
 	case tc.WantAST == "":
-		return errors.New("expected 'want_ast' or 'want_errors'; run `make generate` to fill in 'want_ast'")
+		return errors.New("expected 'want_ast' or 'want_errors'; run `make generate` to fill one in")
 	case tc.Exhaustive:
 		return errors.New("'exhaustive' only applies to a case asserting 'want_errors'")
 	case tc.WantEquivalent != "" && tc.Locations:
@@ -109,6 +126,19 @@ func (tc TestCase) Validate() error {
 		return errors.New("'want_equivalent' and 'locations' are mutually exclusive")
 	}
 
+	return nil
+}
+
+// checkTrailingWhitespace rejects Rego that carries trailing whitespace on a
+// line. A YAML emitter will not write a block scalar for such a value, so the
+// generator would have to render the policy as a single escaped line, and
+// nothing this corpus can express depends on that whitespace.
+func checkTrailingWhitespace(field, rego string) error {
+	for i, line := range strings.Split(rego, "\n") {
+		if strings.TrimRight(line, " \t") != line {
+			return fmt.Errorf("%q line %d has trailing whitespace", field, i+1)
+		}
+	}
 	return nil
 }
 

@@ -1,0 +1,32 @@
+---
+cases:
+  - note: errors/import/non-ground ref
+    module: |
+      package test
+
+      import data.foo[x]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 17
+        message: 'unexpected var token: expecting string'
+  - note: errors/import/non-string
+    module: |
+      package test
+
+      import input.foo[0]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 18
+        message: 'unexpected number token: expecting string'
+  - note: errors/import/unknown root
+    module: |
+      package test
+
+      import foo.bar
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: foo (hint: if this is unexpected, try updating OPA)'

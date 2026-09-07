@@ -1,0 +1,12 @@
+---
+cases:
+  - note: errors/rule-ref-heads/first ref head term is call
+    module: |
+      package p
+
+      q(0).r(0) { true }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 11
+        message: 'unexpected { token: rule head ref q(0).r invalid'

@@ -11,9 +11,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
 	"github.com/open-policy-agent/opa/v1/util"
@@ -75,18 +77,28 @@ func generateFile(path string, mode fs.FileMode) error {
 		tc := &set.Cases[i]
 		*tc = tc.WithFilename(path)
 
-		if !tc.Failure() {
-			astJSON.SetOptions(parsercases.MarshalOptions(tc.Locations, false))
+		astJSON.SetOptions(parsercases.MarshalOptions(tc.Locations, false))
+		module, perr := parseModule(*tc, tc.Module)
 
-			module, err := parseModule(*tc, tc.Module)
-			if err != nil {
-				return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
-			}
+		switch {
+		case perr != nil && tc.WantAST != "":
+			return fmt.Errorf("%s: %s: the case asserts 'want_ast', but the module no longer parses: %w", path, tc.Note, perr)
 
+		case perr == nil && tc.Failure():
+			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the module parses", path, tc.Note)
+
+		case perr != nil && !tc.Failure():
+			// Fill in the diagnostic only where the case has none. A message
+			// that changes has to fail the runner, not be quietly rewritten
+			// underneath it, so an existing want_errors is never touched.
+			tc.WantErrors = []parsercases.Error{firstDiagnostic(perr)}
+			setMapValue(caseNodes.Content[i], "want_errors", errorsNode(tc.WantErrors), "exhaustive")
+
+		case perr == nil:
+			var err error
 			if tc.WantAST, err = MarshalAST(module); err != nil {
 				return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
 			}
-
 			setMapValue(caseNodes.Content[i], "want_ast", literal(tc.WantAST), "want_equivalent")
 		}
 
@@ -115,6 +127,45 @@ func generateFile(path string, mode fs.FileMode) error {
 
 func literal(s string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Style: yaml.LiteralStyle, Value: s}
+}
+
+func scalar(tag, value string) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: value}
+}
+
+// firstDiagnostic returns the diagnostic a fixture records. Only the first is
+// taken: the ones that follow are usually a cascade of the same mistake, and
+// holding another implementation to OPA's cascade is not a language rule.
+func firstDiagnostic(err error) parsercases.Error {
+	errs, ok := err.(ast.Errors)
+	if !ok || len(errs) == 0 {
+		return parsercases.Error{Message: err.Error()}
+	}
+
+	e := errs[0]
+	out := parsercases.Error{Code: e.Code, Message: e.Message}
+	if e.Location != nil {
+		out.Row = e.Location.Row
+		out.Col = e.Location.Col
+	}
+	return out
+}
+
+func errorsNode(errs []parsercases.Error) *yaml.Node {
+	seq := &yaml.Node{Kind: yaml.SequenceNode}
+
+	for _, e := range errs {
+		m := &yaml.Node{Kind: yaml.MappingNode}
+		setMapValue(m, "code", scalar("!!str", e.Code))
+		setMapValue(m, "row", scalar("!!int", strconv.Itoa(e.Row)))
+		if e.Col != 0 {
+			setMapValue(m, "col", scalar("!!int", strconv.Itoa(e.Col)))
+		}
+		setMapValue(m, "message", scalar("!!str", e.Message))
+		seq.Content = append(seq.Content, m)
+	}
+
+	return seq
 }
 
 func mapValue(n *yaml.Node, key string) *yaml.Node {

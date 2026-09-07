@@ -235,14 +235,14 @@ cases:
     module: |
       package test
 
+      import future.keywords.and
+      import future.keywords.not
+      import future.keywords.or
+
       p if {
       	x := 1
       	x == 1 and not x == 2 or x == 3
       }
-    future_keywords:
-      - and
-      - or
-      - not
     locations: true
     want_ast: |
       {
@@ -270,6 +270,125 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "location": {
+                "row": 3,
+                "col": 8
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 8
+                  },
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 15
+                  },
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 24
+                  },
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            },
+            "location": {
+              "row": 3,
+              "col": 1
+            }
+          },
+          {
+            "path": {
+              "location": {
+                "row": 4,
+                "col": 8
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "row": 4,
+                    "col": 8
+                  },
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "location": {
+                    "row": 4,
+                    "col": 15
+                  },
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "location": {
+                    "row": 4,
+                    "col": 24
+                  },
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            },
+            "location": {
+              "row": 4,
+              "col": 1
+            }
+          },
+          {
+            "path": {
+              "location": {
+                "row": 5,
+                "col": 8
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "row": 5,
+                    "col": 8
+                  },
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "location": {
+                    "row": 5,
+                    "col": 15
+                  },
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "location": {
+                    "row": 5,
+                    "col": 24
+                  },
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            },
+            "location": {
+              "row": 5,
+              "col": 1
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -277,7 +396,7 @@ cases:
               "ref": [
                 {
                   "location": {
-                    "row": 3,
+                    "row": 7,
                     "col": 1
                   },
                   "type": "var",
@@ -289,7 +408,7 @@ cases:
                 "value": true
               },
               "location": {
-                "row": 3,
+                "row": 7,
                 "col": 1
               }
             },
@@ -297,20 +416,20 @@ cases:
               {
                 "index": 0,
                 "location": {
-                  "row": 4,
+                  "row": 8,
                   "col": 2
                 },
                 "terms": [
                   {
                     "location": {
-                      "row": 4,
+                      "row": 8,
                       "col": 4
                     },
                     "type": "ref",
                     "value": [
                       {
                         "location": {
-                          "row": 4,
+                          "row": 8,
                           "col": 4
                         },
                         "type": "var",
@@ -320,7 +439,7 @@ cases:
                   },
                   {
                     "location": {
-                      "row": 4,
+                      "row": 8,
                       "col": 2
                     },
                     "type": "var",
@@ -328,7 +447,7 @@ cases:
                   },
                   {
                     "location": {
-                      "row": 4,
+                      "row": 8,
                       "col": 7
                     },
                     "type": "number",
@@ -339,7 +458,7 @@ cases:
               {
                 "index": 1,
                 "location": {
-                  "row": 5,
+                  "row": 9,
                   "col": 2
                 },
                 "terms": {
@@ -348,7 +467,7 @@ cases:
                     {
                       "index": 0,
                       "location": {
-                        "row": 5,
+                        "row": 9,
                         "col": 2
                       },
                       "terms": {
@@ -357,20 +476,20 @@ cases:
                           {
                             "index": 0,
                             "location": {
-                              "row": 5,
+                              "row": 9,
                               "col": 2
                             },
                             "terms": [
                               {
                                 "location": {
-                                  "row": 5,
+                                  "row": 9,
                                   "col": 4
                                 },
                                 "type": "ref",
                                 "value": [
                                   {
                                     "location": {
-                                      "row": 5,
+                                      "row": 9,
                                       "col": 4
                                     },
                                     "type": "var",
@@ -380,7 +499,7 @@ cases:
                               },
                               {
                                 "location": {
-                                  "row": 5,
+                                  "row": 9,
                                   "col": 2
                                 },
                                 "type": "var",
@@ -388,7 +507,7 @@ cases:
                               },
                               {
                                 "location": {
-                                  "row": 5,
+                                  "row": 9,
                                   "col": 7
                                 },
                                 "type": "number",
@@ -401,7 +520,7 @@ cases:
                           {
                             "index": 0,
                             "location": {
-                              "row": 5,
+                              "row": 9,
                               "col": 13
                             },
                             "terms": {
@@ -410,20 +529,20 @@ cases:
                                 {
                                   "index": 0,
                                   "location": {
-                                    "row": 5,
+                                    "row": 9,
                                     "col": 17
                                   },
                                   "terms": [
                                     {
                                       "location": {
-                                        "row": 5,
+                                        "row": 9,
                                         "col": 19
                                       },
                                       "type": "ref",
                                       "value": [
                                         {
                                           "location": {
-                                            "row": 5,
+                                            "row": 9,
                                             "col": 19
                                           },
                                           "type": "var",
@@ -433,7 +552,7 @@ cases:
                                     },
                                     {
                                       "location": {
-                                        "row": 5,
+                                        "row": 9,
                                         "col": 17
                                       },
                                       "type": "var",
@@ -441,7 +560,7 @@ cases:
                                     },
                                     {
                                       "location": {
-                                        "row": 5,
+                                        "row": 9,
                                         "col": 22
                                       },
                                       "type": "number",
@@ -452,14 +571,14 @@ cases:
                               ],
                               "explicit_body": false,
                               "location": {
-                                "row": 5,
+                                "row": 9,
                                 "col": 13
                               }
                             }
                           }
                         ],
                         "location": {
-                          "row": 5,
+                          "row": 9,
                           "col": 2
                         }
                       }
@@ -469,20 +588,20 @@ cases:
                     {
                       "index": 0,
                       "location": {
-                        "row": 5,
+                        "row": 9,
                         "col": 27
                       },
                       "terms": [
                         {
                           "location": {
-                            "row": 5,
+                            "row": 9,
                             "col": 29
                           },
                           "type": "ref",
                           "value": [
                             {
                               "location": {
-                                "row": 5,
+                                "row": 9,
                                 "col": 29
                               },
                               "type": "var",
@@ -492,7 +611,7 @@ cases:
                         },
                         {
                           "location": {
-                            "row": 5,
+                            "row": 9,
                             "col": 27
                           },
                           "type": "var",
@@ -500,7 +619,7 @@ cases:
                         },
                         {
                           "location": {
-                            "row": 5,
+                            "row": 9,
                             "col": 32
                           },
                           "type": "number",
@@ -510,14 +629,14 @@ cases:
                     }
                   ],
                   "location": {
-                    "row": 5,
+                    "row": 9,
                     "col": 2
                   }
                 }
               }
             ],
             "location": {
-              "row": 3,
+              "row": 7,
               "col": 1
             }
           }

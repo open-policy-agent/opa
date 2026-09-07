@@ -1,0 +1,72 @@
+---
+cases:
+  - note: errors/number-terms/leading 0
+    module: |
+      package test
+
+      p := 03
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected number token: expected number without leading zero'
+  - note: errors/number-terms/leading 0, many
+    module: |
+      package test
+
+      p := 003
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected number token: expected number without leading zero'
+  - note: errors/number-terms/leading 0, 'octal'
+    module: |
+      package test
+
+      p := 0755
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected number token: expected number without leading zero'
+  - note: errors/number-terms/leading 0, decimal
+    module: |
+      package test
+
+      p := 03.333
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected number token: expected number without leading zero'
+  - note: errors/number-terms/leading 0, negative
+    module: |
+      package test
+
+      p := -03
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: 'unexpected number token: expected number without leading zero'
+  - note: errors/number-terms/leading 0, exp
+    module: |
+      package test
+
+      p := 03e6
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected number token: expected number without leading zero'
+  - note: errors/number-terms/leading 0, exp, negative
+    module: |
+      package test
+
+      p := -03e6
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: 'unexpected number token: expected number without leading zero'

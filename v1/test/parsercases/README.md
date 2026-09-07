@@ -16,21 +16,38 @@ complete without a Go counterpart, and a new parser test can land as YAML only.
 ## Adding a case
 
 Write `module` plus whatever configuration it needs, run `make generate`, and
-review the `want_ast` that comes out. A fixture is what OPA's parser produces,
-so it is a golden file: it does not independently validate OPA, it catches
-unreviewed change.
+review what comes out. Whether the case is a success or a failure case is
+decided by the parser, not by you: if the module parses, the generator fills in
+`want_ast`; if it does not, it fills in `want_errors`.
+
+A fixture is what OPA's parser produces, so it is a golden file: it does not
+independently validate OPA, it catches unreviewed change.
+
+The two are maintained differently. `want_ast` is regenerated every time, and
+review of the diff is the gate. `want_errors` is filled in **only where a case
+has none** and is never overwritten, so a diagnostic that changes fails the
+runner instead of being quietly rewritten — the messages are user-facing
+contract, and the corpus is the place that says so.
 
 A case is either a **failure case**, asserting `want_errors`, or a **success
 case**, asserting `want_ast` and optionally `want_equivalent`. The loader
 rejects anything else.
+
+A `module` or `want_equivalent` must not carry trailing whitespace on a line. A
+YAML emitter will not write a block scalar for such a value, so the generator —
+which rewrites the whole file whenever a fixture changes — would render the
+policy as a single escaped line. The loader rejects it by naming the line rather
+than stripping it, so the module stays exactly as authored. Nothing this corpus
+can express depends on that whitespace; the cases that do stay in Go, along with
+the rest of `Location.Text`.
 
 | field | |
 | - | - |
 | `note` | globally unique identifier, and the subtest name |
 | `module` | the policy to parse, named `test-0.rego` |
 | `rego_version` | `v0`, `v1` (default), or `v0-compat-v1` |
-| `future_keywords`, `all_future_keywords` | keywords available without importing them |
-| `experimental_keywords` | opt-in to experimental future keywords |
+| `future_keywords`, `all_future_keywords` | activate future keywords by parser option — a last resort, see [Future keywords](#future-keywords) |
+| `experimental_keywords` | opt-in to experimental future keywords, which have no import |
 | `annotations` | parse metadata comments into annotations |
 | `locations` | include the row and col of every node in `want_ast` |
 | `want_ast` | the AST the parse must produce, as JSON; generated, not authored |
@@ -42,6 +59,79 @@ rejects anything else.
 `want_ast` is JSON carried in a YAML string rather than nested YAML: a YAML
 scalar cannot hold a Rego number literal faithfully, since `1e6` is a string to
 a YAML parser and a float to a JSON one.
+
+It is indented rather than compact, which costs roughly three times the bytes —
+about 1.6 KB per case, and 8 KB for one pinning locations. That is deliberate.
+Every fixture here is read by a person at least three times: when the diff is
+reviewed as the case lands, when a consumer debugs a mismatch against it, and
+when a change to the parser regenerates it. A one-line fixture serves none of
+those, and the size it saves buys nothing — the corpus is never on a hot path.
+
+## Module-only entry point
+
+A case always parses a whole module. Term, expression, and rule cases are
+wrapped when they are written, not at runtime, so there is no wrapper field in
+the schema and a consumer needs only one entry point — which is what lets an
+implementation that is not split into parser / compiler / planner run the corpus
+at all.
+
+Wrap in the innermost context where the Rego is legal:
+
+| the case is about | wrap it as |
+| - | - |
+| a term | `p := <term>` |
+| an expression | `p if { <expr> }` |
+| a rule, `package`, or `import` | leave it at the module root |
+
+An expression or a term left at the module root is a trap: `a and (b or c)` and
+`{x: y | x := 1}` are both valid Rego, but as a module they fail with
+`expression cannot be used for rule head` and
+`objectcomprehension cannot be used for rule name`. The parser reads the term or
+expression first and only then rejects it as a rule head, so an *error* case
+still reproduces its diagnostic that way — which makes the mistake easy to miss.
+No *success* case can be written for one, though, so the wrapper is what decides
+whether a construct is testable at all.
+
+The wrapper can also quietly change what a case is about. `or (a, b)` at the
+module root is a rule head, not an attempted call, and it reports the same
+`non-terminated expression` as `foo (a, b)` — so a case asserting that the
+`or(x, y)` call form is inactive when the keyword is not, written that way, would
+assert nothing of the kind. In a rule body it asserts exactly that, which is
+where `testdata/v1/logical/test-call-form.yaml` puts it.
+
+That case is also the shape to copy for anything subtle: the two cases that
+*parse* are what give the two that fail their meaning. A case that only records a
+diagnostic proves an error happened, not that the right thing was rejected.
+
+## Future keywords
+
+Activate a future keyword with an import in the module, not with a field on the
+case:
+
+```yaml
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	x := or({1}, {2})
+      }
+```
+
+An import is part of the Rego, so any conforming parser already honours it.
+`future_keywords` and `all_future_keywords` are out-of-band parser options, which
+a consumer would have to expose before it could run those cases at all — the same
+portability cost the module-only entry point exists to avoid. No case in the
+corpus needs them today.
+
+Import the narrowest set that works. `import future.keywords` (wildcard) is
+allowed and activates everything, but naming the keyword records which one the
+case depends on. In v1 only `and`, `or` and `not` still need activating; `if`,
+`contains`, `in` and `every` are standard there and need importing only under
+`rego_version: v0`.
+
+`experimental_keywords` has no import form, so it stays a field.
 
 ## Locations
 

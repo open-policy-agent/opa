@@ -1,0 +1,52 @@
+---
+cases:
+  - note: errors/var-terms/illegal token
+    module: |
+      package test
+
+      p := 墳
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal token
+  - note: errors/var-terms/not keyword
+    module: |
+      package test
+
+      p := not
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: unexpected not keyword
+  - note: errors/var-terms/package keyword
+    module: |
+      package test
+
+      p := package
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: unexpected package keyword
+  - note: errors/var-terms/import keyword
+    module: |
+      package test
+
+      p := import
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: unexpected import keyword
+  - note: errors/var-terms/import invalid path
+    module: |
+      package test
+
+      p := import x.
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: unexpected import keyword

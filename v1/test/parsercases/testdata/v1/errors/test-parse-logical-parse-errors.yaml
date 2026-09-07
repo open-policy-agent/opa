@@ -1,0 +1,502 @@
+---
+cases:
+  - note: errors/parse-logical-parse-errors/bare and prefix
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	and y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: unexpected and keyword
+  - note: errors/parse-logical-parse-errors/bare or prefix
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	or y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: unexpected or keyword
+  - note: errors/parse-logical-parse-errors/double or operator
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	x or or y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: unexpected or keyword
+  - note: errors/parse-logical-parse-errors/double and operator
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	x and and y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: unexpected and keyword
+  - note: errors/parse-logical-parse-errors/extra or-and operator
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	x or and y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 7
+        col: 7
+        message: unexpected and keyword
+  - note: errors/parse-logical-parse-errors/extra and-or operator
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	x and or y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 7
+        col: 8
+        message: unexpected or keyword
+  - note: errors/parse-logical-parse-errors/and, inside call
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	f(x and y)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 6
+        message: 'unexpected and keyword: expected "," or ")"'
+  - note: errors/parse-logical-parse-errors/or, inside call
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	f(x or y)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 6
+        message: 'unexpected or keyword: expected "," or ")"'
+  - note: errors/parse-logical-parse-errors/and, inside ref
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	a[x and y]
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 6
+        message: 'unexpected and keyword: expected ['
+  - note: errors/parse-logical-parse-errors/or, inside ref
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	a[x or y]
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 6
+        message: 'unexpected or keyword: expected ['
+  - note: errors/parse-logical-parse-errors/and, inside set comprehension head
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{x and y | x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 5
+        message: 'unexpected and keyword: non-terminated set'
+  - note: errors/parse-logical-parse-errors/or, inside set comprehension head
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	{x or y | x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 5
+        message: 'unexpected or keyword: non-terminated set'
+  - note: errors/parse-logical-parse-errors/and, inside array comprehension head
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	[x and y | x]
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 5
+        message: 'unexpected and keyword: expected "," or "]"'
+  - note: errors/parse-logical-parse-errors/or, inside array comprehension head
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	[x or y | x]
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 5
+        message: 'unexpected or keyword: expected "," or "]"'
+  - note: errors/parse-logical-parse-errors/and, inside object comprehension head, key
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{x and y: z | x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 5
+        message: 'unexpected and keyword: non-terminated set'
+  - note: errors/parse-logical-parse-errors/or, inside object comprehension head, key
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	{x or y: z | x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 5
+        message: 'unexpected or keyword: non-terminated set'
+  - note: errors/parse-logical-parse-errors/and, inside object comprehension head, value
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{x: y and z | x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'unexpected and keyword: non-terminated object'
+  - note: errors/parse-logical-parse-errors/or, inside object comprehension head, value
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	{x: y or z | x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'unexpected or keyword: non-terminated object'
+  - note: errors/parse-logical-parse-errors/and, inside every value
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	every x and y in z {x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 10
+        message: 'unexpected and keyword: expected `x[, y] in xs { ... }` expression'
+  - note: errors/parse-logical-parse-errors/or, inside every value
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	every x or y in z {x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 10
+        message: 'unexpected or keyword: expected `x[, y] in xs { ... }` expression'
+  - note: errors/parse-logical-parse-errors/and, inside every domain
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	every x in y and z {x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 15
+        message: 'unexpected and keyword: missing body'
+  - note: errors/parse-logical-parse-errors/or, inside every domain
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	every x in y or z {x}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 15
+        message: 'unexpected or keyword: missing body'
+  - note: errors/parse-logical-parse-errors/some-in as an operand
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	some x in xs and y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 15
+        message: 'unexpected and keyword: expected \n or ; or }'
+  - note: errors/parse-logical-parse-errors/some-in as a rhs operand
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	y and some x in xs
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: unexpected some keyword
+  - note: errors/parse-logical-parse-errors/some-in as a rhs operand, or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	y or some x in xs
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: unexpected some keyword
+  - note: errors/parse-logical-parse-errors/some decl as an operand
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	some x and y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 9
+        message: 'unexpected and keyword: expected \n or ; or }'
+  - note: errors/parse-logical-parse-errors/every as an operand
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	every x in xs { x } and y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 22
+        message: 'unexpected and keyword: expected \n or ; or }'
+  - note: errors/parse-logical-parse-errors/every as an operand, or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	every x in xs { x } or y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 22
+        message: 'unexpected or keyword: expected \n or ; or }'
+  - note: errors/parse-logical-parse-errors/every as a rhs operand
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	y and every x in xs { x }
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: unexpected every keyword
+  - note: errors/parse-logical-parse-errors/every as a rhs operand, or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	y or every x in xs { x }
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: unexpected every keyword
+  - note: errors/parse-logical-parse-errors/some decl as a rhs operand
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	y and some x
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: unexpected some keyword
+  - note: errors/parse-logical-parse-errors/some-in as a not body
+    module: |
+      package test
+
+      p if {
+      	not some x in xs
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 6
+        message: 'unexpected some keyword: illegal negation of ''some'''
+  - note: errors/parse-logical-parse-errors/some decl as a not body
+    module: |
+      package test
+
+      p if {
+      	not some x
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 6
+        message: 'unexpected some keyword: illegal negation of ''some'''
+  - note: errors/parse-logical-parse-errors/every as a not body
+    module: |
+      package test
+
+      p if {
+      	not every x in xs { x }
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 6
+        message: 'unexpected every keyword: illegal negation of ''every'''
+  - note: errors/parse-logical-parse-errors/some-in as a negated operand
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	y or not some x in xs
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 11
+        message: unexpected some keyword
+  - note: errors/parse-logical-parse-errors/every as a negated operand
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	y or not every x in xs { x }
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 11
+        message: unexpected every keyword

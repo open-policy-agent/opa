@@ -1,0 +1,304 @@
+---
+cases:
+  # These four cases together assert what TestParseLogical_BuiltinCallFormInactive
+  # set out to: `or(x, y)` is a call whether or not `or` is an active keyword, and
+  # a space before the paren never forms one. They are authored rather than
+  # migrated, because the Go test asserted the negative half at statement level,
+  # where `or (a, b)` is a rule head and the diagnostic says nothing about calls —
+  # `foo (a, b)` reports the same. In a rule body the property is observable, and
+  # the cases that parse are what give the ones that fail their meaning.
+  - note: logical/call form is a call with the keyword inactive
+    module: |
+      package test
+
+      p if {
+      	x := or({1}, {2})
+      	x == {1, 2}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: logical/call form is a call with the keyword active
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	x := or({1}, {2})
+      	x == {1, 2}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: logical/space before the paren is not a call, keyword inactive
+    module: |
+      package test
+
+      p if {
+      	x := or ({1}, {2})
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 10
+        message: 'unexpected ( token: expected \n or ; or }'
+  - note: logical/space before the paren is not a call, keyword active
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	x := or ({1}, {2})
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: unexpected or keyword

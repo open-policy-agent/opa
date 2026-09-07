@@ -1,0 +1,13 @@
+---
+cases:
+  - note: errors/rego-v1-import/rego.v1 + alias
+    rego_version: v0
+    module: |
+      package test
+
+      import rego.v1 as xyz
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: '`rego` imports cannot be aliased'

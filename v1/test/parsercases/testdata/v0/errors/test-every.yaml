@@ -1,0 +1,28 @@
+---
+cases:
+  - note: errors/every/every x, y in ... usage is hinted properly
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	every x, y in {"foo": "bar"} { is_string(x); is_string(y) }
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 8
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)'
+  - note: errors/every/not every 'every' gets a hint
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	every x
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 8
+        message: 'unexpected identifier token: expected \n or ; or }'

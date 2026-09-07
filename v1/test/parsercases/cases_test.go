@@ -70,6 +70,16 @@ func TestValidate(t *testing.T) {
 			wantErr: "mutually exclusive",
 		},
 		{
+			note:    "trailing whitespace in the module",
+			tc:      TestCase{Note: "a", Module: "package test\n\np := [1, \n", WantAST: "{}"},
+			wantErr: `"module" line 3 has trailing whitespace`,
+		},
+		{
+			note:    "trailing whitespace in want_equivalent",
+			tc:      TestCase{Note: "a", Module: "package test", WantAST: "{}", WantEquivalent: "package test \n"},
+			wantErr: `"want_equivalent" line 1 has trailing whitespace`,
+		},
+		{
 			note:    "exhaustive without want_errors",
 			tc:      TestCase{Note: "a", Module: "package test", WantAST: "{}", Exhaustive: true},
 			wantErr: "'exhaustive' only applies",

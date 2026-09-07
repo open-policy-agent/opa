@@ -1,0 +1,12 @@
+---
+cases:
+  - note: errors/set-comprehension-error/bad body
+    module: |
+      package test
+
+      p := {x|!!!}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 9
+        message: illegal ! character
