@@ -1,0 +1,424 @@
+---
+# Generated externalized tests from TestSomeDeclExpr
+cases:
+  - note: exprs/some-decl-expr/one
+    module: |
+      package test
+
+      p if {
+      	some x
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/internal.member_2
+    module: |
+      package test
+
+      p if {
+      	some x in xs
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "member_2"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "var",
+                          "value": "xs"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/internal.member_3
+    module: |
+      package test
+
+      p if {
+      	some x, y in xs
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "member_3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "var",
+                          "value": "y"
+                        },
+                        {
+                          "type": "var",
+                          "value": "xs"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/multiple
+    module: |
+      package test
+
+      p if {
+      	some x, y
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/multiple split across lines
+    module: |
+      package test
+
+      p if {
+      	some x, y,
+      z
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    },
+                    {
+                      "type": "var",
+                      "value": "z"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/with modifier on expr
+    module: |
+      package test
+
+      p if {
+      	some x, y in input with input as []
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "member_3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "var",
+                          "value": "y"
+                        },
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "array",
+                      "value": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }

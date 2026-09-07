@@ -1,0 +1,674 @@
+---
+# Generated externalized tests from TestParseLogical_ParenBraceContext
+cases:
+  - note: exprs/parse-logical-paren-brace-context/operand brace is a body if future not kw imported
+    module: |
+      package test
+
+      p if {
+      	not {true}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "boolean",
+                      "value": true
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/not operand parens hold a value if future not kw imported
+    module: |
+      package test
+
+      p if {
+      	not ({true})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "boolean",
+                      "value": true
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/not operand brace is not a body if future not kw unimported
+    module: |
+      package test
+
+      p if {
+      	not ({true})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "boolean",
+                      "value": true
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/and operand braces are bodies
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	{a} and {b}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "and",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "explicit_lhs": true,
+                  "explicit_rhs": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/and operand parens hold values
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	({a}) and ({b})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "and",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "a"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "b"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/rhs operand parens hold a value
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	a and ({b})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "and",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "b"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/empty parens hold an empty object
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	a or ({})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "or",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "object",
+                        "value": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/empty object
+    module: |
+      package test
+
+      p if {
+      	({})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "object",
+                  "value": []
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/set
+    module: |
+      package test
+
+      p if {
+      	({a})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "set",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "a"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/object on rhs of assign
+    module: |
+      package test
+
+      p if {
+      	a := ({b})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-brace-context/empty object as call arg
+    module: |
+      package test
+
+      p if {
+      	g(({}))
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "g"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "value": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }

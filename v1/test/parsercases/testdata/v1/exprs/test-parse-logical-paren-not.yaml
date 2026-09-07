@@ -1,0 +1,667 @@
+---
+# Generated externalized tests from TestParseLogical_ParenNot
+cases:
+  - note: exprs/parse-logical-paren-not/not group or
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	not (a or b)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "not",
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "or",
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "explicit_body": false
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-not/not group and
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	not (a and b)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "not",
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "and",
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "explicit_body": false
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-not/not group as operand of and
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	x and not (a or b)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "and",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "not",
+                        "body": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "or",
+                              "lhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "a"
+                                  }
+                                }
+                              ],
+                              "rhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "b"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        "explicit_body": false
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-not/not nested group
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	not ((a or b) and c)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "not",
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "and",
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "or",
+                              "lhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "a"
+                                  }
+                                }
+                              ],
+                              "rhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "b"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "c"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "explicit_body": false
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-not/not group binds tighter than trailing and
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	not (a or b) and c
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "and",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "not",
+                        "body": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "or",
+                              "lhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "a"
+                                  }
+                                }
+                              ],
+                              "rhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "b"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        "explicit_body": false
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-not/not group binds tighter than trailing or
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	not (a or b) or c
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "or",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "not",
+                        "body": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "or",
+                              "lhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "a"
+                                  }
+                                }
+                              ],
+                              "rhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "b"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        "explicit_body": false
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-not/not, parenthesized arithmetic
+    module: |
+      package test
+
+      p if {
+      	not (1 + 2) > 3
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "gt"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "plus"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-not/not, parenthesized comparison
+    module: |
+      package test
+
+      p if {
+      	not (a) == b
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }

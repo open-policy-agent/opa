@@ -1,0 +1,1864 @@
+---
+# Generated externalized tests from TestParseLogical_BuiltinCallForm
+cases:
+  - note: exprs/parse-logical-builtin-call-form/or call, statement start
+    module: |
+      package test
+
+      p if {
+      	or({1}, {2})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/and call, statement start
+    module: |
+      package test
+
+      p if {
+      	and({1}, {2})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "and"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, assigned
+    module: |
+      package test
+
+      p if {
+      	x := or({1}, {2})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/and call, assigned
+    module: |
+      package test
+
+      p if {
+      	x := and({1}, {2})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, unified
+    module: |
+      package test
+
+      p if {
+      	x = or({1}, {2})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, comparison lhs
+    module: |
+      package test
+
+      p if {
+      	or(a, b) == x
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/and call, comparison rhs
+    module: |
+      package test
+
+      p if {
+      	x == and(a, b)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, non-builtin arity
+    module: |
+      package test
+
+      p if {
+      	or(a)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, no arguments
+    module: |
+      package test
+
+      p if {
+      	or()
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/and call, nested in call arguments
+    module: |
+      package test
+
+      p if {
+      	f(and(a, b))
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "f"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "and"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, nested in or call
+    module: |
+      package test
+
+      p if {
+      	or(or(a, b), {1})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, ref operand
+    module: |
+      package test
+
+      p if {
+      	x[or(a, b)]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, arithmetic operand
+    module: |
+      package test
+
+      p if {
+      	x := count(or(a, b)) + 1
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "plus"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "call",
+                        "value": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "count"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "call",
+                            "value": [
+                              {
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "type": "var",
+                                    "value": "or"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "var",
+                                "value": "a"
+                              },
+                              {
+                                "type": "var",
+                                "value": "b"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, set comprehension head
+    module: |
+      package test
+
+      p if {
+      	{or(a, b) | true}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "setcomprehension",
+                  "value": {
+                    "term": {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    },
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": {
+                          "type": "boolean",
+                          "value": true
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/and call, negated
+    module: |
+      package test
+
+      p if {
+      	not and(a, b)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "and"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, rhs operand of and keyword
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	x and or(a, b)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "and",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/and call, lhs operand of or keyword
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	and(a, b) or x
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "or",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "and"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, both operands of or keyword
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	or(a, b) or or(b, a)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "or",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/and call, operand of parenthesized group
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	x and (and(a, b) or b)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "and",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "or",
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": [
+                              {
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "type": "var",
+                                    "value": "and"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "var",
+                                "value": "a"
+                              },
+                              {
+                                "type": "var",
+                                "value": "b"
+                              }
+                            ]
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, operand of explicit body
+    all_future_keywords: true
+    module: |
+      package test
+
+      p if {
+      	x and {or(a, b)}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "and",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_rhs": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, every domain
+    module: |
+      package test
+
+      p if {
+      	every y in or(a, b) { y }
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "key": null,
+                  "value": {
+                    "type": "var",
+                    "value": "y"
+                  },
+                  "domain": {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    ]
+                  },
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/or call, with modifier target value
+    module: |
+      package test
+
+      p if {
+      	x with data.y as or(a, b)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "data"
+                        },
+                        {
+                          "type": "string",
+                          "value": "y"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-builtin-call-form/not or call
+    module: |
+      package test
+
+      p if {
+      	not or(a, b)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "or"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "a"
+                  },
+                  {
+                    "type": "var",
+                    "value": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }

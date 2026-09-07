@@ -1,0 +1,190 @@
+---
+# Generated externalized tests from TestParseLogical_BraceLedOperandKeepsAbandonedErrorsOut
+cases:
+  - note: exprs/parse-logical-brace-led-operand-keeps-abandoned-errors-out/some ... in on its own line
+    module: |
+      package test
+
+      p if {
+      	{
+      y |
+      	some y in xs
+      }
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "setcomprehension",
+                  "value": {
+                    "term": {
+                      "type": "var",
+                      "value": "y"
+                    },
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": {
+                          "symbols": [
+                            {
+                              "type": "call",
+                              "value": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "internal"
+                                    },
+                                    {
+                                      "type": "string",
+                                      "value": "member_2"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "y"
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "xs"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-keeps-abandoned-errors-out/every on its own line
+    module: |
+      package test
+
+      p if {
+      	{
+      y |
+      	every v in xs { v == 1 }
+      }
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "setcomprehension",
+                  "value": {
+                    "term": {
+                      "type": "var",
+                      "value": "y"
+                    },
+                    "body": [
+                      {
+                        "index": 0,
+                        "terms": {
+                          "key": null,
+                          "value": {
+                            "type": "var",
+                            "value": "v"
+                          },
+                          "domain": {
+                            "type": "var",
+                            "value": "xs"
+                          },
+                          "body": [
+                            {
+                              "index": 0,
+                              "terms": [
+                                {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "equal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "v"
+                                },
+                                {
+                                  "type": "number",
+                                  "value": 1
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
