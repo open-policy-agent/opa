@@ -500,3 +500,71 @@ cases:
         row: 6
         col: 11
         message: unexpected every keyword
+  - note: errors/parse-logical-parse-errors/and, rule value
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p := x and y
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: expression cannot be used for rule head
+  - note: errors/parse-logical-parse-errors/or, rule value
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p := x or y
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: expression cannot be used for rule head
+  - note: errors/parse-logical-parse-errors/and, free statement in module body
+    module: |
+      package test
+
+      import future.keywords.and
+
+      x and y
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: expression cannot be used for rule head
+  - note: errors/parse-logical-parse-errors/or, free statement in module body
+    module: |
+      package test
+
+      import future.keywords.or
+
+      x or y
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: expression cannot be used for rule head
+  - note: errors/parse-logical-parse-errors/and, in import
+    module: |
+      package test
+
+      import data.x and y
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 15
+        message: var cannot be used for rule name
+  - note: errors/parse-logical-parse-errors/or, in import
+    module: |
+      package test
+
+      import data.x or y
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 15
+        message: var cannot be used for rule name

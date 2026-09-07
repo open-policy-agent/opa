@@ -1,0 +1,35 @@
+---
+cases:
+  - note: errors/rule-else-ref-heads/multi-value ref head
+    module: |
+      package test
+
+      a.b.c contains 1 if false
+      else := 2
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 1
+        message: else keyword cannot be used on multi-value rules
+  - note: errors/rule-else-ref-heads/single-value ref head with var
+    module: |
+      package test
+
+      a.b[x] := 1 if false
+      else := 2
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 1
+        message: else keyword cannot be used on rules with variables in head
+  - note: errors/rule-else-ref-heads/single-value general ref head with var
+    module: |
+      package test
+
+      a.b[x].c := 1 if false
+      else := 2
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 1
+        message: else keyword cannot be used on rules with variables in head

@@ -1,0 +1,93 @@
+---
+cases:
+  - note: errors/membership-expr-hint/bare membership expr
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	input.request.operation in {"CREATE", "UPDATE"}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 26
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
+  - note: errors/membership-expr-hint/negated
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	not x in xs
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 8
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
+  - note: errors/membership-expr-hint/semicolon separated
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	x in xs; x
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 4
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
+  - note: errors/membership-expr-hint/comprehension body
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	ys := [y | y in xs]
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 15
+        message: 'unexpected identifier token: expected \n or ; or ] (hint: `import future.keywords.in` for `x in xs` expressions)'
+  - note: errors/membership-expr-hint/assigned
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	x := y in ys
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 9
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
+  - note: errors/membership-expr-hint/unified
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	x = y in ys
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 8
+        message: 'unexpected identifier token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
+  - note: errors/membership-expr-hint/key/value membership
+    rego_version: v0
+    module: |
+      package test
+
+      p {
+      	"k", v in {"k": "v"}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 5
+        message: 'unexpected , token: expected \n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions)'
