@@ -1007,19 +1007,28 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 			ir, err = e.getRules(ref, terms[1:], index)
 		}
 		defer ast.IndexResultPool.Put(ir)
-		if err != nil {
+		if err != nil || ir == nil {
 			return err
 		}
-		if ir == nil {
-			return nil
+
+		// Since values may outlive the function in partial evaluation,
+		// only use pooled evalFunc when not doing partial eval.
+		var eval *evalFunc
+		if e.partial() {
+			eval = &evalFunc{}
+		} else {
+			eval = evalFuncPool.Get()
+			defer evalFuncPool.Put(eval)
 		}
 
-		eval := evalFuncPool.Get()
-		defer evalFuncPool.Put(eval)
-
 		eval.e = e
-		eval.terms = terms
 		eval.ir = ir
+		eval.terms = slices.Grow(eval.terms, len(terms))[:len(terms)]
+		copy(eval.terms, terms)
+
+		if eval.cacheKey == nil {
+			eval.cacheKey, eval.args = make(ast.Ref, 0, 8), make([]*ast.Term, 0, 8)
+		}
 
 		return eval.eval(iter)
 	}
@@ -2137,11 +2146,8 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 	}
 
 	// Normal unification flow for builtins:
-	err := e.f(bctx, operands, func(output *ast.Term) error {
-
+	err := e.f(bctx, operands, func(output *ast.Term) (err error) {
 		e.e.instr.stopTimer(evalOpBuiltinCall)
-
-		var err error
 
 		switch {
 		case e.bi.Decl.Result() == nil:
@@ -2186,15 +2192,21 @@ func (e *evalBuiltin) eval(iter unifyIterator) error {
 }
 
 type evalFunc struct {
-	e     *eval
-	ir    *ast.IndexResult
-	terms []*ast.Term
+	terms    []*ast.Term
+	cacheKey []*ast.Term
+	args     []*ast.Term
+	e        *eval
+	ir       *ast.IndexResult
 }
 
 // Reset clears the fields before this evalFunc is returned to its pool,
 // so pooling it doesn't keep terms/index results from the previous call alive.
 func (e *evalFunc) Reset() {
-	e.e, e.terms, e.ir = nil, nil, nil
+	clear(e.terms)
+	clear(e.cacheKey)
+	clear(e.args)
+	e.terms, e.cacheKey, e.args = e.terms[:0], e.cacheKey[:0], e.args[:0]
+	e.e, e.ir = nil, nil
 }
 
 func (e *evalFunc) eval(iter unifyIterator) error {
@@ -2254,35 +2266,28 @@ func (e *evalFunc) eval(iter unifyIterator) error {
 }
 
 func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) error {
-	var cacheKey ast.Ref
 	if !e.e.partial() {
-		var hit bool
-		var err error
-		cacheKey, hit, err = e.evalCache(argCount, iter)
-		if err != nil {
+		hit, err := e.evalCache(argCount, iter)
+		if err != nil || hit {
 			return err
-		} else if hit {
-			return nil
 		}
 	}
 
-	// NOTE(anders): While it makes the code a bit more complex, reusing the
-	// args slice across each function increment saves a lot of resources
-	// compared to creating a new one inside each call to evalOneRule... so
-	// think twice before simplifying this :)
-	args := make([]*ast.Term, len(e.terms)-1)
+	numArgs := len(e.terms) - 1
+	e.args = slices.Grow(e.args, numArgs)[:numArgs]
 
 	var prev *ast.Term
 
 	return withSuppressEarlyExit(func() error {
 		var outerEe *deferredEarlyExitError
 		for _, rule := range e.ir.Rules {
-			copy(args, rule.Head.Args)
-			if len(args) == len(rule.Head.Args)+1 {
-				args[len(args)-1] = rule.Head.Value
+			copy(e.args, rule.Head.Args)
+			numHeadArgs := len(rule.Head.Args)
+			if numArgs == numHeadArgs+1 {
+				e.args[numArgs-1] = rule.Head.Value
 			}
 
-			next, err := e.evalOneRule(iter, rule, args, cacheKey, prev, findOne)
+			next, err := e.evalOneRule(iter, rule, prev, findOne)
 			if err != nil {
 				if oee, ok := err.(*deferredEarlyExitError); ok {
 					if outerEe == nil {
@@ -2294,12 +2299,12 @@ func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) err
 			}
 			if next == nil {
 				for _, erule := range e.ir.Else[rule] {
-					copy(args, erule.Head.Args)
-					if len(args) == len(erule.Head.Args)+1 {
-						args[len(args)-1] = erule.Head.Value
+					copy(e.args, erule.Head.Args)
+					if numArgs == numHeadArgs+1 {
+						e.args[numArgs-1] = erule.Head.Value
 					}
 
-					next, err = e.evalOneRule(iter, erule, args, cacheKey, prev, findOne)
+					next, err = e.evalOneRule(iter, erule, prev, findOne)
 					if err != nil {
 						if oee, ok := err.(*deferredEarlyExitError); ok {
 							if outerEe == nil {
@@ -2320,12 +2325,12 @@ func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) err
 		}
 
 		if e.ir.Default != nil && prev == nil {
-			copy(args, e.ir.Default.Head.Args)
-			if len(args) == len(e.ir.Default.Head.Args)+1 {
-				args[len(args)-1] = e.ir.Default.Head.Value
+			copy(e.args, e.ir.Default.Head.Args)
+			if numArgs == len(e.ir.Default.Head.Args)+1 {
+				e.args[numArgs-1] = e.ir.Default.Head.Value
 			}
 
-			_, err := e.evalOneRule(iter, e.ir.Default, args, cacheKey, prev, findOne)
+			_, err := e.evalOneRule(iter, e.ir.Default, prev, findOne)
 
 			return err
 		}
@@ -2338,46 +2343,43 @@ func (e *evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) err
 	})
 }
 
-func (e *evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, error) {
+func (e *evalFunc) evalCache(argCount int, iter unifyIterator) (bool, error) {
 	plen := len(e.terms)
 	if plen == argCount+2 { // func name + output = 2
 		plen -= 1
 	}
 
-	cacheKey := make([]*ast.Term, plen)
+	e.cacheKey = slices.Grow(e.cacheKey, plen)[:plen]
 	for i := range plen {
-		if e.terms[i].IsGround() {
-			// Avoid expensive copying of ref if it is ground.
-			cacheKey[i] = e.terms[i]
-		} else {
-			cacheKey[i] = e.e.bindings.Plug(e.terms[i])
+		e.cacheKey[i] = e.terms[i] // Avoid expensive copying of ref if ground
+		if !e.terms[i].IsGround() {
+			e.cacheKey[i] = e.e.bindings.Plug(e.terms[i])
 		}
 	}
 
-	cached, _ := e.e.virtualCache.Get(cacheKey)
-	if cached != nil {
+	if cached, _ := e.e.virtualCache.Get(e.cacheKey); cached != nil {
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		if argCount == len(e.terms)-1 { // f(x)
 			if ast.Boolean(false).Equal(cached.Value) {
-				return nil, true, nil
+				return true, nil
 			}
-			return nil, true, iter()
+			return true, iter()
 		}
 		// f(x, y), y captured output value
-		return nil, true, e.e.unify(e.terms[len(e.terms)-1] /* y */, cached, iter)
+		return true, e.e.unify(e.terms[len(e.terms)-1] /* y */, cached, iter)
 	}
 	e.e.instr.counterIncr(evalOpVirtualCacheMiss)
-	return cacheKey, false, nil
+	return false, nil
 }
 
-func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.Term, cacheKey ast.Ref, prev *ast.Term, findOne bool) (*ast.Term, error) {
+func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term, findOne bool) (*ast.Term, error) {
 	child := evalPool.Get()
 	defer evalPool.Put(child)
 
 	// Optimization: pre-size bindings based on function argument count to reduce memory waste.
 	// Function argument count is known at compile time and most functions have < 10 arguments.
 	// This avoids allocating the default 16-slot array when only 2-3 bindings are needed.
-	sizeHint := len(args)
+	sizeHint := len(e.args)
 	e.e.childWithBindingSizeHint(rule.Body, child, sizeHint)
 	child.findOne = findOne
 
@@ -2385,25 +2387,26 @@ func (e *evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, args []*ast.T
 
 	child.traceEnter(rule)
 
-	err := child.biunifyTerms(e.terms[1:], args, e.e.bindings, child.bindings, func() error {
+	err := child.biunifyTerms(e.terms[1:], e.args, e.e.bindings, child.bindings, func() error {
 		return child.eval(func(child *eval) error {
 			child.traceExit(rule)
 			e.e.evaluated.Record(rule)
 
 			// Partial evaluation must save an expression that tests the output value if the output value
 			// was not captured to handle the case where the output value may be `false`.
-			if len(rule.Head.Args) == len(e.terms)-1 && e.e.saveSet.Contains(rule.Head.Value, child.bindings) {
+			noOutputCapture := len(rule.Head.Args) == len(e.terms)-1
+			if noOutputCapture && e.e.saveSet.Contains(rule.Head.Value, child.bindings) {
 				err := e.e.saveExpr(ast.NewExpr(rule.Head.Value), child.bindings, iter)
 				child.traceRedo(rule)
 				return err
 			}
 
 			result = child.bindings.Plug(rule.Head.Value)
-			if cacheKey != nil {
-				e.e.virtualCache.Put(cacheKey, result) // the redos confirm this, or the evaluation is aborted
+			if e.cacheKey != nil {
+				e.e.virtualCache.Put(e.cacheKey, result) // the redos confirm this, or the evaluation is aborted
 			}
 
-			if len(rule.Head.Args) == len(e.terms)-1 && ast.Boolean(false).Equal(result.Value) {
+			if noOutputCapture && ast.Boolean(false).Equal(result.Value) {
 				if prev != nil && !prev.Equal(result) {
 					return functionConflictErr(rule.Location)
 				}
