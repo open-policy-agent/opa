@@ -65,7 +65,7 @@ Read up on how the OPA community is using OPA.
 
 - [Control User Access and Permissions in CVAT with Open Policy Agent](https://medium.com/@nikman/control-user-access-and-permissions-in-cvat-with-open-policy-agent-a2abbd09774d)
 - [What Exposed OPA Servers Can Tell You About Your Applications](https://www.trendmicro.com/en_us/research/22/h/what-exposed-opa-servers-can-tell-you-about-your-applications-.html)
-- [Using XACML with OPA and Rego: The Best of Both Worlds](https://www.styra.com/blog/using-xacml-with-opa-and-rego-the-best-of-both-worlds/)
+- [Using XACML with OPA and Rego: The Best of Both Worlds](https://web.archive.org/web/https://www.styra.com/blog/using-xacml-with-opa-and-rego-the-best-of-both-worlds/)
 - [Authorize REST API with OPA (Japanese)](https://christina04.hatenablog.com/entry/opa-rest-api-authorization)
 - [Controlling Kafka Data Flows using Open Policy Agent](https://opencredo.com/blogs/controlling-kafka-data-flows-using-open-policy-agent/)
 - [Introduction of Open Policy Agent / Rego to realize Policy as Code](https://tech.isid.co.jp/entry/2021/12/05/Policy_as_Code%E3%82%92%E5%AE%9F%E7%8F%BE%E3%81%99%E3%82%8B_Open_Policy_Agent_/_Rego_%E3%81%AE%E7%B4%B9%E4%BB%8B) (Japanese)

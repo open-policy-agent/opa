@@ -47,7 +47,7 @@ This new builtin allows you to check if a set, array, or object is a subset of a
 
 - [Open Policy Agent (OPA) For Kubernetes](https://dev.to/thenjdevopsguy/open-policy-agent-opa-for-kubernetes-5895)
 - [High-Performance OPA](https://dimakorolev.substack.com/p/high-performance-opa)
-- [How to Shape OPA Data for Policy Performance](https://www.styra.com/blog/how-to-shape-opa-data-for-policy-performance/)
+- [How to Shape OPA Data for Policy Performance](https://web.archive.org/web/https://www.styra.com/blog/how-to-shape-opa-data-for-policy-performance/)
 
 ## Ecosystem
 
