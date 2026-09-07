@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestRegoV1Import
 cases:
   - note: errors/rego-v1-import/rego.v1 + alias
     rego_version: v0

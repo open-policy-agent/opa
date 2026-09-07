@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestRuleElseRefHeads
 cases:
   - note: errors/rule-else-ref-heads/multi-value ref head
     module: |

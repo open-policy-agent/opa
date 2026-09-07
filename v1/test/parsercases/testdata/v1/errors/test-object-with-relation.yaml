@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestObjectWithRelation
 cases:
   - note: errors/object-with-relation/invalid relation term value
     module: |

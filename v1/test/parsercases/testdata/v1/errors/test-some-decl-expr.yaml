@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestSomeDeclExpr
 cases:
   - note: errors/some-decl-expr/not some
     module: |

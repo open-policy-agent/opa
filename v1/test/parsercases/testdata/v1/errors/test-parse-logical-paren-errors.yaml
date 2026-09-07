@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestParseLogical_ParenErrors
 cases:
   - note: errors/parse-logical-paren-errors/empty group
     module: |

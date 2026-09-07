@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestHintsOnUnknownImport
 cases:
   - note: errors/hints-on-unknown-import/unknown
     module: |

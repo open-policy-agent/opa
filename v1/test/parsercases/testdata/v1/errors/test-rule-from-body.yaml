@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestRuleFromBody
 cases:
   - note: errors/rule-from-body/multiple expressions
     module: |

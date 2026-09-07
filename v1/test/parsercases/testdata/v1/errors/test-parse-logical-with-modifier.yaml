@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestParseLogical_WithModifier
 cases:
   - note: errors/parse-logical-with-modifier/and, with on lhs implicit operand is an error
     module: |

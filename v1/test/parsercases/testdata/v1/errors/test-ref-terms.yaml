@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestRefTerms
 cases:
   - note: errors/ref-terms/missing component 1
     module: |

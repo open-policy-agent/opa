@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestParseLogical_BraceLedOperandScope
 cases:
   - note: errors/parse-logical-brace-led-operand-scope/chain
     module: |

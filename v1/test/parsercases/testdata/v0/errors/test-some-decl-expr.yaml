@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestSomeDeclExpr
 cases:
   - note: errors/some-decl-expr/some x in ... usage is hinted properly
     rego_version: v0

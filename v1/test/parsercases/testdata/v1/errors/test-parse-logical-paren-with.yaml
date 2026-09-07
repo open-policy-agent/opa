@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestParseLogical_ParenWith
 cases:
   - note: errors/parse-logical-paren-with/mid-group with before and
     module: |

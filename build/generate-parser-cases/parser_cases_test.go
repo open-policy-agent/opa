@@ -197,10 +197,19 @@ func TestCapabilitiesFilter(t *testing.T) {
 				t.Fatalf("expected filtering to preserve order, got %q where %q was", tc.Note, ref.Note)
 			}
 
-			uses := ref.WantIR != nil && len(ref.WantIR.Static.BuiltinFuncs) > 0
-			if uses != tc.Ignore {
-				t.Errorf("%s: ignore is %v, but the plan %s a builtin outside the capabilities",
-					tc.Note, tc.Ignore, map[bool]string{true: "uses", false: "does not use"}[uses])
+			// A case is rejected for using a builtin the capabilities lack, not for
+			// using one at all: a plan calling only `plus` is runnable here.
+			var outside []string
+			if ref.WantIR != nil {
+				for _, b := range ref.WantIR.Static.BuiltinFuncs {
+					if b.Name != "plus" {
+						outside = append(outside, b.Name)
+					}
+				}
+			}
+			if want := len(outside) > 0; want != tc.Ignore {
+				t.Errorf("%s: ignore is %v, but the plan uses %v outside the capabilities",
+					tc.Note, tc.Ignore, outside)
 			}
 
 			if !tc.Ignore {

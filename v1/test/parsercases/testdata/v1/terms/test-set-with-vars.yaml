@@ -1,0 +1,141 @@
+---
+# Generated externalized tests from TestSetWithVars
+cases:
+  - note: terms/set-with-vars/var elements
+    module: |
+      package test
+
+      p := {foo, bar, 42}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "number",
+                    "value": 42
+                  },
+                  {
+                    "type": "var",
+                    "value": "bar"
+                  },
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  }
+                ]
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: terms/set-with-vars/nested var elements
+    module: |
+      package test
+
+      p := {[foo, true], {null, bar}, set()}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "array",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "boolean",
+                        "value": true
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": []
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "null",
+                        "value": {}
+                      },
+                      {
+                        "type": "var",
+                        "value": "bar"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }

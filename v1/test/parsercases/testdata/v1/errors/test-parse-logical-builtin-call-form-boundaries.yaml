@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestParseLogical_BuiltinCallFormBoundaries
 cases:
   - note: errors/parse-logical-builtin-call-form-boundaries/bare or, assigned
     module: |

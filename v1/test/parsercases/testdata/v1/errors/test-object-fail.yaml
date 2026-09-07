@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestObjectFail
 cases:
   - note: errors/object-fail/non-terminated 1
     module: |

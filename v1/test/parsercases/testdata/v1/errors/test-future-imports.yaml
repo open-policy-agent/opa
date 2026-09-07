@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestFutureImports
 cases:
   - note: errors/future-imports/future
     module: |

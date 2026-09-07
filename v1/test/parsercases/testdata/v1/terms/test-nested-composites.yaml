@@ -1,0 +1,80 @@
+---
+# Generated externalized tests from TestNestedComposites
+cases:
+  - note: terms/nested-composites/nested composites
+    module: |
+      package test
+
+      p := [{foo: ["bar", {baz}]}]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "object",
+                    "value": [
+                      [
+                        {
+                          "type": "var",
+                          "value": "foo"
+                        },
+                        {
+                          "type": "array",
+                          "value": [
+                            {
+                              "type": "string",
+                              "value": "bar"
+                            },
+                            {
+                              "type": "set",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "baz"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }

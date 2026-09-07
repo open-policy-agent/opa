@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestParseLogical_ParseErrors
 cases:
   - note: errors/parse-logical-parse-errors/bare and prefix
     module: |

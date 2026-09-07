@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestScalarTerms
 cases:
   - note: errors/scalar-terms/hex
     module: |

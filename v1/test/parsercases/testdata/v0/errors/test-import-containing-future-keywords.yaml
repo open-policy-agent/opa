@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestImportContainingFutureKeywords
 cases:
   - note: errors/import-containing-future-keywords/import and
     rego_version: v0

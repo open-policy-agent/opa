@@ -1,4 +1,5 @@
 ---
+# Generated externalized tests from TestParseLogical_EmptyBraceOperand
 cases:
   - note: errors/parse-logical-empty-brace-operand/lhs of and
     module: |
