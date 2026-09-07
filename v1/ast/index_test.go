@@ -2426,3 +2426,190 @@ r = local0 if {
 		})
 	}
 }
+
+// TestBaseDocEqIndexingAlternatingRefs covers a rule that reaches two
+// references by several values each. insertPath used to stop a rule's path at
+// the first of them -- it hung the rule off every alternative and returned --
+// so the second was not indexed and every rule stayed a candidate for it.
+// Ranking such references last cannot help: both are ranked last, and one is
+// still first of the two.
+func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
+	lookup := func(t *testing.T, index *baseDocEqIndex, resolver testResolver) int {
+		t.Helper()
+		result, err := index.Lookup(resolver)
+		if err != nil {
+			t.Fatalf("unexpected error during index lookup: %v", err)
+		}
+		return len(result.Rules)
+	}
+
+	// `x in <collection>` reaches the indexer as internal.member_2, which is
+	// the compiler's doing, so these go through it rather than the parser.
+	build := func(t *testing.T, module string) *baseDocEqIndex {
+		t.Helper()
+		c := MustCompileModules(map[string]string{"test.rego": module})
+		index := newBaseDocEqIndex(func(Ref) bool { return false })
+		if !index.Build(c.Modules["test.rego"].Rules) {
+			t.Fatal("expected index build to succeed")
+		}
+		return index
+	}
+
+	t.Run("both references prune", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.subject in ["alice", "bob"]
+			input.action in ["read", "list"]
+		}
+		p if {
+			input.subject in ["alice", "carol"]
+			input.action in ["write", "delete"]
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"subject": "alice", "action": "read"}`, 1},
+			{`{"subject": "alice", "action": "write"}`, 1},
+			{`{"subject": "bob", "action": "read"}`, 1},
+			{`{"subject": "bob", "action": "write"}`, 0},  // bob is not in the second rule
+			{`{"subject": "carol", "action": "read"}`, 0}, // carol is not in the first
+			{`{"subject": "alice", "action": "nope"}`, 0}, // neither action matches
+			{`{"subject": "dave", "action": "read"}`, 0},  // neither subject matches
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	t.Run("three references prune", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.a in [1, 2]
+			input.b in [3, 4]
+			input.c in [5, 6]
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"a": 1, "b": 3, "c": 5}`, 1},
+			{`{"a": 2, "b": 4, "c": 6}`, 1},
+			{`{"a": 1, "b": 3, "c": 7}`, 0},
+			{`{"a": 1, "b": 9, "c": 5}`, 0},
+			{`{"a": 9, "b": 3, "c": 5}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	// An affix's alternatives are leaves of the prefix trie, which cannot point
+	// several of them at one node, so a rule that reaches a reference by several
+	// of them still stops there. Two such references and the second is unindexed,
+	// so the lookup over-approximates -- it must never miss a rule that can hold.
+	t.Run("two references reached by affixes still stop the path", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			strings.any_prefix_match(input.path, ["/a", "/b"])
+			strings.any_suffix_match(input.name, [".go", ".rego"])
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"path": "/a/x", "name": "q.go"}`, 1},
+			{`{"path": "/c/x", "name": "q.go"}`, 0},
+			// The suffixes are not indexed below the prefixes, so the rule is
+			// still a candidate. Over-approximating is sound; missing it is not.
+			{`{"path": "/a/x", "name": "q.txt"}`, 1},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	// A terminal reference is ranked after a converging one, so the `in` gets to
+	// converge and the affixes end the path once everything else is on it. Which
+	// the author wrote first does not decide it.
+	t.Run("an affix and an in collection are both indexed, either order", func(t *testing.T) {
+		for _, module := range []string{
+			`package test
+			p if {
+				strings.any_prefix_match(input.path, ["/a", "/b"])
+				input.x in {1, 2}
+			}`,
+			`package test
+			p if {
+				input.x in {1, 2}
+				strings.any_prefix_match(input.path, ["/a", "/b"])
+			}`,
+		} {
+			index := build(t, module)
+
+			for _, tc := range []struct {
+				input string
+				exp   int
+			}{
+				{`{"path": "/a/z", "x": 1}`, 1},
+				{`{"path": "/a/z", "x": 9}`, 0}, // the `in` prunes
+				{`{"path": "/c/z", "x": 1}`, 0}, // the prefixes prune
+			} {
+				if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+					t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+				}
+			}
+		}
+	})
+
+	// One affix is a single value, so it stays on the path and the alternatives
+	// that follow it are the ones that stop it.
+	t.Run("a single affix is indexed alongside the alternatives", func(t *testing.T) {
+		index := build(t, `package test
+		p if {
+			input.subject in ["alice", "bob"]
+			startswith(input.path, "/v1/")
+		}`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"subject": "alice", "path": "/v1/things"}`, 1},
+			{`{"subject": "dave", "path": "/v1/things"}`, 0},
+			{`{"subject": "alice", "path": "/v2/things"}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+
+	// The membership is the only thing the rule constrains, so there is no path
+	// to continue and the alternatives stay separate children -- which rules
+	// with overlapping collections share.
+	t.Run("nothing below the alternatives", func(t *testing.T) {
+		index := build(t, `package test
+		p if input.subject in ["alice", "bob"]
+		p if input.subject in ["alice", "carol"]`)
+
+		for _, tc := range []struct {
+			input string
+			exp   int
+		}{
+			{`{"subject": "alice"}`, 2},
+			{`{"subject": "bob"}`, 1},
+			{`{"subject": "dave"}`, 0},
+		} {
+			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
+				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
+			}
+		}
+	})
+}

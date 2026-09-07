@@ -218,15 +218,21 @@ Statements joined by the [`and` and `or` keywords](./policy-reference/keywords/l
 
 #### Several values for one reference
 
-Some statements leave a rule with more than one value for a single reference: `strings.any_prefix_match` with several base strings, or `in` over a literal collection. The rule is indexed under each of those values, and that reference is the last level of the index the rule appears on — whatever it constrains below is left to evaluation.
+Some statements leave a rule with more than one value for a single reference: `strings.any_prefix_match` with several base strings, or `in` over a collection. The rule is indexed under each of those values.
 
-The indexer orders such references after every other one, so a rule's single-valued constraints are indexed first and only the reference carrying the alternatives ends its path. A rule that has alternatives for one reference is therefore still indexed on everything else it constrains; a rule that has them for two is indexed on only one of the two.
+Where the rule is indexed below that reference depends on the statement. The values of an `in` collection converge on one continuation, so the rule goes on being indexed on everything else it constrains, however many such references it has. The base strings of a `strings.any_prefix_match` or `strings.any_suffix_match` are leaves of the radix trie described above, which cannot converge, so that reference is the last level of the index the rule appears on — whatever it constrains below is left to evaluation.
 
-| Rule body                                                                   | Indexed on      |
-| --------------------------------------------------------------------------- | --------------- |
-| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.method == "GET"` | both references |
-| `input.x in {1, 2}; input.y == 3`                                           | both references |
-| `input.x in {1, 2}; input.y in {3, 4}`                                      | one of the two  |
+The indexer orders references carrying alternatives after every other one, so a rule's single-valued constraints are indexed first either way.
+
+| Rule body                                                                                              | Indexed on      |
+| ------------------------------------------------------------------------------------------------------ | --------------- |
+| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.method == "GET"`                            | both references |
+| `input.x in {1, 2}; input.y == 3`                                                                      | both references |
+| `input.x in {1, 2}; input.y in {3, 4}`                                                                 | both references |
+| `strings.any_prefix_match(input.path, ["/a", "/b"]); input.x in {1, 2}`                                | both references |
+| `strings.any_prefix_match(input.p, ["/a", "/b"]); strings.any_suffix_match(input.n, [".go", ".rego"])` | one of the two  |
+
+A reference reached by base strings is ordered after one reached by an `in` collection, so only a rule that reaches _two_ references by base strings loses one of them — and which of the two the author wrote first does not decide which is lost.
 
 #### References rooted at a local variable
 

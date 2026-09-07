@@ -99,6 +99,26 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		}
 	}
 
+	if alt := node.alternatives(); alt != nil {
+		for _, conv := range alt.converged {
+			var keys []Value
+			alt.members.Iter(func(k Value, nodes []*trieNode) bool {
+				if slices.Contains(nodes, conv) {
+					keys = append(keys, k)
+				}
+				return false
+			})
+			slices.SortFunc(keys, Value.Compare)
+
+			if _, childExists := nodeIDs[conv]; !childExists {
+				conv.mermaidFormat(sb, counter, nodeIDs, "")
+			}
+			for _, k := range keys {
+				fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", currentID, mermaidEscape(k.String()), nodeIDs[conv])
+			}
+		}
+	}
+
 	for _, p := range node.prefixes().walk() {
 		if childID, childExists := nodeIDs[p.node]; childExists {
 			fmt.Fprintf(sb, "  %s -->|\"%s*\"| %s\n", currentID, mermaidEscape(p.prefix), childID)
@@ -239,6 +259,32 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		sb.WriteString(indent)
 		sb.WriteString("  array:\n")
 		node.array().format(sb, depth+2)
+	}
+
+	// Several values reaching one node, so the node is printed under the first
+	// of them and the rest name it (see alternativeChildren).
+	if alt := node.alternatives(); alt != nil {
+		for i, conv := range alt.converged {
+			var keys []Value
+			alt.members.Iter(func(k Value, nodes []*trieNode) bool {
+				if slices.Contains(nodes, conv) {
+					keys = append(keys, k)
+				}
+				return false
+			})
+			slices.SortFunc(keys, Value.Compare)
+
+			sb.WriteString(indent)
+			sb.WriteString("  any of ")
+			for j, k := range keys {
+				if j > 0 {
+					sb.WriteString(", ")
+				}
+				sb.WriteString(k.String())
+			}
+			fmt.Fprintf(sb, " -> #%d:\n", i)
+			conv.format(sb, depth+2)
+		}
 	}
 
 	for _, p := range node.prefixes().walk() {

@@ -478,7 +478,7 @@ func (i *refindices) insertAffixes(rule *Rule, ref Ref, bases []Value, a affix) 
 	i.rules[rule] = indices[:pos]
 
 	if concrete > 1 {
-		i.alternate(ref)
+		i.alternate(ref, alternationTerminal)
 	}
 }
 
