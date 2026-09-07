@@ -1,0 +1,86 @@
+---
+cases:
+  - note: errors/import-containing-future-keywords/import and
+    module: |
+      package test
+
+      import and
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: and (hint: if this is unexpected, try updating OPA)'
+  - note: errors/import-containing-future-keywords/import and.foo
+    module: |
+      package test
+
+      import and.foo
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: and (hint: if this is unexpected, try updating OPA)'
+  - note: errors/import-containing-future-keywords/import and["foo"]
+    module: |
+      package test
+
+      import and["foo"]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: and (hint: if this is unexpected, try updating OPA)'
+  - note: errors/import-containing-future-keywords/import data.foo as and
+    module: |
+      package test
+
+      import future.keywords.and
+
+      import data.foo as and
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 20
+        message: 'unexpected and keyword: expected var'
+  - note: errors/import-containing-future-keywords/import or
+    module: |
+      package test
+
+      import or
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: or (hint: if this is unexpected, try updating OPA)'
+  - note: errors/import-containing-future-keywords/import or.foo
+    module: |
+      package test
+
+      import or.foo
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: or (hint: if this is unexpected, try updating OPA)'
+  - note: errors/import-containing-future-keywords/import or["foo"]
+    module: |
+      package test
+
+      import or["foo"]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: or (hint: if this is unexpected, try updating OPA)'
+  - note: errors/import-containing-future-keywords/import data.foo as or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      import data.foo as or
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 20
+        message: 'unexpected or keyword: expected var'
