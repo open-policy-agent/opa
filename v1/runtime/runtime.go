@@ -783,7 +783,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 	}()
 
 	rt.server.Handler = NewLoggingHandler(rt.logger, rt.server.Handler)
-	rt.server.DiagnosticHandler = NewLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
+	rt.server.DiagnosticHandler = NewDiagnosticLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
 
 	rt.setServerStatus(ServerWaitingForPlugins)
 
