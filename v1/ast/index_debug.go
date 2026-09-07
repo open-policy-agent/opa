@@ -27,8 +27,7 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		currentID = fmt.Sprintf("n%d", *counter)
 		*counter++
 		nodeIDs[node] = currentID
-		label := node.mermaidLabel()
-		fmt.Fprintf(sb, "  %s[\"%s\"]\n", currentID, label)
+		fmt.Fprintf(sb, "  %s[\"%s\"]\n", currentID, node.mermaidLabel())
 	}
 
 	if parentID != "" {
@@ -39,142 +38,96 @@ func (node *trieNode) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs m
 		return
 	}
 
-	if node.undefined() != nil {
-		if childID, childExists := nodeIDs[node.undefined()]; childExists {
-			fmt.Fprintf(sb, "  %s -->|undefined| %s\n", currentID, childID)
-		} else {
-			node.undefined().mermaidFormat(sb, counter, nodeIDs, "")
-			fmt.Fprintf(sb, "  %s -->|undefined| %s\n", currentID, nodeIDs[node.undefined()])
-		}
+	node.next.mermaidFormat(sb, counter, nodeIDs, currentID)
+}
+
+// mermaidEdge draws one way of matching the level's reference, emitting the
+// child first if this is where it is reached from.
+func mermaidEdge(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, from, label string, child *trieNode) {
+	if child == nil {
+		return
+	}
+	if _, exists := nodeIDs[child]; !exists {
+		child.mermaidFormat(sb, counter, nodeIDs, "")
+	}
+	fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", from, mermaidEscape(label), nodeIDs[child])
+}
+
+func (d *levelDetail) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, from string) {
+	if d == nil {
+		return
 	}
 
-	if node.any() != nil {
-		if childID, childExists := nodeIDs[node.any()]; childExists {
-			fmt.Fprintf(sb, "  %s -->|any| %s\n", currentID, childID)
-		} else {
-			node.any().mermaidFormat(sb, counter, nodeIDs, "")
-			fmt.Fprintf(sb, "  %s -->|any| %s\n", currentID, nodeIDs[node.any()])
-		}
-	}
+	mermaidEdge(sb, counter, nodeIDs, from, "undefined", d.undefined)
+	mermaidEdge(sb, counter, nodeIDs, from, "any", d.any)
 
-	if node.scalars().Len() > 0 {
-		type scalarPair struct {
-			key  Value
-			node *trieNode
-		}
-		pairs := make([]scalarPair, 0, node.scalars().Len())
-		node.scalars().Iter(func(key Value, val *trieNode) bool {
-			pairs = append(pairs, scalarPair{key, val})
+	d.scalars.Iter(func(key Value, child *trieNode) bool {
+		mermaidEdge(sb, counter, nodeIDs, from, key.String(), child)
+		return false
+	})
+
+	if d.alternatives != nil {
+		d.alternatives.members.Iter(func(key Value, nodes []*trieNode) bool {
+			for _, child := range nodes {
+				mermaidEdge(sb, counter, nodeIDs, from, key.String(), child)
+			}
 			return false
 		})
-		slices.SortFunc(pairs, func(a, b scalarPair) int {
-			return a.key.Compare(b.key)
-		})
-		for _, pair := range pairs {
-			var scalarLabel string
-			if s, ok := pair.key.(String); ok {
-				scalarLabel = string(s)
-			} else {
-				scalarLabel = pair.key.String()
-			}
-			if len(scalarLabel) > 20 {
-				scalarLabel = scalarLabel[:20] + "..."
-			}
-			scalarLabel = mermaidEscape(scalarLabel)
-			if childID, childExists := nodeIDs[pair.node]; childExists {
-				fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", currentID, scalarLabel, childID)
-			} else {
-				pair.node.mermaidFormat(sb, counter, nodeIDs, "")
-				fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", currentID, scalarLabel, nodeIDs[pair.node])
-			}
-		}
 	}
 
-	if node.array() != nil {
-		if childID, childExists := nodeIDs[node.array()]; childExists {
-			fmt.Fprintf(sb, "  %s -->|array| %s\n", currentID, childID)
-		} else {
-			node.array().mermaidFormat(sb, counter, nodeIDs, "")
-			fmt.Fprintf(sb, "  %s -->|array| %s\n", currentID, nodeIDs[node.array()])
-		}
-	}
-
-	if alt := node.alternatives(); alt != nil {
-		for _, conv := range alt.converged {
-			var keys []Value
-			alt.members.Iter(func(k Value, nodes []*trieNode) bool {
-				if slices.Contains(nodes, conv) {
-					keys = append(keys, k)
-				}
-				return false
-			})
-			slices.SortFunc(keys, Value.Compare)
-
-			if _, childExists := nodeIDs[conv]; !childExists {
-				conv.mermaidFormat(sb, counter, nodeIDs, "")
-			}
-			for _, k := range keys {
-				fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", currentID, mermaidEscape(k.String()), nodeIDs[conv])
-			}
-		}
-	}
-
-	for _, p := range node.prefixes().walk() {
-		if childID, childExists := nodeIDs[p.node]; childExists {
-			fmt.Fprintf(sb, "  %s -->|\"%s*\"| %s\n", currentID, mermaidEscape(p.prefix), childID)
-		} else {
-			p.node.mermaidFormat(sb, counter, nodeIDs, "")
-			fmt.Fprintf(sb, "  %s -->|\"%s*\"| %s\n", currentID, mermaidEscape(p.prefix), nodeIDs[p.node])
-		}
+	for _, p := range d.prefixes.walk() {
+		mermaidEdge(sb, counter, nodeIDs, from, p.prefix+"*", p.node)
 	}
 
 	// A suffix trie holds its bases reversed (see affixTries), so what it
 	// walks back is what was written.
-	for _, p := range node.suffixes().walk() {
-		label := "*" + reverseString(p.prefix)
-		if childID, childExists := nodeIDs[p.node]; childExists {
-			fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", currentID, mermaidEscape(label), childID)
-		} else {
-			p.node.mermaidFormat(sb, counter, nodeIDs, "")
-			fmt.Fprintf(sb, "  %s -->|\"%s\"| %s\n", currentID, mermaidEscape(label), nodeIDs[p.node])
-		}
+	for _, p := range d.suffixes.walk() {
+		mermaidEdge(sb, counter, nodeIDs, from, "*"+reverseString(p.prefix), p.node)
 	}
 
-	if node.next != nil {
-		node.next.mermaidFormat(sb, counter, nodeIDs, currentID)
+	d.array.mermaidFormat(sb, counter, nodeIDs, from, "array")
+}
+
+func (a *arrayTrie) mermaidFormat(sb *strings.Builder, counter *int, nodeIDs map[*trieNode]string, from, label string) {
+	if a == nil {
+		return
 	}
+
+	mermaidEdge(sb, counter, nodeIDs, from, label, a.end)
+	a.any.mermaidFormat(sb, counter, nodeIDs, from, label+" any")
+	a.scalars.Iter(func(key Value, child *arrayTrie) bool {
+		child.mermaidFormat(sb, counter, nodeIDs, from, label+" "+key.String())
+		return false
+	})
 }
 
 func (node *trieNode) mermaidLabel() string {
 	var parts []string
 
-	if len(node.ref()) > 0 {
-		parts = append(parts, node.ref().String())
+	if node.next != nil && len(node.next.ref) > 0 {
+		parts = append(parts, node.next.ref.String())
 	}
 
-	if len(node.rules) > 0 {
-		for _, rn := range node.rules {
-			bodyStr := ""
-			if rn.rule.Body != nil {
-				bodyStr = rn.rule.Body.String()
-				if len(bodyStr) > 50 {
-					bodyStr = bodyStr[:50] + "..."
-				}
+	for _, rn := range node.rules {
+		bodyStr := ""
+		if rn.rule.Body != nil {
+			bodyStr = rn.rule.Body.String()
+			if len(bodyStr) > 50 {
+				bodyStr = bodyStr[:50] + "..."
 			}
-			bodyStr = mermaidEscape(bodyStr)
-			parts = append(parts, bodyStr)
 		}
+		parts = append(parts, mermaidEscape(bodyStr))
 	}
 
-	if len(node.mappers()) > 0 {
-		parts = append(parts, fmt.Sprintf("%d mapper(s)", len(node.mappers())))
+	if node.next != nil && len(node.next.mappers) > 0 {
+		parts = append(parts, fmt.Sprintf("%d mapper(s)", len(node.next.mappers)))
 	}
 	if node.multiple {
 		parts = append(parts, "multiple")
 	}
 
 	if len(parts) == 0 {
-		return "·"
+		return "\u00b7"
 	}
 
 	return strings.Join(parts, "<br/>")
@@ -192,24 +145,21 @@ func (node *trieNode) String() string {
 }
 
 func (node *trieNode) format(sb *strings.Builder, depth int) {
-	indent := strings.Repeat("  ", depth)
-
-	if len(node.ref()) > 0 {
-		sb.WriteString(indent)
-		sb.WriteString(node.ref().String())
-	} else if depth == 0 {
-		sb.WriteString("root")
+	if node == nil {
+		return
 	}
 
+	indent := strings.Repeat("  ", depth)
+
+	if depth == 0 {
+		sb.WriteString("root")
+	} else {
+		sb.WriteString(indent)
+	}
 	if len(node.rules) > 0 {
 		sb.WriteString(" [")
 		util.WriteInt(sb, len(node.rules))
 		sb.WriteString(" rule(s)]")
-	}
-	if len(node.mappers()) > 0 {
-		sb.WriteString(" [")
-		util.WriteInt(sb, len(node.mappers()))
-		sb.WriteString(" mapper(s)]")
 	}
 	if node.value != nil {
 		sb.WriteString(" value=")
@@ -220,53 +170,64 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 	}
 	sb.WriteByte('\n')
 
-	if node.undefined() != nil {
+	node.next.format(sb, depth)
+}
+
+// format prints the level below a node: the reference it resolves, and a line
+// per way of matching it.
+func (d *levelDetail) format(sb *strings.Builder, depth int) {
+	if d == nil {
+		return
+	}
+
+	indent := strings.Repeat("  ", depth)
+
+	if len(d.ref) > 0 {
+		sb.WriteString(indent)
+		sb.WriteString(d.ref.String())
+		if len(d.mappers) > 0 {
+			sb.WriteString(" [")
+			util.WriteInt(sb, len(d.mappers))
+			sb.WriteString(" mapper(s)]")
+		}
+		sb.WriteByte('\n')
+	}
+
+	if d.undefined != nil {
 		sb.WriteString(indent)
 		sb.WriteString("  undefined:\n")
-		node.undefined().format(sb, depth+2)
+		d.undefined.format(sb, depth+2)
 	}
 
-	if node.any() != nil {
+	if d.any != nil {
 		sb.WriteString(indent)
 		sb.WriteString("  any:\n")
-		node.any().format(sb, depth+2)
+		d.any.format(sb, depth+2)
 	}
 
-	if node.scalars().Len() > 0 {
-		scalars := make([]Value, 0, node.scalars().Len())
-		nodes := make([]*trieNode, 0, node.scalars().Len())
-		node.scalars().Iter(func(key Value, val *trieNode) bool {
+	if d.scalars.Len() > 0 {
+		scalars := make([]Value, 0, d.scalars.Len())
+		d.scalars.Iter(func(key Value, _ *trieNode) bool {
 			scalars = append(scalars, key)
-			nodes = append(nodes, val)
 			return false
 		})
 		slices.SortFunc(scalars, Value.Compare)
-		for i := range scalars {
+		for _, k := range scalars {
+			child, _ := d.scalars.Get(k)
 			sb.WriteString(indent)
 			sb.WriteString("  ")
-			sb.WriteString(scalars[i].String())
+			sb.WriteString(k.String())
 			sb.WriteString(":\n")
-			for j := range nodes {
-				if ValueEqual(scalars[i], scalars[j]) {
-					nodes[j].format(sb, depth+2)
-					break
-				}
-			}
+			child.format(sb, depth+2)
 		}
 	}
 
-	if node.array() != nil {
-		sb.WriteString(indent)
-		sb.WriteString("  array:\n")
-		node.array().format(sb, depth+2)
-	}
-
-	// Several values reaching one node, so the node is printed under the first
-	// of them and the rest name it (see alternativeChildren).
-	if alt := node.alternatives(); alt != nil {
-		for i, conv := range alt.converged {
+	// Several values reaching one node, so the node is printed once and the
+	// values that reach it are named together (see alternativeChildren).
+	if d.alternatives != nil {
+		for i, conv := range d.alternatives.converged {
 			var keys []Value
-			alt.members.Iter(func(k Value, nodes []*trieNode) bool {
+			d.alternatives.members.Iter(func(k Value, nodes []*trieNode) bool {
 				if slices.Contains(nodes, conv) {
 					keys = append(keys, k)
 				}
@@ -287,7 +248,13 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		}
 	}
 
-	for _, p := range node.prefixes().walk() {
+	if d.array != nil {
+		sb.WriteString(indent)
+		sb.WriteString("  array:\n")
+		d.array.format(sb, depth+2)
+	}
+
+	for _, p := range d.prefixes.walk() {
 		sb.WriteString(indent)
 		sb.WriteString(`  prefix "`)
 		sb.WriteString(p.prefix)
@@ -295,15 +262,42 @@ func (node *trieNode) format(sb *strings.Builder, depth int) {
 		p.node.format(sb, depth+2)
 	}
 
-	for _, p := range node.suffixes().walk() {
+	for _, p := range d.suffixes.walk() {
 		sb.WriteString(indent)
 		sb.WriteString(`  suffix "`)
 		sb.WriteString(reverseString(p.prefix))
 		sb.WriteString("\":\n")
 		p.node.format(sb, depth+2)
 	}
+}
 
-	if node.next != nil {
-		node.next.format(sb, depth)
+func (a *arrayTrie) format(sb *strings.Builder, depth int) {
+	if a == nil {
+		return
+	}
+
+	indent := strings.Repeat("  ", depth)
+
+	a.end.format(sb, depth)
+
+	if a.any != nil {
+		sb.WriteString(indent)
+		sb.WriteString("  any:\n")
+		a.any.format(sb, depth+2)
+	}
+
+	keys := make([]Value, 0, a.scalars.Len())
+	a.scalars.Iter(func(k Value, _ *arrayTrie) bool {
+		keys = append(keys, k)
+		return false
+	})
+	slices.SortFunc(keys, Value.Compare)
+	for _, k := range keys {
+		child, _ := a.scalars.Get(k)
+		sb.WriteString(indent)
+		sb.WriteString("  ")
+		sb.WriteString(k.String())
+		sb.WriteString(":\n")
+		child.format(sb, depth+2)
 	}
 }

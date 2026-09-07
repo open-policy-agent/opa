@@ -1113,9 +1113,8 @@ func (tr *trieTraversalResult) Add(t *trieNode) {
 }
 
 type trieNode struct {
-	// detail is what only a level node has; see levelDetail.
-	detail   *levelDetail
-	next     *trieNode
+	// next is the level below this node, nil where the paths under it end.
+	next     *levelDetail
 	rules    []*ruleNode
 	value    *Term
 	multiple bool
@@ -1170,7 +1169,7 @@ type levelDetail struct {
 	ref          Ref
 	any          *trieNode
 	undefined    *trieNode
-	array        *trieNode
+	array        *arrayTrie
 	scalars      *util.HasherMap[Value, *trieNode]
 	mappers      []*valueMapper
 	prefixes     *prefixTrie
@@ -1202,85 +1201,24 @@ func newTrieNodeImpl() *trieNode {
 	return &trieNode{}
 }
 
-func (node *trieNode) ref() Ref {
-	if node.detail == nil {
-		return nil
-	}
-	return node.detail.ref
+// level returns the level below node, creating it if this is the first rule to
+// be discriminated there.
+func (node *trieNode) level() *levelDetail {
+	node.next = util.Or(node.next, newLevelDetail)
+	return node.next
 }
 
-func (node *trieNode) any() *trieNode {
-	if node.detail == nil {
-		return nil
-	}
-	return node.detail.any
-}
-
-func (node *trieNode) undefined() *trieNode {
-	if node.detail == nil {
-		return nil
-	}
-	return node.detail.undefined
-}
-
-func (node *trieNode) array() *trieNode {
-	if node.detail == nil {
-		return nil
-	}
-	return node.detail.array
-}
-
-func (node *trieNode) scalars() *util.HasherMap[Value, *trieNode] {
-	if node.detail == nil {
-		return nil
-	}
-	return node.detail.scalars
-}
-
-func (node *trieNode) prefixes() *prefixTrie {
-	if node.detail == nil {
-		return nil
-	}
-	return node.detail.prefixes
-}
-
-func (node *trieNode) suffixes() *prefixTrie {
-	if node.detail == nil {
-		return nil
-	}
-	return node.detail.suffixes
-}
-
-func (node *trieNode) alternatives() *alternativeChildren {
-	if node.detail == nil {
-		return nil
-	}
-	return node.detail.alternatives
-}
-
-func (node *trieNode) converged() []*trieNode {
-	if alt := node.alternatives(); alt != nil {
-		return alt.converged
+func (d *levelDetail) converged() []*trieNode {
+	if d != nil && d.alternatives != nil {
+		return d.alternatives.converged
 	}
 	return nil
 }
 
-func (node *trieNode) mappers() []*valueMapper {
-	if node.detail == nil {
-		return nil
-	}
-	return node.detail.mappers
-}
-
-func (node *trieNode) levelDetail() *levelDetail {
-	node.detail = util.Or(node.detail, newLevelDetail)
-	return node.detail
-}
-
 // affixTrie returns the trie for one end of the value, creating it and the
 // detail that holds it on first use.
-func (node *trieNode) affixTrie(a affix) *prefixTrie {
-	detail := node.levelDetail()
+func (d *levelDetail) affixTrie(a affix) *prefixTrie {
+	detail := d
 
 	switch a {
 	case affixSuffix:
@@ -1313,22 +1251,29 @@ func (node *trieNode) Do(walker trieWalker) {
 		return
 	}
 
-	node.any().Do(next)
-	node.undefined().Do(next)
+	node.next.do(next)
+}
 
-	node.scalars().Iter(func(_ Value, child *trieNode) bool {
-		child.Do(next)
+func (d *levelDetail) do(walker trieWalker) {
+	if d == nil {
+		return
+	}
+
+	d.any.Do(walker)
+	d.undefined.Do(walker)
+
+	d.scalars.Iter(func(_ Value, child *trieNode) bool {
+		child.Do(walker)
 		return false
 	})
 
-	for _, child := range node.converged() {
-		child.Do(next)
+	for _, child := range d.converged() {
+		child.Do(walker)
 	}
 
-	node.prefixes().do(next)
-	node.suffixes().do(next)
-	node.array().Do(next)
-	node.next.Do(next)
+	d.prefixes.do(walker)
+	d.suffixes.do(walker)
+	d.array.do(walker)
 }
 
 // compact walks the trie once the index is built and releases what its slices
@@ -1338,25 +1283,32 @@ func (node *trieNode) compact() {
 		return
 	}
 
-	node.prefixes().compact()
-	node.suffixes().compact()
-
-	node.any().compact()
-	node.undefined().compact()
-	node.array().compact()
 	node.next.compact()
+}
 
-	for _, child := range node.converged() {
+func (d *levelDetail) compact() {
+	if d == nil {
+		return
+	}
+
+	d.prefixes.compact()
+	d.suffixes.compact()
+
+	d.any.compact()
+	d.undefined.compact()
+	d.array.compact()
+
+	for _, child := range d.converged() {
 		child.compact()
 	}
 
-	node.scalars().Iter(func(_ Value, child *trieNode) bool {
+	d.scalars.Iter(func(_ Value, child *trieNode) bool {
 		child.compact()
 		return false
 	})
 
-	if alt := node.alternatives(); alt != nil {
-		alt.converged = slices.Clip(alt.converged)
+	if d.alternatives != nil {
+		d.alternatives.converged = slices.Clip(d.alternatives.converged)
 	}
 }
 
@@ -1365,12 +1317,8 @@ func (node *trieNode) compact() {
 // keys to that node, so what the rule constrains below is built once instead of
 // repeated under each alternative.
 func (node *trieNode) insertAlternatives(ref Ref, values []*refindex) *trieNode {
-	if node.next == nil {
-		node.next = newTrieNodeImpl()
-		node.next.levelDetail().ref = ref
-	}
-
-	level := node.next.levelDetail()
+	level := node.level()
+	level.ref = ref
 	level.alternatives = util.Or(level.alternatives, newAlternativeChildren)
 	alt := level.alternatives
 
@@ -1379,7 +1327,7 @@ func (node *trieNode) insertAlternatives(ref Ref, values []*refindex) *trieNode 
 
 	for _, val := range values {
 		if val.Mapper != nil {
-			node.next.addMapper(val.Mapper)
+			level.addMapper(val.Mapper)
 		}
 		nodes, _ := alt.members.Get(val.Value)
 		alt.members.Put(val.Value, append(nodes, converge))
@@ -1395,16 +1343,14 @@ func newAlternativeChildren() *alternativeChildren {
 }
 
 func (node *trieNode) Insert(ref Ref, value Value, mapper *valueMapper) *trieNode {
-	if node.next == nil {
-		node.next = newTrieNodeImpl()
-		node.next.levelDetail().ref = ref
-	}
+	level := node.level()
+	level.ref = ref
 
 	if mapper != nil {
-		node.next.addMapper(mapper)
+		level.addMapper(mapper)
 	}
 
-	return node.next.insertValue(value)
+	return level.insertValue(value)
 }
 
 func (node *trieNode) Traverse(resolver ValueResolver, tr *trieTraversalResult) error {
@@ -1417,8 +1363,8 @@ func (node *trieNode) Traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	return node.next.traverse(resolver, tr)
 }
 
-func (node *trieNode) addMapper(mapper *valueMapper) {
-	detail := node.levelDetail()
+func (d *levelDetail) addMapper(mapper *valueMapper) {
+	detail := d
 	for i := range detail.mappers {
 		if detail.mappers[i].Key == mapper.Key {
 			return
@@ -1427,8 +1373,8 @@ func (node *trieNode) addMapper(mapper *valueMapper) {
 	detail.mappers = append(detail.mappers, mapper)
 }
 
-func (node *trieNode) insertValue(value Value) *trieNode {
-	detail := node.levelDetail()
+func (d *levelDetail) insertValue(value Value) *trieNode {
+	detail := d
 
 	switch value := value.(type) {
 	case nil:
@@ -1446,8 +1392,8 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 		}
 		return child
 	case *Array:
-		detail.array = util.Or(detail.array, newTrieNodeImpl)
-		return detail.array.insertArray(value)
+		detail.array = util.Or(detail.array, newArrayTrie)
+		return detail.array.insert(value)
 
 	// `x in <collection>` (see updateMemberRefInValue) inserts each element of
 	// the literal collection as-is, without restricting it to scalars/arrays
@@ -1465,52 +1411,136 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 	panic("illegal value")
 }
 
-func (node *trieNode) insertArray(arr *Array) *trieNode {
+// arrayTrie dispatches on the elements of an array, one node per position. A
+// position dispatches the element after it and ends a rule's array, which a
+// trieNode cannot hold at once.
+type arrayTrie struct {
+	any     *arrayTrie
+	scalars *util.HasherMap[Value, *arrayTrie]
+	// end is where a rule whose array ends at this position continues.
+	end *trieNode
+}
+
+func newArrayTrie() *arrayTrie {
+	return &arrayTrie{}
+}
+
+func newArrayChildren() *util.HasherMap[Value, *arrayTrie] {
+	return util.NewHasherMap[Value, *arrayTrie](ValueEqual)
+}
+
+// insert returns the node the rule's path continues from once arr is consumed.
+func (a *arrayTrie) insert(arr *Array) *trieNode {
 	if arr.Len() == 0 {
-		return node
+		a.end = util.Or(a.end, newTrieNodeImpl)
+		return a.end
 	}
 
-	detail := node.levelDetail()
-
 	switch head := arr.Elem(0).Value.(type) {
-	case Var:
-		detail.any = util.Or(detail.any, newTrieNodeImpl)
-		return detail.any.insertArray(arr.Slice(1, -1))
 	case Null, Boolean, Number, String:
-		child, ok := detail.scalars.Get(head)
+		child, ok := a.scalars.Get(head)
 		if !ok {
-			child = newTrieNodeImpl()
-			detail.scalars = util.Or(detail.scalars, newScalarChildren)
-			detail.scalars.Put(head, child)
+			child = newArrayTrie()
+			a.scalars = util.Or(a.scalars, newArrayChildren)
+			a.scalars.Put(head, child)
 		}
-		return child.insertArray(arr.Slice(1, -1))
+		return child.insert(arr.Slice(1, -1))
 
-	// Same reasoning as in insertValue above: an array element can itself be
-	// a nested array, object, or set, none of which can be indexed precisely
-	// at this position, so fall back to "any" and keep indexing the
-	// remaining elements.
-	case *Array, Object, Set:
-		detail.any = util.Or(detail.any, newTrieNodeImpl)
-		return detail.any.insertArray(arr.Slice(1, -1))
+	// An element that is itself an array, object or set cannot be indexed
+	// precisely at this position, so -- as for a var -- it falls back to any,
+	// and the elements after it go on being indexed.
+	case Var, *Array, Object, Set:
+		a.any = util.Or(a.any, newArrayTrie)
+		return a.any.insert(arr.Slice(1, -1))
 	}
 
 	panic("illegal value")
 }
 
-func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) error {
-	if node == nil {
+func (a *arrayTrie) traverse(resolver ValueResolver, tr *trieTraversalResult, arr *Array) error {
+	if a == nil {
 		return nil
 	}
 
-	v, err := resolver.Resolve(node.ref())
+	if arr.Len() == 0 {
+		return a.end.Traverse(resolver, tr)
+	}
+
+	if err := a.any.traverse(resolver, tr, arr.Slice(1, -1)); err != nil {
+		return err
+	}
+
+	switch head := arr.Elem(0).Value.(type) {
+	case Null, Boolean, Number, String:
+		child, _ := a.scalars.Get(head)
+		return child.traverse(resolver, tr, arr.Slice(1, -1))
+	}
+
+	return nil
+}
+
+func (a *arrayTrie) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
+	if a == nil {
+		return nil
+	}
+
+	if err := a.end.Traverse(resolver, tr); err != nil {
+		return err
+	}
+
+	if err := a.any.traverseUnknown(resolver, tr); err != nil {
+		return err
+	}
+
+	var iterErr error
+	a.scalars.Iter(func(_ Value, child *arrayTrie) bool {
+		iterErr = child.traverseUnknown(resolver, tr)
+		return iterErr != nil
+	})
+
+	return iterErr
+}
+
+func (a *arrayTrie) do(walker trieWalker) {
+	if a == nil {
+		return
+	}
+
+	a.end.Do(walker)
+	a.any.do(walker)
+	a.scalars.Iter(func(_ Value, child *arrayTrie) bool {
+		child.do(walker)
+		return false
+	})
+}
+
+func (a *arrayTrie) compact() {
+	if a == nil {
+		return
+	}
+
+	a.end.compact()
+	a.any.compact()
+	a.scalars.Iter(func(_ Value, child *arrayTrie) bool {
+		child.compact()
+		return false
+	})
+}
+
+func (d *levelDetail) traverse(resolver ValueResolver, tr *trieTraversalResult) error {
+	if d == nil {
+		return nil
+	}
+
+	v, err := resolver.Resolve(d.ref)
 	if err != nil {
 		if IsUnknownValueErr(err) {
-			return node.traverseUnknown(resolver, tr)
+			return d.traverseUnknown(resolver, tr)
 		}
 		return err
 	}
 
-	if err = node.undefined().Traverse(resolver, tr); err != nil {
+	if err = d.undefined.Traverse(resolver, tr); err != nil {
 		return err
 	}
 
@@ -1518,11 +1548,11 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		return nil
 	}
 
-	if err = node.any().Traverse(resolver, tr); err != nil {
+	if err = d.any.Traverse(resolver, tr); err != nil {
 		return err
 	}
 
-	if err = node.traverseValue(resolver, tr, v); err != nil {
+	if err = d.traverseValue(resolver, tr, v); err != nil {
 		return err
 	}
 
@@ -1530,19 +1560,18 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	// what a mapper makes of it: the glob mapper turns a string into the array
 	// of its segments, and matching prefixes against those segments would
 	// answer a question no rule asked.
-	if err = node.traversePrefixes(resolver, tr, v); err != nil {
+	if err = d.traversePrefixes(resolver, tr, v); err != nil {
 		return err
 	}
 
-	if err = node.traverseSuffixes(resolver, tr, v); err != nil {
+	if err = d.traverseSuffixes(resolver, tr, v); err != nil {
 		return err
 	}
 
-	mappers := node.mappers()
-	for i := range mappers {
-		mapped := mappers[i].MapValue(v)
+	for i := range d.mappers {
+		mapped := d.mappers[i].MapValue(v)
 		if !ValueEqual(mapped, v) {
-			if err := node.traverseValue(resolver, tr, mapped); err != nil {
+			if err := d.traverseValue(resolver, tr, mapped); err != nil {
 				return err
 			}
 		}
@@ -1551,33 +1580,29 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	return nil
 }
 
-func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
+func (d *levelDetail) traverseValue(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
 	switch value := value.(type) {
 	case *Array, Set, Object:
-		if node.array() != nil {
+		if d.array != nil {
 			if arr, ok := value.(*Array); ok {
-				if err := node.array().traverseArray(resolver, tr, arr); err != nil {
+				if err := d.array.traverse(resolver, tr, arr); err != nil {
 					return err
 				}
 			}
 		}
-		if node.scalars().Len() > 0 {
-			return node.traverseCollectionMembership(resolver, tr, value)
+		if d.scalars.Len() > 0 {
+			return d.traverseCollectionMembership(resolver, tr, value)
 		}
 	case Null, Boolean, Number, String:
-		// One load of detail for both, so that a level with no alternatives --
-		// almost all of them -- pays a branch and nothing more.
-		detail := node.detail
-		if detail == nil {
-			return nil
-		}
-		if child, ok := detail.scalars.Get(value); ok {
+		if child, ok := d.scalars.Get(value); ok {
 			if err := child.Traverse(resolver, tr); err != nil {
 				return err
 			}
 		}
-		if detail.alternatives != nil {
-			return detail.alternatives.traverse(resolver, tr, value)
+		// A level with no alternatives -- almost all of them -- pays a branch
+		// and nothing more.
+		if d.alternatives != nil {
+			return d.alternatives.traverse(resolver, tr, value)
 		}
 	}
 
@@ -1601,11 +1626,11 @@ func (alt *alternativeChildren) traverse(resolver ValueResolver, tr *trieTravers
 	return nil
 }
 
-func (node *trieNode) traverseCollectionMembership(resolver ValueResolver, tr *trieTraversalResult, collection Value) error {
-	alt := node.alternatives()
+func (d *levelDetail) traverseCollectionMembership(resolver ValueResolver, tr *trieTraversalResult, collection Value) error {
+	alt := d.alternatives
 	checkMember := func(t *Term) error {
 		if IsScalar(t.Value) {
-			child, _ := node.scalars().Get(t.Value)
+			child, _ := d.scalars.Get(t.Value)
 			if err := child.Traverse(resolver, tr); err != nil {
 				return err
 			}
@@ -1630,64 +1655,43 @@ func (node *trieNode) traverseCollectionMembership(resolver ValueResolver, tr *t
 	return nil
 }
 
-func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalResult, arr *Array) (err error) {
-	if node == nil {
+// traverseUnknown visits every child of a level whose reference the resolver
+// cannot answer for. What each child constrains below resolves as usual: an
+// unknown at one level says nothing about the levels under it.
+func (d *levelDetail) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
+	if d == nil {
 		return nil
 	}
 
-	if arr.Len() == 0 {
-		return node.Traverse(resolver, tr)
-	}
-
-	if err = node.any().traverseArray(resolver, tr, arr.Slice(1, -1)); err == nil {
-		switch head := arr.Elem(0).Value.(type) {
-		case Null, Boolean, Number, String:
-			child, _ := node.scalars().Get(head)
-			return child.traverseArray(resolver, tr, arr.Slice(1, -1))
-		}
-	}
-
-	return err
-}
-
-func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
-	if node == nil {
-		return nil
-	}
-
-	if err := node.Traverse(resolver, tr); err != nil {
+	if err := d.undefined.Traverse(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.undefined().traverseUnknown(resolver, tr); err != nil {
+	if err := d.any.Traverse(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.any().traverseUnknown(resolver, tr); err != nil {
+	if err := d.array.traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.array().traverseUnknown(resolver, tr); err != nil {
+	if err := d.prefixes.traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.prefixes().traverseUnknown(resolver, tr); err != nil {
+	if err := d.suffixes.traverseUnknown(resolver, tr); err != nil {
 		return err
 	}
 
-	if err := node.suffixes().traverseUnknown(resolver, tr); err != nil {
-		return err
-	}
-
-	for _, child := range node.converged() {
-		if err := child.traverseUnknown(resolver, tr); err != nil {
+	for _, child := range d.converged() {
+		if err := child.Traverse(resolver, tr); err != nil {
 			return err
 		}
 	}
 
 	var iterErr error
-	node.scalars().Iter(func(_ Value, child *trieNode) bool {
-		iterErr = child.traverseUnknown(resolver, tr)
+	d.scalars.Iter(func(_ Value, child *trieNode) bool {
+		iterErr = child.Traverse(resolver, tr)
 		return iterErr != nil
 	})
 

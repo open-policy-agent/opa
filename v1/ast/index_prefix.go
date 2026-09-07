@@ -214,7 +214,7 @@ func (p *prefixTrie) traverseUnknown(resolver ValueResolver, tr *trieTraversalRe
 		return nil
 	}
 
-	if err := p.child.traverseUnknown(resolver, tr); err != nil {
+	if err := p.child.Traverse(resolver, tr); err != nil {
 		return err
 	}
 
@@ -273,33 +273,29 @@ func commonPrefixLen(a, b string) int {
 // InsertPrefix records that the rules below this node require the value at ref
 // to be a string starting with prefix.
 func (node *trieNode) InsertPrefix(ref Ref, prefix Value) *trieNode {
-	if node.next == nil {
-		node.next = newTrieNodeImpl()
-		node.next.levelDetail().ref = ref
-	}
+	level := node.level()
+	level.ref = ref
 
 	s, ok := prefix.(String)
 	if !ok {
 		panic("illegal prefix value")
 	}
 
-	return node.next.affixTrie(affixPrefix).insert(string(s))
+	return level.affixTrie(affixPrefix).insert(string(s))
 }
 
 // InsertSuffix records that the rules below this node require the value at ref
 // to be a string ending with suffix.
 func (node *trieNode) InsertSuffix(ref Ref, suffix Value) *trieNode {
-	if node.next == nil {
-		node.next = newTrieNodeImpl()
-		node.next.levelDetail().ref = ref
-	}
+	level := node.level()
+	level.ref = ref
 
 	s, ok := suffix.(String)
 	if !ok {
 		panic("illegal suffix value")
 	}
 
-	return node.next.affixTrie(affixSuffix).insert(reverseString(string(s)))
+	return level.affixTrie(affixSuffix).insert(reverseString(string(s)))
 }
 
 // traversePrefixes visits the rules whose prefix constraints value satisfies.
@@ -309,8 +305,8 @@ func (node *trieNode) InsertSuffix(ref Ref, suffix Value) *trieNode {
 // a collection is tested element by element -- the same way a scalar constraint
 // is matched against the members of a collection (see
 // traverseCollectionMembership).
-func (node *trieNode) traversePrefixes(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
-	prefixes := node.prefixes()
+func (d *levelDetail) traversePrefixes(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
+	prefixes := d.prefixes
 	if prefixes == nil {
 		return nil
 	}
@@ -342,8 +338,8 @@ func (node *trieNode) traversePrefixes(resolver ValueResolver, tr *trieTraversal
 
 // traverseSuffixes visits the rules whose suffix constraints value satisfies.
 // A collection is tested element by element, as for prefixes.
-func (node *trieNode) traverseSuffixes(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
-	suffixes := node.suffixes()
+func (d *levelDetail) traverseSuffixes(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
+	suffixes := d.suffixes
 	if suffixes == nil {
 		return nil
 	}
