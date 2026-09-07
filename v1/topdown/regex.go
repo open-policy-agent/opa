@@ -173,12 +173,7 @@ func getRegexpTemplate(pat string, delimStart, delimEnd byte) (*regexp.Regexp, e
 		return nil, err
 	}
 
-	re, err := regexpCacheGet(gen)
-	if err != nil {
-		return nil, err
-	}
-
-	return re, nil
+	return regexpCacheGet(gen)
 }
 
 func builtinGlobsMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
