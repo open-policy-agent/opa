@@ -38,7 +38,10 @@ type prefixTrie struct {
 
 type prefixEdge struct {
 	label string
-	node  *prefixTrie
+	// node is the trie under this edge; leaf stands in for it when nothing is
+	// recorded past the edge's label, which is almost every edge.
+	node *prefixTrie
+	leaf *trieNode
 }
 
 // edge locates the edge labelled with first byte b, or the position a new one
@@ -65,21 +68,36 @@ func (p *prefixTrie) insert(prefix string) *trieNode {
 
 		pos, found := node.edge(prefix[0])
 		if !found {
-			leaf := &prefixTrie{child: newTrieNodeImpl()}
-			node.edges = slices.Insert(node.edges, pos, prefixEdge{label: prefix, node: leaf})
-			return leaf.child
+			leaf := newTrieNodeImpl()
+			node.edges = slices.Insert(node.edges, pos, prefixEdge{label: prefix, leaf: leaf})
+			return leaf
 		}
 
 		edge := node.edges[pos]
 		common := commonPrefixLen(edge.label, prefix)
 
+		switch {
 		// The two diverge inside this edge -- "/api/v1" meeting "/api/v2" --
 		// so the edge is split where they stop agreeing and what used to hang
-		// off it moves down onto the tail.
-		if common < len(edge.label) {
+		// off it moves down onto the tail, whichever kind it is.
+		case common < len(edge.label):
+			tail := prefixEdge{label: edge.label[common:], node: edge.node, leaf: edge.leaf}
 			node.edges[pos] = prefixEdge{
 				label: edge.label[:common],
-				node:  &prefixTrie{edges: []prefixEdge{{label: edge.label[common:], node: edge.node}}},
+				node:  &prefixTrie{edges: []prefixEdge{tail}},
+			}
+
+		// The prefix ends where an edge does with nothing past it, so its
+		// continuation is already the answer.
+		case common == len(prefix) && edge.leaf != nil:
+			return edge.leaf
+
+		// Something is recorded past the edge now, so its continuation becomes
+		// the child of a trie of its own.
+		case edge.node == nil:
+			node.edges[pos] = prefixEdge{
+				label: edge.label,
+				node:  &prefixTrie{child: edge.leaf},
 			}
 		}
 
@@ -114,6 +132,9 @@ func (p *prefixTrie) traverse(s string, resolver ValueResolver, tr *trieTraversa
 		}
 
 		s = s[len(edge.label):]
+		if edge.node == nil {
+			return edge.leaf.Traverse(resolver, tr)
+		}
 		node = edge.node
 	}
 
@@ -146,6 +167,9 @@ func (p *prefixTrie) traverseSuffix(s string, resolver ValueResolver, tr *trieTr
 		}
 
 		s = s[:len(s)-len(edge.label)]
+		if edge.node == nil {
+			return edge.leaf.Traverse(resolver, tr)
+		}
 		node = edge.node
 	}
 
@@ -194,6 +218,7 @@ func (p *prefixTrie) compact() {
 
 	for _, edge := range p.edges {
 		edge.node.compact()
+		edge.leaf.compact()
 	}
 }
 
@@ -206,6 +231,7 @@ func (p *prefixTrie) do(walker trieWalker) {
 
 	for _, edge := range p.edges {
 		edge.node.do(walker)
+		edge.leaf.Do(walker)
 	}
 }
 
@@ -220,6 +246,9 @@ func (p *prefixTrie) traverseUnknown(resolver ValueResolver, tr *trieTraversalRe
 
 	for _, edge := range p.edges {
 		if err := edge.node.traverseUnknown(resolver, tr); err != nil {
+			return err
+		}
+		if err := edge.leaf.Traverse(resolver, tr); err != nil {
 			return err
 		}
 	}
@@ -252,6 +281,10 @@ func (p *prefixTrie) walk() []prefixEntry {
 			entries = append(entries, prefixEntry{prefix: prefix, node: node.child})
 		}
 		for _, edge := range node.edges {
+			if edge.node == nil {
+				entries = append(entries, prefixEntry{prefix: prefix + edge.label, node: edge.leaf})
+				continue
+			}
 			collect(edge.node, prefix+edge.label)
 		}
 	}
