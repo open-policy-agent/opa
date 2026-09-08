@@ -1,0 +1,345 @@
+---
+# Generated externalized tests from TestParseLogical_RefsContainingAndOr
+cases:
+  - note: exprs/parse-logical-refs-containing-and-or/x.and dot access
+    module: |
+      package test
+
+      p if {
+      	x.and
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "string",
+                      "value": "and"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-refs-containing-and-or/and.x dot access
+    module: |
+      package test
+
+      p if {
+      	and.x
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "and"
+                    },
+                    {
+                      "type": "string",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-refs-containing-and-or/x["and"] bracket access
+    module: |
+      package test
+
+      p if {
+      	x["and"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "string",
+                      "value": "and"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-refs-containing-and-or/x.or dot access
+    module: |
+      package test
+
+      p if {
+      	x.or
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "string",
+                      "value": "or"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-refs-containing-and-or/or.x dot access
+    module: |
+      package test
+
+      p if {
+      	or.x
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "or"
+                    },
+                    {
+                      "type": "string",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-refs-containing-and-or/x["or"] bracket access
+    module: |
+      package test
+
+      p if {
+      	x["or"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "string",
+                      "value": "or"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

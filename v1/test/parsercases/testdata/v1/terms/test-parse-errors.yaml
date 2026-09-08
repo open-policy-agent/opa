@@ -1,0 +1,35 @@
+---
+cases:
+  - note: terms/non-terminated-array
+    module: |
+      package test
+
+      p := [1, 2
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        message: 'unexpected eof token: expected "," or "]"'
+      - code: rego_parse_error
+        row: 4
+        message: 'unexpected eof token: expected rule value term (e.g., p := <VALUE> { ... })'
+    exhaustive: true
+  - note: terms/object-missing-separator
+    module: |
+      package test
+
+      p := {"a": 1 "b": 2}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 14
+        message: 'unexpected string token: non-terminated object'
+  - note: terms/illegal-token
+    module: |
+      package test
+
+      p := 墳
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal token

@@ -837,6 +837,36 @@ func TestImportContainingKeywords(t *testing.T) {
 	}
 }
 
+func TestImportContainingFutureKeywords(t *testing.T) {
+	// `and` and `or` are future keywords, so they are absent from
+	// KeywordsForRegoVersion and go uncovered by TestImportContainingKeywords.
+
+	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
+		for _, kw := range []string{"and", "or"} {
+			popts := ParserOptions{RegoVersion: regoVersion, FutureKeywords: []string{kw}}
+
+			// Not allowed as the first component of an import path.
+			for _, input := range []string{
+				"import " + kw,
+				"import " + kw + ".foo",
+				"import " + kw + `["foo"]`,
+			} {
+				expErr := "rego_parse_error: unexpected import path, must begin with one of: {data, future, input, rego}, got: " + kw
+				t.Run(regoVersion.String()+"/"+input, func(t *testing.T) {
+					assertParseErrorContains(t, input, input, expErr, popts)
+				})
+			}
+
+			// Not allowed as an import alias.
+			input := "import data.foo as " + kw
+			expErr := "rego_parse_error: unexpected " + kw + " keyword: expected var"
+			t.Run(regoVersion.String()+"/"+input, func(t *testing.T) {
+				assertParseErrorContains(t, input, input, expErr, popts)
+			})
+		}
+	}
+}
+
 func TestPackageContainingKeywords(t *testing.T) {
 	for _, regoVersion := range []RegoVersion{RegoV0, RegoV1} {
 		popts := ParserOptions{RegoVersion: regoVersion}

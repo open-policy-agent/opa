@@ -1,0 +1,552 @@
+---
+# Generated externalized tests from TestParseLogical_VoidCallOperandIsRejected
+cases:
+  - note: exprs/parse-logical-void-call-operand-is-rejected/lhs of and
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	print("x") and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/rhs of and
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and print("x")
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'operand of `and` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/lhs of or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	print("x") or z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `or` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/rhs of or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	z or print("x")
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: 'operand of `or` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/both operands of and
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	print("x") and print("x")
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/both operands of or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	print("x") or print("x")
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `or` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/middle of an and chain
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	y and print("x") and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'operand of `and` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/middle of an or chain
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	y or print("x") or z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: 'operand of `or` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/and operand inside an or chain
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	y or z and print("x")
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 7
+        col: 13
+        message: 'operand of `and` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/parenthesized lhs of and
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(print("x")) and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/explicit body operand, lhs of and
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{print("x")} and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 3
+        message: 'operand of `and` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/explicit body operand, rhs of or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	z or {print("x")}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'operand of `or` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/explicit body of only void calls
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{print("x"); print("x")} and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 3
+        message: 'operand of `and` cannot consist only of calls to `print` (hint: `print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/lhs of and (2)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	internal.print([{"x"}]) and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/rhs of and (2)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and internal.print([{"x"}])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'operand of `and` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/lhs of or (2)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	internal.print([{"x"}]) or z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `or` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/rhs of or (2)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	z or internal.print([{"x"}])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: 'operand of `or` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/both operands of and (2)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	internal.print([{"x"}]) and internal.print([{"x"}])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/both operands of or (2)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	internal.print([{"x"}]) or internal.print([{"x"}])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `or` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/middle of an and chain (2)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	y and internal.print([{"x"}]) and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'operand of `and` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/middle of an or chain (2)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	y or internal.print([{"x"}]) or z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: 'operand of `or` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/and operand inside an or chain (2)
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	y or z and internal.print([{"x"}])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 7
+        col: 13
+        message: 'operand of `and` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/parenthesized lhs of and (2)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(internal.print([{"x"}])) and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/explicit body operand, lhs of and (2)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{internal.print([{"x"}])} and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 3
+        message: 'operand of `and` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/explicit body operand, rhs of or (2)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	z or {internal.print([{"x"}])}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'operand of `or` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/explicit body of only void calls (2)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{internal.print([{"x"}]); internal.print([{"x"}])} and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 3
+        message: 'operand of `and` cannot consist only of calls to `internal.print` (hint: `internal.print` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/lhs of and (3)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	internal.test_case(["x"]) and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/rhs of and (3)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and internal.test_case(["x"])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'operand of `and` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/lhs of or (3)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	internal.test_case(["x"]) or z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `or` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/rhs of or (3)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	z or internal.test_case(["x"])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: 'operand of `or` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/both operands of and (3)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	internal.test_case(["x"]) and internal.test_case(["x"])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/both operands of or (3)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	internal.test_case(["x"]) or internal.test_case(["x"])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `or` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/middle of an and chain (3)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	y and internal.test_case(["x"]) and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'operand of `and` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/middle of an or chain (3)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	y or internal.test_case(["x"]) or z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 7
+        message: 'operand of `or` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/and operand inside an or chain (3)
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	y or z and internal.test_case(["x"])
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 7
+        col: 13
+        message: 'operand of `and` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/parenthesized lhs of and (3)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(internal.test_case(["x"])) and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/explicit body operand, lhs of and (3)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{internal.test_case(["x"])} and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 3
+        message: 'operand of `and` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/explicit body operand, rhs of or (3)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	z or {internal.test_case(["x"])}
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 8
+        message: 'operand of `or` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'
+  - note: exprs/parse-logical-void-call-operand-is-rejected/explicit body of only void calls (3)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{internal.test_case(["x"]); internal.test_case(["x"])} and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 3
+        message: 'operand of `and` cannot consist only of calls to `internal.test_case` (hint: `internal.test_case` produces no value and always succeeds, so the operand can never fail; move it out of the operand, or add an expression that can fail)'

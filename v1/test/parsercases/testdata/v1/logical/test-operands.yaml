@@ -1,0 +1,34 @@
+---
+cases:
+  # `and` and `or` need a right-hand operand. The Go tests assert this at the
+  # module root, where the input ends the file and the diagnostic is "unexpected
+  # eof" — an artefact of the position, not of the operator. In a rule body, where
+  # an expression belongs, the closing brace is what the parser reaches instead.
+  - note: logical/and with no right operand
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	x and
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 7
+        col: 1
+        message: unexpected } token
+  - note: logical/or with no right operand
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	x or
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 7
+        col: 1
+        message: unexpected } token

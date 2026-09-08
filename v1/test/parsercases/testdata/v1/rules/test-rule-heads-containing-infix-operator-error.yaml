@@ -1,0 +1,523 @@
+---
+# Generated externalized tests from TestRuleHeadsContainingInfixOperatorError
+cases:
+  - note: rules/rule-heads-containing-infix-operator-error/foo+bar := 1
+    module: |
+      package test
+
+      foo+bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected plus token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar+ := 1
+    module: |
+      package test
+
+      foobar+ := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected plus token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3+4ar := 1
+    module: |
+      package test
+
+      fo3+4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected plus token
+  - note: rules/rule-heads-containing-infix-operator-error/foo+bar := 9+2
+    module: |
+      package test
+
+      foo+bar := 9+2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected plus token
+  - note: rules/rule-heads-containing-infix-operator-error/foo-bar := 1
+    module: |
+      package test
+
+      foo-bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected minus token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar- := 1
+    module: |
+      package test
+
+      foobar- := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected minus token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3-4ar := 1
+    module: |
+      package test
+
+      fo3-4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected minus token
+  - note: rules/rule-heads-containing-infix-operator-error/foo-bar := 9-2
+    module: |
+      package test
+
+      foo-bar := 9-2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected minus token
+  - note: rules/rule-heads-containing-infix-operator-error/foo*bar := 1
+    module: |
+      package test
+
+      foo*bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected mul token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar* := 1
+    module: |
+      package test
+
+      foobar* := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected mul token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3*4ar := 1
+    module: |
+      package test
+
+      fo3*4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected mul token
+  - note: rules/rule-heads-containing-infix-operator-error/foo*bar := 9*2
+    module: |
+      package test
+
+      foo*bar := 9*2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected mul token
+  - note: rules/rule-heads-containing-infix-operator-error/foo/bar := 1
+    module: |
+      package test
+
+      foo/bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected div token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar/ := 1
+    module: |
+      package test
+
+      foobar/ := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected div token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3/4ar := 1
+    module: |
+      package test
+
+      fo3/4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected div token
+  - note: rules/rule-heads-containing-infix-operator-error/foo/bar := 9/2
+    module: |
+      package test
+
+      foo/bar := 9/2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected div token
+  - note: rules/rule-heads-containing-infix-operator-error/foo%bar := 1
+    module: |
+      package test
+
+      foo%bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected rem token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar% := 1
+    module: |
+      package test
+
+      foobar% := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected rem token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3%4ar := 1
+    module: |
+      package test
+
+      fo3%4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected rem token
+  - note: rules/rule-heads-containing-infix-operator-error/foo%bar := 9%2
+    module: |
+      package test
+
+      foo%bar := 9%2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected rem token
+  - note: rules/rule-heads-containing-infix-operator-error/foo==bar := 1
+    module: |
+      package test
+
+      foo==bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected equal token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar== := 1
+    module: |
+      package test
+
+      foobar== := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected equal token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3==4ar := 1
+    module: |
+      package test
+
+      fo3==4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected equal token
+  - note: rules/rule-heads-containing-infix-operator-error/foo==bar := 9==2
+    module: |
+      package test
+
+      foo==bar := 9==2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected equal token
+  - note: rules/rule-heads-containing-infix-operator-error/foo!=bar := 1
+    module: |
+      package test
+
+      foo!=bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected neq token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar!= := 1
+    module: |
+      package test
+
+      foobar!= := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected neq token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3!=4ar := 1
+    module: |
+      package test
+
+      fo3!=4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected neq token
+  - note: rules/rule-heads-containing-infix-operator-error/foo!=bar := 9!=2
+    module: |
+      package test
+
+      foo!=bar := 9!=2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected neq token
+  - note: rules/rule-heads-containing-infix-operator-error/foo<bar := 1
+    module: |
+      package test
+
+      foo<bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected lt token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar< := 1
+    module: |
+      package test
+
+      foobar< := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected lt token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3<4ar := 1
+    module: |
+      package test
+
+      fo3<4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected lt token
+  - note: rules/rule-heads-containing-infix-operator-error/foo<bar := 9<2
+    module: |
+      package test
+
+      foo<bar := 9<2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected lt token
+  - note: rules/rule-heads-containing-infix-operator-error/foo<=bar := 1
+    module: |
+      package test
+
+      foo<=bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected lte token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar<= := 1
+    module: |
+      package test
+
+      foobar<= := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected lte token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3<=4ar := 1
+    module: |
+      package test
+
+      fo3<=4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected lte token
+  - note: rules/rule-heads-containing-infix-operator-error/foo<=bar := 9<=2
+    module: |
+      package test
+
+      foo<=bar := 9<=2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected lte token
+  - note: rules/rule-heads-containing-infix-operator-error/foo>bar := 1
+    module: |
+      package test
+
+      foo>bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected gt token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar> := 1
+    module: |
+      package test
+
+      foobar> := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected gt token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3>4ar := 1
+    module: |
+      package test
+
+      fo3>4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected gt token
+  - note: rules/rule-heads-containing-infix-operator-error/foo>bar := 9>2
+    module: |
+      package test
+
+      foo>bar := 9>2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected gt token
+  - note: rules/rule-heads-containing-infix-operator-error/foo>=bar := 1
+    module: |
+      package test
+
+      foo>=bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected gte token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar>= := 1
+    module: |
+      package test
+
+      foobar>= := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected gte token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3>=4ar := 1
+    module: |
+      package test
+
+      fo3>=4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected gte token
+  - note: rules/rule-heads-containing-infix-operator-error/foo>=bar := 9>=2
+    module: |
+      package test
+
+      foo>=bar := 9>=2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected gte token
+  - note: rules/rule-heads-containing-infix-operator-error/foo&&bar := 1
+    module: |
+      package test
+
+      foo&&bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected and token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar&& := 1
+    module: |
+      package test
+
+      foobar&& := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected and token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3&&4ar := 1
+    module: |
+      package test
+
+      fo3&&4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected and token
+  - note: rules/rule-heads-containing-infix-operator-error/foo&&bar := 9&&2
+    module: |
+      package test
+
+      foo&&bar := 9&&2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected and token
+  - note: rules/rule-heads-containing-infix-operator-error/foo||bar := 1
+    module: |
+      package test
+
+      foo||bar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected or token
+  - note: rules/rule-heads-containing-infix-operator-error/foobar|| := 1
+    module: |
+      package test
+
+      foobar|| := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: unexpected or token
+  - note: rules/rule-heads-containing-infix-operator-error/fo3||4ar := 1
+    module: |
+      package test
+
+      fo3||4ar := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected or token
+  - note: rules/rule-heads-containing-infix-operator-error/foo||bar := 9||2
+    module: |
+      package test
+
+      foo||bar := 9||2
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 4
+        message: unexpected or token

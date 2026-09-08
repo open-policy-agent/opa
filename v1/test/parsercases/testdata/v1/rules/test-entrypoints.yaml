@@ -1,0 +1,107 @@
+---
+cases:
+  - note: rules/authored-entrypoints
+    # `entrypoints` is authored only where the derived set is wrong for the case.
+    # Here the interesting plan is the helper's, not the whole package's. This is
+    # the example the README points at, so keep the two in step.
+    module: |
+      package test
+
+      allow if {
+      	helper
+      }
+
+      helper if {
+      	input.x == 1
+      }
+    entrypoints:
+      - test/helper
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "helper"
+                }
+              }
+            ],
+            "head": {
+              "name": "allow",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "allow"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          },
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "helper",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "helper"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

@@ -1,0 +1,244 @@
+---
+# Generated externalized tests from TestObjectWithVars
+cases:
+  - note: terms/object-with-vars/var keys
+    module: |
+      package test
+
+      p := {foo: "bar", bar: 64}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "var",
+                      "value": "bar"
+                    },
+                    {
+                      "type": "number",
+                      "value": 64
+                    }
+                  ],
+                  [
+                    {
+                      "type": "var",
+                      "value": "foo"
+                    },
+                    {
+                      "type": "string",
+                      "value": "bar"
+                    }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/object-with-vars/nested var keys
+    module: |
+      package test
+
+      p := {baz: {foo: "bar", bar: qux}}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "var",
+                      "value": "baz"
+                    },
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "var",
+                            "value": "bar"
+                          },
+                          {
+                            "type": "var",
+                            "value": "qux"
+                          }
+                        ],
+                        [
+                          {
+                            "type": "var",
+                            "value": "foo"
+                          },
+                          {
+                            "type": "string",
+                            "value": "bar"
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/object-with-vars/ambiguous or
+    module: |
+      package test
+
+      p := { a: b+c | d }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "var",
+                      "value": "a"
+                    },
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "or"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "call",
+                          "value": [
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "plus"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "var",
+                              "value": "b"
+                            },
+                            {
+                              "type": "var",
+                              "value": "c"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "d"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      }

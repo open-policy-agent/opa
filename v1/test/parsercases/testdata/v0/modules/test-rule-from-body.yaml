@@ -1,0 +1,254 @@
+---
+# Generated externalized tests from TestRuleFromBody
+cases:
+  - note: modules/rule-from-body/p[x] { x = 1 }
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      p[x] { x = 1 }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: modules/rule-from-body/bar[1]
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      bar[1]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "number",
+                "value": 1
+              },
+              "name": "bar",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "bar"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: modules/rule-from-body/bar[[{"foo":"baz"}]]
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      bar[[{"foo":"baz"}]]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "object",
+                    "value": [
+                      [
+                        {
+                          "type": "string",
+                          "value": "foo"
+                        },
+                        {
+                          "type": "string",
+                          "value": "baz"
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              },
+              "name": "bar",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "bar"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: modules/rule-from-body/bar.qux
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      bar.qux
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "string",
+                "value": "qux"
+              },
+              "name": "bar",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "bar"
+                }
+              ]
+            }
+          }
+        ]
+      }

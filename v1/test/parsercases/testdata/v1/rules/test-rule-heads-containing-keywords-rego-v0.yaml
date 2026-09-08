@@ -1,0 +1,6339 @@
+---
+# Generated externalized tests from TestRuleHeadsContainingKeywords_RegoV0
+cases:
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term
+    module: |
+      package test
+
+      default not.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "not"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term
+    module: |
+      package test
+
+      default foo.not := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed)
+    module: |
+      package test
+
+      default foo["not"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term
+    module: |
+      package test
+
+      default foo.not.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed)
+    module: |
+      package test
+
+      default foo["not"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term
+    module: |
+      package test
+
+      default not.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "not"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term
+    module: |
+      package test
+
+      default foo.not(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed)
+    module: |
+      package test
+
+      default foo["not"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term
+    module: |
+      package test
+
+      default foo.not.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed)
+    module: |
+      package test
+
+      default foo["not"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (2)
+    module: |
+      package test
+
+      default package.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "package"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (2)
+    module: |
+      package test
+
+      default foo.package := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (2)
+    module: |
+      package test
+
+      default foo["package"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (2)
+    module: |
+      package test
+
+      default foo.package.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (2)
+    module: |
+      package test
+
+      default foo["package"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (2)
+    module: |
+      package test
+
+      default package.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "package"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (2)
+    module: |
+      package test
+
+      default foo.package(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (2)
+    module: |
+      package test
+
+      default foo["package"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (2)
+    module: |
+      package test
+
+      default foo.package.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (2)
+    module: |
+      package test
+
+      default foo["package"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (3)
+    module: |
+      package test
+
+      default import.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "import"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (3)
+    module: |
+      package test
+
+      default foo.import := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (3)
+    module: |
+      package test
+
+      default foo["import"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (3)
+    module: |
+      package test
+
+      default foo.import.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (3)
+    module: |
+      package test
+
+      default foo["import"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (3)
+    module: |
+      package test
+
+      default import.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "import"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (3)
+    module: |
+      package test
+
+      default foo.import(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (3)
+    module: |
+      package test
+
+      default foo["import"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (3)
+    module: |
+      package test
+
+      default foo.import.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (3)
+    module: |
+      package test
+
+      default foo["import"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (4)
+    module: |
+      package test
+
+      default as.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "as"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (4)
+    module: |
+      package test
+
+      default foo.as := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (4)
+    module: |
+      package test
+
+      default foo["as"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (4)
+    module: |
+      package test
+
+      default foo.as.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (4)
+    module: |
+      package test
+
+      default foo["as"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (4)
+    module: |
+      package test
+
+      default as.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "as"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (4)
+    module: |
+      package test
+
+      default foo.as(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (4)
+    module: |
+      package test
+
+      default foo["as"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (4)
+    module: |
+      package test
+
+      default foo.as.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (4)
+    module: |
+      package test
+
+      default foo["as"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (5)
+    module: |
+      package test
+
+      default default.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "default"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (5)
+    module: |
+      package test
+
+      default foo.default := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (5)
+    module: |
+      package test
+
+      default foo["default"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (5)
+    module: |
+      package test
+
+      default foo.default.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (5)
+    module: |
+      package test
+
+      default foo["default"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (5)
+    module: |
+      package test
+
+      default default.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "default"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (5)
+    module: |
+      package test
+
+      default foo.default(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (5)
+    module: |
+      package test
+
+      default foo["default"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (5)
+    module: |
+      package test
+
+      default foo.default.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (5)
+    module: |
+      package test
+
+      default foo["default"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (6)
+    module: |
+      package test
+
+      default else.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "else"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (6)
+    module: |
+      package test
+
+      default foo.else := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (6)
+    module: |
+      package test
+
+      default foo["else"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (6)
+    module: |
+      package test
+
+      default foo.else.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (6)
+    module: |
+      package test
+
+      default foo["else"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (6)
+    module: |
+      package test
+
+      default else.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "else"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (6)
+    module: |
+      package test
+
+      default foo.else(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (6)
+    module: |
+      package test
+
+      default foo["else"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (6)
+    module: |
+      package test
+
+      default foo.else.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (6)
+    module: |
+      package test
+
+      default foo["else"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (7)
+    module: |
+      package test
+
+      default with.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "with"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (7)
+    module: |
+      package test
+
+      default foo.with := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (7)
+    module: |
+      package test
+
+      default foo["with"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (7)
+    module: |
+      package test
+
+      default foo.with.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (7)
+    module: |
+      package test
+
+      default foo["with"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (7)
+    module: |
+      package test
+
+      default with.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "with"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (7)
+    module: |
+      package test
+
+      default foo.with(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (7)
+    module: |
+      package test
+
+      default foo["with"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (7)
+    module: |
+      package test
+
+      default foo.with.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (7)
+    module: |
+      package test
+
+      default foo["with"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (8)
+    module: |
+      package test
+
+      default null.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "null"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (8)
+    module: |
+      package test
+
+      default foo.null := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (8)
+    module: |
+      package test
+
+      default foo["null"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (8)
+    module: |
+      package test
+
+      default foo.null.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (8)
+    module: |
+      package test
+
+      default foo["null"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (8)
+    module: |
+      package test
+
+      default null.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "null"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (8)
+    module: |
+      package test
+
+      default foo.null(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (8)
+    module: |
+      package test
+
+      default foo["null"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (8)
+    module: |
+      package test
+
+      default foo.null.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (8)
+    module: |
+      package test
+
+      default foo["null"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (9)
+    module: |
+      package test
+
+      default true.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "true"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (9)
+    module: |
+      package test
+
+      default foo.true := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (9)
+    module: |
+      package test
+
+      default foo["true"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (9)
+    module: |
+      package test
+
+      default foo.true.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (9)
+    module: |
+      package test
+
+      default foo["true"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (9)
+    module: |
+      package test
+
+      default true.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "true"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (9)
+    module: |
+      package test
+
+      default foo.true(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (9)
+    module: |
+      package test
+
+      default foo["true"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (9)
+    module: |
+      package test
+
+      default foo.true.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (9)
+    module: |
+      package test
+
+      default foo["true"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (10)
+    module: |
+      package test
+
+      default false.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "false"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (10)
+    module: |
+      package test
+
+      default foo.false := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (10)
+    module: |
+      package test
+
+      default foo["false"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (10)
+    module: |
+      package test
+
+      default foo.false.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (10)
+    module: |
+      package test
+
+      default foo["false"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (10)
+    module: |
+      package test
+
+      default false.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "false"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (10)
+    module: |
+      package test
+
+      default foo.false(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (10)
+    module: |
+      package test
+
+      default foo["false"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (10)
+    module: |
+      package test
+
+      default foo.false.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (10)
+    module: |
+      package test
+
+      default foo["false"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw in first term (11)
+    module: |
+      package test
+
+      default some.foo := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "some"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (11)
+    module: |
+      package test
+
+      default foo.some := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw last term (bracketed) (11)
+    module: |
+      package test
+
+      default foo["some"] := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (11)
+    module: |
+      package test
+
+      default foo.some.bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default rule with ref in head, kw middle term (bracketed) (11)
+    module: |
+      package test
+
+      default foo["some"].bar := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw in first term (11)
+    module: |
+      package test
+
+      default some.foo(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "some"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (11)
+    module: |
+      package test
+
+      default foo.some(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw last term (bracketed) (11)
+    module: |
+      package test
+
+      default foo["some"](_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (11)
+    module: |
+      package test
+
+      default foo.some.bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: rules/rule-heads-containing-keywords-rego-v0/default function with ref in head, kw middle term (bracketed) (11)
+    module: |
+      package test
+
+      default foo["some"].bar(_, _) := true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "default": true,
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

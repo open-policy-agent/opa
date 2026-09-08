@@ -2,32 +2,39 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package compilecases contains utilities for compiler diagnostic test cases
+// Package compilecases contains the schema and loader for the compiler
+// conformance corpus: Rego modules in, diagnostics out.
+//
+// The package deliberately depends on nothing but the loader it shares with the
+// other corpora. OPA's own runner lives in package ast, and the generator that
+// fills in the fixtures lives in build/generate-compiler-cases.
 package compilecases
 
 import (
+	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
+	"io/fs"
 	"slices"
-	"strings"
 
-	"github.com/open-policy-agent/opa/v1/util"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
 
-// Set represents a collection of test cases.
-type Set struct {
-	Cases []TestCase `json:"cases"`
-}
+// Error is one expected diagnostic.
+type Error = conformance.Error
 
-// Sorted returns a sorted copy of s.
-func (s Set) Sorted() Set {
-	cpy := make([]TestCase, len(s.Cases))
-	copy(cpy, s.Cases)
-	slices.SortFunc(cpy, func(a, b TestCase) int {
-		return strings.Compare(a.Note, b.Note)
-	})
-	return Set{Cases: cpy}
+// Set represents a collection of test cases.
+type Set = conformance.Set[TestCase]
+
+// DefaultModuleName is the name given to the first module of a case, and the
+// module errors are reported against unless stated otherwise.
+const DefaultModuleName = conformance.DefaultModuleName
+
+// RegoVersions are the accepted values of a case's rego_version.
+var RegoVersions = []string{"v0", "v1", "v0-compat-v1"}
+
+// ModuleName returns the name given to the i-th module of a case.
+func ModuleName(i int) string {
+	return conformance.ModuleName(i)
 }
 
 // TestCase represents a single test case: a set of modules that must fail to
@@ -44,85 +51,97 @@ type TestCase struct {
 	Exhaustive           bool     `json:"exhaustive,omitempty"             yaml:"exhaustive,omitempty"`            // require want_errors to be the complete set, not a subset
 }
 
-// Error is one expected diagnostic. Row and Col are 1-based positions in the
-// module named by Module; Message is the error sentence, without the position
-// and code an implementation may prefix it with when rendering.
-type Error struct {
-	Module  string `json:"module,omitempty"  yaml:"module,omitempty"` // module the error is reported against, defaults to test-0.rego
-	Code    string `json:"code"              yaml:"code"`
-	Row     int    `json:"row"               yaml:"row"`
-	Col     int    `json:"col,omitempty"     yaml:"col,omitempty"` // asserted when non-zero
-	Message string `json:"message"           yaml:"message"`
+// Name returns the globally unique note identifying the case.
+func (tc TestCase) Name() string {
+	return tc.Note
 }
 
-func (e Error) String() string {
-	return fmt.Sprintf("%s:%d:%d: %s: %s", e.ModuleOrDefault(), e.Row, e.Col, e.Code, e.Message)
+// WithFilename returns a copy of tc stamped with the file it was loaded from.
+func (tc TestCase) WithFilename(filename string) TestCase {
+	tc.Filename = filename
+	return tc
 }
 
-// ModuleOrDefault returns the module the error is reported against.
-func (e Error) ModuleOrDefault() string {
-	if e.Module == "" {
-		return DefaultModuleName
+// Failure reports whether tc asserts that the modules fail to compile. Every
+// case is a failure case today; success-case fields are the next thing this
+// schema gains, and Validate is where that relaxes.
+func (tc TestCase) Failure() bool {
+	return len(tc.WantErrors) > 0
+}
+
+// Validate returns an error if tc is not a well-formed case.
+func (tc TestCase) Validate() error {
+	switch {
+	case tc.Note == "":
+		return errors.New("missing 'note'")
+	case len(tc.Modules) == 0:
+		return errors.New("missing 'modules'")
+	case tc.RegoVersion != "" && !slices.Contains(RegoVersions, tc.RegoVersion):
+		return fmt.Errorf("unknown 'rego_version' %q, expected one of %v", tc.RegoVersion, RegoVersions)
+	case !tc.Failure():
+		return errors.New("expected 'want_errors'; run `make generate` to fill it in")
 	}
-	return e.Module
+
+	for i, module := range tc.Modules {
+		if err := conformance.CheckTrailingWhitespace(ModuleName(i), module); err != nil {
+			return err
+		}
+	}
+
+	for _, e := range tc.WantErrors {
+		if e.Module == "" {
+			continue
+		}
+		if !slices.Contains(tc.ModuleNames(), e.Module) {
+			return fmt.Errorf("'want_errors' names module %q, which the case does not define", e.Module)
+		}
+	}
+
+	return nil
 }
 
-// DefaultModuleName is the name given to the first module of a case, and the
-// module errors are reported against unless stated otherwise.
-const DefaultModuleName = "test-0.rego"
-
-// ModuleName returns the name given to the i-th module of a case.
-func ModuleName(i int) string {
-	return fmt.Sprintf("test-%d.rego", i)
+// ModuleNames returns the names the case's modules are compiled under.
+func (tc TestCase) ModuleNames() []string {
+	names := make([]string, len(tc.Modules))
+	for i := range tc.Modules {
+		names[i] = ModuleName(i)
+	}
+	return names
 }
 
 // Load returns the set of test cases under path.
 func Load(path string) (Set, error) {
-	return loadRecursive(path)
+	return validate(conformance.Load[TestCase](path))
 }
 
 // MustLoad returns the set of test cases under path or panics if an error occurs.
 func MustLoad(path string) Set {
-	result, err := Load(path)
+	set, err := Load(path)
 	if err != nil {
 		panic(err)
 	}
-	return result
+	return set
 }
 
-func loadRecursive(dirpath string) (Set, error) {
-	result := Set{}
+// LoadFS returns the set of test cases under root in fsys.
+func LoadFS(fsys fs.FS, root string) (Set, error) {
+	return validate(conformance.LoadFS[TestCase](fsys, root))
+}
 
-	err := filepath.Walk(dirpath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+func validate(set Set, err error) (Set, error) {
+	if err != nil {
+		return set, err
+	}
+	seen := make(map[string]string, len(set.Cases))
+	for i := range set.Cases {
+		tc := &set.Cases[i]
+		if err := tc.Validate(); err != nil {
+			return set, fmt.Errorf("%s: %s: %w", tc.Filename, tc.Note, err)
 		}
-
-		if info.IsDir() {
-			return nil
+		if other, ok := seen[tc.Note]; ok {
+			return set, fmt.Errorf("%s: %s: note is already used by %s", tc.Filename, tc.Note, other)
 		}
-
-		if ext := filepath.Ext(path); ext != ".yaml" && ext != ".yml" {
-			return nil
-		}
-
-		bs, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("%s: %w", path, err)
-		}
-
-		var x Set
-		if err := util.Unmarshal(bs, &x); err != nil {
-			return fmt.Errorf("%s: %w", path, err)
-		}
-
-		for i := range x.Cases {
-			x.Cases[i].Filename = path
-		}
-
-		result.Cases = append(result.Cases, x.Cases...)
-		return nil
-	})
-
-	return result, err
+		seen[tc.Note] = tc.Filename
+	}
+	return set, nil
 }

@@ -1,0 +1,98 @@
+---
+# Generated externalized tests from TestRuleContains
+cases:
+  - note: rules/rule-contains/no body
+    module: |
+      package test
+
+      p contains "x"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "string",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: rules/rule-contains/ref head, no body
+    module: |
+      package test
+
+      p.q contains "x"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "string",
+                "value": "x"
+              },
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                }
+              ]
+            }
+          }
+        ]
+      }

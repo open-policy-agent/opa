@@ -5,11 +5,10 @@
 package ast
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
 
 // TestCompileCases runs the compiler diagnostic corpus in v1/test/compilecases.
@@ -30,7 +29,7 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 		t.Fatalf("%s: expected at least one entry in 'want_errors'", tc.Filename)
 	}
 
-	regoVersion, err := compileCaseRegoVersion(tc.RegoVersion)
+	regoVersion, err := caseRegoVersion(tc.RegoVersion)
 	if err != nil {
 		t.Fatalf("%s: %v", tc.Filename, err)
 	}
@@ -45,106 +44,32 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 		name := compilecases.ModuleName(i)
 		parsed, err := ParseModuleWithOpts(name, module, popts)
 		if err != nil {
-			// Parse errors are reported by their own stage, and are not (yet)
-			// covered by this corpus.
+			// Parse errors are reported by their own stage, and are covered by
+			// the parser corpus in v1/test/parsercases.
 			t.Fatalf("unexpected parse error: %v", err)
 		}
 		modules[name] = parsed
 	}
 
-	c := NewCompiler().WithStrict(tc.Strict).WithEnablePrintStatements(tc.PrintStatements)
+	// Without lifting the limit the compiler stops at CompileErrorLimitDefault
+	// and appends a "too many errors" diagnostic of its own, so a case with more
+	// than ten would be matched against a truncated set. The generator lifts it
+	// for the same reason.
+	c := NewCompiler().
+		SetErrorLimit(0).
+		WithStrict(tc.Strict).
+		WithEnablePrintStatements(tc.PrintStatements)
+
 	c.Compile(modules)
 
 	if !c.Failed() {
 		t.Fatal("expected compilation to fail, but it succeeded")
 	}
 
-	got := make([]compilecases.Error, 0, len(c.Errors))
+	got := make([]conformance.Error, 0, len(c.Errors))
 	for _, e := range c.Errors {
-		got = append(got, compileCaseError(e))
+		got = append(got, caseError(e))
 	}
 
-	assertCompileCaseErrors(t, tc, got)
-}
-
-// assertCompileCaseErrors checks that every expected diagnostic was reported,
-// and, for an exhaustive case, that nothing else was. Diagnostics are compared
-// as a set: the order the compiler reports them in is not part of the contract.
-func assertCompileCaseErrors(t *testing.T, tc compilecases.TestCase, got []compilecases.Error) {
-	t.Helper()
-
-	matched := make([]bool, len(got))
-	var missing []compilecases.Error
-
-	for _, want := range tc.WantErrors {
-		found := false
-		for i, g := range got {
-			if matched[i] || !compileCaseErrorMatches(want, g) {
-				continue
-			}
-			matched[i] = true
-			found = true
-			break
-		}
-		if !found {
-			missing = append(missing, want)
-		}
-	}
-
-	var unexpected []compilecases.Error
-	if tc.Exhaustive {
-		for i, g := range got {
-			if !matched[i] {
-				unexpected = append(unexpected, g)
-			}
-		}
-	}
-
-	if len(missing) == 0 && len(unexpected) == 0 {
-		return
-	}
-
-	var sb strings.Builder
-	for _, e := range missing {
-		fmt.Fprintf(&sb, "\n  missing:    %s", e)
-	}
-	for _, e := range unexpected {
-		fmt.Fprintf(&sb, "\n  unexpected: %s", e)
-	}
-	fmt.Fprintf(&sb, "\n\nreported:")
-	for _, e := range got {
-		fmt.Fprintf(&sb, "\n  %s", e)
-	}
-
-	t.Fatalf("%s: diagnostics do not match:%s", tc.Filename, sb.String())
-}
-
-func compileCaseErrorMatches(want, got compilecases.Error) bool {
-	return want.ModuleOrDefault() == got.ModuleOrDefault() &&
-		want.Code == got.Code &&
-		want.Row == got.Row &&
-		(want.Col == 0 || want.Col == got.Col) &&
-		want.Message == got.Message
-}
-
-func compileCaseError(e *Error) compilecases.Error {
-	out := compilecases.Error{Code: e.Code, Message: e.Message}
-	if e.Location != nil {
-		out.Module = e.Location.File
-		out.Row = e.Location.Row
-		out.Col = e.Location.Col
-	}
-	return out
-}
-
-func compileCaseRegoVersion(s string) (RegoVersion, error) {
-	switch s {
-	case "", "v1":
-		return RegoV1, nil
-	case "v0":
-		return RegoV0, nil
-	case "v0-compat-v1":
-		return RegoV0CompatV1, nil
-	}
-	return RegoUndefined, fmt.Errorf("unknown rego_version %q", s)
+	assertCaseErrors(t, tc.Filename, tc.WantErrors, got, tc.Exhaustive)
 }

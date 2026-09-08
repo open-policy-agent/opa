@@ -1,0 +1,249 @@
+---
+# Generated externalized tests from TestFutureImports
+cases:
+  - note: imports/future-imports/future
+    module: |
+      package test
+
+      import future
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: invalid import, must be `future.keywords`
+  - note: imports/future-imports/future.a
+    module: |
+      package test
+
+      import future.a
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: invalid import, must be `future.keywords`
+  - note: imports/future-imports/unknown keyword
+    module: |
+      package test
+
+      import future.keywords.xyz
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: unexpected keyword, must be one of [and contains every if in not or]
+  - note: imports/future-imports/all keyword import + alias
+    module: |
+      package test
+
+      import future.keywords as xyz
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: '`future` imports cannot be aliased'
+  - note: imports/future-imports/keyword import + alias
+    module: |
+      package test
+
+      import future.keywords.in as xyz
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: '`future` imports cannot be aliased'
+  - note: imports/future-imports/import kw with kw in options
+    module: |
+      package test
+
+      import future.keywords.in
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "in"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
+      }
+  - note: imports/future-imports/import kw with all kw in options
+    module: |
+      package test
+
+      import future.keywords.in
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "in"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
+      }
+  - note: imports/future-imports/multiple imports, all kw in options
+    module: |
+      package p
+
+      import future.keywords
+      import future.keywords.in
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "in"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "p"
+            }
+          ]
+        }
+      }
+  - note: imports/future-imports/multiple imports, single in options
+    module: |
+      package p
+
+      import future.keywords
+      import future.keywords.in
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "in"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "p"
+            }
+          ]
+        }
+      }

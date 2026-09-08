@@ -1,0 +1,90 @@
+---
+# Generated externalized tests from TestSetFail
+cases:
+  - note: terms/set-fail/non-terminated 1
+    module: |
+      package test
+
+      p := set(
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        message: unexpected eof token
+  - note: terms/set-fail/non-terminated 2
+    module: |
+      package test
+
+      p := {foo, bar
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        message: 'unexpected eof token: expected "," or "}"'
+  - note: terms/set-fail/non-terminated 3
+    module: |
+      package test
+
+      p := {foo, bar,
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        message: unexpected eof token
+  - note: terms/set-fail/missing separator
+    module: |
+      package test
+
+      p := {foo bar}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 11
+        message: 'unexpected identifier token: non-terminated set'
+  - note: terms/set-fail/missing start
+    module: |
+      package test
+
+      p := foo, bar, baz}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 9
+        message: unexpected , token
+  - note: terms/set-fail/bad term
+    module: |
+      package test
+
+      p := {!!!}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: illegal ! character
+  - note: terms/set-fail/double comma
+    module: |
+      package test
+
+      p := {a,,b}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 9
+        message: unexpected , token
+  - note: terms/set-fail/leading double comma
+    module: |
+      package test
+
+      p := {,,a}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: unexpected , token
+  - note: terms/set-fail/trailing double comma
+    module: |
+      package test
+
+      p := {a,,}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 9
+        message: unexpected , token

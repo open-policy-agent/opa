@@ -1,0 +1,11 @@
+---
+cases:
+  - note: imports/invalid-import-path
+    module: |
+      package test
+
+      import data.
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        message: expected path

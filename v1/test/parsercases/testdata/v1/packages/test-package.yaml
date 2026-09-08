@@ -1,0 +1,108 @@
+---
+# Generated externalized tests from TestPackage
+cases:
+  - note: packages/package/single
+    module: |
+      package foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package/multiple
+    module: |
+      package f00.bar_baz.qux
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "f00"
+            },
+            {
+              "type": "string",
+              "value": "bar_baz"
+            },
+            {
+              "type": "string",
+              "value": "qux"
+            }
+          ]
+        }
+      }
+  - note: packages/package/space
+    module: |
+      package foo["bar baz"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "bar baz"
+            }
+          ]
+        }
+      }
+  - note: packages/package/non-ground ref
+    module: |
+      package foo[x]
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 13
+        message: 'unexpected var token: expecting string'
+  - note: packages/package/non-string value
+    module: |
+      package foo.bar[42].baz
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 17
+        message: 'unexpected number token: expecting string'
+  - note: packages/package/invalid term
+    module: |
+      package 42
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 9
+        message: unexpected number token
+  - note: packages/package/scanner error
+    module: |
+      package foo.
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected whitespace token: expected identifier'
+  - note: packages/package/non-string first value
+    module: |
+      package e().s
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 9
+        message: 'unexpected call token: expecting var'

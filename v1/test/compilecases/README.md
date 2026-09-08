@@ -1,0 +1,177 @@
+# Compiler conformance corpus
+
+A YAML corpus of compiler conformance cases: Rego modules in, diagnostics out.
+Every assertion a case makes is committed here, so a case is complete without a
+Go counterpart, and a new compiler test can land as YAML only.
+
+## Run order
+
+1. **[`v1/test/parsercases`](../parsercases/README.md) first.** A compiler case
+   is written in Rego and says nothing about how Rego parses; running it against
+   an implementation whose parser disagrees reports compiler failures that are
+   really parse failures.
+2. **This corpus.** Diagnostics are observable in any pipeline, whether or not
+   the implementation has a separable compiler stage.
+
+## Adding a case
+
+Write `note` and `modules` plus whatever configuration they need, run `make
+generate`, and review what comes out:
+
+```yaml
+---
+cases:
+  - note: safety/unsafe-var-in-rule-body
+    modules:
+      - |
+        package test
+
+        p if {
+        	x == 2
+        }
+    exhaustive: true
+```
+
+A fixture is what OPA's compiler produces, so it is a golden file: it does not
+independently validate OPA, it catches unreviewed change.
+
+`want_errors` is filled in **only where a case has none** and is never
+overwritten, so a diagnostic that changes fails the runner instead of being
+quietly rewritten — the messages are user-facing contract, and the corpus is the
+place that says so. To re-seed a case after a deliberate change, delete its
+`want_errors` and regenerate.
+
+Every case must assert `want_errors`. A case whose modules compile is rejected
+by the generator rather than committed as an empty assertion.
+
+A module must not carry trailing whitespace on a line. A YAML emitter will not
+write a block scalar for such a value, so the generator — which rewrites the
+whole file whenever a fixture changes — would render the policy as a single
+escaped line. The loader rejects it by naming the line rather than stripping it,
+so the module stays exactly as authored.
+
+| field | |
+| - | - |
+| `note` | globally unique identifier, and the subtest name |
+| `modules` | the policies to compile, named `test-0.rego`, `test-1.rego`, … |
+| `rego_version` | `v0`, `v1` (default), or `v0-compat-v1` |
+| `strict` | enable the compiler's strict mode |
+| `experimental_keywords` | opt-in to experimental future keywords, which have no import |
+| `print_statements` | keep `print()` calls instead of erasing them, as required to reach diagnostics about their operands |
+| `want_errors` | diagnostics the compilation must produce, as `module`/`code`/`row`/`col`/`message` |
+| `exhaustive` | require `want_errors` to be the complete set, not a subset |
+
+Activate a future keyword with an `import` in the module rather than a field on
+the case, for the reason the [parser corpus](../parsercases/README.md#future-keywords)
+gives: an import is part of the Rego, so any conforming parser already honours
+it. `experimental_keywords` has no import form, so it stays a field.
+
+## Several modules
+
+A case compiles all of its `modules` together, which is how conflicts, recursion
+across packages, and cross-module ref resolution are expressed. They are named
+positionally, and a diagnostic names the module it is reported against:
+
+```yaml
+    modules:
+      - |
+        package a
+
+        p if {
+        	x == 2
+        }
+      - |
+        package b
+
+        q if {
+        	y == 3
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var x is unsafe
+      - module: test-1.rego
+        code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var y is unsafe
+```
+
+`module` is omitted for `test-0.rego`, so a single-module case carries no
+attribution it does not need.
+
+## How diagnostics are matched
+
+Diagnostics are compared **as a set**: the order an implementation reports them
+in is not part of the contract. Each expected diagnostic must pair with a
+distinct reported one on module, code, row and message.
+
+`col` is asserted only when present. The generator writes one wherever the
+compiler reports a position, but deleting it from a case relaxes that case to the
+row — worth doing where a column is an artifact of OPA's own desugaring rather
+than something an implementation should be held to.
+
+`exhaustive: true` additionally requires that nothing else was reported. Leave it
+off where the number of diagnostics is not itself the contract — the cascade of
+one mistake is the usual example, and
+`testdata/v1/safety/test-safety-unsafe-var-cascade.yaml` is the worked case: the
+root cause must be reported, the rest may be.
+
+The corpus is generated and run with the compiler's error limit lifted. At the
+default of `CompileErrorLimitDefault` the compiler stops after ten diagnostics
+and appends a "too many errors" one of its own, which would silently truncate any
+case that reports more.
+
+## Layout
+
+```
+testdata/v0/<area>/<file>.yaml
+testdata/v1/<area>/<file>.yaml
+```
+
+The top level is the Rego version and below it is the language area — `safety/`,
+`print/` — not the outcome. A directory that meant "these fail" would say nothing
+that `want_errors` does not, while costing the grouping that puts a rule and its
+counter-example side by side.
+
+The directory is organisational; `rego_version` on the case is what drives
+parsing, and the two are expected to agree. A case is filed under the version it
+is *about*: where the same source means different things in v0 and v1, write one
+case per version rather than translating between them.
+
+`testdata/testdata.go` embeds the corpus so that tools outside this repository
+can consume it, as `v1/test/cases/testdata` does for the evaluation cases.
+
+## Consuming the corpus from Go
+
+The embedded YAML is the corpus, so a consumer that wants only the committed
+cases can read `testdata.FS` directly. `build/generate-compiler-cases` offers a
+loader on top of it for consumers that want to filter:
+
+```go
+sets, err := cases.LoadCompilerTestCasesFiltered(
+	[]cases.Filters{cases.RegoVersionFilter(ast.RegoV1)},
+)
+```
+
+`RegoVersionFilter` marks `Ignore` on every case written for a version you do not
+parse. Matching is exact: `v0-compat-v1` is its own parsing mode, so supporting
+`v0` or `v1` does not imply it, and passing no version filters nothing rather
+than rejecting the whole corpus. A rejected case is marked, never removed — the
+corpus stays addressable by index, and what you do with an ignored case is your
+own business.
+
+`CapabilitiesFilter`, which the parser corpus pairs with `WithIR`, has no
+counterpart here yet: it filters on the builtins a plan calls, and this corpus
+does not generate plans.
+
+## What this corpus does not carry yet
+
+Diagnostics only, today. Compiler *transformations* — asserting that compiling a
+module yields a particular compiled form — and query compilation are not
+expressible here yet; those tests still live in `v1/ast/compile_test.go`.
+
+The generator lives in `build/generate-compiler-cases`, alongside
+`build/generate-parser-cases` and `build/generate-extended-cases`, which do the
+same for the parser and evaluation corpora.

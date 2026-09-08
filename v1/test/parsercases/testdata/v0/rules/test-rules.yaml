@@ -1,0 +1,138 @@
+---
+cases:
+  - note: rules/partial-set
+    rego_version: v0
+    module: |
+      package test
+
+      p[x] {
+      	x := 1
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: rules/imported-future-keyword
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.if
+
+      p if {
+      	true
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "if"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

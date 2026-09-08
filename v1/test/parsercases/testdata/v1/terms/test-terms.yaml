@@ -1,0 +1,406 @@
+---
+cases:
+  - note: terms/var
+    module: |
+      package test
+
+      p := foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "foo"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/number-exponent
+    module: |
+      package test
+
+      p := 1e6
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1e6
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/string-escapes
+    module: |
+      package test
+
+      p := " \"quoted\" \uD834\uDD1E"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": " \"quoted\" \ud834\udd1e"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/composite
+    module: |
+      package test
+
+      p := [1, ["a", {"b": null}], {1, 2}]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "array",
+                    "value": [
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "object",
+                        "value": [
+                          [
+                            {
+                              "type": "string",
+                              "value": "b"
+                            },
+                            {
+                              "type": "null",
+                              "value": {}
+                            }
+                          ]
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/comprehension
+    module: |
+      package test
+
+      p := [x | some x in input.xs]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "arraycomprehension",
+                "value": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "symbols": [
+                          {
+                            "type": "call",
+                            "value": [
+                              {
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "type": "var",
+                                    "value": "internal"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "value": "member_2"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "var",
+                                "value": "x"
+                              },
+                              {
+                                "type": "ref",
+                                "value": [
+                                  {
+                                    "type": "var",
+                                    "value": "input"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "value": "xs"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "term": {
+                    "type": "var",
+                    "value": "x"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/call
+    module: |
+      package test
+
+      p := count(input.a.b[_])
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "count"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "string",
+                        "value": "b"
+                      },
+                      {
+                        "type": "var",
+                        "value": "$0"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }

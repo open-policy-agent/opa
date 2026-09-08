@@ -1,0 +1,570 @@
+---
+# Generated externalized tests from TestRefTerms
+cases:
+  - note: terms/ref-terms/constants
+    module: |
+      package test
+
+      p := foo.bar.baz
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  },
+                  {
+                    "type": "string",
+                    "value": "bar"
+                  },
+                  {
+                    "type": "string",
+                    "value": "baz"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/ref-terms/constants 2
+    module: |
+      package test
+
+      p := foo.bar[0].baz
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  },
+                  {
+                    "type": "string",
+                    "value": "bar"
+                  },
+                  {
+                    "type": "number",
+                    "value": 0
+                  },
+                  {
+                    "type": "string",
+                    "value": "baz"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/ref-terms/variables
+    module: |
+      package test
+
+      p := foo.bar[0].baz[i]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  },
+                  {
+                    "type": "string",
+                    "value": "bar"
+                  },
+                  {
+                    "type": "number",
+                    "value": 0
+                  },
+                  {
+                    "type": "string",
+                    "value": "baz"
+                  },
+                  {
+                    "type": "var",
+                    "value": "i"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/ref-terms/spaces
+    module: |
+      package test
+
+      p := foo["white space"].bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  },
+                  {
+                    "type": "string",
+                    "value": "white space"
+                  },
+                  {
+                    "type": "string",
+                    "value": "bar"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/ref-terms/nested
+    module: |
+      package test
+
+      p := foo[baz[1][borge[i]]].bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "baz"
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "borge"
+                          },
+                          {
+                            "type": "var",
+                            "value": "i"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "value": "bar"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/ref-terms/composite operand 1
+    module: |
+      package test
+
+      p := foo[[1,2,3]].bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  },
+                  {
+                    "type": "array",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      },
+                      {
+                        "type": "number",
+                        "value": 3
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "value": "bar"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/ref-terms/composite operand 2
+    module: |
+      package test
+
+      p := foo[{"foo": 2}].bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  },
+                  {
+                    "type": "object",
+                    "value": [
+                      [
+                        {
+                          "type": "string",
+                          "value": "foo"
+                        },
+                        {
+                          "type": "number",
+                          "value": 2
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "value": "bar"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/ref-terms/missing component 1
+    module: |
+      package test
+
+      p := foo.
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        message: 'unexpected whitespace token: expected identifier'
+  - note: terms/ref-terms/missing component 2
+    module: |
+      package test
+
+      p := foo[].bar
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 10
+        message: unexpected ] token
+  - note: terms/ref-terms/invalid composite operand
+    module: |
+      package test
+
+      p := foo[1,2]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 11
+        message: 'unexpected , token: expected ['
+  - note: terms/ref-terms/invalid call
+    module: |
+      package test
+
+      p := bar(..
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 11
+        message: 'unexpected . token: expected number'
+  - note: terms/ref-terms/invalid ref
+    module: |
+      package test
+
+      p := bar[..
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 11
+        message: 'unexpected . token: expected number'
+  - note: terms/ref-terms/invalid ref head type number
+    module: |
+      package test
+
+      p := 0[0]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal ref (head cannot be number)
+  - note: terms/ref-terms/invalid ref head type number (float)
+    module: |
+      package test
+
+      p := 1.2[0]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal ref (head cannot be number)
+  - note: terms/ref-terms/invalid ref head type string
+    module: |
+      package test
+
+      p := "foo"[0]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal ref (head cannot be string)
+  - note: terms/ref-terms/invalid ref head type string (dot)
+    module: |
+      package test
+
+      p := "foo".bar
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal ref (head cannot be string)

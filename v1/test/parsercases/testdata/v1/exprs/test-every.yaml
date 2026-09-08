@@ -1,0 +1,404 @@
+---
+# Generated externalized tests from TestEvery
+cases:
+  - note: exprs/every/simple
+    module: |
+      package test
+
+      p if {
+      	every x in xs { true }
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "boolean",
+                        "value": true
+                      }
+                    }
+                  ],
+                  "domain": {
+                    "type": "var",
+                    "value": "xs"
+                  },
+                  "key": null,
+                  "value": {
+                    "type": "var",
+                    "value": "x"
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/every/with key
+    module: |
+      package test
+
+      p if {
+      	every k, v in [1,2] { true }
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "boolean",
+                        "value": true
+                      }
+                    }
+                  ],
+                  "domain": {
+                    "type": "array",
+                    "value": [
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 2
+                      }
+                    ]
+                  },
+                  "key": {
+                    "type": "var",
+                    "value": "k"
+                  },
+                  "value": {
+                    "type": "var",
+                    "value": "v"
+                  }
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/every/arbitrary term
+    module: |
+      package test
+
+      p if {
+      	every 10
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: expected `x[, y] in xs { ... }` expression'
+  - note: exprs/every/non-var value
+    module: |
+      package test
+
+      p if {
+      	every 10 in xs { true }
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 17
+        message: 'unexpected { token: expected value to be a variable'
+  - note: exprs/every/non-var key
+    module: |
+      package test
+
+      p if {
+      	every 10, x in xs { true }
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 20
+        message: 'unexpected { token: expected key to be a variable'
+  - note: exprs/every/arbitrary call
+    module: |
+      package test
+
+      p if {
+      	every f(10)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: expected `x[, y] in xs { ... }` expression'
+  - note: exprs/every/no body
+    module: |
+      package test
+
+      p if {
+      	every x in xs
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: missing body'
+  - note: exprs/every/invalid body
+    module: |
+      package test
+
+      p if {
+      	every x in xs { + }
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 18
+        message: unexpected plus token
+  - note: exprs/every/not every
+    module: |
+      package test
+
+      p if {
+      	not every x in xs { true }
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 6
+        message: 'unexpected every keyword: illegal negation of ''every'''
+  - note: exprs/every/"every" kw implies "in" kw
+    module: |
+      package test
+
+      p if {
+      	x in xs
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "internal"
+                      },
+                      {
+                        "type": "string",
+                        "value": "member_2"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "xs"
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/every/with modifier on expr
+    module: |
+      package test
+
+      p if {
+      	every x in input { x } with input as []
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "domain": {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      }
+                    ]
+                  },
+                  "key": null,
+                  "value": {
+                    "type": "var",
+                    "value": "x"
+                  }
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "array",
+                      "value": []
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/every/invalid domain (internal.member_2)
+    module: |
+      package test
+
+      p if {
+      	every internal.member_2()
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: illegal domain'
+  - note: exprs/every/invalid domain (internal.member_3)
+    module: |
+      package test
+
+      p if {
+      	every internal.member_3()
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: illegal domain'

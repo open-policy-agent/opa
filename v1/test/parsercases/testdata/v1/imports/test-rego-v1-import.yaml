@@ -1,0 +1,80 @@
+---
+# Generated externalized tests from TestRegoV1Import
+cases:
+  - note: imports/rego-v1-import/rego
+    module: |
+      package test
+
+      import rego
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: invalid import `rego`, must be `rego.v1`
+  - note: imports/rego-v1-import/rego.foo
+    module: |
+      package test
+
+      import rego.foo
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: invalid import `rego.foo`, must be `rego.v1`
+  - note: imports/rego-v1-import/rego.foo.bar
+    module: |
+      package test
+
+      import rego.foo.bar
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: invalid import `rego.foo.bar`, must be `rego.v1`
+  - note: imports/rego-v1-import/rego.v1.bar
+    module: |
+      package test
+
+      import rego.v1.bar
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: invalid import `rego.v1.bar`, must be `rego.v1`
+  - note: imports/rego-v1-import/import rego.v1
+    module: |
+      package test
+
+      import rego.v1
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "rego"
+                },
+                {
+                  "type": "string",
+                  "value": "v1"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
+      }

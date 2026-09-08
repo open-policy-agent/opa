@@ -1,0 +1,1065 @@
+---
+# Generated externalized tests from TestParseLogical_BraceLedOperandScope
+cases:
+  - note: exprs/parse-logical-brace-led-operand-scope/body operand, lhs
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{x} and z
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "explicit_lhs": true,
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/body operand, rhs
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and {x}
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "explicit_rhs": true,
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/multi-expression body operand, lhs
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	{x; y} or z
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "explicit_lhs": true,
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    },
+                    {
+                      "index": 1,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/multi-expression body operand, rhs
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	z or {x; y}
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "explicit_rhs": true,
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    },
+                    {
+                      "index": 1,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/object body statement
+    module: |
+      package test
+
+      p if {
+      	{"a": 1}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "object",
+                  "value": [
+                    [
+                      {
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/ref into object body statement
+    module: |
+      package test
+
+      p if {
+      	{"a": 1}[_]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "a"
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "var",
+                      "value": "$0"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/comparison with set body statement
+    module: |
+      package test
+
+      p if {
+      	{x} == input.y
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "set",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "y"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/object as call argument
+    module: |
+      package test
+
+      p if {
+      	f({"a": 1})
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "f"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "value": [
+                      [
+                        {
+                          "type": "string",
+                          "value": "a"
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/chain
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{"a": 1} and z or w
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, lhs
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{x} == input.y and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({x} == input.y) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, rhs
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and {x} == input.y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 12
+        message: 'unexpected equal token: expected \n or ; or }'
+  - note: exprs/parse-logical-brace-led-operand-scope/negated set term, lhs, not unimported
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	not {1} and z
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "negated": true,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/negated set term, rhs, not unimported
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and not {1}
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "negated": true,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/not-body, lhs, not imported
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	not {1} and z
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "negated": true,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-brace-led-operand-scope/not-body, rhs, not imported
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and not {1}
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "negated": true,
+                      "terms": {
+                        "type": "set",
+                        "value": [
+                          {
+                            "type": "number",
+                            "value": 1
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

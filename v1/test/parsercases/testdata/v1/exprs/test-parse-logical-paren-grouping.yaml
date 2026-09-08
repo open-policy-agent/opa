@@ -1,0 +1,2785 @@
+---
+# Generated externalized tests from TestParseLogical_ParenGrouping
+cases:
+  - note: exprs/parse-logical-paren-grouping/rhs group
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	a and (b or c)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "c"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/lhs group
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	(a or b) and c
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/outer group unwrapped
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	(a or b)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/nested groups
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	(a and (b or c)) and d
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "lhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "b"
+                                  }
+                                }
+                              ],
+                              "rhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "c"
+                                  }
+                                }
+                              ],
+                              "type": "or"
+                            }
+                          }
+                        ],
+                        "type": "and"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "d"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/redundant parens around group collapse
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	((a or b))
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/redundant parens around operand collapse
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	a or ((b))
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/group on both sides
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	(a or b) and (c or d)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "c"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "d"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/group forces right nesting of same operator
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	a or (b or c)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "c"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/not inside group
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(not a)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/not with grouped operand
+    module: |
+      package test
+
+      p if {
+      	not (a)
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "negated": true,
+                "terms": {
+                  "type": "var",
+                  "value": "a"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/not inside group binds under or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	(not a or b)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "negated": true,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/not with grouped operand inside or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	not (a) or b
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "negated": true,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/not inside group binds under or (2)
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	(not a or b)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "negated": true,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/redundant parens around single operand drop
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(a) and (b)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/group forces right nesting of and
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	a and (b and c)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "c"
+                            }
+                          }
+                        ],
+                        "type": "and"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/redundant parens preserve same-precedence tree
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	(a and b) or c
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "and"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/comparison operands inside groups
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	(a == b) or (c == d)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "c"
+                        },
+                        {
+                          "type": "var",
+                          "value": "d"
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/deeply mixed and/or groups
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	a or (b and (c or d))
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "lhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "c"
+                                  }
+                                }
+                              ],
+                              "rhs": [
+                                {
+                                  "index": 0,
+                                  "terms": {
+                                    "type": "var",
+                                    "value": "d"
+                                  }
+                                }
+                              ],
+                              "type": "or"
+                            }
+                          }
+                        ],
+                        "type": "and"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/explicit body lhs with paren group rhs
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	{x; y} and (a or b)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "explicit_lhs": true,
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "x"
+                      }
+                    },
+                    {
+                      "index": 1,
+                      "terms": {
+                        "type": "var",
+                        "value": "y"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/rhs operand, leading part wrapped
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and ({1, 2}) & input.s == set()
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "call",
+                          "value": [
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "and"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "set",
+                              "value": [
+                                {
+                                  "type": "number",
+                                  "value": 1
+                                },
+                                {
+                                  "type": "number",
+                                  "value": 2
+                                }
+                              ]
+                            },
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "input"
+                                },
+                                {
+                                  "type": "string",
+                                  "value": "s"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "set",
+                          "value": []
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/rhs operand, whole operand wrapped
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and ({1, 2} & input.s == set())
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "call",
+                          "value": [
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "and"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "set",
+                              "value": [
+                                {
+                                  "type": "number",
+                                  "value": 1
+                                },
+                                {
+                                  "type": "number",
+                                  "value": 2
+                                }
+                              ]
+                            },
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "input"
+                                },
+                                {
+                                  "type": "string",
+                                  "value": "s"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "set",
+                          "value": []
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/lhs operand, leading part wrapped
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	({1, 2}) & input.s == set() and z
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "call",
+                          "value": [
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "and"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "set",
+                              "value": [
+                                {
+                                  "type": "number",
+                                  "value": 1
+                                },
+                                {
+                                  "type": "number",
+                                  "value": 2
+                                }
+                              ]
+                            },
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "input"
+                                },
+                                {
+                                  "type": "string",
+                                  "value": "s"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "set",
+                          "value": []
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/lhs operand, whole operand wrapped
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	({1, 2} & input.s == set()) and z
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "call",
+                          "value": [
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "and"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "set",
+                              "value": [
+                                {
+                                  "type": "number",
+                                  "value": 1
+                                },
+                                {
+                                  "type": "number",
+                                  "value": 2
+                                }
+                              ]
+                            },
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "input"
+                                },
+                                {
+                                  "type": "string",
+                                  "value": "s"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "set",
+                          "value": []
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized arithmetic
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and (1 + 2) > 3
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "gt"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "call",
+                          "value": [
+                            {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "plus"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "value": 1
+                            },
+                            {
+                              "type": "number",
+                              "value": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "number",
+                          "value": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized comparison
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and (a) == b
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "z"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "equal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "a"
+                        },
+                        {
+                          "type": "var",
+                          "value": "b"
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

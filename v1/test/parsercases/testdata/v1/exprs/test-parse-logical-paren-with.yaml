@@ -1,0 +1,1816 @@
+---
+# Generated externalized tests from TestParseLogical_ParenWith
+cases:
+  - note: exprs/parse-logical-paren-with/with on standalone group, or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	(a or b) with input as x
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "or"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on standalone group, and
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(a and b) with input as x
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on group chain attaches to outer
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	(a or b) and c with input as x
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on group chain attaches to inner
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	(a or b with input as x) and c
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      },
+                      "with": [
+                        {
+                          "target": {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on not group
+    module: |
+      package test
+
+      import future.keywords.or
+      import future.keywords.not
+
+      p if {
+      	not (a or b) with input as x
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on lhs operand group
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(a with input as x) and b
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      "with": [
+                        {
+                          "target": {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on rhs operand group
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	a and (b with input as x)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      },
+                      "with": [
+                        {
+                          "target": {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with inside group binds to whole group
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(a and b with input as x)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with after group binds to whole group
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(a and b) with input as x
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with without group (baseline)
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	a and b with input as x
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on each operand group
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(a with input as x) and (b with input as y)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      "with": [
+                        {
+                          "target": {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      },
+                      "with": [
+                        {
+                          "target": {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "type": "var",
+                            "value": "y"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on single-operand not group
+    module: |
+      package test
+
+      import future.keywords.not
+
+      p if {
+      	not (a with input as x)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      },
+                      "with": [
+                        {
+                          "target": {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with inside not group binds to group
+    module: |
+      package test
+
+      import future.keywords.or
+      import future.keywords.not
+
+      p if {
+      	not (a or b with input as x)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      },
+                      "with": [
+                        {
+                          "target": {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": false,
+                  "type": "not"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on rhs group content
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	a and (b or c with input as x)
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "c"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      },
+                      "with": [
+                        {
+                          "target": {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "input"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "type": "var",
+                            "value": "x"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/with on mid-chain group
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	a and (b with input as v) and c
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            },
+                            "with": [
+                              {
+                                "target": {
+                                  "type": "ref",
+                                  "value": [
+                                    {
+                                      "type": "var",
+                                      "value": "input"
+                                    }
+                                  ]
+                                },
+                                "value": {
+                                  "type": "var",
+                                  "value": "v"
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "type": "and"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-with/mid-group with before and
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	(a with input as v and b)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 5
+        message: '`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)'
+  - note: exprs/parse-logical-paren-with/mid-group with before or
+    module: |
+      package test
+
+      import future.keywords.or
+
+      p if {
+      	(a with input as v or b)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 5
+        message: '`with` modifier is not allowed on operand of `or` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `or` expression to apply it to the whole expression)'
+  - note: exprs/parse-logical-paren-with/mid-group with inside not group
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.not
+
+      p if {
+      	not (a with input as v and b)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 7
+        col: 9
+        message: '`with` modifier is not allowed on operand of `and` (hint: Wrap the operand in `(...)` or `{...}` to scope, or move `with` after the `and` expression to apply it to the whole expression)'

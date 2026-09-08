@@ -1,0 +1,337 @@
+---
+# Generated externalized tests from TestRuleContains
+cases:
+  - note: rules/rule-contains/simple
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.contains
+
+      p contains "x" { true }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "contains"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "string",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: rules/rule-contains/ref head
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.contains
+
+      p.q contains "x" { true }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "contains"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "string",
+                "value": "x"
+              },
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: rules/rule-contains/set with var element
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.contains
+
+      deny contains msg { msg := "nonono" }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "contains"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "msg"
+                  },
+                  {
+                    "type": "string",
+                    "value": "nonono"
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "msg"
+              },
+              "name": "deny",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "deny"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: rules/rule-contains/set with object elem
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.contains
+
+      deny contains {"allow": false, "msg": msg} { msg := "nonono" }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "contains"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "msg"
+                  },
+                  {
+                    "type": "string",
+                    "value": "nonono"
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "key": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "string",
+                      "value": "allow"
+                    },
+                    {
+                      "type": "boolean",
+                      "value": false
+                    }
+                  ],
+                  [
+                    {
+                      "type": "string",
+                      "value": "msg"
+                    },
+                    {
+                      "type": "var",
+                      "value": "msg"
+                    }
+                  ]
+                ]
+              },
+              "name": "deny",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "deny"
+                }
+              ]
+            }
+          }
+        ]
+      }

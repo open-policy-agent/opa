@@ -1,0 +1,1599 @@
+---
+# Generated externalized tests from TestRefTermsContainingKeywords
+cases:
+  - note: exprs/ref-terms-containing-keywords/not.foo
+    module: |
+      package test
+
+      p if {
+      	not.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "not"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/not["foo"]
+    module: |
+      package test
+
+      p if {
+      	not["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "not"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/package.foo
+    module: |
+      package test
+
+      p if {
+      	package.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "package"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/package["foo"]
+    module: |
+      package test
+
+      p if {
+      	package["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "package"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/import.foo
+    module: |
+      package test
+
+      p if {
+      	import.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "import"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/import["foo"]
+    module: |
+      package test
+
+      p if {
+      	import["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "import"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/as.foo
+    module: |
+      package test
+
+      p if {
+      	as.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "as"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/as["foo"]
+    module: |
+      package test
+
+      p if {
+      	as["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "as"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/default.foo
+    module: |
+      package test
+
+      p if {
+      	default.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "default"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/default["foo"]
+    module: |
+      package test
+
+      p if {
+      	default["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "default"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/else.foo
+    module: |
+      package test
+
+      p if {
+      	else.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "else"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/else["foo"]
+    module: |
+      package test
+
+      p if {
+      	else["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "else"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/with.foo
+    module: |
+      package test
+
+      p if {
+      	with.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "with"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/with["foo"]
+    module: |
+      package test
+
+      p if {
+      	with["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "with"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/null.foo
+    module: |
+      package test
+
+      p if {
+      	null.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "null"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/null["foo"]
+    module: |
+      package test
+
+      p if {
+      	null["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "null"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/true.foo
+    module: |
+      package test
+
+      p if {
+      	true.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "true"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/true["foo"]
+    module: |
+      package test
+
+      p if {
+      	true["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "true"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/false.foo
+    module: |
+      package test
+
+      p if {
+      	false.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "false"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/false["foo"]
+    module: |
+      package test
+
+      p if {
+      	false["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "false"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/some.foo
+    module: |
+      package test
+
+      p if {
+      	some.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "some"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/some["foo"]
+    module: |
+      package test
+
+      p if {
+      	some["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "some"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/if.foo
+    module: |
+      package test
+
+      p if {
+      	if.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "if"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/if["foo"]
+    module: |
+      package test
+
+      p if {
+      	if["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "if"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/in.foo
+    module: |
+      package test
+
+      p if {
+      	in.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "in"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/in["foo"]
+    module: |
+      package test
+
+      p if {
+      	in["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "in"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/every.foo
+    module: |
+      package test
+
+      p if {
+      	every.foo
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "every"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/ref-terms-containing-keywords/every["foo"]
+    module: |
+      package test
+
+      p if {
+      	every["foo"]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "every"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

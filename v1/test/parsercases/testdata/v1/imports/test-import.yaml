@@ -1,0 +1,273 @@
+---
+# Generated externalized tests from TestImport
+cases:
+  - note: imports/import/single-input
+    module: |
+      package test
+
+      import input
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "input"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
+      }
+  - note: imports/import/single-data
+    module: |
+      package test
+
+      import data
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
+      }
+  - note: imports/import/multiple
+    module: |
+      package test
+
+      import input.foo.bar.baz
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "input"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                },
+                {
+                  "type": "string",
+                  "value": "baz"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
+      }
+  - note: imports/import/single alias
+    module: |
+      package test
+
+      import input.foo as bar
+    want_ast: |
+      {
+        "imports": [
+          {
+            "alias": "bar",
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "input"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
+      }
+  - note: imports/import/multiple alias
+    module: |
+      package test
+
+      import input.foo.bar.baz as qux
+    want_ast: |
+      {
+        "imports": [
+          {
+            "alias": "qux",
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "input"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                },
+                {
+                  "type": "string",
+                  "value": "baz"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
+      }
+  - note: imports/import/white space
+    module: |
+      package test
+
+      import input.foo.bar["white space"]
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "input"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                },
+                {
+                  "type": "string",
+                  "value": "white space"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
+      }
+  - note: imports/import/non-ground ref
+    module: |
+      package test
+
+      import data.foo[x]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 17
+        message: 'unexpected var token: expecting string'
+  - note: imports/import/non-string
+    module: |
+      package test
+
+      import input.foo[0]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 18
+        message: 'unexpected number token: expecting string'
+  - note: imports/import/unknown root
+    module: |
+      package test
+
+      import foo.bar
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 8
+        message: 'unexpected import path, must begin with one of: {data, future, input, rego}, got: foo (hint: if this is unexpected, try updating OPA)'

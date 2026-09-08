@@ -1,0 +1,141 @@
+---
+# Generated externalized tests from TestArrayWithVars
+cases:
+  - note: terms/array-with-vars/var elements
+    module: |
+      package test
+
+      p := [foo, bar, 42]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "foo"
+                  },
+                  {
+                    "type": "var",
+                    "value": "bar"
+                  },
+                  {
+                    "type": "number",
+                    "value": 42
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/array-with-vars/nested var elements
+    module: |
+      package test
+
+      p := [[foo, true], [null, bar], 42]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "array",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "foo"
+                      },
+                      {
+                        "type": "boolean",
+                        "value": true
+                      }
+                    ]
+                  },
+                  {
+                    "type": "array",
+                    "value": [
+                      {
+                        "type": "null",
+                        "value": {}
+                      },
+                      {
+                        "type": "var",
+                        "value": "bar"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 42
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }

@@ -1,0 +1,405 @@
+---
+# Generated externalized tests from TestExprWith
+cases:
+  - note: exprs/expr-with/input
+    module: |
+      package test
+
+      p if {
+      	data.foo with input as baz
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "data"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "baz"
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/expr-with/builtin/ref target/composites
+    module: |
+      package test
+
+      p if {
+      	plus(data.foo, 1, x) with input.com.acmecorp.obj as {"count": [{1,2,3}]}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "plus"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "data"
+                      },
+                      {
+                        "type": "string",
+                        "value": "foo"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  }
+                ],
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        },
+                        {
+                          "type": "string",
+                          "value": "com"
+                        },
+                        {
+                          "type": "string",
+                          "value": "acmecorp"
+                        },
+                        {
+                          "type": "string",
+                          "value": "obj"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "count"
+                          },
+                          {
+                            "type": "array",
+                            "value": [
+                              {
+                                "type": "set",
+                                "value": [
+                                  {
+                                    "type": "number",
+                                    "value": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "value": 2
+                                  },
+                                  {
+                                    "type": "number",
+                                    "value": 3
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/expr-with/multiple
+    module: |
+      package test
+
+      p if {
+      	data.foo with input.obj as baz with input.com.acmecorp.obj as {"count": [{1,2,3}]}
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "data"
+                    },
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    }
+                  ]
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        },
+                        {
+                          "type": "string",
+                          "value": "obj"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "var",
+                      "value": "baz"
+                    }
+                  },
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        },
+                        {
+                          "type": "string",
+                          "value": "com"
+                        },
+                        {
+                          "type": "string",
+                          "value": "acmecorp"
+                        },
+                        {
+                          "type": "string",
+                          "value": "obj"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "object",
+                      "value": [
+                        [
+                          {
+                            "type": "string",
+                            "value": "count"
+                          },
+                          {
+                            "type": "array",
+                            "value": [
+                              {
+                                "type": "set",
+                                "value": [
+                                  {
+                                    "type": "number",
+                                    "value": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "value": 2
+                                  },
+                                  {
+                                    "type": "number",
+                                    "value": 3
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/expr-with/variable target
+    module: |
+      package test
+
+      p if {
+      	true with x as 1
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    "value": {
+                      "type": "number",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

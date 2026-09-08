@@ -1,0 +1,216 @@
+---
+# Generated externalized tests from TestParseLogical_ParenRedundant
+cases:
+  - note: exprs/parse-logical-paren-redundant/double-wrapped and-chain
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	((a and b))
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "a"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "b"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/parse-logical-paren-redundant/deeply nested redundant parens
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	(((((a or ((b)))) and c)))
+      }
+    want_ast: |
+      {
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "lhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "a"
+                            }
+                          }
+                        ],
+                        "rhs": [
+                          {
+                            "index": 0,
+                            "terms": {
+                              "type": "var",
+                              "value": "b"
+                            }
+                          }
+                        ],
+                        "type": "or"
+                      }
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "var",
+                        "value": "c"
+                      }
+                    }
+                  ],
+                  "type": "and"
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }

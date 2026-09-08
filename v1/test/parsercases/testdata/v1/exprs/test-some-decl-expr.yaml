@@ -1,0 +1,472 @@
+---
+# Generated externalized tests from TestSomeDeclExpr
+cases:
+  - note: exprs/some-decl-expr/one
+    module: |
+      package test
+
+      p if {
+      	some x
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/internal.member_2
+    module: |
+      package test
+
+      p if {
+      	some x in xs
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "member_2"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "var",
+                          "value": "xs"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/internal.member_3
+    module: |
+      package test
+
+      p if {
+      	some x, y in xs
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "member_3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "var",
+                          "value": "y"
+                        },
+                        {
+                          "type": "var",
+                          "value": "xs"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/not some
+    module: |
+      package test
+
+      p if {
+      	not some x, y in xs
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 6
+        message: 'unexpected some keyword: illegal negation of ''some'''
+  - note: exprs/some-decl-expr/some + function call
+    module: |
+      package test
+
+      p if {
+      	some f(x)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: expected `x in xs` or `x, y in xs` expression'
+  - note: exprs/some-decl-expr/multiple
+    module: |
+      package test
+
+      p if {
+      	some x, y
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/multiple split across lines
+    module: |
+      package test
+
+      p if {
+      	some x, y,
+      z
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    },
+                    {
+                      "type": "var",
+                      "value": "z"
+                    }
+                  ]
+                }
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/with modifier on expr
+    module: |
+      package test
+
+      p if {
+      	some x, y in input with input as []
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "call",
+                      "value": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "internal"
+                            },
+                            {
+                              "type": "string",
+                              "value": "member_3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "var",
+                          "value": "y"
+                        },
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "input"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "with": [
+                  {
+                    "target": {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "input"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "type": "array",
+                      "value": []
+                    }
+                  }
+                ]
+              }
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
+          }
+        ]
+      }
+  - note: exprs/some-decl-expr/invalid domain (internal.member_2)
+    module: |
+      package test
+
+      p if {
+      	some internal.member_2()
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: illegal domain'
+  - note: exprs/some-decl-expr/invalid domain (internal.member_3)
+    module: |
+      package test
+
+      p if {
+      	some internal.member_3()
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: illegal domain'

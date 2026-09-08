@@ -1,0 +1,509 @@
+---
+# Generated externalized tests from TestSetWithScalars
+cases:
+  - note: terms/set-with-scalars/number
+    module: |
+      package test
+
+      p := {1,2,3,4.5}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  },
+                  {
+                    "type": "number",
+                    "value": 3
+                  },
+                  {
+                    "type": "number",
+                    "value": 4.5
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/set-with-scalars/bool
+    module: |
+      package test
+
+      p := {true, false, true}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "boolean",
+                    "value": false
+                  },
+                  {
+                    "type": "boolean",
+                    "value": true
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/set-with-scalars/string
+    module: |
+      package test
+
+      p := {"foo", "bar"}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "bar"
+                  },
+                  {
+                    "type": "string",
+                    "value": "foo"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/set-with-scalars/mixed
+    module: |
+      package test
+
+      p := {null, true, 42}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "null",
+                    "value": {}
+                  },
+                  {
+                    "type": "boolean",
+                    "value": true
+                  },
+                  {
+                    "type": "number",
+                    "value": 42
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/set-with-scalars/trailing comma
+    module: |
+      package test
+
+      p := {null, true,}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "null",
+                    "value": {}
+                  },
+                  {
+                    "type": "boolean",
+                    "value": true
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/set-with-scalars/leading comma
+    module: |
+      package test
+
+      p := {, null, true}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "null",
+                    "value": {}
+                  },
+                  {
+                    "type": "boolean",
+                    "value": true
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/set-with-scalars/leading comma not comprehension
+    module: |
+      package test
+
+      p := {, 1 | 1}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      },
+                      {
+                        "type": "number",
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/set-with-scalars/ambiguous or
+    module: |
+      package test
+
+      p := { 1 + 2 | 3}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "set",
+                "value": [
+                  {
+                    "type": "call",
+                    "value": [
+                      {
+                        "type": "ref",
+                        "value": [
+                          {
+                            "type": "var",
+                            "value": "or"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "call",
+                        "value": [
+                          {
+                            "type": "ref",
+                            "value": [
+                              {
+                                "type": "var",
+                                "value": "plus"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "number",
+                            "value": 1
+                          },
+                          {
+                            "type": "number",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "number",
+                        "value": 3
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }

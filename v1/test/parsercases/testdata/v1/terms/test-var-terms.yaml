@@ -1,0 +1,476 @@
+---
+# Generated externalized tests from TestVarTerms
+cases:
+  - note: terms/var-terms/var
+    module: |
+      package test
+
+      p := foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "foo"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/var-terms/var (2)
+    module: |
+      package test
+
+      p := foo_bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "foo_bar"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/var-terms/var (3)
+    module: |
+      package test
+
+      p := foo0
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "foo0"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/var-terms/import prefix
+    module: |
+      package test
+
+      p := imports
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "imports"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/var-terms/not prefix
+    module: |
+      package test
+
+      p := not_foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "not_foo"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/var-terms/package prefix
+    module: |
+      package test
+
+      p := packages
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "packages"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/var-terms/true prefix
+    module: |
+      package test
+
+      p := trueish
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "trueish"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/var-terms/false prefix
+    module: |
+      package test
+
+      p := false_flag
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "false_flag"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/var-terms/null prefix
+    module: |
+      package test
+
+      p := nullable
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "nullable"
+              }
+            }
+          }
+        ]
+      }
+  - note: terms/var-terms/illegal token
+    module: |
+      package test
+
+      p := 墳
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal token
+  - note: terms/var-terms/not keyword
+    module: |
+      package test
+
+      p := not
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: unexpected not keyword
+  - note: terms/var-terms/package keyword
+    module: |
+      package test
+
+      p := package
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: unexpected package keyword
+  - note: terms/var-terms/import keyword
+    module: |
+      package test
+
+      p := import
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: unexpected import keyword
+  - note: terms/var-terms/import invalid path
+    module: |
+      package test
+
+      p := import x.
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: unexpected import keyword
