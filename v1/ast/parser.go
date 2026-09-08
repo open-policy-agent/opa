@@ -766,6 +766,47 @@ func scanAheadRef(p *Parser) bool {
 	return false
 }
 
+// keywordRuleNameFollowers maps a keyword token to the tokens that, following it,
+// make the statement unambiguously a rule declaration.
+//
+// `contains` has a shorter list: outside of rule heads it parses as a plain var,
+// so `contains := x` is still a legal query and as a rule is already caught by
+// the rego-v1 check.
+var (
+	ruleNameFollowers        = []tokens.Token{tokens.Assign, tokens.Unify, tokens.If, tokens.Contains, tokens.LParen}
+	keywordRuleNameFollowers = map[tokens.Token][]tokens.Token{
+		tokens.Every:    ruleNameFollowers,
+		tokens.If:       ruleNameFollowers,
+		tokens.In:       ruleNameFollowers,
+		tokens.Contains: {tokens.If, tokens.Contains},
+	}
+)
+
+// errKeywordRuleName reports an error if the current token is a keyword used as a
+// rule name, e.g. `every := 1`. A statement that began with `default` can only be
+// a rule, so no lookahead is needed there.
+func (p *Parser) errKeywordRuleName(isDefault bool) {
+	followers, ok := keywordRuleNameFollowers[p.s.tok]
+	if !ok {
+		return
+	}
+
+	keyword, loc := p.s.tok, p.s.Loc()
+
+	if !isDefault {
+		s := p.save()
+		p.scan()
+		next := p.s.tok
+		p.restore(s)
+
+		if !slices.Contains(followers, next) {
+			return
+		}
+	}
+
+	p.errorf(loc, "%s keyword cannot be used for rule name", keyword)
+}
+
 // scanAheadLogicalCall rewrites an `and`/`or` keyword token to tokens.Ident when
 // it's immediately followed by `(`. Only valid where a term is expected: there,
 // the operator reading is impossible, so it must be a function (`&`/`|` set built-ins).
@@ -801,6 +842,7 @@ func (p *Parser) parseRules() []*Rule {
 	}
 
 	if p.s.tok != tokens.Ident {
+		p.errKeywordRuleName(rule.Default)
 		return nil
 	}
 

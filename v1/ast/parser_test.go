@@ -1790,6 +1790,61 @@ func TestRuleHeadsContainingKeywords_RegoV0(t *testing.T) {
 	}
 }
 
+func TestKeywordAsRuleName(t *testing.T) {
+	for _, kw := range []string{"every", "if", "in", "contains"} {
+		for _, decl := range []string{
+			kw + ` := 1`,
+			kw + ` = 1`,
+			kw + ` if { true }`,
+			kw + ` contains 1`,
+			kw + `(x) := x`,
+			`default ` + kw + ` := 1`,
+		} {
+			expected := kw + " keyword cannot be used for rule name"
+
+			t.Run("v1/"+decl, func(t *testing.T) {
+				_, err := ParseModuleWithOpts("test.rego", "package test\n"+decl, ParserOptions{RegoVersion: RegoV1})
+				if err == nil {
+					t.Fatal("expected error, got none")
+				}
+				if !strings.Contains(err.Error(), expected) {
+					t.Fatalf("expected error to contain %q, got:\n\n%v", expected, err)
+				}
+			})
+
+			t.Run("v0+rego.v1/"+decl, func(t *testing.T) {
+				_, err := ParseModuleWithOpts("test.rego", "package test\nimport rego.v1\n"+decl, ParserOptions{RegoVersion: RegoV0})
+				if err == nil {
+					t.Fatal("expected error, got none")
+				}
+				if !strings.Contains(err.Error(), expected) {
+					t.Fatalf("expected error to contain %q, got:\n\n%v", expected, err)
+				}
+			})
+
+			t.Run("v0/"+decl, func(t *testing.T) {
+				// Not keywords in v0, so these are valid rules or fail for other reasons.
+				_, err := ParseModuleWithOpts("test.rego", "package test\n"+decl, ParserOptions{RegoVersion: RegoV0})
+				if err != nil && strings.Contains(err.Error(), expected) {
+					t.Fatalf("unexpected keyword error in v0: %v", err)
+				}
+			})
+		}
+
+		t.Run("v1/ref head keeps working/"+kw, func(t *testing.T) {
+			if _, err := ParseModuleWithOpts("test.rego", "package test\n"+kw+".foo := 1", ParserOptions{RegoVersion: RegoV1}); err != nil {
+				t.Fatalf("expected no error, got: %v", err)
+			}
+		})
+	}
+
+	// `contains` still parses as a var outside rule heads, which queries rely on.
+	t.Run("contains as query var", func(t *testing.T) {
+		assertParseOneExpr(t, "contains assignment", "contains := 1",
+			MustParseExpr("assign(contains, 1)"))
+	})
+}
+
 func TestRefKeywordsEdgeCases(t *testing.T) {
 	t.Run("'in' kw first term in ref head rule following 'contains'", func(t *testing.T) {
 		input := `package test
