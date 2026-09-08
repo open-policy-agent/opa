@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -373,6 +374,11 @@ type Runtime struct {
 	meterProvider     *sdkmetric.MeterProvider
 	loadedPathsResult *initload.LoadPathsResult
 
+	// serverTracingOpts holds the distributed tracing options that only apply to
+	// OPA's own HTTP server, and not to the outbound requests made by plugins or
+	// by http.send during evaluation.
+	serverTracingOpts tracing.Options
+
 	serverStatus  ServerStatus
 	serverInitMtx sync.RWMutex
 	done          chan struct{}
@@ -518,7 +524,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			inmem.OptReturnASTValuesOnRead(params.ReadAstValuesFromStore))
 	}
 
-	traceExporter, tracerProvider, _, err := internal_tracing.Init(ctx, config, params.ID)
+	traceExporter, tracerProvider, _, serverTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -608,6 +614,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		traceExporter:     traceExporter,
 		meterProvider:     meterProvider,
 		loadedPathsResult: loaded,
+		serverTracingOpts: serverTracingOpts,
 	}
 
 	return rt, nil
@@ -723,7 +730,7 @@ func (rt *Runtime) Serve(ctx context.Context) (err error) {
 		WithMetrics(rt.metrics).
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
 		WithCipherSuites(rt.Params.CipherSuites).
-		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts).
+		WithDistributedTracingOpts(slices.Concat(rt.Params.DistributedTracingOpts, rt.serverTracingOpts)).
 		WithHooks(rt.Params.Hooks).
 		WithNDBCacheEnabled(rt.Params.NDBCacheEnabled)
 

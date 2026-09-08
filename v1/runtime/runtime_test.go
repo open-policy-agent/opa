@@ -1481,6 +1481,79 @@ func TestGracefulTracerShutdown(t *testing.T) {
 	})
 }
 
+// TestTracingExcludePaths asserts that distributed_tracing.exclude_paths keeps
+// the server from emitting spans for the matching endpoints, so that noisy
+// liveness probes don't drown out the interesting traces.
+func TestTracingExcludePaths(t *testing.T) {
+	ctx := t.Context()
+
+	cfg := filepath.Join(t.TempDir(), "opa.yaml")
+	config := `distributed_tracing:
+  type: grpc
+  exclude_paths:
+    - /health**
+    - /v1/data/secret/**
+`
+	if err := os.WriteFile(cfg, []byte(config), 0o644); err != nil {
+		t.Fatalf("write config %s: %v", cfg, err)
+	}
+
+	params := NewParams()
+	params.Logger = testLog.New()
+	params.Addrs = &[]string{"localhost:0"}
+	params.ConfigFile = cfg
+
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	// The config above makes the runtime build a tracer provider that exports to
+	// an (unreachable) OTLP collector. Appending a second provider here redirects
+	// the server's spans into an in-memory exporter instead: otelhttp applies its
+	// options in order, so the last one set wins.
+	spanExporter := tracetest.NewInMemoryExporter()
+	rt.Params.DistributedTracingOpts = append(rt.Params.DistributedTracingOpts,
+		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExporter)))))
+
+	go rt.StartServer(ctx)
+	if !test.Eventually(t, 5*time.Second, func() bool {
+		return rt.ServerStatus() == ServerInitialized && len(rt.Addrs()) > 0
+	}) {
+		t.Fatal("Timed out waiting for server to start")
+	}
+	base := "http://" + rt.Addrs()[0]
+
+	for _, tc := range []struct {
+		path      string
+		spanNames []string
+	}{
+		{path: "/health", spanNames: nil},
+		{path: "/health/live", spanNames: nil},
+		{path: "/v1/data/secret/key", spanNames: nil},
+		{path: "/v1/data", spanNames: []string{"GET /v1/data"}},
+		{path: "/v1/data/other", spanNames: []string{"GET /v1/data/{path...}"}},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			t.Cleanup(spanExporter.Reset)
+
+			resp, err := http.Get(base + tc.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resp.Body.Close()
+
+			var got []string
+			for _, s := range spanExporter.GetSpans() {
+				got = append(got, s.Name)
+			}
+			if !slices.Equal(got, tc.spanNames) {
+				t.Errorf("got spans %v, expected %v", got, tc.spanNames)
+			}
+		})
+	}
+}
+
 func TestUrlPathToConfigOverride(t *testing.T) {
 	params := NewParams()
 	params.Paths = []string{"https://www.example.com/bundles/bundle.tar.gz"}
