@@ -1,0 +1,1785 @@
+---
+# Generated externalized tests from TestImportContainingKeywords
+cases:
+  - note: imports/import-containing-keywords/import data.not.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.not.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.not["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.not["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.not as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.not as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["not"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["not"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.package.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.package.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.package["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.package["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.package as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.package as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["package"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["package"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.import.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.import.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.import["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.import["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.import as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.import as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["import"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["import"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.as.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.as.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.as["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.as["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.as as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.as as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["as"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["as"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.default.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.default.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.default["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.default["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.default as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.default as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["default"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["default"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.else.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.else.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.else["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.else["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.else as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.else as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["else"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["else"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.with.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.with.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.with["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.with["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.with as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.with as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["with"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["with"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.null.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.null.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.null["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.null["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.null as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.null as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["null"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["null"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.true.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.true.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.true["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.true["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.true as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.true as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["true"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["true"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.false.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.false.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.false["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.false["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.false as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.false as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["false"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["false"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.some.foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.some.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.some["foo"]
+    rego_version: v0
+    module: |
+      package test
+
+      import data.some["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data.some as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data.some as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }
+  - note: imports/import-containing-keywords/import data["some"] as foo
+    rego_version: v0
+    module: |
+      package test
+
+      import data["some"] as foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                }
+              ]
+            },
+            "alias": "foo"
+          }
+        ]
+      }

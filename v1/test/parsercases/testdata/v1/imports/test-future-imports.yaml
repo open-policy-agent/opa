@@ -1,0 +1,85 @@
+---
+# Generated externalized tests from TestFutureImports
+cases:
+  - note: imports/future-imports/import kw with kw in options
+    module: |
+      package test
+
+      import future.keywords.in
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "in"
+                }
+              ]
+            }
+          }
+        ]
+      }
+  - note: imports/future-imports/import kw with all kw in options
+    module: |
+      package test
+
+      import future.keywords.in
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "in"
+                }
+              ]
+            }
+          }
+        ]
+      }

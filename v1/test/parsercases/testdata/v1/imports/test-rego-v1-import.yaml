@@ -1,0 +1,40 @@
+---
+# Generated externalized tests from TestRegoV1Import
+cases:
+  - note: imports/rego-v1-import/import rego.v1
+    module: |
+      package test
+
+      import rego.v1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "rego"
+                },
+                {
+                  "type": "string",
+                  "value": "v1"
+                }
+              ]
+            }
+          }
+        ]
+      }
