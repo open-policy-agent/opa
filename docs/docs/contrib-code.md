@@ -211,7 +211,7 @@ maintainers to help effectively, please follow these guidelines:
    - Opening issues with clear proposals before starting work not already
      outlined in an existing issue.
    - Starting with small pull requests related to single issues (one at a time for new contributors).
-   - Never using LLM output to respond to maintainer comments in PRs or issues.
+   - Never using LLM output to respond to maintainer comments, or generate verbose PR/Issue descriptions.
      Reviewers are interested in knowing **your** reasoning about the code you
      submitted for review. Even if an LLM helped you write that code, it's yours
      to own and explain. Engaging an AI in discussions with human community
