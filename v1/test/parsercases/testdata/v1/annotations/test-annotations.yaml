@@ -1,0 +1,1012 @@
+---
+cases:
+  # Metadata comments, parsed with `annotations: true`. A fixture records the
+  # parsed annotations, not the comments they came from: comments are dropped from
+  # want_ast, and the module in the case shows the source anyway.
+  - note: annotations/subject scope defaults to the rule
+    annotations: true
+    module: |
+      package test
+
+      # METADATA
+      # title: allow requests from admins
+      allow if {
+      	input.role == "admin"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "annotations": [
+          {
+            "scope": "rule",
+            "title": "allow requests from admins"
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "allow",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "allow"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "role"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "value": "admin"
+                  }
+                ]
+              }
+            ],
+            "annotations": [
+              {
+                "scope": "rule",
+                "title": "allow requests from admins"
+              }
+            ]
+          }
+        ]
+      }
+  - note: annotations/scope package
+    annotations: true
+    module: |
+      # METADATA
+      # scope: package
+      # title: the example package
+      package test
+
+      p := 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "annotations": [
+          {
+            "scope": "package",
+            "title": "the example package"
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: annotations/scope document
+    annotations: true
+    module: |
+      package test
+
+      # METADATA
+      # scope: document
+      # title: every definition of p
+      p if {
+      	input.a
+      }
+
+      p if {
+      	input.b
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "annotations": [
+          {
+            "scope": "document",
+            "title": "every definition of p"
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "input"
+                    },
+                    {
+                      "type": "string",
+                      "value": "a"
+                    }
+                  ]
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "scope": "document",
+                "title": "every definition of p"
+              }
+            ]
+          },
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "input"
+                    },
+                    {
+                      "type": "string",
+                      "value": "b"
+                    }
+                  ]
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "scope": "document",
+                "title": "every definition of p"
+              }
+            ]
+          }
+        ]
+      }
+  - note: annotations/scope subpackages
+    annotations: true
+    module: |
+      # METADATA
+      # scope: subpackages
+      # title: this package and everything under it
+      package test
+
+      p := 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "annotations": [
+          {
+            "scope": "subpackages",
+            "title": "this package and everything under it"
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: annotations/every field
+    annotations: true
+    module: |
+      package test
+
+      # METADATA
+      # title: a fully annotated rule
+      # description: |
+      #  A description spanning
+      #  more than one line.
+      # authors:
+      # - Jane Doe <jane@example.com>
+      # - anonymous
+      # organizations:
+      # - Acme Corp
+      # related_resources:
+      # - https://example.com/docs
+      # - ref: https://example.com/rfc
+      #   description: the RFC it implements
+      # schemas:
+      # - input.request: schema.request
+      # custom:
+      #  severity: high
+      #  tags:
+      #  - a
+      #  - b
+      p := 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "annotations": [
+          {
+            "description": "A description spanning\nmore than one line.\n",
+            "organizations": [
+              "Acme Corp"
+            ],
+            "related_resources": [
+              {
+                "ref": "https://example.com/docs"
+              },
+              {
+                "ref": "https://example.com/rfc",
+                "description": "the RFC it implements"
+              }
+            ],
+            "authors": [
+              {
+                "name": "Jane Doe",
+                "email": "jane@example.com"
+              },
+              {
+                "name": "anonymous"
+              }
+            ],
+            "schemas": [
+              {
+                "path": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  },
+                  {
+                    "type": "string",
+                    "value": "request"
+                  }
+                ],
+                "schema": [
+                  {
+                    "type": "var",
+                    "value": "schema"
+                  },
+                  {
+                    "type": "string",
+                    "value": "request"
+                  }
+                ]
+              }
+            ],
+            "custom": {
+              "severity": "high",
+              "tags": [
+                "a",
+                "b"
+              ]
+            },
+            "scope": "rule",
+            "title": "a fully annotated rule"
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "description": "A description spanning\nmore than one line.\n",
+                "organizations": [
+                  "Acme Corp"
+                ],
+                "related_resources": [
+                  {
+                    "ref": "https://example.com/docs"
+                  },
+                  {
+                    "ref": "https://example.com/rfc",
+                    "description": "the RFC it implements"
+                  }
+                ],
+                "authors": [
+                  {
+                    "name": "Jane Doe",
+                    "email": "jane@example.com"
+                  },
+                  {
+                    "name": "anonymous"
+                  }
+                ],
+                "schemas": [
+                  {
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "request"
+                      }
+                    ],
+                    "schema": [
+                      {
+                        "type": "var",
+                        "value": "schema"
+                      },
+                      {
+                        "type": "string",
+                        "value": "request"
+                      }
+                    ]
+                  }
+                ],
+                "custom": {
+                  "severity": "high",
+                  "tags": [
+                    "a",
+                    "b"
+                  ]
+                },
+                "scope": "rule",
+                "title": "a fully annotated rule"
+              }
+            ]
+          }
+        ]
+      }
+  - note: annotations/entrypoint
+    annotations: true
+    module: |
+      package test
+
+      # METADATA
+      # scope: document
+      # entrypoint: true
+      p := 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "annotations": [
+          {
+            "entrypoint": true,
+            "scope": "document"
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "entrypoint": true,
+                "scope": "document"
+              }
+            ]
+          }
+        ]
+      }
+  - note: annotations/two rules each annotated
+    annotations: true
+    module: |
+      package test
+
+      # METADATA
+      # title: the first
+      p := 1
+
+      # METADATA
+      # title: the second
+      q := 2
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "annotations": [
+          {
+            "scope": "rule",
+            "title": "the first"
+          },
+          {
+            "scope": "rule",
+            "title": "the second"
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "scope": "rule",
+                "title": "the first"
+              }
+            ]
+          },
+          {
+            "head": {
+              "name": "q",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "q"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 2
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "scope": "rule",
+                "title": "the second"
+              }
+            ]
+          }
+        ]
+      }
+  - note: annotations/an inline schema
+    annotations: true
+    module: |
+      package test
+
+      # METADATA
+      # schemas:
+      # - input.name:
+      #    type: string
+      p if {
+      	input.name == "x"
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "annotations": [
+          {
+            "schemas": [
+              {
+                "path": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  },
+                  {
+                    "type": "string",
+                    "value": "name"
+                  }
+                ],
+                "definition": {
+                  "type": "string"
+                }
+              }
+            ],
+            "scope": "rule"
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "name"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "value": "x"
+                  }
+                ]
+              }
+            ],
+            "annotations": [
+              {
+                "schemas": [
+                  {
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "name"
+                      }
+                    ],
+                    "definition": {
+                      "type": "string"
+                    }
+                  }
+                ],
+                "scope": "rule"
+              }
+            ]
+          }
+        ]
+      }
+  - note: annotations/comments that are not metadata are not annotations
+    annotations: true
+    module: |
+      package test
+
+      # just a comment, not metadata
+      p := 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  # Without the option, a metadata comment is only a comment. The two cases parse
+  # the same module and differ in nothing but `annotations`, so the fixtures show
+  # what the option does.
+  - note: annotations/not processed without the option
+    module: |
+      package test
+
+      # METADATA
+      # title: ignored here
+      p := 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  # Errors.
+  # An unrecognised key is accepted and dropped rather than rejected: the
+  # annotation below parses, carrying nothing but its default scope.
+  - note: annotations/an unknown field is ignored
+    annotations: true
+    module: |
+      package test
+
+      # METADATA
+      # nonsense: true
+      p := 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "annotations": [
+          {
+            "scope": "rule"
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "scope": "rule"
+              }
+            ]
+          }
+        ]
+      }
+  - note: annotations/errors/invalid yaml
+    annotations: true
+    module: |
+      package test
+
+      # METADATA
+      # title: [unterminated
+      p := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 1
+        message: 'yaml: line 1: did not find expected '','' or '']'''
+  - note: annotations/errors/unknown scope
+    annotations: true
+    module: |
+      package test
+
+      # METADATA
+      # scope: nowhere
+      p := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: invalid annotation scope 'nowhere'. Use one of 'rule', 'document', 'package', or 'subpackages'
+  - note: annotations/errors/entrypoint on a non-package non-rule scope
+    annotations: true
+    module: |
+      # METADATA
+      # scope: subpackages
+      # entrypoint: true
+      package test
+
+      p := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 1
+        message: annotation entrypoint applied to non-document or package scope 'subpackages'
+  - note: annotations/errors/attached to nothing
+    annotations: true
+    module: |
+      package test
+
+      p := 1
+
+      # METADATA
+      # title: nothing follows this
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: invalid annotation scope ''. Use one of 'rule', 'document', 'package', or 'subpackages'

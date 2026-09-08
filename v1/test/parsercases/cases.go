@@ -11,6 +11,7 @@
 package parsercases
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -124,6 +125,18 @@ func (tc TestCase) Validate() error {
 		// The two modules are structurally identical but positionally different,
 		// so they cannot share a fixture.
 		return errors.New("'want_equivalent' and 'locations' are mutually exclusive")
+	}
+
+	// Decoding the fixture checks that it is JSON at all — nothing else does — and
+	// finds its top-level fields exactly, rather than by matching the text the
+	// generator happens to write. Values stay raw, so nested structure is scanned
+	// for syntax but not built.
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(tc.WantAST), &fields); err != nil {
+		return fmt.Errorf("'want_ast' is not valid JSON: %w", err)
+	}
+	if _, ok := fields["comments"]; ok {
+		return errors.New("'want_ast' records comments; the generator and runner both drop them, so this fixture is stale")
 	}
 
 	return nil

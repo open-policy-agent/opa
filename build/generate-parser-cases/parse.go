@@ -52,7 +52,15 @@ func parseModule(tc parsercases.TestCase, module string) (*ast.Module, error) {
 
 // MarshalAST renders the AST of m as a want_ast fixture, under whichever
 // marshalling options are currently in effect.
+//
+// Comments are dropped, for the reason locations are off by default: the module
+// is right there in the fixture, so recording them again asserts nothing a reader
+// cannot see, while requiring an implementation to retain them in a particular
+// shape. OPA's own is not one to hold anyone to — Comment marshals its text as
+// base64 and its position unconditionally, ignoring the toggle that exists for it.
 func MarshalAST(m *ast.Module) (string, error) {
+	m.Comments = nil
+
 	bs, err := json.Marshal(m)
 	if err != nil {
 		return "", err

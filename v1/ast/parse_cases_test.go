@@ -95,6 +95,10 @@ func runParseCase(t *testing.T, tc parsercases.TestCase) {
 func assertWantAST(t *testing.T, tc parsercases.TestCase, what string, module *Module) {
 	t.Helper()
 
+	// Dropped for the same reason locations are off by default, and matching what
+	// the generator writes. See MarshalAST in build/generate-parser-cases.
+	module.Comments = nil
+
 	bs, err := json.Marshal(module)
 	if err != nil {
 		t.Fatalf("%s: marshal %s: %v", tc.Filename, what, err)

@@ -70,6 +70,43 @@ func TestValidate(t *testing.T) {
 			wantErr: "mutually exclusive",
 		},
 		{
+			note: "a policy that merely mentions comments is not a stale fixture",
+			tc: TestCase{Note: "a", Module: "package test", WantAST: `{
+  "rules": [
+    {
+      "head": {
+        "value": {
+          "type": "string",
+          "value": "comments"
+        }
+      }
+    }
+  ]
+}
+`},
+		},
+		{
+			note:    "a fixture that is not JSON",
+			tc:      TestCase{Note: "a", Module: "package test", WantAST: "{not json"},
+			wantErr: "'want_ast' is not valid JSON",
+		},
+		{
+			note:    "a fixture malformed deeper in",
+			tc:      TestCase{Note: "a", Module: "package test", WantAST: `{"rules": [{"head": }]}`},
+			wantErr: "'want_ast' is not valid JSON",
+		},
+		{
+			note: "a fixture recording comments is stale",
+			tc: TestCase{Note: "a", Module: "package test", WantAST: `{
+  "package": {},
+  "comments": [
+    {}
+  ]
+}
+`},
+			wantErr: "records comments",
+		},
+		{
 			note:    "trailing whitespace in the module",
 			tc:      TestCase{Note: "a", Module: "package test\n\np := [1, \n", WantAST: "{}"},
 			wantErr: `"module" line 3 has trailing whitespace`,

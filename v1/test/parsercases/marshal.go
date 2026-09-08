@@ -46,6 +46,13 @@ func MarshalOptions(locations, locationText bool) astJSON.Options {
 	}
 }
 
+// A fixture never records comments. The module is in the case already, so
+// recording them again asserts nothing a reader cannot see, and it would require
+// an implementation to retain them in a particular shape — OPA's own being one
+// nobody should be held to, since Comment marshals its text as base64 and its
+// position unconditionally. Both the generator and the runner clear them before
+// marshalling; Validate rejects a fixture that carries them anyway.
+
 // FormatAST renders marshalled AST JSON the way a want_ast fixture holds it:
 // indented, so that a mismatch reads as a line diff, and plain ASCII, because a
 // YAML emitter falls back to double-quoted style for a scalar holding an astral
