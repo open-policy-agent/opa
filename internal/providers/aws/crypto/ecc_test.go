@@ -119,7 +119,7 @@ func testKnownSigningValue(t *testing.T, curve elliptic.Curve, d []byte) {
 	}
 
 	if !verified {
-		t.Fatalf("failed to verify message msgSignature")
+		t.Fatal("failed to verify message msgSignature")
 	}
 }
 
@@ -182,7 +182,7 @@ func testInvalidSignature(t *testing.T, curve elliptic.Curve) {
 	}
 
 	if verified {
-		t.Fatalf("expected message verification to fail")
+		t.Fatal("expected message verification to fail")
 	}
 }
 
@@ -221,7 +221,7 @@ func testGenKeySignature(t *testing.T, curve elliptic.Curve) {
 	}
 
 	if !verified {
-		t.Fatalf("expected message verification to fail")
+		t.Fatal("expected message verification to fail")
 	}
 }
 
@@ -272,6 +272,6 @@ func TestECDSASignatureFormat(t *testing.T) {
 	}
 
 	if !verifySignature {
-		t.Fatalf("failed to verify signature")
+		t.Fatal("failed to verify signature")
 	}
 }

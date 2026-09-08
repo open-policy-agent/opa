@@ -1393,7 +1393,7 @@ func TestFunctionsTypeInference(t *testing.T) {
 			c := NewCompiler()
 			c.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, popts), "mod": mod})
 			if test.wantErr && !c.Failed() {
-				t.Errorf("Expected error but got success")
+				t.Error("Expected error but got success")
 			} else if !test.wantErr && c.Failed() {
 				t.Errorf("Expected success but got error: %v", c.Errors)
 			}
@@ -1497,7 +1497,7 @@ func TestCheckValidErrors(t *testing.T) {
 			c.Compile(map[string]*Module{"test": tc.module})
 
 			if !c.Failed() {
-				t.Errorf("Expected error but got success")
+				t.Error("Expected error but got success")
 			}
 
 			if len(c.Errors) != tc.numErr {
@@ -2430,7 +2430,7 @@ p { input = "foo" }`}},
 			}
 
 			if oldTypeEnv.tree.children != nil && typeenv.next.tree.children != nil && (typeenv.next.tree.children.Len() != oldTypeEnv.tree.children.Len()) {
-				t.Fatalf("Unexpected type env")
+				t.Fatal("Unexpected type env")
 			}
 
 		})

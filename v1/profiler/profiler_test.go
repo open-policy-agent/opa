@@ -280,7 +280,7 @@ baz if {
 
 	for i := range len(stats) - 1 {
 		if stats[i].ExprTimeNs < stats[i+1].ExprTimeNs {
-			t.Fatalf("Results not sorted in decreasing order of evaluation times")
+			t.Fatal("Results not sorted in decreasing order of evaluation times")
 		}
 	}
 }
@@ -342,12 +342,12 @@ baz if {
 	var i int
 	for i = range len(stats) - 1 {
 		if stats[i].NumEval < stats[i+1].NumEval {
-			t.Fatalf("Results not sorted in decreasing order of number of evaluations")
+			t.Fatal("Results not sorted in decreasing order of number of evaluations")
 		}
 
 		if stats[i].NumEval == stats[i+1].NumEval {
 			if stats[i].ExprTimeNs < stats[i+1].ExprTimeNs {
-				t.Fatalf("Results not sorted in decreasing order of evaluation times")
+				t.Fatal("Results not sorted in decreasing order of evaluation times")
 			}
 		}
 	}
@@ -410,18 +410,18 @@ baz if {
 	var i int
 	for i = range len(stats) - 1 {
 		if stats[i].NumEval < stats[i+1].NumEval {
-			t.Fatalf("Results not sorted in decreasing order of number of evaluations")
+			t.Fatal("Results not sorted in decreasing order of number of evaluations")
 		}
 
 		if stats[i].NumEval == stats[i+1].NumEval {
 
 			if stats[i].NumRedo < stats[i+1].NumRedo {
-				t.Fatalf("Results not sorted in decreasing order of number of redos")
+				t.Fatal("Results not sorted in decreasing order of number of redos")
 			}
 
 			if stats[i].NumRedo == stats[i+1].NumRedo {
 				if stats[i].ExprTimeNs < stats[i+1].ExprTimeNs {
-					t.Fatalf("Results not sorted in decreasing order of evaluation times")
+					t.Fatal("Results not sorted in decreasing order of evaluation times")
 				}
 			}
 		}

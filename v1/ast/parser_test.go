@@ -3130,7 +3130,7 @@ func TestImport(t *testing.T) {
 
 	_, _, err := ParseStatements("", "package foo\nimport bar.data\ndefault foo=1")
 	if err == nil {
-		t.Fatalf("Expected error, but got nil")
+		t.Fatal("Expected error, but got nil")
 	}
 	if len(err.(Errors)) > 1 {
 		t.Fatalf("Expected a single error, got %s", err)
@@ -6728,7 +6728,7 @@ else = {
 
 	curElse := rule.Else
 	if curElse == nil {
-		t.Fatalf("Expected an else block, got nil")
+		t.Fatal("Expected an else block, got nil")
 	}
 	assertLocationText(t, strings.TrimSpace(`
 else = y {
@@ -6751,7 +6751,7 @@ else = {
 
 	curElse = curElse.Else
 	if curElse == nil {
-		t.Fatalf("Expected an else block, got nil")
+		t.Fatal("Expected an else block, got nil")
 	}
 	assertLocationText(t, strings.TrimSpace(`
 else {
@@ -6767,12 +6767,12 @@ else = {
 	`), curElse.Location)
 	assertLocationText(t, "else", curElse.Head.Location)
 	if curElse.Head.Value.Location != nil {
-		t.Errorf("Expected a nil location")
+		t.Error("Expected a nil location")
 	}
 
 	curElse = curElse.Else
 	if curElse == nil {
-		t.Fatalf("Expected an else block, got nil")
+		t.Fatal("Expected an else block, got nil")
 	}
 	assertLocationText(t, strings.TrimSpace(`
 else = {
@@ -8214,7 +8214,7 @@ package foo`
 
 	_, err := ParseModuleWithOpts("test.rego", module, ParserOptions{ProcessAnnotation: true})
 	if err == nil {
-		t.Fatalf("Expected error but got none")
+		t.Fatal("Expected error but got none")
 	}
 
 	if len(err.(Errors)) != 1 {
@@ -8670,7 +8670,7 @@ func generateDeeplyNestedObject(depth int) string {
 func assertLocationText(t *testing.T, expected string, actual *Location) {
 	t.Helper()
 	if actual == nil || actual.Text == nil {
-		t.Errorf("Expected a non nil location and text")
+		t.Error("Expected a non nil location and text")
 		return
 	}
 	if string(actual.Text) != expected {
@@ -9319,7 +9319,7 @@ func TestTemplateStringError(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			_, _, err := ParseStatements("", tc.expr)
 			if err == nil {
-				t.Fatalf("Expected error, got nil")
+				t.Fatal("Expected error, got nil")
 			}
 
 			if !strings.Contains(err.Error(), tc.expError) {
@@ -9362,7 +9362,7 @@ func TestTemplateStringCapabilities(t *testing.T) {
 
 			if tc.expErr != "" {
 				if err == nil {
-					t.Fatalf("Expected error, got nil")
+					t.Fatal("Expected error, got nil")
 				}
 
 				if !strings.Contains(err.Error(), tc.expErr) {
@@ -9812,7 +9812,7 @@ func TestNotImport(t *testing.T) {
 
 			if tc.expErr != "" {
 				if err == nil {
-					t.Fatalf("Expected error, got nil")
+					t.Fatal("Expected error, got nil")
 				}
 
 				if !strings.Contains(err.Error(), tc.expErr) {
@@ -9848,17 +9848,17 @@ func TestParseNotBody_InnerExprHasLocation(t *testing.T) {
 
 	outer := mod.Rules[0].Body[0]
 	if outer.Location == nil {
-		t.Fatalf("outer Expr has nil Location")
+		t.Fatal("outer Expr has nil Location")
 	}
 
 	not := outer.Terms.(*Not)
 	if not.Location == nil {
-		t.Fatalf("Not.Location is nil")
+		t.Fatal("Not.Location is nil")
 	}
 
 	inner := not.Body[0]
 	if inner.Location == nil {
-		t.Fatalf("inner Expr inside Not.Body has nil Location")
+		t.Fatal("inner Expr inside Not.Body has nil Location")
 	}
 	if inner.Location.Col != 4 {
 		t.Errorf("Expected column to be 4 but got: %v", inner.Location.Col)

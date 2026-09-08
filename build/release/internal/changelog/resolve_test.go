@@ -311,7 +311,7 @@ func TestResolve_LocalOnlyCommit(t *testing.T) {
 			}
 			e := entries[0]
 			if !e.IsLocalOnly {
-				t.Errorf("expected IsLocalOnly=true")
+				t.Error("expected IsLocalOnly=true")
 			}
 			if e.AuthorLogin != "" {
 				t.Errorf("expected empty AuthorLogin, got %q", e.AuthorLogin)
@@ -361,7 +361,7 @@ func TestResolve_ResolvedCallback(t *testing.T) {
 		t.Errorf("ResolvedFunc IsLocalOnly sequence: got %v, want [false true]", seen)
 	}
 	if !entries[1].IsLocalOnly {
-		t.Errorf("entry[1].IsLocalOnly: got false, want true")
+		t.Error("entry[1].IsLocalOnly: got false, want true")
 	}
 	if len(entries[1].Issues) != 1 || entries[1].Issues[0].Number != 99 {
 		t.Errorf("entry[1].Issues: got %+v, want [#99]", entries[1].Issues)

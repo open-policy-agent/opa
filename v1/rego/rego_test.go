@@ -99,7 +99,7 @@ p contains x if {
 			).PrepareForEval(t.Context())
 			if tc.expErrs != nil {
 				if err == nil {
-					t.Fatalf("Expected error but got nil")
+					t.Fatal("Expected error but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {
@@ -346,7 +346,7 @@ p contains x if {
 
 			if tc.expErrs != nil {
 				if err == nil {
-					t.Fatalf("Expected error but got nil")
+					t.Fatal("Expected error but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {
@@ -549,7 +549,7 @@ c := z if {
 				t.Fatalf("eval: %v", err)
 			}
 			if len(rs) == 0 {
-				t.Fatalf("expected a result, got empty ResultSet (issue #8302 silent-drop symptom)")
+				t.Fatal("expected a result, got empty ResultSet (issue #8302 silent-drop symptom)")
 			}
 			got := fmt.Sprint(rs[0].Expressions[0].Value)
 			if got != tc.want {
@@ -1249,7 +1249,7 @@ func TestPrepareAndEvalNewMetrics(t *testing.T) {
 	}
 
 	if len(originalMetrics.All()) == 0 {
-		t.Errorf("Expected metrics stored on 'originalMetrics' after Prepare()")
+		t.Error("Expected metrics stored on 'originalMetrics' after Prepare()")
 	}
 
 	// Reset the original ones (for testing)
@@ -1268,7 +1268,7 @@ func TestPrepareAndEvalNewMetrics(t *testing.T) {
 	}
 
 	if len(newMetrics.All()) == 0 {
-		t.Errorf("Expected metrics stored on 'newMetrics' after Prepare()")
+		t.Error("Expected metrics stored on 'newMetrics' after Prepare()")
 	}
 }
 
@@ -1283,7 +1283,7 @@ func TestPrepareAndEvalTransaction(t *testing.T) {
 
 	path, ok := storage.ParsePath("/foo")
 	if !ok {
-		t.Fatalf("Unexpected error parsing path")
+		t.Fatal("Unexpected error parsing path")
 	}
 
 	err := storage.MakeDir(ctx, store, txn, path)
@@ -1447,7 +1447,7 @@ func TestPrepareAndEvalOnlyOneErrorOccurredPrintOnce(t *testing.T) {
 		t.Fatal("Expected error but got nil")
 	}
 	if strings.Count(err.Error(), "1 error occurred") > 1 {
-		t.Fatalf("Expected to print '1 error occurred' only once")
+		t.Fatal("Expected to print '1 error occurred' only once")
 	}
 }
 
@@ -1857,7 +1857,7 @@ func TestPreparedPartialResultWithTracer(t *testing.T) {
 	}
 
 	if len(*tracer) == 0 {
-		t.Errorf("Expected buffer tracer to contain > 0 traces")
+		t.Error("Expected buffer tracer to contain > 0 traces")
 	}
 }
 
@@ -1899,7 +1899,7 @@ func TestPreparedPartialResultWithQueryTracer(t *testing.T) {
 	}
 
 	if len(*tracer) == 0 {
-		t.Errorf("Expected buffer tracer to contain > 0 traces")
+		t.Error("Expected buffer tracer to contain > 0 traces")
 	}
 }
 
@@ -2872,10 +2872,10 @@ func TestEvalWithNDCache(t *testing.T) {
 	if cachedResults, ok := ndBC["http.send"]; ok {
 		err := cachedResults.Iter(func(k, v *ast.Term) error {
 			if _, ok := k.Value.(*ast.Array); !ok {
-				t.Fatalf("http.send failed to store Object key in the ND builtins cache")
+				t.Fatal("http.send failed to store Object key in the ND builtins cache")
 			}
 			if _, ok := v.Value.(ast.Object); !ok {
-				t.Fatalf("http.send failed to store Object value in the ND builtins cache")
+				t.Fatal("http.send failed to store Object value in the ND builtins cache")
 			}
 			return nil
 		})
@@ -2938,7 +2938,7 @@ p if {
 	}
 	_, ok := ndBC["http.send"]
 	if !ok {
-		t.Fatalf("expected http.send cache entry")
+		t.Fatal("expected http.send cache entry")
 	}
 }
 
@@ -2979,7 +2979,7 @@ results contains response if {
 	// Ensure that the cache exists, and has exactly 3 entries.
 	entries, ok := ndBC["http.send"]
 	if !ok {
-		t.Fatalf("expected http.send cache entry")
+		t.Fatal("expected http.send cache entry")
 	}
 	if entries.Len() != 3 {
 		t.Fatalf("expected 3 http.send cache entries, received:\n%v", ndBC)
@@ -3468,7 +3468,7 @@ result := test.module("policy.rego")
 			t.Fatalf("rego Eval error: %v", err)
 		}
 		if len(rs) == 0 || len(rs[0].Expressions) == 0 {
-			t.Fatalf("No results")
+			t.Fatal("No results")
 		}
 		got := rs[0].Expressions[0].Value
 		want := "package test\n\nresult := __local0__ if { test.module(\"policy.rego\", __local0__) }"

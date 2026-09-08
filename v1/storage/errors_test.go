@@ -18,10 +18,10 @@ func TestIsNotFound(t *testing.T) {
 	}
 
 	if !IsNotFound(err1) {
-		t.Errorf("Expected err1 to be not found error")
+		t.Error("Expected err1 to be not found error")
 	}
 
 	if IsNotFound(err2) {
-		t.Errorf("Did not expect err2 to be not found error")
+		t.Error("Did not expect err2 to be not found error")
 	}
 }

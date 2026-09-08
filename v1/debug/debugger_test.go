@@ -2511,7 +2511,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 				}
 
 				if scope.NamedVariables() > 0 && scope.VariablesReference() == 0 {
-					t.Errorf("Expected non-zero variables reference")
+					t.Error("Expected non-zero variables reference")
 				}
 
 				if expScope.namedVariables > 0 {
@@ -2561,7 +2561,7 @@ func assertVariables(t *testing.T, s Session, variables []Variable, exp map[stri
 
 		if len(expVar.children) != 0 {
 			if v.VariablesReference() == 0 {
-				t.Errorf("Expected non-zero variables reference")
+				t.Error("Expected non-zero variables reference")
 			}
 
 			vars, err := s.Variables(v.VariablesReference())
@@ -2570,7 +2570,7 @@ func assertVariables(t *testing.T, s Session, variables []Variable, exp map[stri
 			}
 			assertVariables(t, s, vars, expVar.children)
 		} else if v.VariablesReference() != 0 {
-			t.Errorf("Expected zero variables reference")
+			t.Error("Expected zero variables reference")
 		}
 	}
 }

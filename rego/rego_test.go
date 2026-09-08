@@ -93,7 +93,7 @@ p contains x if {
 
 				if tc.expErrs != nil {
 					if err == nil {
-						t.Fatalf("Expected error but got nil")
+						t.Fatal("Expected error but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {

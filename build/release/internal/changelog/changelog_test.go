@@ -59,9 +59,9 @@ func TestEntryPRPicksFirst(t *testing.T) {
 func TestEntryNilSelectorsWhenEmpty(t *testing.T) {
 	e := Entry{}
 	if e.PR() != nil {
-		t.Errorf("expected nil PR")
+		t.Error("expected nil PR")
 	}
 	if e.Issue() != nil {
-		t.Errorf("expected nil Issue")
+		t.Error("expected nil Issue")
 	}
 }

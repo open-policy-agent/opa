@@ -46,7 +46,7 @@ func TestRegexBuiltinCache(t *testing.T) {
 	}
 
 	if len(regexpCache) != regexCacheMaxSize {
-		t.Fatalf("Expected cache to be full")
+		t.Fatal("Expected cache to be full")
 	}
 
 	// A new regex pattern is cached and a random pattern is evicted.

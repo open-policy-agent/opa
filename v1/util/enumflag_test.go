@@ -18,7 +18,7 @@ func TestEnumFlag(t *testing.T) {
 	}
 
 	if flag.IsSet() {
-		t.Fatalf("Expected IsSet() to be false")
+		t.Fatal("Expected IsSet() to be false")
 	}
 
 	if err := flag.Set("bar"); err != nil {
@@ -30,7 +30,7 @@ func TestEnumFlag(t *testing.T) {
 	}
 
 	if !flag.IsSet() {
-		t.Fatalf("Expected IsSet() to be true")
+		t.Fatal("Expected IsSet() to be true")
 	}
 
 	if !strings.Contains(flag.Type(), "foo,bar,baz") {
@@ -38,6 +38,6 @@ func TestEnumFlag(t *testing.T) {
 	}
 
 	if err := flag.Set("deadbeef"); err == nil {
-		t.Fatalf("Expected error from set")
+		t.Fatal("Expected error from set")
 	}
 }

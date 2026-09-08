@@ -1028,7 +1028,7 @@ func showLocationContext(t *testing.T, modules map[string]string, loc *ast.Locat
 	t.Helper()
 	if content, exists := modules[loc.File]; exists {
 		if strings.Contains(content, "\t") {
-			t.Fatalf("rego contains tabs - please use spaces for ^ position")
+			t.Fatal("rego contains tabs - please use spaces for ^ position")
 		}
 
 		lines := strings.Split(content, "\n")

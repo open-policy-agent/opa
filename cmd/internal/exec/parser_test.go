@@ -56,7 +56,7 @@ func TestUtilParser_Parse(t *testing.T) {
 			res, err := up.Parse(tc.Reader)
 			if tc.ShouldError {
 				if err == nil {
-					t.Fatalf("expected error, found none")
+					t.Fatal("expected error, found none")
 				}
 			} else {
 				tc.Expectation(res)

@@ -172,7 +172,7 @@ func TestDecsionIDFromContext(t *testing.T) {
 
 	act, ok := DecisionIDFromContext(ctx)
 	if !ok {
-		t.Fatalf("expected 'ok' to be true")
+		t.Fatal("expected 'ok' to be true")
 	}
 	if exp := id; act != exp {
 		t.Errorf("Expected %q to be %q", act, exp)

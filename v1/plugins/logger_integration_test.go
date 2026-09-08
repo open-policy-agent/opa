@@ -39,11 +39,11 @@ type testLoggerFactory struct {
 	logger *test.Logger
 }
 
-func (*testLoggerFactory) Validate(manager *plugins.Manager, config []byte) (any, error) {
+func (*testLoggerFactory) Validate(*plugins.Manager, []byte) (any, error) {
 	return nil, nil
 }
 
-func (f *testLoggerFactory) New(manager *plugins.Manager, config any) plugins.Plugin {
+func (f *testLoggerFactory) New(manager *plugins.Manager, _ any) plugins.Plugin {
 	return &testLoggerPlugin{
 		manager: manager,
 		logger:  f.logger,

@@ -86,7 +86,11 @@ linters:
       rules:
         - name: redefines-builtin-id
           disabled: true
+        - name: unused-parameter
+          disabled: false
         - name: unused-receiver
+          disabled: false
+        - name: unnecessary-format
           disabled: false
     staticcheck:
       checks:

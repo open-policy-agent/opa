@@ -529,7 +529,7 @@ func TestEvalWithInvalidInputFile(t *testing.T) {
 	query := "input.b[0].a == 1"
 	err := testEvalWithInputFile(t, input, query, newEvalCommandParams())
 	if err == nil {
-		t.Fatalf("expected error but err == nil")
+		t.Fatal("expected error but err == nil")
 	}
 }
 
@@ -1143,12 +1143,12 @@ func TestEvalWithInvalidSchemaFile(t *testing.T) {
 	query := "input.b[0].a == 1"
 	err := testEvalWithSchemaFile(t, input, query, schema, "", false)
 	if err == nil {
-		t.Fatalf("expected error but err == nil")
+		t.Fatal("expected error but err == nil")
 	}
 
 	err = testEvalWithInvalidSchemaFile(input, query, schema)
 	if err == nil {
-		t.Fatalf("expected error but err == nil")
+		t.Fatal("expected error but err == nil")
 	}
 }
 
@@ -1578,7 +1578,7 @@ func TestEvalErrorJSONOutput(t *testing.T) {
 
 	defined, err := eval([]string{"{1,2,3} == {1,x,3}"}, params, &buf, nil)
 	if defined && err == nil {
-		t.Fatalf("Expected an error")
+		t.Fatal("Expected an error")
 	}
 
 	// Only check that it *can* be loaded as valid JSON, and that the errors
@@ -1590,7 +1590,7 @@ func TestEvalErrorJSONOutput(t *testing.T) {
 	}
 
 	if output["errors"] == nil {
-		t.Fatalf("Expected error to be non-nil")
+		t.Fatal("Expected error to be non-nil")
 	}
 }
 
@@ -1661,7 +1661,7 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(output.Explanation) == 0 {
-		t.Fatalf("Expected explanations to be non-nil")
+		t.Fatal("Expected explanations to be non-nil")
 	}
 
 	type locationAndVars struct {
@@ -3063,7 +3063,7 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 
 		// Check if there was an error
 		if err == nil {
-			t.Fatalf("expected an error, but got nil")
+			t.Fatal("expected an error, but got nil")
 		}
 
 		// Check the error message
@@ -3097,7 +3097,7 @@ func TestUnexpectedElseIfErr(t *testing.T) {
 
 		// Check if there was an error
 		if err == nil {
-			t.Fatalf("expected an error, but got nil")
+			t.Fatal("expected an error, but got nil")
 		}
 
 		// Check the error message

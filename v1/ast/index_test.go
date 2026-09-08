@@ -1590,7 +1590,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			index := newBaseDocEqIndex(isVirtual)
 
 			if !index.Build(rules) {
-				t.Fatalf("Expected index build to succeed")
+				t.Fatal("Expected index build to succeed")
 			}
 
 			t.Log(index.root.mermaid())
@@ -1617,7 +1617,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			}
 
 			if result.Default == nil && tc.expectedDR != nil {
-				t.Fatalf("Expected default rule but got nil")
+				t.Fatal("Expected default rule but got nil")
 			} else if result.Default != nil && tc.expectedDR == nil {
 				t.Fatalf("Unexpected default rule %v", result.Default)
 			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {
@@ -1661,7 +1661,7 @@ func TestBaseDocEqIndexingPriorities(t *testing.T) {
 
 	ok := index.Build(module.Rules)
 	if !ok {
-		t.Fatalf("Expected index build to succeed")
+		t.Fatal("Expected index build to succeed")
 	}
 
 	input := MustParseTerm(`{"x": "x1", "y": "y1", "z": "z1"}`)
@@ -1684,7 +1684,7 @@ func TestBaseDocEqIndexingPriorities(t *testing.T) {
 	}
 
 	if result.Default != nil {
-		t.Fatalf("Expected default rule to be nil")
+		t.Fatal("Expected default rule to be nil")
 	}
 
 	if !NewRuleSet(result.Rules...).Equal(expectedRules) {
@@ -1709,7 +1709,7 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 	p if { input.raise_error = 1 }`)
 
 	if !index.Build(module.Rules) {
-		t.Fatalf("Expected index to build")
+		t.Fatal("Expected index to build")
 	}
 
 	_, err := index.Lookup(testResolver{
@@ -1722,7 +1722,7 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 
 	index = newBaseDocEqIndex(func(Ref) bool { return true })
 	if index.Build(nil) {
-		t.Fatalf("Expected index build to fail")
+		t.Fatal("Expected index build to fail")
 	}
 }
 
@@ -1894,7 +1894,7 @@ func TestGetAllRules(t *testing.T) {
 
 	ok := index.Build(module.Rules)
 	if !ok {
-		t.Fatalf("Expected index build to succeed")
+		t.Fatal("Expected index build to succeed")
 	}
 
 	result, err := index.AllRules(testResolver{input: MustParseTerm(`{}`)})
@@ -1938,7 +1938,7 @@ func TestGetAllRulesInternalMember2(t *testing.T) {
 
 	ok := index.Build(module.Rules)
 	if !ok {
-		t.Fatalf("Expected index build to succeed")
+		t.Fatal("Expected index build to succeed")
 	}
 
 	result, err := index.AllRules(testResolver{input: MustParseTerm(`{}`)})
@@ -2393,7 +2393,7 @@ r = local0 if {
 			})
 
 			if !index.Build(rules) {
-				t.Fatalf("Expected index build to succeed")
+				t.Fatal("Expected index build to succeed")
 			}
 
 			var unknownRefs Set
@@ -2413,7 +2413,7 @@ r = local0 if {
 			}
 
 			if result.Default == nil && tc.expectedDR != nil {
-				t.Errorf("Expected default rule but got nil")
+				t.Error("Expected default rule but got nil")
 			} else if result.Default != nil && tc.expectedDR == nil {
 				t.Errorf("Unexpected default rule %v", result.Default)
 			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {

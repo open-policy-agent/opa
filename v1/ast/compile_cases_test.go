@@ -111,7 +111,7 @@ func assertCompileCaseErrors(t *testing.T, tc compilecases.TestCase, got []compi
 	for _, e := range unexpected {
 		fmt.Fprintf(&sb, "\n  unexpected: %s", e)
 	}
-	fmt.Fprintf(&sb, "\n\nreported:")
+	fmt.Fprint(&sb, "\n\nreported:")
 	for _, e := range got {
 		fmt.Fprintf(&sb, "\n  %s", e)
 	}

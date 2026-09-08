@@ -1033,9 +1033,10 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 
 func (rt *Runtime) getBanner() string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s %v (commit %v, built at %v)\n", rt.Params.Brand, version.Version, version.Vcs, version.Timestamp)
-	fmt.Fprintf(&buf, "\n")
-	fmt.Fprintf(&buf, "Run 'help' to see a list of commands and check for updates.\n")
+	fmt.Fprintf(&buf,
+		"%s %v (commit %v, built at %v)\n\nRun 'help' to see a list of commands and check for updates.\n",
+		rt.Params.Brand, version.Version, version.Vcs, version.Timestamp,
+	)
 	return buf.String()
 }
 

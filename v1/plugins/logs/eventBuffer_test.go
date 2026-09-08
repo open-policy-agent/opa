@@ -151,7 +151,7 @@ func TestStopEventBufferLoop(t *testing.T) {
 	t.Parallel()
 
 	uploadPath := "/v1/test"
-	client, ts := setupTestServer(t, uploadPath, func(w http.ResponseWriter, r *http.Request) {
+	client, ts := setupTestServer(t, uploadPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 	defer ts.Close()
@@ -250,7 +250,7 @@ func TestEventBuffer_Upload(t *testing.T) {
 			eventLimit:           1,
 			numberOfEvents:       1,
 			uploadSizeLimitBytes: defaultUploadSizeLimitBytes,
-			handleFunc: func(w http.ResponseWriter, r *http.Request) {
+			handleFunc: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 			},
 			expectedError: "log upload failed, server replied with HTTP 400 Bad Request",

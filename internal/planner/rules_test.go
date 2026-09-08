@@ -61,7 +61,7 @@ func TestFuncstack(t *testing.T) {
 
 	f, ok = fs.Get("data.foo.bar")
 	if exp, act := true, ok; exp != act {
-		t.Fatalf("expected func to be found")
+		t.Fatal("expected func to be found")
 	}
 	if exp, act := "g0.data.foo.bar", f; exp != act {
 		t.Errorf("expected func to be %v, got %v", exp, act)
