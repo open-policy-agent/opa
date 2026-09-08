@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"testing"
 
-	"sigs.k8s.io/yaml"
+	"github.com/open-policy-agent/opa/internal/yaml"
 )
 
 func TestSetIndex(t *testing.T) {

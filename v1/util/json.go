@@ -12,8 +12,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"sigs.k8s.io/yaml"
-
+	"github.com/open-policy-agent/opa/internal/yaml"
 	"github.com/open-policy-agent/opa/v1/loader/extension"
 )
 
