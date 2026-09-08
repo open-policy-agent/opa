@@ -1,0 +1,871 @@
+---
+cases:
+  # These come from tests that parse a module and then check the row and col of
+  # particular nodes by hand. `locations: true` states the same thing more
+  # completely: it pins the position of every node, not the two or three a test
+  # picked out. The construct each was written for is noted below.
+  #
+  # Most of OPA's other position tests assert Location.Text or Offset — byte spans
+  # into the source — and stay in Go, since a side-table implementation would emit
+  # identical errors and IR and still fail them.
+
+  # From TestParseLogical_InnerExprHasLocation: the expressions inside an `and`
+  # and an `or` operand carry their own positions, not the outer expression's.
+  - note: locations/logical operands carry their own position
+    module: |
+      package test
+
+      import future.keywords.and
+      import future.keywords.or
+
+      p if {
+      	f(1) and f(2)
+      	f(3) or f(4)
+      }
+    locations: true
+    want_ast: |
+      {
+        "package": {
+          "location": {
+            "row": 1,
+            "col": 1
+          },
+          "path": [
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "location": {
+                "row": 3,
+                "col": 8
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 8
+                  },
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 15
+                  },
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 24
+                  },
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            },
+            "location": {
+              "row": 3,
+              "col": 1
+            }
+          },
+          {
+            "path": {
+              "location": {
+                "row": 4,
+                "col": 8
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "row": 4,
+                    "col": 8
+                  },
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "location": {
+                    "row": 4,
+                    "col": 15
+                  },
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "location": {
+                    "row": 4,
+                    "col": 24
+                  },
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            },
+            "location": {
+              "row": 4,
+              "col": 1
+            }
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "location": {
+                    "row": 6,
+                    "col": 1
+                  },
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "location": {
+                "row": 6,
+                "col": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "location": {
+                  "row": 7,
+                  "col": 2
+                },
+                "terms": {
+                  "type": "and",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "location": {
+                        "row": 7,
+                        "col": 2
+                      },
+                      "terms": [
+                        {
+                          "location": {
+                            "row": 7,
+                            "col": 2
+                          },
+                          "type": "ref",
+                          "value": [
+                            {
+                              "location": {
+                                "row": 7,
+                                "col": 2
+                              },
+                              "type": "var",
+                              "value": "f"
+                            }
+                          ]
+                        },
+                        {
+                          "location": {
+                            "row": 7,
+                            "col": 4
+                          },
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "location": {
+                        "row": 7,
+                        "col": 11
+                      },
+                      "terms": [
+                        {
+                          "location": {
+                            "row": 7,
+                            "col": 11
+                          },
+                          "type": "ref",
+                          "value": [
+                            {
+                              "location": {
+                                "row": 7,
+                                "col": 11
+                              },
+                              "type": "var",
+                              "value": "f"
+                            }
+                          ]
+                        },
+                        {
+                          "location": {
+                            "row": 7,
+                            "col": 13
+                          },
+                          "type": "number",
+                          "value": 2
+                        }
+                      ]
+                    }
+                  ],
+                  "location": {
+                    "row": 7,
+                    "col": 2
+                  }
+                }
+              },
+              {
+                "index": 1,
+                "location": {
+                  "row": 8,
+                  "col": 2
+                },
+                "terms": {
+                  "type": "or",
+                  "lhs": [
+                    {
+                      "index": 0,
+                      "location": {
+                        "row": 8,
+                        "col": 2
+                      },
+                      "terms": [
+                        {
+                          "location": {
+                            "row": 8,
+                            "col": 2
+                          },
+                          "type": "ref",
+                          "value": [
+                            {
+                              "location": {
+                                "row": 8,
+                                "col": 2
+                              },
+                              "type": "var",
+                              "value": "f"
+                            }
+                          ]
+                        },
+                        {
+                          "location": {
+                            "row": 8,
+                            "col": 4
+                          },
+                          "type": "number",
+                          "value": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs": [
+                    {
+                      "index": 0,
+                      "location": {
+                        "row": 8,
+                        "col": 10
+                      },
+                      "terms": [
+                        {
+                          "location": {
+                            "row": 8,
+                            "col": 10
+                          },
+                          "type": "ref",
+                          "value": [
+                            {
+                              "location": {
+                                "row": 8,
+                                "col": 10
+                              },
+                              "type": "var",
+                              "value": "f"
+                            }
+                          ]
+                        },
+                        {
+                          "location": {
+                            "row": 8,
+                            "col": 12
+                          },
+                          "type": "number",
+                          "value": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "location": {
+                    "row": 8,
+                    "col": 2
+                  }
+                }
+              }
+            ],
+            "location": {
+              "row": 6,
+              "col": 1
+            }
+          }
+        ]
+      }
+  # From TestParseNotBody_InnerExprHasLocation: the expression inside a `not` body
+  # carries its own position.
+  - note: locations/negated body operand carries its own position
+    module: |
+      package test
+
+      import future.keywords.not
+
+      p if {
+      	not f(1)
+      }
+    locations: true
+    want_ast: |
+      {
+        "package": {
+          "location": {
+            "row": 1,
+            "col": 1
+          },
+          "path": [
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "location": {
+                "row": 3,
+                "col": 8
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 8
+                  },
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 15
+                  },
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 24
+                  },
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            },
+            "location": {
+              "row": 3,
+              "col": 1
+            }
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "location": {
+                    "row": 5,
+                    "col": 1
+                  },
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "location": {
+                "row": 5,
+                "col": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "location": {
+                  "row": 6,
+                  "col": 2
+                },
+                "terms": {
+                  "type": "not",
+                  "body": [
+                    {
+                      "index": 0,
+                      "location": {
+                        "row": 6,
+                        "col": 2
+                      },
+                      "terms": [
+                        {
+                          "location": {
+                            "row": 6,
+                            "col": 6
+                          },
+                          "type": "ref",
+                          "value": [
+                            {
+                              "location": {
+                                "row": 6,
+                                "col": 6
+                              },
+                              "type": "var",
+                              "value": "f"
+                            }
+                          ]
+                        },
+                        {
+                          "location": {
+                            "row": 6,
+                            "col": 8
+                          },
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  ],
+                  "explicit_body": false,
+                  "location": {
+                    "row": 6,
+                    "col": 2
+                  }
+                }
+              }
+            ],
+            "location": {
+              "row": 5,
+              "col": 1
+            }
+          }
+        ]
+      }
+  # From TestLocation: an expression deep in a module reports the row and col of
+  # its own line, not of the rule or the module.
+  - note: locations/expression position within a module
+    module: |
+      package test
+
+      import input.foo
+
+      p if {
+      	q[x]
+      	x = 1
+      }
+
+      q contains x if {
+      	x = data.a[_]
+      }
+
+      r if {
+      	input.x == 1
+      }
+    locations: true
+    want_ast: |
+      {
+        "package": {
+          "location": {
+            "row": 1,
+            "col": 1
+          },
+          "path": [
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "location": {
+                "row": 1,
+                "col": 9
+              },
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "location": {
+                "row": 3,
+                "col": 8
+              },
+              "type": "ref",
+              "value": [
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 8
+                  },
+                  "type": "var",
+                  "value": "input"
+                },
+                {
+                  "location": {
+                    "row": 3,
+                    "col": 14
+                  },
+                  "type": "string",
+                  "value": "foo"
+                }
+              ]
+            },
+            "location": {
+              "row": 3,
+              "col": 1
+            }
+          }
+        ],
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "location": {
+                    "row": 5,
+                    "col": 1
+                  },
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "location": {
+                "row": 5,
+                "col": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "location": {
+                  "row": 6,
+                  "col": 2
+                },
+                "terms": {
+                  "location": {
+                    "row": 6,
+                    "col": 2
+                  },
+                  "type": "ref",
+                  "value": [
+                    {
+                      "location": {
+                        "row": 6,
+                        "col": 2
+                      },
+                      "type": "var",
+                      "value": "q"
+                    },
+                    {
+                      "location": {
+                        "row": 6,
+                        "col": 4
+                      },
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              },
+              {
+                "index": 1,
+                "location": {
+                  "row": 7,
+                  "col": 2
+                },
+                "terms": [
+                  {
+                    "location": {
+                      "row": 7,
+                      "col": 4
+                    },
+                    "type": "ref",
+                    "value": [
+                      {
+                        "location": {
+                          "row": 7,
+                          "col": 4
+                        },
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "location": {
+                      "row": 7,
+                      "col": 2
+                    },
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "location": {
+                      "row": 7,
+                      "col": 6
+                    },
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ],
+            "location": {
+              "row": 5,
+              "col": 1
+            }
+          },
+          {
+            "head": {
+              "name": "q",
+              "ref": [
+                {
+                  "location": {
+                    "row": 10,
+                    "col": 1
+                  },
+                  "type": "var",
+                  "value": "q"
+                }
+              ],
+              "key": {
+                "location": {
+                  "row": 10,
+                  "col": 12
+                },
+                "type": "var",
+                "value": "x"
+              },
+              "location": {
+                "row": 10,
+                "col": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "location": {
+                  "row": 11,
+                  "col": 2
+                },
+                "terms": [
+                  {
+                    "location": {
+                      "row": 11,
+                      "col": 4
+                    },
+                    "type": "ref",
+                    "value": [
+                      {
+                        "location": {
+                          "row": 11,
+                          "col": 4
+                        },
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "location": {
+                      "row": 11,
+                      "col": 2
+                    },
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "location": {
+                      "row": 11,
+                      "col": 6
+                    },
+                    "type": "ref",
+                    "value": [
+                      {
+                        "location": {
+                          "row": 11,
+                          "col": 6
+                        },
+                        "type": "var",
+                        "value": "data"
+                      },
+                      {
+                        "location": {
+                          "row": 11,
+                          "col": 11
+                        },
+                        "type": "string",
+                        "value": "a"
+                      },
+                      {
+                        "location": {
+                          "row": 11,
+                          "col": 13
+                        },
+                        "type": "var",
+                        "value": "$0"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "location": {
+              "row": 10,
+              "col": 1
+            }
+          },
+          {
+            "head": {
+              "name": "r",
+              "ref": [
+                {
+                  "location": {
+                    "row": 14,
+                    "col": 1
+                  },
+                  "type": "var",
+                  "value": "r"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              },
+              "location": {
+                "row": 14,
+                "col": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "location": {
+                  "row": 15,
+                  "col": 2
+                },
+                "terms": [
+                  {
+                    "location": {
+                      "row": 15,
+                      "col": 10
+                    },
+                    "type": "ref",
+                    "value": [
+                      {
+                        "location": {
+                          "row": 15,
+                          "col": 10
+                        },
+                        "type": "var",
+                        "value": "equal"
+                      }
+                    ]
+                  },
+                  {
+                    "location": {
+                      "row": 15,
+                      "col": 2
+                    },
+                    "type": "ref",
+                    "value": [
+                      {
+                        "location": {
+                          "row": 15,
+                          "col": 2
+                        },
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "location": {
+                          "row": 15,
+                          "col": 8
+                        },
+                        "type": "string",
+                        "value": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "location": {
+                      "row": 15,
+                      "col": 13
+                    },
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ],
+            "location": {
+              "row": 14,
+              "col": 1
+            }
+          }
+        ]
+      }
