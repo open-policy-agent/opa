@@ -1,0 +1,640 @@
+---
+# Generated externalized tests from TestRuleFromBodyRefs
+cases:
+  - note: 'modules/rule-from-body-refs/no dots: partial set of numbers'
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      foo[1]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "foo",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                }
+              ],
+              "key": {
+                "type": "number",
+                "value": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body-refs/no dots: shorthand set of strings'
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      foo.one
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "foo",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                }
+              ],
+              "key": {
+                "type": "string",
+                "value": "one"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body-refs/no dots: partial set'
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      foo[x] { x = 1 }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "foo",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                }
+              ],
+              "key": {
+                "type": "var",
+                "value": "x"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body-refs/no dots: partial set, ref element'
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      test[arr[0]]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "test",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "test"
+                }
+              ],
+              "key": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "arr"
+                  },
+                  {
+                    "type": "number",
+                    "value": 0
+                  }
+                ]
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body-refs/one dot, bracket with var: partial set'
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      foo.bar[x] { x = 1 }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body-refs/two dots, bracket with var: partial set'
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      foo.bar.baz[x] { x = 1 }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                },
+                {
+                  "type": "string",
+                  "value": "baz"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body-refs/one dot, bracket with string, no key: complete doc'
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      foo.bar["baz"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                },
+                {
+                  "type": "string",
+                  "value": "baz"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body-refs/non-ground ref, bracket-key: partial set'
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      foo.bar[i].baz[x] { i := 1; x := 2 }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                },
+                {
+                  "type": "var",
+                  "value": "i"
+                },
+                {
+                  "type": "string",
+                  "value": "baz"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "i"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body-refs/last term is number: partial set'
+    rego_version: v0
+    module: |
+      package a.b.c
+
+      foo.bar.baz[3] { true }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                },
+                {
+                  "type": "string",
+                  "value": "baz"
+                },
+                {
+                  "type": "number",
+                  "value": 3
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }

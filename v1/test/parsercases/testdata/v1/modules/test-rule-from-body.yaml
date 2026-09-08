@@ -1,0 +1,904 @@
+---
+# Generated externalized tests from TestRuleFromBody
+cases:
+  - note: modules/rule-from-body/pi = 3.14159
+    module: |
+      package a.b.c
+
+      pi = 3.14159
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "pi",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "pi"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 3.14159
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/greeting = "hello"
+    module: |
+      package a.b.c
+
+      greeting = "hello"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "greeting",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "greeting"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "hello"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body/cores = [{0: 1}, {1: 2}]'
+    module: |
+      package a.b.c
+
+      cores = [{0: 1}, {1: 2}]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "cores",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "cores"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "object",
+                    "value": [
+                      [
+                        {
+                          "type": "number",
+                          "value": 0
+                        },
+                        {
+                          "type": "number",
+                          "value": 1
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "value": [
+                      [
+                        {
+                          "type": "number",
+                          "value": 1
+                        },
+                        {
+                          "type": "number",
+                          "value": 2
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/wrapper = cores[0][1]
+    module: |
+      package a.b.c
+
+      wrapper = cores[0][1]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "wrapper",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "wrapper"
+                }
+              ],
+              "value": {
+                "type": "ref",
+                "value": [
+                  {
+                    "type": "var",
+                    "value": "cores"
+                  },
+                  {
+                    "type": "number",
+                    "value": 0
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/pi = [3, 1, 4, x, y, z]
+    module: |
+      package a.b.c
+
+      pi = [3, 1, 4, x, y, z]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "pi",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "pi"
+                }
+              ],
+              "value": {
+                "type": "array",
+                "value": [
+                  {
+                    "type": "number",
+                    "value": 3
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "number",
+                    "value": 4
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  },
+                  {
+                    "type": "var",
+                    "value": "z"
+                  }
+                ]
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/foo["bar"] = "buz"
+    module: |
+      package a.b.c
+
+      foo["bar"] = "buz"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "foo",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "bar"
+                }
+              ],
+              "key": {
+                "type": "string",
+                "value": "bar"
+              },
+              "value": {
+                "type": "string",
+                "value": "buz"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/foo["9"] = "10"
+    module: |
+      package a.b.c
+
+      foo["9"] = "10"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "foo",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "9"
+                }
+              ],
+              "key": {
+                "type": "string",
+                "value": "9"
+              },
+              "value": {
+                "type": "string",
+                "value": "10"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/foo.buz = "bar"
+    module: |
+      package a.b.c
+
+      foo.buz = "bar"
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "foo",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "buz"
+                }
+              ],
+              "key": {
+                "type": "string",
+                "value": "buz"
+              },
+              "value": {
+                "type": "string",
+                "value": "bar"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/input = 1
+    module: |
+      package a.b.c
+
+      input = 1
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "input",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "input"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/data = 2
+    module: |
+      package a.b.c
+
+      data = 2
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "data",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "data"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 2
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/f(1) = 2
+    module: |
+      package a.b.c
+
+      f(1) = 2
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "f",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "f"
+                }
+              ],
+              "args": [
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 2
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/f(1)
+    module: |
+      package a.b.c
+
+      f(1)
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "f",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "f"
+                }
+              ],
+              "args": [
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: modules/rule-from-body/d1 := 1234
+    module: |
+      package a.b.c
+
+      d1 := 1234
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "a"
+            },
+            {
+              "type": "string",
+              "value": "b"
+            },
+            {
+              "type": "string",
+              "value": "c"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "d1",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "d1"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1234
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'modules/rule-from-body/rule name: input/data'
+    module: |
+      package ex
+
+      input = {"foo": 1}
+      data = {"bar": 2}
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "ex"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "input",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "input"
+                }
+              ],
+              "value": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                ]
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          },
+          {
+            "head": {
+              "name": "data",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "data"
+                }
+              ],
+              "value": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "string",
+                      "value": "bar"
+                    },
+                    {
+                      "type": "number",
+                      "value": 2
+                    }
+                  ]
+                ]
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
