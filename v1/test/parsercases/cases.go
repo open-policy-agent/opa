@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"io/fs"
 	"slices"
-	"strings"
 
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
@@ -97,10 +96,10 @@ func (tc TestCase) Validate() error {
 		return fmt.Errorf("unknown 'rego_version' %q, expected one of %v", tc.RegoVersion, RegoVersions)
 	}
 
-	if err := checkTrailingWhitespace("module", tc.Module); err != nil {
+	if err := conformance.CheckTrailingWhitespace("module", tc.Module); err != nil {
 		return err
 	}
-	if err := checkTrailingWhitespace("want_equivalent", tc.WantEquivalent); err != nil {
+	if err := conformance.CheckTrailingWhitespace("want_equivalent", tc.WantEquivalent); err != nil {
 		return err
 	}
 
@@ -139,19 +138,6 @@ func (tc TestCase) Validate() error {
 		return errors.New("'want_ast' records comments; the generator and runner both drop them, so this fixture is stale")
 	}
 
-	return nil
-}
-
-// checkTrailingWhitespace rejects Rego that carries trailing whitespace on a
-// line. A YAML emitter will not write a block scalar for such a value, so the
-// generator would have to render the policy as a single escaped line, and
-// nothing this corpus can express depends on that whitespace.
-func checkTrailingWhitespace(field, rego string) error {
-	for i, line := range strings.Split(rego, "\n") {
-		if strings.TrimRight(line, " \t") != line {
-			return fmt.Errorf("%q line %d has trailing whitespace", field, i+1)
-		}
-	}
 	return nil
 }
 

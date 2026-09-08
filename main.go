@@ -35,3 +35,4 @@ func main() {
 //go:generate build/gen-run-go.sh internal/cmd/genplanschema/main.go v1/ir/plan.schema.json
 //go:generate build/gen-run-go.sh internal/cmd/genmanifestschema/main.go v1/bundle/manifest.schema.json
 //go:generate build/gen-run-go.sh build/generate-parser-cases/gen/main.go v1/test/parsercases/testdata
+//go:generate build/gen-run-go.sh build/generate-compiler-cases/gen/main.go v1/test/compilecases/testdata

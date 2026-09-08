@@ -1,0 +1,100 @@
+// Copyright 2026 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+package cases
+
+import (
+	"cmp"
+	"fmt"
+	"slices"
+
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/test/compilecases"
+	"github.com/open-policy-agent/opa/v1/test/conformance"
+)
+
+func regoVersion(s string) (ast.RegoVersion, error) {
+	switch s {
+	case "", "v1":
+		return ast.RegoV1, nil
+	case "v0":
+		return ast.RegoV0, nil
+	case "v0-compat-v1":
+		return ast.RegoV0CompatV1, nil
+	}
+	return ast.RegoUndefined, fmt.Errorf("unknown rego_version %q", s)
+}
+
+func parserOptions(tc compilecases.TestCase) (ast.ParserOptions, error) {
+	v, err := regoVersion(tc.RegoVersion)
+	if err != nil {
+		return ast.ParserOptions{}, err
+	}
+
+	popts := ast.ParserOptions{RegoVersion: v}
+	if tc.ExperimentalKeywords {
+		popts.Capabilities = ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(true))
+	}
+	return popts, nil
+}
+
+// compileCase compiles a case's modules and returns the diagnostics, sorted.
+// A module that does not parse is an error rather than a diagnostic: parse
+// behaviour belongs to the parser corpus, and this corpus does not re-assert it.
+func compileCase(tc compilecases.TestCase) ([]conformance.Error, error) {
+	popts, err := parserOptions(tc)
+	if err != nil {
+		return nil, err
+	}
+
+	modules := make(map[string]*ast.Module, len(tc.Modules))
+	for i, module := range tc.Modules {
+		name := compilecases.ModuleName(i)
+		parsed, perr := ast.ParseModuleWithOpts(name, module, popts)
+		if perr != nil {
+			return nil, fmt.Errorf("%s does not parse: %w", name, perr)
+		}
+		modules[name] = parsed
+	}
+
+	// Without this the compiler stops at CompileErrorLimitDefault and appends a
+	// "too many errors" diagnostic of its own, so a case with more than ten would
+	// record a truncated set. The runner lifts the limit for the same reason.
+	c := ast.NewCompiler().
+		SetErrorLimit(0).
+		WithStrict(tc.Strict).
+		WithEnablePrintStatements(tc.PrintStatements)
+
+	c.Compile(modules)
+
+	got := make([]conformance.Error, 0, len(c.Errors))
+	for _, e := range c.Errors {
+		got = append(got, caseError(e))
+	}
+
+	// The order the compiler reports in is not part of the contract — the runner
+	// matches as a set — but a generated file has to be stable, and a sorted one
+	// reads in source order.
+	slices.SortFunc(got, func(a, b conformance.Error) int {
+		return cmp.Or(
+			cmp.Compare(a.ModuleOrDefault(), b.ModuleOrDefault()),
+			cmp.Compare(a.Row, b.Row),
+			cmp.Compare(a.Col, b.Col),
+			cmp.Compare(a.Code, b.Code),
+			cmp.Compare(a.Message, b.Message),
+		)
+	})
+
+	return got, nil
+}
+
+func caseError(e *ast.Error) conformance.Error {
+	out := conformance.Error{Code: e.Code, Message: e.Message}
+	if e.Location != nil {
+		out.Module = e.Location.File
+		out.Row = e.Location.Row
+		out.Col = e.Location.Col
+	}
+	return out
+}

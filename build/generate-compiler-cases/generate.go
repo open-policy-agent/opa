@@ -2,6 +2,8 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// Package cases fills in the fixtures of the compiler conformance corpus in
+// v1/test/compilecases/testdata.
 package cases
 
 import (
@@ -14,20 +16,15 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
-	"github.com/open-policy-agent/opa/v1/ast"
-	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
-	"github.com/open-policy-agent/opa/v1/test/parsercases"
+	"github.com/open-policy-agent/opa/v1/test/compilecases"
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
-// Generate fills in want_ast for every success case in the corpus rooted at
-// dir, rewriting the YAML files in place. The fixture is what OPA's parser
+// Generate fills in want_errors for every case in the corpus rooted at dir,
+// rewriting the YAML files in place. The fixture is what OPA's compiler
 // produces, so it is a golden file: it does not independently validate OPA, it
 // catches unreviewed change. The gate is review of the regeneration diff.
 func Generate(dir string) error {
-	restore := astJSON.GetOptions()
-	defer astJSON.SetOptions(restore)
-
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -52,7 +49,7 @@ func generateFile(path string, mode fs.FileMode) error {
 		return err
 	}
 
-	var set parsercases.Set
+	var set compilecases.Set
 	if err := util.Unmarshal(bs, &set); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
@@ -76,29 +73,24 @@ func generateFile(path string, mode fs.FileMode) error {
 		tc := &set.Cases[i]
 		*tc = tc.WithFilename(path)
 
-		astJSON.SetOptions(parsercases.MarshalOptions(tc.Locations, false))
-		module, perr := parseModule(*tc, tc.Module)
+		got, err := compileCase(*tc)
+		if err != nil {
+			return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
+		}
 
 		switch {
-		case perr != nil && tc.WantAST != "":
-			return fmt.Errorf("%s: %s: the case asserts 'want_ast', but the module no longer parses: %w", path, tc.Note, perr)
+		case len(got) == 0 && tc.Failure():
+			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the modules compile", path, tc.Note)
 
-		case perr == nil && tc.Failure():
-			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the module parses", path, tc.Note)
+		case len(got) == 0:
+			return fmt.Errorf("%s: %s: the modules compile and the case asserts nothing; a corpus case has to assert something", path, tc.Note)
 
-		case perr != nil && !tc.Failure():
-			// Fill in the diagnostic only where the case has none. A message
+		case !tc.Failure():
+			// Fill in the diagnostics only where the case has none. A message
 			// that changes has to fail the runner, not be quietly rewritten
 			// underneath it, so an existing want_errors is never touched.
-			tc.WantErrors = []parsercases.Error{firstDiagnostic(perr)}
-			corpusgen.SetMapValue(caseNodes.Content[i], "want_errors", corpusgen.ErrorsNode(tc.WantErrors), "exhaustive")
-
-		case perr == nil:
-			var err error
-			if tc.WantAST, err = MarshalAST(module); err != nil {
-				return fmt.Errorf("%s: %s: %w", path, tc.Note, err)
-			}
-			corpusgen.SetMapValue(caseNodes.Content[i], "want_ast", corpusgen.Literal(tc.WantAST), "want_equivalent")
+			tc.WantErrors = got
+			corpusgen.SetMapValue(caseNodes.Content[i], "want_errors", corpusgen.ErrorsNode(got), "exhaustive")
 		}
 
 		if err := tc.Validate(); err != nil {
@@ -116,22 +108,4 @@ func generateFile(path string, mode fs.FileMode) error {
 	}
 
 	return os.WriteFile(path, out, mode)
-}
-
-// firstDiagnostic returns the diagnostic a fixture records. Only the first is
-// taken: the ones that follow are usually a cascade of the same mistake, and
-// holding another implementation to OPA's cascade is not a language rule.
-func firstDiagnostic(err error) parsercases.Error {
-	errs, ok := err.(ast.Errors)
-	if !ok || len(errs) == 0 {
-		return parsercases.Error{Message: err.Error()}
-	}
-
-	e := errs[0]
-	out := parsercases.Error{Code: e.Code, Message: e.Message}
-	if e.Location != nil {
-		out.Row = e.Location.Row
-		out.Col = e.Location.Col
-	}
-	return out
 }

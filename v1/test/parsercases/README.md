@@ -8,8 +8,9 @@ complete without a Go counterpart, and a new parser test can land as YAML only.
 
 1. **This corpus.** Diagnostics are observable in any pipeline, and `want_ast`
    pins the parse result of an implementation with a separate parser stage.
-2. **`v1/test/compilecases`**, once this one passes. Compiler cases presuppose
-   that the implementation parses OPA's canonical form correctly.
+2. **[`v1/test/compilecases`](../compilecases/README.md)**, once this one passes.
+   Compiler cases presuppose that the implementation parses OPA's canonical form
+   correctly.
 3. **IR**, for an implementation that is not split into parser / compiler /
    planner and so cannot assert an AST. See [`want_ir`](#want_ir) below.
 

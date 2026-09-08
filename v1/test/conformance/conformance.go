@@ -92,6 +92,19 @@ func errorMatches(want, got Error) bool {
 		want.Message == got.Message
 }
 
+// CheckTrailingWhitespace rejects Rego that carries trailing whitespace on a
+// line. A YAML emitter will not write a block scalar for such a value, so a
+// generator would have to render the policy as a single escaped line, and
+// nothing these corpora can express depends on that whitespace.
+func CheckTrailingWhitespace(field, rego string) error {
+	for i, line := range strings.Split(rego, "\n") {
+		if strings.TrimRight(line, " \t") != line {
+			return fmt.Errorf("%q line %d has trailing whitespace", field, i+1)
+		}
+	}
+	return nil
+}
+
 // Case is implemented by the case type of a corpus.
 type Case[T any] interface {
 	// Name returns the globally unique note identifying the case.

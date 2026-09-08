@@ -51,7 +51,15 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 		modules[name] = parsed
 	}
 
-	c := NewCompiler().WithStrict(tc.Strict).WithEnablePrintStatements(tc.PrintStatements)
+	// Without lifting the limit the compiler stops at CompileErrorLimitDefault
+	// and appends a "too many errors" diagnostic of its own, so a case with more
+	// than ten would be matched against a truncated set. The generator lifts it
+	// for the same reason.
+	c := NewCompiler().
+		SetErrorLimit(0).
+		WithStrict(tc.Strict).
+		WithEnablePrintStatements(tc.PrintStatements)
+
 	c.Compile(modules)
 
 	if !c.Failed() {
