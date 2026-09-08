@@ -22,7 +22,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -44,32 +54,6 @@ cases:
                         {
                           "type": "objectcomprehension",
                           "value": {
-                            "key": {
-                              "type": "ref",
-                              "value": [
-                                {
-                                  "type": "var",
-                                  "value": "a"
-                                },
-                                {
-                                  "type": "var",
-                                  "value": "i"
-                                }
-                              ]
-                            },
-                            "value": {
-                              "type": "ref",
-                              "value": [
-                                {
-                                  "type": "var",
-                                  "value": "b"
-                                },
-                                {
-                                  "type": "var",
-                                  "value": "i"
-                                }
-                              ]
-                            },
                             "body": [
                               {
                                 "index": 0,
@@ -90,34 +74,6 @@ cases:
                                   {
                                     "type": "objectcomprehension",
                                     "value": {
-                                      "key": {
-                                        "type": "string",
-                                        "value": "foo"
-                                      },
-                                      "value": {
-                                        "type": "object",
-                                        "value": [
-                                          [
-                                            {
-                                              "type": "string",
-                                              "value": "a"
-                                            },
-                                            {
-                                              "type": "array",
-                                              "value": [
-                                                {
-                                                  "type": "string",
-                                                  "value": "baz"
-                                                },
-                                                {
-                                                  "type": "var",
-                                                  "value": "j"
-                                                }
-                                              ]
-                                            }
-                                          ]
-                                        ]
-                                      },
                                       "body": [
                                         {
                                           "index": 0,
@@ -188,7 +144,35 @@ cases:
                                             }
                                           ]
                                         }
-                                      ]
+                                      ],
+                                      "key": {
+                                        "type": "string",
+                                        "value": "foo"
+                                      },
+                                      "value": {
+                                        "type": "object",
+                                        "value": [
+                                          [
+                                            {
+                                              "type": "string",
+                                              "value": "a"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "value": [
+                                                {
+                                                  "type": "string",
+                                                  "value": "baz"
+                                                },
+                                                {
+                                                  "type": "var",
+                                                  "value": "j"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        ]
+                                      }
                                     }
                                   }
                                 ]
@@ -232,25 +216,41 @@ cases:
                                   }
                                 ]
                               }
-                            ]
+                            ],
+                            "key": {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "a"
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "i"
+                                }
+                              ]
+                            },
+                            "value": {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "b"
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "i"
+                                }
+                              ]
+                            }
                           }
                         }
                       ]
                     ]
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -275,7 +275,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -286,6 +296,15 @@ cases:
               "value": {
                 "type": "objectcomprehension",
                 "value": {
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": {
+                        "type": "number",
+                        "value": 4
+                      }
+                    }
+                  ],
                   "key": {
                     "type": "call",
                     "value": [
@@ -311,29 +330,10 @@ cases:
                   "value": {
                     "type": "number",
                     "value": 3
-                  },
-                  "body": [
-                    {
-                      "index": 0,
-                      "terms": {
-                        "type": "number",
-                        "value": 4
-                      }
-                    }
-                  ]
-                }
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
+                  }
                 }
               }
-            ]
+            }
           }
         ]
       }

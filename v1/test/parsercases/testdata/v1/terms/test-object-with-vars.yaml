@@ -22,7 +22,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -54,18 +64,8 @@ cases:
                     }
                   ]
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -90,7 +90,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -133,18 +143,8 @@ cases:
                     }
                   ]
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -169,7 +169,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -227,18 +237,8 @@ cases:
                     }
                   ]
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }

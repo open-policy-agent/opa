@@ -61,6 +61,15 @@ the rest of `Location.Text`.
 scalar cannot hold a Rego number literal faithfully, since `1e6` is a string to
 a YAML parser and a float to a JSON one.
 
+**The members of every object are in lexical order**, which is not the order OPA
+emits them in. Key order is an implementation detail no conforming parser should
+have to reproduce, and OPA's own is not even stable: the `go1.27` marshallers in
+`v1/ast` write a rule as head-then-body, the pre-1.27 ones as body-then-head, so
+a fixture recording either would depend on the toolchain it was generated with.
+`FormatAST` orders them, and the runner compares through the same function, so
+the corpus is the same text on any Go version. Scalars are copied through as the
+marshaller wrote them, which is what keeps `1e6` from becoming `1000000`.
+
 It is indented rather than compact, which costs roughly three times the bytes —
 about 1.6 KB per case, and 8 KB for one pinning locations. That is deliberate.
 Every fixture here is read by a person at least three times: when the diff is

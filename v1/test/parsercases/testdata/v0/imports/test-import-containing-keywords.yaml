@@ -9,18 +9,6 @@ cases:
       import data.not.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -41,7 +29,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.not["foo"]
     rego_version: v0
@@ -51,18 +51,6 @@ cases:
       import data.not["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -83,7 +71,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import not
     rego_version: v0
@@ -170,20 +170,9 @@ cases:
       import data.not as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -196,10 +185,21 @@ cases:
                   "value": "not"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["not"] as foo
     rego_version: v0
@@ -209,20 +209,9 @@ cases:
       import data["not"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -235,10 +224,21 @@ cases:
                   "value": "not"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as not
     rego_version: v0
@@ -259,18 +259,6 @@ cases:
       import data.package.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -291,7 +279,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.package["foo"]
     rego_version: v0
@@ -301,18 +301,6 @@ cases:
       import data.package["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -333,7 +321,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import package
     rego_version: v0
@@ -420,20 +420,9 @@ cases:
       import data.package as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -446,10 +435,21 @@ cases:
                   "value": "package"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["package"] as foo
     rego_version: v0
@@ -459,20 +459,9 @@ cases:
       import data["package"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -485,10 +474,21 @@ cases:
                   "value": "package"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as package
     rego_version: v0
@@ -509,18 +509,6 @@ cases:
       import data.import.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -541,7 +529,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.import["foo"]
     rego_version: v0
@@ -551,18 +551,6 @@ cases:
       import data.import["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -583,7 +571,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import import
     rego_version: v0
@@ -670,20 +670,9 @@ cases:
       import data.import as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -696,10 +685,21 @@ cases:
                   "value": "import"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["import"] as foo
     rego_version: v0
@@ -709,20 +709,9 @@ cases:
       import data["import"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -735,10 +724,21 @@ cases:
                   "value": "import"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as import
     rego_version: v0
@@ -759,18 +759,6 @@ cases:
       import data.as.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -791,7 +779,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.as["foo"]
     rego_version: v0
@@ -801,18 +801,6 @@ cases:
       import data.as["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -833,7 +821,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import as
     rego_version: v0
@@ -920,20 +920,9 @@ cases:
       import data.as as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -946,10 +935,21 @@ cases:
                   "value": "as"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["as"] as foo
     rego_version: v0
@@ -959,20 +959,9 @@ cases:
       import data["as"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -985,10 +974,21 @@ cases:
                   "value": "as"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as as
     rego_version: v0
@@ -1009,18 +1009,6 @@ cases:
       import data.default.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1041,7 +1029,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.default["foo"]
     rego_version: v0
@@ -1051,18 +1051,6 @@ cases:
       import data.default["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1083,7 +1071,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import default
     rego_version: v0
@@ -1170,20 +1170,9 @@ cases:
       import data.default as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1196,10 +1185,21 @@ cases:
                   "value": "default"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["default"] as foo
     rego_version: v0
@@ -1209,20 +1209,9 @@ cases:
       import data["default"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1235,10 +1224,21 @@ cases:
                   "value": "default"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as default
     rego_version: v0
@@ -1259,18 +1259,6 @@ cases:
       import data.else.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1291,7 +1279,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.else["foo"]
     rego_version: v0
@@ -1301,18 +1301,6 @@ cases:
       import data.else["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1333,7 +1321,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import else
     rego_version: v0
@@ -1420,20 +1420,9 @@ cases:
       import data.else as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1446,10 +1435,21 @@ cases:
                   "value": "else"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["else"] as foo
     rego_version: v0
@@ -1459,20 +1459,9 @@ cases:
       import data["else"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1485,10 +1474,21 @@ cases:
                   "value": "else"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as else
     rego_version: v0
@@ -1509,18 +1509,6 @@ cases:
       import data.with.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1541,7 +1529,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.with["foo"]
     rego_version: v0
@@ -1551,18 +1551,6 @@ cases:
       import data.with["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1583,7 +1571,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import with
     rego_version: v0
@@ -1670,20 +1670,9 @@ cases:
       import data.with as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1696,10 +1685,21 @@ cases:
                   "value": "with"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["with"] as foo
     rego_version: v0
@@ -1709,20 +1709,9 @@ cases:
       import data["with"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1735,10 +1724,21 @@ cases:
                   "value": "with"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as with
     rego_version: v0
@@ -1759,18 +1759,6 @@ cases:
       import data.null.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1791,7 +1779,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.null["foo"]
     rego_version: v0
@@ -1801,18 +1801,6 @@ cases:
       import data.null["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1833,7 +1821,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import null
     rego_version: v0
@@ -1920,20 +1920,9 @@ cases:
       import data.null as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1946,10 +1935,21 @@ cases:
                   "value": "null"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["null"] as foo
     rego_version: v0
@@ -1959,20 +1959,9 @@ cases:
       import data["null"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1985,10 +1974,21 @@ cases:
                   "value": "null"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as null
     rego_version: v0
@@ -2009,18 +2009,6 @@ cases:
       import data.true.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2041,7 +2029,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.true["foo"]
     rego_version: v0
@@ -2051,18 +2051,6 @@ cases:
       import data.true["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2083,7 +2071,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import true
     rego_version: v0
@@ -2170,20 +2170,9 @@ cases:
       import data.true as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2196,10 +2185,21 @@ cases:
                   "value": "true"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["true"] as foo
     rego_version: v0
@@ -2209,20 +2209,9 @@ cases:
       import data["true"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2235,10 +2224,21 @@ cases:
                   "value": "true"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as true
     rego_version: v0
@@ -2259,18 +2259,6 @@ cases:
       import data.false.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2291,7 +2279,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.false["foo"]
     rego_version: v0
@@ -2301,18 +2301,6 @@ cases:
       import data.false["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2333,7 +2321,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import false
     rego_version: v0
@@ -2420,20 +2420,9 @@ cases:
       import data.false as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2446,10 +2435,21 @@ cases:
                   "value": "false"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["false"] as foo
     rego_version: v0
@@ -2459,20 +2459,9 @@ cases:
       import data["false"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2485,10 +2474,21 @@ cases:
                   "value": "false"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as false
     rego_version: v0
@@ -2509,18 +2509,6 @@ cases:
       import data.some.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2541,7 +2529,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.some["foo"]
     rego_version: v0
@@ -2551,18 +2551,6 @@ cases:
       import data.some["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2583,7 +2571,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import some
     rego_version: v0
@@ -2670,20 +2670,9 @@ cases:
       import data.some as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2696,10 +2685,21 @@ cases:
                   "value": "some"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["some"] as foo
     rego_version: v0
@@ -2709,20 +2709,9 @@ cases:
       import data["some"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2735,10 +2724,21 @@ cases:
                   "value": "some"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as some
     rego_version: v0

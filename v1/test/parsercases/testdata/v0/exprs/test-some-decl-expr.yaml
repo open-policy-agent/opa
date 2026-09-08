@@ -26,19 +26,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "key": {
-                "type": "var",
-                "value": "x"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -67,7 +54,20 @@ cases:
                   ]
                 }
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
           }
         ]
       }
@@ -96,19 +96,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "key": {
-                "type": "var",
-                "value": "x"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -137,7 +124,20 @@ cases:
                   ]
                 }
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
           }
         ]
       }
@@ -192,19 +192,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "key": {
-                "type": "var",
-                "value": "x"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -224,7 +211,20 @@ cases:
                   "value": "x"
                 }
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
           }
         ]
       }

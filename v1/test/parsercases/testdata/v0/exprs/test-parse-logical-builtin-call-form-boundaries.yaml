@@ -13,18 +13,6 @@ cases:
       }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -46,26 +34,24 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
-              }
-            },
             "body": [
               {
                 "index": 0,
                 "terms": {
-                  "type": "and",
                   "lhs": [
                     {
                       "index": 0,
@@ -83,10 +69,24 @@ cases:
                         "value": "b"
                       }
                     }
-                  ]
+                  ],
+                  "type": "and"
                 }
               }
-            ]
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
           }
         ]
       }
@@ -102,18 +102,6 @@ cases:
       }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -135,26 +123,24 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
-              }
-            },
             "body": [
               {
                 "index": 0,
                 "terms": {
-                  "type": "or",
                   "lhs": [
                     {
                       "index": 0,
@@ -172,10 +158,24 @@ cases:
                         "value": "b"
                       }
                     }
-                  ]
+                  ],
+                  "type": "or"
                 }
               }
-            ]
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
           }
         ]
       }
@@ -191,18 +191,6 @@ cases:
       }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -224,26 +212,24 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
-              }
-            },
             "body": [
               {
                 "index": 0,
                 "terms": {
-                  "type": "and",
                   "lhs": [
                     {
                       "index": 0,
@@ -261,10 +247,24 @@ cases:
                         "value": "b"
                       }
                     }
-                  ]
+                  ],
+                  "type": "and"
                 }
               }
-            ]
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
           }
         ]
       }
@@ -280,18 +280,6 @@ cases:
       }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -313,26 +301,25 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
-              }
-            },
             "body": [
               {
                 "index": 0,
                 "terms": {
-                  "type": "or",
+                  "explicit_lhs": true,
                   "lhs": [
                     {
                       "index": 0,
@@ -351,10 +338,23 @@ cases:
                       }
                     }
                   ],
-                  "explicit_lhs": true
+                  "type": "or"
                 }
               }
-            ]
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
           }
         ]
       }
@@ -370,18 +370,6 @@ cases:
       }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -403,26 +391,24 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
-              }
-            },
             "body": [
               {
                 "index": 0,
                 "terms": {
-                  "type": "or",
                   "lhs": [
                     {
                       "index": 0,
@@ -436,7 +422,6 @@ cases:
                     {
                       "index": 0,
                       "terms": {
-                        "type": "or",
                         "lhs": [
                           {
                             "index": 0,
@@ -454,13 +439,28 @@ cases:
                               "value": "b"
                             }
                           }
-                        ]
+                        ],
+                        "type": "or"
                       }
                     }
-                  ]
+                  ],
+                  "type": "or"
                 }
               }
-            ]
+            ],
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
           }
         ]
       }

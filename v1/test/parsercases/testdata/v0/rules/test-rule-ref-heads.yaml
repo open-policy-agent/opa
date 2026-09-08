@@ -23,19 +23,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "key": {
-                "type": "var",
-                "value": "x"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -59,7 +46,20 @@ cases:
                   }
                 ]
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
           }
         ]
       }
@@ -85,27 +85,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                },
-                {
-                  "type": "var",
-                  "value": "x"
-                }
-              ],
-              "key": {
-                "type": "var",
-                "value": "x"
-              },
-              "value": {
-                "type": "number",
-                "value": 3
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -129,7 +108,28 @@ cases:
                   }
                 ]
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 3
+              }
+            }
           }
         ]
       }
@@ -155,38 +155,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "partialobj",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "partialobj"
-                },
-                {
-                  "type": "var",
-                  "value": "x"
-                }
-              ],
-              "key": {
-                "type": "var",
-                "value": "x"
-              },
-              "value": {
-                "type": "object",
-                "value": [
-                  [
-                    {
-                      "type": "string",
-                      "value": "foo"
-                    },
-                    {
-                      "type": "var",
-                      "value": "y"
-                    }
-                  ]
-                ]
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -232,7 +200,39 @@ cases:
                   }
                 ]
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "partialobj",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "partialobj"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    }
+                  ]
+                ]
+              }
+            }
           }
         ]
       }

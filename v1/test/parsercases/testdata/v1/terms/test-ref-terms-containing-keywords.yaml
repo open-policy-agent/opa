@@ -22,7 +22,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -42,18 +52,8 @@ cases:
                     "value": "not"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -78,7 +78,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -98,18 +108,8 @@ cases:
                     "value": "not"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -134,7 +134,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -154,18 +164,8 @@ cases:
                     "value": "not"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -190,7 +190,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -214,18 +224,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -250,7 +250,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -274,18 +284,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -310,7 +310,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -334,18 +344,8 @@ cases:
                     "value": "not"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -370,7 +370,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -394,18 +404,8 @@ cases:
                     "value": "not"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -430,7 +430,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -450,18 +460,8 @@ cases:
                     "value": "package"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -486,7 +486,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -506,18 +516,8 @@ cases:
                     "value": "package"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -542,7 +542,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -562,18 +572,8 @@ cases:
                     "value": "package"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -598,7 +598,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -622,18 +632,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -658,7 +658,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -682,18 +692,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -718,7 +718,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -742,18 +752,8 @@ cases:
                     "value": "package"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -778,7 +778,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -802,18 +812,8 @@ cases:
                     "value": "package"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -838,7 +838,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -858,18 +868,8 @@ cases:
                     "value": "import"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -894,7 +894,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -914,18 +924,8 @@ cases:
                     "value": "import"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -950,7 +950,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -970,18 +980,8 @@ cases:
                     "value": "import"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1006,7 +1006,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1030,18 +1040,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1066,7 +1066,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1090,18 +1100,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1126,7 +1126,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1150,18 +1160,8 @@ cases:
                     "value": "import"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1186,7 +1186,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1210,18 +1220,8 @@ cases:
                     "value": "import"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1246,7 +1246,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1266,18 +1276,8 @@ cases:
                     "value": "as"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1302,7 +1302,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1322,18 +1332,8 @@ cases:
                     "value": "as"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1358,7 +1358,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1378,18 +1388,8 @@ cases:
                     "value": "as"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1414,7 +1414,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1438,18 +1448,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1474,7 +1474,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1498,18 +1508,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1534,7 +1534,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1558,18 +1568,8 @@ cases:
                     "value": "as"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1594,7 +1594,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1618,18 +1628,8 @@ cases:
                     "value": "as"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1654,7 +1654,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1674,18 +1684,8 @@ cases:
                     "value": "default"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1710,7 +1710,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1730,18 +1740,8 @@ cases:
                     "value": "default"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1766,7 +1766,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1786,18 +1796,8 @@ cases:
                     "value": "default"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1822,7 +1822,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1846,18 +1856,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1882,7 +1882,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1906,18 +1916,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1942,7 +1942,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -1966,18 +1976,8 @@ cases:
                     "value": "default"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2002,7 +2002,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2026,18 +2036,8 @@ cases:
                     "value": "default"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2062,7 +2062,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2082,18 +2092,8 @@ cases:
                     "value": "else"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2118,7 +2118,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2138,18 +2148,8 @@ cases:
                     "value": "else"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2174,7 +2174,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2194,18 +2204,8 @@ cases:
                     "value": "else"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2230,7 +2230,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2254,18 +2264,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2290,7 +2290,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2314,18 +2324,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2350,7 +2350,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2374,18 +2384,8 @@ cases:
                     "value": "else"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2410,7 +2410,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2434,18 +2444,8 @@ cases:
                     "value": "else"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2470,7 +2470,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2490,18 +2500,8 @@ cases:
                     "value": "with"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2526,7 +2526,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2546,18 +2556,8 @@ cases:
                     "value": "with"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2582,7 +2582,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2602,18 +2612,8 @@ cases:
                     "value": "with"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2638,7 +2638,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2662,18 +2672,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2698,7 +2698,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2722,18 +2732,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2758,7 +2758,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2782,18 +2792,8 @@ cases:
                     "value": "with"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2818,7 +2818,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2842,18 +2852,8 @@ cases:
                     "value": "with"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2878,7 +2878,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2898,18 +2908,8 @@ cases:
                     "value": "null"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2934,7 +2934,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -2954,18 +2964,8 @@ cases:
                     "value": "null"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2990,7 +2990,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3010,18 +3020,8 @@ cases:
                     "value": "null"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3046,7 +3046,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3070,18 +3080,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3106,7 +3106,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3130,18 +3140,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3166,7 +3166,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3190,18 +3200,8 @@ cases:
                     "value": "null"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3226,7 +3226,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3250,18 +3260,8 @@ cases:
                     "value": "null"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3286,7 +3286,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3306,18 +3316,8 @@ cases:
                     "value": "true"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3342,7 +3342,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3362,18 +3372,8 @@ cases:
                     "value": "true"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3398,7 +3398,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3418,18 +3428,8 @@ cases:
                     "value": "true"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3454,7 +3454,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3478,18 +3488,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3514,7 +3514,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3538,18 +3548,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3574,7 +3574,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3598,18 +3608,8 @@ cases:
                     "value": "true"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3634,7 +3634,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3658,18 +3668,8 @@ cases:
                     "value": "true"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3694,7 +3694,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3714,18 +3724,8 @@ cases:
                     "value": "false"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3750,7 +3750,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3770,18 +3780,8 @@ cases:
                     "value": "false"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3806,7 +3806,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3826,18 +3836,8 @@ cases:
                     "value": "false"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3862,7 +3862,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3886,18 +3896,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3922,7 +3922,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -3946,18 +3956,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3982,7 +3982,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4006,18 +4016,8 @@ cases:
                     "value": "false"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4042,7 +4042,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4066,18 +4076,8 @@ cases:
                     "value": "false"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4102,7 +4102,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4122,18 +4132,8 @@ cases:
                     "value": "some"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4158,7 +4158,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4178,18 +4188,8 @@ cases:
                     "value": "some"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4214,7 +4214,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4234,18 +4244,8 @@ cases:
                     "value": "some"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4270,7 +4270,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4294,18 +4304,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4330,7 +4330,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4354,18 +4364,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4390,7 +4390,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4414,18 +4424,8 @@ cases:
                     "value": "some"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4450,7 +4450,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4474,18 +4484,8 @@ cases:
                     "value": "some"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4510,7 +4510,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4530,18 +4540,8 @@ cases:
                     "value": "if"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4566,7 +4566,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4586,18 +4596,8 @@ cases:
                     "value": "if"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4622,7 +4622,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4642,18 +4652,8 @@ cases:
                     "value": "if"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4678,7 +4678,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4702,18 +4712,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4738,7 +4738,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4762,18 +4772,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4798,7 +4798,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4822,18 +4832,8 @@ cases:
                     "value": "if"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4858,7 +4858,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4882,18 +4892,8 @@ cases:
                     "value": "if"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4918,7 +4918,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4938,18 +4948,8 @@ cases:
                     "value": "contains"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4974,7 +4974,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -4994,18 +5004,8 @@ cases:
                     "value": "contains"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5030,7 +5030,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5050,18 +5060,8 @@ cases:
                     "value": "contains"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5086,7 +5086,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5110,18 +5120,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5146,7 +5146,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5170,18 +5180,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5206,7 +5206,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5230,18 +5240,8 @@ cases:
                     "value": "contains"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5266,7 +5266,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5290,18 +5300,8 @@ cases:
                     "value": "contains"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5326,7 +5326,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5346,18 +5356,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5382,7 +5382,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5402,18 +5412,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5438,7 +5438,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5458,18 +5468,8 @@ cases:
                     "value": "in"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5494,7 +5494,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5514,18 +5524,8 @@ cases:
                     "value": "in"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5550,7 +5550,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5570,18 +5580,8 @@ cases:
                     "value": "in"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5606,7 +5606,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5630,18 +5640,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5666,7 +5666,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5690,18 +5700,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5726,7 +5726,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5750,18 +5760,8 @@ cases:
                     "value": "in"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5786,7 +5786,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5810,18 +5820,8 @@ cases:
                     "value": "in"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5846,7 +5846,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5866,18 +5876,8 @@ cases:
                     "value": "every"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5902,7 +5902,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5922,18 +5932,8 @@ cases:
                     "value": "every"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5958,7 +5958,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -5978,18 +5988,8 @@ cases:
                     "value": "every"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -6014,7 +6014,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -6038,18 +6048,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -6074,7 +6074,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -6098,18 +6108,8 @@ cases:
                     "value": "foo"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -6134,7 +6134,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -6158,18 +6168,8 @@ cases:
                     "value": "every"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -6194,7 +6194,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -6218,18 +6228,8 @@ cases:
                     "value": "every"
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }

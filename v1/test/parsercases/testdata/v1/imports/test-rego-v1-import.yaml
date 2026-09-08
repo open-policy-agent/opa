@@ -48,18 +48,6 @@ cases:
       import rego.v1
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -76,5 +64,17 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }

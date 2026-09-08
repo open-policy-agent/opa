@@ -15,6 +15,12 @@ cases:
       }
     want_ast: |
       {
+        "annotations": [
+          {
+            "scope": "rule",
+            "title": "allow requests from admins"
+          }
+        ],
         "package": {
           "path": [
             {
@@ -27,27 +33,14 @@ cases:
             }
           ]
         },
-        "annotations": [
-          {
-            "scope": "rule",
-            "title": "allow requests from admins"
-          }
-        ],
         "rules": [
           {
-            "head": {
-              "name": "allow",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "allow"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
+            "annotations": [
+              {
+                "scope": "rule",
+                "title": "allow requests from admins"
               }
-            },
+            ],
             "body": [
               {
                 "index": 0,
@@ -81,12 +74,19 @@ cases:
                 ]
               }
             ],
-            "annotations": [
-              {
-                "scope": "rule",
-                "title": "allow requests from admins"
+            "head": {
+              "name": "allow",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "allow"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
               }
-            ]
+            }
           }
         ]
       }
@@ -101,6 +101,12 @@ cases:
       p := 1
     want_ast: |
       {
+        "annotations": [
+          {
+            "scope": "package",
+            "title": "the example package"
+          }
+        ],
         "package": {
           "path": [
             {
@@ -113,15 +119,19 @@ cases:
             }
           ]
         },
-        "annotations": [
-          {
-            "scope": "package",
-            "title": "the example package"
-          }
-        ],
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -132,18 +142,8 @@ cases:
               "value": {
                 "type": "number",
                 "value": 1
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -164,6 +164,12 @@ cases:
       }
     want_ast: |
       {
+        "annotations": [
+          {
+            "scope": "document",
+            "title": "every definition of p"
+          }
+        ],
         "package": {
           "path": [
             {
@@ -176,27 +182,14 @@ cases:
             }
           ]
         },
-        "annotations": [
-          {
-            "scope": "document",
-            "title": "every definition of p"
-          }
-        ],
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
+            "annotations": [
+              {
+                "scope": "document",
+                "title": "every definition of p"
               }
-            },
+            ],
             "body": [
               {
                 "index": 0,
@@ -215,14 +208,6 @@ cases:
                 }
               }
             ],
-            "annotations": [
-              {
-                "scope": "document",
-                "title": "every definition of p"
-              }
-            ]
-          },
-          {
             "head": {
               "name": "p",
               "ref": [
@@ -235,7 +220,15 @@ cases:
                 "type": "boolean",
                 "value": true
               }
-            },
+            }
+          },
+          {
+            "annotations": [
+              {
+                "scope": "document",
+                "title": "every definition of p"
+              }
+            ],
             "body": [
               {
                 "index": 0,
@@ -254,12 +247,19 @@ cases:
                 }
               }
             ],
-            "annotations": [
-              {
-                "scope": "document",
-                "title": "every definition of p"
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
               }
-            ]
+            }
           }
         ]
       }
@@ -274,6 +274,12 @@ cases:
       p := 1
     want_ast: |
       {
+        "annotations": [
+          {
+            "scope": "subpackages",
+            "title": "this package and everything under it"
+          }
+        ],
         "package": {
           "path": [
             {
@@ -286,15 +292,19 @@ cases:
             }
           ]
         },
-        "annotations": [
-          {
-            "scope": "subpackages",
-            "title": "this package and everything under it"
-          }
-        ],
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -305,18 +315,8 @@ cases:
               "value": {
                 "type": "number",
                 "value": 1
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -349,20 +349,24 @@ cases:
       p := 1
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "annotations": [
           {
+            "authors": [
+              {
+                "email": "jane@example.com",
+                "name": "Jane Doe"
+              },
+              {
+                "name": "anonymous"
+              }
+            ],
+            "custom": {
+              "severity": "high",
+              "tags": [
+                "a",
+                "b"
+              ]
+            },
             "description": "A description spanning\nmore than one line.\n",
             "organizations": [
               "Acme Corp"
@@ -372,17 +376,8 @@ cases:
                 "ref": "https://example.com/docs"
               },
               {
-                "ref": "https://example.com/rfc",
-                "description": "the RFC it implements"
-              }
-            ],
-            "authors": [
-              {
-                "name": "Jane Doe",
-                "email": "jane@example.com"
-              },
-              {
-                "name": "anonymous"
+                "description": "the RFC it implements",
+                "ref": "https://example.com/rfc"
               }
             ],
             "schemas": [
@@ -409,44 +404,42 @@ cases:
                 ]
               }
             ],
-            "custom": {
-              "severity": "high",
-              "tags": [
-                "a",
-                "b"
-              ]
-            },
             "scope": "rule",
             "title": "a fully annotated rule"
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "number",
-                "value": 1
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
-              }
-            ],
             "annotations": [
               {
+                "authors": [
+                  {
+                    "email": "jane@example.com",
+                    "name": "Jane Doe"
+                  },
+                  {
+                    "name": "anonymous"
+                  }
+                ],
+                "custom": {
+                  "severity": "high",
+                  "tags": [
+                    "a",
+                    "b"
+                  ]
+                },
                 "description": "A description spanning\nmore than one line.\n",
                 "organizations": [
                   "Acme Corp"
@@ -456,17 +449,8 @@ cases:
                     "ref": "https://example.com/docs"
                   },
                   {
-                    "ref": "https://example.com/rfc",
-                    "description": "the RFC it implements"
-                  }
-                ],
-                "authors": [
-                  {
-                    "name": "Jane Doe",
-                    "email": "jane@example.com"
-                  },
-                  {
-                    "name": "anonymous"
+                    "description": "the RFC it implements",
+                    "ref": "https://example.com/rfc"
                   }
                 ],
                 "schemas": [
@@ -493,17 +477,33 @@ cases:
                     ]
                   }
                 ],
-                "custom": {
-                  "severity": "high",
-                  "tags": [
-                    "a",
-                    "b"
-                  ]
-                },
                 "scope": "rule",
                 "title": "a fully annotated rule"
               }
-            ]
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            }
           }
         ]
       }
@@ -518,6 +518,12 @@ cases:
       p := 1
     want_ast: |
       {
+        "annotations": [
+          {
+            "entrypoint": true,
+            "scope": "document"
+          }
+        ],
         "package": {
           "path": [
             {
@@ -530,15 +536,25 @@ cases:
             }
           ]
         },
-        "annotations": [
-          {
-            "entrypoint": true,
-            "scope": "document"
-          }
-        ],
         "rules": [
           {
+            "annotations": [
+              {
+                "entrypoint": true,
+                "scope": "document"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -549,24 +565,8 @@ cases:
               "value": {
                 "type": "number",
                 "value": 1
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ],
-            "annotations": [
-              {
-                "entrypoint": true,
-                "scope": "document"
-              }
-            ]
+            }
           }
         ]
       }
@@ -584,6 +584,16 @@ cases:
       q := 2
     want_ast: |
       {
+        "annotations": [
+          {
+            "scope": "rule",
+            "title": "the first"
+          },
+          {
+            "scope": "rule",
+            "title": "the second"
+          }
+        ],
         "package": {
           "path": [
             {
@@ -596,19 +606,25 @@ cases:
             }
           ]
         },
-        "annotations": [
-          {
-            "scope": "rule",
-            "title": "the first"
-          },
-          {
-            "scope": "rule",
-            "title": "the second"
-          }
-        ],
         "rules": [
           {
+            "annotations": [
+              {
+                "scope": "rule",
+                "title": "the first"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -619,9 +635,16 @@ cases:
               "value": {
                 "type": "number",
                 "value": 1
-              },
-              "assign": true
-            },
+              }
+            }
+          },
+          {
+            "annotations": [
+              {
+                "scope": "rule",
+                "title": "the second"
+              }
+            ],
             "body": [
               {
                 "index": 0,
@@ -631,15 +654,8 @@ cases:
                 }
               }
             ],
-            "annotations": [
-              {
-                "scope": "rule",
-                "title": "the first"
-              }
-            ]
-          },
-          {
             "head": {
+              "assign": true,
               "name": "q",
               "ref": [
                 {
@@ -650,24 +666,8 @@ cases:
               "value": {
                 "type": "number",
                 "value": 2
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ],
-            "annotations": [
-              {
-                "scope": "rule",
-                "title": "the second"
-              }
-            ]
+            }
           }
         ]
       }
@@ -685,6 +685,28 @@ cases:
       }
     want_ast: |
       {
+        "annotations": [
+          {
+            "schemas": [
+              {
+                "definition": {
+                  "type": "string"
+                },
+                "path": [
+                  {
+                    "type": "var",
+                    "value": "input"
+                  },
+                  {
+                    "type": "string",
+                    "value": "name"
+                  }
+                ]
+              }
+            ],
+            "scope": "rule"
+          }
+        ],
         "package": {
           "path": [
             {
@@ -697,43 +719,30 @@ cases:
             }
           ]
         },
-        "annotations": [
-          {
-            "schemas": [
-              {
-                "path": [
-                  {
-                    "type": "var",
-                    "value": "input"
-                  },
-                  {
-                    "type": "string",
-                    "value": "name"
-                  }
-                ],
-                "definition": {
-                  "type": "string"
-                }
-              }
-            ],
-            "scope": "rule"
-          }
-        ],
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
+            "annotations": [
+              {
+                "schemas": [
+                  {
+                    "definition": {
+                      "type": "string"
+                    },
+                    "path": [
+                      {
+                        "type": "var",
+                        "value": "input"
+                      },
+                      {
+                        "type": "string",
+                        "value": "name"
+                      }
+                    ]
+                  }
+                ],
+                "scope": "rule"
               }
-            },
+            ],
             "body": [
               {
                 "index": 0,
@@ -767,28 +776,19 @@ cases:
                 ]
               }
             ],
-            "annotations": [
-              {
-                "schemas": [
-                  {
-                    "path": [
-                      {
-                        "type": "var",
-                        "value": "input"
-                      },
-                      {
-                        "type": "string",
-                        "value": "name"
-                      }
-                    ],
-                    "definition": {
-                      "type": "string"
-                    }
-                  }
-                ],
-                "scope": "rule"
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
               }
-            ]
+            }
           }
         ]
       }
@@ -815,7 +815,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -826,18 +836,8 @@ cases:
               "value": {
                 "type": "number",
                 "value": 1
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -867,7 +867,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -878,18 +888,8 @@ cases:
               "value": {
                 "type": "number",
                 "value": 1
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -906,6 +906,11 @@ cases:
       p := 1
     want_ast: |
       {
+        "annotations": [
+          {
+            "scope": "rule"
+          }
+        ],
         "package": {
           "path": [
             {
@@ -918,14 +923,24 @@ cases:
             }
           ]
         },
-        "annotations": [
-          {
-            "scope": "rule"
-          }
-        ],
         "rules": [
           {
+            "annotations": [
+              {
+                "scope": "rule"
+              }
+            ],
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -936,23 +951,8 @@ cases:
               "value": {
                 "type": "number",
                 "value": 1
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ],
-            "annotations": [
-              {
-                "scope": "rule"
-              }
-            ]
+            }
           }
         ]
       }

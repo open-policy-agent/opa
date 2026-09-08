@@ -8,18 +8,6 @@ cases:
       import input
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -32,15 +20,7 @@ cases:
               ]
             }
           }
-        ]
-      }
-  - note: imports/import/single-data
-    module: |
-      package test
-
-      import data
-    want_ast: |
-      {
+        ],
         "package": {
           "path": [
             {
@@ -52,7 +32,15 @@ cases:
               "value": "test"
             }
           ]
-        },
+        }
+      }
+  - note: imports/import/single-data
+    module: |
+      package test
+
+      import data
+    want_ast: |
+      {
         "imports": [
           {
             "path": {
@@ -65,7 +53,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import/multiple
     module: |
@@ -74,18 +74,6 @@ cases:
       import input.foo.bar.baz
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -110,7 +98,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import/single alias
     module: |
@@ -119,20 +119,9 @@ cases:
       import input.foo as bar
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "bar",
             "path": {
               "type": "ref",
               "value": [
@@ -145,18 +134,9 @@ cases:
                   "value": "foo"
                 }
               ]
-            },
-            "alias": "bar"
+            }
           }
-        ]
-      }
-  - note: imports/import/multiple alias
-    module: |
-      package test
-
-      import input.foo.bar.baz as qux
-    want_ast: |
-      {
+        ],
         "package": {
           "path": [
             {
@@ -168,9 +148,18 @@ cases:
               "value": "test"
             }
           ]
-        },
+        }
+      }
+  - note: imports/import/multiple alias
+    module: |
+      package test
+
+      import input.foo.bar.baz as qux
+    want_ast: |
+      {
         "imports": [
           {
+            "alias": "qux",
             "path": {
               "type": "ref",
               "value": [
@@ -191,18 +180,9 @@ cases:
                   "value": "baz"
                 }
               ]
-            },
-            "alias": "qux"
+            }
           }
-        ]
-      }
-  - note: imports/import/white space
-    module: |
-      package test
-
-      import input.foo.bar["white space"]
-    want_ast: |
-      {
+        ],
         "package": {
           "path": [
             {
@@ -214,7 +194,15 @@ cases:
               "value": "test"
             }
           ]
-        },
+        }
+      }
+  - note: imports/import/white space
+    module: |
+      package test
+
+      import input.foo.bar["white space"]
+    want_ast: |
+      {
         "imports": [
           {
             "path": {
@@ -239,7 +227,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import/non-ground ref
     module: |

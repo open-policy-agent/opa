@@ -22,8 +22,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -37,18 +47,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -73,8 +73,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -88,18 +98,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -124,8 +124,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -139,18 +149,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -175,8 +175,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -194,18 +204,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -230,8 +230,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -249,18 +259,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -285,18 +285,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "not"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -307,21 +306,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "not"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -346,18 +346,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "not"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -368,21 +367,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -407,18 +407,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "not"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -429,21 +428,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -468,8 +468,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -484,31 +504,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -533,8 +533,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -549,31 +569,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -598,8 +598,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -613,18 +623,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -649,8 +649,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -664,18 +674,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -700,8 +700,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -715,18 +725,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -751,8 +751,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -770,18 +780,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -806,8 +806,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -825,18 +835,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -861,18 +861,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "package"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -883,21 +882,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "package"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -922,18 +922,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "package"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -944,21 +943,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -983,18 +983,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "package"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -1005,21 +1004,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "package"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1044,8 +1044,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1060,31 +1080,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1109,8 +1109,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1125,31 +1145,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1174,8 +1174,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1189,18 +1199,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1225,8 +1225,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1240,18 +1250,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1276,8 +1276,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1291,18 +1301,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1327,8 +1327,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1346,18 +1356,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1382,8 +1382,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1401,18 +1411,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1437,18 +1437,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "import"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -1459,21 +1458,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "import"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1498,18 +1498,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "import"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -1520,21 +1519,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1559,18 +1559,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "import"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -1581,21 +1580,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "import"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1620,8 +1620,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1636,31 +1656,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1685,8 +1685,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1701,31 +1721,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1750,8 +1750,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1765,18 +1775,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1801,8 +1801,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1816,18 +1826,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1852,8 +1852,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1867,18 +1877,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1903,8 +1903,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1922,18 +1932,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -1958,8 +1958,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -1977,18 +1987,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2013,18 +2013,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "as"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -2035,21 +2034,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "as"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2074,18 +2074,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "as"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -2096,21 +2095,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2135,18 +2135,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "as"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -2157,21 +2156,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "as"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2196,8 +2196,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2212,31 +2232,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2261,8 +2261,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2277,31 +2297,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2326,8 +2326,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2341,18 +2351,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2377,8 +2377,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2392,18 +2402,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2428,8 +2428,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2443,18 +2453,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2479,8 +2479,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2498,18 +2508,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2534,8 +2534,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2553,18 +2563,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2589,18 +2589,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "default"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -2611,21 +2610,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "default"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2650,18 +2650,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "default"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -2672,21 +2671,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2711,18 +2711,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "default"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -2733,21 +2732,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "default"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2772,8 +2772,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2788,31 +2808,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2837,8 +2837,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2853,31 +2873,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2902,8 +2902,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2917,18 +2927,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -2953,8 +2953,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -2968,18 +2978,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3004,8 +3004,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3019,18 +3029,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3055,8 +3055,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3074,18 +3084,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3110,8 +3110,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3129,18 +3139,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3165,18 +3165,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "else"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -3187,21 +3186,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "else"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3226,18 +3226,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "else"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -3248,21 +3247,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3287,18 +3287,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "else"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -3309,21 +3308,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "else"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3348,8 +3348,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3364,31 +3384,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3413,8 +3413,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3429,31 +3449,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3478,8 +3478,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3493,18 +3503,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3529,8 +3529,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3544,18 +3554,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3580,8 +3580,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3595,18 +3605,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3631,8 +3631,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3650,18 +3660,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3686,8 +3686,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3705,18 +3715,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3741,18 +3741,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "with"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -3763,21 +3762,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "with"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3802,18 +3802,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "with"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -3824,21 +3823,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3863,18 +3863,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "with"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -3885,21 +3884,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "with"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3924,8 +3924,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -3940,31 +3960,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -3989,8 +3989,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4005,31 +4025,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4054,8 +4054,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4069,18 +4079,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4105,8 +4105,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4120,18 +4130,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4156,8 +4156,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4171,18 +4181,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4207,8 +4207,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4226,18 +4236,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4262,8 +4262,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4281,18 +4291,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4317,18 +4317,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "null"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -4339,21 +4338,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "null"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4378,18 +4378,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "null"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -4400,21 +4399,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4439,18 +4439,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "null"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -4461,21 +4460,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "null"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4500,8 +4500,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4516,31 +4536,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4565,8 +4565,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4581,31 +4601,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4630,8 +4630,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4645,18 +4655,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4681,8 +4681,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4696,18 +4706,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4732,8 +4732,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4747,18 +4757,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4783,8 +4783,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4802,18 +4812,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4838,8 +4838,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -4857,18 +4867,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4893,18 +4893,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "true"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -4915,21 +4914,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "true"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -4954,18 +4954,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "true"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -4976,21 +4975,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5015,18 +5015,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "true"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -5037,21 +5036,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "true"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5076,8 +5076,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5092,31 +5112,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5141,8 +5141,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5157,31 +5177,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5206,8 +5206,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5221,18 +5231,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5257,8 +5257,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5272,18 +5282,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5308,8 +5308,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5323,18 +5333,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5359,8 +5359,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5378,18 +5388,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5414,8 +5414,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5433,18 +5443,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5469,18 +5469,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "false"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -5491,21 +5490,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "false"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5530,18 +5530,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "false"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -5552,21 +5551,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5591,18 +5591,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "false"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -5613,21 +5612,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "false"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5652,8 +5652,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5668,31 +5688,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5717,8 +5717,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5733,31 +5753,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5782,8 +5782,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5797,18 +5807,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5833,8 +5833,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5848,18 +5858,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5884,8 +5884,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5899,18 +5909,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5935,8 +5935,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -5954,18 +5964,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -5990,8 +5990,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -6009,18 +6019,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -6045,18 +6045,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "some"
-                },
-                {
-                  "type": "string",
-                  "value": "foo"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -6067,21 +6066,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "some"
+                },
+                {
+                  "type": "string",
+                  "value": "foo"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -6106,18 +6106,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "some"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -6128,21 +6127,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -6167,18 +6167,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "foo"
-                },
-                {
-                  "type": "string",
-                  "value": "some"
-                }
-              ],
               "args": [
                 {
                   "type": "var",
@@ -6189,21 +6188,22 @@ cases:
                   "value": "$1"
                 }
               ],
+              "assign": true,
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "foo"
+                },
+                {
+                  "type": "string",
+                  "value": "some"
+                }
+              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -6228,8 +6228,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -6244,31 +6264,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -6293,8 +6293,28 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                },
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "assign": true,
               "ref": [
                 {
                   "type": "var",
@@ -6309,31 +6329,11 @@ cases:
                   "value": "bar"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                },
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }

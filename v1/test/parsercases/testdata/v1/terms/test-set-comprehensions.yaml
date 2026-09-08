@@ -22,7 +22,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -44,19 +54,6 @@ cases:
                         {
                           "type": "setcomprehension",
                           "value": {
-                            "term": {
-                              "type": "ref",
-                              "value": [
-                                {
-                                  "type": "var",
-                                  "value": "a"
-                                },
-                                {
-                                  "type": "var",
-                                  "value": "i"
-                                }
-                              ]
-                            },
                             "body": [
                               {
                                 "index": 0,
@@ -77,30 +74,6 @@ cases:
                                   {
                                     "type": "setcomprehension",
                                     "value": {
-                                      "term": {
-                                        "type": "object",
-                                        "value": [
-                                          [
-                                            {
-                                              "type": "string",
-                                              "value": "a"
-                                            },
-                                            {
-                                              "type": "array",
-                                              "value": [
-                                                {
-                                                  "type": "string",
-                                                  "value": "baz"
-                                                },
-                                                {
-                                                  "type": "var",
-                                                  "value": "j"
-                                                }
-                                              ]
-                                            }
-                                          ]
-                                        ]
-                                      },
                                       "body": [
                                         {
                                           "index": 0,
@@ -171,7 +144,31 @@ cases:
                                             }
                                           ]
                                         }
-                                      ]
+                                      ],
+                                      "term": {
+                                        "type": "object",
+                                        "value": [
+                                          [
+                                            {
+                                              "type": "string",
+                                              "value": "a"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "value": [
+                                                {
+                                                  "type": "string",
+                                                  "value": "baz"
+                                                },
+                                                {
+                                                  "type": "var",
+                                                  "value": "j"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        ]
+                                      }
                                     }
                                   }
                                 ]
@@ -215,25 +212,28 @@ cases:
                                   }
                                 ]
                               }
-                            ]
+                            ],
+                            "term": {
+                              "type": "ref",
+                              "value": [
+                                {
+                                  "type": "var",
+                                  "value": "a"
+                                },
+                                {
+                                  "type": "var",
+                                  "value": "i"
+                                }
+                              ]
+                            }
                           }
                         }
                       ]
                     ]
                   }
                 ]
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -258,7 +258,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -269,10 +279,6 @@ cases:
               "value": {
                 "type": "setcomprehension",
                 "value": {
-                  "term": {
-                    "type": "var",
-                    "value": "a"
-                  },
                   "body": [
                     {
                       "index": 0,
@@ -281,20 +287,14 @@ cases:
                         "value": "b"
                       }
                     }
-                  ]
-                }
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
+                  ],
+                  "term": {
+                    "type": "var",
+                    "value": "a"
+                  }
                 }
               }
-            ]
+            }
           }
         ]
       }

@@ -23,25 +23,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "f",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "f"
-                }
-              ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$0"
-                }
-              ],
-              "value": {
-                "type": "var",
-                "value": "y"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -50,7 +31,26 @@ cases:
                   "value": true
                 }
               }
-            ]
+            ],
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$0"
+                }
+              ],
+              "name": "f",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "f"
+                }
+              ],
+              "value": {
+                "type": "var",
+                "value": "y"
+              }
+            }
           }
         ]
       }

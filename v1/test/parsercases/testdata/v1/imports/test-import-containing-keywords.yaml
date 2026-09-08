@@ -8,18 +8,6 @@ cases:
       import data.not.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -40,7 +28,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.not["foo"]
     module: |
@@ -49,18 +49,6 @@ cases:
       import data.not["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -81,7 +69,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import not
     module: |
@@ -160,20 +160,9 @@ cases:
       import data.not as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -186,10 +175,21 @@ cases:
                   "value": "not"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["not"] as foo
     module: |
@@ -198,20 +198,9 @@ cases:
       import data["not"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -224,10 +213,21 @@ cases:
                   "value": "not"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as not
     module: |
@@ -246,18 +246,6 @@ cases:
       import data.package.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -278,7 +266,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.package["foo"]
     module: |
@@ -287,18 +287,6 @@ cases:
       import data.package["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -319,7 +307,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import package
     module: |
@@ -398,20 +398,9 @@ cases:
       import data.package as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -424,10 +413,21 @@ cases:
                   "value": "package"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["package"] as foo
     module: |
@@ -436,20 +436,9 @@ cases:
       import data["package"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -462,10 +451,21 @@ cases:
                   "value": "package"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as package
     module: |
@@ -484,18 +484,6 @@ cases:
       import data.import.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -516,7 +504,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.import["foo"]
     module: |
@@ -525,18 +525,6 @@ cases:
       import data.import["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -557,7 +545,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import import
     module: |
@@ -636,20 +636,9 @@ cases:
       import data.import as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -662,10 +651,21 @@ cases:
                   "value": "import"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["import"] as foo
     module: |
@@ -674,20 +674,9 @@ cases:
       import data["import"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -700,10 +689,21 @@ cases:
                   "value": "import"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as import
     module: |
@@ -722,18 +722,6 @@ cases:
       import data.as.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -754,7 +742,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.as["foo"]
     module: |
@@ -763,18 +763,6 @@ cases:
       import data.as["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -795,7 +783,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import as
     module: |
@@ -874,20 +874,9 @@ cases:
       import data.as as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -900,10 +889,21 @@ cases:
                   "value": "as"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["as"] as foo
     module: |
@@ -912,20 +912,9 @@ cases:
       import data["as"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -938,10 +927,21 @@ cases:
                   "value": "as"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as as
     module: |
@@ -960,18 +960,6 @@ cases:
       import data.default.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -992,7 +980,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.default["foo"]
     module: |
@@ -1001,18 +1001,6 @@ cases:
       import data.default["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1033,7 +1021,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import default
     module: |
@@ -1112,20 +1112,9 @@ cases:
       import data.default as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1138,10 +1127,21 @@ cases:
                   "value": "default"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["default"] as foo
     module: |
@@ -1150,20 +1150,9 @@ cases:
       import data["default"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1176,10 +1165,21 @@ cases:
                   "value": "default"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as default
     module: |
@@ -1198,18 +1198,6 @@ cases:
       import data.else.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1230,7 +1218,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.else["foo"]
     module: |
@@ -1239,18 +1239,6 @@ cases:
       import data.else["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1271,7 +1259,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import else
     module: |
@@ -1350,20 +1350,9 @@ cases:
       import data.else as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1376,10 +1365,21 @@ cases:
                   "value": "else"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["else"] as foo
     module: |
@@ -1388,20 +1388,9 @@ cases:
       import data["else"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1414,10 +1403,21 @@ cases:
                   "value": "else"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as else
     module: |
@@ -1436,18 +1436,6 @@ cases:
       import data.with.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1468,7 +1456,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.with["foo"]
     module: |
@@ -1477,18 +1477,6 @@ cases:
       import data.with["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1509,7 +1497,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import with
     module: |
@@ -1588,20 +1588,9 @@ cases:
       import data.with as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1614,10 +1603,21 @@ cases:
                   "value": "with"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["with"] as foo
     module: |
@@ -1626,20 +1626,9 @@ cases:
       import data["with"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1652,10 +1641,21 @@ cases:
                   "value": "with"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as with
     module: |
@@ -1674,18 +1674,6 @@ cases:
       import data.null.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1706,7 +1694,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.null["foo"]
     module: |
@@ -1715,18 +1715,6 @@ cases:
       import data.null["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1747,7 +1735,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import null
     module: |
@@ -1826,20 +1826,9 @@ cases:
       import data.null as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1852,10 +1841,21 @@ cases:
                   "value": "null"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["null"] as foo
     module: |
@@ -1864,20 +1864,9 @@ cases:
       import data["null"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -1890,10 +1879,21 @@ cases:
                   "value": "null"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as null
     module: |
@@ -1912,18 +1912,6 @@ cases:
       import data.true.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1944,7 +1932,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.true["foo"]
     module: |
@@ -1953,18 +1953,6 @@ cases:
       import data.true["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -1985,7 +1973,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import true
     module: |
@@ -2064,20 +2064,9 @@ cases:
       import data.true as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2090,10 +2079,21 @@ cases:
                   "value": "true"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["true"] as foo
     module: |
@@ -2102,20 +2102,9 @@ cases:
       import data["true"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2128,10 +2117,21 @@ cases:
                   "value": "true"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as true
     module: |
@@ -2150,18 +2150,6 @@ cases:
       import data.false.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2182,7 +2170,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.false["foo"]
     module: |
@@ -2191,18 +2191,6 @@ cases:
       import data.false["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2223,7 +2211,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import false
     module: |
@@ -2302,20 +2302,9 @@ cases:
       import data.false as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2328,10 +2317,21 @@ cases:
                   "value": "false"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["false"] as foo
     module: |
@@ -2340,20 +2340,9 @@ cases:
       import data["false"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2366,10 +2355,21 @@ cases:
                   "value": "false"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as false
     module: |
@@ -2388,18 +2388,6 @@ cases:
       import data.some.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2420,7 +2408,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.some["foo"]
     module: |
@@ -2429,18 +2429,6 @@ cases:
       import data.some["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2461,7 +2449,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import some
     module: |
@@ -2540,20 +2540,9 @@ cases:
       import data.some as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2566,10 +2555,21 @@ cases:
                   "value": "some"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["some"] as foo
     module: |
@@ -2578,20 +2578,9 @@ cases:
       import data["some"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2604,10 +2593,21 @@ cases:
                   "value": "some"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as some
     module: |
@@ -2626,18 +2626,6 @@ cases:
       import data.if.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2658,7 +2646,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.if["foo"]
     module: |
@@ -2667,18 +2667,6 @@ cases:
       import data.if["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2699,7 +2687,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import if
     module: |
@@ -2778,20 +2778,9 @@ cases:
       import data.if as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2804,10 +2793,21 @@ cases:
                   "value": "if"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["if"] as foo
     module: |
@@ -2816,20 +2816,9 @@ cases:
       import data["if"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -2842,10 +2831,21 @@ cases:
                   "value": "if"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as if
     module: |
@@ -2864,18 +2864,6 @@ cases:
       import data.contains.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2896,7 +2884,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.contains["foo"]
     module: |
@@ -2905,18 +2905,6 @@ cases:
       import data.contains["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -2937,7 +2925,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import contains
     module: |
@@ -3016,20 +3016,9 @@ cases:
       import data.contains as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -3042,10 +3031,21 @@ cases:
                   "value": "contains"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["contains"] as foo
     module: |
@@ -3054,20 +3054,9 @@ cases:
       import data["contains"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -3080,10 +3069,21 @@ cases:
                   "value": "contains"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as contains
     module: |
@@ -3102,18 +3102,6 @@ cases:
       import data.in.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -3134,7 +3122,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.in["foo"]
     module: |
@@ -3143,18 +3143,6 @@ cases:
       import data.in["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -3175,7 +3163,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import in
     module: |
@@ -3254,20 +3254,9 @@ cases:
       import data.in as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -3280,10 +3269,21 @@ cases:
                   "value": "in"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["in"] as foo
     module: |
@@ -3292,20 +3292,9 @@ cases:
       import data["in"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -3318,10 +3307,21 @@ cases:
                   "value": "in"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as in
     module: |
@@ -3340,18 +3340,6 @@ cases:
       import data.every.foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -3372,7 +3360,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.every["foo"]
     module: |
@@ -3381,18 +3381,6 @@ cases:
       import data.every["foo"]
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -3413,7 +3401,19 @@ cases:
               ]
             }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import every
     module: |
@@ -3492,20 +3492,9 @@ cases:
       import data.every as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -3518,10 +3507,21 @@ cases:
                   "value": "every"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data["every"] as foo
     module: |
@@ -3530,20 +3530,9 @@ cases:
       import data["every"] as foo
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
+            "alias": "foo",
             "path": {
               "type": "ref",
               "value": [
@@ -3556,10 +3545,21 @@ cases:
                   "value": "every"
                 }
               ]
-            },
-            "alias": "foo"
+            }
           }
-        ]
+        ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        }
       }
   - note: imports/import-containing-keywords/import data.foo as every
     module: |

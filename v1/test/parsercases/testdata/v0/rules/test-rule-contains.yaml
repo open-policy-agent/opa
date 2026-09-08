@@ -11,18 +11,6 @@ cases:
       p contains "x" { true }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -44,21 +32,20 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "key": {
-                "type": "string",
-                "value": "x"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -67,7 +54,20 @@ cases:
                   "value": true
                 }
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "string",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
           }
         ]
       }
@@ -81,18 +81,6 @@ cases:
       p.q contains "x" { true }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -114,9 +102,34 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "key": {
+                "type": "string",
+                "value": "x"
+              },
               "ref": [
                 {
                   "type": "var",
@@ -126,21 +139,8 @@ cases:
                   "type": "string",
                   "value": "q"
                 }
-              ],
-              "key": {
-                "type": "string",
-                "value": "x"
-              }
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
-              }
-            ]
+              ]
+            }
           }
         ]
       }
@@ -154,18 +154,6 @@ cases:
       deny contains msg { msg := "nonono" }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -187,21 +175,20 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "head": {
-              "name": "deny",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "deny"
-                }
-              ],
-              "key": {
-                "type": "var",
-                "value": "msg"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -225,7 +212,20 @@ cases:
                   }
                 ]
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "msg"
+              },
+              "name": "deny",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "deny"
+                }
+              ]
+            }
           }
         ]
       }
@@ -239,18 +239,6 @@ cases:
       deny contains {"allow": false, "msg": msg} { msg := "nonono" }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -272,16 +260,45 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "msg"
+                  },
+                  {
+                    "type": "string",
+                    "value": "nonono"
+                  }
+                ]
+              }
+            ],
             "head": {
-              "name": "deny",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "deny"
-                }
-              ],
               "key": {
                 "type": "object",
                 "value": [
@@ -306,32 +323,15 @@ cases:
                     }
                   ]
                 ]
-              }
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": [
-                  {
-                    "type": "ref",
-                    "value": [
-                      {
-                        "type": "var",
-                        "value": "assign"
-                      }
-                    ]
-                  },
-                  {
-                    "type": "var",
-                    "value": "msg"
-                  },
-                  {
-                    "type": "string",
-                    "value": "nonono"
-                  }
-                ]
-              }
-            ]
+              },
+              "name": "deny",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "deny"
+                }
+              ]
+            }
           }
         ]
       }

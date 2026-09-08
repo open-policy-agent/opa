@@ -22,7 +22,17 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "assign": true,
               "name": "p",
               "ref": [
                 {
@@ -33,10 +43,6 @@ cases:
               "value": {
                 "type": "setcomprehension",
                 "value": {
-                  "term": {
-                    "type": "var",
-                    "value": "k"
-                  },
                   "body": [
                     {
                       "index": 0,
@@ -89,20 +95,14 @@ cases:
                         ]
                       }
                     }
-                  ]
-                }
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
+                  ],
+                  "term": {
+                    "type": "var",
+                    "value": "k"
+                  }
                 }
               }
-            ]
+            }
           }
         ]
       }

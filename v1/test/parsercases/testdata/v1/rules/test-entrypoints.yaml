@@ -32,6 +32,15 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "var",
+                  "value": "helper"
+                }
+              }
+            ],
             "head": {
               "name": "allow",
               "ref": [
@@ -44,31 +53,9 @@ cases:
                 "type": "boolean",
                 "value": true
               }
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "var",
-                  "value": "helper"
-                }
-              }
-            ]
+            }
           },
           {
-            "head": {
-              "name": "helper",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "helper"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -101,7 +88,20 @@ cases:
                   }
                 ]
               }
-            ]
+            ],
+            "head": {
+              "name": "helper",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "helper"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
           }
         ]
       }

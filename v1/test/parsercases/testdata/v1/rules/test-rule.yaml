@@ -22,6 +22,15 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
               "name": "allow",
@@ -35,16 +44,7 @@ cases:
                 "type": "boolean",
                 "value": false
               }
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
-              }
-            ]
+            }
           }
         ]
       }
@@ -69,8 +69,18 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
+              "assign": true,
               "name": "allow",
               "ref": [
                 {
@@ -81,18 +91,8 @@ cases:
               "value": {
                 "type": "boolean",
                 "value": false
-              },
-              "assign": true
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
               }
-            ]
+            }
           }
         ]
       }
@@ -117,6 +117,15 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
               "name": "widgets",
@@ -129,10 +138,6 @@ cases:
               "value": {
                 "type": "arraycomprehension",
                 "value": {
-                  "term": {
-                    "type": "var",
-                    "value": "x"
-                  },
                   "body": [
                     {
                       "index": 0,
@@ -169,19 +174,14 @@ cases:
                         }
                       ]
                     }
-                  ]
+                  ],
+                  "term": {
+                    "type": "var",
+                    "value": "x"
+                  }
                 }
               }
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
-              }
-            ]
+            }
           }
         ]
       }
@@ -295,6 +295,15 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "default": true,
             "head": {
               "name": "a",
@@ -308,16 +317,7 @@ cases:
                 "type": "boolean",
                 "value": true
               }
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
-              }
-            ]
+            }
           }
         ]
       }
@@ -492,37 +492,22 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "f",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "f"
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
                 }
-              ],
+              }
+            ],
+            "head": {
               "args": [
                 {
                   "type": "var",
                   "value": "$0"
                 }
               ],
-              "value": {
-                "type": "boolean",
-                "value": true
-              }
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
-              }
-            ]
-          },
-          {
-            "head": {
               "name": "f",
               "ref": [
                 {
@@ -530,17 +515,13 @@ cases:
                   "value": "f"
                 }
               ],
-              "args": [
-                {
-                  "type": "var",
-                  "value": "$1"
-                }
-              ],
               "value": {
                 "type": "boolean",
                 "value": true
               }
-            },
+            }
+          },
+          {
             "body": [
               {
                 "index": 0,
@@ -549,7 +530,26 @@ cases:
                   "value": true
                 }
               }
-            ]
+            ],
+            "head": {
+              "args": [
+                {
+                  "type": "var",
+                  "value": "$1"
+                }
+              ],
+              "name": "f",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "f"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
           }
         ]
       }

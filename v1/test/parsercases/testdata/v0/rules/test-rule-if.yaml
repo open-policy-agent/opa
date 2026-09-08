@@ -11,18 +11,6 @@ cases:
       p := "yes" if { 10 > y } else := "no" { 10 <= y }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -44,62 +32,20 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "else": {
-              "head": {
-                "name": "p",
-                "ref": [
-                  {
-                    "type": "var",
-                    "value": "p"
-                  }
-                ],
-                "value": {
-                  "type": "string",
-                  "value": "no"
-                },
-                "assign": true
-              },
-              "body": [
-                {
-                  "index": 0,
-                  "terms": [
-                    {
-                      "type": "ref",
-                      "value": [
-                        {
-                          "type": "var",
-                          "value": "lte"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "number",
-                      "value": 10
-                    },
-                    {
-                      "type": "var",
-                      "value": "y"
-                    }
-                  ]
-                }
-              ]
-            },
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "string",
-                "value": "yes"
-              },
-              "assign": true
-            },
             "body": [
               {
                 "index": 0,
@@ -123,7 +69,61 @@ cases:
                   }
                 ]
               }
-            ]
+            ],
+            "else": {
+              "body": [
+                {
+                  "index": 0,
+                  "terms": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "lte"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "number",
+                      "value": 10
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    }
+                  ]
+                }
+              ],
+              "head": {
+                "assign": true,
+                "name": "p",
+                "ref": [
+                  {
+                    "type": "var",
+                    "value": "p"
+                  }
+                ],
+                "value": {
+                  "type": "string",
+                  "value": "no"
+                }
+              }
+            },
+            "head": {
+              "assign": true,
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "yes"
+              }
+            }
           }
         ]
       }
@@ -137,18 +137,6 @@ cases:
       p if 1 > 2 else = 42 { 2 > 1 }
     want_ast: |
       {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "test"
-            }
-          ]
-        },
         "imports": [
           {
             "path": {
@@ -170,60 +158,20 @@ cases:
             }
           }
         ],
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
         "rules": [
           {
-            "else": {
-              "head": {
-                "name": "p",
-                "ref": [
-                  {
-                    "type": "var",
-                    "value": "p"
-                  }
-                ],
-                "value": {
-                  "type": "number",
-                  "value": 42
-                }
-              },
-              "body": [
-                {
-                  "index": 0,
-                  "terms": [
-                    {
-                      "type": "ref",
-                      "value": [
-                        {
-                          "type": "var",
-                          "value": "gt"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "number",
-                      "value": 2
-                    },
-                    {
-                      "type": "number",
-                      "value": 1
-                    }
-                  ]
-                }
-              ]
-            },
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "value": {
-                "type": "boolean",
-                "value": true
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -247,7 +195,59 @@ cases:
                   }
                 ]
               }
-            ]
+            ],
+            "else": {
+              "body": [
+                {
+                  "index": 0,
+                  "terms": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "gt"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "number",
+                      "value": 2
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                }
+              ],
+              "head": {
+                "name": "p",
+                "ref": [
+                  {
+                    "type": "var",
+                    "value": "p"
+                  }
+                ],
+                "value": {
+                  "type": "number",
+                  "value": 42
+                }
+              }
+            },
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            }
           }
         ]
       }

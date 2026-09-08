@@ -22,19 +22,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "key": {
-                "type": "string",
-                "value": "x"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -43,7 +30,20 @@ cases:
                   "value": true
                 }
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "string",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
           }
         ]
       }
@@ -68,7 +68,20 @@ cases:
         },
         "rules": [
           {
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ],
             "head": {
+              "key": {
+                "type": "string",
+                "value": "x"
+              },
               "ref": [
                 {
                   "type": "var",
@@ -78,21 +91,8 @@ cases:
                   "type": "string",
                   "value": "q"
                 }
-              ],
-              "key": {
-                "type": "string",
-                "value": "x"
-              }
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
-                }
-              }
-            ]
+              ]
+            }
           }
         ]
       }

@@ -31,19 +31,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "p",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "p"
-                }
-              ],
-              "key": {
-                "type": "var",
-                "value": "x"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -67,7 +54,20 @@ cases:
                   }
                 ]
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ]
+            }
           }
         ]
       }
@@ -101,19 +101,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "bar",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "bar"
-                }
-              ],
-              "key": {
-                "type": "number",
-                "value": 1
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -122,7 +109,20 @@ cases:
                   "value": true
                 }
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "number",
+                "value": 1
+              },
+              "name": "bar",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "bar"
+                }
+              ]
+            }
           }
         ]
       }
@@ -156,14 +156,16 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "bar",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "bar"
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
                 }
-              ],
+              }
+            ],
+            "head": {
               "key": {
                 "type": "array",
                 "value": [
@@ -183,17 +185,15 @@ cases:
                     ]
                   }
                 ]
-              }
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": {
-                  "type": "boolean",
-                  "value": true
+              },
+              "name": "bar",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "bar"
                 }
-              }
-            ]
+              ]
+            }
           }
         ]
       }
@@ -227,19 +227,6 @@ cases:
         },
         "rules": [
           {
-            "head": {
-              "name": "bar",
-              "ref": [
-                {
-                  "type": "var",
-                  "value": "bar"
-                }
-              ],
-              "key": {
-                "type": "string",
-                "value": "qux"
-              }
-            },
             "body": [
               {
                 "index": 0,
@@ -248,7 +235,20 @@ cases:
                   "value": true
                 }
               }
-            ]
+            ],
+            "head": {
+              "key": {
+                "type": "string",
+                "value": "qux"
+              },
+              "name": "bar",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "bar"
+                }
+              ]
+            }
           }
         ]
       }
