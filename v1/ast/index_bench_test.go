@@ -180,10 +180,9 @@ func distinctRefInput(n int) Value {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteByte('"')
-		sb.WriteString("f" + strconv.Itoa(i))
-		sb.WriteString(`": `)
-		sb.WriteString(`"x"`)
+		sb.WriteString(`"f`)
+		sb.WriteString(strconv.Itoa(i))
+		sb.WriteString(`": "x"`)
 	}
 	sb.WriteByte('}')
 	return MustParseTerm(sb.String()).Value
