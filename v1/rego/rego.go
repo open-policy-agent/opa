@@ -7,6 +7,7 @@ package rego
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -2343,13 +2344,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithVirtualCache(ectx.virtualCache).
 		WithBaseCache(ectx.baseCache).
 		WithRequestMetadata(ectx.requestMetadata).
-		WithResponseMetadata(ectx.responseMetadata)
-
-	if ectx.evaluated != nil {
-		q = q.WithEvaluatedRuleTracker(ectx.evaluated)
-	} else {
-		q = q.WithEvaluatedRuleTracker(r.evaluated)
-	}
+		WithResponseMetadata(ectx.responseMetadata).
+		WithEvaluatedRuleTracker(cmp.Or(ectx.evaluated, r.evaluated))
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2650,7 +2646,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
 		WithRequestMetadata(ectx.requestMetadata).
-		WithResponseMetadata(ectx.responseMetadata)
+		WithResponseMetadata(ectx.responseMetadata).
+		WithEvaluatedRuleTracker(cmp.Or(ectx.evaluated, r.evaluated))
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

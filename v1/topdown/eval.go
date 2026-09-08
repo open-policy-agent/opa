@@ -2491,6 +2491,7 @@ func (e *evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 		// Skip this rule body if it fails to type-check.
 		// Type-checking failure means the rule body will never succeed.
 		if e.e.compiler.PassesTypeCheck(plugged) {
+			e.e.evaluated.Record(rule)
 			head := &ast.Head{
 				Name:      rule.Head.Name,
 				Reference: rule.Head.Reference,
@@ -3386,6 +3387,7 @@ func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, _ ast.Ref) (b
 		// Skip this rule body if it fails to type-check.
 		// Type-checking failure means the rule body will never succeed.
 		if e.e.compiler.PassesTypeCheck(plugged) {
+			e.e.evaluated.Record(rule)
 			var value *ast.Term
 
 			if rule.Head.Value != nil {
@@ -3918,6 +3920,7 @@ func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 
 		err := child.eval(func(child *eval) error {
 			child.traceExit(rule)
+			e.e.evaluated.Record(rule)
 			term, termbindings := child.bindings.apply(rule.Head.Value)
 
 			if err := e.evalTerm(iter, term, termbindings); err != nil {
@@ -4003,6 +4006,7 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, packagePath 
 		// Skip this rule body if it fails to type-check.
 		// Type-checking failure means the rule body will never succeed.
 		if e.e.compiler.PassesTypeCheck(plugged) {
+			e.e.evaluated.Record(rule)
 			head := ast.RefHead(ruleRef, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
 
 			if !e.e.inliningControl.shallow {
