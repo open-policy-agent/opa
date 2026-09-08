@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	minLocationWidth      = 5 // len("query")
+	minLocationWidth      = len("query")
 	maxIdealLocationWidth = 64
 	columnPadding         = 4
 	maxExprVarWidth       = 32
