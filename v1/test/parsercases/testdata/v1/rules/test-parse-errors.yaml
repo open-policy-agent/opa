@@ -1,0 +1,17 @@
+---
+cases:
+  - note: rules/rule-body-missing-if
+    module: |
+      package test
+
+      p[x] { x := 1 }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: '`if` keyword is required before rule body'
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: '`contains` keyword is required for partial set rules'
+    exhaustive: true

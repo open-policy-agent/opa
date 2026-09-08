@@ -645,6 +645,48 @@ cases:
           }
         ]
       }
+  - note: exprs/parse-logical-brace-led-operand-scope/chain
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{"a": 1} and z or w
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({"a": 1}) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, lhs
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	{x} == input.y and z
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 2
+        message: 'operand of `and` cannot begin with `{` unless the braces hold a body (hint: wrap the operand to keep the value: `({x} == input.y) and ...`)'
+  - note: exprs/parse-logical-brace-led-operand-scope/operand continues past a body-shaped brace, rhs
+    module: |
+      package test
+
+      import future.keywords.and
+
+      p if {
+      	z and {x} == input.y
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 6
+        col: 12
+        message: 'unexpected equal token: expected \n or ; or }'
   - note: exprs/parse-logical-brace-led-operand-scope/negated set term, lhs, not unimported
     module: |
       package test

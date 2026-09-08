@@ -902,3 +902,193 @@ cases:
           }
         ]
       }
+  - note: modules/rule-from-body/multiple expressions
+    module: |
+      package a.b.c
+
+      pi = 3.14159; pi > 3
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: multiple expressions cannot be used for rule head
+  - note: modules/rule-from-body/non-equality
+    module: |
+      package a.b.c
+
+      pi > 3
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: rule name conflicts with built-in function
+  - note: modules/rule-from-body/non-var name
+    module: |
+      package a.b.c
+
+      "pi" = 3
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: string cannot be used for rule name
+  - note: modules/rule-from-body/with expr
+    module: |
+      package a.b.c
+
+      foo = input with input as 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: expressions using with keyword cannot be used for rule head
+  - note: modules/rule-from-body/negated
+    module: |
+      package a.b.c
+
+      not p = 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: negated expressions cannot be used for rule head
+  - note: modules/rule-from-body/non ref term
+    module: |
+      package a.b.c
+
+      p
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: var cannot be used for rule name
+  - note: modules/rule-from-body/zero args
+    module: |
+      package a.b.c
+
+      p()
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: rule argument list must take at least one argument
+  - note: modules/rule-from-body/assign to term
+    module: |
+      package a.b.c
+
+      "foo" := 1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: string cannot be used for rule name
+  - note: modules/rule-from-body/some decl
+    module: |
+      package a
+
+      some x
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: '''some'' declarations cannot be used for rule head'
+  - note: modules/rule-from-body/array term
+    module: |
+      package a
+
+      [][0]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'invalid rule head: [][0]'
+  - note: modules/rule-from-body/call in ref partial set
+    module: |
+      package test
+
+      f().x {}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'invalid rule head: f().x'
+  - note: modules/rule-from-body/call in ref partial object
+    module: |
+      package test
+
+      f().x = y {}
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'invalid rule head: f().x'
+  - note: modules/rule-from-body/number in ref
+    module: |
+      package a
+
+      12[3]()=4
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: illegal ref (head cannot be number)
+  - note: modules/rule-from-body/rule with args and key
+    module: |
+      package a
+
+      f(x)[x] = x { true }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'invalid rule head: f(x)[x]'
+  - note: modules/rule-from-body/rule with args and key (2)
+    module: |
+      package a
+
+      f(x)[x] { true }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'invalid rule head: f(x)[x]'
+  - note: modules/rule-from-body/assign without operands
+    module: |
+      package a
+
+      assign()
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: assignment requires two operands
+  - note: modules/rule-from-body/assign with only one operand
+    module: |
+      package a
+
+      assign(x)
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: assignment requires two operands
+  - note: modules/rule-from-body/eq without operands
+    module: |
+      package a
+
+      eq()
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: assignment requires two operands
+  - note: modules/rule-from-body/eq with only one operand
+    module: |
+      package a
+
+      eq(x)
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: assignment requires two operands

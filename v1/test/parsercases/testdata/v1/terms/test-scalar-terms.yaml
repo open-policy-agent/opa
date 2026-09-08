@@ -471,3 +471,253 @@ cases:
           }
         ]
       }
+  - note: terms/scalar-terms/hex
+    module: |
+      package test
+
+      p := 6abc
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal number format
+  - note: terms/scalar-terms/non-terminated
+    module: |
+      package test
+
+      p := "foo
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: non-terminated string
+  - note: terms/scalar-terms/non-terminated-raw
+    module: |
+      package test
+
+      p := `foo
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: non-terminated string
+  - note: terms/scalar-terms/non-string
+    module: |
+      package test
+
+      p := 'a string'
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal token
+  - note: terms/scalar-terms/non-number
+    module: |
+      package test
+
+      p := 6zxy
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal number format
+  - note: terms/scalar-terms/non-number2
+    module: |
+      package test
+
+      p := 6d7
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal number format
+  - note: terms/scalar-terms/non-number4
+    module: |
+      package test
+
+      p := 6true
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal number format
+  - note: terms/scalar-terms/non-number5
+    module: |
+      package test
+
+      p := 6false
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal number format
+  - note: terms/scalar-terms/non-number6
+    module: |
+      package test
+
+      p := 6[null, null]
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal ref (head cannot be number)
+  - note: terms/scalar-terms/non-number8
+    module: |
+      package test
+
+      p := .0.
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: expected fraction
+  - note: terms/scalar-terms/non-number9
+    module: |
+      package test
+
+      p := 0e
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: expected exponent
+  - note: terms/scalar-terms/non-number10
+    module: |
+      package test
+
+      p := 0e.
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: expected exponent
+  - note: terms/scalar-terms/non-number11
+    module: |
+      package test
+
+      p := 0F
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: illegal number format
+  - note: terms/scalar-terms/non-number12
+    module: |
+      package test
+
+      p := 00
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number13
+    module: |
+      package test
+
+      p := 00.1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number14
+    module: |
+      package test
+
+      p := -00
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number15
+    module: |
+      package test
+
+      p := -00.1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number16
+    module: |
+      package test
+
+      p := -00.01
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number17
+    module: |
+      package test
+
+      p := 00e1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/non-number18
+    module: |
+      package test
+
+      p := -00e1
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: 'unexpected number token: expected number without leading zero'
+  - note: terms/scalar-terms/parsing float fails
+    module: |
+      package test
+
+      p := 7e3000000000
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: 'unexpected number token: invalid float'
+  - note: terms/scalar-terms/float is +inf
+    module: |
+      package test
+
+      p := 10245423601e680507880
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: number too big
+  - note: terms/scalar-terms/float is -inf
+    module: |
+      package test
+
+      p := -10245423601e680507880
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 7
+        message: number too big
+  - note: terms/scalar-terms/float exp < -1e5
+    module: |
+      package test
+
+      p := 1.010034059e-301030
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: number too big
+  - note: terms/scalar-terms/float exp > 1e5
+    module: |
+      package test
+
+      p := 9.900656229e+301029
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 6
+        message: number too big

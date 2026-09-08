@@ -67,3 +67,42 @@ cases:
           ]
         }
       }
+  - note: packages/package/non-ground ref
+    module: |
+      package foo[x]
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 13
+        message: 'unexpected var token: expecting string'
+  - note: packages/package/non-string value
+    module: |
+      package foo.bar[42].baz
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 17
+        message: 'unexpected number token: expecting string'
+  - note: packages/package/invalid term
+    module: |
+      package 42
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 9
+        message: unexpected number token
+  - note: packages/package/scanner error
+    module: |
+      package foo.
+    want_errors:
+      - code: rego_parse_error
+        row: 2
+        message: 'unexpected whitespace token: expected identifier'
+  - note: packages/package/non-string first value
+    module: |
+      package e().s
+    want_errors:
+      - code: rego_parse_error
+        row: 1
+        col: 9
+        message: 'unexpected call token: expecting var'

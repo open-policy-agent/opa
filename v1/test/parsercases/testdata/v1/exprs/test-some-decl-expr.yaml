@@ -205,6 +205,30 @@ cases:
           }
         ]
       }
+  - note: exprs/some-decl-expr/not some
+    module: |
+      package test
+
+      p if {
+      	not some x, y in xs
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 4
+        col: 6
+        message: 'unexpected some keyword: illegal negation of ''some'''
+  - note: exprs/some-decl-expr/some + function call
+    module: |
+      package test
+
+      p if {
+      	some f(x)
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: expected `x in xs` or `x, y in xs` expression'
   - note: exprs/some-decl-expr/multiple
     module: |
       package test
@@ -422,3 +446,27 @@ cases:
           }
         ]
       }
+  - note: exprs/some-decl-expr/invalid domain (internal.member_2)
+    module: |
+      package test
+
+      p if {
+      	some internal.member_2()
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: illegal domain'
+  - note: exprs/some-decl-expr/invalid domain (internal.member_3)
+    module: |
+      package test
+
+      p if {
+      	some internal.member_3()
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 5
+        col: 1
+        message: 'unexpected } token: illegal domain'

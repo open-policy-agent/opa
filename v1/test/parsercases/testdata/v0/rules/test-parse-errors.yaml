@@ -1,0 +1,18 @@
+---
+cases:
+  - note: rules/rule-name-followed-by-unimported-keyword
+    # `if` is not a keyword in v0 unless imported, so `p if { ... }` is read as a
+    # rule named `p` with a missing body.
+    rego_version: v0
+    module: |
+      package test
+
+      p if {
+      	true
+      }
+    want_errors:
+      - code: rego_parse_error
+        row: 3
+        col: 1
+        message: 'var cannot be used for rule name (hint: `import future.keywords.if` for `p if { ... }` rules)'
+    exhaustive: true
