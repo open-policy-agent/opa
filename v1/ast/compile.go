@@ -179,6 +179,8 @@ type Compiler struct {
 	defaultRegoVersion         RegoVersion
 	skipStages                 map[StageID]struct{} // stages to skip during compilation
 	plan                       *executionPlan       // computed execution plan (cached)
+	unusedImports              []*Import            // imports found unused during ref resolution, reported by CheckUnusedImports
+	unrecoverableErr           bool                 // at least one recorded error prevents the remaining stages from running
 }
 
 func (c *Compiler) DefaultRegoVersion() RegoVersion {
@@ -197,6 +199,7 @@ type StageID string
 // at least lets you know what your attention is needed when you depend on the stages.
 const (
 	StageResolveRefs                StageID = "ResolveRefs"
+	StageCheckUnusedImports         StageID = "CheckUnusedImports"
 	StageInitLocalVarGen            StageID = "InitLocalVarGen"
 	StageRewriteRuleHeadRefs        StageID = "RewriteRuleHeadRefs"
 	StageCheckKeywordOverrides      StageID = "CheckKeywordOverrides"
@@ -239,6 +242,7 @@ const (
 func AllStages() []StageID {
 	return []StageID{
 		StageResolveRefs,
+		StageCheckUnusedImports,
 		StageInitLocalVarGen,
 		StageRewriteRuleHeadRefs,
 		StageCheckKeywordOverrides,
@@ -457,6 +461,7 @@ func NewCompiler() *Compiler {
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
 		{StageResolveRefs, "compile_stage_resolve_refs", c.resolveAllRefs},
+		{StageCheckUnusedImports, "compile_stage_check_unused_imports", c.checkUnusedImports},
 		// The local variable generator must be initialized after references are
 		// resolved and the dynamic module loader has run but before subsequent
 		// stages that need to generate variables.
@@ -1906,9 +1911,7 @@ func (c *Compiler) checkTypes() {
 		as = c.annotationSet
 	}
 	env, errs := checker.CheckTypes(c.TypeEnv, sorted, as)
-	for _, err := range errs {
-		c.err(err)
-	}
+	c.errRecoverable(errs...)
 	c.TypeEnv = env
 }
 
@@ -1952,10 +1955,7 @@ func (c *Compiler) checkUnsafeBuiltins() {
 	}
 
 	for _, name := range c.sorted {
-		errs := checkUnsafeBuiltins(c.unsafeBuiltinsMap, c.Modules[name])
-		for _, err := range errs {
-			c.err(err)
-		}
+		c.errRecoverable(checkUnsafeBuiltins(c.unsafeBuiltinsMap, c.Modules[name])...)
 	}
 }
 
@@ -1973,7 +1973,7 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 
 	for _, name := range c.sorted {
 		if c.strict || c.Modules[name].regoV1Compatible() {
-			c.err(checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name])...)
+			c.errRecoverable(checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name])...)
 		}
 	}
 }
@@ -1981,23 +1981,38 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 func (c *Compiler) compile() {
 	plan := c.getOrBuildPlan()
 
+	defer c.sortErrors()
+
 	if c.metrics != nil {
 		for _, s := range plan.stages {
 			c.metrics.Timer(s.metricName).Start()
 			s.f()
 			c.metrics.Timer(s.metricName).Stop()
-			if c.Failed() {
+			if c.unrecoverableErr {
 				return
 			}
 		}
 	} else {
 		for _, s := range plan.stages {
 			s.f()
-			if c.Failed() {
+			if c.unrecoverableErr {
 				return
 			}
 		}
 	}
+}
+
+// sortErrors orders errors by location so reports read top-to-bottom. The error
+// limit marker has no location of its own and is swapped to the end to keep it
+// last, wherever it was recorded.
+func (c *Compiler) sortErrors() {
+	errs := c.Errors
+	if i := slices.Index(errs, errLimitReached); i >= 0 {
+		errs[i], errs[len(errs)-1] = errs[len(errs)-1], errs[i]
+		errs = errs[:len(errs)-1]
+	}
+
+	errs.Sort()
 }
 
 func (c *Compiler) init() {
@@ -2076,7 +2091,19 @@ func (c *Compiler) init() {
 	c.initialized = true
 }
 
+// err records an error that stops compilation after the current stage.
 func (c *Compiler) err(errs ...*Error) bool { // returns if we should continue
+	return c.recordErrs(false, errs...)
+}
+
+// errRecoverable records an error that lets the remaining stages run, so that one
+// compilation can report every violation it finds. Only for checks that leave the
+// modules in a state later stages can't produce bogus follow-up errors from.
+func (c *Compiler) errRecoverable(errs ...*Error) bool {
+	return c.recordErrs(true, errs...)
+}
+
+func (c *Compiler) recordErrs(recoverable bool, errs ...*Error) bool {
 	if len(errs) == 0 {
 		return true
 	}
@@ -2086,6 +2113,7 @@ func (c *Compiler) err(errs ...*Error) bool { // returns if we should continue
 
 	if c.maxErrs <= 0 {
 		c.Errors = append(c.Errors, errs...)
+		c.unrecoverableErr = c.unrecoverableErr || !recoverable
 		return true
 	}
 
@@ -2104,6 +2132,8 @@ func (c *Compiler) err(errs ...*Error) bool { // returns if we should continue
 
 	c.errCount += uint32(numToTake)
 	c.Errors = append(c.Errors, errs[:numToTake]...)
+	// Nothing left to collect once the limit is hit, so stop there too.
+	c.unrecoverableErr = c.unrecoverableErr || !recoverable || isLimitReachedInThisCall
 	if isLimitReachedInThisCall {
 		c.Errors = append(c.Errors, errLimitReached)
 	}
@@ -2155,7 +2185,7 @@ func (c *Compiler) checkImports() {
 	for _, name := range c.sorted {
 		for _, imp := range c.Modules[name].Imports {
 			if !supportsRegoV1Import && RegoV1CompatibleRef.Equal(imp.Path.Value) {
-				if !c.err(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported")) {
+				if !c.errRecoverable(NewError(CompileErr, imp.Loc(), "rego.v1 import is not supported")) {
 					continue
 				}
 			}
@@ -2166,13 +2196,25 @@ func (c *Compiler) checkImports() {
 		}
 	}
 
-	c.err(checkDuplicateImports(modules)...)
+	c.errRecoverable(checkDuplicateImports(modules)...)
+}
+
+// checkUnusedImports reports the imports resolveAllRefs found unused. Strict mode
+// only, and a stage of its own so these don't cut compilation short.
+func (c *Compiler) checkUnusedImports() {
+	for _, imp := range c.unusedImports {
+		if !c.errRecoverable(NewError(CompileErr, imp.Location, "%s unused", imp.String())) {
+			break
+		}
+	}
+
+	c.unusedImports = nil
 }
 
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		if c.strict || c.moduleIsRegoV1Compatible(c.Modules[name]) {
-			if !c.err(checkRootDocumentOverrides(c.Modules[name])...) {
+			if !c.errRecoverable(checkRootDocumentOverrides(c.Modules[name])...) {
 				continue
 			}
 		}
@@ -2226,6 +2268,7 @@ func (c *Compiler) moduleIsRegoV1Compatible(mod *Module) bool {
 // The reference "c.d.e" would be resolved to "data.a.b.c.d.e".
 func (c *Compiler) resolveAllRefs() {
 	exports := c.getExports()
+	c.unusedImports = nil
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
@@ -2240,7 +2283,7 @@ func (c *Compiler) resolveAllRefs() {
 			return false
 		})
 
-		if c.strict { // check for unused imports
+		if c.strict { // collect unused imports, reported by the CheckUnusedImports stage
 			for _, imp := range mod.Imports {
 				path := imp.Path.Value.(Ref)
 				if FutureRootDocument.Equal(path[0]) || RegoRootDocument.Equal(path[0]) {
@@ -2249,9 +2292,7 @@ func (c *Compiler) resolveAllRefs() {
 
 				for v, u := range globals {
 					if v == imp.Name() && !u.used {
-						if !c.err(NewError(CompileErr, imp.Location, "%s unused", imp.String())) {
-							return
-						}
+						c.unusedImports = append(c.unusedImports, imp)
 					}
 				}
 			}
@@ -2372,6 +2413,8 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 	}
 }
 
+// checkVoidCalls errors are not recoverable: the type checker has no type for an
+// expression using a void result, and reports a bogus "undefined function" for it.
 func (c *Compiler) checkVoidCalls() {
 	for _, name := range c.sorted {
 		c.err(checkVoidCalls(c.TypeEnv, c.Modules[name])...)
@@ -3279,6 +3322,9 @@ func (c *Compiler) rewriteLocalVars() {
 				if !c.err(errs...) {
 					return true
 				}
+				if !c.errRecoverable(stack.unused...) {
+					return true
+				}
 				if stack.assignment {
 					assignment = true
 				}
@@ -3300,7 +3346,7 @@ func (c *Compiler) rewriteLocalVars() {
 							"unused argument %v. (hint: use _ (wildcard variable) instead)",
 							arg,
 						)
-						if !c.err(err) {
+						if !c.errRecoverable(err) {
 							return true
 						}
 					}
@@ -3343,6 +3389,7 @@ func (c *Compiler) rewriteLocalVarsInRule(rule *Rule, unusedArgs VarSet, argsSta
 		nxfVis := NewGenericVisitor(nestedXform.Visit)
 		nxfVis.Walk(rule.Head)
 		c.err(nestedXform.errs...) // NB(sr): This is a bit bogus -- Why not return them?
+		c.errRecoverable(nestedXform.unused...)
 
 		// Rewrite assignments in body.
 		vis := varVisitorPool.Get()
@@ -3477,6 +3524,7 @@ func headMayHaveVars(head *Head) bool {
 type rewriteNestedHeadVarLocalTransform struct {
 	gen           *localVarGenerator
 	errs          Errors
+	unused        Errors // strict-mode "unused var" diagnostics, see localDeclaredVars.unused
 	RewrittenVars map[Var]Var
 	strict        bool
 }
@@ -3528,6 +3576,7 @@ func (xform *rewriteNestedHeadVarLocalTransform) Visit(x any) bool {
 		}
 
 		maps.Copy(xform.RewrittenVars, stack.rewritten)
+		xform.unused = append(xform.unused, stack.unused...)
 
 		return stop
 	}
@@ -3854,6 +3903,7 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 	gen := newLocalVarGenerator("q", body)
 	stack := newLocalDeclaredVars()
 	body, _, err := rewriteLocalVars(gen, stack, nil, body, qc.compiler.strict)
+	err = append(err, stack.unused...)
 	if len(err) != 0 {
 		return nil, err
 	}
@@ -6526,6 +6576,10 @@ type localDeclaredVars struct {
 
 	// indicates if an assignment (:= operator) has been seen *ever*
 	assignment bool
+
+	// strict-mode diagnostics for assigned and declared vars that are never used,
+	// kept apart from the rewrite errors because they're recoverable
+	unused Errors
 }
 
 type varOccurrence uint8
@@ -6577,6 +6631,7 @@ func (s *localDeclaredVars) Clear() {
 	clear(s.rewritten)
 
 	s.vars = s.vars[:0]
+	s.unused = nil
 
 	if vs != nil {
 		s.vars = append(s.vars, vs.clear())
@@ -6730,13 +6785,15 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		cpy.Append(NewExpr(BooleanTerm(true)))
 	}
 
-	errs = checkUnusedAssignedVars(body, stack, used, errs, strict)
-	return cpy, checkUnusedDeclaredVars(body, stack, used, cpy, errs)
+	checkUnusedAssignedVars(body, stack, used, errs, strict)
+	checkUnusedDeclaredVars(body, stack, used, cpy, errs)
+
+	return cpy, errs
 }
 
-func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
-	if !strict || len(errs) > 0 {
-		return errs
+func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) {
+	if !strict || len(errs) > 0 || len(stack.unused) > 0 {
+		return
 	}
 
 	dvs := stack.Peek()
@@ -6748,7 +6805,7 @@ func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, e
 		}
 	}
 	if !hasAssignedVars {
-		return errs
+		return
 	}
 
 	var unused VarSet
@@ -6772,7 +6829,7 @@ func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, e
 	}
 
 	if len(unused) == 0 {
-		return errs
+		return
 	}
 
 	reversed := make(map[Var]Var, len(dvs.vs))
@@ -6784,24 +6841,22 @@ func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, e
 		found := false
 		for i := range body {
 			if body[i].Vars(VarVisitorParams{}).Contains(gv) {
-				errs = append(errs, NewError(CompileErr, body[i].Loc(), "assigned var %v unused", reversed[gv]))
+				stack.unused = append(stack.unused, NewError(CompileErr, body[i].Loc(), "assigned var %v unused", reversed[gv]))
 				found = true
 				break
 			}
 		}
 		if !found {
-			errs = append(errs, NewError(CompileErr, body[0].Loc(), "assigned var %v unused", reversed[gv]))
+			stack.unused = append(stack.unused, NewError(CompileErr, body[0].Loc(), "assigned var %v unused", reversed[gv]))
 		}
 	}
-
-	return errs
 }
 
-func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, cpy Body, errs Errors) Errors {
+func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, cpy Body, errs Errors) {
 	// NOTE(tsandall): Do not generate more errors if there are existing
 	// declaration errors.
-	if len(errs) > 0 {
-		return errs
+	if len(errs) > 0 || len(stack.unused) > 0 {
+		return
 	}
 
 	dvs := stack.Peek()
@@ -6813,7 +6868,7 @@ func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, c
 		}
 	}
 	if !hasDeclaredVars {
-		return errs
+		return
 	}
 
 	declared := NewVarSet()
@@ -6836,7 +6891,7 @@ func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, c
 
 	dbv := declared.Diff(bodyvars)
 	if dbv.DiffCount(used) == 0 {
-		return errs
+		return
 	}
 
 	reversed := make(map[Var]Var, len(dvs.vs))
@@ -6862,19 +6917,17 @@ func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, c
 				if varsDeclaredInExpr.Contains(rv) {
 					// TODO(philipc): Clean up the offset logic here when the parser
 					// reports more accurate locations.
-					errs = append(errs, NewError(CompileErr, body[i].Loc(), "declared var %v unused", rv))
+					stack.unused = append(stack.unused, NewError(CompileErr, body[i].Loc(), "declared var %v unused", rv))
 					foundUnusedVarByName = true
 					break
 				}
 			}
 			// Default error location returned.
 			if !foundUnusedVarByName {
-				errs = append(errs, NewError(CompileErr, body[0].Loc(), "declared var %v unused", rv))
+				stack.unused = append(stack.unused, NewError(CompileErr, body[0].Loc(), "declared var %v unused", rv))
 			}
 		}
 	}
-
-	return errs
 }
 
 func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
