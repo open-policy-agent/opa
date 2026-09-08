@@ -1,0 +1,69 @@
+---
+# Generated externalized tests from TestPackage
+cases:
+  - note: packages/package/single
+    module: |
+      package foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package/multiple
+    module: |
+      package f00.bar_baz.qux
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "f00"
+            },
+            {
+              "type": "string",
+              "value": "bar_baz"
+            },
+            {
+              "type": "string",
+              "value": "qux"
+            }
+          ]
+        }
+      }
+  - note: packages/package/space
+    module: |
+      package foo["bar baz"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "bar baz"
+            }
+          ]
+        }
+      }

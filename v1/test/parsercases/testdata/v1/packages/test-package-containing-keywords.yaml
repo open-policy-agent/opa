@@ -1,0 +1,2373 @@
+---
+# Generated externalized tests from TestPackageContainingKeywords
+cases:
+  - note: packages/package-containing-keywords/package foo.not.bar
+    module: |
+      package foo.not.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "not"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.not["bar"]
+    module: |
+      package foo.not["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "not"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package not
+    module: |
+      package not
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "not"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package not.foo
+    module: |
+      package not.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "not"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package not["foo"]
+    module: |
+      package not["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "not"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.not
+    module: |
+      package foo.not
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "not"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["not"]
+    module: |
+      package foo["not"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "not"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.package.bar
+    module: |
+      package foo.package.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "package"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.package["bar"]
+    module: |
+      package foo.package["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "package"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package package
+    module: |
+      package package
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "package"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package package.foo
+    module: |
+      package package.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "package"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package package["foo"]
+    module: |
+      package package["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "package"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.package
+    module: |
+      package foo.package
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "package"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["package"]
+    module: |
+      package foo["package"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "package"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.import.bar
+    module: |
+      package foo.import.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "import"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.import["bar"]
+    module: |
+      package foo.import["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "import"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package import
+    module: |
+      package import
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "import"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package import.foo
+    module: |
+      package import.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "import"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package import["foo"]
+    module: |
+      package import["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "import"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.import
+    module: |
+      package foo.import
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "import"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["import"]
+    module: |
+      package foo["import"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "import"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.as.bar
+    module: |
+      package foo.as.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "as"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.as["bar"]
+    module: |
+      package foo.as["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "as"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package as
+    module: |
+      package as
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "as"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package as.foo
+    module: |
+      package as.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "as"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package as["foo"]
+    module: |
+      package as["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "as"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.as
+    module: |
+      package foo.as
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "as"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["as"]
+    module: |
+      package foo["as"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "as"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.default.bar
+    module: |
+      package foo.default.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "default"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.default["bar"]
+    module: |
+      package foo.default["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "default"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package default
+    module: |
+      package default
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "default"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package default.foo
+    module: |
+      package default.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "default"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package default["foo"]
+    module: |
+      package default["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "default"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.default
+    module: |
+      package foo.default
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "default"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["default"]
+    module: |
+      package foo["default"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "default"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.else.bar
+    module: |
+      package foo.else.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "else"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.else["bar"]
+    module: |
+      package foo.else["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "else"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package else
+    module: |
+      package else
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "else"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package else.foo
+    module: |
+      package else.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "else"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package else["foo"]
+    module: |
+      package else["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "else"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.else
+    module: |
+      package foo.else
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "else"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["else"]
+    module: |
+      package foo["else"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "else"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.with.bar
+    module: |
+      package foo.with.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "with"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.with["bar"]
+    module: |
+      package foo.with["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "with"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package with
+    module: |
+      package with
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "with"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package with.foo
+    module: |
+      package with.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "with"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package with["foo"]
+    module: |
+      package with["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "with"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.with
+    module: |
+      package foo.with
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "with"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["with"]
+    module: |
+      package foo["with"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "with"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.null.bar
+    module: |
+      package foo.null.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "null"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.null["bar"]
+    module: |
+      package foo.null["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "null"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package null
+    module: |
+      package null
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "null"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package null.foo
+    module: |
+      package null.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "null"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package null["foo"]
+    module: |
+      package null["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "null"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.null
+    module: |
+      package foo.null
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "null"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["null"]
+    module: |
+      package foo["null"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "null"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.true.bar
+    module: |
+      package foo.true.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "true"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.true["bar"]
+    module: |
+      package foo.true["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "true"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package true
+    module: |
+      package true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "true"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package true.foo
+    module: |
+      package true.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "true"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package true["foo"]
+    module: |
+      package true["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "true"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.true
+    module: |
+      package foo.true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "true"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["true"]
+    module: |
+      package foo["true"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "true"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.false.bar
+    module: |
+      package foo.false.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "false"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.false["bar"]
+    module: |
+      package foo.false["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "false"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package false
+    module: |
+      package false
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "false"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package false.foo
+    module: |
+      package false.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "false"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package false["foo"]
+    module: |
+      package false["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "false"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.false
+    module: |
+      package foo.false
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "false"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["false"]
+    module: |
+      package foo["false"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "false"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.some.bar
+    module: |
+      package foo.some.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "some"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.some["bar"]
+    module: |
+      package foo.some["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "some"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package some
+    module: |
+      package some
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "some"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package some.foo
+    module: |
+      package some.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "some"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package some["foo"]
+    module: |
+      package some["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "some"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.some
+    module: |
+      package foo.some
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "some"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["some"]
+    module: |
+      package foo["some"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "some"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.if.bar
+    module: |
+      package foo.if.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "if"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.if["bar"]
+    module: |
+      package foo.if["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "if"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package if
+    module: |
+      package if
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "if"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package if.foo
+    module: |
+      package if.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "if"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package if["foo"]
+    module: |
+      package if["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "if"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.if
+    module: |
+      package foo.if
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "if"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["if"]
+    module: |
+      package foo["if"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "if"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.contains.bar
+    module: |
+      package foo.contains.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "contains"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.contains["bar"]
+    module: |
+      package foo.contains["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "contains"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package contains
+    module: |
+      package contains
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "contains"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package contains.foo
+    module: |
+      package contains.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "contains"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package contains["foo"]
+    module: |
+      package contains["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "contains"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.contains
+    module: |
+      package foo.contains
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "contains"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["contains"]
+    module: |
+      package foo["contains"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "contains"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.in.bar
+    module: |
+      package foo.in.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "in"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.in["bar"]
+    module: |
+      package foo.in["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "in"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package in
+    module: |
+      package in
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "in"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package in.foo
+    module: |
+      package in.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "in"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package in["foo"]
+    module: |
+      package in["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "in"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.in
+    module: |
+      package foo.in
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "in"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["in"]
+    module: |
+      package foo["in"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "in"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.every.bar
+    module: |
+      package foo.every.bar
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "every"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.every["bar"]
+    module: |
+      package foo.every["bar"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "every"
+            },
+            {
+              "type": "string",
+              "value": "bar"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package every
+    module: |
+      package every
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "every"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package every.foo
+    module: |
+      package every.foo
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "every"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package every["foo"]
+    module: |
+      package every["foo"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "every"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo.every
+    module: |
+      package foo.every
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "every"
+            }
+          ]
+        }
+      }
+  - note: packages/package-containing-keywords/package foo["every"]
+    module: |
+      package foo["every"]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "foo"
+            },
+            {
+              "type": "string",
+              "value": "every"
+            }
+          ]
+        }
+      }
