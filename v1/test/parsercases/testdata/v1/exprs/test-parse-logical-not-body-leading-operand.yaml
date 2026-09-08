@@ -2,9 +2,10 @@
 # Generated externalized tests from TestParseLogical_NotBodyLeadingOperand
 cases:
   - note: exprs/parse-logical-not-body-leading-operand/single expression body, and
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	not {x} and y
@@ -23,6 +24,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -46,18 +68,15 @@ cases:
                   "lhs": [
                     {
                       "index": 0,
+                      "negated": true,
                       "terms": {
-                        "type": "not",
-                        "body": [
+                        "type": "set",
+                        "value": [
                           {
-                            "index": 0,
-                            "terms": {
-                              "type": "var",
-                              "value": "x"
-                            }
+                            "type": "var",
+                            "value": "x"
                           }
-                        ],
-                        "explicit_body": true
+                        ]
                       }
                     }
                   ],
@@ -77,9 +96,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-not-body-leading-operand/single expression body, or
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	not {x} or y
@@ -98,6 +118,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -121,18 +162,15 @@ cases:
                   "lhs": [
                     {
                       "index": 0,
+                      "negated": true,
                       "terms": {
-                        "type": "not",
-                        "body": [
+                        "type": "set",
+                        "value": [
                           {
-                            "index": 0,
-                            "terms": {
-                              "type": "var",
-                              "value": "x"
-                            }
+                            "type": "var",
+                            "value": "x"
                           }
-                        ],
-                        "explicit_body": true
+                        ]
                       }
                     }
                   ],
@@ -152,9 +190,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-not-body-leading-operand/multi expression body
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.not
 
       p if {
       	not {x; y} and z
@@ -173,6 +213,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -234,9 +314,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-not-body-leading-operand/chain
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	not {x} and y or z
@@ -255,6 +337,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -283,18 +405,15 @@ cases:
                         "lhs": [
                           {
                             "index": 0,
+                            "negated": true,
                             "terms": {
-                              "type": "not",
-                              "body": [
+                              "type": "set",
+                              "value": [
                                 {
-                                  "index": 0,
-                                  "terms": {
-                                    "type": "var",
-                                    "value": "x"
-                                  }
+                                  "type": "var",
+                                  "value": "x"
                                 }
-                              ],
-                              "explicit_body": true
+                              ]
                             }
                           }
                         ],
@@ -326,9 +445,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-not-body-leading-operand/both operands are not-bodies
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	not {x} and not {y}
@@ -347,6 +467,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -370,36 +511,30 @@ cases:
                   "lhs": [
                     {
                       "index": 0,
+                      "negated": true,
                       "terms": {
-                        "type": "not",
-                        "body": [
+                        "type": "set",
+                        "value": [
                           {
-                            "index": 0,
-                            "terms": {
-                              "type": "var",
-                              "value": "x"
-                            }
+                            "type": "var",
+                            "value": "x"
                           }
-                        ],
-                        "explicit_body": true
+                        ]
                       }
                     }
                   ],
                   "rhs": [
                     {
                       "index": 0,
+                      "negated": true,
                       "terms": {
-                        "type": "not",
-                        "body": [
+                        "type": "set",
+                        "value": [
                           {
-                            "index": 0,
-                            "terms": {
-                              "type": "var",
-                              "value": "y"
-                            }
+                            "type": "var",
+                            "value": "y"
                           }
-                        ],
-                        "explicit_body": true
+                        ]
                       }
                     }
                   ]
@@ -410,9 +545,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-not-body-leading-operand/parenthesized, unchanged
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	(not {x}) and y
@@ -431,6 +567,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -454,18 +611,15 @@ cases:
                   "lhs": [
                     {
                       "index": 0,
+                      "negated": true,
                       "terms": {
-                        "type": "not",
-                        "body": [
+                        "type": "set",
+                        "value": [
                           {
-                            "index": 0,
-                            "terms": {
-                              "type": "var",
-                              "value": "x"
-                            }
+                            "type": "var",
+                            "value": "x"
                           }
-                        ],
-                        "explicit_body": true
+                        ]
                       }
                     }
                   ],

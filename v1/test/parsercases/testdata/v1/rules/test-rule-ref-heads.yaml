@@ -1,0 +1,615 @@
+---
+# Generated externalized tests from TestRuleRefHeads
+cases:
+  - note: rules/rule-ref-heads/single-value rule
+    module: |
+      package test
+
+      p.q.r = 1 if true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                },
+                {
+                  "type": "string",
+                  "value": "r"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-ref-heads/single-value with brackets, string key
+    module: |
+      package test
+
+      p.q["r"] = 1 if true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                },
+                {
+                  "type": "string",
+                  "value": "r"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-ref-heads/single-value with brackets, number key
+    module: |
+      package test
+
+      p.q[2] = 1 if true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                },
+                {
+                  "type": "number",
+                  "value": 2
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-ref-heads/single-value with brackets, no value
+    module: |
+      package test
+
+      p.q[2] if true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                },
+                {
+                  "type": "number",
+                  "value": 2
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-ref-heads/single-value with brackets, var key
+    module: |
+      package test
+
+      p.q[x] = 1 if x := 2
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-ref-heads/single-value with brackets, var key, no dot
+    module: |
+      package test
+
+      p[x] = 1 if x := 2
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-ref-heads/multi-value, simple
+    module: |
+      package test
+
+      p.q.r contains x if x := 2
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                },
+                {
+                  "type": "string",
+                  "value": "r"
+                }
+              ],
+              "key": {
+                "type": "var",
+                "value": "x"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-ref-heads/function, simple
+    module: |
+      package test
+
+      p.q.f(x) = 1 if true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                },
+                {
+                  "type": "string",
+                  "value": "f"
+                }
+              ],
+              "args": [
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "number",
+                "value": 1
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-ref-heads/function, no value
+    module: |
+      package test
+
+      p.q.f(x) if true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                },
+                {
+                  "type": "string",
+                  "value": "f"
+                }
+              ],
+              "args": [
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-ref-heads/function, with value
+    module: |
+      package test
+
+      p.q.f(x) = x + 1 if true
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "string",
+                  "value": "q"
+                },
+                {
+                  "type": "string",
+                  "value": "f"
+                }
+              ],
+              "args": [
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "value": {
+                "type": "call",
+                "value": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "plus"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }

@@ -2,9 +2,10 @@
 # Generated externalized tests from TestParseLogical_ParenWith
 cases:
   - note: exprs/parse-logical-paren-with/with on standalone group, or
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	(a or b) with input as x
@@ -23,6 +24,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -85,9 +107,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on standalone group, and
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	(a and b) with input as x
@@ -106,6 +129,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -168,9 +212,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on group chain attaches to outer
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	(a or b) and c with input as x
@@ -189,6 +235,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -268,9 +354,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on group chain attaches to inner
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	(a or b with input as x) and c
@@ -289,6 +377,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -368,9 +496,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on not group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
+      import future.keywords.not
 
       p if {
       	not (a or b) with input as x
@@ -389,6 +519,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -460,9 +630,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on lhs operand group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	(a with input as x) and b
@@ -481,6 +652,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -543,9 +735,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on rhs operand group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	a and (b with input as x)
@@ -564,6 +757,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -626,9 +840,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with inside group binds to whole group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	(a and b with input as x)
@@ -647,6 +862,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -709,9 +945,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with after group binds to whole group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	(a and b) with input as x
@@ -730,6 +967,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -792,9 +1050,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with without group (baseline)
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	a and b with input as x
@@ -813,6 +1072,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -875,9 +1155,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on each operand group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	(a with input as x) and (b with input as y)
@@ -896,6 +1177,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -975,9 +1277,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on single-operand not group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.not
 
       p if {
       	not (a with input as x)
@@ -996,6 +1299,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1050,9 +1374,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with inside not group binds to group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
+      import future.keywords.not
 
       p if {
       	not (a or b with input as x)
@@ -1071,6 +1397,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "not"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1142,9 +1508,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on rhs group content
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	a and (b or c with input as x)
@@ -1163,6 +1531,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1242,9 +1650,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-with/with on mid-chain group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	a and (b with input as v) and c
@@ -1263,6 +1672,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {

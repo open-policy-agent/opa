@@ -2,9 +2,10 @@
 # Generated externalized tests from TestParseLogical_WithModifier
 cases:
   - note: exprs/parse-logical-with-modifier/with after binary attaches to outer
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	a and b with input as v
@@ -23,6 +24,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -85,9 +107,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-with-modifier/with inside explicit lhs body is scoped to the inner expression
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	{a with input as v} and b
@@ -106,6 +129,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -169,9 +213,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-with-modifier/with on outermost in chain
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	a or b and c with input as v
@@ -190,6 +236,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {

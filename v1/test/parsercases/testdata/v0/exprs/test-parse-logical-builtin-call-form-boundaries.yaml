@@ -3,9 +3,10 @@
 cases:
   - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, no space
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p {
       	x and(b)
@@ -24,6 +25,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -70,9 +92,10 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand, no space
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p {
       	x or(b)
@@ -91,6 +114,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -137,9 +181,10 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form-boundaries/and, group operand, with space
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p {
       	x and (b)
@@ -158,6 +203,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -204,9 +270,10 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form-boundaries/or, group operand after explicit body lhs
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p {
       	{a} or(b)
@@ -225,6 +292,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -272,9 +360,10 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form-boundaries/or, multi-expression group operand
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p {
       	x or(a or b)
@@ -293,6 +382,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {

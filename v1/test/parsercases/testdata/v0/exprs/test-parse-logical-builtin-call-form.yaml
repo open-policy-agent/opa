@@ -1208,9 +1208,10 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form/or call, rhs operand of and keyword
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p {
       	x and or(a, b)
@@ -1229,6 +1230,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1290,9 +1312,10 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form/and call, lhs operand of or keyword
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p {
       	and(a, b) or x
@@ -1311,6 +1334,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1372,9 +1416,10 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form/or call, both operands of or keyword
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p {
       	or(a, b) or or(b, a)
@@ -1393,6 +1438,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1469,9 +1535,11 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form/and call, operand of parenthesized group
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p {
       	x and (and(a, b) or b)
@@ -1490,6 +1558,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1568,9 +1676,10 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form/or call, operand of explicit body
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p {
       	x and {or(a, b)}
@@ -1589,6 +1698,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1651,9 +1781,10 @@ cases:
       }
   - note: exprs/parse-logical-builtin-call-form/or call, every domain
     rego_version: v0
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.every
 
       p {
       	every y in or(a, b) { y }
@@ -1672,6 +1803,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "every"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {

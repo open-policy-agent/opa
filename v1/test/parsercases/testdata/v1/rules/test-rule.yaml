@@ -1,0 +1,234 @@
+---
+# Generated externalized tests from TestRule
+cases:
+  - note: rules/rule/default
+    module: |
+      package test
+
+      default allow = false
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "default": true,
+            "head": {
+              "name": "allow",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "allow"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": false
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule/default w/ assignment
+    module: |
+      package test
+
+      default allow := false
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "default": true,
+            "head": {
+              "name": "allow",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "allow"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": false
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule/default w/ comprehension
+    module: |
+      package test
+
+      default widgets = [x | x = data.fooz[_]]
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "default": true,
+            "head": {
+              "name": "widgets",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "widgets"
+                }
+              ],
+              "value": {
+                "type": "arraycomprehension",
+                "value": {
+                  "term": {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  "body": [
+                    {
+                      "index": 0,
+                      "terms": [
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "eq"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "var",
+                          "value": "x"
+                        },
+                        {
+                          "type": "ref",
+                          "value": [
+                            {
+                              "type": "var",
+                              "value": "data"
+                            },
+                            {
+                              "type": "string",
+                              "value": "fooz"
+                            },
+                            {
+                              "type": "var",
+                              "value": "$0"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule/default missing value
+    module: |
+      package test
+
+      default a
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "default": true,
+            "head": {
+              "name": "a",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "a"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "type": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }

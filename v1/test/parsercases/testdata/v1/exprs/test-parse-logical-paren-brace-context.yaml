@@ -164,9 +164,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-brace-context/and operand braces are bodies
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	{a} and {b}
@@ -185,6 +186,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -232,9 +254,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-brace-context/and operand parens hold values
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	({a}) and ({b})
@@ -253,6 +276,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -308,9 +352,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-brace-context/rhs operand parens hold a value
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	a and ({b})
@@ -329,6 +374,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -379,9 +445,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-brace-context/empty parens hold an empty object
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	a or ({})
@@ -400,6 +467,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {

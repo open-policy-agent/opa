@@ -2,9 +2,11 @@
 # Generated externalized tests from TestParseLogical_ParenGrouping
 cases:
   - note: exprs/parse-logical-paren-grouping/rhs group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	a and (b or c)
@@ -23,6 +25,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -85,9 +127,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/lhs group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	(a or b) and c
@@ -106,6 +150,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -168,9 +252,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/outer group unwrapped
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	(a or b)
@@ -189,6 +274,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -234,9 +340,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/nested groups
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	(a and (b or c)) and d
@@ -255,6 +363,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -334,9 +482,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/redundant parens around group collapse
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	((a or b))
@@ -355,6 +504,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -400,9 +570,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/redundant parens around operand collapse
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	a or ((b))
@@ -421,6 +592,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -466,9 +658,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/group on both sides
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	(a or b) and (c or d)
@@ -487,6 +681,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -566,9 +800,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/group forces right nesting of same operator
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	a or (b or c)
@@ -587,6 +822,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -649,9 +905,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/not inside group
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	(not a)
@@ -670,6 +927,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -688,18 +966,10 @@ cases:
             "body": [
               {
                 "index": 0,
+                "negated": true,
                 "terms": {
-                  "type": "not",
-                  "body": [
-                    {
-                      "index": 0,
-                      "terms": {
-                        "type": "var",
-                        "value": "a"
-                      }
-                    }
-                  ],
-                  "explicit_body": false
+                  "type": "var",
+                  "value": "a"
                 }
               }
             ]
@@ -756,9 +1026,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/not inside group binds under or
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	(not a or b)
@@ -777,6 +1048,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -800,18 +1092,10 @@ cases:
                   "lhs": [
                     {
                       "index": 0,
+                      "negated": true,
                       "terms": {
-                        "type": "not",
-                        "body": [
-                          {
-                            "index": 0,
-                            "terms": {
-                              "type": "var",
-                              "value": "a"
-                            }
-                          }
-                        ],
-                        "explicit_body": false
+                        "type": "var",
+                        "value": "a"
                       }
                     }
                   ],
@@ -831,9 +1115,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/not with grouped operand inside or
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	not (a) or b
@@ -852,6 +1137,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -875,18 +1181,10 @@ cases:
                   "lhs": [
                     {
                       "index": 0,
+                      "negated": true,
                       "terms": {
-                        "type": "not",
-                        "body": [
-                          {
-                            "index": 0,
-                            "terms": {
-                              "type": "var",
-                              "value": "a"
-                            }
-                          }
-                        ],
-                        "explicit_body": false
+                        "type": "var",
+                        "value": "a"
                       }
                     }
                   ],
@@ -906,9 +1204,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/not inside group binds under or (2)
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	(not a or b)
@@ -927,6 +1226,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -950,18 +1270,10 @@ cases:
                   "lhs": [
                     {
                       "index": 0,
+                      "negated": true,
                       "terms": {
-                        "type": "not",
-                        "body": [
-                          {
-                            "index": 0,
-                            "terms": {
-                              "type": "var",
-                              "value": "a"
-                            }
-                          }
-                        ],
-                        "explicit_body": false
+                        "type": "var",
+                        "value": "a"
                       }
                     }
                   ],
@@ -981,9 +1293,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/redundant parens around single operand drop
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	(a) and (b)
@@ -1002,6 +1315,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1047,9 +1381,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/group forces right nesting of and
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	a and (b and c)
@@ -1068,6 +1403,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1130,9 +1486,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/redundant parens preserve same-precedence tree
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	(a and b) or c
@@ -1151,6 +1509,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1213,9 +1611,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/comparison operands inside groups
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.or
 
       p if {
       	(a == b) or (c == d)
@@ -1234,6 +1633,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1309,9 +1729,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/deeply mixed and/or groups
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	a or (b and (c or d))
@@ -1330,6 +1752,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1409,9 +1871,11 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/explicit body lhs with paren group rhs
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
+      import future.keywords.or
 
       p if {
       	{x; y} and (a or b)
@@ -1430,6 +1894,46 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          },
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "or"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1500,9 +2004,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/rhs operand, leading part wrapped
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	z and ({1, 2}) & input.s == set()
@@ -1521,6 +2026,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1617,9 +2143,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/rhs operand, whole operand wrapped
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	z and ({1, 2} & input.s == set())
@@ -1638,6 +2165,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1734,9 +2282,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/lhs operand, leading part wrapped
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	({1, 2}) & input.s == set() and z
@@ -1755,6 +2304,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1851,9 +2421,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/lhs operand, whole operand wrapped
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	({1, 2} & input.s == set()) and z
@@ -1872,6 +2443,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -1968,9 +2560,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized arithmetic
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	z and (1 + 2) > 3
@@ -1989,6 +2582,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -2067,9 +2681,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-paren-grouping/rhs operand, parenthesized comparison
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	z and (a) == b
@@ -2088,6 +2703,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {

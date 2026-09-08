@@ -2,9 +2,10 @@
 # Generated externalized tests from TestParseLogical_EmptyBraceOperand
 cases:
   - note: exprs/parse-logical-empty-brace-operand/parenthesized lhs is the empty object
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	({}) and z
@@ -23,6 +24,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {
@@ -68,9 +90,10 @@ cases:
         ]
       }
   - note: exprs/parse-logical-empty-brace-operand/parenthesized rhs is the empty object
-    all_future_keywords: true
     module: |
       package test
+
+      import future.keywords.and
 
       p if {
       	z and ({})
@@ -89,6 +112,27 @@ cases:
             }
           ]
         },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "and"
+                }
+              ]
+            }
+          }
+        ],
         "rules": [
           {
             "head": {

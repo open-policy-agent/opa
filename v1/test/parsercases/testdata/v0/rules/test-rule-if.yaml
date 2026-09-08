@@ -1,0 +1,253 @@
+---
+# Generated externalized tests from TestRuleIf
+cases:
+  - note: rules/rule-if/complete+else, normal bodies, assign
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.if
+
+      p := "yes" if { 10 > y } else := "no" { 10 <= y }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "if"
+                }
+              ]
+            }
+          }
+        ],
+        "rules": [
+          {
+            "else": {
+              "head": {
+                "name": "p",
+                "ref": [
+                  {
+                    "type": "var",
+                    "value": "p"
+                  }
+                ],
+                "value": {
+                  "type": "string",
+                  "value": "no"
+                },
+                "assign": true
+              },
+              "body": [
+                {
+                  "index": 0,
+                  "terms": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "lte"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "number",
+                      "value": 10
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    }
+                  ]
+                }
+              ]
+            },
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "string",
+                "value": "yes"
+              },
+              "assign": true
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "gt"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 10
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/rule-if/complete+else, shorthand
+    rego_version: v0
+    module: |
+      package test
+
+      import future.keywords.if
+
+      p if 1 > 2 else = 42 { 2 > 1 }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "imports": [
+          {
+            "path": {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "future"
+                },
+                {
+                  "type": "string",
+                  "value": "keywords"
+                },
+                {
+                  "type": "string",
+                  "value": "if"
+                }
+              ]
+            }
+          }
+        ],
+        "rules": [
+          {
+            "else": {
+              "head": {
+                "name": "p",
+                "ref": [
+                  {
+                    "type": "var",
+                    "value": "p"
+                  }
+                ],
+                "value": {
+                  "type": "number",
+                  "value": 42
+                }
+              },
+              "body": [
+                {
+                  "index": 0,
+                  "terms": [
+                    {
+                      "type": "ref",
+                      "value": [
+                        {
+                          "type": "var",
+                          "value": "gt"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "number",
+                      "value": 2
+                    },
+                    {
+                      "type": "number",
+                      "value": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "gt"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "value": 1
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }

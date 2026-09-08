@@ -1,0 +1,204 @@
+---
+# Generated externalized tests from TestSomeDeclExpr
+cases:
+  - note: rules/some-decl-expr/whitespace separated
+    rego_version: v0
+    module: |
+      package test
+
+      p[x] {
+      	some x
+      	q[x]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "key": {
+                "type": "var",
+                "value": "x"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "q"
+                    },
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/some-decl-expr/whitespace separated, following `in` rule ref
+    rego_version: v0
+    module: |
+      package test
+
+      p[x] {
+      	some x
+      	in[x]
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "key": {
+                "type": "var",
+                "value": "x"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "in"
+                    },
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+  - note: rules/some-decl-expr/whitespace terminated
+    rego_version: v0
+    module: |
+      package test
+
+      p[x] {
+      	some x
+      	x
+      }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "key": {
+                "type": "var",
+                "value": "x"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": {
+                  "symbols": [
+                    {
+                      "type": "var",
+                      "value": "x"
+                    }
+                  ]
+                }
+              },
+              {
+                "index": 1,
+                "terms": {
+                  "type": "var",
+                  "value": "x"
+                }
+              }
+            ]
+          }
+        ]
+      }

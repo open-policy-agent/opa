@@ -1,0 +1,238 @@
+---
+# Generated externalized tests from TestRuleRefHeads
+cases:
+  - note: 'rules/rule-ref-heads/backcompat: multi-value, no dot'
+    rego_version: v0
+    module: |
+      package test
+
+      p[x] { x := 2 }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                }
+              ],
+              "key": {
+                "type": "var",
+                "value": "x"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'rules/rule-ref-heads/backcompat: single-value, no dot'
+    rego_version: v0
+    module: |
+      package test
+
+      p[x] = 3 { x := 2 }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "p",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "p"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "value": {
+                "type": "number",
+                "value": 3
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "assign"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "number",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+  - note: 'rules/rule-ref-heads/backcompat: single-value, no dot, complex object'
+    rego_version: v0
+    module: |
+      package test
+
+      partialobj[x] = {"foo": y} { y = "bar"; x = y }
+    want_ast: |
+      {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "test"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "partialobj",
+              "ref": [
+                {
+                  "type": "var",
+                  "value": "partialobj"
+                },
+                {
+                  "type": "var",
+                  "value": "x"
+                }
+              ],
+              "key": {
+                "type": "var",
+                "value": "x"
+              },
+              "value": {
+                "type": "object",
+                "value": [
+                  [
+                    {
+                      "type": "string",
+                      "value": "foo"
+                    },
+                    {
+                      "type": "var",
+                      "value": "y"
+                    }
+                  ]
+                ]
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  },
+                  {
+                    "type": "string",
+                    "value": "bar"
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "eq"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "var",
+                    "value": "x"
+                  },
+                  {
+                    "type": "var",
+                    "value": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
