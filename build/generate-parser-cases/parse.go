@@ -6,30 +6,18 @@ package cases
 
 import (
 	"encoding/json"
-	"fmt"
 
+	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/test/parsercases"
 )
-
-func regoVersion(s string) (ast.RegoVersion, error) {
-	switch s {
-	case "", "v1":
-		return ast.RegoV1, nil
-	case "v0":
-		return ast.RegoV0, nil
-	case "v0-compat-v1":
-		return ast.RegoV0CompatV1, nil
-	}
-	return ast.RegoUndefined, fmt.Errorf("unknown rego_version %q", s)
-}
 
 func capabilities(tc parsercases.TestCase) *ast.Capabilities {
 	return ast.CapabilitiesForThisVersion(ast.CapabilitiesExperimentalKeywords(tc.ExperimentalKeywords))
 }
 
 func parserOptions(tc parsercases.TestCase) (ast.ParserOptions, error) {
-	v, err := regoVersion(tc.RegoVersion)
+	v, err := corpusgen.RegoVersion(tc.RegoVersion)
 	if err != nil {
 		return ast.ParserOptions{}, err
 	}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/gobwas/glob"
 
+	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
 	astJSON "github.com/open-policy-agent/opa/v1/ast/json"
 	"github.com/open-policy-agent/opa/v1/ir"
@@ -144,6 +145,20 @@ func CapabilitiesFilter(c *ast.Capabilities) Filters {
 	}
 }
 
+// RegoVersionFilter will filter out any test case written for a rego_version
+// that is not in versions. Matching is exact: v0-compat-v1 is its own parsing
+// mode, so supporting v0 or v1 does not imply it. Passing no version filters
+// nothing.
+//
+// Unlike CapabilitiesFilter, which rejects only a plan a consumer cannot
+// execute, this rejects the case outright — the module is written in a dialect
+// the consumer does not parse, so neither its AST nor its diagnostics apply.
+func RegoVersionFilter(versions ...ast.RegoVersion) Filters {
+	return func(tc *ParserTestCase) bool {
+		return corpusgen.RegoVersionRejected(tc.RegoVersion, versions)
+	}
+}
+
 // LoadParserTestCases returns the parser conformance corpus. With no options it
 // returns the committed cases unchanged, so a consumer that only wants the
 // corpus can read the embedded YAML directly and skip this package entirely.
@@ -153,8 +168,11 @@ func LoadParserTestCases(opts ...Option) ([]ParserSet, error) {
 
 // LoadParserTestCasesFiltered returns the parser conformance corpus with Ignore
 // set, and the plan dropped, on every case rejected by one of filters. The case
-// itself is kept, so the corpus stays addressable by index and a consumer can
-// still run the parse assertion of a case whose plan it cannot run.
+// itself is kept, so the corpus stays addressable by index.
+//
+// What Ignore permits depends on the filter that set it — CapabilitiesFilter
+// rejects a plan a consumer cannot execute, RegoVersionFilter rejects the case
+// outright — so skipping an ignored case entirely is always the safe reading.
 func LoadParserTestCasesFiltered(filters []Filters, opts ...Option) ([]ParserSet, error) {
 	cfg := &config{}
 	for _, opt := range opts {
@@ -186,10 +204,9 @@ func LoadParserTestCasesFiltered(filters []Filters, opts ...Option) ([]ParserSet
 		for _, tc := range set.Cases {
 			for _, filter := range filters {
 				if filter(tc) {
-					// The plan is dropped rather than the case: a consumer that
-					// cannot run the plan can still run the parse, and keeping
-					// the case leaves the corpus addressable by index.
-					// EntryPoints stays, since a case may have authored it.
+					// The case is kept rather than removed, so the corpus stays
+					// addressable by index. EntryPoints stays too, since a case
+					// may have authored it.
 					tc.Ignore = true
 					tc.WantIR = nil
 					break

@@ -5,7 +5,8 @@
 // Package corpusgen holds what the conformance corpus generators have in common:
 // editing a case's YAML in place, through the node tree rather than by
 // re-marshalling the case struct, so that comments, key order, and the hand
-// authoring around a generated field all survive.
+// authoring around a generated field all survive; and the parts of a case's
+// schema both generators have to interpret the same way.
 package corpusgen
 
 import (

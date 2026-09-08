@@ -143,6 +143,29 @@ case per version rather than translating between them.
 `testdata/testdata.go` embeds the corpus so that tools outside this repository
 can consume it, as `v1/test/cases/testdata` does for the evaluation cases.
 
+## Consuming the corpus from Go
+
+The embedded YAML is the corpus, so a consumer that wants only the committed
+cases can read `testdata.FS` directly. `build/generate-compiler-cases` offers a
+loader on top of it for consumers that want to filter:
+
+```go
+sets, err := cases.LoadCompilerTestCasesFiltered(
+	[]cases.Filters{cases.RegoVersionFilter(ast.RegoV1)},
+)
+```
+
+`RegoVersionFilter` marks `Ignore` on every case written for a version you do not
+parse. Matching is exact: `v0-compat-v1` is its own parsing mode, so supporting
+`v0` or `v1` does not imply it, and passing no version filters nothing rather
+than rejecting the whole corpus. A rejected case is marked, never removed — the
+corpus stays addressable by index, and what you do with an ignored case is your
+own business.
+
+`CapabilitiesFilter`, which the parser corpus pairs with `WithIR`, has no
+counterpart here yet: it filters on the builtins a plan calls, and this corpus
+does not generate plans.
+
 ## What this corpus does not carry yet
 
 Diagnostics only, today. Compiler *transformations* — asserting that compiling a

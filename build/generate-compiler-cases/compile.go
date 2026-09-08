@@ -9,25 +9,14 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/test/compilecases"
 	"github.com/open-policy-agent/opa/v1/test/conformance"
 )
 
-func regoVersion(s string) (ast.RegoVersion, error) {
-	switch s {
-	case "", "v1":
-		return ast.RegoV1, nil
-	case "v0":
-		return ast.RegoV0, nil
-	case "v0-compat-v1":
-		return ast.RegoV0CompatV1, nil
-	}
-	return ast.RegoUndefined, fmt.Errorf("unknown rego_version %q", s)
-}
-
 func parserOptions(tc compilecases.TestCase) (ast.ParserOptions, error) {
-	v, err := regoVersion(tc.RegoVersion)
+	v, err := corpusgen.RegoVersion(tc.RegoVersion)
 	if err != nil {
 		return ast.ParserOptions{}, err
 	}

@@ -305,6 +305,26 @@ sets, err := cases.LoadParserTestCasesFiltered(
 )
 ```
 
+### Filtering by Rego version
+
+`RegoVersionFilter` marks `Ignore` on every case written for a version you do not
+parse:
+
+```go
+sets, err := cases.LoadParserTestCasesFiltered(
+	[]cases.Filters{cases.RegoVersionFilter(ast.RegoV1)},
+)
+```
+
+Matching is exact. `v0-compat-v1` is its own parsing mode, so supporting `v0` or
+`v1` does not imply it, and passing no version filters nothing rather than
+rejecting the whole corpus.
+
+Unlike `CapabilitiesFilter`, this one rejects the case *outright* — the module is
+written in a dialect you do not parse, so neither its AST nor its diagnostics
+apply. Both filters set the same `Ignore` flag, so if you pass both, skipping an
+ignored case entirely is the safe reading.
+
 The generator lives in `build/generate-parser-cases`, alongside
 `build/generate-extended-cases`, which does the same for the evaluation corpus.
 `WithASTLocations`, `WithLocationText` and `Filters` are documented there.

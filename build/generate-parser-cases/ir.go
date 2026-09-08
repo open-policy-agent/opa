@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ir"
@@ -53,7 +54,7 @@ func generateIR(sets []ParserSet) error {
 }
 
 func plan(tc *ParserTestCase, module *ast.Module) ([]string, *ir.Policy, error) {
-	v, err := regoVersion(tc.RegoVersion)
+	v, err := corpusgen.RegoVersion(tc.RegoVersion)
 	if err != nil {
 		return nil, nil, err
 	}
