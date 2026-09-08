@@ -39,9 +39,10 @@ func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
 // LoggingHandler returns an http.Handler that will print log messages
 // containing the request information as well as response status and latency.
 type LoggingHandler struct {
-	logger    logging.Logger
-	inner     http.Handler
-	requestID uint64
+	logger     logging.Logger
+	inner      http.Handler
+	requestID  uint64
+	diagnostic bool
 }
 
 // NewLoggingHandler returns a new http.Handler.
@@ -53,8 +54,31 @@ func NewLoggingHandler(logger logging.Logger, inner http.Handler) http.Handler {
 	}
 }
 
+// NewDiagnosticLoggingHandler returns a new http.Handler for the read-only
+// diagnostic API's (eg /health, /metrics, etc). Access to these is only
+// logged at DEBUG since they are typically polled frequently by things like
+// Kubernetes probes and Prometheus scrapers, and would otherwise flood logs
+// at the default INFO level.
+func NewDiagnosticLoggingHandler(logger logging.Logger, inner http.Handler) http.Handler {
+	return &LoggingHandler{
+		logger:     logger,
+		inner:      inner,
+		requestID:  uint64(0),
+		diagnostic: true,
+	}
+}
+
 func (h *LoggingHandler) loggingEnabled(level logging.Level) bool {
 	return level <= h.logger.GetLevel()
+}
+
+// reqRespLoggingEnabled reports whether the "Received request."/"Sent
+// response." log lines should be emitted for this handler.
+func (h *LoggingHandler) reqRespLoggingEnabled() bool {
+	if h.diagnostic {
+		return h.loggingEnabled(logging.Debug)
+	}
+	return h.loggingEnabled(logging.Info)
 }
 
 func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +94,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	recorder := newRecorder(h.logger, w, r, rctx.ReqID, h.loggingEnabled(logging.Debug))
 	t0 := time.Now()
 
-	if h.loggingEnabled(logging.Info) {
+	if h.reqRespLoggingEnabled() {
 
 		rctx.ClientAddr = r.RemoteAddr
 		rctx.ReqMethod = r.Method
@@ -128,7 +152,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		statusCode = recorder.statusCode
 	}
 
-	if h.loggingEnabled(logging.Info) {
+	if h.reqRespLoggingEnabled() {
 		fields := map[string]any{
 			"client_addr":   rctx.ClientAddr,
 			"req_id":        rctx.ReqID,
