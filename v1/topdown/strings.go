@@ -791,7 +791,7 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	// Optimized path for where sprintf is used as a "to_string" function for
 	// a single integer, i.e. sprintf("%d", [x]) where x is an integer.
 	if s == "%d" && a.Len() == 1 {
-		if n, ok := a.Elem(0).Value.(ast.Number); ok {
+		if n, ok := a.Elem(0).Value.(ast.Number); ok && !isFloatNumber(string(n)) {
 			if i, ok := n.Int(); ok {
 				if interned := ast.InternedIntegerString(i); interned != nil {
 					return iter(interned)
@@ -808,23 +808,18 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		switch v := t.Value.(type) {
 		case ast.Number:
 			ns := string(v)
-			if x, ok := util.Atoi64(ns); ok {
-				args[i] = x
-			} else {
-				if strings.ContainsRune(ns, '.') {
-					if f, ok := v.Float64(); ok {
-						args[i] = f
-						continue
-					} else {
-						args[i] = ns
-					}
+			if isFloatNumber(ns) {
+				if f, ok := v.Float64(); ok {
+					args[i] = f
 				} else {
-					if b, ok := new(big.Int).SetString(ns, 10); ok {
-						args[i] = b
-					} else {
-						args[i] = ns
-					}
+					args[i] = ns
 				}
+			} else if x, ok := util.Atoi64(ns); ok {
+				args[i] = x
+			} else if b, ok := new(big.Int).SetString(ns, 10); ok {
+				args[i] = b
+			} else {
+				args[i] = ns
 			}
 		case ast.String:
 			args[i] = string(v)
@@ -834,6 +829,15 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 	}
 
 	return iter(ast.InternedTerm(fmt.Sprintf(string(s), args...)))
+}
+
+// isFloatNumber reports whether the textual representation of a number is that
+// of a floating point value, i.e. it has a fraction or an exponent. Since
+// util.Atoi64 parses numbers with only zeros past the decimal point (1.0) as
+// integers, the text, and not the parsed value, decides how a number is
+// formatted by sprintf.
+func isFloatNumber(s string) bool {
+	return strings.ContainsAny(s, ".eE")
 }
 
 func builtinReverse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
