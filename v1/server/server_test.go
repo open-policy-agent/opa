@@ -83,7 +83,7 @@ func TestMain(m *testing.M) {
 		},
 	)
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 type tr struct {
@@ -3152,7 +3152,7 @@ func TestDataGetExplainFull(t *testing.T) {
 		}
 	}
 	if exitEvent < 0 {
-		t.Fatalf("Expected one exit node but found none")
+		t.Fatal("Expected one exit node but found none")
 	}
 
 	_, ok := explain[exitEvent].Node.(ast.Body)
@@ -3797,7 +3797,7 @@ r contains x if { z[x] = 4 }`
 				}
 
 				if len(response) != 0 {
-					t.Fatalf("Expected empty wrapper object")
+					t.Fatal("Expected empty wrapper object")
 				}
 			}
 		})
@@ -5550,7 +5550,7 @@ func TestServerClearsCompilerConflictCheck(t *testing.T) {
 
 	// internal helpers should now give the new compiler back
 	if f.server.getCompiler() != c {
-		t.Fatalf("Expected to get the updated compiler")
+		t.Fatal("Expected to get the updated compiler")
 	}
 }
 
@@ -6353,10 +6353,10 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
 	}
 	if traceProvider == nil {
-		t.Fatalf("Tracer provider was not initialized")
+		t.Fatal("Tracer provider was not initialized")
 	}
 	if resource == nil {
-		t.Fatalf("Resource was not initialized")
+		t.Fatal("Resource was not initialized")
 	}
 	if len(resource.Attributes()) != 5 {
 		t.Fatalf("Unexpected resource attributes count. Expected: %v, Got: %v", 5, len(resource.Attributes()))

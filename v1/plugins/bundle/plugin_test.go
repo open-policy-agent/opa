@@ -3491,7 +3491,7 @@ func validateStatus(t *testing.T, actual Status, expected string, expectStatusEr
 	t.Helper()
 
 	if expectStatusErr && !isErrStatus(actual) {
-		t.Errorf("Expected status to be in an error state, but no error has occurred.")
+		t.Error("Expected status to be in an error state, but no error has occurred.")
 	} else if !expectStatusErr && isErrStatus(actual) {
 		t.Errorf("Unexpected error status %v", actual)
 	}
@@ -3836,7 +3836,7 @@ p contains x if { x = 1 }`
 	delete(s1, "b1")
 
 	if _, ok := plugin.status["b1"]; !ok {
-		t.Fatalf("Expected status for 'b1' to still be in 'plugin.status'")
+		t.Fatal("Expected status for 'b1' to still be in 'plugin.status'")
 	}
 }
 
@@ -4669,7 +4669,7 @@ func TestUpgradeLegacyBundleToMultiBundleSameBundle(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	manager := getTestManagerWithOpts(fmt.Appendf(nil, `{"services":{"s1":{}}}`))
+	manager := getTestManagerWithOpts(fmt.Append(nil, `{"services":{"s1":{}}}`))
 	defer manager.Stop(ctx)
 	plugin := Plugin{
 		manager:     manager,
@@ -4724,7 +4724,7 @@ func TestUpgradeLegacyBundleToMultiBundleSameBundle(t *testing.T) {
 	validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux", nil)
 
 	if plugin.config.IsMultiBundle() {
-		t.Fatalf("Expected plugin to be in non-multi bundle config mode")
+		t.Fatal("Expected plugin to be in non-multi bundle config mode")
 	}
 
 	// Update to the newer style config with the same bundle
@@ -4765,7 +4765,7 @@ func TestUpgradeLegacyBundleToMultiBundleSameBundle(t *testing.T) {
 	}
 
 	if !plugin.config.IsMultiBundle() {
-		t.Fatalf("Expected plugin to be in multi bundle config mode")
+		t.Fatal("Expected plugin to be in multi bundle config mode")
 	}
 }
 
@@ -4853,7 +4853,7 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 	validateStoreState(ctx, t, manager.Store, "/a", expData, expIDs, bundleName, "quickbrownfaux", nil)
 
 	if plugin.config.IsMultiBundle() {
-		t.Fatalf("Expected plugin to be in non-multi bundle config mode")
+		t.Fatal("Expected plugin to be in non-multi bundle config mode")
 	}
 
 	// Update to the newer style config with a new bundle
@@ -4914,7 +4914,7 @@ func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 	}
 
 	if !plugin.config.IsMultiBundle() {
-		t.Fatalf("Expected plugin to be in multi bundle config mode")
+		t.Fatal("Expected plugin to be in multi bundle config mode")
 	}
 }
 
@@ -5006,7 +5006,7 @@ func TestLegacyBundleDataRead(t *testing.T) {
 			b.Manifest.Init()
 
 			if plugin.config.IsMultiBundle() {
-				t.Fatalf("Expected plugin to be in non-multi bundle config mode")
+				t.Fatal("Expected plugin to be in non-multi bundle config mode")
 			}
 
 			err = plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
@@ -5351,7 +5351,7 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 	}
 
 	if path != "/var/opa/bundles" {
-		t.Errorf("expected configured persist path '/var/opa/bundles'")
+		t.Error("expected configured persist path '/var/opa/bundles'")
 	}
 }
 

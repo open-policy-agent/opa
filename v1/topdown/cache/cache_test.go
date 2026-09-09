@@ -342,31 +342,31 @@ func TestInterValueCache_NamedCaches(t *testing.T) {
 		}
 
 		if nc.items.Len() != 0 {
-			t.Fatalf("Expected cache to be empty")
+			t.Fatal("Expected cache to be empty")
 		}
 
 		nc.Insert(ast.StringTerm("a").Value, "b")
 		if nc.items.Len() != 1 {
-			t.Fatalf("Expected cache to have 1 entry")
+			t.Fatal("Expected cache to have 1 entry")
 		}
 		if v, found := nc.Get(ast.StringTerm("a").Value); !found && v != "b" {
-			t.Fatalf("Expected cache hit")
+			t.Fatal("Expected cache hit")
 		}
 
 		nc.Insert(ast.StringTerm("c").Value, "d")
 		if nc.items.Len() != 2 {
-			t.Fatalf("Expected cache to have 2 entries")
+			t.Fatal("Expected cache to have 2 entries")
 		}
 		if v, found := nc.Get(ast.StringTerm("c").Value); !found && v != "d" {
-			t.Fatalf("Expected cache hit")
+			t.Fatal("Expected cache hit")
 		}
 
 		nc.Insert(ast.StringTerm("e").Value, "f")
 		if nc.items.Len() != 2 {
-			t.Fatalf("Expected cache to still have 2 entries")
+			t.Fatal("Expected cache to still have 2 entries")
 		}
 		if v, found := nc.Get(ast.StringTerm("e").Value); !found && v != "f" {
-			t.Fatalf("Expected cache hit")
+			t.Fatal("Expected cache hit")
 		}
 	})
 
@@ -1027,12 +1027,12 @@ func TestConfigClone(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(original, cloned) {
-		t.Errorf("clone differs from original")
+		t.Error("clone differs from original")
 	}
 
 	// Test that modifying the clone doesn't affect the original
 	*cloned.InterQueryBuiltinCache.MaxSizeBytes = 999
 	if *original.InterQueryBuiltinCache.MaxSizeBytes == 999 {
-		t.Errorf("modifying clone affected original")
+		t.Error("modifying clone affected original")
 	}
 }

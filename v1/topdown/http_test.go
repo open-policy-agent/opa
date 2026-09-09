@@ -170,23 +170,23 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/json-no-header":
-			fmt.Fprintf(w, `{"foo":"bar"}`)
+			fmt.Fprint(w, `{"foo":"bar"}`)
 		case "/yaml-no-header":
-			fmt.Fprintf(w, `foo: bar`)
+			fmt.Fprint(w, `foo: bar`)
 		case "/json":
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `{"foo":"bar"}`)
+			fmt.Fprint(w, `{"foo":"bar"}`)
 		case "/yaml":
 			w.Header().Set("Content-Type", "application/yaml")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `foo: bar`)
+			fmt.Fprint(w, `foo: bar`)
 		case "/x-yaml":
 			w.Header().Set("Content-Type", "application/x-yaml")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `foo: bar`)
+			fmt.Fprint(w, `foo: bar`)
 		case "/text-no-header":
-			fmt.Fprintf(w, "*Hello World®")
+			fmt.Fprint(w, "*Hello World®")
 		}
 	}))
 

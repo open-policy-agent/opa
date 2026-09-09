@@ -290,15 +290,15 @@ func TestModuleTree(t *testing.T) {
 	}
 
 	if !tree.Children[Var("data")].Children[String("system")].Hide {
-		t.Fatalf("Expected system node to be hidden")
+		t.Fatal("Expected system node to be hidden")
 	}
 
 	if tree.Children[Var("data")].Children[String("system")].Children[String("foo")].Hide {
-		t.Fatalf("Expected system.foo node to be visible")
+		t.Fatal("Expected system.foo node to be visible")
 	}
 
 	if tree.Children[Var("data")].Children[String("user")].Children[String("system")].Hide {
-		t.Fatalf("Expected user.system node to be visible")
+		t.Fatal("Expected user.system node to be visible")
 	}
 }
 
@@ -1164,12 +1164,12 @@ func TestRuleTree(t *testing.T) {
 	}
 
 	if system.Child(String("foo")).Hide {
-		t.Fatalf("Expected system.foo node to be visible")
+		t.Fatal("Expected system.foo node to be visible")
 	}
 
 	user := tree.Child(Var("data")).Child(String("user")).Child(String("system"))
 	if user.Hide {
-		t.Fatalf("Expected user.system node to be visible")
+		t.Fatal("Expected user.system node to be visible")
 	}
 
 	if !tree.isVirtual(MustParseRef("data.a.b.empty")) {
@@ -1214,7 +1214,7 @@ func TestCompilerWithStageAfter(t *testing.T) {
 		c.Compile(map[string]*Module{"testMod": m})
 
 		if !c.Failed() {
-			t.Errorf("Expected compilation error")
+			t.Error("Expected compilation error")
 		}
 	})
 
@@ -1233,7 +1233,7 @@ q := true`)
 		c.Compile(map[string]*Module{"testMod": m})
 
 		if !c.Failed() {
-			t.Errorf("Expected compilation error")
+			t.Error("Expected compilation error")
 		}
 		if exp, act := 1, len(c.Errors); exp != act {
 			t.Errorf("expected %d errors, got %d: %v", exp, act, c.Errors)
@@ -1255,7 +1255,7 @@ q if {
 		c.Compile(map[string]*Module{"testMod": m})
 
 		if !c.Failed() {
-			t.Errorf("Expected compilation error")
+			t.Error("Expected compilation error")
 		}
 		if exp, act := 1, len(c.Errors); exp != act {
 			t.Errorf("expected %d errors, got %d: %v", exp, act, c.Errors)
@@ -1456,7 +1456,7 @@ func TestCompilerFunctions(t *testing.T) {
 			c := NewCompiler()
 			c.Compile(modules)
 			if tc.wantErr && !c.Failed() {
-				t.Errorf("Expected compilation error")
+				t.Error("Expected compilation error")
 			} else if !tc.wantErr && c.Failed() {
 				t.Errorf("Unexpected compilation error(s): %v", c.Errors)
 			}
@@ -1961,7 +1961,7 @@ p := z if { y := f([v | v = x][0]); z := f(y); x := 2 }`,
 			})
 			failed := c.Failed()
 			if tc.wantErr && !failed {
-				t.Fatalf("expected compile error, got success")
+				t.Fatal("expected compile error, got success")
 			}
 			if !tc.wantErr && failed {
 				t.Fatalf("unexpected compile errors: %v", c.Errors)
@@ -10505,7 +10505,7 @@ func TestCompilerSetGraph(t *testing.T) {
 
 	sorted, ok := c.Graph.Sort()
 	if !ok {
-		t.Fatalf("Expected sort to succeed.")
+		t.Fatal("Expected sort to succeed.")
 	}
 
 	numRules := 0
@@ -10575,7 +10575,7 @@ func TestGraphCycle(t *testing.T) {
 
 	_, ok := c.Graph.Sort()
 	if ok {
-		t.Fatalf("Expected to find cycle in rule graph")
+		t.Fatal("Expected to find cycle in rule graph")
 	}
 
 	elsekw := `package elsekw
@@ -10607,7 +10607,7 @@ func TestGraphCycle(t *testing.T) {
 
 	_, ok = c.Graph.Sort()
 	if ok {
-		t.Fatalf("Expected to find cycle in rule graph")
+		t.Fatal("Expected to find cycle in rule graph")
 	}
 
 }
@@ -11337,7 +11337,7 @@ grault = deadbeef if { true }`)
 
 	// Check the original modules are still untouched.
 	if !mod1.Equal(orig1) || !mod2.Equal(orig2) || !mod3.Equal(orig3) || !mod4.Equal(orig4) || !mod5.Equal(orig5) {
-		t.Errorf("Compiler lazy loading modified the original modules")
+		t.Error("Compiler lazy loading modified the original modules")
 	}
 }
 
@@ -13129,7 +13129,7 @@ func TestCompilerWithUnsafeBuiltins(t *testing.T) {
 	// longer available.
 	_, err := compiler.QueryCompiler().Compile(MustParseBody(`re_match("a", "a")`))
 	if err == nil {
-		t.Fatalf("Expected error for unsafe built-in")
+		t.Fatal("Expected error for unsafe built-in")
 	} else if !strings.Contains(err.Error(), "unsafe built-in function") {
 		t.Fatalf("Expected error for unsafe built-in but got %v", err)
 	}
@@ -13141,7 +13141,7 @@ deny if {
 }`)}
 	compiler.Compile(modules)
 	if !compiler.Failed() {
-		t.Fatalf("Expected error for unsafe built-in")
+		t.Fatal("Expected error for unsafe built-in")
 	} else if !strings.Contains(compiler.Errors[0].Error(), "unsafe built-in function") {
 		t.Fatalf("Expected error for unsafe built-in but got %v", err)
 	}
@@ -13574,7 +13574,7 @@ deny if {
 	})
 	c.Compile(map[string]*Module{"testMod": m})
 	if !c.Failed() {
-		t.Errorf("Expected compilation to fail, but it succeeded")
+		t.Error("Expected compilation to fail, but it succeeded")
 	} else if !strings.HasPrefix(c.Errors.Error(), "1 error occurred: 7:2: rego_type_error: undefined ref: input.Something.Y.X.ThisDoesNotExist") {
 		t.Errorf("unexpected error: %v", c.Errors.Error())
 	}
@@ -14030,7 +14030,7 @@ func TestCompilerCopiesTemplateStrings(t *testing.T) {
 	}
 
 	if !mod.Equal(cpy) {
-		t.Fatalf("expected module to be unchanged after compilation")
+		t.Fatal("expected module to be unchanged after compilation")
 	}
 }
 

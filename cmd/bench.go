@@ -610,7 +610,7 @@ func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkRe
 		if params.benchMem {
 			fmt.Fprintf(w, "\t%s", br.MemString())
 		}
-		fmt.Fprintf(w, "\n")
+		fmt.Fprintln(w)
 	default:
 		data := [][]string{
 			{"samples", strconv.Itoa(br.N)},

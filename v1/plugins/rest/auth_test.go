@@ -34,7 +34,7 @@ func TestOCIWithAWSAuthSetsUpECRAuthPlugin(t *testing.T) {
 	}
 
 	if client.config.Credentials.S3Signing.ecrAuthPlugin == nil {
-		t.Errorf("S3Signing.ecrAuthPlugin isn't setup")
+		t.Error("S3Signing.ecrAuthPlugin isn't setup")
 	}
 }
 
@@ -57,7 +57,7 @@ func TestOCIWithAWSWrongService(t *testing.T) {
 	{
 		_, err := client.config.Credentials.S3Signing.NewClient(client.config)
 		if err == nil {
-			t.Fatalf("S3Signing.NewClient(): expected error")
+			t.Fatal("S3Signing.NewClient(): expected error")
 		}
 
 		wantContains := "ec2"
@@ -135,7 +135,7 @@ func TestOauth2WithAWSKMS(t *testing.T) {
 	}
 
 	if client.config.Credentials.OAuth2.AWSSigningPlugin.kmsSignPlugin == nil {
-		t.Errorf("OAuth2.AWSSigningPlugin.kmsSignPlugin isn't setup")
+		t.Error("OAuth2.AWSSigningPlugin.kmsSignPlugin isn't setup")
 	}
 }
 
@@ -178,7 +178,7 @@ func TestOauthWithAzureKV(t *testing.T) {
 	}
 
 	if client.config.Credentials.OAuth2.AzureSigningPlugin.keyVaultSignPlugin == nil {
-		t.Errorf("OAuth2.AzureSigningPlugin.keyVaultSignPlugin isn't setup")
+		t.Error("OAuth2.AzureSigningPlugin.keyVaultSignPlugin isn't setup")
 	}
 }
 
@@ -397,7 +397,7 @@ func TestBearerTokenHeaderAttachement(t *testing.T) {
 		t.Fatalf("Bearer Auth Plugin should not error on redirect = %q ", err)
 	}
 	if !strings.Contains(buf.String(), "not attaching authorization header as the response contains a redirect") {
-		t.Fatalf("log debug output does not contain the message to confirm that the authorization header was not attached")
+		t.Fatal("log debug output does not contain the message to confirm that the authorization header was not attached")
 	}
 
 	err = client.config.Credentials.Bearer.Prepare(&http.Request{Response: &http.Response{StatusCode: http.StatusTemporaryRedirect}})
@@ -405,7 +405,7 @@ func TestBearerTokenHeaderAttachement(t *testing.T) {
 		t.Fatalf("Bearer Auth Plugin should not error on redirect = %q ", err)
 	}
 	if !strings.Contains(buf.String(), "not attaching authorization header as the response contains a redirect") {
-		t.Fatalf("log debug output does not contain the message to confirm that the authorization header was not attached")
+		t.Fatal("log debug output does not contain the message to confirm that the authorization header was not attached")
 	}
 
 	err = client.config.Credentials.Bearer.Prepare(&http.Request{Header: http.Header{}})
@@ -413,6 +413,6 @@ func TestBearerTokenHeaderAttachement(t *testing.T) {
 		t.Fatalf("Bearer Auth Plugin should not error on redirect = %q ", err)
 	}
 	if !strings.Contains(buf.String(), "attaching authorization header") {
-		t.Fatalf("log debug output should show that the authorization header is attached")
+		t.Fatal("log debug output should show that the authorization header is attached")
 	}
 }

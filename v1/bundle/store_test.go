@@ -1893,7 +1893,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 
 	// Ensure that the extra module was included
 	if _, ok := compiler.Modules["mod1"]; !ok {
-		t.Fatalf("expected extra module to be compiled")
+		t.Fatal("expected extra module to be compiled")
 	}
 
 	mustDeactivate(t, mockStore, &DeactivateOpts{BundleNames: map[string]struct{}{"bundle1": {}}})
@@ -2014,7 +2014,7 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 
 	// Ensure that the extra module was included
 	if _, ok := compiler.Modules["mod1"]; !ok {
-		t.Fatalf("expected extra module to be compiled")
+		t.Fatal("expected extra module to be compiled")
 	}
 
 	mustDeactivate(t, mockStore, &DeactivateOpts{BundleNames: map[string]struct{}{"bundle1": {}, "bundle2": {}}})
@@ -3192,7 +3192,7 @@ func TestBundleLifecycle(t *testing.T) {
 
 			// Ensure that the extra module was included
 			if _, ok := compiler.Modules["mod1"]; !ok {
-				t.Fatalf("expected extra module to be compiled")
+				t.Fatal("expected extra module to be compiled")
 			}
 
 			mustDeactivate(t, mockStore, &DeactivateOpts{
@@ -4219,7 +4219,7 @@ func TestBundleStoreHelpers(t *testing.T) {
 			// Wasm metadata
 
 			if _, err := ReadWasmMetadataFromStore(t.Context(), mockStore, txn, "bundle1"); err == nil {
-				t.Fatalf("expected error but got nil")
+				t.Fatal("expected error but got nil")
 			} else if exp, act := "storage_not_found_error: /bundles/bundle1/manifest/wasm: document does not exist", err.Error(); !strings.Contains(act, exp) {
 				t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", exp, act)
 			}
@@ -4233,7 +4233,7 @@ func TestBundleStoreHelpers(t *testing.T) {
 			// Wasm modules
 
 			if _, err := ReadWasmModulesFromStore(t.Context(), mockStore, txn, "bundle1"); err == nil {
-				t.Fatalf("expected error but got nil")
+				t.Fatal("expected error but got nil")
 			} else if exp, act := "storage_not_found_error: /bundles/bundle1/wasm: document does not exist", err.Error(); !strings.Contains(act, exp) {
 				t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", exp, act)
 			}

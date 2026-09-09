@@ -2218,7 +2218,7 @@ func TestParsedModules(t *testing.T) {
 					t.Fatalf("Missing expected module %s, got: %+v", exp, parsedMods)
 				}
 				if mod == nil {
-					t.Fatalf("Expected module to be non-nil")
+					t.Fatal("Expected module to be non-nil")
 				}
 			}
 		})

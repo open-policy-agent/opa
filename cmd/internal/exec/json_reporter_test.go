@@ -155,7 +155,7 @@ func TestJsonReporter_ReportFailure(t *testing.T) {
 			j.errorCount = tc.Errs
 			j.failCount = tc.Fails
 			if err := j.ReportFailure(); tc.IsErr && err == nil {
-				t.Fatalf("expected error, found none")
+				t.Fatal("expected error, found none")
 			} else if !tc.IsErr && err != nil {
 				t.Fatalf("unexpected error: %q", err.Error())
 			}

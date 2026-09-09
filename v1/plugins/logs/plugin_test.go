@@ -96,7 +96,7 @@ func TestPluginCustomBackend(t *testing.T) {
 	// Server events with only `Revision` should not include bundles in the EventV1 struct
 	for _, e := range backend.events {
 		if len(e.Bundles) > 0 {
-			t.Errorf("Unexpected `bundles` in event")
+			t.Error("Unexpected `bundles` in event")
 		}
 	}
 }
@@ -1808,7 +1808,7 @@ func TestPluginNoLogging(t *testing.T) {
 				t.Errorf("expected no error: %v", err)
 			}
 			if config != nil {
-				t.Errorf("excected no config for a no-op logging plugin")
+				t.Error("excected no config for a no-op logging plugin")
 			}
 		})
 	}
@@ -2112,7 +2112,7 @@ func TestPluginTerminatesAfterGracefulShutdownPeriod(t *testing.T) {
 
 	// Ensure the plugin was stopped without flushing its whole buffer
 	if fixture.plugin.b.(*sizeBuffer).buffer.Len() == 0 && fixture.plugin.b.(*sizeBuffer).enc.buf.Len() == 0 {
-		t.Errorf("Expected the plugin to still have buffered messages")
+		t.Error("Expected the plugin to still have buffered messages")
 	}
 }
 

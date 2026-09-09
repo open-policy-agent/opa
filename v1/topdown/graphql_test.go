@@ -128,7 +128,7 @@ func TestGraphQLParseString(t *testing.T) {
 					},
 				)
 				if tc.wantErr && err == nil {
-					t.Errorf("Unexpected return value, expected error, got nil")
+					t.Error("Unexpected return value, expected error, got nil")
 					return
 				}
 				if !tc.wantErr && err != nil {
@@ -158,7 +158,7 @@ func TestGraphQLParseString(t *testing.T) {
 				},
 			)
 			if tc.wantErr && err == nil {
-				t.Errorf("Unexpected return value, expected error, got nil")
+				t.Error("Unexpected return value, expected error, got nil")
 				return
 			}
 			if !tc.wantErr && err != nil {
@@ -241,7 +241,7 @@ func TestGraphQLParseObject(t *testing.T) {
 					},
 				)
 				if tc.wantErr && err == nil {
-					t.Errorf("Unexpected return value, expected error, got nil")
+					t.Error("Unexpected return value, expected error, got nil")
 					return
 				}
 				if !tc.wantErr && err != nil {
@@ -268,7 +268,7 @@ func TestGraphQLParseObject(t *testing.T) {
 				},
 			)
 			if tc.wantErr && err == nil {
-				t.Errorf("Unexpected return value, expected error, got nil")
+				t.Error("Unexpected return value, expected error, got nil")
 				return
 			}
 			if !tc.wantErr && err != nil {
@@ -353,7 +353,7 @@ func TestGraphQLSchemaIsValid(t *testing.T) {
 					},
 				)
 				if tc.wantErr && err == nil {
-					t.Errorf("Unexpected return value, expected error, got nil")
+					t.Error("Unexpected return value, expected error, got nil")
 					return
 				}
 				if !tc.wantErr && err != nil {
@@ -377,7 +377,7 @@ func TestGraphQLSchemaIsValid(t *testing.T) {
 				},
 			)
 			if tc.wantErr && err == nil {
-				t.Errorf("Unexpected return value, expected error, got nil")
+				t.Error("Unexpected return value, expected error, got nil")
 				return
 			}
 			if !tc.wantErr && err != nil {
@@ -496,7 +496,7 @@ func TestGraphQLParseAndVerify(t *testing.T) {
 					},
 				)
 				if tc.wantErr && err == nil {
-					t.Errorf("Unexpected return value, expected error, got nil")
+					t.Error("Unexpected return value, expected error, got nil")
 					return
 				}
 				if !tc.wantErr && err != nil {
@@ -526,7 +526,7 @@ func TestGraphQLParseAndVerify(t *testing.T) {
 				},
 			)
 			if tc.wantErr && err == nil {
-				t.Errorf("Unexpected return value, expected error, got nil")
+				t.Error("Unexpected return value, expected error, got nil")
 				return
 			}
 			if !tc.wantErr && err != nil {
@@ -618,7 +618,7 @@ func TestGraphQLIsValid(t *testing.T) {
 					},
 				)
 				if tc.wantErr && err == nil {
-					t.Errorf("Unexpected return value, expected error, got nil")
+					t.Error("Unexpected return value, expected error, got nil")
 					return
 				}
 				if !tc.wantErr && err != nil {
@@ -642,7 +642,7 @@ func TestGraphQLIsValid(t *testing.T) {
 				},
 			)
 			if tc.wantErr && err == nil {
-				t.Errorf("Unexpected return value, expected error, got nil")
+				t.Error("Unexpected return value, expected error, got nil")
 				return
 			}
 			if !tc.wantErr && err != nil {
@@ -718,7 +718,7 @@ func TestGraphQLParseQuery(t *testing.T) {
 					},
 				)
 				if tc.wantErr && err == nil {
-					t.Errorf("Unexpected return value, expected error, got nil")
+					t.Error("Unexpected return value, expected error, got nil")
 					return
 				}
 				if !tc.wantErr && err != nil {
@@ -742,7 +742,7 @@ func TestGraphQLParseQuery(t *testing.T) {
 				},
 			)
 			if tc.wantErr && err == nil {
-				t.Errorf("Unexpected return value, expected error, got nil")
+				t.Error("Unexpected return value, expected error, got nil")
 				return
 			}
 			if !tc.wantErr && err != nil {
@@ -818,7 +818,7 @@ func TestGraphQLParseSchema(t *testing.T) {
 					},
 				)
 				if tc.wantErr && err == nil {
-					t.Errorf("Unexpected return value, expected error, got nil")
+					t.Error("Unexpected return value, expected error, got nil")
 					return
 				}
 				if !tc.wantErr && err != nil {
@@ -842,7 +842,7 @@ func TestGraphQLParseSchema(t *testing.T) {
 				},
 			)
 			if tc.wantErr && err == nil {
-				t.Errorf("Unexpected return value, expected error, got nil")
+				t.Error("Unexpected return value, expected error, got nil")
 				return
 			}
 			if !tc.wantErr && err != nil {
@@ -887,9 +887,7 @@ func TestGraphQLParseSchemaAlloc(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-
 		t.Run(tc.note, func(t *testing.T) {
-
 			var startMemStats runtime.MemStats
 			runtime.ReadMemStats(&startMemStats)
 
@@ -898,9 +896,7 @@ func TestGraphQLParseSchemaAlloc(t *testing.T) {
 					InterQueryBuiltinValueCache: nil,
 				},
 				[]*ast.Term{tc.schema},
-				func(term *ast.Term) error {
-					return nil
-				},
+				noOpIter,
 			)
 
 			var finishMemStats runtime.MemStats

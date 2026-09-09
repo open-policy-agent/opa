@@ -410,7 +410,7 @@ func TestPluginManagerPrometheusRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 	if register.Collectors[counter] != true {
-		t.Fatalf("Counter metric was not registered on prometheus")
+		t.Fatal("Counter metric was not registered on prometheus")
 	}
 }
 

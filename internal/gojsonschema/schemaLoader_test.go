@@ -92,7 +92,7 @@ func TestDoubleIDReference(t *testing.T) {
 
 	err = sl.AddSchemas(NewStringLoader(`{ "$id" : "http://localhost:1234/test4.json"}`))
 	if err == nil {
-		t.Errorf("Expected error adding schema, got none")
+		t.Error("Expected error adding schema, got none")
 	}
 }
 
@@ -136,7 +136,7 @@ func TestCustomMetaSchema(t *testing.T) {
 		"multipleOf" : 5
 	}`))
 	if err == nil {
-		t.Errorf("Expected error compiling schema, got none")
+		t.Error("Expected error compiling schema, got none")
 	}
 }
 
@@ -149,7 +149,7 @@ func TestSchemaDetection(t *testing.T) {
 	// The schema should produce an error in draft-04 mode
 	_, err := NewSchema(loader)
 	if err == nil {
-		t.Errorf("Expected error, got none")
+		t.Error("Expected error, got none")
 	}
 
 	// With schema detection disabled the schema should not produce an error in hybrid mode
@@ -238,7 +238,7 @@ func TestSchemaLoaderValidatePatterns(t *testing.T) {
 			t.Fatalf("unexpected validation error: %v", err)
 		}
 		if result.Valid() {
-			t.Fatalf("expected validation to fail when string does not match pattern")
+			t.Fatal("expected validation to fail when string does not match pattern")
 		}
 	})
 
@@ -247,7 +247,7 @@ func TestSchemaLoaderValidatePatterns(t *testing.T) {
 		sl.ValidatePatterns = true
 		_, err := sl.Compile(NewStringLoader(`{"type": "string", "pattern": "^(?!nope)[a-z]+$"}`))
 		if err == nil {
-			t.Fatalf("expected schema compile to fail on Go-incompatible pattern")
+			t.Fatal("expected schema compile to fail on Go-incompatible pattern")
 		}
 	})
 
@@ -268,7 +268,7 @@ func TestParseSchemaURL_NotMap(t *testing.T) {
 	_, err := NewSchema(sl)
 	//THEN
 	if err == nil {
-		t.Fatalf("Expected error, got none")
+		t.Fatal("Expected error, got none")
 	}
 
 	if err.Error() != "schema is invalid" {

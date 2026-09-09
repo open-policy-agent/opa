@@ -4453,7 +4453,7 @@ func (e evalNot) evalPartial(iter evalIterator) error {
 
 	expr := e.e.query[e.e.index]
 
-	unNegate := func(expr *ast.Expr) ast.Body {
+	unNegate := func(*ast.Expr) ast.Body {
 		return e.not.Body
 	}
 

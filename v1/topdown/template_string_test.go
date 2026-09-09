@@ -73,7 +73,7 @@ func TestBuiltinTemplateString(t *testing.T) {
 				}
 			} else {
 				if err == nil {
-					t.Fatalf("Expected error, got nil")
+					t.Fatal("Expected error, got nil")
 				}
 				if act := err.Error(); !strings.Contains(act, tc.expErr) {
 					t.Fatalf("Expected error to contain:\n\n%s\n\ngot:\n\n%s", tc.expErr, act)

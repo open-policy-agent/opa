@@ -5,7 +5,6 @@
 package rego
 
 import (
-	"os"
 	"testing"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -32,7 +31,7 @@ func TestMain(m *testing.M) {
 		},
 	)
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestEvalMetadataTransformViaBuiltin(t *testing.T) {

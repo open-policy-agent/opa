@@ -147,7 +147,7 @@ func mapFinder(m map[string]any) func(path []string) (bool, error) {
 	}
 }
 
-func emptyMapFinder(path []string) (bool, error) {
+func emptyMapFinder([]string) (bool, error) {
 	return false, nil
 }
 

@@ -95,7 +95,7 @@ func TestAstValueToJSONSchemaLoader(t *testing.T) {
 				return
 			}
 			if !tc.valid && err == nil {
-				t.Errorf("Unexpected JSON Schema validation result, expected valid = false, got = true")
+				t.Error("Unexpected JSON Schema validation result, expected valid = false, got = true")
 				return
 			}
 		})
@@ -200,7 +200,7 @@ func TestBuiltinJSONSchemaVerify(t *testing.T) {
 			)
 
 			if tc.err && err == nil {
-				t.Errorf("Unexpected schema validation, expected error, got nil")
+				t.Error("Unexpected schema validation, expected error, got nil")
 				return
 			}
 			if !tc.err && err != nil {
@@ -453,7 +453,7 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 			)
 
 			if tc.err && err == nil {
-				t.Errorf("Unexpected schema validation, expected error, got nil")
+				t.Error("Unexpected schema validation, expected error, got nil")
 				return
 			}
 			if !tc.err && err != nil {
@@ -512,7 +512,7 @@ func TestBuiltinJSONMatchSchemaCache(t *testing.T) {
 	}
 
 	if _, found := valueCache.Get(schema); !found {
-		t.Fatalf("Expected document to be cached")
+		t.Fatal("Expected document to be cached")
 	}
 }
 

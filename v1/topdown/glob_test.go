@@ -49,7 +49,7 @@ func TestGlobBuiltinCache(t *testing.T) {
 	}
 
 	if len(globCache) != regexCacheMaxSize {
-		t.Fatalf("Expected cache to be full")
+		t.Fatal("Expected cache to be full")
 	}
 
 	// A new glob pattern is cached and a random pattern is evicted.

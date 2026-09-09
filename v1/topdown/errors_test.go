@@ -111,7 +111,7 @@ func TestErrorWrapping(t *testing.T) {
 			t.Parallel()
 
 			if !tc.check(tc.err) {
-				t.Errorf("unexpected 'false'")
+				t.Error("unexpected 'false'")
 			}
 		})
 	}

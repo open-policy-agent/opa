@@ -98,7 +98,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -172,7 +172,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -242,7 +242,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -312,7 +312,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -382,7 +382,7 @@ p contains x if {
 
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected errors but got nil")
+						t.Fatal("Expected errors but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -745,7 +745,7 @@ func TestLoadBundleWithReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	if b == nil {
-		t.Fatalf("Expected bundle to be non-nil")
+		t.Fatal("Expected bundle to be non-nil")
 	}
 
 	if exp, act := 1, len(b.Modules); exp != act {
@@ -838,7 +838,7 @@ func TestAsBundleWithDir(t *testing.T) {
 		}
 
 		if b == nil {
-			t.Fatalf("Expected bundle to be non-nil")
+			t.Fatal("Expected bundle to be non-nil")
 		}
 
 		if len(b.Modules) != 2 {
@@ -881,7 +881,7 @@ func TestAsBundleWithFileURLDir(t *testing.T) {
 		}
 
 		if b == nil {
-			t.Fatalf("Expected bundle to be non-nil")
+			t.Fatal("Expected bundle to be non-nil")
 		}
 
 		if len(b.Modules) != 1 {
@@ -1164,7 +1164,7 @@ func TestLoadWithJSONOptions(t *testing.T) {
 
 	mod, ok := loaded.Modules["bar/bar.rego"]
 	if !ok {
-		t.Fatalf("Expected bar/bar.rego to be loaded")
+		t.Fatal("Expected bar/bar.rego to be loaded")
 	}
 
 	bs, err := json.Marshal(mod.Parsed.Package)
@@ -1220,7 +1220,7 @@ func TestLoadErrors(t *testing.T) {
 	test.WithTempFS(files, func(rootDir string) {
 		_, err := NewFileLoader().All(util.Sorted(mustListPaths(rootDir, false)[1:]))
 		if err == nil {
-			t.Fatalf("Expected failure")
+			t.Fatal("Expected failure")
 		}
 
 		expected := []string{

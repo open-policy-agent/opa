@@ -714,7 +714,7 @@ func testTimeout(t *testing.T, bench bool) {
 		}
 	} else {
 		if !topdown.IsCancel(results[1].Error) {
-			t.Fatalf("Expected test to have timed out")
+			t.Fatal("Expected test to have timed out")
 		}
 	}
 }
@@ -1025,7 +1025,7 @@ test_p if {
 			modules, store, err := tester.Load([]string{root}, nil)
 			if len(tc.expErrs) > 0 {
 				if err == nil {
-					t.Fatalf("Expected error but got nil")
+					t.Fatal("Expected error but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {
@@ -1038,9 +1038,9 @@ test_p if {
 				case err != nil:
 					t.Fatalf("Unexpected error: %v", err)
 				case modules == nil:
-					t.Fatalf("Expected modules to be non-nil")
+					t.Fatal("Expected modules to be non-nil")
 				case store == nil:
-					t.Fatalf("Expected store to be non-nil")
+					t.Fatal("Expected store to be non-nil")
 				}
 			}
 		})
@@ -1097,7 +1097,7 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 			ch, err := runner.RunTests(ctx, txn)
 			if len(tc.expErrs) > 0 {
 				if err == nil {
-					t.Fatalf("Expected error but got nil")
+					t.Fatal("Expected error but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {
@@ -1111,7 +1111,7 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 				} else if rs := channel.Collect(ch); len(rs) != 1 {
 					t.Fatalf("Expected exactly one result but got: %v", rs)
 				} else if rs[0].Fail {
-					t.Fatalf("Expected test to pass but it failed")
+					t.Fatal("Expected test to pass but it failed")
 				}
 			}
 		})

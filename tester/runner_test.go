@@ -73,7 +73,7 @@ test_p if {
 				modules, store, err := Load([]string{root}, nil)
 				if len(tc.expErrs) > 0 {
 					if err == nil {
-						t.Fatalf("Expected error but got nil")
+						t.Fatal("Expected error but got nil")
 					}
 
 					for _, expErr := range tc.expErrs {
@@ -87,11 +87,11 @@ test_p if {
 					}
 
 					if modules == nil {
-						t.Fatalf("Expected modules to be non-nil")
+						t.Fatal("Expected modules to be non-nil")
 					}
 
 					if store == nil {
-						t.Fatalf("Expected store to be non-nil")
+						t.Fatal("Expected store to be non-nil")
 					}
 				}
 			})
@@ -163,7 +163,7 @@ func TestRun_DefaultRegoVersion(t *testing.T) {
 			}
 
 			if rs[0].Fail {
-				t.Fatalf("Expected test to pass but it failed")
+				t.Fatal("Expected test to pass but it failed")
 			}
 		})
 	}

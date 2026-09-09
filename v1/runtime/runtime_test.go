@@ -1759,11 +1759,11 @@ func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
 
 		_, err := NewRuntime(t.Context(), params)
 		if err == nil {
-			t.Fatalf("Expected error to be thrown on malformed metrics config")
+			t.Fatal("Expected error to be thrown on malformed metrics config")
 		}
 
 		if !strings.HasPrefix(err.Error(), "server metrics configuration parse error") {
-			t.Fatalf("Expected specific error to be thrown on malformed metrics config")
+			t.Fatal("Expected specific error to be thrown on malformed metrics config")
 		}
 	})
 }
@@ -2067,10 +2067,10 @@ func TestCacheHooksOnServer(t *testing.T) {
 		t.Fatal("expected ServerInitializedChannel to be closed")
 	}
 	if h1.c == nil {
-		t.Errorf("expected non-nil inter-query cache")
+		t.Error("expected non-nil inter-query cache")
 	}
 	if h2.c == nil {
-		t.Errorf("expected non-nil inter-query value cache")
+		t.Error("expected non-nil inter-query value cache")
 	}
 
 	for _, e := range testLogger.Entries() {

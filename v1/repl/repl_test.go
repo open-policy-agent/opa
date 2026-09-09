@@ -4046,7 +4046,7 @@ func TestCapabilities(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 	} else {
-		t.Fatalf("Expected error on http.send")
+		t.Fatal("Expected error on http.send")
 	}
 }
 

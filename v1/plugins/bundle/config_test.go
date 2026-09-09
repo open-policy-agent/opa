@@ -240,7 +240,7 @@ func TestParseAndValidateBundlesConfig(t *testing.T) {
 				t.Fatalf("Unexpected error: %s", err)
 			}
 			if err == nil && tests[i].wantError {
-				t.Fatalf("Expected an error but didn't get one")
+				t.Fatal("Expected an error but didn't get one")
 			}
 		})
 	}
@@ -483,7 +483,7 @@ func TestParseConfigTriggerMode(t *testing.T) {
 				t.Fatalf("Unexpected error: %s", err)
 			}
 			if err == nil && tests[i].wantError {
-				t.Fatalf("Expected an error but didn't get one")
+				t.Fatal("Expected an error but didn't get one")
 			}
 
 			if tests[i].wantError {

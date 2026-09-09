@@ -529,7 +529,7 @@ func TestOneShotWithBundleEtag(t *testing.T) {
 
 	if fixture.updates[0].Bundle == nil {
 		// 200 response on first request, bundle should be present
-		t.Errorf("Expected bundle in response")
+		t.Error("Expected bundle in response")
 	}
 
 	if fixture.updates[0].Bundle.Etag != fixture.server.expEtag {
@@ -628,7 +628,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 
 				if fixture.updates[0].Bundle == nil {
 					// 200 response on first request, bundle should be present
-					t.Errorf("Expected bundle in response")
+					t.Error("Expected bundle in response")
 				}
 
 				if fixture.updates[0].Bundle.Etag != fixture.server.expEtag {
@@ -759,7 +759,7 @@ p contains 1 if {
 
 				if fixture.updates[0].Bundle == nil {
 					// 200 response on first request, bundle should be present
-					t.Errorf("Expected bundle in response")
+					t.Error("Expected bundle in response")
 				}
 
 				if fixture.updates[0].Bundle.Etag != fixture.server.expEtag {
@@ -897,7 +897,7 @@ func TestEtagInResponse(t *testing.T) {
 
 	if fixture.updates[0].Bundle == nil {
 		// 200 response on first request, bundle should be present
-		t.Errorf("Expected bundle in response")
+		t.Error("Expected bundle in response")
 	}
 
 	err = fixture.d.oneShot(ctx)
@@ -911,7 +911,7 @@ func TestEtagInResponse(t *testing.T) {
 
 	if fixture.updates[1].Bundle != nil {
 		// 304 response on second request, bundle should _not_ be present
-		t.Errorf("Expected no bundle in response")
+		t.Error("Expected no bundle in response")
 	}
 }
 
@@ -1038,7 +1038,7 @@ func TestDownloadLongPollNotModifiedOn304(t *testing.T) {
 		t.Fatal("Unexpected:", err)
 	}
 	if resp.longPoll != fixture.d.longPollingEnabled {
-		t.Fatalf("Expected same value for longPoll and longPollingEnabled")
+		t.Fatal("Expected same value for longPoll and longPollingEnabled")
 	}
 }
 
@@ -1063,7 +1063,7 @@ func TestOneShotLongPollingSwitch(t *testing.T) {
 		t.Fatal("Unexpected:", err)
 	}
 	if fixture.d.longPollingEnabled != fixture.server.longPoll {
-		t.Fatalf("Expected same value for longPoll and longPollingEnabled")
+		t.Fatal("Expected same value for longPoll and longPollingEnabled")
 	}
 
 	fixture.server.longPoll = false
@@ -1072,7 +1072,7 @@ func TestOneShotLongPollingSwitch(t *testing.T) {
 		t.Fatal("Unexpected:", err)
 	}
 	if fixture.d.longPollingEnabled != fixture.server.longPoll {
-		t.Fatalf("Expected same value for longPollingEnabled and longPoll")
+		t.Fatal("Expected same value for longPollingEnabled and longPoll")
 	}
 }
 

@@ -50,7 +50,7 @@ p    contains    x    if      {
 			formatted, err := Source("test.rego", []byte(tc.module))
 			if len(tc.expErrs) > 0 {
 				if err == nil {
-					t.Fatalf("expected errors but got nil")
+					t.Fatal("expected errors but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {
@@ -129,7 +129,7 @@ p    contains    x    if      {
 			formatted, err := SourceWithOpts("test.rego", []byte(tc.module), Opts{RegoVersion: tc.toRegoVersion})
 			if len(tc.expErrs) > 0 {
 				if err == nil {
-					t.Fatalf("expected errors but got nil")
+					t.Fatal("expected errors but got nil")
 				}
 
 				for _, expErr := range tc.expErrs {

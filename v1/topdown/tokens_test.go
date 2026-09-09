@@ -198,7 +198,7 @@ func TestParseTokenHeader(t *testing.T) {
 			t.Fatalf("parseTokenHeader: %v", err)
 		}
 		if header.valid() {
-			t.Fatalf("tokenHeader valid")
+			t.Fatal("tokenHeader valid")
 		}
 	})
 	t.Run("Alg", func(t *testing.T) {
@@ -215,7 +215,7 @@ func TestParseTokenHeader(t *testing.T) {
 			t.Fatalf("parseTokenHeader: %v", err)
 		}
 		if !header.valid() {
-			t.Fatalf("tokenHeader !valid")
+			t.Fatal("tokenHeader !valid")
 		}
 		if header.alg != "RS256" {
 			t.Fatalf("alg: %s", header.alg)
@@ -585,11 +585,11 @@ func TestTopdownJWTUnknownAlgTypesDiscardedFromJWKS(t *testing.T) {
 	}
 
 	if len(keys) != 1 {
-		t.Errorf("expected only one key as inavlid one should have been discarded")
+		t.Error("expected only one key as inavlid one should have been discarded")
 	}
 
 	if keys[0].alg != "RS256" {
-		t.Errorf("expected key with RS256 alg")
+		t.Error("expected key with RS256 alg")
 	}
 }
 
@@ -747,7 +747,7 @@ func TestTopdownJWTDecodeVerifyIgnoresKeysOfUnknownAlgInJWKS(t *testing.T) {
 
 	for _, key := range constraints.keys {
 		if key.alg == "RSA-OAEP" {
-			t.Errorf("expected alg: RSA-OAEP to be removed from key set")
+			t.Error("expected alg: RSA-OAEP to be removed from key set")
 		}
 	}
 }

@@ -54,7 +54,7 @@ func (m *mockExternalIndex) Opts() *ast.ExternalSourceOptions {
 	return &ast.ExternalSourceOptions{VisibleRefs: m.visibleRefs}
 }
 
-func (m *mockExternalIndex) Lookup(ctx context.Context, _ ...ast.LookupOption) ([]*ast.Rule, ast.ExternalRuleIndex, error) {
+func (m *mockExternalIndex) Lookup(context.Context, ...ast.LookupOption) ([]*ast.Rule, ast.ExternalRuleIndex, error) {
 	return m.rules, nil, nil
 }
 

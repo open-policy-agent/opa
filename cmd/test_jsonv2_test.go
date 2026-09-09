@@ -1625,7 +1625,7 @@ test_p if {
 
 	exitCode, _ := testSchemasAnnotation(policyWithSchemaRef)
 	if exitCode > 0 {
-		t.Fatalf("unexpected error when schema ref is present")
+		t.Fatal("unexpected error when schema ref is present")
 	}
 }
 func TestSchemasAnnotationInline(t *testing.T) {
@@ -1647,7 +1647,7 @@ test_p if {
 	// We expect an error here, as inlined schemas are always used for type checking
 
 	if exitCode == 0 {
-		t.Fatalf("didn't get expected error when inlined schema is present")
+		t.Fatal("didn't get expected error when inlined schema is present")
 	}
 
 	if !strings.Contains(string(errOutput), "rego_type_error: match error") {
@@ -1751,7 +1751,7 @@ test_p if {
 
 	exitCode, errOutput := testSchemasAnnotationWithJSONFile(regoContents, schema)
 	if exitCode == 0 {
-		t.Fatalf("didn't get expected error when schema is present and is defining a different type than being used.")
+		t.Fatal("didn't get expected error when schema is present and is defining a different type than being used.")
 	}
 
 	if !strings.Contains(string(errOutput), "rego_type_error: match error") {
@@ -2729,7 +2729,7 @@ test_l if {
 					exitCode := opaTest(paths, testParams)
 					if len(tc.expErrs) > 0 {
 						if exitCode == 0 {
-							t.Fatalf("expected non-zero exit code")
+							t.Fatal("expected non-zero exit code")
 						}
 
 						for _, expErr := range tc.expErrs {
@@ -3078,7 +3078,7 @@ test_l if {
 					exitCode := opaTest(paths, testParams)
 					if len(tc.expErrs) > 0 {
 						if exitCode == 0 {
-							t.Fatalf("expected non-zero exit code")
+							t.Fatal("expected non-zero exit code")
 						}
 
 						for _, expErr := range tc.expErrs {
@@ -3332,7 +3332,7 @@ test_l if {
 					exitCode := opaTest(paths, testParams)
 					if tc.expErr != "" {
 						if exitCode == 0 {
-							t.Fatalf("expected non-zero exit code")
+							t.Fatal("expected non-zero exit code")
 						}
 
 						if actual := errBuf.String(); !strings.Contains(actual, tc.expErr) {
@@ -3662,7 +3662,7 @@ test_l if {
 						exitCode := opaTest([]string{p}, testParams)
 						if tc.expErr != "" {
 							if exitCode == 0 {
-								t.Fatalf("expected non-zero exit code")
+								t.Fatal("expected non-zero exit code")
 							}
 
 							if actual := errBuf.String(); !strings.Contains(actual, tc.expErr) {
@@ -3791,7 +3791,7 @@ func TestWithDefaultRegoPlugin(t *testing.T) {
 			t.Fatal("unexpected error", err)
 		}
 		if !defined {
-			t.Errorf("expected defined result")
+			t.Error("expected defined result")
 		}
 	})
 

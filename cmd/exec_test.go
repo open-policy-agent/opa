@@ -1514,7 +1514,7 @@ func TestExecMalformedRemoteBundle(t *testing.T) {
 	params.Paths = append(params.Paths, t.TempDir())
 	err := runExec(params)
 	if err == nil {
-		t.Fatalf("Expected error, got nil instead.")
+		t.Fatal("Expected error, got nil instead.")
 	}
 
 	exp := "runtime error: Bundle name: test, Code: bundle_error, HTTPCode: -1, Message: 1 error occurred: /example.rego:4: rego_type_error: undefined function bits.sand"
@@ -1566,7 +1566,7 @@ plugins:
 	}
 
 	if !fact.stopped {
-		t.Errorf("expected plugin to be stopped")
+		t.Error("expected plugin to be stopped")
 	}
 }
 

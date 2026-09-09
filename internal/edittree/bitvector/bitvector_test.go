@@ -85,7 +85,7 @@ func (s *BitVectorSuite) TestDeleteInvalidInput(c *check.C) {
 
 	defer func() {
 		if r := recover(); r == nil {
-			c.Errorf("Delete should have panicked")
+			c.Error("Delete should have panicked")
 		}
 	}()
 	s.vector.Delete(-1)

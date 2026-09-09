@@ -267,7 +267,7 @@ func TestCompilerStageSkippingWithAfterStages(t *testing.T) {
 		c.WithStageAfter("CheckTypes", CompilerStageDefinition{
 			Name:       "CustomAfterCheckTypes",
 			MetricName: "custom_after_check_types",
-			Stage: func(c *Compiler) *Error {
+			Stage: func(*Compiler) *Error {
 				called = true
 				return nil
 			},
@@ -294,7 +294,7 @@ func TestCompilerStageSkippingWithAfterStages(t *testing.T) {
 		c.WithStageAfter("CheckTypes", CompilerStageDefinition{
 			Name:       "CustomAfterCheckTypes",
 			MetricName: "custom_after_check_types",
-			Stage: func(c *Compiler) *Error {
+			Stage: func(*Compiler) *Error {
 				called = true
 				return nil
 			},
@@ -321,7 +321,7 @@ func TestCompilerStageSkippingWithAfterStages(t *testing.T) {
 		c.WithStageAfter("CheckTypes", CompilerStageDefinition{
 			Name:       "CustomAfterCheckTypes",
 			MetricName: "custom_after_check_types",
-			Stage: func(c *Compiler) *Error {
+			Stage: func(*Compiler) *Error {
 				called = true
 				return nil
 			},

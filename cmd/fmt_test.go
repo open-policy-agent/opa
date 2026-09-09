@@ -175,7 +175,7 @@ func TestFmtFormatFileFailToReadFile(t *testing.T) {
 		info, err := os.Stat(policyFile)
 		err = formatFile(&params, &stdout, notThere, info, err)
 		if err == nil {
-			t.Fatalf("Expected error, found none")
+			t.Fatal("Expected error, found none")
 		}
 
 		actual := err.Error()
@@ -365,7 +365,7 @@ func TestFmtFormatFileFailToPrintDiff(t *testing.T) {
 				info, err := os.Stat(policyFile)
 				err = formatFile(&tc.params, &stdout, policyFile, info, err)
 				if err == nil {
-					t.Fatalf("Expected error, found none")
+					t.Fatal("Expected error, found none")
 				}
 
 				actual := err.Error()
@@ -636,7 +636,7 @@ func TestFmtFailFileNoChanges(t *testing.T) {
 				info, err := os.Stat(policyFile)
 				err = formatFile(&tc.params, io.Discard, policyFile, info, err)
 				if err != nil {
-					t.Fatalf("Expected error but did not receive one")
+					t.Fatal("Expected error but did not receive one")
 				}
 			})
 		})
@@ -747,7 +747,7 @@ func TestFmtSingleWrongArityError(t *testing.T) {
 		info, err := os.Stat(policyFile)
 		err = formatFile(&params, &stdout, policyFile, info, err)
 		if err == nil {
-			t.Fatalf("Expected error but did not receive one")
+			t.Fatal("Expected error but did not receive one")
 		}
 
 		loc := ast.Location{File: policyFile, Row: 7}
@@ -779,7 +779,7 @@ func TestFmtMultipleWrongArityError(t *testing.T) {
 		info, err := os.Stat(policyFile)
 		err = formatFile(&params, &stdout, policyFile, info, err)
 		if err == nil {
-			t.Fatalf("Expected error but did not receive one")
+			t.Fatal("Expected error but did not receive one")
 		}
 
 		locations := []ast.Location{
@@ -1326,22 +1326,13 @@ foo["if"]["else"] := true
 			var stdout bytes.Buffer
 
 			stdin := bytes.NewBufferString(tc.unformatted)
-
-			files := map[string]string{
-				"policy.rego": tc.unformatted,
+			if err := formatStdin(&tc.params, stdin, &stdout); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
 			}
 
-			test.WithTempFS(files, func(path string) {
-				err := formatStdin(&tc.params, stdin, &stdout)
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
-				}
-
-				actual := stdout.String()
-				if actual != tc.formatted {
-					t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.formatted, actual)
-				}
-			})
+			if actual := stdout.String(); actual != tc.formatted {
+				t.Fatalf("Expected:\n%s\n\nGot:\n%s\n\n", tc.formatted, actual)
+			}
 		})
 	}
 }

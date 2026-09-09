@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	if version.Version == "" {
 		version.Version = "unit-test"
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestEvaluateBundle(t *testing.T) {
@@ -681,7 +681,7 @@ func TestStartWithBundlePersistence(t *testing.T) {
 
 	// verify the test plugin was registered on the manager
 	if plugin := manager.Plugin("test_plugin"); plugin == nil {
-		t.Fatalf("expected \"test_plugin\" to be regsitered with the plugin manager")
+		t.Fatal("expected \"test_plugin\" to be regsitered with the plugin manager")
 	}
 
 	// verify the test plugin was started
@@ -777,7 +777,7 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 
 	// verify the test plugin was registered on the manager
 	if plugin := manager.Plugin("test_plugin"); plugin == nil {
-		t.Fatalf("expected \"test_plugin\" to be regsitered with the plugin manager")
+		t.Fatal("expected \"test_plugin\" to be regsitered with the plugin manager")
 	}
 
 	// verify the test plugin was started
@@ -863,7 +863,7 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 
 	// verify the test plugin was registered on the manager
 	if plugin := manager.Plugin("test_plugin"); plugin == nil {
-		t.Fatalf("expected \"test_plugin\" to be regsitered with the plugin manager")
+		t.Fatal("expected \"test_plugin\" to be regsitered with the plugin manager")
 	}
 
 	// verify the test plugin was started
@@ -878,7 +878,7 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 
 	// verify the bundle plugin was registered on the manager
 	if plugin := bundlePlugin.Lookup(disco.manager); plugin == nil {
-		t.Fatalf("expected bundle plugin to be regsitered with the plugin manager")
+		t.Fatal("expected bundle plugin to be regsitered with the plugin manager")
 	}
 }
 
@@ -959,7 +959,7 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 
 	// verify the test plugin was registered on the manager
 	if plugin := manager.Plugin("test_plugin"); plugin == nil {
-		t.Fatalf("expected \"test_plugin\" to be regsitered with the plugin manager")
+		t.Fatal("expected \"test_plugin\" to be regsitered with the plugin manager")
 	}
 
 	// verify the test plugin was started
@@ -974,7 +974,7 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 
 	// verify the bundle plugin was registered on the manager
 	if plugin := bundlePlugin.Lookup(disco.manager); plugin == nil {
-		t.Fatalf("expected bundle plugin to be regsitered with the plugin manager")
+		t.Fatal("expected bundle plugin to be regsitered with the plugin manager")
 	}
 }
 
@@ -1159,7 +1159,7 @@ bundles.authz.service := v if {
 
 			// verify the test plugin was registered on the manager
 			if plugin := manager.Plugin("test_plugin"); plugin == nil {
-				t.Fatalf("expected \"test_plugin\" to be regsitered with the plugin manager")
+				t.Fatal("expected \"test_plugin\" to be regsitered with the plugin manager")
 			}
 
 			// verify the test plugin was started
@@ -1174,7 +1174,7 @@ bundles.authz.service := v if {
 
 			// verify the bundle plugin was registered on the manager
 			if plugin := bundlePlugin.Lookup(disco.manager); plugin == nil {
-				t.Fatalf("expected bundle plugin to be regsitered with the plugin manager")
+				t.Fatal("expected bundle plugin to be regsitered with the plugin manager")
 			}
 		})
 	}
@@ -1329,7 +1329,7 @@ bundles.authz.service := v if {
 
 			// verify the test plugin was registered on the manager
 			if plugin := manager.Plugin("test_plugin"); plugin == nil {
-				t.Fatalf("expected \"test_plugin\" to be regsitered with the plugin manager")
+				t.Fatal("expected \"test_plugin\" to be regsitered with the plugin manager")
 			}
 
 			// verify the test plugin was started
@@ -1344,7 +1344,7 @@ bundles.authz.service := v if {
 
 			// verify the bundle plugin was registered on the manager
 			if plugin := bundlePlugin.Lookup(disco.manager); plugin == nil {
-				t.Fatalf("expected bundle plugin to be regsitered with the plugin manager")
+				t.Fatal("expected bundle plugin to be regsitered with the plugin manager")
 			}
 		})
 	}
@@ -3147,7 +3147,7 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 			}
 		}
 	case <-ctx.Done():
-		t.Errorf("Timed out waiting for disco to start")
+		t.Error("Timed out waiting for disco to start")
 	}
 }
 
@@ -4100,7 +4100,7 @@ func TestListeners(t *testing.T) {
 	}
 
 	if status == nil {
-		t.Fatalf("Expected discovery listener to receive status but was nil")
+		t.Fatal("Expected discovery listener to receive status but was nil")
 	}
 
 	status = nil
@@ -4117,7 +4117,7 @@ func TestListeners(t *testing.T) {
 }
 
 func TestServicePluginInitialization(t *testing.T) {
-	manager, err := plugins.New(fmt.Appendf(nil, `{
+	manager, err := plugins.New([]byte(`{
 			"services": {
 				"localhost": {
 					"url": "http://localhost:9999"
@@ -4147,7 +4147,7 @@ func TestServicePluginInitialization(t *testing.T) {
 
 	_, exists := testPlugin.counts["start"]
 	if !exists {
-		t.Fatalf("Expected plugin to have been initialized but it was not")
+		t.Fatal("Expected plugin to have been initialized but it was not")
 	}
 }
 
