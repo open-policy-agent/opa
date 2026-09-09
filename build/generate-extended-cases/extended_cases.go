@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/gobwas/glob"
-	"sigs.k8s.io/yaml"
 
+	"github.com/open-policy-agent/opa/internal/yaml"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/rego"

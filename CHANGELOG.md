@@ -5,6 +5,28 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### YAML is now parsed against the 1.2 core schema ([#5754](https://github.com/open-policy-agent/opa/issues/5754))
+
+OPA parsed YAML with a library pinned to go-yaml v2, which implements YAML 1.1. Under
+1.1, the bare words `y`, `n`, `yes`, `no`, `on` and `off` resolve to booleans, so a
+GitHub Actions workflow loaded with `--data` came back with `true` where it should have
+had `on`:
+
+```yaml
+on: push
+```
+
+```json
+{ "true": "push" }
+```
+
+These words are now plain strings, as the YAML 1.2 core schema specifies. `true` and
+`false` are unaffected. This applies everywhere OPA reads YAML: `--data`, bundles,
+config files, and the `yaml.unmarshal` builtin.
+
+If you were relying on `yes`/`no`/`on`/`off` being read as booleans, quote the value and
+use `true`/`false` instead.
+
 ## 1.20.2
 
 This release includes a bug fix for a parser regression introduced in v1.20.0, and dependency

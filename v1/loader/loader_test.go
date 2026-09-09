@@ -453,6 +453,36 @@ func TestLoadYAML(t *testing.T) {
 	})
 }
 
+func TestLoadYAMLKeywordKeys(t *testing.T) {
+	files := map[string]string{
+		"/foo.yaml": `
+on: push
+off: x
+a: yes
+b: no
+c: y
+d: n
+e: true
+f: FALSE
+`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		loaded, err := NewFileLoader().All([]string{filepath.Join(rootDir, "foo.yaml")})
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		expected := parseJSON(`{
+			"on": "push", "off": "x",
+			"a": "yes", "b": "no", "c": "y", "d": "n",
+			"e": true, "f": false
+		}`)
+		if !reflect.DeepEqual(loaded.Documents, expected) {
+			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+		}
+	})
+}
+
 func TestLoadGuessYAML(t *testing.T) {
 	files := map[string]string{
 		"/foo": `

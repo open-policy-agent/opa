@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/yaml"
 	"github.com/open-policy-agent/opa/v1/format"
-	"sigs.k8s.io/yaml"
 
 	iCache "github.com/open-policy-agent/opa/v1/topdown/cache"
 
