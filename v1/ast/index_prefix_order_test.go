@@ -10,11 +10,24 @@ import (
 	"testing"
 )
 
-// methodPrefixPolicy is the shape this file is about: a rule per (method,
+// methodPrefixPolicy is the shape this file is about -- a rule per (method,
 // prefix set), the way an authorization policy admits a request by what it does
-// and where. The prefix set is the reference the rule reaches by more than one
-// value, so it is where insertPath stops building the rule's path -- and every
-// rule has a second constraint below it.
+// and where. At methods=2, perRule=2:
+//
+//	allow if {
+//		input.method == "M0"
+//		strings.any_prefix_match(input.path, ["/m0/p0/", "/m0/p1/"])
+//	}
+//
+//	allow if {
+//		input.method == "M1"
+//		strings.any_prefix_match(input.path, ["/m1/p0/", "/m1/p1/"])
+//	}
+//
+// A rule's path ends at the prefix set, since affixes cannot converge, so
+// whatever it constrains after that goes unindexed. That is why the prefix
+// reference has to be the last level and input.method a level above it: the
+// other way round, no rule would have its method on its path at all.
 func methodPrefixPolicy(methods, perRule int) string {
 	var sb strings.Builder
 

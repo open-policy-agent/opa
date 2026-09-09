@@ -2428,11 +2428,14 @@ r = local0 if {
 }
 
 // TestBaseDocEqIndexingAlternatingRefs covers a rule that reaches two
-// references by several values each. insertPath used to stop a rule's path at
-// the first of them -- it hung the rule off every alternative and returned --
-// so the second was not indexed and every rule stayed a candidate for it.
-// Ranking such references last cannot help: both are ranked last, and one is
-// still first of the two.
+// references by several scalar values each. The first of them converges --
+// every alternative keys to one node, which the rest of the path is built from
+// -- so the second is indexed too. Ranking such references last is no help
+// here: both are ranked last, and one is still first of the two.
+//
+// Only scalars converge. Affixes and composite values end the rule's path, so
+// only the first of two such references is indexed; see oneAffixEnd and
+// isComposite.
 func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
 	lookup := func(t *testing.T, index *baseDocEqIndex, resolver testResolver) int {
 		t.Helper()
@@ -2532,6 +2535,58 @@ func TestBaseDocEqIndexingAlternatingRefs(t *testing.T) {
 			if act := lookup(t, index, testResolver{input: MustParseTerm(tc.input)}); tc.exp != act {
 				t.Errorf("%s: expected %d rule(s), got %d", tc.input, tc.exp, act)
 			}
+		}
+	})
+
+	// Both ends of one reference are a conjunction the level cannot test: the
+	// tries hold leaves, so hanging the rule off both would admit it on either,
+	// which is looser than the rule. One end is indexed and the other left to
+	// evaluation -- the end whose shortest base string is longest, since that is
+	// the one admitting least. See oneAffixEnd.
+	t.Run("one reference reached by affixes at both ends indexes one end", func(t *testing.T) {
+		for _, tc := range []struct {
+			note   string
+			module string
+			// indexed names the end the lookups below expect to be tested.
+			cases map[string]int
+		}{
+			{
+				note: "suffixes are longer, so the suffixes are indexed",
+				module: `package test
+				p if {
+					strings.any_prefix_match(input.path, ["/a", "/b"])
+					strings.any_suffix_match(input.path, [".go", ".rego"])
+				}`,
+				cases: map[string]int{
+					`{"path": "/a/x.go"}`:  1,
+					`{"path": "/c/x.go"}`:  1,
+					`{"path": "/a/x.txt"}`: 0,
+					`{"path": "/c/x.txt"}`: 0,
+				},
+			},
+			{
+				// Counting the base strings would keep the single prefix here,
+				// and every absolute path matches "/".
+				note: "one short prefix loses to several longer suffixes",
+				module: `package test
+				p if {
+					strings.any_prefix_match(input.path, ["/"])
+					strings.any_suffix_match(input.path, [".go", ".rego"])
+				}`,
+				cases: map[string]int{
+					`{"path": "/x.go"}`:  1,
+					`{"path": "/x.txt"}`: 0,
+				},
+			},
+		} {
+			t.Run(tc.note, func(t *testing.T) {
+				index := build(t, tc.module)
+				for input, exp := range tc.cases {
+					if act := lookup(t, index, testResolver{input: MustParseTerm(input)}); exp != act {
+						t.Errorf("%s: expected %d rule(s), got %d", input, exp, act)
+					}
+				}
+			})
 		}
 	})
 

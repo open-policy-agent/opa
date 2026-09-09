@@ -1,0 +1,46 @@
+---
+cases:
+  - note: indexing on a reference reached by several values, with more constrained below
+    query: data.indexing.p = x
+    modules:
+      - |
+        package indexing
+
+        p if {
+        	"a" in input.x
+        	"b" in input.x
+        	1 in input.y
+        	2 in input.y
+        }
+    data: {}
+    input_term: '{"x": ["a", "b"], "y": [1, 2]}'
+    want_result:
+      - x: true
+  - note: indexing on two references each reached by several composite values
+    query: data.indexing.q = x
+    modules:
+      - |
+        package indexing
+
+        q if {
+        	input.k in [[1], [2]]
+        	input.n in [[3], [4]]
+        }
+    data: {}
+    input_term: '{"k": [1], "n": [3]}'
+    want_result:
+      - x: true
+  - note: indexing on a reference reached by several object values
+    query: data.indexing.r = x
+    modules:
+      - |
+        package indexing
+
+        r if {
+        	input.k in [{"a": 1}, {"b": 2}]
+        	input.n in [{"c": 3}, {"d": 4}]
+        }
+    data: {}
+    input_term: '{"k": {"a": 1}, "n": {"c": 3}}'
+    want_result:
+      - x: true

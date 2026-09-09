@@ -183,11 +183,16 @@ func (i *baseDocEqIndex) insertPath(sorted []Ref, path []*refindex, prio [2]int,
 					}
 				}
 				node = child
-			} else if remaining == 0 || slices.ContainsFunc(values, (*refindex).isAffix) {
+			} else if remaining == 0 || slices.ContainsFunc(values, (*refindex).isAffix) ||
+				slices.ContainsFunc(values, (*refindex).isComposite) {
 				// Nothing below to continue a path with, so the rule hangs off
 				// every alternative -- which rules reaching the same values
-				// share. Affixes always take this route; see alternation.
-				for _, val := range values {
+				// share. Affixes always take this route; see alternation, and
+				// so does anything a converging level could not be keyed on:
+				// insertValue sends an object or a set to the "anything" node
+				// and an array into the array trie, which is where a lookup
+				// goes looking for them.
+				for _, val := range oneAffixEnd(values) {
 					child := val.insertInto(node, ref)
 					child.append(prio, rule)
 				}
@@ -372,6 +377,60 @@ func (i *refindex) insertInto(node *trieNode, ref Ref) *trieNode {
 	return node.Insert(ref, i.Value, i.Mapper)
 }
 
+// oneAffixEnd keeps the affixes of one end of the value where values constrain
+// both, and everything that is not an affix.
+//
+// A rule hung off the leaves of both the prefix and the suffix trie is admitted
+// by either, which is the disjunction of what it wrote where it wrote a
+// conjunction:
+//
+//	p if {
+//		strings.any_prefix_match(input.path, ["/a", "/b"])
+//		strings.any_suffix_match(input.path, [".go", ".rego"])
+//	}
+//
+// admits "/c/x.go" on the suffix alone. Testing one end and leaving the other to
+// evaluation admits a subset of that -- what one end admits, both admit -- so
+// one end is kept. A level cannot test both: the tries hold leaves, and a leaf
+// cannot be made to depend on another trie's answer.
+//
+// Which end is kept is decided by the shortest base string of each, since a set
+// admits a value that matches any one of its bases and the shortest of them
+// admits the most. Counting them instead would keep ["/"] over [".go",
+// ".rego"], and every absolute path matches "/".
+func oneAffixEnd(values []*refindex) []*refindex {
+	prefix, suffix := -1, -1
+	for _, val := range values {
+		s, ok := val.Value.(String)
+		if !ok {
+			continue
+		}
+		switch val.Affix {
+		case affixPrefix:
+			if prefix < 0 || len(s) < prefix {
+				prefix = len(s)
+			}
+		case affixSuffix:
+			if suffix < 0 || len(s) < suffix {
+				suffix = len(s)
+			}
+		}
+	}
+
+	if prefix < 0 || suffix < 0 {
+		return values
+	}
+
+	drop := affixSuffix
+	if suffix > prefix {
+		drop = affixPrefix
+	}
+
+	return slices.DeleteFunc(slices.Clone(values), func(val *refindex) bool {
+		return val.Affix == drop
+	})
+}
+
 // alternatives are sets of indices, any one of which is enough to reach a rule.
 type alternatives = [][]*refindex
 
@@ -419,6 +478,14 @@ func (i *refindex) isVar() bool {
 
 func (i *refindex) isAffix() bool {
 	return i.Affix != affixNone
+}
+
+// isComposite reports whether a lookup could not find this value among a
+// level's alternatives, which are keyed on the value as it stands. insertValue
+// sends an object or a set to the "anything" node and an array into the array
+// trie, which is where a lookup goes looking for them instead.
+func (i *refindex) isComposite() bool {
+	return !IsScalar(i.Value)
 }
 
 // Update attempts to update the refindices for the given expression in the
@@ -1590,7 +1657,11 @@ func (d *levelDetail) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 				}
 			}
 		}
-		if d.scalars.Len() > 0 {
+		// Alternatives as well as scalars: a level every rule reaches by
+		// several values has its children under alternatives and none under
+		// scalars, and a collection at the reference still has to be tested
+		// against them.
+		if d.scalars.Len() > 0 || d.alternatives != nil {
 			return d.traverseCollectionMembership(resolver, tr, value)
 		}
 	case Null, Boolean, Number, String:

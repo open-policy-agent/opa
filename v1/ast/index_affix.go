@@ -10,6 +10,12 @@ import (
 	"github.com/open-policy-agent/opa/v1/util"
 )
 
+// This file holds the indexing of both ends of a string: `startswith` and
+// `strings.any_prefix_match`, and `endswith` and `strings.any_suffix_match`.
+// One structure answers both -- a suffix trie is a prefixTrie over the base
+// strings reversed (see InsertSuffix and traverseSuffix) -- so prefixTrie is
+// what the file is named after.
+//
 // prefixTrie holds the string-prefix constraints recorded for one level of the
 // rule index: what `startswith(input.x, "/api/")` and
 // `strings.any_prefix_match(input.x, [...])` contribute.
