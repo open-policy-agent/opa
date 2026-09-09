@@ -1495,6 +1495,120 @@ func TestCompilerErrorLimit(t *testing.T) {
 	}
 }
 
+func TestCompilerReportsViolationsFromMultipleStages(t *testing.T) {
+	tests := []struct {
+		note       string
+		module     string
+		errorLimit int
+		expected   []string
+	}{
+		{
+			note: "shadowed import, deprecated built-ins, unused argument",
+			module: `package p
+
+import data.foo
+import data.foo
+
+a := any([foo])
+b := all([true])
+
+f(x) if {
+	input.bar
+}`,
+			expected: []string{
+				"4:1: rego_compile_error: import must not shadow import data.foo",
+				"6:6: rego_type_error: deprecated built-in function calls in expression: any",
+				"7:6: rego_type_error: deprecated built-in function calls in expression: all",
+				"9:1: rego_compile_error: unused argument x. (hint: use _ (wildcard variable) instead)",
+			},
+		},
+		{
+			note: "unused import, unused var, keyword override, deprecated built-in",
+			module: `package p
+
+import data.foo
+
+a if {
+	input := 1
+	any([true])
+}`,
+			expected: []string{
+				"3:1: rego_compile_error: import data.foo unused",
+				"6:2: rego_compile_error: assigned var input unused",
+				"6:2: rego_compile_error: variables must not shadow input (use a different variable name)",
+				"7:2: rego_type_error: deprecated built-in function calls in expression: any",
+			},
+		},
+		{
+			note: "unsafe var stops compilation",
+			module: `package p
+
+a := any([x])`,
+			expected: []string{
+				"3:6: rego_unsafe_var_error: var x is unsafe",
+			},
+		},
+		{
+			note: "error limit applies across stages",
+			module: `package p
+
+import data.foo
+import data.foo
+
+a := any([foo])
+b := all([true])`,
+			errorLimit: 2,
+			expected: []string{
+				"4:1: rego_compile_error: import must not shadow import data.foo",
+				"6:6: rego_type_error: deprecated built-in function calls in expression: any",
+				"rego_compile_error: error limit reached",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithStrict(true)
+			if tc.errorLimit > 0 {
+				c.SetErrorLimit(tc.errorLimit)
+			}
+			c.Compile(map[string]*Module{"test.rego": MustParseModule(tc.module)})
+
+			if !c.Failed() {
+				t.Fatal("expected compilation to fail")
+			}
+
+			result := util.Map(c.Errors, (*Error).Error)
+			if !slices.Equal(tc.expected, result) {
+				t.Errorf("expected errors:\n\n%v\n\ngot:\n\n%v", strings.Join(tc.expected, "\n"), strings.Join(result, "\n"))
+			}
+		})
+	}
+}
+
+func TestCompilerSortErrorsKeepsErrorLimitMarkerLast(t *testing.T) {
+	c := NewCompiler()
+	c.Errors = Errors{
+		errLimitReached,
+		NewError(CompileErr, NewLocation(nil, "b.rego", 1, 1), "later file"),
+		newErrorString(CompileErr, nil, "failed to load module"),
+		NewError(CompileErr, NewLocation(nil, "a.rego", 9, 1), "earlier file"),
+	}
+
+	c.sortErrors()
+
+	expected := []string{
+		"a.rego:9: rego_compile_error: earlier file",
+		"b.rego:1: rego_compile_error: later file",
+		"rego_compile_error: failed to load module",
+		"rego_compile_error: error limit reached",
+	}
+
+	if result := util.Map(c.Errors, (*Error).Error); !slices.Equal(expected, result) {
+		t.Errorf("expected errors:\n\n%v\n\ngot:\n\n%v", strings.Join(expected, "\n"), strings.Join(result, "\n"))
+	}
+}
+
 func TestCompilerCheckSafetyHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
@@ -3954,6 +4068,22 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 					Location: NewLocation([]byte("input := 4"), "", 9, 6),
 					Message:  "variables must not shadow input (use a different variable name)",
 				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("x := 2"), "", 4, 6),
+					Message:  "assigned var x unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 6, 6),
+					Message:  "assigned var data unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 4"), "", 9, 6),
+					Message:  "assigned var input unused",
+				},
 			},
 		},
 		{
@@ -3973,6 +4103,14 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 				&Error{
 					Location: NewLocation([]byte("data := 3"), "", 5, 6),
 					Message:  "variables must not shadow data (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "assigned var data unused",
 				},
 			},
 		},
@@ -3994,6 +4132,14 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 					Location: NewLocation([]byte("data := 3"), "", 5, 6),
 					Message:  "variables must not shadow data (use a different variable name)",
 				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "assigned var data unused",
+				},
 			},
 		},
 		{
@@ -4014,6 +4160,14 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 					Location: NewLocation([]byte("data := 3"), "", 5, 6),
 					Message:  "variables must not shadow data (use a different variable name)",
 				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "assigned var data unused",
+				},
 			},
 		},
 		{
@@ -4032,6 +4186,14 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 				&Error{
 					Location: NewLocation([]byte("data := 2"), "", 4, 24),
 					Message:  "variables must not shadow data (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 12),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 2"), "", 4, 24),
+					Message:  "assigned var data unused",
 				},
 			},
 		},
@@ -4052,6 +4214,10 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 					Location: NewLocation([]byte("data := 2"), "", 4, 27),
 					Message:  "variables must not shadow data (use a different variable name)",
 				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 8),
+					Message:  "assigned var input unused",
+				},
 			},
 		},
 		{
@@ -4070,6 +4236,10 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 				&Error{
 					Location: NewLocation([]byte("data := 2"), "", 4, 26),
 					Message:  "variables must not shadow data (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 8),
+					Message:  "assigned var input unused",
 				},
 			},
 		},
@@ -4092,6 +4262,14 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 				&Error{
 					Location: NewLocation([]byte("data := 3"), "", 6, 7),
 					Message:  "variables must not shadow data (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 7),
+					Message:  "assigned var input unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 6, 7),
+					Message:  "assigned var data unused",
 				},
 			},
 		},
@@ -13142,8 +13320,8 @@ deny if {
 	compiler.Compile(modules)
 	if !compiler.Failed() {
 		t.Fatal("Expected error for unsafe built-in")
-	} else if !strings.Contains(compiler.Errors[0].Error(), "unsafe built-in function") {
-		t.Fatalf("Expected error for unsafe built-in but got %v", err)
+	} else if !strings.Contains(compiler.Errors.Error(), "unsafe built-in function") {
+		t.Fatalf("Expected error for unsafe built-in but got %v", compiler.Errors)
 	}
 }
 
