@@ -108,9 +108,17 @@ cases:
 
 // TestGenerateReproducesCommittedFixtures strips want_errors from the corpus and
 // regenerates it. The committed diagnostics were reviewed by hand, so this checks
-// the generator against 14 expectations it did not write, which the drift test
-// below cannot: that one would pass just as well if the generator filled nothing.
+// the generator against expectations it did not write, which the drift test below
+// cannot: that one would pass just as well if the generator filled nothing.
 func TestGenerateReproducesCommittedFixtures(t *testing.T) {
+	committed, err := compilecases.LoadFS(testdata.FS, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(committed.Cases) == 0 {
+		t.Fatal("expected the committed corpus to hold cases")
+	}
+
 	dir := t.TempDir()
 
 	if err := os.CopyFS(dir, testdata.FS); err != nil {
@@ -118,7 +126,7 @@ func TestGenerateReproducesCommittedFixtures(t *testing.T) {
 	}
 
 	stripped := 0
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -150,8 +158,8 @@ func TestGenerateReproducesCommittedFixtures(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if stripped != 14 {
-		t.Fatalf("expected to strip 14 want_errors, stripped %d", stripped)
+	if stripped != len(committed.Cases) {
+		t.Fatalf("expected to strip want_errors from all %d cases, stripped %d", len(committed.Cases), stripped)
 	}
 
 	if err := Generate(dir); err != nil {

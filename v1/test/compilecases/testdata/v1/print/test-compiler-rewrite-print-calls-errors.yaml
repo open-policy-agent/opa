@@ -1,0 +1,100 @@
+---
+# Generated externalized tests from TestCompilerRewritePrintCallsErrors
+cases:
+  - note: print/non-existent-var
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        p if { print(x) }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 14
+        message: var x is undeclared
+  - note: print/declared-after-print
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        p if { print(x); x = 7 }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 14
+        message: var x is undeclared
+  - note: print/inside-comprehension
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        p if { {1 | print(x)} = {1 | print(7)} }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 19
+        message: var x is undeclared
+    exhaustive: true
+  - note: print/inside-template-string
+    # This diagnostic carries no location, which is why the case pins row 0:
+    # every other compiler error reports a position, and `opa check` prints this
+    # one without a line number. Regenerate the case if that is ever fixed.
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        p if { $"<{print(42)}>" }
+    want_errors:
+      - code: rego_type_error
+        row: 0
+        message: print(42) used as value
+  - note: print/some-declaration-inside-comprehension-body
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        p if {
+        	xs := [1 | some x; print(x)]
+        	xs == xs
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 27
+        message: var x is undeclared
+    exhaustive: true
+  - note: print/declared-var-shadowed-inside-comprehension
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	ys := [x | some x; print(x)]
+        	ys == ys
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 27
+        message: var x is undeclared
+    exhaustive: true
+  - note: print/unsafe-var-alongside-function-argument
+    print_statements: true
+    modules:
+      - |
+        package test
+
+        f(x) if { print(x, y) }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 20
+        message: var y is undeclared
+    exhaustive: true
