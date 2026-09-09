@@ -1,0 +1,240 @@
+---
+# Generated externalized tests from TestCompilerRewriteTemplateStringsErrors
+cases:
+  - note: templatestrings/undeclared-var-rule-head
+    modules:
+      - |
+        package test
+
+        p := $"{x}"
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 6
+        message: var x is unsafe
+  - note: templatestrings/undeclared-var-rule-body
+    modules:
+      - |
+        package test
+
+        p := msg if {
+        	msg := $"{x}"
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 9
+        message: var x is unsafe
+  - note: templatestrings/undeclared-var-wildcard
+    modules:
+      - |
+        package test
+
+        p := msg if {
+        	a := ["a", "b"]
+        	msg := $"{a[_]}"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 12
+        message: var _ is undeclared
+  - note: templatestrings/undeclared-var-enum
+    modules:
+      - |
+        package test
+
+        p := msg if {
+        	a := ["a", "b"]
+        	msg := $"{a[x]}"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 12
+        message: var x is undeclared
+  - note: templatestrings/undeclared-var-nested-inside-template-string
+    modules:
+      - |
+        package test
+
+        p := $"{$"{x}"}"
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 3
+        col: 9
+        message: var x is unsafe
+  - note: templatestrings/undeclared-var-inside-array-comprehension-body
+    modules:
+      - |
+        package test
+
+        a := ["a", "b"]
+        p := [x | x := $"{a[_]}"]
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 19
+        message: var _ is undeclared
+      - code: rego_compile_error
+        row: 4
+        col: 19
+        message: var _ is undeclared
+  - note: templatestrings/undeclared-var-inside-array-comprehension-head
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        a := ["a", "b"]
+        p := [$"{a[_]}" | x := 42]
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 10
+        message: var _ is undeclared
+      - code: rego_compile_error
+        row: 4
+        col: 10
+        message: var _ is undeclared
+  - note: templatestrings/undeclared-var-inside-set-comprehension-body
+    modules:
+      - |
+        package test
+
+        a := ["a", "b"]
+        p := {x | x := $"{a[_]}"}
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 19
+        message: var _ is undeclared
+      - code: rego_compile_error
+        row: 4
+        col: 19
+        message: var _ is undeclared
+  - note: templatestrings/undeclared-var-inside-set-comprehension-head
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        a := ["a", "b"]
+        p := {$"{a[_]}" | x := 42}
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 10
+        message: var _ is undeclared
+      - code: rego_compile_error
+        row: 4
+        col: 10
+        message: var _ is undeclared
+  - note: templatestrings/undeclared-var-inside-object-comprehension-body
+    modules:
+      - |
+        package test
+
+        a := ["a", "b"]
+        p := {x: y | x := $"{a[_]}"; y := 42}
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 22
+        message: var _ is undeclared
+      - code: rego_compile_error
+        row: 4
+        col: 22
+        message: var _ is undeclared
+  - note: templatestrings/undeclared-var-inside-object-comprehension-key
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        a := ["a", "b"]
+        p := {$"{a[_]}": 42 | x := 42}
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 10
+        message: var _ is undeclared
+      - code: rego_compile_error
+        row: 4
+        col: 10
+        message: var _ is undeclared
+  - note: templatestrings/undeclared-var-inside-object-comprehension-value
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        a := ["a", "b"]
+        p := {42: $"{a[_]}" | x := 42}
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 14
+        message: var _ is undeclared
+      - code: rego_compile_error
+        row: 4
+        col: 14
+        message: var _ is undeclared
+  - note: templatestrings/undeclared-var-inside-every-domain
+    modules:
+      - |
+        package test
+
+        p if {
+        	every x in {"a", $"{x}"} {
+        		x != "b"
+        	}
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var x is unsafe
+  - note: templatestrings/undeclared-var-inside-every-body
+    modules:
+      - |
+        package test
+
+        p if {
+        	every x in {"a", "b"} {
+        		x != $"{y}"
+        	}
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 5
+        col: 8
+        message: var y is unsafe
+  - note: templatestrings/walk-built-in-call
+    modules:
+      - |
+        package test
+
+        p := $"{walk(["a", "b"])}"
+    want_errors:
+      - code: rego_compile_error
+        row: 0
+        message: illegal call to relation built-in 'walk' that may cause multiple outputs
+  - note: templatestrings/undeclared-var-some-in-with-undeclared-collection-issue-8157
+    modules:
+      - |
+        package test
+
+        items contains item if {
+        	some label in labels
+        	item := $"{label}"
+        }
+    want_errors:
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var label is unsafe
+      - code: rego_unsafe_var_error
+        row: 4
+        col: 2
+        message: var labels is unsafe

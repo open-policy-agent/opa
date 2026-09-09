@@ -42,7 +42,6 @@ cases:
     # This diagnostic carries no location, which is why the case pins row 0:
     # every other compiler error reports a position, and `opa check` prints this
     # one without a line number. Regenerate the case if that is ever fixed.
-    print_statements: true
     modules:
       - |
         package test
