@@ -1,0 +1,32 @@
+---
+# Generated externalized tests from TestCompilerCheckDuplicateImports
+cases:
+  - note: imports/shadow-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        import input.noconflict
+        import input.foo
+        import data.foo
+        import data.bar.foo
+
+        p := noconflict
+        q := foo
+    compiles: true
+  - note: imports/alias-shadow-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        import input.noconflict
+        import input.foo
+        import input.bar as foo
+
+        p := noconflict
+        q := foo
+    compiles: true

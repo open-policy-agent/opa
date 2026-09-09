@@ -1,0 +1,308 @@
+---
+# Generated externalized tests from TestCompilerCheckUnusedImports
+cases:
+  - note: imports/simple-unused-input-ref-with-same-name-strict
+    rego_version: v0
+    strict: enabled
+    modules:
+      - |
+        package p
+
+        import data.foo.bar as bar
+        r {
+        	input.bar == 11
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: import data.foo.bar as bar unused
+    exhaustive: true
+  - note: imports/simple-unused-input-ref-with-same-name-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package p
+
+        import data.foo.bar as bar
+        r {
+        	input.bar == 11
+        }
+    compiles: true
+  - note: imports/unused-import-but-imported-ref-used-strict
+    rego_version: v0
+    strict: enabled
+    modules:
+      - |
+        package p
+
+        import data.foo # unused
+        r { data.foo == 10 }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: import data.foo unused
+    exhaustive: true
+  - note: imports/unused-import-but-imported-ref-used-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package p
+
+        import data.foo # unused
+        r { data.foo == 10 }
+    compiles: true
+  - note: imports/one-of-two-unused-strict
+    rego_version: v0
+    strict: enabled
+    modules:
+      - |
+        package p
+
+        import data.foo
+        import data.x.power #unused
+        r { foo == 10 }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: import data.x.power unused
+    exhaustive: true
+  - note: imports/one-of-two-unused-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package p
+
+        import data.foo
+        import data.x.power #unused
+        r { foo == 10 }
+    compiles: true
+  - note: imports/multiple-unused-with-input-ref-of-same-name-strict
+    rego_version: v0
+    strict: enabled
+    modules:
+      - |
+        package p
+
+        import data.foo
+        import data.x.power
+        r { input.foo == 10 }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: import data.foo unused
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: import data.x.power unused
+    exhaustive: true
+  - note: imports/multiple-unused-with-input-ref-of-same-name-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package p
+
+        import data.foo
+        import data.x.power
+        r { input.foo == 10 }
+    compiles: true
+  - note: imports/import-used-in-comparison
+    rego_version: v0
+    modules:
+      - |
+        package p
+
+        import data.foo.x
+        r { x == 10 }
+    compiles: true
+  - note: imports/multiple-used-imports-in-one-rule
+    rego_version: v0
+    modules:
+      - |
+        package p
+
+        import data.foo.x
+        import data.power.ranger
+        r { ranger == x }
+    compiles: true
+  - note: imports/multiple-used-imports-in-separate-rules
+    rego_version: v0
+    modules:
+      - |
+        package p
+
+        import data.foo.x
+        import data.power.ranger
+        r { ranger == 23 }
+        t { x == 1 }
+    compiles: true
+  - note: imports/import-used-as-plain-term
+    rego_version: v0
+    modules:
+      - |
+        package p
+
+        import data.foo
+        r {
+        	foo
+        }
+    compiles: true
+  - note: imports/import-used-in-every-domain
+    rego_version: v0
+    modules:
+      - |
+        package p
+
+        import future.keywords.every
+        import data.foo
+        r {
+        	every x in foo { x > 1 }
+        }
+    compiles: true
+  - note: imports/import-used-in-every-body
+    rego_version: v0
+    modules:
+      - |
+        package p
+
+        import future.keywords.every
+        import data.foo
+        r {
+        	every x in [1,2,3] { x > foo }
+        }
+    compiles: true
+  - note: imports/future-import-kept-even-if-unused
+    rego_version: v0
+    modules:
+      - |
+        package p
+
+        import future.keywords
+
+        r { true }
+    compiles: true
+  - note: imports/shadowed-var-name-in-function-arg-strict
+    rego_version: v0
+    strict: enabled
+    modules:
+      - |
+        package p
+
+        import data.foo # unused
+
+        r { f(1) }
+        f(foo) = foo == 1
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: import data.foo unused
+    exhaustive: true
+  - note: imports/shadowed-var-name-in-function-arg-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package p
+
+        import data.foo # unused
+
+        r { f(1) }
+        f(foo) = foo == 1
+    compiles: true
+  - note: imports/shadowed-assigned-var-name-strict
+    rego_version: v0
+    strict: enabled
+    modules:
+      - |
+        package p
+
+        import data.foo # unused
+
+        r { foo := true; foo }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: import data.foo unused
+    exhaustive: true
+  - note: imports/shadowed-assigned-var-name-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package p
+
+        import data.foo # unused
+
+        r { foo := true; foo }
+    compiles: true
+  - note: imports/used-as-rule-value-strict
+    rego_version: v0
+    strict: enabled
+    modules:
+      - |
+        package p
+
+        import data.bar # unused
+        import data.foo
+
+        r = foo { true }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: import data.bar unused
+    exhaustive: true
+  - note: imports/used-as-rule-value-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package p
+
+        import data.bar # unused
+        import data.foo
+
+        r = foo { true }
+    compiles: true
+  - note: imports/unused-as-rule-value-but-same-data-ref-strict
+    rego_version: v0
+    strict: enabled
+    modules:
+      - |
+        package p
+
+        import data.bar # unused
+        import data.foo # unused
+
+        r = data.foo { true }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: import data.bar unused
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: import data.foo unused
+    exhaustive: true
+  - note: imports/unused-as-rule-value-but-same-data-ref-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package p
+
+        import data.bar # unused
+        import data.foo # unused
+
+        r = data.foo { true }
+    compiles: true

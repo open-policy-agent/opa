@@ -54,8 +54,8 @@ func ModuleName(i int) string {
 	return conformance.ModuleName(i)
 }
 
-// TestCase represents a single test case: a set of modules that must fail to
-// compile, and the diagnostics that failure must produce.
+// TestCase represents a single test case: a set of modules, and either the
+// diagnostics compiling them must produce or the assertion that they compile.
 type TestCase struct {
 	Filename             string   `json:"-"                                yaml:"-"`                               // name of file that case was loaded from
 	Note                 string   `json:"note"                             yaml:"note"`                            // globally unique identifier for this test case
@@ -64,8 +64,19 @@ type TestCase struct {
 	Strict               string   `json:"strict,omitempty"                 yaml:"strict,omitempty"`                // enabled, disabled, or absent where strict mode does not change the outcome
 	ExperimentalKeywords bool     `json:"experimental_keywords,omitempty"  yaml:"experimental_keywords,omitempty"` // opt-in to experimental future keywords
 	PrintStatements      bool     `json:"print_statements,omitempty"       yaml:"print_statements,omitempty"`      // keep print() calls instead of erasing them, as required to reach diagnostics about their operands
-	WantErrors           []Error  `json:"want_errors"                      yaml:"want_errors"`                     // diagnostics the compilation must produce
-	Exhaustive           bool     `json:"exhaustive,omitempty"             yaml:"exhaustive,omitempty"`            // require want_errors to be the complete set, not a subset
+
+	// Compiles asserts that the modules compile with no diagnostics at all.
+	//
+	// It is interim, and left out of the corpus README on purpose. It exists only
+	// because a success case has nothing to fill in yet, and on its own it is a
+	// weak assertion — a compiler that does nothing satisfies it. Once the
+	// generator writes want_modules, or want_ast where the compiled form is not
+	// expressible as Rego, these cases carry that instead and this field goes; an
+	// absent want_errors then comes to mean no diagnostics.
+	Compiles bool `json:"compiles,omitempty"  yaml:"compiles,omitempty"`
+
+	WantErrors []Error `json:"want_errors,omitempty"  yaml:"want_errors,omitempty"` // diagnostics the compilation must produce
+	Exhaustive bool    `json:"exhaustive,omitempty"   yaml:"exhaustive,omitempty"`  // require want_errors to be the complete set, not a subset
 }
 
 // Name returns the globally unique note identifying the case.
@@ -79,9 +90,7 @@ func (tc TestCase) WithFilename(filename string) TestCase {
 	return tc
 }
 
-// Failure reports whether tc asserts that the modules fail to compile. Every
-// case is a failure case today; success-case fields are the next thing this
-// schema gains, and Validate is where that relaxes.
+// Failure reports whether tc asserts that the modules fail to compile.
 func (tc TestCase) Failure() bool {
 	return len(tc.WantErrors) > 0
 }
@@ -92,7 +101,9 @@ func (tc TestCase) StrictMode() bool {
 	return tc.Strict == StrictEnabled
 }
 
-// Validate returns an error if tc is not a well-formed case.
+// Validate returns an error if tc is not a well-formed case. A case either
+// asserts diagnostics, with want_errors, or asserts that there are none, with
+// compiles; never both, and never neither.
 func (tc TestCase) Validate() error {
 	switch {
 	case tc.Note == "":
@@ -104,8 +115,12 @@ func (tc TestCase) Validate() error {
 	case tc.Strict != "" && !slices.Contains(Strictnesses, tc.Strict):
 		return fmt.Errorf("unknown 'strict' %q, expected one of %v, or absent where strict mode does not change the outcome",
 			tc.Strict, Strictnesses)
-	case !tc.Failure():
-		return errors.New("expected 'want_errors'; run `make generate` to fill it in")
+	case tc.Compiles && tc.Failure():
+		return errors.New("'compiles' and 'want_errors' are mutually exclusive")
+	case tc.Compiles && tc.Exhaustive:
+		return errors.New("'exhaustive' only applies to a case asserting 'want_errors'")
+	case !tc.Compiles && !tc.Failure():
+		return errors.New("expected 'want_errors' or 'compiles'; run `make generate` to fill the diagnostics in")
 	}
 
 	for i, module := range tc.Modules {

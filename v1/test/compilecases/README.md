@@ -41,8 +41,8 @@ quietly rewritten — the messages are user-facing contract, and the corpus is t
 place that says so. To re-seed a case after a deliberate change, delete its
 `want_errors` and regenerate.
 
-Every case must assert `want_errors`. A case whose modules compile is rejected
-by the generator rather than committed as an empty assertion.
+A case has to assert something, so one that neither reports diagnostics nor states
+what compiling its modules produces is rejected.
 
 A module must not carry trailing whitespace on a line. A YAML emitter will not
 write a block scalar for such a value, so the generator — which rewrites the
@@ -130,8 +130,9 @@ testdata/v0/<area>/<file>.yaml
 testdata/v1/<area>/<file>.yaml
 ```
 
-The top level is the Rego version and below it is the language area — `safety/`,
-`print/` — not the outcome. A directory that meant "these fail" would say nothing
+The top level is the Rego version and below it is the language area — `builtins/`,
+`functions/`, `imports/`, `keywords/`, `print/`, `safety/`, `templatestrings/`,
+`vars/` — not the outcome. A directory that meant "these fail" would say nothing
 that `want_errors` does not, while costing the grouping that puts a rule and its
 counter-example side by side.
 

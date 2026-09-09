@@ -115,8 +115,16 @@ func TestGenerateReproducesCommittedFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(committed.Cases) == 0 {
-		t.Fatal("expected the committed corpus to hold cases")
+	// Only a failure case has want_errors to strip; a compiles case asserts that
+	// there is nothing to fill in.
+	var failures int
+	for _, tc := range committed.Cases {
+		if tc.Failure() {
+			failures++
+		}
+	}
+	if failures == 0 {
+		t.Fatal("expected the committed corpus to hold failure cases")
 	}
 
 	dir := t.TempDir()
@@ -158,8 +166,8 @@ func TestGenerateReproducesCommittedFixtures(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if stripped != len(committed.Cases) {
-		t.Fatalf("expected to strip want_errors from all %d cases, stripped %d", len(committed.Cases), stripped)
+	if stripped != failures {
+		t.Fatalf("expected to strip want_errors from all %d failure cases, stripped %d", failures, stripped)
 	}
 
 	if err := Generate(dir); err != nil {
@@ -335,7 +343,7 @@ cases:
 
         p := 1
 `,
-			wantErr: "the modules compile and the case asserts nothing",
+			wantErr: "the modules compile; add 'compiles: true' if that is the assertion",
 		},
 		{
 			note: "a module that does not parse",
@@ -382,5 +390,68 @@ cases:
 				t.Errorf("expected the file to be untouched, got:\n%s", string(bs))
 			}
 		})
+	}
+}
+
+func TestGenerateAcceptsCompiles(t *testing.T) {
+	corpus := `---
+cases:
+  - note: safety/compiles
+    compiles: true
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := 1
+        	x == 1
+        }
+`
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-cases.yaml")
+	if err := os.WriteFile(path, []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Generate(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	// The assertion is that there is nothing to fill in, so the file is untouched.
+	bs, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bs) != corpus {
+		t.Errorf("expected the file to be untouched, got:\n%s", string(bs))
+	}
+}
+
+func TestGenerateRejectsCompilesThatDoesNot(t *testing.T) {
+	corpus := `---
+cases:
+  - note: safety/does-not-compile
+    compiles: true
+    modules:
+      - |
+        package test
+
+        p if {
+        	x == 2
+        }
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test-cases.yaml"), []byte(corpus), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := Generate(dir)
+	if err == nil {
+		t.Fatal("expected generation to be rejected")
+	}
+	if want := "asserts 'compiles', but the modules report 1 diagnostic(s)"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected an error containing %q, got %v", want, err)
 	}
 }

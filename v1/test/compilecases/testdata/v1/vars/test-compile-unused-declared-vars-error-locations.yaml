@@ -1,0 +1,78 @@
+---
+# Generated externalized tests from TestCompileUnusedDeclaredVarsErrorLocations
+cases:
+  - note: vars/simple-unused-some-var-issue-4238-regression-test
+    modules:
+      - |
+        package test
+
+        foo if {
+        	print("Hello world")
+        	some i
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: declared var i unused
+    exhaustive: true
+  - note: vars/simple-unused-some-vars-2x-rules
+    modules:
+      - |
+        package test
+
+        foo if {
+        	print("Hello world")
+        	some i
+        }
+
+        bar if {
+        	print("Hello world")
+        	some j
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 2
+        message: declared var i unused
+      - code: rego_compile_error
+        row: 10
+        col: 2
+        message: declared var j unused
+    exhaustive: true
+  - note: vars/multiple-unused-some-vars
+    modules:
+      - |
+        package test
+
+        x := [1, 1, 1]
+        foo2 if {
+        	print("A")
+        	some a, b, c
+        	some i, j
+        	some k
+        	x[b] == 1
+        	print("B")
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: declared var a unused
+      - code: rego_compile_error
+        row: 6
+        col: 2
+        message: declared var c unused
+      - code: rego_compile_error
+        row: 7
+        col: 2
+        message: declared var i unused
+      - code: rego_compile_error
+        row: 7
+        col: 2
+        message: declared var j unused
+      - code: rego_compile_error
+        row: 8
+        col: 2
+        message: declared var k unused
+    exhaustive: true

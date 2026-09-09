@@ -79,11 +79,18 @@ func generateFile(path string, mode fs.FileMode) error {
 		}
 
 		switch {
+		case tc.Compiles && len(got) > 0:
+			return fmt.Errorf("%s: %s: the case asserts 'compiles', but the modules report %d diagnostic(s), starting with %s",
+				path, tc.Note, len(got), got[0])
+
+		case tc.Compiles:
+			// Nothing to fill in: the assertion is that there is nothing to fill in.
+
 		case len(got) == 0 && tc.Failure():
 			return fmt.Errorf("%s: %s: the case asserts 'want_errors', but the modules compile", path, tc.Note)
 
 		case len(got) == 0:
-			return fmt.Errorf("%s: %s: the modules compile and the case asserts nothing; a corpus case has to assert something", path, tc.Note)
+			return fmt.Errorf("%s: %s: the modules compile; add 'compiles: true' if that is the assertion", path, tc.Note)
 
 		case !tc.Failure():
 			// Fill in the diagnostics only where the case has none. A message

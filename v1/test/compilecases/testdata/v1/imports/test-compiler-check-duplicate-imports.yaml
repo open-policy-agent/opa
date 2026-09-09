@@ -1,0 +1,42 @@
+---
+# Generated externalized tests from TestCompilerCheckDuplicateImports
+cases:
+  - note: imports/shadow-strict
+    modules:
+      - |
+        package test
+
+        import input.noconflict
+        import input.foo
+        import data.foo
+        import data.bar.foo
+
+        p := noconflict
+        q := foo
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 1
+        message: import must not shadow import input.foo
+      - code: rego_compile_error
+        row: 6
+        col: 1
+        message: import must not shadow import input.foo
+    exhaustive: true
+  - note: imports/alias-shadow-strict
+    modules:
+      - |
+        package test
+
+        import input.noconflict
+        import input.foo
+        import input.bar as foo
+
+        p := noconflict
+        q := foo
+    want_errors:
+      - code: rego_compile_error
+        row: 5
+        col: 1
+        message: import must not shadow import input.foo
+    exhaustive: true

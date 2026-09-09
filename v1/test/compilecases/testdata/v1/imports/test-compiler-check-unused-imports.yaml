@@ -1,0 +1,27 @@
+---
+# Generated externalized tests from TestCompilerCheckUnusedImports
+cases:
+  - note: imports/ignore-unused-rego-import
+    modules:
+      - |
+        package p
+
+        import rego.v1
+        r if { 10 == 10 }
+    compiles: true
+  - note: imports/import-used-as-function-operand
+    modules:
+      - |
+        package p
+
+        import data.foo
+        r = count(foo) > 1 # only one operand
+    compiles: true
+  - note: imports/import-used-as-function-operand-compount-term
+    modules:
+      - |
+        package p
+
+        import data.foo
+        r = sprintf("%v %d", [foo, 0])
+    compiles: true

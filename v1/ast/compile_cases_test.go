@@ -25,10 +25,6 @@ func TestCompileCases(t *testing.T) {
 func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 	t.Helper()
 
-	if len(tc.WantErrors) == 0 {
-		t.Fatalf("%s: expected at least one entry in 'want_errors'", tc.Filename)
-	}
-
 	regoVersion, err := caseRegoVersion(tc.RegoVersion)
 	if err != nil {
 		t.Fatalf("%s: %v", tc.Filename, err)
@@ -62,13 +58,20 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 
 	c.Compile(modules)
 
-	if !c.Failed() {
-		t.Fatal("expected compilation to fail, but it succeeded")
-	}
-
 	got := make([]conformance.Error, 0, len(c.Errors))
 	for _, e := range c.Errors {
 		got = append(got, caseError(e))
+	}
+
+	if tc.Compiles {
+		if len(got) > 0 {
+			t.Fatalf("%s: expected the modules to compile, got:%s", tc.Filename, indented(got))
+		}
+		return
+	}
+
+	if len(got) == 0 {
+		t.Fatalf("%s: expected compilation to fail, but it succeeded", tc.Filename)
 	}
 
 	assertCaseErrors(t, tc.Filename, tc.WantErrors, got, tc.Exhaustive)

@@ -1,0 +1,277 @@
+---
+# Generated externalized tests from TestCheckUnusedFunctionArgVars
+cases:
+  - note: functions/one-of-the-two-function-args-is-not-used-issue-5602-regression-test
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        func(x, y) if {
+        	x = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: functions/one-of-the-two-ref-head-function-args-is-not-used
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        a.b.c.func(x, y) if {
+        	x = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: functions/multiple-unused-argvar-in-scope-issue-5602-regression-test
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        func(x, y) if {
+        	input.baz = 1
+        	input.test == "foo"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument x. (hint: use _ (wildcard variable) instead)'
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: functions/some-unused-argvar-in-scope-issue-5602-regression-test
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        func(x, y) if {
+        	input.test == "foo"
+        	x = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: functions/wildcard-argvar-that-s-ignored-issue-5602-regression-test
+    modules:
+      - |
+        package test
+
+        func(x, _) if {
+        	input.test == "foo"
+        	x = 1
+        }
+    compiles: true
+  - note: functions/wildcard-argvar-that-s-ignored-issue-5602-regression-test-2
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        func(x, _) if {
+        	input.test == "foo"
+         }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument x. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: functions/argvar-not-used-in-body-but-in-head-issue-5602-regression-test
+    modules:
+      - |
+        package test
+
+        func(x) := x if {
+        	input.test == "foo"
+        }
+    compiles: true
+  - note: functions/argvar-not-used-in-body-but-in-head-value-comprehension
+    modules:
+      - |
+        package test
+
+        a := {"foo": 1}
+        func(x) := { x: v | v := a[x] } if {
+        	input.test == "foo"
+        }
+    compiles: true
+  - note: functions/argvar-not-used-in-body-but-in-else-head-value-comprehension
+    modules:
+      - |
+        package test
+
+        a := {"foo": 1}
+        func(x) if {
+        	input.test == "foo"
+        } else := { x: v | v := a[x] } if {
+        	input.test == "bar"
+        }
+    compiles: true
+  - note: functions/argvar-not-used-in-body-and-shadowed-in-head-value-comprehension
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        a := {"foo": 1}
+        func(x) := { x: v | x := "foo"; v := a[x] } if {
+        	input.test == "foo"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 4
+        col: 1
+        message: 'unused argument x. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: functions/argvar-used-in-primary-body-but-not-in-else-body
+    modules:
+      - |
+        package test
+
+        func(x) if {
+        	input.test == x
+        } else := false if {
+        	input.test == "foo"
+        }
+    compiles: true
+  - note: functions/argvar-used-in-primary-body-but-not-in-else-body-with-wildcard
+    modules:
+      - |
+        package test
+
+        func(x, _) if {
+        	input.test == x
+        } else := false if {
+        	input.test == "foo"
+        }
+    compiles: true
+  - note: functions/argvar-not-used-in-primary-body-but-in-else-body
+    modules:
+      - |
+        package test
+
+        func(x) if {
+        	input.test == "foo"
+        } else := false if {
+        	input.test == x
+        }
+    compiles: true
+  - note: functions/argvar-not-used-in-primary-body-but-in-else-body-with-wildcard
+    modules:
+      - |
+        package test
+
+        func(x, _) if {
+        	input.test == "foo"
+        } else := false if {
+        	input.test == x
+        }
+    compiles: true
+  - note: functions/argvar-used-in-primary-body-but-not-in-implicit-else-body
+    modules:
+      - |
+        package test
+
+        func(x) if {
+        	input.test == x
+        } else := false
+    compiles: true
+  - note: functions/argvars-usage-spread-over-multiple-bodies
+    modules:
+      - |
+        package test
+
+        func(x, y, z) if {
+        	input.test == x
+        } else if {
+        	input.test == y
+        } else if {
+        	input.test == z
+        }
+    compiles: true
+  - note: functions/argvars-usage-spread-over-multiple-bodies-missing-in-first
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        func(x, y, z) if {
+        	input.test == "foo"
+        } else if {
+        	input.test == y
+        } else if {
+        	input.test == z
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument x. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: functions/argvars-usage-spread-over-multiple-bodies-missing-in-second
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        func(x, y, z) if {
+        	input.test == x
+        } else if {
+        	input.test == "bar"
+        } else if {
+        	input.test == z
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: functions/argvars-usage-spread-over-multiple-bodies-missing-in-third
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        func(x, y, z) if {
+        	input.test == x
+        } else if {
+        	input.test == y
+        } else if {
+        	input.test == "baz"
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument z. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: functions/unused-default-function-argvar
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        default func(x) := 0
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 9
+        message: 'unused argument x. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true

@@ -58,3 +58,11 @@ func assertCaseErrors(t *testing.T, filename string, want, got []conformance.Err
 
 	t.Fatalf("%s: diagnostics do not match:%s", filename, sb.String())
 }
+
+func indented(errs []conformance.Error) string {
+	var sb strings.Builder
+	for _, e := range errs {
+		fmt.Fprintf(&sb, "\n  %s", e)
+	}
+	return sb.String()
+}

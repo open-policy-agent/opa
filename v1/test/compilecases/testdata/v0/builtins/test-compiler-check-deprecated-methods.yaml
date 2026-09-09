@@ -1,0 +1,30 @@
+---
+# Generated externalized tests from TestCompilerCheckDeprecatedMethods
+cases:
+  - note: builtins/all-built-in-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p := all([true, false])
+    compiles: true
+  - note: builtins/any-built-in-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p := any([true, false])
+    compiles: true
+  - note: builtins/re-match-built-in-non-strict
+    rego_version: v0
+    strict: disabled
+    modules:
+      - |
+        package test
+
+        p := re_match("[a]", "a")
+    compiles: true

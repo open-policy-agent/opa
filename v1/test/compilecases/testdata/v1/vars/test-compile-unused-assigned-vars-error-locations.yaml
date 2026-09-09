@@ -1,0 +1,52 @@
+---
+# Generated externalized tests from TestCompileUnusedAssignedVarsErrorLocations
+cases:
+  - note: vars/one-of-the-two-function-args-is-not-used-issue-5662-regression-test
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        func(x, y) if {
+        	x = 1
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 3
+        col: 1
+        message: 'unused argument y. (hint: use _ (wildcard variable) instead)'
+    exhaustive: true
+  - note: vars/multiple-unused-assigned-var-in-scope-issue-5662-regression-test
+    strict: enabled
+    modules:
+      - |
+        package test
+
+        allow if {
+        	input.message == "world"
+        	input.test == "foo"
+        	input.x == "foo"
+        	input.y == "baz"
+        	a := 1
+        	b := 2
+        	x := {
+        		"a": a,
+        		"b": "bar",
+        	}
+        	input.z == "baz"
+        	c := 3
+        }
+    want_errors:
+      - code: rego_compile_error
+        row: 9
+        col: 2
+        message: assigned var b unused
+      - code: rego_compile_error
+        row: 10
+        col: 2
+        message: assigned var x unused
+      - code: rego_compile_error
+        row: 15
+        col: 2
+        message: assigned var c unused
+    exhaustive: true

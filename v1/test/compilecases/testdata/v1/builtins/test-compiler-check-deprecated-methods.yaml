@@ -1,0 +1,57 @@
+---
+# Generated externalized tests from TestCompilerCheckDeprecatedMethods
+cases:
+  - note: builtins/all-built-in-strict
+    modules:
+      - |
+        package test
+
+        p := all([true, false])
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 6
+        message: 'deprecated built-in function calls in expression: all'
+    exhaustive: true
+  - note: builtins/user-defined-all
+    modules:
+      - |
+        package test
+
+        import future.keywords.in
+        all(arr) = {x | some x in arr} == {true}
+        p := all([true, false])
+    compiles: true
+  - note: builtins/any-built-in-strict
+    modules:
+      - |
+        package test
+
+        p := any([true, false])
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 6
+        message: 'deprecated built-in function calls in expression: any'
+    exhaustive: true
+  - note: builtins/user-defined-any
+    modules:
+      - |
+        package test
+
+        import future.keywords.in
+        any(arr) := true in arr
+        p := any([true, false])
+    compiles: true
+  - note: builtins/re-match-built-in-strict
+    modules:
+      - |
+        package test
+
+        p := re_match("[a]", "a")
+    want_errors:
+      - code: rego_type_error
+        row: 3
+        col: 6
+        message: 'deprecated built-in function calls in expression: re_match'
+    exhaustive: true
