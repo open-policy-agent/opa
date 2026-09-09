@@ -872,7 +872,28 @@ func TestTypes(t *testing.T) {
 			t.Fatalf("Expected output to contain %q but got: %v", exp[i], output)
 		}
 	}
+}
 
+func TestUndefined(t *testing.T) {
+	bbuf := new(bytes.Buffer)
+	repl := newRepl(inmem.New(), bbuf)
+
+	assertOutput := func(input, exp string) {
+		if err := repl.OneShot(t.Context(), input); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if got := strings.TrimSpace(bbuf.String()); got != exp {
+			t.Fatalf("Expected output to be %q but got: %v", exp, got)
+		}
+		bbuf.Reset()
+	}
+
+	assertOutput("input.undefined", "undefined")
+
+	bbuf.Reset()
+	repl = repl.DisableUndefinedOutput(true)
+
+	assertOutput("input.undefined", "")
 }
 
 func TestUnknown(t *testing.T) {

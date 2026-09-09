@@ -303,6 +303,8 @@ func Pretty(w io.Writer, errW io.Writer, r Output) error {
 
 type PrettyOptions struct {
 	TraceOpts topdown.PrettyTraceOptions
+	// UndefinedPrintsEmpty causes undefined results to be printed as empty instead of "undefined", when true.
+	UndefinedPrintsEmpty bool
 }
 
 // PrettyWithOptions prints all of r to w in a human-readable format, errors are written to errW
@@ -317,7 +319,11 @@ func PrettyWithOptions(w io.Writer, errW io.Writer, r Output, opts PrettyOptions
 			return err
 		}
 	} else if r.undefined() {
-		fmt.Fprintln(w, "undefined")
+		if opts.UndefinedPrintsEmpty {
+			fmt.Fprintln(w)
+		} else {
+			fmt.Fprintln(w, "undefined")
+		}
 	} else if r.Result != nil {
 		if err := prettyResult(w, r.Result, r.limit); err != nil {
 			return err
