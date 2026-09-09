@@ -55,7 +55,7 @@ so the module stays exactly as authored.
 | `note` | globally unique identifier, and the subtest name |
 | `modules` | the policies to compile, named `test-0.rego`, `test-1.rego`, … |
 | `rego_version` | `v0`, `v1` (default), or `v0-compat-v1` |
-| `strict` | enable the compiler's strict mode |
+| `strict` | `enabled`, `disabled`, or absent — see [Strict mode](#strict-mode) |
 | `experimental_keywords` | opt-in to experimental future keywords, which have no import |
 | `print_statements` | keep `print()` calls instead of erasing them, as required to reach diagnostics about their operands |
 | `want_errors` | diagnostics the compilation must produce, as `module`/`code`/`row`/`col`/`message` |
@@ -143,6 +143,40 @@ case per version rather than translating between them.
 `testdata/testdata.go` embeds the corpus so that tools outside this repository
 can consume it, as `v1/test/cases/testdata` does for the evaluation cases.
 
+## Strict mode
+
+Strict mode is a boolean in OPA's compiler, but whether a *consumer* can switch it
+is not: an implementation may have no strict mode at all, or may apply the checks
+unconditionally. So a case does not carry the setting as a boolean — it says
+whether its expectations depend on it.
+
+| `strict` | compile with | means |
+| - | - | - |
+| absent | either; OPA's runner uses off | the case asserts the same thing both ways |
+| `enabled` | strict on | the expectations depend on strict being on |
+| `disabled` | strict off | the expectations depend on strict being off |
+
+Both halves of that are load-bearing, and both are enforced rather than trusted.
+`TestStrictIsImmaterialWhereUnset` compiles every unset case both ways and fails
+if the diagnostics differ; `TestStrictMattersWhereSet` fails if a case names a
+setting it does not need, since that excludes consumers for nothing. Every
+diagnostic is compared, not only those the case asserts — a check strict mode adds
+under a different code still makes the setting matter.
+
+`disabled` is not hypothetical. `p(x) foobar if { x == 2 }` reports
+`var x is unsafe in rule foobar` with strict off and `unused argument x` with it
+on: two diagnostics about different things, and only the first is what the case is
+about.
+
+An implementation whose strict mode is switchable runs the whole corpus. One whose
+is not filters, and the absent cases are the ones it keeps either way:
+
+```go
+sets, err := cases.LoadCompilerTestCasesFiltered(
+	[]cases.Filters{cases.StrictModeFilter(compilecases.StrictDisabled)}, // no strict mode
+)
+```
+
 ## Consuming the corpus from Go
 
 The embedded YAML is the corpus, so a consumer that wants only the committed
@@ -158,9 +192,10 @@ sets, err := cases.LoadCompilerTestCasesFiltered(
 `RegoVersionFilter` marks `Ignore` on every case written for a version you do not
 parse. Matching is exact: `v0-compat-v1` is its own parsing mode, so supporting
 `v0` or `v1` does not imply it, and passing no version filters nothing rather
-than rejecting the whole corpus. A rejected case is marked, never removed — the
-corpus stays addressable by index, and what you do with an ignored case is your
-own business.
+than rejecting the whole corpus. `StrictModeFilter` does the same for the strict
+setting a case pins — see [Strict mode](#strict-mode). A rejected case is marked,
+never removed: the corpus stays addressable by index, and what you do with an
+ignored case is your own business.
 
 `CapabilitiesFilter`, which the parser corpus pairs with `WithIR`, has no
 counterpart here yet: it filters on the builtins a plan calls, and this corpus

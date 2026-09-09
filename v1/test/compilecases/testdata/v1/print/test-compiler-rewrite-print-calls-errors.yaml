@@ -69,6 +69,7 @@ cases:
         message: var x is undeclared
     exhaustive: true
   - note: print/declared-var-shadowed-inside-comprehension
+    strict: disabled
     print_statements: true
     modules:
       - |

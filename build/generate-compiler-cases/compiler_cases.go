@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"slices"
 
 	"github.com/open-policy-agent/opa/build/internal/corpusgen"
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -38,6 +39,27 @@ type Filters func(*CompilerTestCase) bool
 func RegoVersionFilter(versions ...ast.RegoVersion) Filters {
 	return func(tc *CompilerTestCase) bool {
 		return corpusgen.RegoVersionRejected(tc.RegoVersion, versions)
+	}
+}
+
+// StrictModeFilter will filter out any test case that pins a strict mode setting
+// the consumer cannot produce. Pass the settings your compiler can be run under:
+//
+//	StrictModeFilter(compilecases.StrictDisabled)  // no strict mode, or always off
+//	StrictModeFilter(compilecases.StrictEnabled)   // strict checks are unconditional
+//
+// A compiler whose strict mode is switchable supports both, which is what passing
+// neither means — an empty set filters nothing.
+//
+// Cases that leave strict unset always pass, whatever is named here: an absent
+// value means the case asserts the same thing either way, which
+// TestStrictIsImmaterialWhereUnset enforces rather than assumes.
+func StrictModeFilter(supported ...string) Filters {
+	return func(tc *CompilerTestCase) bool {
+		if tc.Strict == "" || len(supported) == 0 {
+			return false
+		}
+		return !slices.Contains(supported, tc.Strict)
 	}
 }
 

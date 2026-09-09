@@ -6,6 +6,10 @@ cases:
   - note: safety/unsafe-var-names-rule-declared-after-another-on-line
     # `foobar` is not a keyword, so this is rule `p` followed by rule `foobar`,
     # and the error is reported against a line the author reads as p's.
+    #
+    # Strict mode reports `unused argument x` here instead, which is a different
+    # diagnostic about a different thing, so the case pins strict mode off.
+    strict: disabled
     modules:
       - |
         package test

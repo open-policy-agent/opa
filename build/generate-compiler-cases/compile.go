@@ -52,7 +52,7 @@ func compileCase(tc compilecases.TestCase) ([]conformance.Error, error) {
 	// record a truncated set. The runner lifts the limit for the same reason.
 	c := ast.NewCompiler().
 		SetErrorLimit(0).
-		WithStrict(tc.Strict).
+		WithStrict(tc.StrictMode()).
 		WithEnablePrintStatements(tc.PrintStatements)
 
 	c.Compile(modules)

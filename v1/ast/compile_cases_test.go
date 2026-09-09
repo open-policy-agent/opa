@@ -57,7 +57,7 @@ func runCompileCase(t *testing.T, tc compilecases.TestCase) {
 	// for the same reason.
 	c := NewCompiler().
 		SetErrorLimit(0).
-		WithStrict(tc.Strict).
+		WithStrict(tc.StrictMode()).
 		WithEnablePrintStatements(tc.PrintStatements)
 
 	c.Compile(modules)
